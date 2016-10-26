@@ -12,7 +12,7 @@ from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.values import modifies_value
 
-import ceam.components.healthcare_access
+import ceam_public_health.components.healthcare_access
 
 #TODO: This feels like configuration but is difficult to express in ini type files.
 MEDICATIONS = [
@@ -137,7 +137,7 @@ class OpportunisticScreening:
         affected_population = affected_population[affected_population.age >= minimum_age_to_screen]
 
         year = event.time.year
-        appointment_cost = ceam.components.healthcare_access.appointment_cost[year]
+        appointment_cost = ceam_public_health.components.healthcare_access.appointment_cost[year]
         cost_per_simulant = appointment_cost * 0.25  # see CE-94 for discussion
         self.cost_by_year[year] += cost_per_simulant * len(affected_population)
 
@@ -161,7 +161,7 @@ class OpportunisticScreening:
     @listens_for('followup_healthcare_access')
     def followup_blood_pressure_test(self, event):
         year = event.time.year
-        appointment_cost = ceam.components.healthcare_access.appointment_cost[year]
+        appointment_cost = ceam_public_health.components.healthcare_access.appointment_cost[year]
         cost_per_simulant = appointment_cost
 
         affected_population = self.population_view.get(event.index)

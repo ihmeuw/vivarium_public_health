@@ -1,0 +1,5 @@
+numpy
+pandas
+mock
+scipy
+-e git+ssh://git@stash.ihme.washington.edu:7999/cste/ceam-inputs.git#egg=ceam_inputs
