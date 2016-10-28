@@ -30,7 +30,7 @@ class Smoking:
 
     def setup(self, builder):
 
-        self.load_prevelence(builder)
+        self.exposure = builder.lookup(get_exposures(risk_id=166))
 
         self.load_reletive_risks(builder)
 
@@ -50,13 +50,6 @@ class Smoking:
     @uses_columns(['smoking_susceptibility'])
     def load_susceptibility(self, event):
         event.population_view.update(pd.Series(self.randomness.get_draw(event.index)*0.98+0.01, name='smoking_susceptibility'))
-
-    def load_prevelence(self, builder):
-        year_start = config.getint('simulation_parameters', 'year_start')
-        year_end = config.getint('simulation_parameters', 'year_end')
-        location_id = config.getint('simulation_parameters', 'location_id')
-
-        self.exposure = builder.lookup(get_exposures(risk_id=166))
 
     def load_reletive_risks(self, builder):
         self.ihd_rr = builder.lookup(get_relative_risks(risk_id=166, cause_id=493))
