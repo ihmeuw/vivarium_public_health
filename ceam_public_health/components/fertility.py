@@ -79,4 +79,4 @@ class Fertility:
     @creates_simulants
     def add_child(self, index, creator):
         if len(index) > 0:
-            creator(len(index), population_configuration={'initial_age': 1})
+            creator(len(index), population_configuration={'initial_age': 0})
