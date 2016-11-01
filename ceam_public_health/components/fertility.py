@@ -9,6 +9,8 @@ from ceam import config
 
 from ceam.framework.util import rate_to_probability, from_yearly
 
+from ceam_inputs import get_age_specific_fertility_rates
+
 from ceam.framework.state_machine2 import Transition, TransitionSet, record_event_time, active_after_delay, new_state_side_effect
 from ceam.framework.event import listens_for
 from ceam.framework.values import produces_value
@@ -45,6 +47,9 @@ class Fertility:
         self.conception_rate = builder.rate('fertility.conception_rate')
         self.randomness = builder.randomness('initial_fertility')
 
+        # TODO: Use the uncertainty bounds that this table has for some but not all locations
+        self.asfr = builder.lookup(get_age_specific_fertility_rates()[['year', 'age', 'mean_value']], key_columns=(), parameter_columns=('year', 'age',))
+
         return [self.transitions]
 
     @listens_for('time_step')
@@ -53,19 +58,18 @@ class Fertility:
         self.transitions.transition(event.population.pregnancy)
 
     @produces_value('fertility.conception_rate')
-    @uses_columns(['fertility', 'fractional_age'], 'pregnancy == "not_pregnant"')
+    @uses_columns(['fertility'], 'pregnancy == "not_pregnant"')
     def base_conception_rate(self, index, population_view):
         pop = population_view.get(index)
-        reproductive_age_dist = norm.pdf((pop.fractional_age-25)/4)
-        age_adjusted_fertility = pop.fertility * reproductive_age_dist
-        return age_adjusted_fertility/0.35 # scale to make the total fertility rate roughly match Africa's
+
+        return self.asfr(index) * pop.fertility
 
     @listens_for('initialize_simulants')
     @uses_columns(['sex', 'fertility'])
     def make_fertility_column(self, event):
         fertility = pd.Series(0.0, name='fertility', index=event.index)
         women = event.population.sex == 'Female'
-        fertility[women] = self.randomness.get_draw(event.index[women])
+        fertility[women] = self.randomness.get_draw(event.index[women])*2
         event.population_view.update(fertility)
 
     @listens_for('initialize_simulants')
