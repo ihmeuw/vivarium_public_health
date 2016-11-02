@@ -9,11 +9,11 @@ import numpy as np
 
 from ceam import config
 
-from .event import listens_for
-from .population import uses_columns
-from .values import modifies_value, produces_value
-from .util import rate_to_probability
-from .state_machine import Machine, State, Transition, TransitionSet
+from ceam.framework.event import listens_for
+from ceam.framework.population import uses_columns
+from ceam.framework.values import modifies_value, produces_value
+from ceam.framework.util import rate_to_probability
+from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
 import numbers
 
 from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states, get_proportion
