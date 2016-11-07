@@ -63,10 +63,10 @@ class BodyMassIndex:
         new_bmi = self.bmi_distributions(event.index)(event.population.bmi_percentile)
         event.population_view.update(pd.Series(new_bmi, name='bmi', index=event.index))
 
-    @uses_columns(['bmi', 'systolic_blood_pressure'])
+    @uses_columns(['bmi'])
     def incidence_rates(self, index, rates, population_view, rr_lookup):
         population = population_view.get(index)
         rr = rr_lookup(index)
 
-        rates *= np.maximum(rr.values**((population.systolic_blood_pressure - 21) / 5).values, 1)
+        rates *= np.maximum(rr.values**((population.bmi - 21) / 5).values, 1)
         return rates
