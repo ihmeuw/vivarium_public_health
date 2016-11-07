@@ -46,6 +46,7 @@ class Smoking:
 
         self.randomness = builder.randomness('smoking')
 
+    # FIXME: Think this should listen for time step as well. We want a simulant's status to be able to change each time step
     @listens_for('initialize_simulants')
     @uses_columns(['smoking_susceptibility'])
     def load_susceptibility(self, event):
