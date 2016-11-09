@@ -139,18 +139,18 @@ class IncidenceRateTransition(Transition):
         return 'IncidenceRateTransition("{0}", "{1}", "{2}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label, self.modelable_entity_id)
 
 
-RemissionRateTransition(Transition):
+class RemissionRateTransition(Transition):
     def __init__(self, output, rate_label, modelable_entity_id):
         Transition.__init__(self, output, self.probability)
 
         self.rate_label = rate_label
         self.modelable_entity_id = modelable_entity_id
 
+    # TODO: Think about how risks and remission works. Is there mediation? 
     def setup(self, builder):
         self.remission_rates = produces_value('remission_rate.{}'.format(self.rate_label))(self.remission_rates)
         self.effective_remission = builder.rate('remission_rate.{}'.format(self.rate_label))
-        self.effective_remission.source = self.incidence_rates
-        self.joint_paf = builder.value('paf.{}'.format(self.rate_label))
+        self.effective_remission.source = self.remission_rates
         self.base_remission = builder.lookup(get_remission(self.modelable_entity_id))
 
     def probability(self, index):
@@ -158,9 +158,8 @@ RemissionRateTransition(Transition):
 
     def remission_rates(self, index):
         base_rates = self.base_remission(index)
-        joint_mediated_paf = self.joint_paf(index)
 
-        return pd.Series(base_rates.values * joint_mediated_paf.values, index=index)
+        return base_rates
 
     def __str__(self):
         return 'RemissionRateTransition("{0}", "{1}", "{2}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label, self.modelable_entity_id)

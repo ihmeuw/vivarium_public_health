@@ -38,13 +38,11 @@ class UnsafeSanitation:
 
         self.randomness = builder.randomness('unsafe_sanitation')
 
-    # FIXME: Think this should listen for time step as well. We want a simulant's status to be able to change each time step
     @listens_for('initialize_simulants')
     # TODO: susceptibility isn't the term we want to use here. need a better term, but can't think of what we want right now -- Everett 11/7
     @uses_columns(['unsafe_sanitation_susceptibility'])
     def load_susceptibility(self, event):
-        # TODO: Confirm what the *.98 + .01 is doing in line below
-        event.population_view.update(pd.Series(self.randomness.get_draw(event.index)*0.98+0.01, name='unsafe_sanitation_susceptiblity'))
+        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='unsafe_sanitation_susceptiblity'))
 
     def load_relative_risks(self, builder):
         self.diarrhea_rr = builder.lookup(get_relative_risks(risk_id=84, cause_id=302))
