@@ -13,7 +13,7 @@ from ceam.framework.population import uses_columns
 from ceam_inputs import get_pafs, get_relative_risks, get_exposures
 
 
-class Unsafe_Sanitation:
+class UnsafeSanitation:
     """
     Model unsafe sanitation. Simulants will be exposed to unsafe sanitation at any moment based on whether their `unsafe_sanitation_susceptibility` is less than
     the current unsafe sanitation prevalence for their demographic.
