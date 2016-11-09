@@ -139,6 +139,33 @@ class IncidenceRateTransition(Transition):
         return 'IncidenceRateTransition("{0}", "{1}", "{2}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label, self.modelable_entity_id)
 
 
+RemissionRateTransition(Transition):
+    def __init__(self, output, rate_label, modelable_entity_id):
+        Transition.__init__(self, output, self.probability)
+
+        self.rate_label = rate_label
+        self.modelable_entity_id = modelable_entity_id
+
+    def setup(self, builder):
+        self.remission_rates = produces_value('remission_rate.{}'.format(self.rate_label))(self.remission_rates)
+        self.effective_remission = builder.rate('remission_rate.{}'.format(self.rate_label))
+        self.effective_remission.source = self.incidence_rates
+        self.joint_paf = builder.value('paf.{}'.format(self.rate_label))
+        self.base_remission = builder.lookup(get_remission(self.modelable_entity_id))
+
+    def probability(self, index):
+        return rate_to_probability(self.effective_remission(index))
+
+    def remission_rates(self, index):
+        base_rates = self.base_remission(index)
+        joint_mediated_paf = self.joint_paf(index)
+
+        return pd.Series(base_rates.values * joint_mediated_paf.values, index=index)
+
+    def __str__(self):
+        return 'RemissionRateTransition("{0}", "{1}", "{2}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label, self.modelable_entity_id)
+
+
 class ProportionTransition(Transition):
     def __init__(self, output, modelable_entity_id=None, proportion=None):
         Transition.__init__(self, output, self.probability)

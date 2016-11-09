@@ -1,6 +1,6 @@
 from ceam import config
 from ceam.framework.state_machine import Transition, State, TransitionSet
-from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, IncidenceRateTransition, ProportionTransition
+from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, IncidenceRateTransition, ProportionTransition, RemissionRateTransition
 
 
 def diarrhea_factory():
@@ -19,20 +19,12 @@ def diarrhea_factory():
 
     healthy.transition_set.extend([diarrhea_transition])
   
-    # TODO: Implement the etiologic split here. Should etiology be an attribute?
-    # TODO: Can we use the proportions as probabilities here?
-    # TODO:     
-
-    # Transition to treatment or no treatment group
-    # TODO: Determine how to change excess mortality among the treated and non-treated group    
-
-    # Transition to death or recovery
-
-    # TODO: Put in code to transition a simulant back to a healthy state
+    population_view = assign_diarrhea_etiology(population_view, "rotavirus")
+    
     # TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
+    remission_transition = RemissionRateTransition(healthy, 'healthy', modelable_entity_id=1181)
 
-    # diarrhea.transition_set.append(Transition(healthy))
-    # healthy.transition_set.extend([full_recovery])    
+    diarrhea.transition_set.append(Transition(healthy))
 
     return module
 
