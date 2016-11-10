@@ -1,6 +1,6 @@
 from ceam import config
 from ceam.framework.state_machine import Transition, State, TransitionSet
-from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, IncidenceRateTransition, ProportionTransition, RemissionRateTransition
+from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, IncidenceRateTransition, ProportionTransition, RemissionRateTransition, DiarrheaState
 
 
 def diarrhea_factory():
@@ -13,15 +13,12 @@ def diarrhea_factory():
     # TODO: Need to determine where to put code to aeteological split
     # TODO: Need to employ severity splits (mild, moderate, and severe diarrhea) in the future 
     # FIXME: Figure out what to use for the disability weight
-    diarrhea = ExcessMortalityState('diarrhea', disability_weight=0.1, modelable_entity_id=1181, prevalence_me_id = 1181) 
+    diarrhea = DiarrheaState('diarrhea', disability_weight=0.1, modelable_entity_id=1181, prevalence_me_id = 1181) 
 
     diarrhea_transition = IncidenceRateTransition(diarrhea, 'diarrhea', modelable_entity_id=1181)
 
     healthy.transition_set.extend([diarrhea_transition])
   
-    # TODO: What's the best way to assign etiology?
-    population_view = assign_diarrhea_etiology(population_view, "rotavirus")
-    
     # TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
     remission_transition = RemissionRateTransition(healthy, 'healthy', modelable_entity_id=1181)
 
@@ -33,35 +30,30 @@ def diarrhea_factory():
 
 class DiarrheaState(ExcessMortalityState):
     def setup(self, builder):
-        self.rotavirus_probability = builder.lookup(get_etiology_proportion("rotavirus")) # get_etiology_proportion should return one draw
+
+        # TODO: Move Chris T's file to somewhere central to cost effectiveness
+        diarrhea_and_lri_etiologies = pd.read_csv("/home/j/temp/ctroeger/GEMS/eti_rr_me_ids.csv")
+        diarrhea_only_etiologies = diarrhea_and_lri_etiologies.query("cause_id == 302")
+        
+        # Line below removes "diarrhea_" from the string, since I'd rather be able to fee in just the etiology name (e.g. "rotavirus" instead of "diarrhea_rotavirus")
+        diarrhea_only_etiologies['modelable_entity'] = diarrhea_only_etiologies['modelable_entity'].map(lambda x: x.split('_', -1)[1])
+
+        for eti in diarrhea_only_etiologies.modelable_entity.values:
+            setattr(self, eti, builder.lookup(get_etiology_probability(eti))
+
         super(DiarrheaState, self).setup(builder)
+        self.random = builder.randomness("diarrhea")
 
-    @uses_columns(['rotavirus_probability'])
-    def _transition_side_effect(self, index):
-            self.rotavirus_probability(index)
-            self.randomness.choice
-   
+    @uses_columns([diarrhea_only_etiologies.modelable_entity.values.tolist()])
+    def _transition_side_effect(self, index, population_view):
+        etiology_cols = pd.DataFrame()
 
-        for sex_id in pop_with_diarrhea.sex.unique():
-        for age in pop_with_diarrhea.age.unique():
-            elements = [0, 1]
-            probability_of_etiology = etiology_df.\
-                query("age=={a} and sex_id=={s}".format(a=age, s=sex_id))[
-                    'draw_{}'.format(config.getint('run_configuration', 'draw_number'))]
-            probability_of_NOT_etiology = 1 - probability_of_etiology
-            weights = [float(probability_of_NOT_etiology),
-                       float(probability_of_etiology)]
+        for eti in diarrhea_only_etiologies.modelable_entity.values:
+            self.eti(index)
+            etiology = self.random.choice(index, [True, False], p=self.eti(index))   
+            etiology_cols[eti] = etiology
 
-            one_age = pop_with_diarrhea.query(
-                "age=={a} and sex_id=={s}".format(a=age, s=sex_id)).copy()
-            one_age['{}'.format(etiology_name)] = one_age['age'].map(
-                lambda x: np.random.choice(elements, p=weights))
-            new_sim_file = new_sim_file.append(one_age)
-
-    new_sim_file = new_sim_file.append(population_without_diarrhea)
-
-    return new_sim_file.sort_values(by=["simulant_id"])
- 
+        self.population_view.update(etiology_cols)
 
 
 # End.
