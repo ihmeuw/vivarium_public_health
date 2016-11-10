@@ -27,33 +27,4 @@ def diarrhea_factory():
     return module
 
 
-
-class DiarrheaState(ExcessMortalityState):
-    def setup(self, builder):
-
-        # TODO: Move Chris T's file to somewhere central to cost effectiveness
-        diarrhea_and_lri_etiologies = pd.read_csv("/home/j/temp/ctroeger/GEMS/eti_rr_me_ids.csv")
-        diarrhea_only_etiologies = diarrhea_and_lri_etiologies.query("cause_id == 302")
-        
-        # Line below removes "diarrhea_" from the string, since I'd rather be able to fee in just the etiology name (e.g. "rotavirus" instead of "diarrhea_rotavirus")
-        diarrhea_only_etiologies['modelable_entity'] = diarrhea_only_etiologies['modelable_entity'].map(lambda x: x.split('_', -1)[1])
-
-        for eti in diarrhea_only_etiologies.modelable_entity.values:
-            setattr(self, eti, builder.lookup(get_etiology_probability(eti))
-
-        super(DiarrheaState, self).setup(builder)
-        self.random = builder.randomness("diarrhea")
-
-    @uses_columns([diarrhea_only_etiologies.modelable_entity.values.tolist()])
-    def _transition_side_effect(self, index, population_view):
-        etiology_cols = pd.DataFrame()
-
-        for eti in diarrhea_only_etiologies.modelable_entity.values:
-            self.eti(index)
-            etiology = self.random.choice(index, [True, False], p=self.eti(index))   
-            etiology_cols[eti] = etiology
-
-        self.population_view.update(etiology_cols)
-
-
 # End.
