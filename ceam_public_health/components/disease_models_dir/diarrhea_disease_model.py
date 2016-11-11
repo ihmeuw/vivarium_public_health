@@ -13,7 +13,7 @@ def diarrhea_factory():
     # TODO: Need to determine where to put code to aeteological split
     # TODO: Need to employ severity splits (mild, moderate, and severe diarrhea) in the future 
     # FIXME: Figure out what to use for the disability weight
-    diarrhea = DiarrheaState('diarrhea', disability_weight=0.1, modelable_entity_id=1181, prevalence_me_id = 1181) 
+    diarrhea = DiarrheaState('diarrhea', disability_weight=0.1, modelable_entity_id=1181, prevalence_meid=1181) 
 
     diarrhea_transition = IncidenceRateTransition(diarrhea, 'diarrhea', modelable_entity_id=1181)
 
@@ -23,6 +23,8 @@ def diarrhea_factory():
     remission_transition = RemissionRateTransition(healthy, 'healthy', modelable_entity_id=1181)
 
     diarrhea.transition_set.append(Transition(healthy))
+
+    module.states.extend([healthy, diarrhea])
 
     return module
 

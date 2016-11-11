@@ -16,7 +16,7 @@ from ceam.framework.util import rate_to_probability
 from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
 import numbers
 
-from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states, get_proportion
+from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states, get_proportion, get_etiology_probability
 
 
 class DiseaseState(State):
@@ -115,29 +115,33 @@ class ExcessMortalityState(DiseaseState):
 class DiarrheaState(ExcessMortalityState):
     def setup(self, builder):
 
-        eti_dict = dict{}
+        self.eti_dict = dict()
 
         # TODO: Move Chris T's file to somewhere central to cost effectiveness
-        diarrhea_and_lri_etiologies = pd.read_csv("/home/j/temp/ctroeger/GEMS/eti_rr_me_ids.csv")
-        diarrhea_only_etiologies = diarrhea_and_lri_etiologies.query("cause_id == 302")
+        self.diarrhea_and_lri_etiologies = pd.read_csv("/home/j/temp/ctroeger/GEMS/eti_rr_me_ids.csv")
+        self.diarrhea_only_etiologies = self.diarrhea_and_lri_etiologies.query("cause_id == 302")
+
+        # Clostiridium has its own DisMod full model, so we will not be modeling it as a proportion
+        self.diarrhea_only_etiologies = self.diarrhea_only_etiologies.query("modelable_entity != 'diarrhea_clostridium'")
 
         # Line below removes "diarrhea_" from the string, since I'd rather be able to fee in just the etiology name (e.g. "rotavirus" instead of "diarrhea_rotavirus")
-        diarrhea_only_etiologies['modelable_entity'] = diarrhea_only_etiologies['modelable_entity'].map(lambda x: x.split('_', -1)[1])
+        self.diarrhea_only_etiologies['modelable_entity'] = self.diarrhea_only_etiologies['modelable_entity'].map(lambda x: x.split('_', -1)[1])
 
-        for eti in diarrhea_only_etiologies.modelable_entity.values:
-            eti_dict[eti] = builder.lookup(get_etiology_probability(eti))
+        for eti in self.diarrhea_only_etiologies.modelable_entity.values:
+            self.eti_dict[eti] = builder.lookup(get_etiology_probability(eti))
 
         super(DiarrheaState, self).setup(builder)
         self.random = builder.randomness("diarrhea")
 
-    @uses_columns([diarrhea_only_etiologies.modelable_entity.values.tolist()])
+    @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'clostridium', 'norovirus', 'adenovirus'])
     def _transition_side_effect(self, index, population_view):
         etiology_cols = pd.DataFrame()
 
-        for eti in diarrhea_only_etiologies.modelable_entity.values:
-            self.eti(index)
-            etiology = self.random.choice(index, [True, False], p=self.eti(index))
-            etiology_cols[eti] = etiology
+        for eti in self.diarrhea_only_etiologies.modelable_entity.values:
+            self.eti_dict[eti](index)
+            draw = self.random.get_draw(index)
+            self.etiology = draw < self.eti_dict[eti](index)
+            etiology_cols[eti] = self.etiology
 
         self.population_view.update(etiology_cols)
 

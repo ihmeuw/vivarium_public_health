@@ -5,8 +5,7 @@ from datetime import timedelta
 from ceam import config
 from ceam.framework.state_machine import Transition, State, TransitionSet
 from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, IncidenceRateTransition, ProportionTransition
-from ceam_inputs import get_disability_weight
-from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache
+from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache, get_disability_weight
 from ceam_inputs.gbd_ms_auxiliary_functions import normalize_for_simulation
 
 
