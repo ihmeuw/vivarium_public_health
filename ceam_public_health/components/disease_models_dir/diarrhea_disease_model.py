@@ -1,7 +1,7 @@
 from ceam import config
 from ceam.framework.state_machine import Transition, State, TransitionSet
 from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, IncidenceRateTransition, ProportionTransition, RemissionRateTransition, DiarrheaState
-
+from ceam_inputs.gbd_ms_functions import get_disability_weight
 
 def diarrhea_factory():
     """Hello world for diarrhea cost effectiveness analysis"""
@@ -12,8 +12,8 @@ def diarrhea_factory():
 
     # TODO: Need to determine where to put code to aeteological split
     # TODO: Need to employ severity splits (mild, moderate, and severe diarrhea) in the future 
-    # FIXME: Figure out what to use for the disability weight
-    diarrhea = DiarrheaState('diarrhea', disability_weight=0.1, modelable_entity_id=1181, prevalence_meid=1181) 
+    # FIXME: Figure out what to use for the disability weight, currently using dis weight draws for moderate diarrhea
+    diarrhea = DiarrheaState('diarrhea', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=2609), modelable_entity_id=1181, prevalence_meid=1181) 
 
     diarrhea_transition = IncidenceRateTransition(diarrhea, 'diarrhea', modelable_entity_id=1181)
 

@@ -136,14 +136,23 @@ class DiarrheaState(ExcessMortalityState):
     @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'clostridium', 'norovirus', 'adenovirus'])
     def _transition_side_effect(self, index, population_view):
         etiology_cols = pd.DataFrame()
+        self.count_dict = dict()
 
         for eti in self.diarrhea_only_etiologies.modelable_entity.values:
             self.eti_dict[eti](index)
             draw = self.random.get_draw(index)
-            self.etiology = draw < self.eti_dict[eti](index)
-            etiology_cols[eti] = self.etiology
+            self.eti = draw < self.eti_dict[eti](index)
+            etiology_cols[eti] = self.eti
+            self.count_dict[eti] = self.eti
 
         self.population_view.update(etiology_cols)
+
+    @modifies_value('metrics')
+    def metrics(self, index, metrics):
+        # TODO: Better way to get counts of each etiology? Since they are a series of bools, figured summing works
+        for eti in self.diarrhea_only_etiologies.modelable_entity.values:
+            metrics['{}_count'.format(eti)] = self.count_dict[eti].sum()
+        return metrics
 
 
 class IncidenceRateTransition(Transition):
