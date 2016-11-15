@@ -1,6 +1,9 @@
 node {
     try {
        stage 'Checkout'
+       sh '''
+           hostname
+       '''
        checkout scm
        sh '''
            curl -X POST -H "X-Auth-User: alecwd" -H "X-Auth-Token: KoPPYriNCbh3vIbg9pF7V6l0z1vU9LmGHpdSpeYFO/+1t+arax/CHwBmo+eT7cygEPBoR59NuOA5u1fcRJwBWVBLSmOeh4ZT/3FMdLKfyrk=" -H "Content-Type: application/json" https://stash.ihme.washington.edu/rest/build-status/1.0/commits/$(git rev-parse HEAD) -d "$(cat <<EOF
@@ -15,9 +18,8 @@ EOF
        stage 'Tests'
        sh '''
            source /ihme/costeffectiveness/conda_env/bin/activate /ihme/costeffectiveness/conda_env
-           export PYTHONPATH=`pwd`
-
-           py.test
+           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH://ihme/costeffectiveness/conda_env/lib
+           tox --recreate -e py35
        '''
 
        stage 'Notify'
