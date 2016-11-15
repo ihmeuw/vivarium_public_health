@@ -116,6 +116,7 @@ class DiarrheaState(ExcessMortalityState):
     def setup(self, builder):
 
         self.eti_dict = dict()
+        self.count_dict = dict()
 
         # TODO: Move Chris T's file to somewhere central to cost effectiveness
         self.diarrhea_and_lri_etiologies = pd.read_csv("/home/j/temp/ctroeger/GEMS/eti_rr_me_ids.csv")
@@ -134,16 +135,24 @@ class DiarrheaState(ExcessMortalityState):
         self.random = builder.randomness("diarrhea")
 
     @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'clostridium', 'norovirus', 'adenovirus'])
+    @listens_for('initialize_simulants') 
+    def _create_etiology_columns(self, event):
+        df = pd.DataFrame()
+        length = len(event.index)
+        falses = [False]*length
+        df = pd.DataFrame([falses] * 12, columns=['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'clostridium', 'norovirus', 'adenovirus'], index=event.index)
+        event.population_view.update(df)
+
+    @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'clostridium', 'norovirus', 'adenovirus'])
     def _transition_side_effect(self, index, population_view):
         etiology_cols = pd.DataFrame()
-        self.count_dict = dict()
 
         for eti in self.diarrhea_only_etiologies.modelable_entity.values:
             self.eti_dict[eti](index)
             draw = self.random.get_draw(index)
-            self.eti = draw < self.eti_dict[eti](index)
-            etiology_cols[eti] = self.eti
-            self.count_dict[eti] = self.eti
+            eti = draw < self.eti_dict[eti](index)
+            etiology_cols[eti] = eti
+            self.count_dict[eti] += eti.sum()
 
         self.population_view.update(etiology_cols)
 
@@ -151,7 +160,7 @@ class DiarrheaState(ExcessMortalityState):
     def metrics(self, index, metrics):
         # TODO: Better way to get counts of each etiology? Since they are a series of bools, figured summing works
         for eti in self.diarrhea_only_etiologies.modelable_entity.values:
-            metrics['{}_count'.format(eti)] = self.count_dict[eti].sum()
+            metrics['{}_count'.format(eti)] = self.count_dict[eti]
         return metrics
 
 
