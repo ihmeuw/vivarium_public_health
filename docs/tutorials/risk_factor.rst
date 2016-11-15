@@ -32,7 +32,17 @@ Part three: The details
 
 Ok, now we know what our BMI model will look like and how to find the data we need to run it.
 
-The first order of business is to load in the distribution tables and turn them into objects in python that the simulation can use. I'll walk you through a function for doing that which is typical of how CEAM handles input data. It goes through three phases, loading CSVs from disk, filtering and transforming their contents and then turning them into a group of interpolation functions which can produce data for any simulante.
+.. code-block:: python
+
+    import pandas as pd
+    import numpy as np
+
+    from scipy.stats import beta
+
+    from ceam.interpolation import Interpolation
+    from ceam_inputs.auxiliary_files import open_auxiliary_file
+
+Having imported the tools we need, the first order of business is to load in the distribution tables and turn them into objects in python that the simulation can use. I'll walk you through a function for doing that which is typical of how CEAM handles input data. It goes through three phases, loading CSVs from disk, filtering and transforming their contents and then turning them into a group of interpolation functions which can produce data for any simulante.
 
 .. code-block:: python
 
@@ -120,14 +130,101 @@ Now that we have the columns all in one place and aligned we reset the index whi
                     func=_bmi_ppf
                     )
 
-Finally we convert the cleaned up data into a collection of percent point functions of the beta distributions defined by the interpolated parameters. What the Interpolation object represents is a group of spline interpolations, one for each parameter ('a', 'b', 'scale' and 'loc') and each sex. They interpolate over age and year.
+Finally we convert the cleaned up data into a collection of percent point functions of the beta distributions defined by the interpolated parameters. What the Interpolation object represents is a group of spline interpolations, one for each parameter ('a', 'b', 'scale' and 'loc') and each sex. They interpolate between the distribution parameters over age and year. The output of the interpolations is fed through ``_bmi_ppd`` which calculates the percent point function.
 
-BMI isn't a super complicated model but it still will need to group together quite a bit of data and have a couple of behaviors so it makes sense to make it an object:
+.. code-block:: python
+
+        def _bmi_ppf(parameters):
+           return beta(a=parameters['a'], b=parameters['b'], scale=parameters['scale'], loc=parameters['loc']).ppf
+
+All together the output of ``get_bmi_distributions`` is a function which takes a DataFrame with 'age', 'sex' and 'year' columns and returns a Series of PPF functions.
+
+In the production code I put ``get_bmi_distributions`` into the ``ceam_inputs`` repository. For this tutorial you can stick it in with the rest of the code but when you write production models it's important to think about organization. Code that interacts directly with GBD (and related datasets) by reading and preprocessing data should be in ``ceam_inputs``. This is code that is unlikely to be useful to anyone outside of the IHME. Code that uses data from ``ceam_inputs`` but could potentially use data from other sources should be in ``ceam_public_health``. These are models are specific to the microsimulation of health related things and could be useful other modelers within IHME or even researchers at other organizations. ``ceam_public_health`` is where the BMI model goes in production. The ``ceam`` repository contains code that is useful for any microsimulation, even one that isn't health related.
+
+Now onto the model itself. BMI isn't a super complicated model but it still will need to group together quite a bit of data and have a couple of behaviors so it makes sense to make it an object:
 
 .. code-block:: python
 
     class BodyMassIndex:
         """Model BMI"""
 
-During the setup phase of the simulation, we'll need to load some data
+During the setup phase of the simulation, we'll need to load the BMI distributions as well as some other data.
 
+.. code-block:: python
+
+            def setup(self, builder):
+                location_id = config.getint('simulation_parameters', 'location_id')
+                year_start = config.getint('simulation_parameters', 'year_start')
+                year_end = config.getint('simulation_parameters', 'year_end')
+                draw = config.getint('run_configuration', 'draw_number')
+                self.bmi_distributions = builder.lookup(get_bmi_distributions(location_id, year_start, year_end, draw))
+
+We look up the location, time range and current draw from the simulation's configuration system and use those to evoke ``get_bmi_distributions``. The interesting part here is ``builder.lookup`` which is a utility that the simulation provides for turning DataFrames indexed by simulant attributes or interpolation functions that take simulant attributes as arguments into a function that converts lists of simulant_ids (which is the form in which models normally interact with the population) into interpolated output. Or, in the case of ``get_bmi_distributions`` which is more complicated than usual, interpolated output processed through an additional function like the one that produces the PPFs.
+
+.. code-block:: python
+
+                self.ihd_rr = builder.lookup(get_relative_risks(risk_id=108, cause_id=493))
+                self.hemorrhagic_stroke_rr = builder.lookup(get_relative_risks(risk_id=108, cause_id=496))
+                self.ischemic_stroke_rr = builder.lookup(get_relative_risks(risk_id=108, cause_id=495))
+
+                self.ihd_paf = builder.lookup(get_pafs(risk_id=108, cause_id=493))
+                self.hemorrhagic_stroke_paf = builder.lookup(get_pafs(risk_id=108, cause_id=496))
+                self.ischemic_stroke_paf = builder.lookup(get_pafs(risk_id=108, cause_id=495))
+
+Here we do something very similar and build interpolated lookup functions for RR and PAF data using standard ``ceam_inputs`` lookup functions.
+
+.. code-block:: python
+
+                builder.modifies_value(self.ihd_paf, 'paf.heart_attack')
+                builder.modifies_value(self.hemorrhagic_stroke_paf, 'paf.hemorrhagic_stroke')
+                builder.modifies_value(self.ischemic_stroke_paf, 'paf.ischemic_stroke')
+
+We then take PAF lookups and attach them to dynamic values so that they can be used for risk deletion.
+
+.. code-block:: python
+
+                builder.modifies_value(partial(self.incidence_rates, rr_lookup=self.ihd_rr), 'incidence_rate.heart_attack')
+                builder.modifies_value(partial(self.incidence_rates, rr_lookup=self.hemorrhagic_stroke_rr), 'incidence_rate.hemorrhagic_stroke')
+                builder.modifies_value(partial(self.incidence_rates, rr_lookup=self.ischemic_stroke_rr), 'incidence_rate.ischemic_stroke')
+
+
+
+These are a bit more complicated. At a high level what we are doing is setting up the plumbing that connects this risk to the causes it effects so that we can adjust incidence rates. ``builder.modifies_values`` associates it's first argument, a function which modifies RRs (or other similar values), with it's second argument, a named value.
+
+We construct the mutation functions using a trick called partial application which lets us avoid duplicating some code. ``partial`` takes a function with some subset of the arguments which that function accepts and returns a new function which is the equivalent with the value of those arguments fixed so you only need to pass it the remaining arguments when you call it. In this case we have a generic: ``self.incidence_rates``, which handles incidence rates for any cause. We then use partial application to to configure them with the RR lookup function for each cause.
+
+.. code-block:: python
+
+            @listens_for('initialize_simulants')
+            @uses_columns(['bmi_percentile', 'bmi'])
+            def initialize(self, event):
+                event.population_view.update(pd.DataFrame({
+                    'bmi_percentile': self.randomness.get_draw(event.index)*0.98+0.01,
+                    'bmi': np.full(len(event.index), 20)
+                }))
+
+Here we create the columns to store BMI related values in the simulation's state table. We give each simulant a susceptibility which we'll use later to determine their actual BMI. We also create a column to store current BMI which starts filled with dummy data but it the first timestep that will be replaced with real numbers.
+
+.. code-block:: python
+
+            @uses_columns(['bmi'])
+            def incidence_rates(self, index, rates, population_view, rr_lookup):
+                population = population_view.get(index)
+                rr = rr_lookup(index)
+
+                rates *= np.maximum(rr.values**((population.bmi - 21) / 5).values, 1)
+                return rates
+
+This is the generic function that applies an RR to any incidence rate. Remember from above that we configured ``rr_lookup`` to be the lookup function for the RR of BMI on the relevant cause. We calculate an modified rate based on the base rate we get as an argument, the RR and the current BMI for each simulant. The formula here shifts the simulant's BMI by 21, the TMR, and scales it by 5, which is the number of units of BMI needed to change the incidence rate by one unit. We then trim the result so that it's at least 1 which prevents values under the minimum risk level from suppressing the rate. You can find these parameters here: /snfs1/Project/Cost_Effectiveness/dev/data/gbd/risk_data/risk_variables.xlsx
+
+.. code-block:: python
+
+            @listens_for('time_step__prepare', priority=8)
+            @uses_columns(['bmi', 'bmi_percentile'], 'alive')
+            def update_body_mass_index(self, event):
+                new_bmi = self.bmi_distributions(event.index)(event.population.bmi_percentile)
+                event.population_view.update(pd.Series(new_bmi, name='bmi', index=event.index))
+
+This is arguably the heart of the model, where we actually track each simulant's current BMI. It's also probably the simplest part. We just feed the simulants' susceptibility percentile into the PPF functions we created earlier and write the result into the simulation's state table.
+
+If you open up ``ceam_public_health/configurations/opportunistic_sbp_screening.json`` and replace the entry for ``ceam_public_health.components.body_mass_index.BodyMassIndex`` with the path to your tutorial implementation and run the simulation you should see it work.
