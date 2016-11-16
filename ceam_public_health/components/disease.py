@@ -16,6 +16,7 @@ from ceam.framework.util import rate_to_probability
 from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
 import numbers
 
+from collections import defaultdict
 from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states, get_proportion, get_etiology_probability
 
 
@@ -93,7 +94,7 @@ class ExcessMortalityState(DiseaseState):
             self.prevalence_meid = modelable_entity_id
 
     def setup(self, builder):
-        self.mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
+        self.mortality = builder.rate('excess_mortality.{}'.format(self.state_id))
         self.mortality.source = builder.lookup(get_excess_mortality(self.modelable_entity_id))
         return super(ExcessMortalityState, self).setup(builder)
 
@@ -117,7 +118,7 @@ class DiarrheaState(ExcessMortalityState):
     def setup(self, builder):
 
         self.eti_dict = dict()
-        self.count_dict = dict()
+        self.count_dict = defaultdict(lambda: 0)
 
         # TODO: Move Chris T's file to somewhere central to cost effectiveness
         self.diarrhea_and_lri_etiologies = pd.read_csv("/home/j/temp/ctroeger/GEMS/eti_rr_me_ids.csv")
@@ -135,25 +136,25 @@ class DiarrheaState(ExcessMortalityState):
         super(DiarrheaState, self).setup(builder)
         self.random = builder.randomness("diarrhea")
 
-    @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'clostridium', 'norovirus', 'adenovirus'])
-    @listens_for('initialize_simulants') 
+    @listens_for('initialize_simulants')
+    @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'norovirus', 'adenovirus'])
     def _create_etiology_columns(self, event):
-        df = pd.DataFrame()
         length = len(event.index)
-        falses = [False]*length
-        df = pd.DataFrame([falses] * 12, columns=['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'clostridium', 'norovirus', 'adenovirus'], index=event.index)
+        falses = np.zeros((length, 12), dtype=bool)
+        df = pd.DataFrame(falses, columns=['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'norovirus', 'adenovirus'], index=event.index)
+ 
         event.population_view.update(df)
 
-    @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'clostridium', 'norovirus', 'adenovirus'])
+    @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'norovirus', 'adenovirus'])
     def _transition_side_effect(self, index, population_view):
         etiology_cols = pd.DataFrame()
 
         for eti in self.diarrhea_only_etiologies.modelable_entity.values:
             self.eti_dict[eti](index)
             draw = self.random.get_draw(index)
-            eti = draw < self.eti_dict[eti](index)
-            etiology_cols[eti] = eti
-            self.count_dict[eti] += eti.sum()
+            etiology = draw < self.eti_dict[eti](index)
+            etiology_cols[eti] = etiology
+            self.count_dict[eti] += etiology.sum()
 
         self.population_view.update(etiology_cols)
 
