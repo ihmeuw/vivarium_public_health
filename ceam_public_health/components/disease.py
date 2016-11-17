@@ -49,9 +49,10 @@ class DiseaseState(State):
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
+        population_size = len(event.index)
         if self.dwell_time > 0:
-            population_size = len(event.index)
-            self.population_view.update(pd.DataFrame({self.event_time_column: np.zeros(population_size), self.event_count_column: np.zeros(population_size)}, index=event.index))
+            self.population_view.update(pd.DataFrame({self.event_time_column: np.zeros(population_size)}, index=event.index))
+        self.population_view.update(pd.DataFrame({self.event_count_column: np.zeros(population_size)}, index=event.index))
 
     def next_state(self, index, population_view):
         if self.dwell_time > 0:
@@ -62,17 +63,19 @@ class DiseaseState(State):
         return super(DiseaseState, self).next_state(eligible_index, population_view)
 
     def _transition_side_effect(self, index):
+        pop = self.population_view.get(index)
+        
         if self.dwell_time > 0:
-            pop = self.population_view.get(index)
             pop[self.event_time_column] = self.clock().timestamp()
-            pop[self.event_count_column] += 1
-            self.population_view.update(pop)
+        
+        pop[self.event_count_column] += 1
+
+        self.population_view.update(pop)
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
-        if self.dwell_time > 0:
-            population = self.population_view.get(index)
-            metrics[self.event_count_column] = population[self.event_count_column].sum()
+        population = self.population_view.get(index)
+        metrics[self.event_count_column] = population[self.event_count_column].sum()
         return metrics
 
     @modifies_value('disability_weight')
@@ -156,7 +159,7 @@ class DiarrheaState(ExcessMortalityState):
             etiology_cols[eti] = etiology
             self.count_dict[eti] += etiology.sum()
 
-        self.population_view.update(etiology_cols)
+        population_view.update(etiology_cols)
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
@@ -262,7 +265,7 @@ class DiseaseModel(Machine):
     def module_id(self):
         return str((self.__class__, self.state_column))
 
-    @property
+    @property    
     def condition(self):
         return self.state_column
 
@@ -298,9 +301,9 @@ class DiseaseModel(Machine):
 
         self.population_view.update(condition_column)
 
-    @modifies_value('metrics')
-    def metrics(self, index, metrics):
-        population = self.population_view.get(index)
-        metrics[self.condition + '_count'] = (population[self.condition] != 'healthy').sum()
-        return metrics
+    # @modifies_value('metrics')
+    # def metrics(self, index, metrics):
+    #    population = self.population_view.get(index)
+    #    metrics[self.condition + '_count'] = (population[self.condition] != 'healthy').sum()
+    #    return metrics
 # End.
