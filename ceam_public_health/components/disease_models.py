@@ -85,6 +85,7 @@ def heart_disease_factory():
 
 
 def stroke_factory():
+    # FIXME: Do we want to say 'module = DiseaseModel('stroke') to make the line below clearer? -- Everett 11/21
     module = DiseaseModel('hemorrhagic_stroke')
 
     healthy = State('healthy', key='hemorrhagic_stroke')
