@@ -170,18 +170,22 @@ class DiarrheaState(ExcessMortalityState):
 
 
 class IncidenceRateTransition(Transition):
-    def __init__(self, output, rate_label, modelable_entity_id):
+    def __init__(self, output, rate_label, modelable_entity_id=None, incidence_rate_df=None):
         Transition.__init__(self, output, self.probability)
 
         self.rate_label = rate_label
         self.modelable_entity_id = modelable_entity_id
+        self.incidence_rate_df = incidence_rate_df
 
     def setup(self, builder):
         self.incidence_rates = produces_value('incidence_rate.{}'.format(self.rate_label))(self.incidence_rates)
         self.effective_incidence = builder.rate('incidence_rate.{}'.format(self.rate_label))
         self.effective_incidence.source = self.incidence_rates
         self.joint_paf = builder.value('paf.{}'.format(self.rate_label))
-        self.base_incidence = builder.lookup(get_incidence(self.modelable_entity_id))
+        if self.modelable_entity_id:
+            self.base_incidence = builder.lookup(get_incidence(self.modelable_entity_id))
+        elif incidence_rate_df:
+            self.base_incidence = incidence_rate_df
 
     def probability(self, index):
         return rate_to_probability(self.effective_incidence(index))
