@@ -5,7 +5,7 @@ from ceam_public_health.components.disease import DiseaseModel, ExcessMortalityS
 
 
 def ckd_factory():
-    component = DiseaseModel('ckd')
+    component = DiseaseModel('ihd')
 
     healthy = State('healthy', key='ckd')
 
