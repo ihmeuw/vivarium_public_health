@@ -23,9 +23,8 @@ def ckd_factory():
     stage_five_transition = IncidenceRateTransition(stage_three, 'stage_five_ckd', modelable_entity_id=2022)
 
     healthy.transition_set.extend([stage_three_transition, stage_four_transition, stage_five_transition])
-    stage_three.transition_set.extend([stage_four_transition, stage_five_transition])
-    stage_four.transition_set.extend([stage_three_transition, stage_five_transition])
-    stage_five.transition_set.extend([stage_three_transition, stage_four_transition])
+    stage_three.transition_set.extend([stage_four_transition])
+    stage_four.transition_set.extend([stage_five_transition])
 
     component.states.extend([healthy, stage_three, stage_four, stage_five])
 
