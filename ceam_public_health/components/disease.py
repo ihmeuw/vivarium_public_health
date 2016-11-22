@@ -84,8 +84,9 @@ class DiseaseState(State):
         return self._disability_weight * (population[self.condition] == self.state_id)
 
 
+# TODO: Make ExcessMortalityState code more flexible so that it only accepts dataframes and not modelable entity ids
 class ExcessMortalityState(DiseaseState):
-    def __init__(self, state_id, modelable_entity_id, prevalence_meid=None, **kwargs):
+    def __init__(self, state_id, modelable_entity_id, prevalence_meid=None, prevalence_rate_df=None, **kwargs):
         DiseaseState.__init__(self, state_id, **kwargs)
 
         self.modelable_entity_id = modelable_entity_id
@@ -98,7 +99,12 @@ class ExcessMortalityState(DiseaseState):
 
     def setup(self, builder):
         self.mortality = builder.rate('excess_mortality.{}'.format(self.state_id))
-        self.mortality.source = builder.lookup(get_excess_mortality(self.modelable_entity_id))
+
+        if prevalence_rate_df:
+            self.mortality.source = builder.lookup(prevalence_rate_df)
+        else:
+            self.mortality.source = builder.lookup(get_excess_mortality(self.modelable_entity_id))
+
         return super(ExcessMortalityState, self).setup(builder)
 
     @modifies_value('mortality_rate')
@@ -170,6 +176,7 @@ class DiarrheaState(ExcessMortalityState):
 
 
 class IncidenceRateTransition(Transition):
+    # TODO: make this function flexible enough that it only accepts dataframes instead of modelable entity ids
     def __init__(self, output, rate_label, modelable_entity_id=None, incidence_rate_df=None):
         Transition.__init__(self, output, self.probability)
 
@@ -185,7 +192,7 @@ class IncidenceRateTransition(Transition):
         if self.modelable_entity_id:
             self.base_incidence = builder.lookup(get_incidence(self.modelable_entity_id))
         elif incidence_rate_df:
-            self.base_incidence = incidence_rate_df
+            self.base_incidence = builder.lookup(incidence_rate_df)
 
     def probability(self, index):
         return rate_to_probability(self.effective_incidence(index))
