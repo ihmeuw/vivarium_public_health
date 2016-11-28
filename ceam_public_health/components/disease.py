@@ -43,7 +43,9 @@ class DiseaseState(State):
     def setup(self, builder):
         columns = [self.condition]
         if self.dwell_time > 0:
-            columns += [self.event_time_column, self.event_count_column]
+            columns += [self.event_time_column]
+        if self.event_count_column:
+            columns += [self.event_count_column]
         self.population_view = builder.population_view(columns, 'alive')
         self.clock = builder.clock()
 
@@ -97,13 +99,13 @@ class ExcessMortalityState(DiseaseState):
         else:
             self.prevalence_meid = modelable_entity_id
 
+        if not prevalence_rate_df.empty:
+            # FIXME: What to do with the prevalence rate df from here? EM 11/22
+            self.prevalence_rate_df = prevalence_rate_df
+
     def setup(self, builder):
         self.mortality = builder.rate('excess_mortality.{}'.format(self.state_id))
-
-        if prevalence_rate_df:
-            self.mortality.source = builder.lookup(prevalence_rate_df)
-        else:
-            self.mortality.source = builder.lookup(get_excess_mortality(self.modelable_entity_id))
+        self.mortality.source = builder.lookup(get_excess_mortality(self.modelable_entity_id))
 
         return super(ExcessMortalityState, self).setup(builder)
 
@@ -191,8 +193,8 @@ class IncidenceRateTransition(Transition):
         self.joint_paf = builder.value('paf.{}'.format(self.rate_label))
         if self.modelable_entity_id:
             self.base_incidence = builder.lookup(get_incidence(self.modelable_entity_id))
-        elif incidence_rate_df:
-            self.base_incidence = builder.lookup(incidence_rate_df)
+        elif not self.incidence_rate_df.empty:
+            self.base_incidence = builder.lookup(self.incidence_rate_df)
 
     def probability(self, index):
         return rate_to_probability(self.effective_incidence(index))

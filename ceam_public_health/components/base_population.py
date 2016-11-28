@@ -92,16 +92,13 @@ class Mortality:
         return self.mortality_rate_lookup(population)
 
     @modifies_value('metrics')
-    @uses_columns(['alive', 'age', 'diarrhea'])
+    @uses_columns(['alive', 'age'])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
         the_dead = population.query('not alive')
-        # TODO: Make the dead_with_diarrhea and diarrhea_at_time_of_death lines more flexible so that they'll report modeled_cause_at_time_of_death
-        dead_with_diarrhea = the_dead.query("diarrhea == 'diarrhea'")
         metrics['deaths'] = len(the_dead)
         metrics['years_of_life_lost'] = self.life_table(the_dead.index).sum()
         metrics['total_population'] = len(population)
         metrics['total_population__living'] = len(population) - len(the_dead)
         metrics['total_population__dead'] = len(the_dead)
-        metrics['diarrhea_at_time_of_death'] = len(dead_with_diarrhea)
         return metrics

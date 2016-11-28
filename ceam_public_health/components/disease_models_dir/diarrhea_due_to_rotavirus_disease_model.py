@@ -1,7 +1,8 @@
 from ceam import config
 from ceam.framework.state_machine import Transition, State, TransitionSet
 from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, IncidenceRateTransition, ProportionTransition, RemissionRateTransition, DiarrheaState
-from ceam_inputs.gbd_ms_functions import get_disability_weight, get_etiology_prevalence, get_etiology_specific_incidence
+from ceam_inputs import get_etiology_specific_prevalence, get_etiology_specific_incidence
+from ceam_inputs.gbd_ms_functions import get_disability_weight
 
 def diarrhea_factory():
     
@@ -22,8 +23,8 @@ def diarrhea_factory():
     
     diarrhea_due_to_rotavirus_transition = IncidenceRateTransition(diarrhea_due_to_rotavirus, 
                                                                    'diarrhea_to_rotavirus', 
-                                                                   incidence_rate_df=get_etiology_specific_incidence(risk_id=181) #risk=rota
-                                                                                                                     cause_id=302)#cause=diarrhea
+                                                                   incidence_rate_df=get_etiology_specific_incidence(risk_id=181, #risk=rota
+                                                                                                                     cause_id=302))#cause=diarrhea
     
     healthy.transition_set.extend([diarrhea_due_to_rotavirus_transition])
 
