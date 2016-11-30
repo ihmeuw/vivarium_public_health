@@ -14,8 +14,9 @@ from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
 from ceam_inputs.gbd_ms_functions import load_data_from_cache, normalize_for_simulation, get_sbp_mean_sd
-from ceam_inputs import get_relative_risks, get_pafs
+from ceam_inputs.util import make_gbd_risk_effects
 
+from ceam_public_health.util.risk import continuous_exposure_effect
 
 class BloodPressure:
     """
@@ -31,13 +32,33 @@ class BloodPressure:
 
     def setup(self, builder):
         self.sbp_distribution = builder.lookup(self.load_sbp_distribution())
-        self.load_relative_risks(builder)
-        self.load_pafs(builder)
-
-        builder.modifies_value(lambda index: self.ihd_paf(index), 'paf.heart_attack')
-        builder.modifies_value(lambda index: self.hemorrhagic_stroke_paf(index), 'paf.hemorrhagic_stroke')
-        builder.modifies_value(lambda index: self.ischemic_stroke_paf(index), 'paf.ischemic_stroke')
         self.randomness = builder.randomness('blood_pressure')
+
+        effect_function = continuous_exposure_effect('systolic_blood_pressure', tmrl=112.5, scale=10)
+        risk_effects = [
+            RiskEffect(
+                get_relative_risks(risk_id=107, cause_id=493),
+                get_pafs(risk_id=107, cause_id=493),
+                'heart_attack',
+                effect_function),
+            RiskEffect(
+                get_relative_risks(risk_id=107, cause_id=496),
+                get_pafs(risk_id=107, cause_id=496),
+                'hemorrhagic_stroke',
+                effect_function),
+            RiskEffect(
+                get_relative_risks(risk_id=107, cause_id=495),
+                get_pafs(risk_id=107, cause_id=495),
+                'ischemic_stroke',
+                effect_function),
+        ]
+        risk_effects = make_gbd_risk_effects(166, [
+            (493, 'heart_attack'),
+            (496, 'hemorrhagic_stroke'),
+            (495, 'ischemic_stroke'),
+            ], effect_function)
+
+        return risk_effects
 
     @listens_for('initialize_simulants')
     @uses_columns(['systolic_blood_pressure_percentile', 'systolic_blood_pressure'])
@@ -60,20 +81,6 @@ class BloodPressure:
 
         return distribution
 
-    def load_relative_risks(self, builder):
-        self.ihd_rr = builder.lookup(get_relative_risks(risk_id=107, cause_id=493))
-        self.hemorrhagic_stroke_rr = builder.lookup(get_relative_risks(risk_id=107, cause_id=496))
-        self.ischemic_stroke_rr = builder.lookup(get_relative_risks(risk_id=107, cause_id=495))
-
-    def load_pafs(self, builder):
-        self.ihd_paf = builder.lookup(get_pafs(risk_id=107, cause_id=493))
-        self.hemorrhagic_stroke_paf = builder.lookup(get_pafs(risk_id=107, cause_id=496))
-        self.ischemic_stroke_paf = builder.lookup(get_pafs(risk_id=107, cause_id=495))
-
-    def population_attributable_fraction(self, population, paf_lookup):
-        paf = self.lookup_columns(population, [cause+'_PAF'])[cause+'_PAF'].values
-        return paf
-
     @listens_for('time_step__prepare', priority=8)
     @uses_columns(['systolic_blood_pressure', 'systolic_blood_pressure_percentile'], 'alive')
     def update_systolic_blood_pressure(self, event):
@@ -81,30 +88,5 @@ class BloodPressure:
         new_sbp = np.exp(norm.ppf(event.population.systolic_blood_pressure_percentile,
                                   loc=distribution['log_mean'], scale=distribution['log_sd']))
         event.population_view.update(pd.Series(new_sbp, name='systolic_blood_pressure', index=event.index))
-
-    @modifies_value('incidence_rate.ihd')
-    @uses_columns(['systolic_blood_pressure'])
-    def ihd_incidence_rates(self, index, rates, population_view):
-        rr = self.ihd_rr(index)
-        population = population_view.get(index)
-        blood_pressure_adjustment = np.maximum(rr.values**((population.systolic_blood_pressure - 112.5) / 10).values, 1)
-        return rates * blood_pressure_adjustment
-
-    @modifies_value('incidence_rate.hemorrhagic_stroke')
-    @uses_columns(['systolic_blood_pressure'])
-    def hemorrhagic_stroke_incidence_rates(self, index, rates, population_view):
-        rr = self.hemorrhagic_stroke_rr(index)
-        population = population_view.get(index)
-        blood_pressure_adjustment = np.maximum(rr.values**((population.systolic_blood_pressure - 112.5) / 10).values, 1)
-        return rates * blood_pressure_adjustment
-
-    @modifies_value('incidence_rate.ischemic_stroke')
-    @uses_columns(['systolic_blood_pressure'])
-    def ischemic_stroke_incidence_rates(self, index, rates, population_view):
-        rr = self.ischemic_stroke_rr(index)
-        population = population_view.get(index)
-        blood_pressure_adjustment = np.maximum(rr.values**((population.systolic_blood_pressure - 112.5) / 10).values, 1)
-        return rates * blood_pressure_adjustment
-
 
 # End.

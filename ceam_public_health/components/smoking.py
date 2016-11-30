@@ -12,8 +12,9 @@ from ceam.framework.event import listens_for
 from ceam.framework.values import modifies_value
 from ceam.framework.population import uses_columns
 
-from ceam_inputs import get_pafs, get_relative_risks, get_exposures
+from ceam_inputs import get_exposures, make_gbd_risk_effects
 
+from ceam_public_health.util.risk import RiskEffect, categorical_exposure_effect
 
 class Smoking:
     """
@@ -45,6 +46,15 @@ class Smoking:
         builder.modifies_value(partial(self.population_attributable_fraction, paf_lookup=self.ischemic_stroke_paf), 'paf.ischemic_stroke')
 
         self.randomness = builder.randomness('smoking')
+
+        effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=166)), 'smoking_susceptibility')
+        risk_effects = make_gbd_risk_effects(166, [
+            (493, 'heart_attack'),
+            (496, 'hemorrhagic_stroke'),
+            (495, 'ischemic_stroke'),
+            ], effect_function)
+
+        return risk_effects
 
     @listens_for('initialize_simulants')
     @uses_columns(['smoking_susceptibility'])
