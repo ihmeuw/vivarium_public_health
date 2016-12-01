@@ -13,11 +13,13 @@ from ceam_tests.util import setup_simulation, pump_simulation, build_table
 
 from ceam.framework.util import from_yearly
 
+from ceam_inputs import get_incidence
+
 from ceam_public_health.components.base_population import generate_base_population
 
 from ceam.framework.state_machine import Transition, State
 from ceam.framework.event import Event
-from ceam_public_health.components.disease import DiseaseState, IncidenceRateTransition, ExcessMortalityState, DiseaseModel
+from ceam_public_health.components.disease import DiseaseState, RateTransition, ExcessMortalityState, DiseaseModel
 
 
 @patch('ceam_public_health.components.disease.get_disease_states')
@@ -95,7 +97,7 @@ def test_incidence(get_disease_states_mock):
     healthy = State('healthy')
     sick = State('sick')
 
-    transition = IncidenceRateTransition(sick, 'test_incidence', modelable_entity_id=2412)
+    transition = RateTransition(sick, 'test_incidence', get_incidence(2412))
     healthy.transition_set.append(transition)
 
     model.states.extend([healthy, sick])
@@ -109,6 +111,7 @@ def test_incidence(get_disease_states_mock):
     pump_simulation(simulation, iterations=1)
 
     assert np.all(from_yearly(0.7, time_step) == incidence_rate(simulation.population.population.index))
+
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_load_population_custom_columns(get_disease_states_mock):

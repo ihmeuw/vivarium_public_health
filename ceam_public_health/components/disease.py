@@ -113,19 +113,20 @@ class ExcessMortalityState(DiseaseState):
         return 'ExcessMortalityState("{}", "{}" ...)'.format(self.state_id, self.modelable_entity_id)
 
 
-class IncidenceRateTransition(Transition):
-    def __init__(self, output, rate_label, modelable_entity_id):
+class RateTransition(Transition):
+    def __init__(self, output, rate_label, rate_data, name_prefix='incidence_rate'):
         Transition.__init__(self, output, self.probability)
 
         self.rate_label = rate_label
-        self.modelable_entity_id = modelable_entity_id
+        self.rate_data = rate_data
+        self.name_prefix = name_prefix
 
     def setup(self, builder):
-        self.incidence_rates = produces_value('incidence_rate.{}'.format(self.rate_label))(self.incidence_rates)
-        self.effective_incidence = builder.rate('incidence_rate.{}'.format(self.rate_label))
+        self.incidence_rates = produces_value('{}.{}'.format(self.name_prefix, self.rate_label))(self.incidence_rates)
+        self.effective_incidence = builder.rate('{}.{}'.format(self.name_prefix, self.rate_label))
         self.effective_incidence.source = self.incidence_rates
         self.joint_paf = builder.value('paf.{}'.format(self.rate_label))
-        self.base_incidence = builder.lookup(get_incidence(self.modelable_entity_id))
+        self.base_incidence = builder.lookup(self.rate_data)
 
     def probability(self, index):
         return rate_to_probability(self.effective_incidence(index))
@@ -137,7 +138,7 @@ class IncidenceRateTransition(Transition):
         return pd.Series(base_rates.values * joint_mediated_paf.values, index=index)
 
     def __str__(self):
-        return 'IncidenceRateTransition("{0}", "{1}", "{2}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label, self.modelable_entity_id)
+        return 'RateTransition("{0}", "{1}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label)
 
 
 class ProportionTransition(Transition):
@@ -146,7 +147,7 @@ class ProportionTransition(Transition):
 
         if modelable_entity_id and proportion:
             raise ValueError("Must supply modelable_entity_id or proportion (proportion can be an int or df) but not both")
-      
+
         # @alecwd: had to change line below since it was erroring out when proportion is a dataframe. might be a cleaner way to do this that I don't know of
         if modelable_entity_id is None and proportion is None:
            raise ValueError("Must supply either modelable_entity_id or proportion (proportion can be int or df)")

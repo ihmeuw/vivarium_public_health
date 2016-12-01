@@ -39,6 +39,7 @@ class BloodPressure:
             (493, 'heart_attack'),
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
+            (589, ':q'),
             ], effect_function)
 
         return risk_effects
