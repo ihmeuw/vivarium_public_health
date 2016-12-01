@@ -93,7 +93,8 @@ class ExcessMortalityState(DiseaseState):
             self.prevalence_meid = modelable_entity_id
 
     def setup(self, builder):
-        self.mortality = builder.lookup(get_excess_mortality(self.modelable_entity_id))
+        self.mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
+        self.mortality.source = builder.lookup(get_excess_mortality(self.modelable_entity_id))
         return super(ExcessMortalityState, self).setup(builder)
 
     @modifies_value('mortality_rate')
