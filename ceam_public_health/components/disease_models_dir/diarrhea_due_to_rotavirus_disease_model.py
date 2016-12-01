@@ -18,12 +18,12 @@ def diarrhea_factory():
     diarrhea_due_to_rotavirus = ExcessMortalityState('diarrhea_due_to_rotavirus', 
                                                      disability_weight=get_disability_weight(2609),
                                                      modelable_entity_id=1181, 
-                                                     prevalence_rate_df=get_etiology_specific_prevalence(risk_id=181, # risk=rota
+                                                     prevalence_df=get_etiology_specific_prevalence(eti_risk_id=181, # risk=rota
                                                                                                      cause_id=302)) # cause=diarrhea
     
     diarrhea_due_to_rotavirus_transition = IncidenceRateTransition(diarrhea_due_to_rotavirus, 
                                                                    'diarrhea_to_rotavirus', 
-                                                                   incidence_rate_df=get_etiology_specific_incidence(risk_id=181, #risk=rota
+                                                                   incidence_rate_df=get_etiology_specific_incidence(eti_risk_id=181, #risk=rota
                                                                                                                      cause_id=302))#cause=diarrhea
     
     healthy.transition_set.extend([diarrhea_due_to_rotavirus_transition])
