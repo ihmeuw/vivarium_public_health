@@ -17,7 +17,7 @@ from ceam.framework.state_machine import Machine, State, Transition, TransitionS
 import numbers
 
 from collections import defaultdict
-from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states, get_proportion, get_etiology_probability
+from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states_using_modelable_entity_id, get_disease_states_using_prevalence_df, get_proportion, get_etiology_probability
 
 
 class DiseaseState(State):
@@ -119,7 +119,10 @@ class ExcessMortalityState(DiseaseState):
         return self.modelable_entity_id
 
     def name(self):
-        return '{} ({}, {})'.format(self.state_id, self.modelable_entity_id, self.prevalence_meid)
+        if not self.prevalence_df.empty:
+            return '{} ({}, {})'.format(self.state_id, self.modelable_entity_id, self.prevalence_df)
+        else:
+            return '{} ({}, {})'.format(self.state_id, self.modelable_entity_id, self.prevalence_meid)
 
     def __str__(self):
         return 'ExcessMortalityState("{}", "{}" ...)'.format(self.state_id, self.modelable_entity_id)
@@ -307,11 +310,13 @@ class DiseaseModel(Machine):
         population = event.population
 
         # TODO: figure out what "s" is in context below
-        if not prevalence_df.empty:
-             
+        # TODO: figure out how to pass a prevalence dataframe into this function
+        if not self.prevalence_df.empty:
+            prevalence_df = self.prevalence_df
+            condition_column = get_disease_states_using_prevalence_df(population=population, prevalence_df=prevalence_df)
         else:
             state_map = {s.state_id:s.prevalence_meid for s in self.states if hasattr(s, 'prevalence_meid')}
-            condition_column = get_disease_states(population, state_map)
+            condition_column = get_disease_states_using_modelable_entity_id(population, state_map)
 
         population['sex_id'] = population.sex.apply({'Male':1, 'Female':2}.get)
         condition_column = condition_column.rename(columns={'condition_state': self.condition})
