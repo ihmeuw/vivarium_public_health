@@ -112,6 +112,36 @@ def test_incidence(get_disease_states_mock):
 
     assert np.all(from_yearly(0.7, time_step) == incidence_rate(simulation.population.population.index))
 
+@patch('ceam_public_health.components.disease.get_disease_states')
+def test_risk_deletion(get_disease_states_mock):
+    time_step = config.getfloat('simulation_parameters', 'time_step')
+    time_step = timedelta(days=time_step)
+
+    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'}, index=population.index)
+    model = DiseaseModel('test_disease')
+    healthy = State('healthy')
+    sick = State('sick')
+
+    transition = RateTransition(sick, 'test_incidence', get_incidence(2412))
+    healthy.transition_set.append(transition)
+
+    model.states.extend([healthy, sick])
+
+    simulation = setup_simulation([generate_base_population, model])
+
+    base_rate = 0.7
+    paf = 0.1
+    transition.base_incidence = simulation.tables.build_table(build_table(base_rate))
+
+    incidence_rate = simulation.values.get_rate('incidence_rate.test_incidence')
+
+    simulation.values.mutator(simulation.tables.build_table(build_table(paf)), 'paf.{}'.format('test_incidence'))
+
+    pump_simulation(simulation, iterations=1)
+
+    expected_rate = base_rate * (1 - paf)
+
+    assert np.all(from_yearly(expected_rate, time_step) == incidence_rate(simulation.population.population.index))
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_load_population_custom_columns(get_disease_states_mock):
