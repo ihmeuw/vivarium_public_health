@@ -88,7 +88,7 @@ class DiseaseState(State):
 
 # TODO: Make ExcessMortalityState code more flexible so that it only accepts dataframes and not modelable entity ids
 class ExcessMortalityState(DiseaseState):
-    def __init__(self, state_id, modelable_entity_id, prevalence_meid=None, prevalence_rate_df=None, **kwargs):
+    def __init__(self, state_id, modelable_entity_id, prevalence_meid=None, prevalence_df=None, **kwargs):
         DiseaseState.__init__(self, state_id, **kwargs)
 
         self.modelable_entity_id = modelable_entity_id
@@ -99,9 +99,9 @@ class ExcessMortalityState(DiseaseState):
         else:
             self.prevalence_meid = modelable_entity_id
 
-        if not prevalence_rate_df.empty:
+        if not prevalence_df.empty:
             # FIXME: What to do with the prevalence rate df from here? EM 11/22
-            self.prevalence_rate_df = prevalence_rate_df
+            self.prevalence_df = prevalence_df
 
     def setup(self, builder):
         self.mortality = builder.rate('excess_mortality.{}'.format(self.state_id))
@@ -306,10 +306,14 @@ class DiseaseModel(Machine):
     def load_population_columns(self, event):
         population = event.population
 
-        state_map = {s.state_id:s.prevalence_meid for s in self.states if hasattr(s, 'prevalence_meid')}
+        # TODO: figure out what "s" is in context below
+        if not prevalence_df.empty:
+             
+        else:
+            state_map = {s.state_id:s.prevalence_meid for s in self.states if hasattr(s, 'prevalence_meid')}
+            condition_column = get_disease_states(population, state_map)
 
         population['sex_id'] = population.sex.apply({'Male':1, 'Female':2}.get)
-        condition_column = get_disease_states(population, state_map)
         condition_column = condition_column.rename(columns={'condition_state': self.condition})
 
         self.population_view.update(condition_column)
