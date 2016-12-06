@@ -311,12 +311,8 @@ class DiseaseModel(Machine):
 
         # TODO: figure out what "s" is in context below
         # TODO: figure out how to pass a prevalence dataframe into this function
-        if not self.prevalence_df.empty:
-            prevalence_df = self.prevalence_df
-            condition_column = get_disease_states_using_prevalence_df(population=population, prevalence_df=prevalence_df)
-        else:
-            state_map = {s.state_id:s.prevalence_meid for s in self.states if hasattr(s, 'prevalence_meid')}
-            condition_column = get_disease_states_using_modelable_entity_id(population, state_map)
+        state_map = {s.state_id:s.prevalence_df for s in self.states if hasattr(s, 'prevalence_df')}
+        condition_column = get_disease_states_using_prevalence_df(population=population, state_map=state_map)
 
         population['sex_id'] = population.sex.apply({'Male':1, 'Female':2}.get)
         condition_column = condition_column.rename(columns={'condition_state': self.condition})
