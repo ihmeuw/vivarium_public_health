@@ -128,7 +128,6 @@ class ExcessMortalityState(DiseaseState):
         return 'ExcessMortalityState("{}", "{}" ...)'.format(self.state_id, self.modelable_entity_id)
 
 
-<<<<<<< HEAD
 class DiarrheaState(ExcessMortalityState):
     def setup(self, builder):
 
