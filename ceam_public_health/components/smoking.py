@@ -57,6 +57,6 @@ class Smoking:
     @listens_for('initialize_simulants')
     @uses_columns(['smoking_susceptibility'])
     def load_susceptibility(self, event):
-        event.population_view.update(pd.Series(self.randomness.get_draw(event.index)*0.98+0.01, name='smoking_susceptibility'))
+        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='smoking_susceptibility'))
 
 # End.

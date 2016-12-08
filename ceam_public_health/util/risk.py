@@ -31,6 +31,7 @@ def categorical_exposure_effect(exposure, susceptibility_column):
     susceptibility_column : str
         The name of the column which contains susceptibility data
     """
+    # TODO: Need to make the factory take multiple categories, not just 2
     @uses_columns([susceptibility_column])
     def inner(rates, rr, population_view):
         pop = population_view.get(rr.index)
