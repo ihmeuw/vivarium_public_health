@@ -21,8 +21,8 @@ def generate_base_population(event):
     initial_age = event.user_data.get('initial_age', None)
 
     population = generate_ceam_population(year_start=year_start, number_of_simulants=population_size, initial_age=initial_age)
-    population['age'] = population.age.astype(float)
     population.index = event.index
+    # TODO: We can get rid of fractional age everywhere now, I believe. --EM
     population['fractional_age'] = population.age
 
     event.population_view.update(population)
@@ -47,7 +47,6 @@ def adherence(event):
 def age_simulants(event):
     time_step = config.getfloat('simulation_parameters', 'time_step')
     event.population['fractional_age'] += time_step/365.0
-    event.population['age'] = event.population.fractional_age.astype(float)
     event.population_view.update(event.population)
 
 class Mortality:
