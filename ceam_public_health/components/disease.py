@@ -17,7 +17,7 @@ from ceam.framework.state_machine import Machine, State, Transition, TransitionS
 import numbers
 
 from collections import defaultdict
-from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states, get_disease_states_using_prevalence_df, get_proportion, get_etiology_probability
+from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states, get_proportion, get_etiology_probability
 
 
 class DiseaseState(State):
