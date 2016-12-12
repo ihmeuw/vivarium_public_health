@@ -21,7 +21,7 @@ class Metrics:
     @listens_for('time_step__cleanup')
     def calculate_ylds(self, event):
         time_step = config.getfloat('simulation_parameters', 'time_step')
-        self.years_lived_with_disability += self.disability_weight(event.index) * (time_step/365)
+        self.years_lived_with_disability += self.disability_weight(event.index)
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
