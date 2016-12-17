@@ -1,6 +1,29 @@
 import numpy as np
+import pandas as pd
 
 from ceam.framework.population import uses_columns
+import re
+
+def natural_key(string_):
+    """ Sorts columns with strings and numbers naturally
+    Parameters
+    ----------
+    string_: str
+        string with letters and numbers
+    """
+    return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
+
+
+def assign_exposure_cat(df):
+    for cat_col in exp_cat_choices:  
+        if df[cat_col] > df['susceptiblity_column']:
+            return cat_col
+
+
+def assign_relative_risk_value(df):
+    exposure_category = df['exposure']
+    return df['{}'.format(exposure_category)]
+
 
 def continuous_exposure_effect(exposure_column, tmrl, scale):
     """Factory that makes functions which can be used as the exposure_effect
@@ -20,6 +43,7 @@ def continuous_exposure_effect(exposure_column, tmrl, scale):
         return rates * np.maximum(rr.values**((population_view.get(rr.index)[exposure_column] - tmrl) / scale).values, 1)
     return inner
 
+
 def categorical_exposure_effect(exposure, susceptibility_column):
     """Factory that makes function which can be used as the exposure_effect
     for binary categorical risks
@@ -31,12 +55,47 @@ def categorical_exposure_effect(exposure, susceptibility_column):
     susceptibility_column : str
         The name of the column which contains susceptibility data
     """
-    # TODO: Need to make the factory take multiple categories, not just 2
     @uses_columns([susceptibility_column])
     def inner(rates, rr, population_view):
+    
         pop = population_view.get(rr.index)
-        exposed = pop[susceptibility_column] < exposure(rr.index)
-        return rates * (rr.values**exposed)
+
+        exp = exposure(pop.index)
+
+        col_list = exp.columns.tolist()
+        # get all of the category columns (e.g. cat1, cat2 ...)
+        categories =  [c for c in col_list if "cat" in c]
+
+        # sort all of the cat columns (need to be lined up in order of severity to ensure if people move between categories they don't make an enormous leap)
+        categories = sorted(categories, key=natural_key)
+
+        exp = exp[categories]
+
+        exp = np.cumsum(exp[categories], axis=1)
+
+        exp = pop.join(exp)
+
+        for col in exp[categories].columns:
+            exp['{}_bool'.format(col)] = exp['{}'.format(col)] < exp[susceptibility_column]
+
+        bool_list = [c + '_bool' for c in categories]
+
+        exp['exposure_category'] = exp[bool_list].sum(axis=1)
+
+        # seems weird, but we need to add 1 to exposure category. e.g. if all values for a row in bool_list are false that simulant will be in exposure cat1, not cat0
+        exp['exposure_category'] = exp['exposure_category'] + 1
+
+        exp['exposure_category'] = 'cat' + exp['exposure_category'].astype(str)
+
+        exp.drop(categories, axis=1, inplace=True)
+
+        df = exp.join(rr)
+
+        for col in categories:
+            df.loc[(df['exposure_category'] == col, 'relative_risk_value')] = df[col]
+
+        return rates * (df.relative_risk_value.values)
+
     return inner
 
 
