@@ -22,7 +22,7 @@ def diarrhea_factory():
                                                                                                      cause_id=302)) # cause=diarrhea
     
     diarrhea_due_to_rotavirus_transition = RateTransition(diarrhea_due_to_rotavirus, 
-                                                                   'diarrhea_to_rotavirus', 
+                                                                   'diarrhea_due_to_rotavirus', 
                                                                    get_etiology_specific_incidence(eti_risk_id=181, #risk=rota
                                                                                                    cause_id=302))#cause=diarrhea
     
