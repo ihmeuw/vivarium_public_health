@@ -14,15 +14,71 @@ def natural_key(string_):
     return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
 
 
-def assign_exposure_cat(df):
-    for cat_col in exp_cat_choices:  
-        if df[cat_col] > df['susceptiblity_column']:
-            return cat_col
+def naturally_sort_df(df):
+    """
+    grabs all of the category columns in a dataframe and then naturally sorts them
+
+    Parameters
+    ----------
+
+    df : pd.DataFrame
+
+    """
+    col_list = df.columns.tolist()
+    categories =  [c for c in col_list if "cat" in c]
+    categories = sorted(categories, key=natural_key)
+
+    return df[categories], categories
 
 
-def assign_relative_risk_value(df):
-    exposure_category = df['exposure']
-    return df['{}'.format(exposure_category)]
+def assign_exposure_categories(df, susceptibility_column, categories):
+    """
+    creates an 'exposure_category' column that assigns simulant's exposure based on their susceptibility draw
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+
+    susceptibility_column : pd.Series
+
+    categories : list
+        list of all of the category columns in df
+    
+    """
+    bool_list = [c + '_bool' for c in categories]
+    
+    for col in df.columns:
+        df['{}_bool'.format(col)] = df['{}'.format(col)] < df[susceptibility_column]
+
+    df['exposure_category'] = df[bool_list].sum(axis=1)
+
+    # seems weird, but we need to add 1 to exposure category. e.g. if all values for a row in bool_list are false that simulant will be in exposure cat1, not cat0
+    df['exposure_category'] = df['exposure_category'] + 1
+
+    df['exposure_category'] = 'cat' + df['exposure_category'].astype(str)
+
+    return df[['exposure_category']]
+    
+
+def assign_relative_risk_value(df, categories):
+    """
+    creates an 'relative_risk_value' column that assigns simulant's relative risk based on their exposure
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+
+    susceptibility_column : pd.Series
+
+    categories : list
+        list of all of the category columns in df
+
+    """
+
+    for col in categories:
+        df.loc[(df['exposure_category'] == col, 'relative_risk_value')] = df[col]
+
+    return df
 
 
 def continuous_exposure_effect(exposure_column, tmrl, scale):
@@ -62,37 +118,18 @@ def categorical_exposure_effect(exposure, susceptibility_column):
 
         exp = exposure(pop.index)
 
-        col_list = exp.columns.tolist()
-        # get all of the category columns (e.g. cat1, cat2 ...)
-        categories =  [c for c in col_list if "cat" in c]
+        exp, categories = naturally_sort_df(exp)
 
-        # sort all of the cat columns (need to be lined up in order of severity to ensure if people move between categories they don't make an enormous leap)
-        categories = sorted(categories, key=natural_key)
-
-        exp = exp[categories]
-
-        exp = np.cumsum(exp[categories], axis=1)
+        # cumulatively sum over exposures
+        exp = np.cumsum(exp, axis=1)
 
         exp = pop.join(exp)
-
-        for col in exp[categories].columns:
-            exp['{}_bool'.format(col)] = exp['{}'.format(col)] < exp[susceptibility_column]
-
-        bool_list = [c + '_bool' for c in categories]
-
-        exp['exposure_category'] = exp[bool_list].sum(axis=1)
-
-        # seems weird, but we need to add 1 to exposure category. e.g. if all values for a row in bool_list are false that simulant will be in exposure cat1, not cat0
-        exp['exposure_category'] = exp['exposure_category'] + 1
-
-        exp['exposure_category'] = 'cat' + exp['exposure_category'].astype(str)
-
-        exp.drop(categories, axis=1, inplace=True)
+        
+        exp = assign_exposure_categories(exp, susceptibility_column, categories)
 
         df = exp.join(rr)
 
-        for col in categories:
-            df.loc[(df['exposure_category'] == col, 'relative_risk_value')] = df[col]
+        df = assign_relative_risk_value(df, categories)
 
         return rates * (df.relative_risk_value.values)
 
