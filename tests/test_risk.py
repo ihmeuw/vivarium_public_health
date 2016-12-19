@@ -6,7 +6,7 @@ def test_naturally_sort_df():
     assert df.columns.tolist() == ['cat1', 'cat2', 'cat3'], "naturally_sort_df should naturally sort (i.e. cat1, cat2, etc.) category columns"
     assert categories == ['cat1', 'cat2', 'cat3'], "naturally_sort_df should return all of the categories for a given categorical risk factor"
 
-def test_naturally_sort_df():
+def test_assign_exposure_categories():
     df = pd.DataFrame({'simulant_id': [x for x in range(0, 100000)], 'cat2': 100000*[.5], 'cat1': 100000*[.1], 'cat3': 100000*[.4] })
     df, categories = naturally_sort_df(df)
     df = np.cumsum(df, axis=1)
