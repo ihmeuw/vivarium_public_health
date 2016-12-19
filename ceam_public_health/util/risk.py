@@ -42,12 +42,12 @@ def assign_exposure_categories(df, susceptibility_column, categories):
     susceptibility_column : pd.Series
 
     categories : list
-        list of all of the category columns in df
-    
+        list of all of the category columns in df 
     """
+
     bool_list = [c + '_bool' for c in categories]
     
-    for col in df.columns:
+    for col in categories:
         df['{}_bool'.format(col)] = df['{}'.format(col)] < df[susceptibility_column]
 
     df['exposure_category'] = df[bool_list].sum(axis=1)
