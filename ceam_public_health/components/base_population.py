@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 from ceam_inputs import generate_ceam_population
-from ceam_inputs import get_cause_deleted_mortality_rate
+from ceam_inputs import get_all_cause_mortality_rate
 
 from ceam.framework.event import listens_for
 from ceam.framework.values import produces_value, modifies_value
@@ -49,7 +49,27 @@ def age_simulants(event):
     event.population['fractional_age'] += time_step/365.0
     event.population_view.update(event.population)
 
+
+def get_cause_deleted_mortality_rate(all_cause_mortality, cause_specific_mortality_rates):
+    if cause_specific_mortality_rates:
+        all_cause_mortality = all_cause_mortality.set_index(['age', 'sex', 'year'])
+        cause_specific_mortality_rates = sum([df.set_index(['age', 'sex', 'year']) for df in cause_specific_mortality_rates])
+
+        cause_deleted = (all_cause_mortality - cause_specific_mortality_rates)
+        assert np.all(cause_deleted > 0), "something went wrong with the get_cause_deleted_mortality_rate calculation. all-cause mortality can't be <= 0"
+
+        return cause_deleted.reset_index()
+    else:
+        return all_cause_mortality
+
+
 class Mortality:
+    def __init__(self, all_cause_mortality=None):
+        if all_cause_mortality is None:
+            self.all_cause_mortality = get_all_cause_mortality_rate()
+        else:
+            self.all_cause_mortality = all_cause_mortality
+
     def setup(self, builder):
         self._mortality_rate_builder = lambda: builder.lookup(self.load_all_cause_mortality())
         self.mortality_rate = builder.rate('mortality_rate')
@@ -57,7 +77,7 @@ class Mortality:
         j_drive = config.get('general', 'j_drive')
         self.life_table = builder.lookup(pd.read_csv(os.path.join(j_drive, 'WORK/10_gbd/01_dalynator/02_inputs/YLLs/usable/FINAL_min_pred_ex.csv')), key_columns=(), parameter_columns=('age',))
         self.random = builder.randomness('mortality_handler')
-        self.mortality_meids = builder.value('modelable_entity_ids.mortality')
+        self.mortality_data = builder.value('cause_specific_mortality_data')
 
     @listens_for('post_setup')
     def post_step(self, event):
@@ -67,7 +87,7 @@ class Mortality:
         self.mortality_rate_lookup = self._mortality_rate_builder()
 
     def load_all_cause_mortality(self):
-        return get_cause_deleted_mortality_rate(self.mortality_meids())
+        return get_cause_deleted_mortality_rate(self.all_cause_mortality, self.mortality_data())
 
     @listens_for('initialize_simulants')
     @uses_columns(['death_day'])
@@ -101,3 +121,5 @@ class Mortality:
         metrics['total_population__living'] = len(population) - len(the_dead)
         metrics['total_population__dead'] = len(the_dead)
         return metrics
+
+# End.

@@ -86,27 +86,18 @@ class DiseaseState(State):
         return self._disability_weight * (population[self.condition] == self.state_id)
 
 
-# TODO: Make ExcessMortalityState code more flexible so that it only accepts dataframes and not modelable entity ids
 class ExcessMortalityState(DiseaseState):
-    def __init__(self, state_id, modelable_entity_id, prevalence_meid=None, prevalence_df=None, **kwargs):
+    def __init__(self, state_id, excess_mortality_data, prevalence_data, cause_specific_mortality_data, **kwargs):
         DiseaseState.__init__(self, state_id, **kwargs)
 
-        self.modelable_entity_id = modelable_entity_id
-        if prevalence_meid:
-            # We may be calculating initial prevalence based on a different
-            # modelable_entity_id than we use for the mortality rate
-            self.prevalence_meid = prevalence_meid
-        else:
-            self.prevalence_meid = modelable_entity_id
-
-        if not prevalence_df.empty:
-            # FIXME: What to do with the prevalence rate df from here? EM 11/22
-            self.prevalence_df = prevalence_df
+        self.state_id = state_id
+        self.excess_mortality_data = excess_mortality_data
+        self.cause_specific_mortality_data = cause_specific_mortality_data
+        self.prevalence_data = prevalence_data
 
     def setup(self, builder):
         self.mortality = builder.rate('excess_mortality.{}'.format(self.state_id))
-        self.mortality.source = builder.lookup(get_excess_mortality(self.modelable_entity_id))
-
+        self.mortality.source = builder.lookup(self.excess_mortality_data)
         return super(ExcessMortalityState, self).setup(builder)
 
     @modifies_value('mortality_rate')
@@ -114,18 +105,15 @@ class ExcessMortalityState(DiseaseState):
         population = self.population_view.get(index)
         return rates + self.mortality(population.index) * (population[self.condition] == self.state_id)
 
-    @modifies_value('modelable_entity_ids.mortality')
+    @modifies_value('cause_specific_mortality_data')
     def mmeids(self):
-        return self.modelable_entity_id
+        return self.cause_specific_mortality_data
 
     def name(self):
-        if not self.prevalence_df.empty:
-            return '{} ({}, {})'.format(self.state_id, self.modelable_entity_id, self.prevalence_df)
-        else:
-            return '{} ({}, {})'.format(self.state_id, self.modelable_entity_id, self.prevalence_meid)
+        return '{} ({}, {})'.format(self.state_id, self.modelable_entity_id, self.prevalence_data)
 
     def __str__(self):
-        return 'ExcessMortalityState("{}", "{}" ...)'.format(self.state_id, self.modelable_entity_id)
+        return 'ExcessMortalityState("{}" ...)'.format(self.state_id)
 
 
 class DiarrheaState(ExcessMortalityState):
@@ -305,11 +293,8 @@ class DiseaseModel(Machine):
     def load_population_columns(self, event):
         population = event.population
 
-        # TODO: figure out what "s" is in context below
-        # TODO: figure out how to pass a prevalence dataframe into this function
-        state_map = {s.state_id:s.prevalence_df for s in self.states if hasattr(s, 'prevalence_df')}
+        state_map = {s.state_id:s.prevalence_data for s in self.states if hasattr(s, 'prevalence_data')}
 
-        population['sex_id'] = population.sex.apply({'Male':1, 'Female':2}.get)
         condition_column = get_disease_states(population, state_map)
         condition_column = condition_column.rename(columns={'condition_state': self.condition})
 

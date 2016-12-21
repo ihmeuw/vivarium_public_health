@@ -35,14 +35,14 @@ class Handwashing:
         effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=238)), 'handwashing_without_soap_susceptibility')
         risk_effects = make_gbd_risk_effects(238, [
             # TODO: Make this not dependent on GBD! i.e. get rid of the risk id and cause id
-            (302, 'diarrhea_due_to_rotavirus'),
+            (302, 'severe_diarrhea_due_to_rotavirus'),
             ], effect_function)
 
         return risk_effects
 
         effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=238)), 'handwashing_without_soap_susceptibility')
         risk_effects = make_gbd_risk_effects(238, [
-            (302, 'diarrhea_due_to_rotavirus'),
+            (302, 'severe_diarrhea_due_to_rotavirus'),
             ], effect_function)
 
         return risk_effects
