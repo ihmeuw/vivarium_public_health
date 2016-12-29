@@ -43,7 +43,8 @@ class Smoking:
             ], effect_function)
 
         return risk_effects
-
+        
+        # FIXME: effect function and risk effects are coded twice. this is an error, I'm guessing?
         effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=166)), 'smoking_susceptibility')
         risk_effects = make_gbd_risk_effects(166, [
             (493, 'heart_attack'),
