@@ -96,7 +96,7 @@ def diarrhea_factory():
 
     diarrhea_due_to_rotavirus.transition_set.append(Transition(healthy))
 
-    module.states.extend([healthy, diarrhea_due_to_rotavirus])
+    module.states.extend([healthy, diarrhea_due_to_rotavirus, diarrhea])
 
     return module
 
