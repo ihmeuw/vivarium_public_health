@@ -87,13 +87,14 @@ class DiseaseState(State):
 
 
 class ExcessMortalityState(DiseaseState):
-    def __init__(self, state_id, excess_mortality_data, prevalence_data, cause_specific_mortality_data, **kwargs):
+    def __init__(self, state_id, excess_mortality_data, cause_specific_mortality_data, prevalence_data=None, **kwargs):
         DiseaseState.__init__(self, state_id, **kwargs)
 
         self.state_id = state_id
         self.excess_mortality_data = excess_mortality_data
         self.cause_specific_mortality_data = cause_specific_mortality_data
-        self.prevalence_data = prevalence_data
+        if prevalence_data:
+            self.prevalence_data = prevalence_data
 
     def setup(self, builder):
         self.mortality = builder.rate('excess_mortality.{}'.format(self.state_id))

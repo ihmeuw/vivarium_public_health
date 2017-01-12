@@ -5,7 +5,8 @@ from ceam_inputs import get_etiology_specific_prevalence, get_etiology_specific_
 from ceam_inputs.gbd_ms_functions import get_disability_weight
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
-
+import pandas as pd
+import numpy as np
 
 # FIXME: Instead of using the factory for diarrhea, use objects to make sure that the code is fully organized.
 # When you want a simulation component that is nested, return a list of nested components within the setup phase
@@ -15,8 +16,6 @@ from ceam.framework.population import uses_columns
 class DiarrheaExcessMortalityState(ExcessMortalityState):
     def setup(self, builder):
 
-        delattr(ExcessMortalityState, prevalence_data) #TODO: Might want a design change. This breaks SPL rules. http://stackoverflow.com/questions/6057130/python-deleting-a-class-attribute-in-a-subclass
-        
         super(DiarrheaExcessMortalityState, self).setup(builder)
         # FIXME: how to handle diarrhea randomness
         self.random = builder.randomness("diarrhea")
@@ -25,23 +24,24 @@ class DiarrheaExcessMortalityState(ExcessMortalityState):
     @uses_columns(['diarrhea'])
     def _create_diarrhea_colum(self, event):
         length = len(event.index)
-        falses = np.zeros((length, 1), dtype=bool)
-        df = pd.DataFrame(falses, columns=['diarrhea'])
+        diarrhea_series = pd.Series(['healthy'] * length)
+        df = pd.DataFrame(diarrhea_series, columns=['diarrhea'])
         
         event.population_view.update(df)
 
     # TODO: Determine if this should happen at the prepare stage and what priority it should be given
     @listens_for('time_step__prepare')
     @uses_columns(['diarrhea', 'diarrhea_due_to_rotavirus'])
-    def _establish_diarrhea_excess_mortality_state(self, event, population_view):
-        population = self.population_view.get(population.index) #TODO: Better way of determining who has diarrhea?
-        affected_population = population.query('diarrhea_due_to_rotavirus == True').copy() # or diarrhea_due_to_salmonella == True, etc.
+    def _establish_diarrhea_excess_mortality_state(self, event):
+        index = self.population_view.manager._population.query("diarrhea_due_to_rotavirus != 'healthy'").index
+        affected_population = self.population_view.get(index).copy()
+        # get(population.index) #TODO: Better way of determining who has diarrhea?
+        # affected_population = population.query('diarrhea_due_to_rotavirus == True').copy() # or diarrhea_due_to_salmonella == True, etc.
         if not affected_population.empty:
-            affected_population['diarrhea'] = True
-            
-        # TODO: Put in a set trace to make sure this is working correctly
-
-        event.population_view.update(affected_population, index=affected_population.index)
+            affected_population['diarrhea'] = 'diarrhea'
+            # Need to manually set diarrhea_event_count here?          
+ 
+        event.population_view.update(affected_population)
 
 
 class DiarrheaEtiologyState(State):
@@ -71,7 +71,7 @@ def diarrhea_factory():
                                                                                                                                                              cause_id=302, me_id=1181)) # cause=diarrhea me_id=diarrhea
 
     diarrhea_due_to_rotavirus_transition = RateTransition(diarrhea_due_to_rotavirus, 
-                                                                   'diarrhea_due_to_rotavirus', 
+                                                                   'incidence_rate.diarrhea_due_to_rotavirus', 
                                                                    get_etiology_specific_incidence(eti_risk_id=181, # risk=rota
                                                                                                    cause_id=302, me_id=1181)) # cause=diarrhea me_id=diarrhea
     
