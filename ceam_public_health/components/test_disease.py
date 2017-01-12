@@ -21,7 +21,7 @@ from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states,
 
 
 class DiseaseState(State):
-    def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None, condition=None):
+    def __init__(self, state_id, disability_weight=None, dwell_time=0, event_time_column=None, event_count_column=None, condition=None):
         State.__init__(self, state_id)
 
         self.condition = condition
@@ -35,13 +35,13 @@ class DiseaseState(State):
         else:
             self.event_time_column = self.state_id + '_event_time'
 
-        if event_count_column:
-            self.event_count_column = event_count_column
-        else:
-            self.event_count_column = self.state_id + '_event_count'
+        self.event_count_column = event_count_column
 
     def setup(self, builder):
-        columns = [self.condition]
+        columns = [self.condition, self.state_id]
+
+        self.event_count_column = self.condition + '_event_count'
+
         if self.dwell_time > 0:
             columns += [self.event_time_column]
         if self.event_count_column:
@@ -83,7 +83,7 @@ class DiseaseState(State):
     @modifies_value('disability_weight')
     def disability_weight(self, index):
         population = self.population_view.get(index)
-        return self._disability_weight * (population[self.condition] == self.state_id)
+        return self._disability_weight * (population[self.state_id] == self.state_id)
 
 
 class ExcessMortalityState(DiseaseState):
@@ -106,9 +106,7 @@ class ExcessMortalityState(DiseaseState):
     def mortality_rates(self, index, rates):
         population = self.population_view.get(index)
 
-        import pdb; pdb.set_trace()
-
-        return rates + self.mortality(population.index) * (population[self.condition] == self.state_id)
+        return rates + self.mortality(population.index) * (population[self.state_id] == self.state_id)
 
     @modifies_value('cause_specific_mortality_data')
     def mmeids(self):
