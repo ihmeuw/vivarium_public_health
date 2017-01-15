@@ -24,7 +24,6 @@ class DiseaseState(State):
     def __init__(self, state_id, disability_weight=None, dwell_time=0, event_time_column=None, event_count_column=None, condition=None):
         State.__init__(self, state_id)
 
-        self.condition = condition
         self._disability_weight = disability_weight
         self.dwell_time = dwell_time
         if isinstance(self.dwell_time, timedelta):
@@ -38,7 +37,7 @@ class DiseaseState(State):
         self.event_count_column = event_count_column
 
     def setup(self, builder):
-        columns = [self.condition, self.state_id]
+        columns = [self.condition]
 
         self.event_count_column = self.condition + '_event_count'
 
