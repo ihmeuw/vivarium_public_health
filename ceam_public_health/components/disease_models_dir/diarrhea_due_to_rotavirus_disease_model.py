@@ -71,6 +71,7 @@ class DiarrheaEtiologyState(EtiologyState):
         eligible_index = index
         return super(DiarrheaEtiologyState, self).next_state(eligible_index, population_view)
 
+    # TODO: NEED TO GET THIS COUNT WORKING. I THINK THAT PEOPLE THAT GET ROTAVIRUS IN THE BEGINNING ARE NOT BEING COUNTED IN EVENT COUNT!!
     def _transition_side_effect(self, index):
         pop = self.population_view.get(index)
 
@@ -107,6 +108,28 @@ class DiarrheaEtiologyState(EtiologyState):
         return metrics
 
 
+class DiarrheaExcessMortalityState(ExcessMortalityState):
+    def __init__(self, state_id, disability_weight, excess_mortality_data, cause_specific_mortality_data):
+        ExcessMortalityState.__init__(self, state_id, excess_mortality_data, cause_specific_mortality_data)
+
+        self.disability_weight = self.disability_weight
+
+    def setup(self, builder):
+        columns = [self.state_id]
+
+        self.population_view = builder.population_view(columns, 'alive')
+
+        self.mortality = builder.rate('excess_mortality.{}'.format(self.state_id))
+        self.mortality.source = builder.lookup(self.excess_mortality_data)
+        return super(DiarrheaExcessMortalityState, self).setup(builder)
+
+    @modifies_value('disability_weight')
+    def disability_weight(self, index):
+        population = self.population_view.get(index)
+        return self._disability_weight * (population[self.state_id] == self.state_id)
+
+
+
 def diarrhea_factory():
     
     module = DiseaseModel('diarrhea_due_to_rotavirus')
@@ -125,13 +148,11 @@ def diarrhea_factory():
 
     # TODO: Make states (using State class) for diarrhea due to the different pathogens. Then create an excess mortality state for anyone that is in any of the diarrhea states
     # FIXME: Might be a little strange if someone has diarrhea due to different pathogens but has multiple severities. might want to do severity split post diarrhea assignment
-    #diarrhea = ExcessMortalityState('diarrhea',
-                                                     # TODO: Get severity split draws so that we can have full uncertainty surrounding disability
-                                                     # Potential FIXME: Might want to actually have severity states in the future
-    #                                                 disability_weight=.24 * get_disability_weight(2608) + .62 * get_disability_weight(2609) + .14 * get_disability_weight(2610),
-     #                                                excess_mortality_data=get_excess_mortality(1181),
-      #                                               cause_specific_mortality_data=get_cause_specific_mortality(1181),
-       #                                              prevalence_data=None)
+    # TODO: Get severity split draws so that we can have full uncertainty surrounding disability
+    # Potential FIXME: Might want to actually have severity states in the future
+
+    diarrhea = ExcessMortalityState('diarrhea', disability_weight=0.2319, excess_mortality_data=get_excess_mortality(1181),
+                                    cause_specific_mortality_data=get_cause_specific_mortality(1181))
 
     # TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
     # TODO: Figure out how remission rates can be different across diarrhea due to the different etiologies
@@ -139,7 +160,7 @@ def diarrhea_factory():
 
     diarrhea_due_to_rotavirus.transition_set.append(Transition(healthy))
 
-    module.states.extend([healthy, diarrhea_due_to_rotavirus])
+    module.states.extend([healthy, diarrhea_due_to_rotavirus, diarrhea])
 
     return module
 

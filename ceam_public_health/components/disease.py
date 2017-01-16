@@ -21,13 +21,13 @@ from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states,
 
 
 class DiseaseState(State):
-    def __init__(self, state_id, disability_weight=None, dwell_time=0, event_time_column=None, event_count_column=None, condition=None):
+    def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None, condition=None):
         State.__init__(self, state_id)
 
         self.state_id = state_id
         self.condition = condition
-        if disability_weight:
-            self._disability_weight = disability_weight
+        
+        self._disability_weight = disability_weight
 
         self.dwell_time = dwell_time
 
@@ -45,13 +45,8 @@ class DiseaseState(State):
             self.event_count_column = self.state_id + '_event_count'
 
     def setup(self, builder):
-        columns = [self.condition, self.state_id]
-        if self.dwell_time > 0:
-            columns += [self.event_time_column]
-        if self.event_count_column:
-            columns += [self.event_count_column]
+        columns = [self.state_id]
         self.population_view = builder.population_view(columns, 'alive')
-        self.clock = builder.clock()
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
@@ -109,8 +104,6 @@ class ExcessMortalityState(DiseaseState):
     @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates):
         population = self.population_view.get(index)
-
-        import pdb; pdb.set_trace()
 
         return rates + self.mortality(population.index) * (population[self.condition] == self.state_id)
 
