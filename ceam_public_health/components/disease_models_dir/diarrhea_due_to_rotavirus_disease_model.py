@@ -12,7 +12,7 @@ from datetime import timedelta
 
 
 # list_of_etiologies = ['diarrhea_due_to_shigellosis', 'diarrhea_due_to_cholera', 'diarrhea_due_to_other_salmonella', 'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC', 'diarrhea_due_to_campylobacter', 'diarrhea_due_to_amoebiasis', 'diarrhea_due_to_cryptosporidiosis', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_aeromonas', 'diarrhea_due_to_clostridium_difficile', 'diarrhea_due_to_norovirus', 'diarrhea_due_to_adenovirus']
-list_of_etiologies = ['diarrhea_due_to_ETEC', 'diarrhea_due_to_rotaviral_entiritis']
+list_of_etiologies = ['diarrhea_due_to_norovirus', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_adenovirus']
 
 
 class EtiologyState(State):
@@ -53,19 +53,18 @@ class DiarrheaEtiologyState(EtiologyState):
 
         self.clock = builder.clock()
 
-        self.mortality = builder.rate('excess_mortality.{}'.format(self.state_id))
+        self.mortality = builder.rate('excess_mortality.diarrhea')
         self.mortality.source = builder.lookup(self.excess_mortality_data)
 
         # TODO: Figure out what the line below is doing
         return super(DiarrheaEtiologyState, self).setup(builder)
 
 
-    # TODO: This needs to be moved to the factory
-    @modifies_value('mortality_rate')
-    def mortality_rates(self, index, rates):
-        population = self.population_view.get(index)
+#    @modifies_value('mortality_rate')
+#    def mortality_rates(self, index, rates):
+#        population = self.population_view.get(index)
 
-        return rates + self.mortality(population.index) * (population['diarrhea'] == 'diarrhea')
+#        return rates + self.mortality(population.index) * (population['diarrhea'] == 'diarrhea')
   
  
     @listens_for('initialize_simulants')
@@ -88,8 +87,6 @@ class DiarrheaEtiologyState(EtiologyState):
         return '{} ({}, {})'.format(self.state_id, self.parent_cause_id, self.prevalence_data)
 
    
-#    @modifies_value('metrics') 
-#    @uses_columns(['diarrhea_event_count', 'diarrhea_due_to_shigellosis_event_count', 'diarrhea_due_to_cholera_event_count', 'diarrhea_due_to_other_salmonella_event_count', 'diarrhea_due_to_EPEC_event_count', 'diarrhea_due_to_ETEC_event_count', 'diarrhea_due_to_campylobacter_event_count', 'diarrhea_due_to_amoebiasis_event_count', 'diarrhea_due_to_cryptosporidiosis_event_count', 'diarrhea_due_to_rotaviral_entiritis_event_count', 'diarrhea_due_to_aeromonas_event_count', 'diarrhea_due_to_clostridium_difficile_event_count', 'diarrhea_due_to_norovirus_event_count', 'diarrhea_due_to_adenovirus_event_count'])
     @modifies_value('metrics')
     @uses_columns(['diarrhea_event_count'] + [i + '_event_count' for i in list_of_etiologies])
     def metrics(self, index, metrics, population_view):
@@ -107,6 +104,25 @@ class DiarrheaEtiologyState(EtiologyState):
         return self._disability_weight * (population['diarrhea'] == 'diarrhea')
 
 
+class handle_diarrhea_excess_mortality():
+    def __init__(self, excess_mortality_data):
+        self.excess_mortality_data = excess_mortality_data
+
+    def setup(self, builder):
+        columns = ['diarrhea']
+        self.population_view = builder.population_view(columns, 'alive')
+        self.mortality = builder.rate('excess_mortality.diarrhea')
+        self.mortality.source = builder.lookup(self.excess_mortality_data)
+    
+    @modifies_value('mortality_rate')
+    def mortality_rates(self, index, rates):
+        population = self.population_view.get(index)
+
+        return rates + self.mortality(population.index) * (population['diarrhea'] == 'diarrhea')
+
+
+
+
 def test_diarrhea_factory():
 
     list_of_modules = []
@@ -118,7 +134,7 @@ def test_diarrhea_factory():
     
     # dict_of_etiologies_and_eti_risks = {'cholera': 173, 'other_salmonella': 174, 'shigellosis': 175, 'EPEC': 176, 'ETEC': 177, 'campylobacter': 178, 'amoebiasis': 179, 'cryptosporidiosis': 180, 'rotaviral_entiritis': 181, 'aeromonas': 182, 'clostridium_difficile': 183, 'norovirus': 184, 'adenovirus': 185}
 
-    dict_of_etiologies_and_eti_risks = {'ETEC': 177, 'rotaviral_entiritis': 181}
+    dict_of_etiologies_and_eti_risks = {'adenovirus': 185, 'rotaviral_entiritis': 181, 'norovirus': 184}
 
     for key, value in dict_of_etiologies_and_eti_risks.items():
 
@@ -131,15 +147,15 @@ def test_diarrhea_factory():
         healthy = State('healthy', key= diarrhea_due_to_pathogen)
 
 
+        etiology_specific_prevalence = get_etiology_specific_prevalence(eti_risk_id=value, cause_id=302, me_id=1181)
+
+
         # TODO: Get severity split draws so that we can have full uncertainty surrounding disability
         # Potential FIXME: Might want to actually have severity states in the future. Will need to figure out how to make sure that people with multiple pathogens have only one severity
-        etiology_state = DiarrheaEtiologyState(diarrhea_due_to_pathogen, key=diarrhea_due_to_pathogen, prevalence_data=get_etiology_specific_prevalence(eti_risk_id=value, cause_id=302, me_id=1181), excess_mortality_data=get_excess_mortality(1181), disability_weight=0.2319, dwell_time=timedelta(days=30.5))
+        etiology_state = DiarrheaEtiologyState(diarrhea_due_to_pathogen, key=diarrhea_due_to_pathogen, prevalence_data=etiology_specific_prevalence, excess_mortality_data=get_excess_mortality(1181), disability_weight=0.2319, dwell_time=timedelta(days=30.5))
         # risk=rota cause=diarrhea me_id=diarrhea
 
         etiology_specific_incidence = get_etiology_specific_incidence(eti_risk_id=value, cause_id=302, me_id=1181)
-
-        if value == 181:
-            etiology_specific_incidence['eti_inc'] = 0
 
         transition = RateTransition(etiology_state,
                                     'incidence_rate.diarrhea_due_to_{}'.format(key),
@@ -180,7 +196,7 @@ def test_diarrhea_factory():
 
         for etiology in list_of_etiologies:
 
-            pop.loc[pop['{}'.format(etiology)] != 'healthy', 'diarrhea'] = 'diarrhea'
+            pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
 
         pop.loc[pop['diarrhea'] == 'diarrhea', 'diarrhea_event_count'] += 1
 
@@ -192,22 +208,23 @@ def test_diarrhea_factory():
 
 
 #    @modifies_value('mortality_rate')
-#    @listens_for('time_step')
-#    def mortality_rates(event, index, rates):
+#    @uses_columns(['diarrhea'])
+#    def mortality_rates(index, rates, population_view):
 
-#        pop = event.population_view.get(index)
+#        excess_mortality_diarrhea = get_excess_mortality(1181) 
 
-#        import pdb; pdb.set_trace()
+#        pop = population_view.get(index)
 
-#        mortality = builder.rate('excess_mortality.diarrhea')
-#        mortality.source = builder.lookup(get_excess_mortality(1181))
+#        pop = pop.query("diarrhea == 'diarrhea'")
 
-#        [population[self.event_time_column] < self.clock().timestamp() - self.dwell_time].index
+#        pop = pop.merge(excess_mortality_diarrhea, on=['age', 'sex', 'year'])
 
 #        return rates + mortality(population.index) * (population['diarrhea'] == 'diarrhea')
 
 
-    list_of_module_and_functs = list_of_modules + [_establish_diarrhea_excess_mortality_state, _create_diarrhea_column]
+    excess_mort = handle_diarrhea_excess_mortality(get_excess_mortality(1181))
+
+    list_of_module_and_functs = list_of_modules + [_establish_diarrhea_excess_mortality_state, _create_diarrhea_column, excess_mort]
 
     return list_of_module_and_functs
 
