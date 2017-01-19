@@ -18,12 +18,14 @@ def generate_base_population(event):
     year_start = event.time.year
     population_size = len(event.index)
 
-    initial_age = event.user_data.get('initial_age', None)
+    # TODO: FIGURE OUT HOW TO SET INITIAL AGE OUTSIDE OF MANUALLY SETTING BELOW
+    # initial_age = event.user_data.get('initial_age', None)
+    initial_age = .01917808 / 2
 
     population = generate_ceam_population(year_start=year_start, number_of_simulants=population_size, initial_age=initial_age)
     population.index = event.index
     # TODO: We can get rid of fractional age everywhere now, I believe. --EM
-    population['fractional_age'] = population.age
+#    population['fractional_age'] = population.age
 
     event.population_view.update(population)
 
@@ -43,10 +45,10 @@ def adherence(event):
     event.population_view.update(pd.Series(r.choice(['adherent', 'semi-adherent', 'non-adherent'], p=p, size=population_size), dtype='category'))
 
 @listens_for('time_step')
-@uses_columns(['age', 'fractional_age'], 'alive')
+@uses_columns(['age'], 'alive')
 def age_simulants(event):
     time_step = config.getfloat('simulation_parameters', 'time_step')
-    event.population['fractional_age'] += time_step/365.0
+    event.population['age'] += time_step/365.0
     event.population_view.update(event.population)
 
 

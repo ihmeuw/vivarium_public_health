@@ -115,12 +115,11 @@ class handle_diarrhea_excess_mortality():
         self.mortality.source = builder.lookup(self.excess_mortality_data)
     
     @modifies_value('mortality_rate')
-    def mortality_rates(self, index, rates):
+    @uses_columns(['diarrhea'], 'alive')
+    def mortality_rates(self, index, rates, population_view):
         population = self.population_view.get(index)
 
         return rates + self.mortality(population.index) * (population['diarrhea'] == 'diarrhea')
-
-
 
 
 def test_diarrhea_factory():

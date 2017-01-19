@@ -157,7 +157,7 @@ class RateTransition(Transition):
         self.name_prefix = name_prefix
 
     def setup(self, builder):
-        self.incidence_rates = produces_value('{}.{}'.format(self.name_prefix, self.rate_label))(self.incidence_rates)
+        # self.incidence_rates = produces_value('{}.{}'.format(self.name_prefix, self.rate_label))(self.incidence_rates)
         self.effective_incidence = builder.rate('{}.{}'.format(self.name_prefix, self.rate_label))
         self.effective_incidence.source = self.incidence_rates
         self.joint_paf = builder.value('paf.{}'.format(self.rate_label))
