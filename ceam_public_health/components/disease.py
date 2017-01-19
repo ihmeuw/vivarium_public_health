@@ -20,9 +20,10 @@ from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states,
 
 
 class DiseaseState(State):
-    def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None, condition=None):
+    def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None, condition=None, side_effect_function=None):
         State.__init__(self, state_id)
 
+        self.side_effect_function = side_effect_function
         self.condition = condition
         self._disability_weight = disability_weight
         self.dwell_time = dwell_time
@@ -66,6 +67,8 @@ class DiseaseState(State):
             pop[self.event_time_column] = self.clock().timestamp()
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
+        if self.side_effect_function is not None:
+            self.side_effect_function(index)
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
