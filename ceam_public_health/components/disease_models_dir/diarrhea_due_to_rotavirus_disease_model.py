@@ -1,7 +1,7 @@
 from ceam import config
 from ceam.framework.state_machine import Transition, State, TransitionSet
 from ceam_public_health.components.test_disease import DiseaseModel, DiseaseState, ExcessMortalityState, RateTransition, ProportionTransition, RemissionRateTransition, DiarrheaState
-from ceam_inputs import get_etiology_specific_prevalence, get_etiology_specific_incidence, get_remission, get_excess_mortality, get_cause_specific_mortality
+from ceam_inputs import get_etiology_specific_prevalence, get_etiology_specific_incidence, get_duration_in_days, get_excess_mortality, get_cause_specific_mortality
 from ceam_inputs.gbd_ms_functions import get_disability_weight
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
@@ -102,37 +102,31 @@ class ApplyDiarrheaRemission():
 
         self.clock = builder.clock()
 
-        self.duration = timedelta(days=5).total_seconds()
-
-        self.duration2 = builder.value('duration.diarrhea')
+        self.duration = builder.value('duration.diarrhea')
 
         # this gives you a base value. intervention will change this value
-        self.duration2.source = builder.lookup(self.duration_data)
-
-
-    # TODO: When implementing an ORS intervention, this is a where to affect duration
-    def duration(self, index):
-        base_duration = self.duration2(index)
-
-        return pd.Series(base_duration.values, index=index)
+        self.duration.source = builder.lookup(self.duration_data)
 
 
     @uses_columns(['diarrhea', 'diarrhea_event_time'] + list_of_etiologies)
-    @listens_for('time_step')
+    @listens_for('time_step', priority=9)
     def _apply_remission(self, event):
 
         population = event.population_view.get(event.index)
+
+        affected_population = population.query("diarrhea == 'diarrhea'").copy()
+
+        # FIXME: This seems messy. Creating a few columns for duration that will only be used temporarily
+        affected_population['duration'] = pd.to_timedelta(self.duration(event.index), unit='D')
+        affected_population['diarrhea_event_end_time'] = affected_population['duration'] + affected_population['diarrhea_event_time']
 
         # manually set diarrhea to healthy and set all etiology columns to healthy as well
 
         current_time = pd.Timestamp(event.time)
 
-        affected_population = population.query("diarrhea == 'diarrhea'").copy()
+        affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
 
-        affected_population.loc[affected_population['diarrhea_event_time'] < current_time - pd.Timedelta(seconds=self.duration), 'diarrhea'] = 'healthy'
-
-        affected_population['diarrhea'] = 'healthy'
-
+        
         for etiology in list_of_etiologies:
             affected_population['{}'.format(etiology)] = 'healthy'
                    
@@ -224,7 +218,7 @@ def test_diarrhea_factory():
 
     excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181))
 
-    remission = ApplyDiarrheaRemission(get_remission(1181))
+    remission = ApplyDiarrheaRemission(get_duration_in_days(1181))
 
     list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state, _create_diarrhea_column, excess_mort, remission]
 
