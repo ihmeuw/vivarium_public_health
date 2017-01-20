@@ -133,7 +133,7 @@ class ApplyDiarrheaRemission():
         event.population_view.update(affected_population[list_of_etiologies + ['diarrhea']]) 
 
 
-def test_diarrhea_factory():
+def diarrhea_factory():
 
     list_of_modules = []
 
@@ -190,6 +190,8 @@ def test_diarrhea_factory():
 
         event.population_view.update(pd.DataFrame({'diarrhea_event_time': [pd.NaT]*length}, index=event.index))
 
+
+# TODO: Need to fix counts for diarrhea and diarrhea due to etiologies so that counts at beginning of simulation are included
     @listens_for('time_step')
     @uses_columns(['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + list_of_etiologies + [i + '_event_count' for i in list_of_etiologies])
     def _move_people_into_diarrhea_state(event):
