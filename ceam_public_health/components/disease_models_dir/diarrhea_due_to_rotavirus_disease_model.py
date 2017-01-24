@@ -73,9 +73,9 @@ class DiarrheaEtiologyState(EtiologyState):
 
 
 class ApplyDiarrheaExcessMortality():
-    def __init__(self, excess_mortality_data):
+    def __init__(self, excess_mortality_data, cause_specific_mortality_data):
         self.excess_mortality_data = excess_mortality_data
-
+        self.cause_specific_mortality_data = cause_specific_mortality_data
 
     def setup(self, builder):
         columns = ['diarrhea']
@@ -83,13 +83,19 @@ class ApplyDiarrheaExcessMortality():
         self.mortality = builder.rate('excess_mortality.diarrhea')
         self.mortality.source = builder.lookup(self.excess_mortality_data)
 
+
+    @modifies_value('cause_specific_mortality_data')
+    def mmeids(self):
+        return self.cause_specific_mortality_data
+
     
     @modifies_value('mortality_rate')
     @uses_columns(['diarrhea'], 'alive')
     def mortality_rates(self, index, rates, population_view):
         population = self.population_view.get(index)
 
-        return rates + self.mortality(population.index) * (population['diarrhea'] == 'diarrhea')
+
+        return rates + self.mortality(population.index, skip_post_processor=True) * (population['diarrhea'] == 'diarrhea')
 
 # TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
 # TODO: Figure out how remission rates can be different across diarrhea due to the different etiologies
@@ -218,7 +224,7 @@ def diarrhea_factory():
         event.population_view.update(pop[['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + [i + '_event_count' for i in list_of_etiologies]])
 
 
-    excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181))
+    excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181), get_cause_specific_mortality(1181))
 
     remission = ApplyDiarrheaRemission(get_duration_in_days(1181))
 
