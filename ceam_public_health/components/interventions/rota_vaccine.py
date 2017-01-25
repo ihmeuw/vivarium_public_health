@@ -94,6 +94,7 @@ class RotaVaccine():
                    self.vaccine_unit_cost_column, self.vaccine_cost_to_administer_column, self.vaccine_first_dose_time_column, 
                    self.vaccine_second_dose_time_column, self.vaccine_third_dose_time_column, self.vaccine_first_dose_count_column,
                    self.vaccine_second_dose_count_column, self.vaccine_third_dose_count_column, 'age']
+
         self.population_view = builder.population_view(columns, query='alive')
 
 
@@ -177,19 +178,19 @@ class RotaVaccine():
 
         vaccine_effectiveness = config.getfloat('rota_vaccine', 'total_vaccine_effectiveness')
 
+        # FIXME: Get this to return rates for only the affected population
         if self.active == True:
-            return rates * vaccine_effectiveness * (population[self.vaccine_third_dose_column] == True)
+            if population[self.vaccine_third_dose_column].sum() != 0:
+                return rates * vaccine_effectiveness * (population[self.vaccine_third_dose_column] == True)
+
+            return rates
 
         else:
             return rates
 
 
-    def _vaccine_costs(self, population, current_time):
-         self.cost_per_simulant = config.get_int('rota_vaccine', 'RV5_dose_cost') 
-
-
     @modifies_value('metrics')
-    @uses_columns(['rotaviral_entiritis_vaccine_first_dose_count', 'rotaviral_entiritis_vaccine_second_dose_count', 'rotaviral_entiritis_vaccine_third_dose_count'])
+    @uses_columns(['rotaviral_entiritis_vaccine_first_dose_count', 'rotaviral_entiritis_vaccine_second_dose_count', 'rotaviral_entiritis_vaccine_third_dose_count', 'rotaviral_entiritis_vaccine_unit_cost', 'cost_to_administer_rotaviral_entiritis_vaccine'])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
 
