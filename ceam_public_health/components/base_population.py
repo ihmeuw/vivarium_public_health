@@ -5,6 +5,7 @@ import numpy as np
 
 from ceam_inputs import generate_ceam_population
 from ceam_inputs import get_cause_deleted_mortality_rate
+from ceam_inputs.gbd_ms_functions import assign_subregions
 
 from ceam.framework.event import listens_for
 from ceam.framework.values import produces_value, modifies_value
@@ -26,6 +27,13 @@ def generate_base_population(event):
     population['fractional_age'] = population.age.astype(float)
 
     event.population_view.update(population)
+
+
+@listens_for('initialize_simulants', priority=1)
+@uses_columns(['location'])
+def assign_location(event):
+    main_location = config.getint('simulation_parameters', 'location_id')
+    event.population_view.update(assign_subregions(event.index, main_location, event.time.year))
 
 @listens_for('initialize_simulants')
 @uses_columns(['adherence_category'])
