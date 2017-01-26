@@ -22,6 +22,9 @@ cost_df = pd.read_csv('/home/j/Project/Cost_Effectiveness/dev/data_processed/doc
 cost_df.index = cost_df.year_id
 appointment_cost = cost_df['draw_{}'.format(draw)]
 
+ip_cost_df = pd.read_csv('/home/j/Project/Cost_Effectiveness/dev/data_processed/inpatient_visit_cost_KEN_20170125.csv', index_col=0)
+ip_cost_df.index = ip_cost_df.year_id
+hospitalization_cost = ip_cost_df['draw_{}'.format(draw)]
 
 class HealthcareAccess:
     """Model health care utilization. This includes access events due to
@@ -118,7 +121,7 @@ class HealthcareAccess:
     @listens_for('hospitalization')
     def hospital_access(self, event):
         year = event.time.year
-        self.cost_by_year[year] += len(event.index) * 517
+        self.cost_by_year[year] += len(event.index) * hospitalization_cost[year]
 
 
     @modifies_value('metrics')
