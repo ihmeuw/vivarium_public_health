@@ -170,7 +170,7 @@ def diarrhea_factory():
         etiology_specific_incidence = get_etiology_specific_incidence(eti_risk_id=value, cause_id=302, me_id=1181)
 
         transition = RateTransition(etiology_state,
-                                    'incidence_rate.diarrhea_due_to_{}'.format(key),
+                                    'diarrhea_due_to_{}'.format(key),
                                     etiology_specific_incidence)
 
         healthy.transition_set.append(transition)
