@@ -10,7 +10,7 @@
         {
             "name": "base",
             "components": [
-                ["ceam_public_health.components.interventions.rota_vaccine.RotaVaccine", [false], {}]
+            ["ceam_public_health.components.interventions.rota_vaccine.RotaVaccine", [false], {}]
             ]
         },
         {
