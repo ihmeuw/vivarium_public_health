@@ -5,8 +5,8 @@ from datetime import timedelta
 from ceam import config
 from ceam.framework.state_machine import Transition, State, TransitionSet
 from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, RateTransition, ProportionTransition
-from ceam_inputs import get_disability_weight, get_incidence
-from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache
+from ceam_inputs import get_incidence
+from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache, get_disability_weight
 from ceam_inputs.gbd_ms_auxiliary_functions import normalize_for_simulation
 
 
@@ -62,8 +62,8 @@ def heart_disease_factory():
     # TODO: Need to figure out best way to implemnet functions here
     # TODO: Need to figure out where transition from rates to probabilities needs to happen
     hf_prop_df = load_data_from_cache(get_post_mi_heart_failure_proportion_draws, col_name='proportion', src_column='draw_{draw}', location_id=location_id, year_start=year_start, year_end=year_end)
-    angina_prop_df = load_data_from_cache(get_angina_proportions, col_name='proportion', src_column='angina_prop_{draw}', year_start=year_start, year_end=year_end)
-    asympt_prop_df = load_data_from_cache(get_asympt_ihd_proportions, col_name='proportion', src_column='asympt_prop_{draw}', location_id=location_id, year_start=year_start, year_end=year_end)
+    angina_prop_df = load_data_from_cache(get_angina_proportions, col_name='proportion', src_column='angina_prop_{draw}')#, year_start=year_start, year_end=year_end)
+    asympt_prop_df = load_data_from_cache(get_asympt_ihd_proportions, col_name='proportion', src_column='asympt_prop_{draw}', location_id=location_id)#, year_start=year_start, year_end=year_end)
 
     # post-mi transitions
     # TODO: Figure out if we can pass in me_id here to get incidence for the correct cause of heart failure
