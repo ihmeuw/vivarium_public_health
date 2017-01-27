@@ -9,7 +9,6 @@
          "ceam_public_health.components.blood_pressure.BloodPressure",
          "ceam_public_health.components.body_mass_index.BodyMassIndex",
          "ceam_public_health.components.smoking.Smoking",
-	 "ceam_public_health.components.chronic_kidney_disease.ckd_factory()",
          "ceam_public_health.components.healthcare_access.HealthcareAccess",
          "ceam_public_health.components.metrics.Metrics"
     ],
