@@ -31,7 +31,6 @@ class Ors:
         # TODO: Think line below is superfluous
         self.exposure = builder.lookup(get_exposures(risk_id=238))
 
-
         self.randomness = builder.randomness('handwashing_without_soap')
 
         effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=238)), 'handwashing_without_soap_susceptibility')

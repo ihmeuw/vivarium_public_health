@@ -96,8 +96,6 @@ class RotaVaccine():
         self.vaccine_cost_to_administer_column = "cost_to_administer_" + self.etiology + "_vaccine"
 
     def setup(self, builder):
-        self.vaccine_cost_by_year = 0
-        self.vaccine_administration_cost_by_year = 0
 
         columns = [self.vaccine_first_dose_column, self.vaccine_second_dose_column, self.vaccine_third_dose_column, 
                    self.vaccine_unit_cost_column, self.vaccine_cost_to_administer_column, self.vaccine_first_dose_time_column, 
@@ -221,7 +219,7 @@ class RotaVaccine():
                 # filter population to only people for whom the vaccine is working
                 pop = population.query("{} == 1".format(self.vaccine_working_column))
  
-                rates.loc[pop.index] *= vaccine_effectiveness
+                rates.loc[pop.index] *= (1 - vaccine_effectiveness)
 
                 return rates
         else:
