@@ -9,8 +9,8 @@ from ceam.framework.values import modifies_value
 from ceam import config
 from ceam.framework.randomness import choice
 
-from ceam_public_health.util import natural_key, naturally_sort_df, assign_exposure_categories, assign_relative_risk_value
-from ceam_inputs import get_exposures, make_gbd_risk_effect
+from ceam_public_health.util.risk import natural_key, naturally_sort_df, assign_exposure_categories, assign_relative_risk_value
+from ceam_inputs import get_exposures, make_gbd_risk_effects
 
 import os.path
 from functools import partial
@@ -53,7 +53,9 @@ def ors_exposure_effect(exposure, susceptibility_column):
 
         df = assign_relative_risk_value(df, categories)
 
-        return rates.loc[pop.index] *= (df.relative_risk_value.values)
+        rates.loc[pop.index] *= (df.relative_risk_value.values)
+
+        return rates
 
     return inner
 
@@ -107,14 +109,17 @@ class ORS():
         # self.ors_exposure = builder.value('ors_exposure')
         # self.ors_exposure.source = builder.lookup(get_exposures(238)) # USING THE HANDWASHING RISK ID FOR NOW, CHANGE TO ORS WHEN THE DATA IS MADE AVAILABLE!!!
 
+        ors_exposure = get_exposures(risk_id=238)
+
         # USING THE HANDWASHING RISK ID FOR NOW, CHANGE TO ORS WHEN THE DATA IS MADE AVAILABLE!!!
-        self.exposure = builder.lookup(get_exposures(risk_id=238))
 
         if self.active:
             # add exposure above baseline increase in intervention scenario
             ors_exposure_increase_above_baseline = config.getfloat('ORS', 'ors_exposure_increase_above_baseline')
-            self.exposure['cat1'] += ors_exposure_increase_above_baseline
-            self.exposure['cat2'] -= ors_exposure_increase_above_baseline
+            ors_exposure['cat1'] += ors_exposure_increase_above_baseline
+            ors_exposure['cat2'] -= ors_exposure_increase_above_baseline
+
+        self.exposure = builder.lookup(ors_exposure)
 
         # define the ors exposure value, which will be manipulated in the intervention
         self.ors_exposure = builder.value('ors_exposure')
@@ -138,3 +143,10 @@ class ORS():
             ], 'morbidity', effect_function)
 
         return risk_effects_rota, risk_effects_adeno, risk_effects_noro
+
+    @listens_for('initialize_simulants')
+    @uses_columns(['handwashing_without_soap_susceptibility'])
+    def load_susceptibility(self, event):
+        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='handwashing_without_soap_susceptibility'))
+
+# End.
