@@ -145,8 +145,8 @@ class ORS():
         return risk_effects_rota, risk_effects_adeno, risk_effects_noro
 
     @listens_for('initialize_simulants')
-    @uses_columns(['handwashing_without_soap_susceptibility'])
+    @uses_columns(['ors_susceptibility'])
     def load_susceptibility(self, event):
-        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='handwashing_without_soap_susceptibility'))
+        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='ors_susceptibility'))
 
 # End.
