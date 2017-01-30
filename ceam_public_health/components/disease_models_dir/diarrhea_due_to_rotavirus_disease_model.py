@@ -161,6 +161,7 @@ def diarrhea_factory():
         # TODO: Where should I define the healthy state?
         healthy = State('healthy', key= diarrhea_due_to_pathogen)
 
+        # TODO: Don't think that prevalence is being set correctly. Need to investigate.
         etiology_specific_prevalence = get_etiology_specific_prevalence(eti_risk_id=value, cause_id=302, me_id=1181)
 
         # TODO: Get severity split draws so that we can have full uncertainty surrounding disability
