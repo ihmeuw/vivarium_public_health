@@ -16,6 +16,7 @@ from ceam_inputs import get_exposures, make_gbd_risk_effects
 
 from ceam_public_health.util.risk import categorical_exposure_effect
 
+
 class Ors:
     """
     Model ORS. Simulants with diarrhea will receive ORS based on whether their `handwashing_without_soap_susceptibility` is less than the current prevalence of handwashing without soap for their demographic.
@@ -28,22 +29,46 @@ class Ors:
 
     def setup(self, builder):
 
-        # TODO: Think line below is superfluous
+        # filter the pop so that only people with diarrhea can get ORS
+        # columns = ['diarrhea']
+        # self.population_view = builder.population_view(columns, 'alive')
+
+        # self.ors_exposure = builder.value('ors_exposure')
+        # self.ors_exposure.source = builder.lookup(get_exposures(238)) # USING THE HANDWASHING RISK ID FOR NOW, CHANGE TO ORS WHEN THE DATA IS MADE AVAILABLE!!!
+
+        # USING THE HANDWASHING RISK ID FOR NOW, CHANGE TO ORS WHEN THE DATA IS MADE AVAILABLE!!!
         self.exposure = builder.lookup(get_exposures(risk_id=238))
 
-        self.randomness = builder.randomness('handwashing_without_soap')
+        self.randomness = builder.randomness('ors')
 
-        effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=238)), 'handwashing_without_soap_susceptibility')
+        # USING THE HANDWASHING RISK ID FOR NOW, CHANGE TO ORS WHEN THE DATA IS MADE AVAILABLE!!!
+        effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=238)), 'ors_susceptibility')
         risk_effects = make_gbd_risk_effects(238, [
-            # TODO: Make this not dependent on GBD! i.e. get rid of the risk id and cause id
-            (302, 'diarrhea_due_to_rotavirus'),
+            (302, 'diarrhea_due_to_rotaviral_entiritis'),
             ], 'morbidity', effect_function)
 
         return risk_effects
 
+
+        effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=238)), 'ors_susceptibility')
+        risk_effects = make_gbd_risk_effects(238, [
+            (302, 'diarrhea_due_to_adenovirus'),
+            ], 'morbidity', effect_function)
+
+        return risk_effects
+
+
+        effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=238)), 'ors_susceptibility')
+        risk_effects = make_gbd_risk_effects(238, [
+            (302, 'diarrhea_due_to_norovirus'),
+            ], 'morbidity', effect_function)
+
+        return risk_effects
+
+
     @listens_for('initialize_simulants')
-    @uses_columns(['handwashing_without_soap_susceptibility'])
+    @uses_columns(['ors_susceptibility'])
     def load_susceptibility(self, event):
-        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='handwashing_without_soap_susceptibility'))
+        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='ors_susceptibility'))
 
 # End.
