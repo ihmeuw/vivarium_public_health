@@ -16,7 +16,7 @@ from ceam.framework.util import rate_to_probability
 from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
 import numbers
 
-from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states, get_proportion
+from ceam_inputs import get_disease_states, get_proportion
 
 
 class DiseaseState(State):
@@ -81,36 +81,31 @@ class DiseaseState(State):
 
 
 class ExcessMortalityState(DiseaseState):
-    def __init__(self, state_id, modelable_entity_id, prevalence_meid=None, **kwargs):
+    def __init__(self, state_id, excess_mortality_data, prevalence_data, **kwargs):
         DiseaseState.__init__(self, state_id, **kwargs)
 
-        self.modelable_entity_id = modelable_entity_id
-        if prevalence_meid:
-            # We may be calculating initial prevalence based on a different
-            # modelable_entity_id than we use for the mortality rate
-            self.prevalence_meid = prevalence_meid
-        else:
-            self.prevalence_meid = modelable_entity_id
+        self.excess_mortality_data = excess_mortality_data
+        self.prevalence_data = prevalence_data
 
     def setup(self, builder):
         self.mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
-        self.mortality.source = builder.lookup(get_excess_mortality(self.modelable_entity_id))
+        self.mortality.source = builder.lookup(self.excess_mortality_data)
         return super(ExcessMortalityState, self).setup(builder)
 
     @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates):
         population = self.population_view.get(index)
-        return rates + self.mortality(population.index) * (population[self.condition] == self.state_id)
+        return rates + self.mortality(population.index, skip_post=True) * (population[self.condition] == self.state_id)
 
     @modifies_value('modelable_entity_ids.mortality')
     def mmeids(self):
         return self.modelable_entity_id
 
     def name(self):
-        return '{} ({}, {})'.format(self.state_id, self.modelable_entity_id, self.prevalence_meid)
+        return '{}'.format(self.state_id)
 
     def __str__(self):
-        return 'ExcessMortalityState("{}", "{}" ...)'.format(self.state_id, self.modelable_entity_id)
+        return 'ExcessMortalityState("{}" ...)'.format(self.state_id)
 
 
 class RateTransition(Transition):
@@ -211,7 +206,7 @@ class DiseaseModel(Machine):
     def load_population_columns(self, event):
         population = event.population
 
-        state_map = {s.state_id:s.prevalence_meid for s in self.states if hasattr(s, 'prevalence_meid')}
+        state_map = {s.state_id:s.prevalence_data for s in self.states if hasattr(s, 'prevalence_data')}
 
         population['sex_id'] = population.sex.apply({'Male':1, 'Female':2}.get)
         condition_column = get_disease_states(population, state_map)
