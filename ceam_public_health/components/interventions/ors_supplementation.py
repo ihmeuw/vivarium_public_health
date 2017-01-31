@@ -28,7 +28,6 @@ from ceam_inputs.gbd_ms_auxiliary_functions import expand_ages_for_dfs_w_all_age
 # TODO: Incorporate PAFs
 
 
-@listens_for('time_step')
 def ors_exposure_effect(exposure, susceptibility_column):
     """Factory that makes function which can be used as the exposure_effect
     for binary categorical risks
@@ -43,9 +42,9 @@ def ors_exposure_effect(exposure, susceptibility_column):
     @uses_columns([susceptibility_column, 'diarrhea', 'ors_unit_cost', 'ors_cost_to_administer', 'ors_count'])
     def inner(rates, rr, population_view):
    
-        pop = population_view.get(rr.index)
+        population = population_view.get(rr.index)
  
-        pop = pop.query("diarrhea == 'diarrhea'")
+        pop = population.query("diarrhea == 'diarrhea'").copy()
 
         exp = exposure(pop.index)
 
@@ -62,21 +61,21 @@ def ors_exposure_effect(exposure, susceptibility_column):
 
         df = assign_relative_risk_value(df, categories)
 
-        # FIXME: We don't want to use a placeholder after the ORS data is ready
-        df['relative_risk_value'] = 1 - config.getfloat('ORS', 'ors_effectiveness')
+        # costs and counts
+        received_ors_index = df.query("exposure_category == 'cat1'").index
+
+        #FIXME: We don't want to use a placeholder after the ORS data is ready
+        df.loc[received_ors_index, 'relative_risk_value'] = 1 - config.getfloat('ORS', 'ors_effectiveness')
 
         # TODO: Make sure the categories make sense. Exposure to ORS should decrease risk (i.e. RR should be less than 1)
         rates.loc[pop.index] *= (df.relative_risk_value.values)
-
-        # costs and counts
-        received_ors_index = df.query("exposure_category == 'cat1'").index
 
         if not pop.loc[received_ors_index].empty:
             pop.loc[received_ors_index, 'ors_unit_cost'] += config.getint('ORS', 'ORS_unit_cost')
             pop.loc[received_ors_index, 'ors_cost_to_administer'] += config.getint('ORS', 'cost_to_administer_ORS')
             pop.loc[received_ors_index, 'ors_count'] += 1
 
-            pop.update(pop)
+            population_view.update(pop)
 
         return rates
 
@@ -127,13 +126,13 @@ def make_gbd_risk_effects(risk_id, causes, rr_type, effect_function):
 
 # FIXME: Won't need function below once ORS exposure and RR estimates are uploaded to the database
 def get_ors_exposure():
-    covariate_estimates = pd.read_csv("/share/epi/risk/bmgf/draws/exp/diarrhea_ors.csv")
+    covariate_estimates_input = pd.read_csv("/share/epi/risk/bmgf/draws/exp/diarrhea_ors.csv")
 
-    covariate_estimates = covariate_estimates.query("location_id == {}".format(config.getint('simulation_parameters', 'location_id')))
+    covariate_estimates = covariate_estimates_input.query("location_id == {}".format(config.getint('simulation_parameters', 'location_id'))).copy()
 
-    expanded_estimates = expand_ages_for_dfs_w_all_age_estimates(covariate_estimates)
+    expanded = expand_ages_for_dfs_w_all_age_estimates(covariate_estimates)
 
-    expanded_estimates = expanded_estimates.query("year_id >= {ys} and year_id <= {ye}".format(ys = config.getint('simulation_parameters', 'year_start'), ye = config.getint('simulation_parameters', 'year_end')))
+    expanded_estimates = expanded.query("year_id >= {ys} and year_id <= {ye}".format(ys = config.getint('simulation_parameters', 'year_start'), ye = config.getint('simulation_parameters', 'year_end'))).copy()
 
     keepcols = ['year_id', 'sex_id', 'age', 'cat1', 'cat2']
 
@@ -153,14 +152,8 @@ class ORS():
 
     def setup(self, builder):
 
-        # filter the pop so that only people with diarrhea can get ORS
-        # columns = ['diarrhea']
-        # self.population_view = builder.population_view(columns, 'alive')
-
-        # self.ors_exposure = builder.value('ors_exposure')
-        # self.ors_exposure.source = builder.lookup(get_exposures(238)) # USING THE HANDWASHING RISK ID FOR NOW, CHANGE TO ORS WHEN THE DATA IS MADE AVAILABLE!!!
-
         ors_exposure = get_ors_exposure()
+
 
         if self.active:
             # add exposure above baseline increase in intervention scenario
@@ -172,7 +165,7 @@ class ORS():
 
         self.randomness = builder.randomness('ors')
 
-        # USING THE HANDWASHING RISK ID FOR NOW, CHANGE TO ORS WHEN THE DATA IS MADE AVAILABLE!!!
+        # FIXME: I'm using the handwashing rei_id right now -- 238 -- for RR but I'm manually overwriting the RR values to numbers that make sense for ORS. Once we have the ORS rei_id, I can update
         effect_function = ors_exposure_effect(self.exposure, 'ors_susceptibility')
         risk_effects = make_gbd_risk_effects(238, [
             (302, 'diarrhea'),
@@ -197,11 +190,8 @@ class ORS():
         population = population_view.get(index)
 
         metrics['ors_unit_cost'] = population['ors_unit_cost'].sum()
-        metrics['ors_count'] = population['ors_count'].sum()
+        metrics['number_of_days_ors_is_supplied'] = population['ors_count'].sum()
         metrics['ors_cost_to_administer'] = population['ors_cost_to_administer'].sum()
-
-        metrics[self.vaccine_unit_cost_column] = population[self.vaccine_unit_cost_column].sum()
-        metrics[self.vaccine_cost_to_administer_column] = population[self.vaccine_cost_to_administer_column].sum()
 
         return metrics
 
