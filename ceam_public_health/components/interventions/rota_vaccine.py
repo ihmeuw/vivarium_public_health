@@ -71,8 +71,8 @@ def determine_who_should_receive_dose(population, index, vaccine_col, dose_numbe
 
 
 class RotaVaccine():
-    def __init__(self, active=True):
-        self.active = active
+    def __init__(self):
+        self.active = config.getboolean('rota_vaccine', 'run_intervention')
         self.etiology = 'rotaviral_entiritis'
         self.etiology_column = 'diarrhea_due_to_' + self.etiology
 
