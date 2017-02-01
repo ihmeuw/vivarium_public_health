@@ -66,7 +66,7 @@ class Mortality:
         j_drive = config.get('general', 'j_drive')
         self.life_table = builder.lookup(pd.read_csv(os.path.join(j_drive, 'WORK/10_gbd/01_dalynator/02_inputs/YLLs/usable/FINAL_min_pred_ex.csv')), key_columns=(), parameter_columns=('age',))
         self.random = builder.randomness('mortality_handler')
-        self.mortality_meids = builder.value('modelable_entity_ids.mortality')
+        self.csmr_data = builder.value('csmr_data')
 
     @listens_for('post_setup')
     def post_step(self, event):
@@ -76,7 +76,7 @@ class Mortality:
         self.mortality_rate_lookup = self._mortality_rate_builder()
 
     def load_all_cause_mortality(self):
-        return get_cause_deleted_mortality_rate(self.mortality_meids())
+        return get_cause_deleted_mortality_rate(self.csmr_data())
 
     @listens_for('initialize_simulants')
     @uses_columns(['death_day'])

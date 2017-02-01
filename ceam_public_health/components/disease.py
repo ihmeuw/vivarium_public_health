@@ -81,11 +81,12 @@ class DiseaseState(State):
 
 
 class ExcessMortalityState(DiseaseState):
-    def __init__(self, state_id, excess_mortality_data, prevalence_data, **kwargs):
+    def __init__(self, state_id, excess_mortality_data, prevalence_data, csmr_data, **kwargs):
         DiseaseState.__init__(self, state_id, **kwargs)
 
         self.excess_mortality_data = excess_mortality_data
         self.prevalence_data = prevalence_data
+        self.csmr_data = csmr_data
 
     def setup(self, builder):
         self.mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
@@ -97,9 +98,9 @@ class ExcessMortalityState(DiseaseState):
         population = self.population_view.get(index)
         return rates + self.mortality(population.index, skip_post=True) * (population[self.condition] == self.state_id)
 
-    @modifies_value('modelable_entity_ids.mortality')
+    @modifies_value('csmr_data')
     def mmeids(self):
-        return self.modelable_entity_id
+        return self.csmr_data
 
     def name(self):
         return '{}'.format(self.state_id)
