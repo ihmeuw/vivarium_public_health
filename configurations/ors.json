@@ -4,21 +4,7 @@
          "ceam_public_health.components.base_population.age_simulants",
          "ceam_public_health.components.base_population.Mortality",
          "ceam_public_health.components.disease_models_dir.diarrhea_due_to_rotavirus_disease_model.diarrhea_factory()",
-         "ceam_public_health.components.metrics.Metrics"
-    ],
-    "comparisons": [
-        {
-            "name": "base",
-            "components": [
-                ["ceam_public_health.components.interventions.ors_supplementation.ORS", [false], {}]
-            ]
-        },
-        {
-            "name": "intervention",
-            "components": [
-                ["ceam_public_health.components.interventions.ors_supplementation.ORS", [true], {}]
-            ]
-        }
+         "ceam_public_health.components.metrics.Metrics",
+         "ceam_public_health.components.interventions.ors_supplementation.ORS" 
     ]
-
 }

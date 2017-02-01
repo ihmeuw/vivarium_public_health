@@ -146,8 +146,8 @@ def get_ors_exposure():
    
 
 class ORS():
-    def __init__(self, active=True):
-        self.active = active
+    def __init__(self):
+        self.active = config.getboolean('ORS', 'run_intervention')
 
 
     def setup(self, builder):
