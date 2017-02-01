@@ -124,7 +124,7 @@ class RotaVaccine():
         self.population_view.update(pd.DataFrame({self.vaccine_duration_end_time: [pd.NaT]*len(event.index)}, index=event.index))
         self.population_view.update(pd.DataFrame({self.vaccine_working_column: np.zeros(len(event.index), dtype=int)}))
 
-        self.population_view.update(pd.DataFrame({self.vaccine_unit_cost_column: np.zeros(len(event.index), dtype=int)}))
+        self.population_view.update(pd.DataFrame({self.vaccine_unit_cost_column: np.zeros(len(event.index), dtype=float)}))
         self.population_view.update(pd.DataFrame({self.vaccine_cost_to_administer_column: np.zeros(len(event.index), dtype=int)}))
 
 
@@ -147,7 +147,7 @@ class RotaVaccine():
                 children_who_will_receive_first_dose[self.vaccine_first_dose_count_column] += 1 
 
                 # Accrue cost
-                children_who_will_receive_first_dose[self.vaccine_unit_cost_column] += config.getint('rota_vaccine', 'RV5_dose_cost')
+                children_who_will_receive_first_dose[self.vaccine_unit_cost_column] += config.getfloat('rota_vaccine', 'RV5_dose_cost')
                 children_who_will_receive_first_dose[self.vaccine_cost_to_administer_column] += config.getint('rota_vaccine', 'cost_to_administer_each_dose')
 
                 self.population_view.update(children_who_will_receive_first_dose[[self.vaccine_first_dose_column, self.vaccine_first_dose_time_column, self.vaccine_first_dose_count_column, self.vaccine_unit_cost_column, self.vaccine_cost_to_administer_column]])
@@ -163,7 +163,7 @@ class RotaVaccine():
                 children_who_will_receive_second_dose[self.vaccine_second_dose_count_column] += 1
 
                 # Accrue cost
-                children_who_will_receive_second_dose[self.vaccine_unit_cost_column] += config.getint('rota_vaccine', 'RV5_dose_cost')
+                children_who_will_receive_second_dose[self.vaccine_unit_cost_column] += config.getfloat('rota_vaccine', 'RV5_dose_cost')
                 children_who_will_receive_second_dose[self.vaccine_cost_to_administer_column] += config.getint('rota_vaccine', 'cost_to_administer_each_dose')
 
                 self.population_view.update(children_who_will_receive_second_dose[[self.vaccine_second_dose_column, self.vaccine_second_dose_time_column, self.vaccine_second_dose_count_column, self.vaccine_unit_cost_column, self.vaccine_cost_to_administer_column]])
@@ -180,7 +180,7 @@ class RotaVaccine():
                 children_who_will_receive_third_dose[self.vaccine_third_dose_count_column] += 1
 
                 # Accrue cost
-                children_who_will_receive_third_dose[self.vaccine_unit_cost_column] += config.getint('rota_vaccine', 'RV5_dose_cost')
+                children_who_will_receive_third_dose[self.vaccine_unit_cost_column] += config.getfloat('rota_vaccine', 'RV5_dose_cost')
                 children_who_will_receive_third_dose[self.vaccine_cost_to_administer_column] += config.getint('rota_vaccine', 'cost_to_administer_each_dose')
 
                 # set time at which immunity starts
