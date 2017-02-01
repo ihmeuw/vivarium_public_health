@@ -164,6 +164,9 @@ def diarrhea_factory():
         # TODO: Don't think that prevalence is being set correctly. Need to investigate.
         etiology_specific_prevalence = get_etiology_specific_prevalence(eti_risk_id=value, cause_id=302, me_id=1181)
 
+        # FIXME: Setting prevalence to 0 for now. If we want to include prevalence in the future, we'll need to set up the duration in prevalent cases correctly
+        etiology_specific_prevalence['prevalence'] = 0
+
         # TODO: Get severity split draws so that we can have full uncertainty surrounding disability
         # Potential FIXME: Might want to actually have severity states in the future. Will need to figure out how to make sure that people with multiple pathogens have only one severity
         etiology_state = DiarrheaEtiologyState(diarrhea_due_to_pathogen, key=diarrhea_due_to_pathogen, prevalence_data=etiology_specific_prevalence, disability_weight=0.2319)
