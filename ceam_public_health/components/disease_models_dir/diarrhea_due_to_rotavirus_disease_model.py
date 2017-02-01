@@ -11,8 +11,8 @@ from ceam.framework.values import modifies_value
 from datetime import timedelta
 
 
-# list_of_etiologies = ['diarrhea_due_to_shigellosis', 'diarrhea_due_to_cholera', 'diarrhea_due_to_other_salmonella', 'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC', 'diarrhea_due_to_campylobacter', 'diarrhea_due_to_amoebiasis', 'diarrhea_due_to_cryptosporidiosis', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_aeromonas', 'diarrhea_due_to_clostridium_difficile', 'diarrhea_due_to_norovirus', 'diarrhea_due_to_adenovirus']
-list_of_etiologies = ['diarrhea_due_to_norovirus', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_adenovirus']
+list_of_etiologies = ['diarrhea_due_to_shigellosis', 'diarrhea_due_to_cholera', 'diarrhea_due_to_other_salmonella', 'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC', 'diarrhea_due_to_campylobacter', 'diarrhea_due_to_amoebiasis', 'diarrhea_due_to_cryptosporidiosis', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_aeromonas', 'diarrhea_due_to_clostridium_difficile', 'diarrhea_due_to_norovirus', 'diarrhea_due_to_adenovirus']
+# list_of_etiologies = ['diarrhea_due_to_norovirus', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_adenovirus']
 
 
 class EtiologyState(State):
@@ -147,9 +147,9 @@ def diarrhea_factory():
 
     transition_dict = {}
  
-    # dict_of_etiologies_and_eti_risks = {'cholera': 173, 'other_salmonella': 174, 'shigellosis': 175, 'EPEC': 176, 'ETEC': 177, 'campylobacter': 178, 'amoebiasis': 179, 'cryptosporidiosis': 180, 'rotaviral_entiritis': 181, 'aeromonas': 182, 'clostridium_difficile': 183, 'norovirus': 184, 'adenovirus': 185}
+    dict_of_etiologies_and_eti_risks = {'cholera': 173, 'other_salmonella': 174, 'shigellosis': 175, 'EPEC': 176, 'ETEC': 177, 'campylobacter': 178, 'amoebiasis': 179, 'cryptosporidiosis': 180, 'rotaviral_entiritis': 181, 'aeromonas': 182, 'clostridium_difficile': 183, 'norovirus': 184, 'adenovirus': 185}
 
-    dict_of_etiologies_and_eti_risks = {'adenovirus': 185, 'rotaviral_entiritis': 181, 'norovirus': 184}
+    # dict_of_etiologies_and_eti_risks = {'adenovirus': 185, 'rotaviral_entiritis': 181, 'norovirus': 184}
 
     for key, value in dict_of_etiologies_and_eti_risks.items():
 
