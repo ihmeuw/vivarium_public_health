@@ -38,7 +38,6 @@ class TotalCholesterol:
         effect_function = continuous_exposure_effect('total_cholesterol', tmrl=3.08, scale=1)
         risk_effects = make_gbd_risk_effects(106, [
             (493, 'heart_attack'),
-            (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
             ], effect_function)
         return risk_effects
@@ -49,7 +48,7 @@ class TotalCholesterol:
     def initialize(self, event):
         event.population_view.update(pd.DataFrame({
             'cholesterol_percentile': self.randomness.get_draw(event.index)*0.98+0.01,
-            'total_cholesterol': np.full(len(event.index), 20)
+            'total_cholesterol': np.full(len(event.index), 20.0)
         }))
 
     @listens_for('time_step__prepare', priority=8)

@@ -19,7 +19,7 @@ class FastingPlasmaGlucose:
     """
 
     def setup(self, builder):
-        self.fpg_distributions = builder.lookup(get_fpg_distributions())
+        self.fpg_distributions = builder.lookup(get_fpg_distributions(), key_columns=('sex', 'location'))
         self.randomness = builder.randomness('fpg')
 
         effect_function = continuous_exposure_effect('fpg', tmrl=5.1, scale=1)
@@ -36,7 +36,7 @@ class FastingPlasmaGlucose:
     def initialize(self, event):
         event.population_view.update(pd.DataFrame({
             'fpg_percentile': self.randomness.get_draw(event.index)*0.98+0.01,
-            'fpg': np.full(len(event.index), 20)
+            'fpg': np.full(len(event.index), 5.0)
         }))
 
     @listens_for('time_step__prepare', priority=8)
