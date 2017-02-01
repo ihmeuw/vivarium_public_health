@@ -71,7 +71,7 @@ def ors_exposure_effect(exposure, susceptibility_column):
         rates.loc[pop.index] *= (df.relative_risk_value.values)
 
         if not pop.loc[received_ors_index].empty:
-            pop.loc[received_ors_index, 'ors_unit_cost'] += config.getint('ORS', 'ORS_unit_cost')
+            pop.loc[received_ors_index, 'ors_unit_cost'] += config.getfloat('ORS', 'ORS_unit_cost')
             pop.loc[received_ors_index, 'ors_cost_to_administer'] += config.getint('ORS', 'cost_to_administer_ORS')
             pop.loc[received_ors_index, 'ors_count'] += 1
 
@@ -179,7 +179,7 @@ class ORS():
     @uses_columns(['ors_susceptibility', 'ors_unit_cost', 'ors_cost_to_administer', 'ors_count'])
     def load_susceptibility(self, event):
         event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='ors_susceptibility'))
-        event.population_view.update(pd.DataFrame({'ors_unit_cost': np.zeros(len(event.index), dtype=int)}))
+        event.population_view.update(pd.DataFrame({'ors_unit_cost': np.zeros(len(event.index), dtype=float)}))
         event.population_view.update(pd.DataFrame({'ors_cost_to_administer': np.zeros(len(event.index), dtype=int)}))
         event.population_view.update(pd.DataFrame({'ors_count': np.zeros(len(event.index), dtype=int)}))
 
