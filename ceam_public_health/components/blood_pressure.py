@@ -35,11 +35,11 @@ class BloodPressure:
         self.randomness = builder.randomness('blood_pressure')
 
         effect_function = continuous_exposure_effect('systolic_blood_pressure', tmrl=112.5, scale=10)
-        risk_effects = make_gbd_risk_effects(166, [
+        risk_effects = make_gbd_risk_effects(107, [
             (493, 'heart_attack'),
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
-            (589, ':q'),
+            (591, 'ckd'),
             ], effect_function)
 
         return risk_effects
@@ -50,7 +50,7 @@ class BloodPressure:
         population_size = len(event.index)
         event.population_view.update(pd.DataFrame({
             'systolic_blood_pressure_percentile': self.randomness.get_draw(event.index)*0.98+0.01,
-            'systolic_blood_pressure': np.full(population_size, 112),
+            'systolic_blood_pressure': np.full(population_size, 112.0),
             }))
 
     def load_sbp_distribution(self):

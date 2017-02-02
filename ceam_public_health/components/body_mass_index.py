@@ -36,7 +36,7 @@ class BodyMassIndex:
     def initialize(self, event):
         event.population_view.update(pd.DataFrame({
             'bmi_percentile': self.randomness.get_draw(event.index)*0.98+0.01,
-            'bmi': np.full(len(event.index), 20)
+            'bmi': np.full(len(event.index), 20.0)
         }))
 
     @listens_for('time_step__prepare', priority=8)
