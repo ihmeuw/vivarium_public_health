@@ -42,6 +42,7 @@ class DiarrheaEtiologyState(EtiologyState):
 
         self.population_view = builder.population_view(columns, 'alive')
 
+        # TODO: Determine if there is a better way to set up a population
         return super(DiarrheaEtiologyState, self).setup(builder)
 
  
@@ -94,7 +95,6 @@ class ApplyDiarrheaExcessMortality():
     def mortality_rates(self, index, rates, population_view):
         population = self.population_view.get(index)
 
-
         return rates + self.mortality(population.index, skip_post_processor=True) * (population['diarrhea'] == 'diarrhea')
 
 # TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
@@ -114,7 +114,7 @@ class ApplyDiarrheaRemission():
         self.duration.source = builder.lookup(self.duration_data)
 
 
-    @uses_columns(['diarrhea', 'diarrhea_event_time'] + list_of_etiologies)
+    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + list_of_etiologies)
     @listens_for('time_step', priority=9)
     def _apply_remission(self, event):
 
@@ -122,7 +122,6 @@ class ApplyDiarrheaRemission():
 
         affected_population = population.query("diarrhea == 'diarrhea'").copy()
 
-        # FIXME: This seems messy. Creating a few columns for duration that will only be used temporarily
         affected_population['duration'] = pd.to_timedelta(self.duration(event.index), unit='D')
         affected_population['diarrhea_event_end_time'] = affected_population['duration'] + affected_population['diarrhea_event_time']
 
@@ -132,11 +131,10 @@ class ApplyDiarrheaRemission():
 
         affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
 
-        
         for etiology in list_of_etiologies:
             affected_population['{}'.format(etiology)] = 'healthy'
-                   
-        event.population_view.update(affected_population[list_of_etiologies + ['diarrhea']]) 
+                  
+        event.population_view.update(affected_population[list_of_etiologies + ['diarrhea', 'diarrhea_event_end_time']]) 
 
 
 def diarrhea_factory():
@@ -164,7 +162,7 @@ def diarrhea_factory():
         # TODO: Don't think that prevalence is being set correctly. Need to investigate.
         etiology_specific_prevalence = get_etiology_specific_prevalence(eti_risk_id=value, cause_id=302, me_id=1181)
 
-        # FIXME: Setting prevalence to 0 for now. If we want to include prevalence in the future, we'll need to set up the duration in prevalent cases correctly
+        # FIXME: Setting prevalence to 0
         etiology_specific_prevalence['prevalence'] = 0
 
         # TODO: Get severity split draws so that we can have full uncertainty surrounding disability
@@ -185,7 +183,7 @@ def diarrhea_factory():
 
 
     @listens_for('initialize_simulants')
-    @uses_columns(['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'])
+    @uses_columns(['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time', 'diarrhea_event_end_time'])
     def _create_diarrhea_column(event):
 
         length = len(event.index)
@@ -199,10 +197,10 @@ def diarrhea_factory():
         event.population_view.update(df)
 
         event.population_view.update(pd.DataFrame({'diarrhea_event_time': [pd.NaT]*length}, index=event.index))
-
+        event.population_view.update(pd.DataFrame({'diarrhea_event_end_time': [pd.NaT]*length}, index=event.index))
 
 # TODO: Need to fix counts for diarrhea and diarrhea due to etiologies so that counts at beginning of simulation are included
-    @listens_for('time_step')
+    @listens_for('time_step', priority=6)
     @uses_columns(['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + list_of_etiologies + [i + '_event_count' for i in list_of_etiologies])
     def _move_people_into_diarrhea_state(event):
 
@@ -219,14 +217,12 @@ def diarrhea_factory():
             pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
             pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
 
-
         pop.loc[pop['diarrhea'] == 'diarrhea', 'diarrhea_event_count'] += 1
 
         # set diarrhea event time here
-        pop['diarrhea_event_time'] = pd.Timestamp(event.time)
+        pop.loc[pop['diarrhea'] == 'diarrhea', 'diarrhea_event_time'] = pd.Timestamp(event.time)
 
         event.population_view.update(pop[['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + [i + '_event_count' for i in list_of_etiologies]])
-
 
     excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181), get_cause_specific_mortality(1181))
 
