@@ -10,14 +10,11 @@ from ceam import config
 from ceam.framework.randomness import choice
 
 from ceam_public_health.util.risk import natural_key, naturally_sort_df, assign_exposure_categories, assign_relative_risk_value
-from ceam_inputs import get_exposures, get_relative_risks, get_pafs
+from ceam_inputs import get_exposures, get_relative_risks, get_pafs, get_ors_exposure
 
 import os.path
 from functools import partial
 import pdb
-
-# FIXME: Won't need import below once ORS exposure and RR estimates are uploaded to the database
-from ceam_inputs.gbd_ms_auxiliary_functions import expand_ages_for_dfs_w_all_age_estimates, normalize_for_simulation
 
 # 2 things that make ORS different from other risk factors we've dealt with
 # 1) Only people with diarrhea can be exposed (not general population)
@@ -122,27 +119,6 @@ def make_gbd_risk_effects(risk_id, causes, rr_type, effect_function):
         get_relative_risks(risk_id=risk_id, cause_id=cause_id, rr_type=rr_type),
         effect_function)
         for cause_id, cause_name in causes]
-   
-
-# FIXME: Won't need function below once ORS exposure and RR estimates are uploaded to the database
-def get_ors_exposure():
-    covariate_estimates_input = pd.read_csv("/share/epi/risk/bmgf/draws/exp/diarrhea_ors.csv")
-
-    covariate_estimates = covariate_estimates_input.query("location_id == {}".format(config.getint('simulation_parameters', 'location_id'))).copy()
-
-    expanded = expand_ages_for_dfs_w_all_age_estimates(covariate_estimates)
-
-    expanded_estimates = expanded.query("year_id >= {ys} and year_id <= {ye}".format(ys = config.getint('simulation_parameters', 'year_start'), ye = config.getint('simulation_parameters', 'year_end'))).copy()
-
-    keepcols = ['year_id', 'sex_id', 'age', 'cat1', 'cat2']
-
-    expanded_estimates.rename(columns={'draw_{}'.format(config.getint('run_configuration', 'draw_number')): 'cat1'}, inplace=True)
-
-    expanded_estimates['cat2'] = 1 - expanded_estimates['cat1']
-
-    expanded_estimates = expanded_estimates[keepcols]
-
-    return normalize_for_simulation(expanded_estimates)
    
 
 class ORS():
