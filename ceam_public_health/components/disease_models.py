@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from ceam_tests.util import build_table
 from ceam import config
-from ceam.framework.util import filter_for_probability
+from ceam.framework.randomness import filter_for_probability
 from ceam.framework.event import emits, Event
 from ceam.framework.state_machine import Transition, State, TransitionSet
 from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, RateTransition, ProportionTransition
@@ -14,14 +14,14 @@ from ceam_inputs import get_incidence, get_excess_mortality, get_prevalence, get
 from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache, get_disability_weight
 from ceam_inputs.gbd_ms_auxiliary_functions import normalize_for_simulation
 
-def side_effect_factory(male_rate, female_rate):
+def side_effect_factory(male_rate, female_rate, hospitalization_type):
     @emits('hospitalization')
     @uses_columns(['sex'])
     def hospitalization_side_effect(index, emitter, population_view):
         pop = population_view.get(index)
         pop.loc[pop == 'Male'] = male_rate
         pop.loc[pop == 'Female'] = female_rate
-        effective_population = filter_for_probability(index, pop)
+        effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type), index, pop)
         new_event = Event(effective_population)
         emitter(new_event)
     return(hopsitalization_side_effect)
@@ -42,7 +42,7 @@ def heart_disease_factory():
     timestep = config.getfloat('simulation_parameters', 'time_step')
     weight = 0.43*(2/timestep) + 0.07*(28/timestep)
 
-    heart_attack = ExcessMortalityState('heart_attack', disability_weight=weight, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(1814), prevalence_data=get_prevalence(1814), csmr_data=get_cause_specific_mortality(1814), side_effect_function=side_effect_factory(0.6, 0.7)) #rates as per Marcia e-mail 1/19/17
+    heart_attack = ExcessMortalityState('heart_attack', disability_weight=weight, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(1814), prevalence_data=get_prevalence(1814), csmr_data=get_cause_specific_mortality(1814), side_effect_function=side_effect_factory(0.6, 0.7, 'heart attack')) #rates as per Marcia e-mail 1/19/17
 
     #
     mild_heart_failure = ExcessMortalityState('mild_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1821), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1821), csmr_data=get_cause_specific_mortality(2412))
@@ -109,8 +109,8 @@ def stroke_factory():
     healthy = State('healthy', key='hemorrhagic_stroke')
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
     # correspond to healthstate ids which correspond to sequela) 
-    hemorrhagic_stroke = ExcessMortalityState('hemorrhagic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9311), prevalence_data=get_prevalence(9311), csmr_data=get_cause_specific_mortality(9311), side_effect_function=side_effect_factory(0.52, 0.6)) #rates as per Marcia e-mail 1/19/17
-    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310), side_effect_function=side_effect_factory(0.52, 0.6)) #rates as per Marcia e-mail 1/19/17
+    hemorrhagic_stroke = ExcessMortalityState('hemorrhagic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9311), prevalence_data=get_prevalence(9311), csmr_data=get_cause_specific_mortality(9311), side_effect_function=side_effect_factory(0.52, 0.6, 'hemorrhagic stroke')) #rates as per Marcia e-mail 1/19/17
+    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310), side_effect_function=side_effect_factory(0.52, 0.6, 'iscemic stroke')) #rates as per Marcia e-mail 1/19/17
     chronic_stroke = ExcessMortalityState('chronic_stroke', disability_weight=0.32, excess_mortality_data=get_excess_mortality(9312), prevalence_data=get_prevalence(9312), csmr_data=get_cause_specific_mortality(9312))
 
     hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'incidence_rate.hemorrhagic_stroke', get_incidence(9311))
