@@ -9,6 +9,7 @@ from ceam import config
 from ceam.framework.randomness import filter_for_probability
 from ceam.framework.event import emits, Event
 from ceam.framework.state_machine import Transition, State, TransitionSet
+from ceam.framework.population import uses_columns
 from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, RateTransition, ProportionTransition
 from ceam_inputs import get_incidence, get_excess_mortality, get_prevalence, get_cause_specific_mortality
 from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache, get_disability_weight
@@ -24,7 +25,7 @@ def side_effect_factory(male_rate, female_rate, hospitalization_type):
         effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type), index, pop)
         new_event = Event(effective_population)
         emitter(new_event)
-    return(hopsitalization_side_effect)
+    return hospitalization_side_effect
 
 
 def heart_disease_factory():
