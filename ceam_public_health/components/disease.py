@@ -1,4 +1,4 @@
-# ~/ceam/ceam/framework/disease.py
+# ~/ceam/ceam/framework/components/disease.py
 
 import os.path
 from datetime import timedelta
@@ -16,21 +16,16 @@ from ceam.framework.util import rate_to_probability
 from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
 import numbers
 
-from collections import defaultdict
-from ceam_inputs import get_excess_mortality, get_incidence, get_disease_states, get_proportion, get_etiology_probability
+from ceam_inputs import get_disease_states, get_proportion
 
 
 class DiseaseState(State):
     def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None, condition=None):
         State.__init__(self, state_id)
 
-        self.state_id = state_id
         self.condition = condition
-        
         self._disability_weight = disability_weight
-
         self.dwell_time = dwell_time
-
         if isinstance(self.dwell_time, timedelta):
             self.dwell_time = self.dwell_time.total_seconds()
 
@@ -45,15 +40,17 @@ class DiseaseState(State):
             self.event_count_column = self.state_id + '_event_count'
 
     def setup(self, builder):
-        columns = [self.state_id]
+        columns = [self.condition]
+        if self.dwell_time > 0:
+            columns += [self.event_time_column, self.event_count_column]
         self.population_view = builder.population_view(columns, 'alive')
+        self.clock = builder.clock()
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
-        population_size = len(event.index)
         if self.dwell_time > 0:
-            self.population_view.update(pd.DataFrame({self.event_time_column: np.zeros(population_size)}, index=event.index))
-        self.population_view.update(pd.DataFrame({self.event_count_column: np.zeros(population_size)}, index=event.index))
+            population_size = len(event.index)
+            self.population_view.update(pd.DataFrame({self.event_time_column: np.zeros(population_size), self.event_count_column: np.zeros(population_size)}, index=event.index))
 
     def next_state(self, index, population_view):
         if self.dwell_time > 0:
@@ -64,19 +61,17 @@ class DiseaseState(State):
         return super(DiseaseState, self).next_state(eligible_index, population_view)
 
     def _transition_side_effect(self, index):
-        pop = self.population_view.get(index)
-        
         if self.dwell_time > 0:
+            pop = self.population_view.get(index)
             pop[self.event_time_column] = self.clock().timestamp()
-        
-        pop[self.event_count_column] += 1
-
-        self.population_view.update(pop)
+            pop[self.event_count_column] += 1
+            self.population_view.update(pop)
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
-        population = self.population_view.get(index)
-        metrics[self.event_count_column] = population[self.event_count_column].sum()
+        if self.dwell_time > 0:
+            population = self.population_view.get(index)
+            metrics[self.event_count_column] = population[self.event_count_column].sum()
         return metrics
 
     @modifies_value('disability_weight')
@@ -86,91 +81,32 @@ class DiseaseState(State):
 
 
 class ExcessMortalityState(DiseaseState):
-    def __init__(self, state_id, excess_mortality_data, cause_specific_mortality_data, prevalence_data=None, **kwargs):
+    def __init__(self, state_id, excess_mortality_data, prevalence_data, csmr_data, **kwargs):
         DiseaseState.__init__(self, state_id, **kwargs)
 
-        self.state_id = state_id
         self.excess_mortality_data = excess_mortality_data
-        self.cause_specific_mortality_data = cause_specific_mortality_data
-
-        if prevalence_data:
-            self.prevalence_data = prevalence_data
+        self.prevalence_data = prevalence_data
+        self.csmr_data = csmr_data
 
     def setup(self, builder):
-        self.mortality = builder.rate('excess_mortality.{}'.format(self.state_id))
+        self.mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
         self.mortality.source = builder.lookup(self.excess_mortality_data)
         return super(ExcessMortalityState, self).setup(builder)
 
     @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates):
         population = self.population_view.get(index)
+        return rates + self.mortality(population.index, skip_post=True) * (population[self.condition] == self.state_id)
 
-        return rates + self.mortality(population.index) * (population[self.condition] == self.state_id)
-
-    @modifies_value('cause_specific_mortality_data')
+    @modifies_value('csmr_data')
     def mmeids(self):
-        return self.cause_specific_mortality_data
+        return self.csmr_data
 
     def name(self):
-        if prevalence_data:
-            return '{} ({}, {})'.format(self.state_id, self.prevalence_data)
-        else: 
-            return '{} ({}, {})'.format(self.state_id)
+        return '{}'.format(self.state_id)
 
     def __str__(self):
         return 'ExcessMortalityState("{}" ...)'.format(self.state_id)
-
-
-class DiarrheaState(ExcessMortalityState):
-    def setup(self, builder):
-
-        self.eti_dict = dict()
-        self.count_dict = defaultdict(lambda: 0)
-
-        # TODO: Move Chris T's file to somewhere central to cost effectiveness
-        self.diarrhea_and_lri_etiologies = pd.read_csv("/home/j/temp/ctroeger/GEMS/eti_rr_me_ids.csv")
-        self.diarrhea_only_etiologies = self.diarrhea_and_lri_etiologies.query("cause_id == 302")
-
-        # Clostiridium has its own DisMod full model, so we will not be modeling it as a proportion
-        self.diarrhea_only_etiologies = self.diarrhea_only_etiologies.query("modelable_entity != 'diarrhea_clostridium'")
-
-        # Line below removes "diarrhea_" from the string, since I'd rather be able to fee in just the etiology name (e.g. "rotavirus" instead of "diarrhea_rotavirus")
-        self.diarrhea_only_etiologies['modelable_entity'] = self.diarrhea_only_etiologies['modelable_entity'].map(lambda x: x.split('_', -1)[1])
-
-        for eti in self.diarrhea_only_etiologies.modelable_entity.values:
-            self.eti_dict[eti] = builder.lookup(get_etiology_probability(eti))
-
-        super(DiarrheaState, self).setup(builder)
-        self.random = builder.randomness("diarrhea")
-
-    @listens_for('initialize_simulants')
-    @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'norovirus', 'adenovirus'])
-    def _create_etiology_columns(self, event):
-        length = len(event.index)
-        falses = np.zeros((length, 12), dtype=bool)
-        df = pd.DataFrame(falses, columns=['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'norovirus', 'adenovirus'], index=event.index)
- 
-        event.population_view.update(df)
-
-    @uses_columns(['cholera', 'salmonella', 'shigellosis', 'epec', 'etec', 'campylobac', 'amoebiasis', 'cryptospor', 'rotavirus', 'aeromonas', 'norovirus', 'adenovirus'])
-    def _transition_side_effect(self, index, population_view):
-        etiology_cols = pd.DataFrame()
-
-        for eti in self.diarrhea_only_etiologies.modelable_entity.values:
-            self.eti_dict[eti](index)
-            draw = self.random.get_draw(index)
-            etiology = draw < self.eti_dict[eti](index)
-            etiology_cols[eti] = etiology
-            self.count_dict[eti] += etiology.sum()
-
-        population_view.update(etiology_cols)
-
-    @modifies_value('metrics')
-    def metrics(self, index, metrics):
-        # TODO: Better way to get counts of each etiology? Since they are a series of bools, figured summing works
-        for eti in self.diarrhea_only_etiologies.modelable_entity.values:
-            metrics['{}_count'.format(eti)] = self.count_dict[eti]
-        return metrics
 
 
 class RateTransition(Transition):
@@ -182,7 +118,6 @@ class RateTransition(Transition):
         self.name_prefix = name_prefix
 
     def setup(self, builder):
-        self.incidence_rates = produces_value('{}.{}'.format(self.name_prefix, self.rate_label))(self.incidence_rates)
         self.effective_incidence = builder.rate('{}.{}'.format(self.name_prefix, self.rate_label))
         self.effective_incidence.source = self.incidence_rates
         self.joint_paf = builder.value('paf.{}'.format(self.rate_label))
@@ -199,32 +134,6 @@ class RateTransition(Transition):
 
     def __str__(self):
         return 'RateTransition("{0}", "{1}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label)
-
-
-class RemissionRateTransition(Transition):
-    def __init__(self, output, rate_label, modelable_entity_id):
-        Transition.__init__(self, output, self.probability)
-
-        self.rate_label = rate_label
-        self.modelable_entity_id = modelable_entity_id
-
-    # TODO: Think about how risks and remission works. Is there mediation? 
-    def setup(self, builder):
-        self.remission_rates = produces_value('remission_rate.{}'.format(self.rate_label))(self.remission_rates)
-        self.effective_remission = builder.rate('remission_rate.{}'.format(self.rate_label))
-        self.effective_remission.source = self.remission_rates
-        self.base_remission = builder.lookup(get_remission(self.modelable_entity_id))
-
-    def probability(self, index):
-        return rate_to_probability(self.effective_remission(index))
-
-    def remission_rates(self, index):
-        base_rates = self.base_remission(index)
-
-        return base_rates
-
-    def __str__(self):
-        return 'RemissionRateTransition("{0}", "{1}", "{2}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label, self.modelable_entity_id)
 
 
 class ProportionTransition(Transition):
@@ -270,7 +179,7 @@ class DiseaseModel(Machine):
     def module_id(self):
         return str((self.__class__, self.state_column))
 
-    @property    
+    @property
     def condition(self):
         return self.state_column
 
@@ -300,14 +209,17 @@ class DiseaseModel(Machine):
 
         state_map = {s.state_id:s.prevalence_data for s in self.states if hasattr(s, 'prevalence_data')}
 
-        condition_column = get_disease_states(population, state_map)
-        condition_column = condition_column.rename(columns={'condition_state': self.condition})
+        population['sex_id'] = population.sex.apply({'Male':1, 'Female':2}.get)
 
-        self.population_view.update(condition_column)
+        if state_map:
+            condition_column = get_disease_states(population, state_map)
+            condition_column = condition_column.rename(columns={'condition_state': self.condition})
+            self.population_view.update(condition_column)
 
-    # @modifies_value('metrics')
-    # def metrics(self, index, metrics):
-    #    population = self.population_view.get(index)
-    #    metrics[self.condition + '_count'] = (population[self.condition] != 'healthy').sum()
-    #    return metrics
+        # if there are no states with an associated prevalence_data, don't start the simulation with prevalent cases
+        # TODO: I think it would be nice if we could more clearly say we're running a simulation without prevalent cases
+        if not state_map:
+            self.population_view.update(pd.Series(['healthy']*len(population), name=self.condition))
+
+
 # End.
