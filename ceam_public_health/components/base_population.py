@@ -19,13 +19,13 @@ def generate_base_population(event):
     population_size = len(event.index)
 
     # TODO: FIGURE OUT HOW TO SET INITIAL AGE OUTSIDE OF MANUALLY SETTING BELOW
-    # initial_age = event.user_data.get('initial_age', None)
-    initial_age = .01917808 / 2
+    initial_age = event.user_data.get('initial_age', None)
+
+    # TODO: Make sure line below doesn't mess up the fertility.py code, which doesn't need to pass in a year start
+    year_start = event.user_data.get('year_start', None)
 
     population = generate_ceam_population(year_start=year_start, number_of_simulants=population_size, initial_age=initial_age)
     population.index = event.index
-    # TODO: We can get rid of fractional age everywhere now, I believe. --EM
-#    population['fractional_age'] = population.age
 
     event.population_view.update(population)
 
