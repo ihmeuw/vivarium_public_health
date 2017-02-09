@@ -67,7 +67,7 @@ def test_mortality_rate():
 
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
-    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.0, ['age', 'year', 'sex', 'prevalence']))
+    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.0, ['age', 'year', 'sex', 'prevalence']), csmr_data=build_table(0.0))
 
     healthy.transition_set.append(Transition(mortality_state))
 
