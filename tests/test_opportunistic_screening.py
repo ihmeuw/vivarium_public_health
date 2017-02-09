@@ -1,6 +1,6 @@
 # ~/ceam/ceam_tests/test_modules/test_opportunistic_screening.py
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 from collections import defaultdict
 
 import pytest
@@ -125,6 +125,8 @@ def test_medication_cost():
         assert np.all(simulation.population.population[medication['name'] + '_supplied_until'].isnull())
     assert np.all(simulation.population.population[MEDICATIONS[0]['name'] + '_supplied_until'] == simulation.current_time + timedelta(days=60))
 
+    module.cost_by_year = defaultdict(int)
+
     # Now everyone is on all the drugs
     population_view.update(pd.Series(len(MEDICATIONS), index=simulation.population.population.index, name='medication_count'))
     simulation.current_time += timedelta(days=361) # Force us into the next year
@@ -192,7 +194,9 @@ def screening_setup():
     module = OpportunisticScreening()
     simulation = setup_simulation([generate_base_population, _population_setup, adherence, HealthcareAccess(), module], population_size=10)
 
-    pump_simulation(simulation, iterations=1)
+    #pump_simulation(simulation, iterations=1)
+    start_time = datetime(1990, 1, 1)
+    simulation.current_time = start_time
     return simulation, module
 
 
