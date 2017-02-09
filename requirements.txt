@@ -6,3 +6,4 @@ flufl.lock
 -e git+ssh://git@stash.ihme.washington.edu:7999/cp/db_tools.git#egg=db_tools
 -e git+ssh://git@stash.ihme.washington.edu:7999/cste/ceam-inputs.git#egg=ceam_inputs
 -e git+ssh://git@stash.ihme.washington.edu:7999/cste/ceam.git#egg=ceam
+-e git+ssh://git@stash.ihme.washington.edu:7999/cc/hierarchies.git#egg=hierarchies
