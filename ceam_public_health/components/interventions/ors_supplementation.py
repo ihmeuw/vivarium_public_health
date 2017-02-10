@@ -173,7 +173,7 @@ class ORS():
         population = population_view.get(index)
 
         metrics['ors_unit_cost'] = population['ors_unit_cost'].sum()
-        metrics['number_of_days_ors_is_supplied'] = population['ors_count'].sum()
+        metrics['ors_count'] = population['ors_count'].sum()
         metrics['ors_cost_to_administer'] = population['ors_cost_to_administer'].sum()
 
         return metrics
