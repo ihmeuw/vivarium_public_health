@@ -36,11 +36,14 @@ def ors_exposure_effect(exposure, susceptibility_column):
     susceptibility_column : str
         The name of the column which contains susceptibility data
     """
-    @uses_columns([susceptibility_column, 'diarrhea', 'ors_unit_cost', 'ors_cost_to_administer', 'ors_count'])
+    @uses_columns([susceptibility_column, 'diarrhea', 'ors_unit_cost', 'ors_cost_to_administer', 'ors_count', 'diarrhea_event_count', 'ors_clock'])
     def inner(rates, rr, population_view):
    
         population = population_view.get(rr.index)
  
+        # set currently receiving ors col to 0 (will set to 1 later in this function for people that are currently receiving)
+        population['currently_receiving_ors'] = 0
+
         pop = population.query("diarrhea == 'diarrhea'").copy()
 
         exp = exposure(pop.index)
@@ -67,12 +70,16 @@ def ors_exposure_effect(exposure, susceptibility_column):
         # TODO: Make sure the categories make sense. Exposure to ORS should decrease risk (i.e. RR should be less than 1)
         rates.loc[pop.index] *= (df.relative_risk_value.values)
 
+        # using this ors_clock variable to make sure ors count and ors costs are only counted once per bout
         if not pop.loc[received_ors_index].empty:
-            pop.loc[received_ors_index, 'ors_unit_cost'] += config.getfloat('ORS', 'ORS_unit_cost')
-            pop.loc[received_ors_index, 'ors_cost_to_administer'] += config.getint('ORS', 'cost_to_administer_ORS')
-            pop.loc[received_ors_index, 'ors_count'] += 1
+            received_ors_pop = pop.loc[received_ors_index]
+            received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count, 'ors_unit_cost'] += config.getfloat('ORS', 'ORS_unit_cost')
+            received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count, 'ors_cost_to_administer'] += config.getfloat('ORS', 'cost_to_administer_ORS')
+            received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count, 'ors_count'] += 1
 
-            population_view.update(pop)
+            received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count, 'ors_clock'] = received_ors_pop['diarrhea_event_count']
+
+            population_view.update(received_ors_pop)
 
         return rates
 
@@ -119,8 +126,8 @@ def make_gbd_risk_effects(risk_id, causes, rr_type, effect_function):
         get_relative_risks(risk_id=risk_id, cause_id=cause_id, rr_type=rr_type),
         effect_function)
         for cause_id, cause_name in causes]
-   
 
+ 
 class ORS():
     def __init__(self):
         self.active = config.getboolean('ORS', 'run_intervention')
@@ -129,7 +136,6 @@ class ORS():
     def setup(self, builder):
 
         ors_exposure = get_ors_exposure()
-
 
         if self.active:
             # add exposure above baseline increase in intervention scenario
@@ -152,14 +158,15 @@ class ORS():
 
     # TODO: May want to rethink susceptibility column getting assigned at birth. Distribution of susceptibility may differ for people that actually get diarrhea
     @listens_for('initialize_simulants')
-    @uses_columns(['ors_susceptibility', 'ors_unit_cost', 'ors_cost_to_administer', 'ors_count'])
-    def load_susceptibility(self, event):
-        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='ors_susceptibility'))
-        event.population_view.update(pd.DataFrame({'ors_unit_cost': np.zeros(len(event.index), dtype=float)}))
-        event.population_view.update(pd.DataFrame({'ors_cost_to_administer': np.zeros(len(event.index), dtype=int)}))
-        event.population_view.update(pd.DataFrame({'ors_count': np.zeros(len(event.index), dtype=int)}))
+    @uses_columns(['ors_susceptibility', 'ors_unit_cost', 'ors_cost_to_administer', 'ors_count', 'ors_clock'])
+    def load_columns(self, event):
+        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='ors_susceptibility', index=event.index))
+        event.population_view.update(pd.DataFrame({'ors_unit_cost': np.zeros(len(event.index), dtype=float)}, index=event.index))
+        event.population_view.update(pd.DataFrame({'ors_cost_to_administer': np.zeros(len(event.index), dtype=float)}, index=event.index))
+        event.population_view.update(pd.DataFrame({'ors_count': np.zeros(len(event.index), dtype=int)}, index=event.index))
+        event.population_view.update(pd.DataFrame({'ors_clock': np.zeros(len(event.index), dtype=int)}, index=event.index))
 
-
+        
     @modifies_value('metrics')
     @uses_columns(['ors_count', 'ors_unit_cost', 'ors_cost_to_administer'])
     def metrics(self, index, metrics, population_view):
