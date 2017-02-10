@@ -209,17 +209,14 @@ class DiseaseModel(Machine):
 
         state_map = {s.state_id:s.prevalence_data for s in self.states if hasattr(s, 'prevalence_data')}
 
-        population['sex_id'] = population.sex.apply({'Male':1, 'Female':2}.get)
-
         if state_map:
+            # only do this if there are states in the model that supply prevalence data
+            population['sex_id'] = population.sex.apply({'Male':1, 'Female':2}.get)
             condition_column = get_disease_states(population, state_map)
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
-            self.population_view.update(condition_column)
-
-        # if there are no states with an associated prevalence_data, don't start the simulation with prevalent cases
-        # TODO: I think it would be nice if we could more clearly say we're running a simulation without prevalent cases
-        if not state_map:
-            self.population_view.update(pd.Series(['healthy']*len(population), name=self.condition))
+        else:
+            condition_column = pd.Series('healthy', index=population.index, name=self.condition)
+        self.population_view.update(condition_column)
 
 
 # End.

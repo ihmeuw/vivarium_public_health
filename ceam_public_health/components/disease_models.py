@@ -1,12 +1,15 @@
 # ~/ceam/ceam/modules/disease_models.py
 
+import pandas as pd
+
 from datetime import timedelta
 
+from ceam_tests.util import build_table
 from ceam import config
 from ceam.framework.state_machine import Transition, State, TransitionSet
 from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, RateTransition, ProportionTransition
-from ceam_inputs import get_disability_weight, get_incidence
-from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache
+from ceam_inputs import get_incidence, get_excess_mortality, get_prevalence, get_cause_specific_mortality
+from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache, get_disability_weight
 from ceam_inputs.gbd_ms_auxiliary_functions import normalize_for_simulation
 
 
@@ -24,19 +27,19 @@ def heart_disease_factory():
     # TODO: This doesn't account for the fact that our timestep is longer than 28 days
     timestep = config.getfloat('simulation_parameters', 'time_step')
     weight = 0.43*(2/timestep) + 0.07*(28/timestep)
-    heart_attack = ExcessMortalityState('heart_attack', disability_weight=weight, dwell_time=timedelta(days=28), modelable_entity_id=1814, prevalence_meid=1814)
+    heart_attack = ExcessMortalityState('heart_attack', disability_weight=weight, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(1814), prevalence_data=get_prevalence(1814), csmr_data=get_cause_specific_mortality(1814))
 
     #
-    mild_heart_failure = ExcessMortalityState('mild_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1821), modelable_entity_id=2412, prevalence_meid=1821)
-    moderate_heart_failure = ExcessMortalityState('moderate_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1822), modelable_entity_id=2412, prevalence_meid=1822)
-    severe_heart_failure = ExcessMortalityState('severe_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1823), modelable_entity_id=2412, prevalence_meid=1823)
+    mild_heart_failure = ExcessMortalityState('mild_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1821), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1821), csmr_data=get_cause_specific_mortality(2412))
+    moderate_heart_failure = ExcessMortalityState('moderate_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1822), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1822), csmr_data=pd.DataFrame())
+    severe_heart_failure = ExcessMortalityState('severe_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1823), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1823), csmr_data=pd.DataFrame())
 
-    asymptomatic_angina = ExcessMortalityState('asymptomatic_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1823), modelable_entity_id=1817, prevalence_meid=3102)
-    mild_angina = ExcessMortalityState('mild_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1818), modelable_entity_id=1817, prevalence_meid=1818)
-    moderate_angina = ExcessMortalityState('moderate_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1819), modelable_entity_id=1817, prevalence_meid=1819)
-    severe_angina = ExcessMortalityState('severe_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1820), modelable_entity_id=1817, prevalence_meid=1820)
+    asymptomatic_angina = ExcessMortalityState('asymptomatic_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1823), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(3102), csmr_data=get_cause_specific_mortality(1817))
+    mild_angina = ExcessMortalityState('mild_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1818), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1818), csmr_data=pd.DataFrame())
+    moderate_angina = ExcessMortalityState('moderate_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1819), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1819), csmr_data=pd.DataFrame())
+    severe_angina = ExcessMortalityState('severe_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1820), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1820), csmr_data=pd.DataFrame())
 
-    asymptomatic_ihd = ExcessMortalityState('asymptomatic_ihd', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=3233), modelable_entity_id=3233, prevalence_meid=3233)
+    asymptomatic_ihd = ExcessMortalityState('asymptomatic_ihd', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=3233), excess_mortality_data=build_table(0.0), prevalence_data=get_prevalence(3233), csmr_data=get_cause_specific_mortality(3233))
 
     heart_attack_transition = RateTransition(heart_attack, 'incidence_rate.heart_attack', get_incidence(1814))
     healthy.transition_set.append(heart_attack_transition)
@@ -62,7 +65,7 @@ def heart_disease_factory():
     # TODO: Need to figure out best way to implemnet functions here
     # TODO: Need to figure out where transition from rates to probabilities needs to happen
     hf_prop_df = load_data_from_cache(get_post_mi_heart_failure_proportion_draws, col_name='proportion', src_column='draw_{draw}', location_id=location_id, year_start=year_start, year_end=year_end)
-    angina_prop_df = load_data_from_cache(get_angina_proportions, col_name='proportion', src_column='angina_prop_{draw}', year_start=year_start, year_end=year_end)
+    angina_prop_df = load_data_from_cache(get_angina_proportions, col_name='proportion', src_column='angina_prop')#, year_start=year_start, year_end=year_end)
     asympt_prop_df = load_data_from_cache(get_asympt_ihd_proportions, col_name='proportion', src_column='asympt_prop_{draw}', location_id=location_id, year_start=year_start, year_end=year_end)
 
     # post-mi transitions
@@ -92,9 +95,9 @@ def stroke_factory():
     healthy = State('healthy', key='hemorrhagic_stroke')
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
     # correspond to healthstate ids which correspond to sequela) 
-    hemorrhagic_stroke = ExcessMortalityState('hemorrhagic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), modelable_entity_id=9311)
-    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), modelable_entity_id=9310)
-    chronic_stroke = ExcessMortalityState('chronic_stroke', disability_weight=0.32, modelable_entity_id=9312)
+    hemorrhagic_stroke = ExcessMortalityState('hemorrhagic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9311), prevalence_data=get_prevalence(9311), csmr_data=get_cause_specific_mortality(9311))
+    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310))
+    chronic_stroke = ExcessMortalityState('chronic_stroke', disability_weight=0.32, excess_mortality_data=get_excess_mortality(9312), prevalence_data=get_prevalence(9312), csmr_data=get_cause_specific_mortality(9312))
 
     hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'incidence_rate.hemorrhagic_stroke', get_incidence(9311))
     ischemic_transition = RateTransition(ischemic_stroke, 'incidence_rate.ischemic_stroke', get_incidence(9310))

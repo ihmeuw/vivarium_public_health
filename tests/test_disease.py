@@ -67,15 +67,13 @@ def test_mortality_rate():
 
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
-    mortality_state = ExcessMortalityState('sick', modelable_entity_id=2412, disability_weight=0.1)
+    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.0, ['age', 'year', 'sex', 'prevalence']), csmr_data=build_table(0.0))
 
     healthy.transition_set.append(Transition(mortality_state))
 
     model.states.extend([healthy, mortality_state])
 
     simulation = setup_simulation([generate_base_population, model])
-
-    mortality_state.mortality = simulation.tables.build_table(build_table(0.7))
 
     mortality_rate = simulation.values.get_rate('mortality_rate')
     mortality_rate.source = simulation.tables.build_table(build_table(0.0))
