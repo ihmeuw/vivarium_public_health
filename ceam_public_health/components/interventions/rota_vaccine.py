@@ -108,13 +108,13 @@ class RotaVaccine():
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
-        self.population_view.update(pd.DataFrame({self.vaccine_first_dose_column: np.zeros(len(event.index), dtype=int)}))
-        self.population_view.update(pd.DataFrame({self.vaccine_second_dose_column: np.zeros(len(event.index), dtype=int)}))
-        self.population_view.update(pd.DataFrame({self.vaccine_third_dose_column: np.zeros(len(event.index), dtype=int)}))
+        self.population_view.update(pd.DataFrame({self.vaccine_first_dose_column: np.zeros(len(event.index), dtype=int)}, index=event.index))
+        self.population_view.update(pd.DataFrame({self.vaccine_second_dose_column: np.zeros(len(event.index), dtype=int)}, index=event.index))
+        self.population_view.update(pd.DataFrame({self.vaccine_third_dose_column: np.zeros(len(event.index), dtype=int)}, index=event.index))
 
-        self.population_view.update(pd.DataFrame({self.vaccine_first_dose_count_column: np.zeros(len(event.index), dtype=int)}))
-        self.population_view.update(pd.DataFrame({self.vaccine_second_dose_count_column: np.zeros(len(event.index), dtype=int)}))
-        self.population_view.update(pd.DataFrame({self.vaccine_third_dose_count_column: np.zeros(len(event.index), dtype=int)}))
+        self.population_view.update(pd.DataFrame({self.vaccine_first_dose_count_column: np.zeros(len(event.index), dtype=int)}, index=event.index))
+        self.population_view.update(pd.DataFrame({self.vaccine_second_dose_count_column: np.zeros(len(event.index), dtype=int)}, index=event.index))
+        self.population_view.update(pd.DataFrame({self.vaccine_third_dose_count_column: np.zeros(len(event.index), dtype=int)}, index=event.index))
 
         self.population_view.update(pd.DataFrame({self.vaccine_first_dose_time_column: [pd.NaT]*len(event.index)}, index=event.index))
         self.population_view.update(pd.DataFrame({self.vaccine_second_dose_time_column: [pd.NaT]*len(event.index)}, index=event.index))
@@ -122,10 +122,10 @@ class RotaVaccine():
 
         self.population_view.update(pd.DataFrame({self.vaccine_duration_start_time: [pd.NaT]*len(event.index)}, index=event.index))
         self.population_view.update(pd.DataFrame({self.vaccine_duration_end_time: [pd.NaT]*len(event.index)}, index=event.index))
-        self.population_view.update(pd.DataFrame({self.vaccine_working_column: np.zeros(len(event.index), dtype=int)}))
+        self.population_view.update(pd.DataFrame({self.vaccine_working_column: np.zeros(len(event.index), dtype=int)}, index=event.index))
 
-        self.population_view.update(pd.DataFrame({self.vaccine_unit_cost_column: np.zeros(len(event.index), dtype=float)}))
-        self.population_view.update(pd.DataFrame({self.vaccine_cost_to_administer_column: np.zeros(len(event.index), dtype=int)}))
+        self.population_view.update(pd.DataFrame({self.vaccine_unit_cost_column: np.zeros(len(event.index), dtype=float)}, index=event.index))
+        self.population_view.update(pd.DataFrame({self.vaccine_cost_to_administer_column: np.zeros(len(event.index), dtype=int)}, index=event.index))
 
 
     @listens_for('time_step')
