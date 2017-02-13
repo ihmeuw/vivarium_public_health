@@ -89,7 +89,7 @@ def heart_disease_factory():
 
 
 def stroke_factory():
-    module = DiseaseModel('hemorrhagic_stroke')
+    module = DiseaseModel('all_stroke')
 
     healthy = State('healthy', key='hemorrhagic_stroke')
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
