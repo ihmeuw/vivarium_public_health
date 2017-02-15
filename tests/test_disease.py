@@ -38,7 +38,7 @@ def test_dwell_time(get_disease_states_mock):
     emitter = simulation.events.get_emitter('time_step')
 
     # Move everyone into the event state
-    emitter(Event(simulation.current_time, simulation.population.population.index))
+    emitter(Event(simulation.population.population.index))
     event_time = simulation.current_time
 
     assert np.all(simulation.population.population.state == 'event')
@@ -46,14 +46,14 @@ def test_dwell_time(get_disease_states_mock):
     simulation.current_time += timedelta(days=10)
 
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    emitter(Event(simulation.current_time, simulation.population.population.index))
+    emitter(Event(simulation.population.population.index))
 
     assert np.all(simulation.population.population.state == 'event')
 
     simulation.current_time += timedelta(days=20)
 
     # Now enough time has passed so people should transition away
-    emitter(Event(simulation.current_time, simulation.population.population.index))
+    emitter(Event(simulation.population.population.index))
 
     assert np.all(simulation.population.population.state == 'sick')
 
