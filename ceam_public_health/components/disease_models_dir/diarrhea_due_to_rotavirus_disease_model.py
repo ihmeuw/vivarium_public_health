@@ -42,12 +42,21 @@ class DiarrheaEtiologyState(State):
 
 
     @modifies_value('metrics')
-    @uses_columns(['diarrhea_event_count'] + [i + '_event_count' for i in list_of_etiologies])
+    @uses_columns(['diarrhea_event_count', 'age'] + [i + '_event_count' for i in list_of_etiologies] + ['number_of_days_simulant_has_diarrhea', 'simulant_initialization_time', 'death_day', 'simulation_end_time'])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
 
         metrics[self.event_count_column] = population[self.event_count_column].sum()
         metrics['diarrhea_event_count'] = population['diarrhea_event_count'].sum()
+
+        # if the simulant is dead, their person years of exposure in the simulation is their time of death - simulant initialization time - time spent ill
+        population.loc[population.death_day.notnull(), 'susceptible_person_time'] = pd.Series(pd.to_timedelta(population['death_day'] - population['simulant_initialization_time'] - pd.to_timedelta(population['number_of_days_simulant_has_diarrhea'], unit='D')))
+
+        # create a simulation end time that is midnight of the first day of the year after year end
+        population.loc[population.death_day.isnull(), 'susceptible_person_time'] = pd.Series(pd.to_timedelta(population['simulation_end_time'] - population['simulant_initialization_time'] - pd.to_timedelta(population['number_of_days_simulant_has_diarrhea'], unit='D')))
+        
+        # break up into age groups to get exposed time in each age group
+        metrics['susceptible_person_time'] = population['susceptible_person_time'].dt.days.sum()
 
         return metrics
 
@@ -169,13 +178,8 @@ def diarrhea_factory():
 
         length = len(event.index)
 
-        diarrhea_series = pd.Series(['healthy'] * length)
-        falses = np.zeros((length, 1), dtype=int)
-
-        df = pd.DataFrame(falses, columns=['diarrhea_event_count'])
-        df['diarrhea'] = diarrhea_series
-
-        event.population_view.update(df)
+        event.population_view.update(pd.DataFrame({'diarrhea': ['healthy']*length}, index=event.index))
+        event.population_view.update(pd.DataFrame({'diarrhea_event_count': np.zeros(len(event.index), dtype=int)}, index=event.index))
 
         event.population_view.update(pd.DataFrame({'diarrhea_event_time': [pd.NaT]*length}, index=event.index))
         event.population_view.update(pd.DataFrame({'diarrhea_event_end_time': [pd.NaT]*length}, index=event.index))
@@ -203,11 +207,36 @@ def diarrhea_factory():
 
         event.population_view.update(pop[['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + [i + '_event_count' for i in list_of_etiologies]])
 
+
+    # track person years of exposure (person time in the simulation - time which simulants are sick
+    @listens_for('initialize_simulants')
+    @uses_columns(['simulant_initialization_time', 'number_of_days_simulant_has_diarrhea', 'simulation_end_time'])
+    def create_person_year_columns(event):
+        length = len(event.index)
+        event.population_view.update(pd.DataFrame({'simulant_initialization_time': [pd.Timestamp(event.time)]*length}, index=event.index))
+        event.population_view.update(pd.DataFrame({'number_of_days_simulant_has_diarrhea': np.zeros(length)}, index=event.index))
+        event.population_view.update(pd.DataFrame({'simulation_end_time': [pd.Timestamp('{}0101'.format(config.getint('simulation_parameters', 'year_end') + 1))]*length}, index=event.index))
+
+
+    @listens_for('time_step', priority=6)
+    @uses_columns(['diarrhea', 'number_of_days_simulant_has_diarrhea', 'simulation_end_time', 'simulant_initialization_time'], 'alive')
+    def count_time_steps_sim_has_diarrhea(event):
+        pop = event.population_view.get(event.index)
+
+        pop.loc[pop['diarrhea'] == 'diarrhea', 'number_of_days_simulant_has_diarrhea'] += config.getint('simulation_parameters', 'time_step')
+       
+        # seems weird, but if the time steps are long, and the simulant has the disease for the entire simulation, they can end up contributing negative person time (saw this when running with 1 year timesteps). shouldn't be an issue with shorter timesteps, but capping the amount of time the simulant could possibly have diarrhea to simulation run time.
+        pop['max_time_simulant_can_have_diarrhea'] = pd.Series(pd.to_timedelta(pop['simulation_end_time'] - pop['simulant_initialization_time'])).dt.days
+
+        pop.loc[pop['number_of_days_simulant_has_diarrhea'] > pop['max_time_simulant_can_have_diarrhea'], 'number_of_days_simulant_has_diarrhea'] = pop['max_time_simulant_can_have_diarrhea']
+ 
+        event.population_view.update(pop[['number_of_days_simulant_has_diarrhea']])
+
     excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181), get_cause_specific_mortality(1181))
 
     remission = ApplyDiarrheaRemission(get_duration_in_days(1181))
 
-    list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state, _create_diarrhea_column, excess_mort, remission]
+    list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state, _create_diarrhea_column, excess_mort, remission, create_person_year_columns, count_time_steps_sim_has_diarrhea]
 
     return list_of_module_and_functs
 
