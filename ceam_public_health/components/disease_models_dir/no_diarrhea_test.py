@@ -1,6 +1,6 @@
 from ceam import config
 from ceam.framework.state_machine import Transition, State, TransitionSet
-from ceam_public_health.components.test_disease import DiseaseModel, DiseaseState, ExcessMortalityState, RateTransition, ProportionTransition, RemissionRateTransition, DiarrheaState
+from ceam_public_health.components.disease import DiseaseModel
 from ceam_inputs import get_etiology_specific_prevalence, get_etiology_specific_incidence, get_duration_in_days, get_excess_mortality, get_cause_specific_mortality
 from ceam_inputs.gbd_ms_functions import get_disability_weight
 from ceam.framework.event import listens_for
