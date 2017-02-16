@@ -96,7 +96,7 @@ class ExcessMortalityState(DiseaseState):
     @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates):
         population = self.population_view.get(index)
-        return rates + self.mortality(population.index, skip_post=True) * (population[self.condition] == self.state_id)
+        return rates + self.mortality(population.index, skip_post_processor=True) * (population[self.condition] == self.state_id)
 
     @modifies_value('csmr_data')
     def mmeids(self):
