@@ -156,7 +156,7 @@ class ORS():
         return risk_effects
 
 
-    # TODO: May want to rethink susceptibility column getting assigned at birth. Distribution of susceptibility may differ for people that actually get diarrhea
+    # FIXME: May want to rethink susceptibility column getting assigned at birth. Distribution of susceptibility may differ for people that actually get diarrhea
     @listens_for('initialize_simulants')
     @uses_columns(['ors_susceptibility', 'ors_unit_cost', 'ors_cost_to_administer', 'ors_count', 'ors_clock'])
     def load_columns(self, event):
