@@ -1,4 +1,6 @@
-from ceam_public_health.util.risk import naturally_sort_df, assign_exposure_categories
+from ceam_public_health.util.risk import naturally_sort_df, assign_exposure_categories, assign_relative_risk_value
+import pandas as pd
+import numpy as np
 
 def test_naturally_sort_df():
     df = pd.DataFrame({'simulant_id': [x for x in range(0, 5)], 'cat2': 5 * [.5], 'cat1': 5*[.1], 'cat3': 5* [.4] })
