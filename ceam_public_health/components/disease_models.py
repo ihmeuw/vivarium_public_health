@@ -89,8 +89,7 @@ def heart_disease_factory():
 
 
 def stroke_factory():
-    # FIXME: Do we want to say 'module = DiseaseModel('stroke') to make the line below clearer? -- Everett 11/21
-    module = DiseaseModel('hemorrhagic_stroke')
+    module = DiseaseModel('all_stroke')
 
     healthy = State('healthy', key='hemorrhagic_stroke')
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
