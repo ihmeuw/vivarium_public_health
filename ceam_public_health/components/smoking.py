@@ -44,15 +44,6 @@ class Smoking:
 
         return risk_effects
 
-        effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=166)), 'smoking_susceptibility')
-        risk_effects = make_gbd_risk_effects(166, [
-            (493, 'heart_attack'),
-            (496, 'hemorrhagic_stroke'),
-            (495, 'ischemic_stroke'),
-            ], effect_function)
-
-        return risk_effects
-
     @listens_for('initialize_simulants')
     @uses_columns(['smoking_susceptibility'])
     def load_susceptibility(self, event):

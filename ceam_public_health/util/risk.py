@@ -34,7 +34,7 @@ def categorical_exposure_effect(exposure, susceptibility_column):
     @uses_columns([susceptibility_column])
     def inner(rates, rr, population_view):
         pop = population_view.get(rr.index)
-        exposed = pop[susceptibility_column] < exposure(rr.index)
+        exposed = pop[susceptibility_column] < exposure(rr.index)['cat1']
         return rates * (rr.values**exposed)
     return inner
 
@@ -71,5 +71,6 @@ class RiskEffect:
 
     def incidence_rates(self, index, rates):
         rr = self.rr_lookup(index)
-
-        return self.exposure_effect(rates, rr)
+        
+        newrr = self.exposure_effect(rates, rr)
+        return newrr

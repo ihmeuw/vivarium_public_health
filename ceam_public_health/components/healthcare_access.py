@@ -52,6 +52,7 @@ class HealthcareAccess:
         self.cost_by_year = defaultdict(float)
         self.general_access_count = 0
         self.followup_access_count = 0
+        self.hospitalization_count = 0
 
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
@@ -121,6 +122,7 @@ class HealthcareAccess:
     @listens_for('hospitalization')
     def hospital_access(self, event):
         year = event.time.year
+        self.hospitalization_count += len(event.index)
         self.cost_by_year[year] += len(event.index) * hospitalization_cost[year]
 
 
@@ -129,6 +131,7 @@ class HealthcareAccess:
         metrics['healthcare_access_cost'] = sum(self.cost_by_year.values())
         metrics['general_healthcare_access'] = self.general_access_count
         metrics['followup_healthcare_access'] = self.followup_access_count
+        metrics['hospitalization_access'] = self.hospitalization_count
 
         if 'cost' in metrics:
             metrics['cost'] += metrics['healthcare_access_cost']
