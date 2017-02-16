@@ -42,21 +42,15 @@ class DiarrheaEtiologyState(State):
 
 
     @modifies_value('metrics')
-    @uses_columns(['diarrhea_event_count', 'age'] + [i + '_event_count' for i in list_of_etiologies] + ['number_of_days_simulant_has_diarrhea', 'simulant_initialization_time', 'death_day', 'simulation_end_time'])
+    @uses_columns(['diarrhea_event_count'] + [i + '_event_count' for i in list_of_etiologies] + ['susceptible_person_time_under_5', 'susceptible_person_time_over_5'])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
 
         metrics[self.event_count_column] = population[self.event_count_column].sum()
         metrics['diarrhea_event_count'] = population['diarrhea_event_count'].sum()
 
-        # if the simulant is dead, their person years of exposure in the simulation is their time of death - simulant initialization time - time spent ill
-        population.loc[population.death_day.notnull(), 'susceptible_person_time'] = pd.Series(pd.to_timedelta(population['death_day'] - population['simulant_initialization_time'] - pd.to_timedelta(population['number_of_days_simulant_has_diarrhea'], unit='D')))
-
-        # create a simulation end time that is midnight of the first day of the year after year end
-        population.loc[population.death_day.isnull(), 'susceptible_person_time'] = pd.Series(pd.to_timedelta(population['simulation_end_time'] - population['simulant_initialization_time'] - pd.to_timedelta(population['number_of_days_simulant_has_diarrhea'], unit='D')))
-        
-        # break up into age groups to get exposed time in each age group
-        metrics['susceptible_person_time'] = population['susceptible_person_time'].dt.days.sum()
+        metrics['susceptible_person_time_under_5'] = population['susceptible_person_time_under_5'].sum()
+        metrics['susceptible_person_time_over_5'] = population['susceptible_person_time_over_5'].sum()
 
         return metrics
 
@@ -111,7 +105,7 @@ class ApplyDiarrheaRemission():
 
 
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + list_of_etiologies)
-    @listens_for('time_step', priority=9)
+    @listens_for('time_step', priority=8)
     def _apply_remission(self, event):
 
         population = event.population_view.get(event.index)
@@ -210,27 +204,23 @@ def diarrhea_factory():
 
     # track person years of exposure (person time in the simulation - time which simulants are sick
     @listens_for('initialize_simulants')
-    @uses_columns(['simulant_initialization_time', 'number_of_days_simulant_has_diarrhea', 'simulation_end_time'])
+    @uses_columns(['simulant_initialization_time', 'susceptible_person_time_under_5', 'susceptible_person_time_over_5'])
     def create_person_year_columns(event):
         length = len(event.index)
         event.population_view.update(pd.DataFrame({'simulant_initialization_time': [pd.Timestamp(event.time)]*length}, index=event.index))
-        event.population_view.update(pd.DataFrame({'number_of_days_simulant_has_diarrhea': np.zeros(length)}, index=event.index))
-        event.population_view.update(pd.DataFrame({'simulation_end_time': [pd.Timestamp('{}0101'.format(config.getint('simulation_parameters', 'year_end') + 1))]*length}, index=event.index))
+        event.population_view.update(pd.DataFrame({'susceptible_person_time_under_5': np.zeros(length)}, index=event.index))
+        event.population_view.update(pd.DataFrame({'susceptible_person_time_over_5': np.zeros(length)}, index=event.index))
 
-
-    @listens_for('time_step', priority=6)
-    @uses_columns(['diarrhea', 'number_of_days_simulant_has_diarrhea', 'simulation_end_time', 'simulant_initialization_time'], 'alive')
+    @listens_for('time_step', priority=9)
+    @uses_columns(['diarrhea', 'susceptible_person_time_under_5', 'susceptible_person_time_over_5', 'age'], 'alive')
     def count_time_steps_sim_has_diarrhea(event):
         pop = event.population_view.get(event.index)
-
-        pop.loc[pop['diarrhea'] == 'diarrhea', 'number_of_days_simulant_has_diarrhea'] += config.getint('simulation_parameters', 'time_step')
+        
+        # FIXME: Susceptible person time estimates are off unless end data falls exactly on a time step (so this is fine for the diarrhea model -- 1 day timesteps -- but may not be ok for other causes)
+        pop.loc[(pop['diarrhea'] == 'healthy') & (pop['age'] < 5), 'susceptible_person_time_under_5'] += config.getint('simulation_parameters', 'time_step')
+        pop.loc[(pop['diarrhea'] == 'healthy') & (pop['age'] >= 5), 'susceptible_person_time_over_5'] += config.getint('simulation_parameters', 'time_step')
        
-        # seems weird, but if the time steps are long, and the simulant has the disease for the entire simulation, they can end up contributing negative person time (saw this when running with 1 year timesteps). shouldn't be an issue with shorter timesteps, but capping the amount of time the simulant could possibly have diarrhea to simulation run time.
-        pop['max_time_simulant_can_have_diarrhea'] = pd.Series(pd.to_timedelta(pop['simulation_end_time'] - pop['simulant_initialization_time'])).dt.days
-
-        pop.loc[pop['number_of_days_simulant_has_diarrhea'] > pop['max_time_simulant_can_have_diarrhea'], 'number_of_days_simulant_has_diarrhea'] = pop['max_time_simulant_can_have_diarrhea']
- 
-        event.population_view.update(pop[['number_of_days_simulant_has_diarrhea']])
+        event.population_view.update(pop[['susceptible_person_time_under_5', 'susceptible_person_time_over_5']])
 
     excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181), get_cause_specific_mortality(1181))
 
