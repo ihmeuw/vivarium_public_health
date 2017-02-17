@@ -27,19 +27,19 @@ def heart_disease_factory():
     # TODO: This doesn't account for the fact that our timestep is longer than 28 days
     timestep = config.getfloat('simulation_parameters', 'time_step')
     weight = 0.43*(2/timestep) + 0.07*(28/timestep)
-    heart_attack = ExcessMortalityState('heart_attack', disability_weight=weight, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(1814), prevalence_data=get_prevalence(1814), csmr_data=get_cause_specific_mortality(1814))
+    heart_attack = ExcessMortalityState('heart_attack', disability_weight=weight, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(1814), prevalence_data=get_prevalence(1814), csmr_data=get_cause_specific_mortality(1814), key='ihd')
 
     #
-    mild_heart_failure = ExcessMortalityState('mild_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1821), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1821), csmr_data=get_cause_specific_mortality(2412))
-    moderate_heart_failure = ExcessMortalityState('moderate_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1822), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1822), csmr_data=pd.DataFrame())
-    severe_heart_failure = ExcessMortalityState('severe_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1823), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1823), csmr_data=pd.DataFrame())
+    mild_heart_failure = ExcessMortalityState('mild_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1821), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1821), csmr_data=get_cause_specific_mortality(2412), key='ihd')
+    moderate_heart_failure = ExcessMortalityState('moderate_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1822), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1822), csmr_data=pd.DataFrame(), key='ihd')
+    severe_heart_failure = ExcessMortalityState('severe_heart_failure', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1823), excess_mortality_data=get_excess_mortality(2412), prevalence_data=get_prevalence(1823), csmr_data=pd.DataFrame(), key='ihd')
 
-    asymptomatic_angina = ExcessMortalityState('asymptomatic_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1823), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(3102), csmr_data=get_cause_specific_mortality(1817))
-    mild_angina = ExcessMortalityState('mild_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1818), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1818), csmr_data=pd.DataFrame())
-    moderate_angina = ExcessMortalityState('moderate_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1819), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1819), csmr_data=pd.DataFrame())
-    severe_angina = ExcessMortalityState('severe_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1820), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1820), csmr_data=pd.DataFrame())
+    asymptomatic_angina = ExcessMortalityState('asymptomatic_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1823), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(3102), csmr_data=get_cause_specific_mortality(1817), key='ihd')
+    mild_angina = ExcessMortalityState('mild_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1818), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1818), csmr_data=pd.DataFrame(), key='ihd')
+    moderate_angina = ExcessMortalityState('moderate_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1819), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1819), csmr_data=pd.DataFrame(), key='ihd')
+    severe_angina = ExcessMortalityState('severe_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1820), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1820), csmr_data=pd.DataFrame(), key='ihd')
 
-    asymptomatic_ihd = ExcessMortalityState('asymptomatic_ihd', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=3233), excess_mortality_data=build_table(0.0), prevalence_data=get_prevalence(3233), csmr_data=get_cause_specific_mortality(3233))
+    asymptomatic_ihd = ExcessMortalityState('asymptomatic_ihd', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=3233), excess_mortality_data=build_table(0.0), prevalence_data=get_prevalence(3233), csmr_data=get_cause_specific_mortality(3233), key='ihd')
 
     heart_attack_transition = RateTransition(heart_attack, 'incidence_rate.heart_attack', get_incidence(1814))
     healthy.transition_set.append(heart_attack_transition)
@@ -94,9 +94,9 @@ def stroke_factory():
     healthy = State('healthy', key='hemorrhagic_stroke')
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
     # correspond to healthstate ids which correspond to sequela) 
-    hemorrhagic_stroke = ExcessMortalityState('hemorrhagic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9311), prevalence_data=get_prevalence(9311), csmr_data=get_cause_specific_mortality(9311))
-    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310))
-    chronic_stroke = ExcessMortalityState('chronic_stroke', disability_weight=0.32, excess_mortality_data=get_excess_mortality(9312), prevalence_data=get_prevalence(9312), csmr_data=get_cause_specific_mortality(9312))
+    hemorrhagic_stroke = ExcessMortalityState('hemorrhagic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9311), prevalence_data=get_prevalence(9311), csmr_data=get_cause_specific_mortality(9311), key='all_stroke')
+    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310), key='all_stroke')
+    chronic_stroke = ExcessMortalityState('chronic_stroke', disability_weight=0.32, excess_mortality_data=get_excess_mortality(9312), prevalence_data=get_prevalence(9312), csmr_data=get_cause_specific_mortality(9312), key='all_stroke')
 
     hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'incidence_rate.hemorrhagic_stroke', get_incidence(9311))
     ischemic_transition = RateTransition(ischemic_stroke, 'incidence_rate.ischemic_stroke', get_incidence(9310))
