@@ -10,7 +10,7 @@ from ceam_inputs.gbd_ms_functions import assign_subregions
 from ceam.framework.event import listens_for
 from ceam.framework.values import produces_value, modifies_value
 from ceam.framework.population import uses_columns
-
+from ceam.framework.util import rate_to_probability
 from ceam import config
 
 @listens_for('initialize_simulants', priority=0)
@@ -58,6 +58,7 @@ def age_simulants(event):
     event.population['age'] = event.population.fractional_age.astype(int)
     event.population_view.update(event.population)
 
+# need to bring a dictionary of cause-deleted mortality, then the excess mortality for each cause is a key
 class Mortality:
     def setup(self, builder):
         self._mortality_rate_builder = lambda: builder.lookup(self.load_all_cause_mortality())
@@ -86,7 +87,20 @@ class Mortality:
     @listens_for('time_step', priority=0)
     @uses_columns(['alive', 'death_day'], 'alive')
     def mortality_handler(self, event):
-        rate = self.mortality_rate(event.index)
+        rate_df = self.mortality_rate(event.index)
+        # have to do a cumulative sum and walk through to figure out the cause of death
+
+        # make sure to turn the rates into probabilities, do a cumulative sum to make sure that people can only die from one cause
+        # first convert to probabilities
+        prob_df = rate_df.apply(rate_to_probability, axis=1).head()      
+ 
+        # then cumulatively sum over mortality rates
+        cumsum_mortality_rates = np.cumsum(prob_df, axis=1) 
+
+        # make sure every simulant gets a new draw each timestep
+
+        # determine if simulant has died, assign cause of death
+
         index = self.random.filter_for_rate(event.index, rate)
 
         self.death_emitter(event.split(index))
@@ -97,7 +111,7 @@ class Mortality:
 
     @produces_value('mortality_rate')
     def mortality_rate_source(self, population):
-        return self.mortality_rate_lookup(population)
+        return pd.DataFrame({'base_mortality_rate': self.mortality_rate_lookup(population)})
 
     @modifies_value('metrics')
     @uses_columns(['alive', 'age'])
