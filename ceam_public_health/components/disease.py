@@ -97,7 +97,7 @@ class ExcessMortalityState(DiseaseState):
     @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates_df):
         population = self.population_view.get(index)
-        rates_df[self.state_id + '_excess_mortality_rate'] = self.mortality(population.index, skip_post_processor=True) * (population[self.key] == self.state_id)
+        rates_df['death_due_to_' + self.state_id] = self.mortality(population.index, skip_post_processor=True) * (population[self.key] == self.state_id)
         return rates_df
 
     @modifies_value('csmr_data')
@@ -109,6 +109,14 @@ class ExcessMortalityState(DiseaseState):
 
     def __str__(self):
         return 'ExcessMortalityState("{}" ...)'.format(self.state_id)
+
+    @modifies_value('metrics')
+    @uses_columns(['cause_of_death'])
+    def metrics(self, index, metrics, population_view):
+        population = population_view.get(index)
+        # TODO: Might be a cleaner way to output this data
+        metrics['cause_of_death'] = pd.value_counts(population.cause_of_death)
+        return metrics
 
 
 class RateTransition(Transition):
@@ -172,6 +180,7 @@ class ProportionTransition(Transition):
 
     def __str__(self):
         return 'ProportionTransition("{}", "{}", "{}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.modelable_entity_id, self.proportion)
+
 
 
 class DiseaseModel(Machine):
