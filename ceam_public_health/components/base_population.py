@@ -59,7 +59,6 @@ def age_simulants(event):
     event.population_view.update(event.population)
 
 
-# need to bring a dictionary of cause-deleted mortality, then the excess mortality for each cause is a key
 class Mortality:
     def setup(self, builder):
         self._mortality_rate_builder = lambda: builder.lookup(self.load_all_cause_mortality())
