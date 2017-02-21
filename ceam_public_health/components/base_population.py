@@ -58,6 +58,7 @@ def age_simulants(event):
     event.population['age'] = event.population.fractional_age.astype(int)
     event.population_view.update(event.population)
 
+
 # need to bring a dictionary of cause-deleted mortality, then the excess mortality for each cause is a key
 class Mortality:
     def setup(self, builder):
@@ -80,38 +81,43 @@ class Mortality:
         return get_cause_deleted_mortality_rate(self.csmr_data())
 
     @listens_for('initialize_simulants')
-    @uses_columns(['death_day'])
+    @uses_columns(['death_day', 'cause_of_death'])
     def death_day_column(self, event):
         event.population_view.update(pd.Series(pd.NaT, name='death_day', index=event.index))
+        event.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
 
     @listens_for('time_step', priority=0)
-    @uses_columns(['alive', 'death_day'], 'alive')
+    @uses_columns(['alive', 'death_day', 'cause_of_death'], 'alive')
     def mortality_handler(self, event):
         rate_df = self.mortality_rate(event.index)
-        # have to do a cumulative sum and walk through to figure out the cause of death
 
         # make sure to turn the rates into probabilities, do a cumulative sum to make sure that people can only die from one cause
         # first convert to probabilities
-        prob_df = rate_df.apply(rate_to_probability, axis=1).head()      
+        prob_df = rate_df.apply(rate_to_probability, axis=1) 
  
         # then cumulatively sum over mortality rates
         cumsum_mortality_rates = np.cumsum(prob_df, axis=1) 
 
-        # make sure every simulant gets a new draw each timestep
+        old_probs = np.zeros(len(cumsum_mortality_rates))
 
         # determine if simulant has died, assign cause of death
+        for col in cumsum_mortality_rates.columns:
+            probs = cumsum_mortality_rates[[col]].values.ravel()
+            index = self.random.filter_for_cause_specific_mortality_probability(event.index, probs, old_probs)
 
-        index = self.random.filter_for_rate(event.index, rate)
+            old_probs = probs
 
-        self.death_emitter(event.split(index))
+            self.death_emitter(event.split(index))
 
-        pop = pd.DataFrame(False, index=index, columns=['alive'], dtype=bool)
-        pop['death_day'] = event.time
-        event.population_view.update(pop)
+            pop = pd.DataFrame(False, index=index, columns=['alive'], dtype=bool)
+            pop['death_day'] = event.time
+            pop['cause_of_death'] = col
+
+            event.population_view.update(pop)
 
     @produces_value('mortality_rate')
     def mortality_rate_source(self, population):
-        return pd.DataFrame({'base_mortality_rate': self.mortality_rate_lookup(population)})
+        return pd.DataFrame({'death_due_to_other_causes': self.mortality_rate_lookup(population)})
 
     @modifies_value('metrics')
     @uses_columns(['alive', 'age'])
@@ -123,4 +129,5 @@ class Mortality:
         metrics['total_population'] = len(population)
         metrics['total_population__living'] = len(population) - len(the_dead)
         metrics['total_population__dead'] = len(the_dead)
+
         return metrics
