@@ -25,6 +25,7 @@ def side_effect_factory(male_probability, female_probability, hospitalization_ty
         pop.loc[pop.sex == 'Female', 'probability'] = female_probability
         effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type), index, pop.probability)
         new_event = Event(effective_population)
+        print('In side effect', len(effective_population), len(new_event.index))
         emitter(new_event)
     return hospitalization_side_effect
 
@@ -112,7 +113,7 @@ def stroke_factory():
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
     # correspond to healthstate ids which correspond to sequela) 
     hemorrhagic_stroke = ExcessMortalityState('hemorrhagic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9311), prevalence_data=get_prevalence(9311), csmr_data=get_cause_specific_mortality(9311), side_effect_function=side_effect_factory(0.52, 0.6, 'hemorrhagic stroke')) #rates as per Marcia e-mail 1/19/17
-    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310), side_effect_function=side_effect_factory(0.52, 0.6, 'iscemic stroke')) #rates as per Marcia e-mail 1/19/17
+    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310), side_effect_function=side_effect_factory(0.52, 0.6, 'ischemic stroke')) #rates as per Marcia e-mail 1/19/17
     chronic_stroke = ExcessMortalityState('chronic_stroke', disability_weight=0.32, excess_mortality_data=get_excess_mortality(9312), prevalence_data=get_prevalence(9312), csmr_data=get_cause_specific_mortality(9312))
 
     hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'hemorrhagic_stroke', get_incidence(9311))
