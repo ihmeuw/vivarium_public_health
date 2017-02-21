@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from ceam.framework.values import modifies_value
 from datetime import timedelta
-
+from ceam_public_health.components.accrue_susceptible_person_time import AccrueSusceptiblePersonTime
 
 list_of_etiologies = ['diarrhea_due_to_shigellosis', 'diarrhea_due_to_cholera', 'diarrhea_due_to_other_salmonella', 'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC', 'diarrhea_due_to_campylobacter', 'diarrhea_due_to_amoebiasis', 'diarrhea_due_to_cryptosporidiosis', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_aeromonas', 'diarrhea_due_to_clostridium_difficile', 'diarrhea_due_to_norovirus', 'diarrhea_due_to_adenovirus']
 # list_of_etiologies = ['diarrhea_due_to_norovirus', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_adenovirus']
@@ -202,15 +202,6 @@ def diarrhea_factory():
         event.population_view.update(pop[['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + [i + '_event_count' for i in list_of_etiologies]])
 
 
-    # track person years of exposure (person time in the simulation - time which simulants are sick
-    @listens_for('initialize_simulants')
-    @uses_columns(['simulant_initialization_time', 'susceptible_person_time_under_5', 'susceptible_person_time_over_5'])
-    def create_person_year_columns(event):
-        length = len(event.index)
-        event.population_view.update(pd.DataFrame({'simulant_initialization_time': [pd.Timestamp(event.time)]*length}, index=event.index))
-        event.population_view.update(pd.DataFrame({'susceptible_person_time_under_5': np.zeros(length)}, index=event.index))
-        event.population_view.update(pd.DataFrame({'susceptible_person_time_over_5': np.zeros(length)}, index=event.index))
-
     @listens_for('time_step', priority=9)
     @uses_columns(['diarrhea', 'susceptible_person_time_under_5', 'susceptible_person_time_over_5', 'age'], 'alive')
     def count_time_steps_sim_has_diarrhea(event):
@@ -226,7 +217,7 @@ def diarrhea_factory():
 
     remission = ApplyDiarrheaRemission(get_duration_in_days(1181))
 
-    list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state, _create_diarrhea_column, excess_mort, remission, create_person_year_columns, count_time_steps_sim_has_diarrhea]
+    list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state, _create_diarrhea_column, excess_mort, remission, create_person_year_columns, count_time_steps_sim_has_diarrhea, AccrueSusceptiblePersonTime('diarrhea', 'diarrhea')]
 
     return list_of_module_and_functs
 
