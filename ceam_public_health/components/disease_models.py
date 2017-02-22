@@ -23,7 +23,7 @@ def side_effect_factory(male_probability, female_probability, hospitalization_ty
         pop['probability'] = 0.0
         pop.loc[pop.sex == 'Male', 'probability'] = male_probability
         pop.loc[pop.sex == 'Female', 'probability'] = female_probability
-        effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type), index, pop.probability)
+        effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type), pop.index, pop.probability)
         new_event = Event(effective_population)
         print('In side effect', len(effective_population), len(new_event.index))
         emitter(new_event)
