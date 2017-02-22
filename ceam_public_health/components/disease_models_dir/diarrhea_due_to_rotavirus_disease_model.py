@@ -42,15 +42,12 @@ class DiarrheaEtiologyState(State):
 
 
     @modifies_value('metrics')
-    @uses_columns(['diarrhea_event_count'] + [i + '_event_count' for i in list_of_etiologies] + ['susceptible_person_time_under_5', 'susceptible_person_time_over_5'])
+    @uses_columns(['diarrhea_event_count'] + [i + '_event_count' for i in list_of_etiologies])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
 
         metrics[self.event_count_column] = population[self.event_count_column].sum()
         metrics['diarrhea_event_count'] = population['diarrhea_event_count'].sum()
-
-        metrics['susceptible_person_time_under_5'] = population['susceptible_person_time_under_5'].sum()
-        metrics['susceptible_person_time_over_5'] = population['susceptible_person_time_over_5'].sum()
 
         return metrics
 
@@ -202,22 +199,11 @@ def diarrhea_factory():
         event.population_view.update(pop[['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + [i + '_event_count' for i in list_of_etiologies]])
 
 
-    @listens_for('time_step', priority=9)
-    @uses_columns(['diarrhea', 'susceptible_person_time_under_5', 'susceptible_person_time_over_5', 'age'], 'alive')
-    def count_time_steps_sim_has_diarrhea(event):
-        pop = event.population_view.get(event.index)
-        
-        # FIXME: Susceptible person time estimates are off unless end data falls exactly on a time step (so this is fine for the diarrhea model -- 1 day timesteps -- but may not be ok for other causes)
-        pop.loc[(pop['diarrhea'] == 'healthy') & (pop['age'] < 5), 'susceptible_person_time_under_5'] += config.getint('simulation_parameters', 'time_step')
-        pop.loc[(pop['diarrhea'] == 'healthy') & (pop['age'] >= 5), 'susceptible_person_time_over_5'] += config.getint('simulation_parameters', 'time_step')
-       
-        event.population_view.update(pop[['susceptible_person_time_under_5', 'susceptible_person_time_over_5']])
-
     excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181), get_cause_specific_mortality(1181))
 
     remission = ApplyDiarrheaRemission(get_duration_in_days(1181))
 
-    list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state, _create_diarrhea_column, excess_mort, remission, create_person_year_columns, count_time_steps_sim_has_diarrhea, AccrueSusceptiblePersonTime('diarrhea', 'diarrhea')]
+    list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state, _create_diarrhea_column, excess_mort, remission, AccrueSusceptiblePersonTime('diarrhea', 'diarrhea')]
 
     return list_of_module_and_functs
 
