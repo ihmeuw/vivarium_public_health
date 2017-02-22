@@ -94,14 +94,14 @@ class Mortality:
         # first convert to probabilities
         prob_df = rate_df.apply(rate_to_probability, axis=1) 
  
-        # then cumulatively sum over mortality rates
-        cumsum_mortality_rates = np.cumsum(prob_df, axis=1) 
+        # then cumulatively sum over mortality probabilities
+        cumsum_mortality_probs = np.cumsum(prob_df, axis=1) 
 
-        old_probs = np.zeros(len(cumsum_mortality_rates))
+        old_probs = np.zeros(len(cumsum_mortality_probs))
 
         # determine if simulant has died, assign cause of death
-        for col in cumsum_mortality_rates.columns:
-            probs = cumsum_mortality_rates[[col]].values.ravel()
+        for col in cumsum_mortality_probs.columns:
+            probs = cumsum_mortality_probs[[col]].values.ravel()
             index = self.random.filter_for_cause_specific_mortality_probability(event.index, probs, old_probs)
 
             old_probs = probs
