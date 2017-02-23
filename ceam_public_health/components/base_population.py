@@ -83,7 +83,7 @@ class Mortality:
     @uses_columns(['death_day', 'cause_of_death'])
     def death_day_column(self, event):
         event.population_view.update(pd.Series(pd.NaT, name='death_day', index=event.index))
-        event.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
+        event.population_view.update(pd.Series(np.nan, name='cause_of_death', index=event.index))
 
     @listens_for('time_step', priority=0)
     @uses_columns(['alive', 'death_day', 'cause_of_death'], 'alive')
@@ -92,7 +92,7 @@ class Mortality:
 
         # make sure to turn the rates into probabilities, do a cumulative sum to make sure that people can only die from one cause
         # first convert to probabilities
-        prob_df = rate_df.apply(rate_to_probability, axis=1) 
+        prob_df = rate_to_probability(rate_df)
  
         # then cumulatively sum over mortality probabilities
         cumsum_mortality_probs = np.cumsum(prob_df, axis=1) 
