@@ -22,7 +22,7 @@ import pdb
 
 # TODO: Vast majority of code below comes from ceam_public_health/util/risk.py. Make this code more flexible and keep it in one place
 
-# TODO: Incorporate PAFs
+# TODO: Incorporate PAFs -- Is there even a PAF so that we can get ORS-deleted incidence?
 
 
 def ors_exposure_effect(exposure, susceptibility_column):
@@ -64,7 +64,7 @@ def ors_exposure_effect(exposure, susceptibility_column):
         # costs and counts
         received_ors_index = df.query("exposure_category == 'cat1'").index
 
-        #FIXME: We don't want to use a placeholder after the ORS data is ready
+        # TODO: Need to bring in the GBD estimates of ORS effectiveness
         df.loc[received_ors_index, 'relative_risk_value'] = 1 - config.getfloat('ORS', 'ors_effectiveness')
 
         # TODO: Make sure the categories make sense. Exposure to ORS should decrease risk (i.e. RR should be less than 1)
@@ -76,7 +76,6 @@ def ors_exposure_effect(exposure, susceptibility_column):
             received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count, 'ors_unit_cost'] += config.getfloat('ORS', 'ORS_unit_cost')
             received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count, 'ors_cost_to_administer'] += config.getfloat('ORS', 'cost_to_administer_ORS')
             received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count, 'ors_count'] += 1
-
             received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count, 'ors_clock'] = received_ors_pop['diarrhea_event_count']
 
             population_view.update(received_ors_pop)

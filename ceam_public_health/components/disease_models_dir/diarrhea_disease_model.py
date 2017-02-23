@@ -12,7 +12,6 @@ from datetime import timedelta
 from ceam_public_health.components.accrue_susceptible_person_time import AccrueSusceptiblePersonTime
 
 list_of_etiologies = ['diarrhea_due_to_shigellosis', 'diarrhea_due_to_cholera', 'diarrhea_due_to_other_salmonella', 'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC', 'diarrhea_due_to_campylobacter', 'diarrhea_due_to_amoebiasis', 'diarrhea_due_to_cryptosporidiosis', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_aeromonas', 'diarrhea_due_to_clostridium_difficile', 'diarrhea_due_to_norovirus', 'diarrhea_due_to_adenovirus']
-# list_of_etiologies = ['diarrhea_due_to_norovirus', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_adenovirus']
 
 
 class DiarrheaEtiologyState(State):
@@ -59,6 +58,18 @@ class DiarrheaEtiologyState(State):
 
 
 class ApplyDiarrheaExcessMortality():
+    """Assigns an excess mortality to people who have diarrhea
+
+    Parameters
+    ----------
+    excess_mortality_data: df
+        df with excess mortality rate for each age, sex, year, loc
+
+    cause_specific_mortality_data: df
+        df with csmr for each age, sex, year, loc         
+    """
+
+
     def __init__(self, excess_mortality_data, cause_specific_mortality_data):
         self.excess_mortality_data = excess_mortality_data
         self.cause_specific_mortality_data = cause_specific_mortality_data
@@ -87,6 +98,15 @@ class ApplyDiarrheaExcessMortality():
 # TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
 # TODO: Figure out how remission rates can be different across diarrhea due to the different etiologies
 class ApplyDiarrheaRemission():
+    """Assigns a diarrhea bout duration to each case of diarrhea
+
+    Parameters
+    ----------
+    duration_data: df
+        df with duration data (in days) for each age, sex, year, loc
+    """
+
+
     def __init__(self, duration_data):
         self.duration_data = duration_data
 
@@ -133,8 +153,6 @@ def diarrhea_factory():
     transition_dict = {}
  
     dict_of_etiologies_and_eti_risks = {'cholera': 173, 'other_salmonella': 174, 'shigellosis': 175, 'EPEC': 176, 'ETEC': 177, 'campylobacter': 178, 'amoebiasis': 179, 'cryptosporidiosis': 180, 'rotaviral_entiritis': 181, 'aeromonas': 182, 'clostridium_difficile': 183, 'norovirus': 184, 'adenovirus': 185}
-
-    # dict_of_etiologies_and_eti_risks = {'adenovirus': 185, 'rotaviral_entiritis': 181, 'norovirus': 184}
 
     for key, value in dict_of_etiologies_and_eti_risks.items():
 

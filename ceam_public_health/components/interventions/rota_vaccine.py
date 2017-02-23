@@ -8,8 +8,6 @@ from ceam import config
 from ceam.framework.randomness import choice
 import pdb
 
-# 2 things that really need to happen in this code -- set up emitters to do follow up vaccinations and fix how I'm grabbing the age columni. Figure out how to confer immunity 1 month after 3rd dose received.
-
 
 def determine_who_should_receive_dose(population, index, vaccine_col, dose_number):
 
@@ -140,7 +138,7 @@ class RotaVaccine():
             children_who_will_receive_first_dose = determine_who_should_receive_dose(population, event.index, self.vaccine_first_dose_column, 1)
 
             if not children_who_will_receive_first_dose.empty:
-            # Setting time here in case we want to use an emitter in the future
+                # Setting time here in case we want to use an emitter in the future
                 children_who_will_receive_first_dose[self.vaccine_first_dose_time_column] = pd.Timestamp(event.time)
 
                 # Count vaccination dose

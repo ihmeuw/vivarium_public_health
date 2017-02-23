@@ -19,13 +19,15 @@ from ceam_public_health.components.base_population import generate_base_populati
 
 from ceam.framework.state_machine import Transition, State
 from ceam.framework.event import Event
-from ceam_public_health.components.disease import DiseaseState, RateTransition, ExcessMortalityState, DiseaseModel
+from ceam_public_health.components.disease_models_dir.diarrhea_disease_model import ApplyDiarrheaExcessMortality, ApplyDiarrheaRemission
 
-# def test__apply_remission():
+def test_ApplyDiarrheaRemission():
+    # give everyone diarrhea, set remission to one time step for one age group, two timesteps for the other age group, pump the simulation twice to make sure remission does what it's expected to
 
-# def test__move_people_into_diarrhea_state():
+def test__move_people_into_diarrhea_state():
+    # give only people in a certain age group diarrhea due to a bunch of different pathogens and make sure they all end up in the same spot
 
-# 
+# def test 
 
 def test_mortality_rate():
     time_step = config.getfloat('simulation_parameters', 'time_step')
