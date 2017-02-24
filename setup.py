@@ -8,6 +8,7 @@ setup(name='ceam_public_health',
         version='0.1',
         packages=find_packages(),
         include_package_data=True,
+        package_index='http://dev-tomflem.ihme.washington.edu/simple/',
         install_requires=[
             'pandas',
             'numpy',
