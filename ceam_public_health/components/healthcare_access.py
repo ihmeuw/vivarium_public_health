@@ -124,7 +124,6 @@ class HealthcareAccess:
         year = event.time.year
         self.hospitalization_count += len(event.index)
         self.cost_by_year[year] += len(event.index) * hospitalization_cost[year]
-        print('In hospital access', len(event.index))
 
 
     @modifies_value('metrics')

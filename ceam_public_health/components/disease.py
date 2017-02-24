@@ -69,7 +69,6 @@ class DiseaseState(State):
             self.population_view.update(pop)
         if self.side_effect_function is not None:
             self.side_effect_function(index)
-            print('In state', len(index), self.state_id, self.population_view.manager.population[self.event_count_column].sum() if self.event_count_column in self.population_view.manager.population else 'No count')
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
@@ -128,7 +127,6 @@ class RateTransition(Transition):
         self.base_incidence = builder.lookup(self.rate_data)
 
     def probability(self, index):
-        import pdb;pdb.set_trace()
         return rate_to_probability(self.effective_incidence(index))
 
     def incidence_rates(self, index):

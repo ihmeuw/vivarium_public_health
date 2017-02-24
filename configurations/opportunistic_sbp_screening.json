@@ -14,6 +14,6 @@
          "ceam_public_health.components.fasting_plasma_glucose.FastingPlasmaGlucose",
          "ceam_public_health.components.healthcare_access.HealthcareAccess",
          "ceam_public_health.components.metrics.Metrics",
-		 ["ceam_public_health.components.opportunistic_screening.OpportunisticScreening", [true], {}]
+		 ["ceam_public_health.components.opportunistic_screening.OpportunisticScreening", [false], {}]
     ]
 }
