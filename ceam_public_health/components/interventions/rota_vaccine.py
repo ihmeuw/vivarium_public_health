@@ -10,6 +10,23 @@ import pdb
 
 
 def determine_who_should_receive_dose(population, index, vaccine_col, dose_number):
+    """
+    Function will determine who should receive 1st, 2nd, and 3rd doses of a vaccine based on proportions and when they should receive each dose based on info specified in the config file
+
+    Parameters
+    ----------
+    population: df
+        population view of all of the simulants who are currently alive
+
+    index: pandas index 
+        index is just the index of all simulants who are currently alive.        
+
+    vaccine_col: str
+        str representing the name of a column, either rotaviral_entiritis_vaccine_first_dose or second dose. The column represents whether or not the simulant received the first and second dose of the vaccine, which is important because we want to make sure that only people who got the previous vaccine can get the vaccine that is currently being modelled
+
+    dose_number: int
+        1, 2, or 3 depending on which dose is currently being evaluated
+    """
 
     population['age_in_days'] = population['age'] * 365
 
@@ -24,6 +41,7 @@ def determine_who_should_receive_dose(population, index, vaccine_col, dose_numbe
         dose_age = config.getint('rota_vaccine', 'age_at_first_dose')
         children_at_dose_age = population.query("age_in_days == @dose_age").copy()
        
+        # FIXME: Should I be using the children at dose age index instead of the event.index here??
         if not children_at_dose_age.empty:
             children_at_dose_age[vaccine_col] = choice('determine_who_should_receive_first_dose', index, [1, 0], [true_weight, false_weight])
 
@@ -38,8 +56,10 @@ def determine_who_should_receive_dose(population, index, vaccine_col, dose_numbe
         false_weight = 1 - true_weight
         # give second dose 2 months after first
         dose_age = config.getint('rota_vaccine', 'age_at_first_dose') + 61
+        # FIXME: Think the line below should read rotaviral_entiritis_vaccine_first_dose == 1 
         children_at_dose_age = population.query("age_in_days == @dose_age and rotaviral_entiritis_vaccine_first_dose == True").copy()
        
+        # FIXME: Should I be using the children at dose age index instead of the event.index here??
         if not children_at_dose_age.empty:
             children_at_dose_age[vaccine_col] = choice('determine_who_should_receive_second_dose', index, [1, 0], [true_weight, false_weight])
 
@@ -54,8 +74,10 @@ def determine_who_should_receive_dose(population, index, vaccine_col, dose_numbe
         false_weight = 1 - true_weight
         # give third dose 4 months after first dose
         dose_age = config.getint('rota_vaccine', 'age_at_first_dose') + 61 + 61
+        # FIXME: Think the line below should read rotaviral_entiritis_vaccine_second_dose == 1
         children_at_dose_age = population.query("age_in_days == @dose_age and rotaviral_entiritis_vaccine_second_dose == True").copy()
 
+        # FIXME: Should I be using the children at dose age index instead of the event.index here??
         if not children_at_dose_age.empty:
             children_at_dose_age[vaccine_col] = choice('determine_who_should_receive_third_dose', index, [1, 0], [true_weight, false_weight])
 
@@ -69,6 +91,10 @@ def determine_who_should_receive_dose(population, index, vaccine_col, dose_numbe
 
 
 class RotaVaccine():
+    """
+    Class that determines who gets vaccinated, how the vaccine affects incidence, and counts vaccinations
+    """
+
     def __init__(self):
         self.active = config.getboolean('rota_vaccine', 'run_intervention')
         self.etiology = 'rotaviral_entiritis'
@@ -126,9 +152,13 @@ class RotaVaccine():
         self.population_view.update(pd.DataFrame({self.vaccine_cost_to_administer_column: np.zeros(len(event.index), dtype=int)}, index=event.index))
 
 
+    # FIXME: An emitter could potentially be faster. Could have an emitter that says when people reach a certain age, give them a vaccine dose.
     @listens_for('time_step')
     @uses_columns(['age', 'rotaviral_entiritis_vaccine_first_dose', 'rotaviral_entiritis_vaccine_second_dose', 'rotaviral_entiritis_vaccine_third_dose', 'rotaviral_entiritis_vaccine_first_dose_count', 'rotaviral_entiritis_vaccine_second_dose_count', 'rotaviral_entiritis_vaccine_third_dose_count', 'rotaviral_entiritis_vaccine_first_dose_event_time', 'rotaviral_entiritis_vaccine_second_dose_event_time', 'rotaviral_entiritis_vaccine_third_dose_event_time', 'rotaviral_entiritis_vaccine_unit_cost', 'cost_to_administer_rotaviral_entiritis_vaccine', 'rotaviral_entiritis_vaccine_duration_start_time', 'rotaviral_entiritis_vaccine_duration_end_time', 'rotaviral_entiritis_vaccine_is_working'], 'alive')
     def _determine_who_gets_vaccinated(self, event):
+        """
+        Each time step, call the _determine_who_should_receive_dose function to see which patients should get dosed. Everytime step, do this for all 3 vaccines.
+        """
         if self.active != True:
             return
 
@@ -203,6 +233,20 @@ class RotaVaccine():
     @modifies_value('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
     @uses_columns(['diarrhea_due_to_rotaviral_entiritis', 'rotaviral_entiritis_vaccine_third_dose', 'rotaviral_entiritis_vaccine_is_working'], 'alive')
     def incidence_rates(self, index, rates, population_view):
+        """
+        If the intervention is running, determine who is currently receiving the intervention and then decrease their incidence of diarrhea due to rota by the effectiveness specified in the config file
+
+        Parameters
+        ----------
+        index: pandas index
+            index of all simulants
+
+        rates: pd.Series
+            incidence rates for diarrhea due to rotavirus
+
+        population_view: pd.DataFrame
+            dataframe of all simulants that are alive with columns diarrhea_due_to_rotaviral_entiritis, rotaviral_entiritis_vaccine_third_dose, rotaviral_entiritis_vaccine_is_working
+        """
         population = self.population_view.get(index)
 
         vaccine_effectiveness = config.getfloat('rota_vaccine', 'total_vaccine_effectiveness')
@@ -215,7 +259,7 @@ class RotaVaccine():
 
             else:
                 # filter population to only people for whom the vaccine is working
-                pop = population.query("{} == 1".format(self.vaccine_working_column))
+                pop = population.query("{} == 1".format(self.vaccine_working_column)).copy()
  
                 rates.loc[pop.index] *= (1 - vaccine_effectiveness)
 
@@ -227,6 +271,21 @@ class RotaVaccine():
     @modifies_value('metrics')
     @uses_columns(['rotaviral_entiritis_vaccine_first_dose_count', 'rotaviral_entiritis_vaccine_second_dose_count', 'rotaviral_entiritis_vaccine_third_dose_count', 'rotaviral_entiritis_vaccine_unit_cost', 'cost_to_administer_rotaviral_entiritis_vaccine'])
     def metrics(self, index, metrics, population_view):
+        """
+        Update the output metrics with information regarding the vaccine intervention
+
+        Parameters
+        ----------
+        index: pandas Index
+            Index of all simulants, alive or dead
+
+        metrics: pd.Dictionary
+            Dictionary of metrics that will be printed out at the end of the simulation
+
+        population_view: pd.DataFrame
+            df of all simulants, alive or dead with columns rotaviral_entiritis_vaccine_first_dose_count, rotaviral_entiritis_vaccine_second_dose_count, rotaviral_entiritis_vaccine_third_dose_count, rotaviral_entiritis_vaccine_unit_cost, cost_to_administer_rotaviral_entiritis_vaccine
+        """
+
         population = population_view.get(index)
 
         metrics['rotaviral_entiritis_vaccine_first_dose_count'] = population['rotaviral_entiritis_vaccine_first_dose_count'].sum()

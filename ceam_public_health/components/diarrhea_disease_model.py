@@ -11,10 +11,22 @@ from ceam.framework.values import modifies_value
 from datetime import timedelta
 from ceam_public_health.components.accrue_susceptible_person_time import AccrueSusceptiblePersonTime
 
+
 list_of_etiologies = ['diarrhea_due_to_shigellosis', 'diarrhea_due_to_cholera', 'diarrhea_due_to_other_salmonella', 'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC', 'diarrhea_due_to_campylobacter', 'diarrhea_due_to_amoebiasis', 'diarrhea_due_to_cryptosporidiosis', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_aeromonas', 'diarrhea_due_to_clostridium_difficile', 'diarrhea_due_to_norovirus', 'diarrhea_due_to_adenovirus']
 
 
 class DiarrheaEtiologyState(State):
+    """
+    Sets up a diarrhea etiology state (e.g. a column that states that simulant either has diarrhea due to rotavirus or does not have diarrhea due to rotavirus. Child class of State.    
+
+    Parameters
+    ----------
+    state_id: str
+        string that describes the etiology state. 
+
+    disability_weight: float
+        disability associated with diarrhea, regardless of which etiologies are associated with the bout of diarrhea
+    """
     def __init__(self, state_id, disability_weight, key='state'):
         State.__init__(self, state_id)
 
@@ -33,7 +45,7 @@ class DiarrheaEtiologyState(State):
         # TODO: Determine if there is a better way to set up a population
         return super(DiarrheaEtiologyState, self).setup(builder)
 
- 
+
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         population_size = len(event.index)
@@ -50,7 +62,7 @@ class DiarrheaEtiologyState(State):
 
         return metrics
 
-
+    # TODO: Should move the disability weight function to a place where it makes more sense. Disability weight is associated with diarrhea, not the etiology.
     @modifies_value('disability_weight')
     def disability_weight(self, index):
         population = self.population_view.get(index)
@@ -58,7 +70,8 @@ class DiarrheaEtiologyState(State):
 
 
 class ApplyDiarrheaExcessMortality():
-    """Assigns an excess mortality to people who have diarrhea
+    """
+    Assigns an excess mortality to people who have diarrhea
 
     Parameters
     ----------
@@ -68,7 +81,6 @@ class ApplyDiarrheaExcessMortality():
     cause_specific_mortality_data: df
         df with csmr for each age, sex, year, loc         
     """
-
 
     def __init__(self, excess_mortality_data, cause_specific_mortality_data):
         self.excess_mortality_data = excess_mortality_data
@@ -98,14 +110,14 @@ class ApplyDiarrheaExcessMortality():
 # TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
 # TODO: Figure out how remission rates can be different across diarrhea due to the different etiologies
 class ApplyDiarrheaRemission():
-    """Assigns a diarrhea bout duration to each case of diarrhea
+    """
+    Assigns a diarrhea bout duration to each case of diarrhea
 
     Parameters
     ----------
     duration_data: df
         df with duration data (in days) for each age, sex, year, loc
     """
-
 
     def __init__(self, duration_data):
         self.duration_data = duration_data
@@ -120,7 +132,7 @@ class ApplyDiarrheaRemission():
         # this gives you a base value. intervention will change this value
         self.duration.source = builder.lookup(self.duration_data)
 
-
+    # FIXME: Per conversation with Abie on 2.22, we would like to have a distribution surrounding duration
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + list_of_etiologies)
     @listens_for('time_step', priority=8)
     def _apply_remission(self, event):
@@ -133,7 +145,6 @@ class ApplyDiarrheaRemission():
         affected_population['diarrhea_event_end_time'] = affected_population['duration'] + affected_population['diarrhea_event_time']
 
         # manually set diarrhea to healthy and set all etiology columns to healthy as well
-
         current_time = pd.Timestamp(event.time)
 
         affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
@@ -145,7 +156,9 @@ class ApplyDiarrheaRemission():
 
 
 def diarrhea_factory():
-
+    """
+    Factory that moves people from an etiology state to the diarrhea state and uses functions above to apply excess mortality and remission 
+    """
     list_of_modules = []
 
     states_dict = {}
@@ -158,7 +171,6 @@ def diarrhea_factory():
 
         diarrhea_due_to_pathogen = 'diarrhea_due_to_{}'.format(key)
 
-        # TODO -- what does this module do for us?
         module = DiseaseModel(diarrhea_due_to_pathogen) 
 
         # TODO: Where should I define the healthy state?
@@ -171,7 +183,7 @@ def diarrhea_factory():
         etiology_specific_incidence = get_etiology_specific_incidence(eti_risk_id=value, cause_id=302, me_id=1181)
 
         transition = RateTransition(etiology_state,
-                                    'diarrhea_due_to_{}'.format(key),
+                                    diarrhea_due_to_pathogen,
                                     etiology_specific_incidence)
 
         healthy.transition_set.append(transition)
@@ -187,6 +199,7 @@ def diarrhea_factory():
 
         length = len(event.index)
 
+        # TODO: Make one df, update one df as opposed to multiple one column updates
         event.population_view.update(pd.DataFrame({'diarrhea': ['healthy']*length}, index=event.index))
         event.population_view.update(pd.DataFrame({'diarrhea_event_count': np.zeros(len(event.index), dtype=int)}, index=event.index))
 
@@ -194,11 +207,13 @@ def diarrhea_factory():
         event.population_view.update(pd.DataFrame({'diarrhea_event_end_time': [pd.NaT]*length}, index=event.index))
 
 
-    # TODO: Need to fix counts for diarrhea and diarrhea due to etiologies so that counts at beginning of simulation are included
     @listens_for('time_step', priority=6)
     @uses_columns(['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + list_of_etiologies + [i + '_event_count' for i in list_of_etiologies])
     def _move_people_into_diarrhea_state(event):
-
+        """
+        Determines who should move from the healthy state to the diarrhea state and counts both cases of diarrhea and cases of diarrhea due to specific etiologies
+        """
+        
         pop = event.population_view.get(event.index)
 
         # Potential FIXME: Now we're making it so that only healthy people can get diarrhea (i.e. people currently with diarrhea are not susceptible)

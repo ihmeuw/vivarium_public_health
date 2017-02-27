@@ -128,12 +128,22 @@ def make_gbd_risk_effects(risk_id, causes, rr_type, effect_function):
 
  
 class ORS():
+    """
+    Applies the ORS intervention
+    """
     def __init__(self):
         self.active = config.getboolean('ORS', 'run_intervention')
 
 
     def setup(self, builder):
+    """
+    Determines the change in ORS exposure due to the intervention (change is specified in the config file)
 
+    Parameters
+    ----------
+    builder: 
+        FIXME: Think of a good way to describe the builder
+    """
         ors_exposure = get_ors_exposure()
 
         if self.active:
@@ -146,7 +156,7 @@ class ORS():
 
         self.randomness = builder.randomness('ors')
 
-        # FIXME: I'm using the handwashing rei_id right now -- 238 -- for RR but I'm manually overwriting the RR values to numbers that make sense for ORS. Once we have the ORS rei_id, I can update
+        # FIXME: Update to use the ORS rei id
         effect_function = ors_exposure_effect(self.exposure, 'ors_susceptibility')
         risk_effects = make_gbd_risk_effects(238, [
             (302, 'diarrhea'),
@@ -169,6 +179,20 @@ class ORS():
     @modifies_value('metrics')
     @uses_columns(['ors_count', 'ors_unit_cost', 'ors_cost_to_administer'])
     def metrics(self, index, metrics, population_view):
+        """
+        Update the output metrics with information regarding the vaccine intervention
+
+        Parameters
+        ----------
+        index: pandas Index
+            Index of all simulants, alive or dead
+
+        metrics: pd.Dictionary
+            Dictionary of metrics that will be printed out at the end of the simulation
+
+        population_view: pd.DataFrame
+            df of all simulants, alive or dead with columns rotaviral_entiritis_vaccine_first_dose_count, rotaviral_entiritis_vaccine_second_dose_count, rotaviral_entiritis_vaccine_third_dose_count, rotaviral_entiritis_vaccine_unit_cost, cost_to_administer_rotaviral_entiritis_vaccine
+        """
         population = population_view.get(index)
 
         metrics['ors_unit_cost'] = population['ors_unit_cost'].sum()
