@@ -94,25 +94,20 @@ class Mortality:
         # first convert to probabilities
         prob_df = rate_to_probability(rate_df)
  
-        # then cumulatively sum over mortality probabilities
-        cumsum_mortality_probs = np.cumsum(prob_df, axis=1) 
-
-        old_probs = np.zeros(len(cumsum_mortality_probs))
-
         # determine if simulant has died, assign cause of death
-        for col in cumsum_mortality_probs.columns:
-            probs = cumsum_mortality_probs[[col]].values.ravel()
-            index = self.random.filter_for_cause_specific_mortality_probability(event.index, probs, old_probs)
+        prob_df['no_death'] = 1-prob_df.sum(axis=1)
 
-            old_probs = probs
+        prob_df['cause_of_death'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
 
-            self.death_emitter(event.split(index))
+        dead_pop = prob_df.query('cause_of_death != "no_death"').copy()
 
-            pop = pd.DataFrame(False, index=index, columns=['alive'], dtype=bool)
-            pop['death_day'] = event.time
-            pop['cause_of_death'] = col
+        dead_pop['alive'] = False
 
-            event.population_view.update(pop)
+        self.death_emitter(event.split(dead_pop.index))
+
+        dead_pop['death_day'] = event.time        
+
+        event.population_view.update(dead_pop[['alive', 'death_day', 'cause_of_death']])
 
     @produces_value('mortality_rate')
     def mortality_rate_source(self, population):
