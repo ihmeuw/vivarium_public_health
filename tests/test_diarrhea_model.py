@@ -24,7 +24,7 @@ def test_diarrhea_factory():
     # make it so that all men will get incidence due to rotaviral entiritis
     inc = build_table(0)
 
-    inc.loc[inc.sex == 'Male', 'rate'] = 10000000
+    inc.loc[inc.sex == 'Male', 'rate'] = 1000
 
     rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
 
