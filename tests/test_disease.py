@@ -81,8 +81,7 @@ def test_mortality_rate():
     pump_simulation(simulation, iterations=1)
 
     # Folks instantly transition to sick so now our mortality rate should be much higher
-    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index))
-
+    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['death_due_to_sick'])
 
 
 @patch('ceam_public_health.components.disease.get_disease_states')
