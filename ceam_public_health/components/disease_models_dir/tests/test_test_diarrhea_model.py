@@ -64,5 +64,4 @@ def test_ApplyDiarrheaExcessMortality():
     assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index))
 
 
-
 # End.
