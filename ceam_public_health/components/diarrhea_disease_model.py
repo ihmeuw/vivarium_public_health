@@ -27,12 +27,11 @@ class DiarrheaEtiologyState(State):
     disability_weight: float
         disability associated with diarrhea, regardless of which etiologies are associated with the bout of diarrhea
     """
-    def __init__(self, state_id, disability_weight, key='state'):
+    def __init__(self, state_id, key='state'):
+
         State.__init__(self, state_id)
 
         self.state_id = state_id
-
-        self._disability_weight = disability_weight
 
         self.event_count_column = state_id + '_event_count'
 
@@ -62,12 +61,6 @@ class DiarrheaEtiologyState(State):
 
         return metrics
 
-    # TODO: Should move the disability weight function to a place where it makes more sense. Disability weight is associated with diarrhea, not the etiology.
-    @modifies_value('disability_weight')
-    def disability_weight(self, index):
-        population = self.population_view.get(index)
-        return self._disability_weight * (population['diarrhea'] == 'diarrhea')
-
 
 class ApplyDiarrheaExcessMortality():
     """
@@ -82,10 +75,10 @@ class ApplyDiarrheaExcessMortality():
         df with csmr for each age, sex, year, loc         
     """
 
-    def __init__(self, excess_mortality_data, cause_specific_mortality_data):
+    def __init__(self, excess_mortality_data, cause_specific_mortality_data, disability_weight):
         self.excess_mortality_data = excess_mortality_data
         self.cause_specific_mortality_data = cause_specific_mortality_data
-
+        self._disability_weight = disability_weight
 
     def setup(self, builder):
         columns = ['diarrhea']
@@ -105,6 +98,12 @@ class ApplyDiarrheaExcessMortality():
         population = self.population_view.get(index)
 
         return rates + self.mortality(population.index, skip_post_processor=True) * (population['diarrhea'] == 'diarrhea')
+
+
+    @modifies_value('disability_weight')
+    def disability_weight(self, index):
+        population = self.population_view.get(index)
+        return self._disability_weight * (population['diarrhea'] == 'diarrhea')
 
 
 # TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
@@ -178,7 +177,7 @@ def diarrhea_factory():
 
         # TODO: Get severity split draws so that we can have full uncertainty surrounding disability
         # Potential FIXME: Might want to actually have severity states in the future. Will need to figure out how to make sure that people with multiple pathogens have only one severity
-        etiology_state = DiarrheaEtiologyState(diarrhea_due_to_pathogen, key=diarrhea_due_to_pathogen, disability_weight=0.2319)
+        etiology_state = DiarrheaEtiologyState(diarrhea_due_to_pathogen, key=diarrhea_due_to_pathogen)
 
         etiology_specific_incidence = get_etiology_specific_incidence(eti_risk_id=value, cause_id=302, me_id=1181)
 
@@ -232,7 +231,7 @@ def diarrhea_factory():
         event.population_view.update(pop[['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + [i + '_event_count' for i in list_of_etiologies]])
 
 
-    excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181), get_cause_specific_mortality(1181))
+    excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181), get_cause_specific_mortality(1181), disability_weight=0.2319)
 
     remission = ApplyDiarrheaRemission(get_duration_in_days(1181))
 

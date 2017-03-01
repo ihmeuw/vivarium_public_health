@@ -6,6 +6,7 @@ from ceam.framework.values import modifies_value
 from ceam import config
 import operator
 
+
 class AccrueSusceptiblePersonTime():
     # TODO: Need to figure out how pass in all of the diseases
     def __init__(self, disease_col, susceptible_col):
