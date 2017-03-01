@@ -129,21 +129,20 @@ def make_gbd_risk_effects(risk_id, causes, rr_type, effect_function):
  
 class ORS():
     """
-    Applies the ORS intervention
+    Determines the change in ORS exposure due to the intervention (change is specified in the config file)
+
+    Parameters
+    ----------
+    builder:
+        FIXME: Think of a good way to describe the builder
     """
+
     def __init__(self):
         self.active = config.getboolean('ORS', 'run_intervention')
 
 
     def setup(self, builder):
-    """
-    Determines the change in ORS exposure due to the intervention (change is specified in the config file)
 
-    Parameters
-    ----------
-    builder: 
-        FIXME: Think of a good way to describe the builder
-    """
         ors_exposure = get_ors_exposure()
 
         if self.active:
