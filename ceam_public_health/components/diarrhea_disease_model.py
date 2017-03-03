@@ -62,9 +62,11 @@ class DiarrheaEtiologyState(State):
         return metrics
 
 
-class ApplyDiarrheaExcessMortality():
+# TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
+# TODO: Figure out how remission rates can be different across diarrhea due to the different etiologies
+class DiarrheaBurden:
     """
-    Assigns an excess mortality to people who have diarrhea
+    Assigns an excess mortality and duration to people that have diarrhea
 
     Parameters
     ----------
@@ -72,13 +74,16 @@ class ApplyDiarrheaExcessMortality():
         df with excess mortality rate for each age, sex, year, loc
 
     cause_specific_mortality_data: df
-        df with csmr for each age, sex, year, loc         
-    """
+        df with csmr for each age, sex, year, loc
 
-    def __init__(self, excess_mortality_data, cause_specific_mortality_data, disability_weight):
+    duration_data: df
+        df with duration data (in days) for each age, sex, year, loc
+    """
+    def __init__(self, excess_mortality_data, cause_specific_mortality_data, disability_weight, duration_data):
         self.excess_mortality_data = excess_mortality_data
         self.cause_specific_mortality_data = cause_specific_mortality_data
         self._disability_weight = disability_weight
+        self.duration_data = duration_data
 
     def setup(self, builder):
         columns = ['diarrhea']
@@ -86,12 +91,18 @@ class ApplyDiarrheaExcessMortality():
         self.mortality = builder.rate('excess_mortality.diarrhea')
         self.mortality.source = builder.lookup(self.excess_mortality_data)
 
+        self.clock = builder.clock()
+
+        self.duration = builder.value('duration.diarrhea')
+
+        # this gives you a base value. intervention will change this value
+        self.duration.source = builder.lookup(self.duration_data)
 
     @modifies_value('cause_specific_mortality_data')
     def mmeids(self):
         return self.cause_specific_mortality_data
 
-    
+
     @modifies_value('mortality_rate')
     @uses_columns(['diarrhea'], 'alive')
     def mortality_rates(self, index, rates, population_view):
@@ -105,31 +116,6 @@ class ApplyDiarrheaExcessMortality():
         population = self.population_view.get(index)
         return self._disability_weight * (population['diarrhea'] == 'diarrhea')
 
-
-# TODO: After the MVS is finished, include transitions to non-fully healthy states (e.g. malnourished and stunted health states)
-# TODO: Figure out how remission rates can be different across diarrhea due to the different etiologies
-class ApplyDiarrheaRemission():
-    """
-    Assigns a diarrhea bout duration to each case of diarrhea
-
-    Parameters
-    ----------
-    duration_data: df
-        df with duration data (in days) for each age, sex, year, loc
-    """
-
-    def __init__(self, duration_data):
-        self.duration_data = duration_data
-
-
-    def setup(self, builder):
-
-        self.clock = builder.clock()
-
-        self.duration = builder.value('duration.diarrhea')
-
-        # this gives you a base value. intervention will change this value
-        self.duration.source = builder.lookup(self.duration_data)
 
     # FIXME: Per conversation with Abie on 2.22, we would like to have a distribution surrounding duration
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + list_of_etiologies)
@@ -150,8 +136,8 @@ class ApplyDiarrheaRemission():
 
         for etiology in list_of_etiologies:
             affected_population['{}'.format(etiology)] = 'healthy'
-                  
-        event.population_view.update(affected_population[list_of_etiologies + ['diarrhea', 'diarrhea_event_end_time']]) 
+
+        event.population_view.update(affected_population[list_of_etiologies + ['diarrhea', 'diarrhea_event_end_time']])
 
 
 def diarrhea_factory():
@@ -181,6 +167,7 @@ def diarrhea_factory():
 
         etiology_specific_incidence = get_etiology_specific_incidence(eti_risk_id=value, cause_id=302, me_id=1181)
 
+        # TODO: Need to figure out how to change priority on a RateTransition so that we can get ors_clock working
         transition = RateTransition(etiology_state,
                                     diarrhea_due_to_pathogen,
                                     etiology_specific_incidence)
@@ -205,9 +192,9 @@ def diarrhea_factory():
         event.population_view.update(pd.DataFrame({'diarrhea_event_time': [pd.NaT]*length}, index=event.index))
         event.population_view.update(pd.DataFrame({'diarrhea_event_end_time': [pd.NaT]*length}, index=event.index))
 
-
     @listens_for('time_step', priority=6)
     @uses_columns(['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + list_of_etiologies + [i + '_event_count' for i in list_of_etiologies])
+    @profile
     def _move_people_into_diarrhea_state(event):
         """
         Determines who should move from the healthy state to the diarrhea state and counts both cases of diarrhea and cases of diarrhea due to specific etiologies
@@ -219,7 +206,7 @@ def diarrhea_factory():
         pop = pop.query("diarrhea == 'healthy'")
 
         for etiology in list_of_etiologies:
-
+            # etiology_pop = pop.loc[pop['{}'.format(etiology)] == etiology]
             pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
             pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
 
@@ -230,12 +217,9 @@ def diarrhea_factory():
 
         event.population_view.update(pop[['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + [i + '_event_count' for i in list_of_etiologies]])
 
+    diarrhea_burden = DiarrheaBurden(excess_mortality_data=get_excess_mortality(1181), cause_specific_mortality_data=get_cause_specific_mortality(1181), disability_weight=0.2319, duration_data=get_duration_in_days(1181))
 
-    excess_mort = ApplyDiarrheaExcessMortality(get_excess_mortality(1181), get_cause_specific_mortality(1181), disability_weight=0.2319)
-
-    remission = ApplyDiarrheaRemission(get_duration_in_days(1181))
-
-    list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state, _create_diarrhea_column, excess_mort, remission, AccrueSusceptiblePersonTime('diarrhea', 'diarrhea')]
+    list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state, _create_diarrhea_column, diarrhea_burden, AccrueSusceptiblePersonTime('diarrhea', 'diarrhea')]
 
     return list_of_module_and_functs
 
