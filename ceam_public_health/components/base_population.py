@@ -114,7 +114,7 @@ class Mortality:
         return pd.DataFrame({'death_due_to_other_causes': self.mortality_rate_lookup(population)})
 
     @modifies_value('metrics')
-    @uses_columns(['alive', 'age'])
+    @uses_columns(['alive', 'age', 'cause_of_death'])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
         the_dead = population.query('not alive')
@@ -123,5 +123,7 @@ class Mortality:
         metrics['total_population'] = len(population)
         metrics['total_population__living'] = len(population) - len(the_dead)
         metrics['total_population__dead'] = len(the_dead)
+        for condition, count in condition, count in pd.value_counts(population.cause_of_death):
+            metrics['deaths_from_{}'.format(condition)] = count
 
         return metrics

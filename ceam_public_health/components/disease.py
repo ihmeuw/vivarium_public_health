@@ -1,5 +1,3 @@
-# ~/ceam/ceam/framework/disease.py
-
 import os.path
 from datetime import timedelta
 from functools import partial
@@ -26,6 +24,7 @@ class DiseaseState(State):
         self.condition = condition
         self._disability_weight = disability_weight
         self.dwell_time = dwell_time
+
         if isinstance(self.dwell_time, timedelta):
             self.dwell_time = self.dwell_time.total_seconds()
 
@@ -109,14 +108,6 @@ class ExcessMortalityState(DiseaseState):
 
     def __str__(self):
         return 'ExcessMortalityState("{}" ...)'.format(self.state_id)
-
-    @modifies_value('metrics')
-    @uses_columns(['cause_of_death'])
-    def metrics(self, index, metrics, population_view):
-        population = population_view.get(index)
-        # TODO: Might be a cleaner way to output this data
-        metrics['cause_of_death'] = pd.value_counts(population.cause_of_death)
-        return metrics
 
 
 class RateTransition(Transition):
