@@ -24,7 +24,6 @@ import pdb
 
 # TODO: Incorporate PAFs -- Is there even a PAF so that we can get ORS-deleted incidence?
 
-
 def ors_exposure_effect(exposure, susceptibility_column):
     """Factory that makes function which can be used as the exposure_effect
     for binary categorical risks
@@ -41,9 +40,6 @@ def ors_exposure_effect(exposure, susceptibility_column):
    
         population = population_view.get(rr.index)
  
-        # set currently receiving ors col to 0 (will set to 1 later in this function for people that are currently receiving)
-        population['currently_receiving_ors'] = 0
-
         pop = population.query("diarrhea == 'diarrhea'").copy()
 
         exp = exposure(pop.index)
@@ -70,6 +66,7 @@ def ors_exposure_effect(exposure, susceptibility_column):
         # TODO: Make sure the categories make sense. Exposure to ORS should decrease risk (i.e. RR should be less than 1)
         rates.loc[pop.index] *= (df.relative_risk_value.values)
 
+        # FIXME: ORS clock isn't working properly. This function needs to happen later in the priority!
         # using this ors_clock variable to make sure ors count and ors costs are only counted once per bout
         if not pop.loc[received_ors_index].empty:
             received_ors_pop = pop.loc[received_ors_index]
@@ -130,16 +127,10 @@ def make_gbd_risk_effects(risk_id, causes, rr_type, effect_function):
 class ORS():
     """
     Determines the change in ORS exposure due to the intervention (change is specified in the config file)
-
-    Parameters
-    ----------
-    builder:
-        FIXME: Think of a good way to describe the builder
     """
 
     def __init__(self):
         self.active = config.getboolean('ORS', 'run_intervention')
-
 
     def setup(self, builder):
 
@@ -151,7 +142,9 @@ class ORS():
             ors_exposure['cat1'] += ors_exposure_increase_above_baseline
             ors_exposure['cat2'] -= ors_exposure_increase_above_baseline
 
-        self.exposure = builder.lookup(ors_exposure)
+        self.exposure = builder.value('exposure.ors')
+
+        self.exposure.source = builder.lookup(ors_exposure)
 
         self.randomness = builder.randomness('ors')
 
