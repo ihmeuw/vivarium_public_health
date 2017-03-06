@@ -194,7 +194,6 @@ def diarrhea_factory():
 
     @listens_for('time_step', priority=6)
     @uses_columns(['diarrhea', 'diarrhea_event_count', 'diarrhea_event_time'] + list_of_etiologies + [i + '_event_count' for i in list_of_etiologies])
-    @profile
     def _move_people_into_diarrhea_state(event):
         """
         Determines who should move from the healthy state to the diarrhea state and counts both cases of diarrhea and cases of diarrhea due to specific etiologies
