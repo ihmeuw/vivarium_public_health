@@ -9,6 +9,54 @@ from ceam.framework.randomness import choice
 import pdb
 
 
+def _determine_who_should_receive_dose(population, vaccine_col, true_weight, dose_age, dose_number):
+    """
+    Uses choice to determine if simulant should receive a dose. Returns a population of simulants that should receive a dose (most of the time this will be an empty population
+
+    Parameters
+    ----------
+    population: pd.DataFrame
+        population view of all of the simulants who are currently alive
+    
+    vaccine_col: str
+        str representing the name of a column, either rotaviral_entiritis_vaccine_first_dose or second dose. The column represents whether or not the simulant received the first and second dose of the vaccine, which is important because we want to make sure that only people who got the previous vaccine can get the vaccine that is currently being modelled
+
+    true_weight: float
+        number between 0 and 1 that represents the probability of being vaccinated
+
+    dose_age: number
+        age in days at which simulant should receive specific dose
+
+    dose_number: int
+        1, 2, or 3 depending on which dose is currently being evaluated
+
+    Used by
+    -------
+    determine_who_should_receive_dose
+    """
+
+    false_weight = 1 - true_weight
+    previous_dose = dose_number - 1
+
+    if previous_dose == 0:
+        children_at_dose_age = population.query("age_in_days == @dose_age").copy()
+
+    elif previous_dose == 1:
+        children_at_dose_age = population.query("age_in_days == @dose_age and rotaviral_entiritis_vaccine_first_dose == 1").copy()
+
+    elif previous_dose == 2:
+        children_at_dose_age = population.query("age_in_days == @dose_age and rotaviral_entiritis_vaccine_second_dose == 1").copy()
+
+    else:
+         raise ValueError, "previous_dose cannot be any value other than 1 or 2 or None"
+
+    if not children_at_dose_age.empty:
+        children_at_dose_age[vaccine_col] = choice('determine_who_should_receive_dose_{}'.format(vaccine_dose_number), children_at_dose_age.index, [1, 0], [true_weight, false_weight])
+
+    children_who_will_receive_dose = children_at_dose_age.query("{} == 1".format(vaccine_col))
+    return children_who_will_receive_dose
+      
+
 def determine_who_should_receive_dose(population, index, vaccine_col, dose_number):
     """
     Function will determine who should receive 1st, 2nd, and 3rd doses of a vaccine based on proportions and when they should receive each dose based on info specified in the config file
@@ -32,60 +80,23 @@ def determine_who_should_receive_dose(population, index, vaccine_col, dose_numbe
 
     population['age_in_days'] = population['age_in_days'].astype(int)
 
-
     if dose_number == 1:
-        vaccination_proportion_increase = config.getfloat('rota_vaccine', 'vaccination_proportion_increase')
-        # TODO: Make the proportion to vaccinate include the baseline vaccination rates
-        true_weight = vaccination_proportion_increase
-        false_weight = 1 - true_weight
+        true_weight = config.getfloat('rota_vaccine', 'vaccination_proportion_increase')
         dose_age = config.getint('rota_vaccine', 'age_at_first_dose')
-        children_at_dose_age = population.query("age_in_days == @dose_age").copy()
-       
-        # FIXME: Should I be using the children at dose age index instead of the event.index here??
-        if not children_at_dose_age.empty:
-            children_at_dose_age[vaccine_col] = choice('determine_who_should_receive_first_dose', index, [1, 0], [true_weight, false_weight])
-
-        children_who_will_receive_dose = children_at_dose_age.query("{} == 1".format(vaccine_col))
-
-        return children_who_will_receive_dose
-
 
     if dose_number == 2:
-        second_dose_retention = config.getint('rota_vaccine', 'second_dose_retention')
-        true_weight = second_dose_retention
-        false_weight = 1 - true_weight
-        # give second dose 2 months after first
+        true_weight = config.getint('rota_vaccine', 'second_dose_retention')
         dose_age = config.getint('rota_vaccine', 'age_at_first_dose') + 61
-        # FIXME: Think the line below should read rotaviral_entiritis_vaccine_first_dose == 1 
-        children_at_dose_age = population.query("age_in_days == @dose_age and rotaviral_entiritis_vaccine_first_dose == True").copy()
-       
-        # FIXME: Should I be using the children at dose age index instead of the event.index here??
-        if not children_at_dose_age.empty:
-            children_at_dose_age[vaccine_col] = choice('determine_who_should_receive_second_dose', index, [1, 0], [true_weight, false_weight])
-
-        children_who_will_receive_dose = children_at_dose_age.query("{} == 1".format(vaccine_col))
-
-        return children_who_will_receive_dose
-
 
     if dose_number == 3:
-        third_dose_retention = config.getint('rota_vaccine', 'third_dose_retention')
-        true_weight = third_dose_retention
-        false_weight = 1 - true_weight
-        # give third dose 4 months after first dose
+        true_weight = config.getint('rota_vaccine', 'third_dose_retention')
         dose_age = config.getint('rota_vaccine', 'age_at_first_dose') + 61 + 61
-        # FIXME: Think the line below should read rotaviral_entiritis_vaccine_second_dose == 1
-        children_at_dose_age = population.query("age_in_days == @dose_age and rotaviral_entiritis_vaccine_second_dose == True").copy()
 
-        # FIXME: Should I be using the children at dose age index instead of the event.index here??
-        if not children_at_dose_age.empty:
-            children_at_dose_age[vaccine_col] = choice('determine_who_should_receive_third_dose', index, [1, 0], [true_weight, false_weight])
-
-        children_who_will_receive_dose = children_at_dose_age.query("{} == 1".format(vaccine_col))
-
+    # TODO: Make the proportion to vaccinate include the baseline vaccination rates
+    children_who_will_receive_dose = _determine_who_should_receive_dose(population=population, vaccine_col=vaccine_col, true_weight=true_weight, dose_age=dose_age, dose_number=dose_number)
+       
         return children_who_will_receive_dose
 
-   
     # If nobody is at the age at which they need to start being vaccinated, just return the original input population so that nothing in the population table changes in the ensuing population update
     return population
 
