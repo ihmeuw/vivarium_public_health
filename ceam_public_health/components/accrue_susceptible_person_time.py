@@ -66,7 +66,7 @@ class AccrueSusceptiblePersonTime():
         sorted_dict = sorted(self.dict_of_age_group_name_and_max_values.items(), key=operator.itemgetter(1))
         for key, value in sorted_dict:
             # FIXME: Susceptible person time estimates are off unless end data falls exactly on a time step (so this is fine for the diarrhea model -- 1 day timesteps -- but may not be ok for other causes)
-            pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max), 'susceptible_person_time_{}'.format(key)] += config.getint('simulation_parameters', 'time_step')
+            pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max), 'susceptible_person_time_{}'.format(key)] += config.getfloat('simulation_parameters', 'time_step')
             last_age_group_max = value
 
 
