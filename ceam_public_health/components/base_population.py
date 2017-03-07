@@ -66,8 +66,9 @@ class Mortality:
         self._mortality_rate_builder = lambda: builder.lookup(self.load_all_cause_mortality())
         self.mortality_rate = builder.rate('mortality_rate')
         self.death_emitter = builder.emitter('deaths')
-        with open_auxiliary_file('Life Table') as f
-            self.life_table = builder.lookup(pd.read_csv(f), key_columns=(), parameter_columns=('age',)) self.random = builder.randomness('mortality_handler')
+        with open_auxiliary_file('Life Table') as f:
+            self.life_table = builder.lookup(pd.read_csv(f), key_columns=(), parameter_columns=('age',))
+        self.random = builder.randomness('mortality_handler')
         self.csmr_data = builder.value('csmr_data')
 
     @listens_for('post_setup')
