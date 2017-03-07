@@ -6,6 +6,7 @@ import numpy as np
 from ceam_inputs import generate_ceam_population
 from ceam_inputs import get_cause_deleted_mortality_rate
 from ceam_inputs.gbd_ms_functions import assign_subregions
+from ceam_inputs.auxiliary_files import open_auxiliary_file
 
 from ceam.framework.event import listens_for
 from ceam.framework.values import produces_value, modifies_value
@@ -65,9 +66,8 @@ class Mortality:
         self._mortality_rate_builder = lambda: builder.lookup(self.load_all_cause_mortality())
         self.mortality_rate = builder.rate('mortality_rate')
         self.death_emitter = builder.emitter('deaths')
-        j_drive = config.get('general', 'j_drive')
-        self.life_table = builder.lookup(pd.read_csv(os.path.join(j_drive, 'WORK/10_gbd/01_dalynator/02_inputs/YLLs/usable/FINAL_min_pred_ex.csv')), key_columns=(), parameter_columns=('age',))
-        self.random = builder.randomness('mortality_handler')
+        with open_auxiliary_file('Life Table') as f
+            self.life_table = builder.lookup(pd.read_csv(f), key_columns=(), parameter_columns=('age',)) self.random = builder.randomness('mortality_handler')
         self.csmr_data = builder.value('csmr_data')
 
     @listens_for('post_setup')
