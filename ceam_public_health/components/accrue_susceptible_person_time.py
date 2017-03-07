@@ -1,10 +1,13 @@
+import operator
+
 import pandas as pd, numpy as np
-from db_tools import ezfuncs
+
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 from ceam import config
-import operator
+
+from ceam_inputs import get_age_bins
 
 
 class AccrueSusceptiblePersonTime():
@@ -42,7 +45,7 @@ class AccrueSusceptiblePersonTime():
 
     def setup(self, builder):
         # get all gbd age groups
-        age_bins = ezfuncs.query('''select age_group_id, age_group_years_start, age_group_years_end, age_group_name from age_group''', conn_def='shared')
+        age_bins = get_age_bins()
 
         # filter down all age groups to only the ones we care about
         # FIXME: the age groups of interest will change for GBD 2016, since the 85-90 age group is in GBD 2016, but not 2015
