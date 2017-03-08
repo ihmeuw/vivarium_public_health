@@ -70,6 +70,8 @@ def test_incidence_rate():
 
     rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
 
+    import pdb; pdb.set_trace()
+
     # find an example of simulants of the same age and sex, but not vaccination status, and then compare their incidence rates
     assert pd.unique(rota_inc(not_vaccinated[0:1].index)) * (1 - config.getfloat('rota_vaccine', 'total_vaccine_effectiveness')) == pd.unique(rota_inc(vaccinated[0:1].index)), "the vaccine should reduce the incidence of diarrhea due to rotavirus according to the effectiveness specified in the config file"
 
