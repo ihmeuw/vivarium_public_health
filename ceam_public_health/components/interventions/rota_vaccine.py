@@ -48,14 +48,29 @@ def _determine_who_should_receive_dose(population, vaccine_col, true_weight, dos
         children_at_dose_age = population.query("age_in_days == @dose_age and rotaviral_entiritis_vaccine_second_dose == 1").copy()
 
     else:
-         raise ValueError, "previous_dose cannot be any value other than 1 or 2 or None"
+         raise(ValueError, "previous_dose cannot be any value other than 1 or 2 or None")
 
     if not children_at_dose_age.empty:
-        children_at_dose_age[vaccine_col] = choice('determine_who_should_receive_dose_{}'.format(vaccine_dose_number), children_at_dose_age.index, [1, 0], [true_weight, false_weight])
+        children_at_dose_age[vaccine_col] = choice('determine_who_should_receive_dose_{}'.format(dose_number), children_at_dose_age.index, [1, 0], [true_weight, false_weight])
 
     children_who_will_receive_dose = children_at_dose_age.query("{} == 1".format(vaccine_col))
+
     return children_who_will_receive_dose
       
+
+def accrue_vaccine_cost_and_count(population, vaccine_time_column, vaccine_count_column, vaccine_unit_cost_column, vaccine_cost_to_administer_column, timestamp):
+    # Setting time here in case we want to use an emitter in the future
+    population[vaccine_time_column] = timestamp
+
+    # Count vaccination dose
+    population[vaccine_count_column] += 1
+
+    # Accrue cost
+    population[vaccine_unit_cost_column] += config.getfloat('rota_vaccine', 'RV5_dose_cost')
+    population[vaccine_cost_to_administer_column] += config.getint('rota_vaccine', 'cost_to_administer_each_dose')
+
+    return population
+
 
 def determine_who_should_receive_dose(population, index, vaccine_col, dose_number):
     """
@@ -94,11 +109,8 @@ def determine_who_should_receive_dose(population, index, vaccine_col, dose_numbe
 
     # TODO: Make the proportion to vaccinate include the baseline vaccination rates
     children_who_will_receive_dose = _determine_who_should_receive_dose(population=population, vaccine_col=vaccine_col, true_weight=true_weight, dose_age=dose_age, dose_number=dose_number)
-       
-        return children_who_will_receive_dose
-
-    # If nobody is at the age at which they need to start being vaccinated, just return the original input population so that nothing in the population table changes in the ensuing population update
-    return population
+      
+    return children_who_will_receive_dose
 
 
 class RotaVaccine():
@@ -179,15 +191,7 @@ class RotaVaccine():
             children_who_will_receive_first_dose = determine_who_should_receive_dose(population, event.index, self.vaccine_first_dose_column, 1)
 
             if not children_who_will_receive_first_dose.empty:
-                # Setting time here in case we want to use an emitter in the future
-                children_who_will_receive_first_dose[self.vaccine_first_dose_time_column] = pd.Timestamp(event.time)
-
-                # Count vaccination dose
-                children_who_will_receive_first_dose[self.vaccine_first_dose_count_column] += 1 
-
-                # Accrue cost
-                children_who_will_receive_first_dose[self.vaccine_unit_cost_column] += config.getfloat('rota_vaccine', 'RV5_dose_cost')
-                children_who_will_receive_first_dose[self.vaccine_cost_to_administer_column] += config.getint('rota_vaccine', 'cost_to_administer_each_dose')
+                children_who_will_receive_first_dose = accrue_vaccine_cost_and_count(children_who_will_receive_first_dose, self.vaccine_first_dose_time_column, self.vaccine_first_dose_count_column, self.vaccine_unit_cost_column, self.vaccine_cost_to_administer_column, pd.Timestamp(event.time)) 
 
                 self.population_view.update(children_who_will_receive_first_dose[[self.vaccine_first_dose_column, self.vaccine_first_dose_time_column, self.vaccine_first_dose_count_column, self.vaccine_unit_cost_column, self.vaccine_cost_to_administer_column]])
 
@@ -195,15 +199,7 @@ class RotaVaccine():
             children_who_will_receive_second_dose = determine_who_should_receive_dose(population, event.index, self.vaccine_second_dose_column, 2)
 
             if not children_who_will_receive_second_dose.empty:
-                # Setting time here in case we want to use an emitter in the future
-                children_who_will_receive_second_dose[self.vaccine_second_dose_time_column] = pd.Timestamp(event.time)
-
-                # Count vaccination dose
-                children_who_will_receive_second_dose[self.vaccine_second_dose_count_column] += 1
-
-                # Accrue cost
-                children_who_will_receive_second_dose[self.vaccine_unit_cost_column] += config.getfloat('rota_vaccine', 'RV5_dose_cost')
-                children_who_will_receive_second_dose[self.vaccine_cost_to_administer_column] += config.getint('rota_vaccine', 'cost_to_administer_each_dose')
+                children_who_will_receive_second_dose = accrue_vaccine_cost_and_count(children_who_will_receive_second_dose, self.vaccine_second_dose_time_column, self.vaccine_second_dose_count_column, self.vaccine_unit_cost_column, self.vaccine_cost_to_administer_column, pd.Timestamp(event.time))
 
                 self.population_view.update(children_who_will_receive_second_dose[[self.vaccine_second_dose_column, self.vaccine_second_dose_time_column, self.vaccine_second_dose_count_column, self.vaccine_unit_cost_column, self.vaccine_cost_to_administer_column]])
 
@@ -212,15 +208,7 @@ class RotaVaccine():
             children_who_will_receive_third_dose = determine_who_should_receive_dose(population, event.index, self.vaccine_third_dose_column, 3)
 
             if not children_who_will_receive_third_dose.empty:
-                # Setting time here in case we want to use an emitter in the future
-                children_who_will_receive_third_dose[self.vaccine_third_dose_time_column] = pd.Timestamp(event.time)
-
-                # Count vaccination dose
-                children_who_will_receive_third_dose[self.vaccine_third_dose_count_column] += 1
-
-                # Accrue cost
-                children_who_will_receive_third_dose[self.vaccine_unit_cost_column] += config.getfloat('rota_vaccine', 'RV5_dose_cost')
-                children_who_will_receive_third_dose[self.vaccine_cost_to_administer_column] += config.getint('rota_vaccine', 'cost_to_administer_each_dose')
+                children_who_will_receive_third_dose = accrue_vaccine_cost_and_count(children_who_will_receive_third_dose, self.vaccine_third_dose_time_column, self.vaccine_third_dose_count_column, self.vaccine_unit_cost_column, self.vaccine_cost_to_administer_column, pd.Timestamp(event.time))
 
                 # set time at which immunity starts
                 time_after_dose_at_which_immunity_is_conferred = config.getint('rota_vaccine', 'time_after_dose_at_which_immunity_is_conferred')
