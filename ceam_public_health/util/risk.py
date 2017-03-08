@@ -137,23 +137,21 @@ def categorical_exposure_effect(exposure, susceptibility_column):
 
 
 class RiskEffect:
-    """RiskEffect objects bundle all the effects that a given risk has on a
-    cause.
     """
+    Parameters
+    ----------
+    rr_data : pandas.DataFrame
+        A dataframe of relative risk data with age, sex, year, and rr columns
+    paf_data : pandas.DataFrame
+        A dataframe of population attributable fraction data with age, sex, year, and paf columns
+    cause : str
+        The name of the cause to effect as used in named variables like 'incidence_rate.<cause>'
+    exposure_effect : callable
+        A function which takes a series of incidence rates and a series of
+        relative risks and returns rates modified as appropriate for this risk
+    """
+
     def __init__(self, rr_data, paf_data, cause, exposure_effect):
-        """
-        Parameters
-        ----------
-        rr_data : pandas.DataFrame
-            A dataframe of relative risk data with age, sex, year, and rr columns
-        paf_data : pandas.DataFrame
-            A dataframe of population attributable fraction data with age, sex, year, and paf columns
-        cause : str
-            The name of the cause to effect as used in named variables like 'incidence_rate.<cause>'
-        exposure_effect : callable
-            A function which takes a series of incidence rates and a series of
-            relative risks and returns rates modified as appropriate for this risk
-        """
         self.rr_data = rr_data
         self.paf_data = paf_data
         self.cause_name = cause
@@ -170,3 +168,6 @@ class RiskEffect:
         rr = self.rr_lookup(index)
 
         return self.exposure_effect(rates, rr)
+
+
+# End.
