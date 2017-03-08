@@ -35,7 +35,7 @@ class Underweight:
         list_of_tuples = [(302, i) for i in list_of_etiologies]
 
         effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=94)), 'underweight_susceptibility')
-        risk_effects = make_gbd_risk_effects(94, list_of_tuples, 'morbidity', effect_function)
+        risk_effects = make_gbd_risk_effects(94, list_of_tuples, effect_function)
 
         return risk_effects
 
