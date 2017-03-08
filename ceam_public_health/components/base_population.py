@@ -11,7 +11,7 @@ from ceam_inputs.auxiliary_files import open_auxiliary_file
 from ceam.framework.event import listens_for
 from ceam.framework.values import produces_value, modifies_value
 from ceam.framework.population import uses_columns
-
+from ceam.framework.util import rate_to_probability
 from ceam import config
 
 @listens_for('initialize_simulants', priority=0)
@@ -82,28 +82,41 @@ class Mortality:
         return get_cause_deleted_mortality_rate(self.csmr_data())
 
     @listens_for('initialize_simulants')
-    @uses_columns(['death_day'])
+    @uses_columns(['death_day', 'cause_of_death'])
     def death_day_column(self, event):
         event.population_view.update(pd.Series(pd.NaT, name='death_day', index=event.index))
+        event.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
 
     @listens_for('time_step', priority=0)
-    @uses_columns(['alive', 'death_day'], 'alive')
+    @uses_columns(['alive', 'death_day', 'cause_of_death'], 'alive')
     def mortality_handler(self, event):
-        rate = self.mortality_rate(event.index)
-        index = self.random.filter_for_rate(event.index, rate)
+        rate_df = self.mortality_rate(event.index)
 
-        self.death_emitter(event.split(index))
+        # make sure to turn the rates into probabilities, do a cumulative sum to make sure that people can only die from one cause
+        # first convert to probabilities
+        prob_df = rate_to_probability(rate_df)
+ 
+        # determine if simulant has died, assign cause of death
+        prob_df['no_death'] = 1-prob_df.sum(axis=1)
 
-        pop = pd.DataFrame(False, index=index, columns=['alive'], dtype=bool)
-        pop['death_day'] = event.time
-        event.population_view.update(pop)
+        prob_df['cause_of_death'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
+
+        dead_pop = prob_df.query('cause_of_death != "no_death"').copy()
+
+        dead_pop['alive'] = False
+
+        self.death_emitter(event.split(dead_pop.index))
+
+        dead_pop['death_day'] = event.time        
+
+        event.population_view.update(dead_pop[['alive', 'death_day', 'cause_of_death']])
 
     @produces_value('mortality_rate')
     def mortality_rate_source(self, population):
-        return self.mortality_rate_lookup(population)
+        return pd.DataFrame({'death_due_to_other_causes': self.mortality_rate_lookup(population)})
 
     @modifies_value('metrics')
-    @uses_columns(['alive', 'age'])
+    @uses_columns(['alive', 'age', 'cause_of_death'])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
         the_dead = population.query('not alive')
@@ -112,6 +125,9 @@ class Mortality:
         metrics['total_population'] = len(population)
         metrics['total_population__living'] = len(population) - len(the_dead)
         metrics['total_population__dead'] = len(the_dead)
+        for (condition, count) in pd.value_counts(population.cause_of_death).to_dict().items():
+            metrics['deaths_from_{}'.format(condition)] = count
+
         return metrics
 
 # End.

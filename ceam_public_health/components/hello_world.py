@@ -4,6 +4,8 @@ import pandas as pd
 
 from ceam import config
 
+from ceam_inputs.auxiliary_files import open_auxiliary_file
+
 from ceam.framework.event import listens_for
 from ceam.framework.values import modifies_value
 from ceam.framework.population import uses_columns
@@ -41,8 +43,8 @@ class SimpleIntervention:
 class SimpleMetrics:
     def setup(self, builder):
         self.reset()
-        path_prefix = '/home/j/Project/Cost_Effectiveness/dev/data_processed'
-        self.life_table = builder.lookup(pd.read_csv(os.path.join(path_prefix, 'interpolated_reference_life_table.csv')), key_columns=(), parameter_columns=('age',))
+        with open_auxiliary_file('Life Table') as f:
+            self.life_table = builder.lookup(pd.read_csv(f), key_columns=(), parameter_columns=('age',))
 
     @listens_for('deaths')
     def count_deaths_and_ylls(self, event):

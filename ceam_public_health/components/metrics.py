@@ -1,4 +1,4 @@
-# ~/ceam/ceam/modules/metrics.py
+# ~/ceam_public_health/componenets/metrics.py
 
 import os.path
 
@@ -15,16 +15,21 @@ class Metrics:
     Accumulate various metrics as the simulation runs.
     """
     def setup(self, builder):
-        self.years_lived_with_disability = 0
+        self.years_lived_with_disability = None
         self.disability_weight = builder.value('disability_weight')
 
     @listens_for('time_step__cleanup')
     def calculate_ylds(self, event):
         time_step = config.getfloat('simulation_parameters', 'time_step')
+        if self.years_lived_with_disability is None:
+            self.years_lived_with_disability = pd.Series(0, index=event.index)
         self.years_lived_with_disability += self.disability_weight(event.index)
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
-        metrics['years_lived_with_disability'] = self.years_lived_with_disability.sum()
+        if self.years_lived_with_disability is not None:
+            metrics['years_lived_with_disability'] = self.years_lived_with_disability.sum()
+        else:
+            metrics['years_lived_with_disability'] = 0
         return metrics
 # End.
