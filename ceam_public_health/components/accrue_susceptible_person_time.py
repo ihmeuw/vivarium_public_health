@@ -1,10 +1,13 @@
+import operator
+
 import pandas as pd, numpy as np
-from db_tools import ezfuncs
+
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 from ceam import config
-import operator
+
+from ceam_inputs import get_age_bins
 
 
 class AccrueSusceptiblePersonTime():
@@ -42,7 +45,7 @@ class AccrueSusceptiblePersonTime():
 
     def setup(self, builder):
         # get all gbd age groups
-        age_bins = ezfuncs.query('''select age_group_id, age_group_years_start, age_group_years_end, age_group_name from age_group''', conn_def='shared')
+        age_bins = get_age_bins()
 
         # filter down all age groups to only the ones we care about
         # FIXME: the age groups of interest will change for GBD 2016, since the 85-90 age group is in GBD 2016, but not 2015
@@ -66,7 +69,7 @@ class AccrueSusceptiblePersonTime():
         sorted_dict = sorted(self.dict_of_age_group_name_and_max_values.items(), key=operator.itemgetter(1))
         for key, value in sorted_dict:
             # FIXME: Susceptible person time estimates are off unless end data falls exactly on a time step (so this is fine for the diarrhea model -- 1 day timesteps -- but may not be ok for other causes)
-            pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max), 'susceptible_person_time_{}'.format(key)] += config.getint('simulation_parameters', 'time_step')
+            pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max), 'susceptible_person_time_{}'.format(key)] += config.getfloat('simulation_parameters', 'time_step')
             last_age_group_max = value
 
 
