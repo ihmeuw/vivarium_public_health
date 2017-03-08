@@ -87,6 +87,7 @@ class Mortality:
         event.population_view.update(pd.Series(pd.NaT, name='death_day', index=event.index))
         event.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
 
+    # Potential FIXME: @alecwd -- why is priority set to 0 for this method? Wouldn't we want it be priority 9 so that we can assign time of death in the same time step in which the simulant died?
     @listens_for('time_step', priority=0)
     @uses_columns(['alive', 'death_day', 'cause_of_death'], 'alive')
     def mortality_handler(self, event):
@@ -125,8 +126,8 @@ class Mortality:
         metrics['total_population'] = len(population)
         metrics['total_population__living'] = len(population) - len(the_dead)
         metrics['total_population__dead'] = len(the_dead)
-        for (condition, count) in pd.value_counts(population.cause_of_death).to_dict().items():
-            metrics['deaths_from_{}'.format(condition)] = count
+        for (condition, count) in pd.value_counts(the_dead.cause_of_death).to_dict().items():
+            metrics['{}'.format(condition)] = count
 
         return metrics
 
