@@ -94,7 +94,7 @@ class Mortality:
         # make sure to turn the rates into probabilities, do a cumulative sum to make sure that people can only die from one cause
         # first convert to probabilities
         prob_df = rate_to_probability(rate_df)
- 
+
         # determine if simulant has died, assign cause of death
         prob_df['no_death'] = 1-prob_df.sum(axis=1)
 
@@ -106,7 +106,7 @@ class Mortality:
 
         self.death_emitter(event.split(dead_pop.index))
 
-        dead_pop['death_day'] = event.time        
+        dead_pop['death_day'] = event.time
 
         event.population_view.update(dead_pop[['alive', 'death_day', 'cause_of_death']])
 
