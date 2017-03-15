@@ -38,7 +38,7 @@ def test_dwell_time(get_disease_states_mock):
     emitter = simulation.events.get_emitter('time_step')
 
     # Move everyone into the event state
-    emitter(Event(simulation.current_time, simulation.population.population.index))
+    emitter(Event(simulation.population.population.index))
     event_time = simulation.current_time
 
     assert np.all(simulation.population.population.state == 'event')
@@ -46,14 +46,14 @@ def test_dwell_time(get_disease_states_mock):
     simulation.current_time += timedelta(days=10)
 
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    emitter(Event(simulation.current_time, simulation.population.population.index))
+    emitter(Event(simulation.population.population.index))
 
     assert np.all(simulation.population.population.state == 'event')
 
     simulation.current_time += timedelta(days=20)
 
     # Now enough time has passed so people should transition away
-    emitter(Event(simulation.current_time, simulation.population.population.index))
+    emitter(Event(simulation.population.population.index))
 
     assert np.all(simulation.population.population.state == 'sick')
 
@@ -67,7 +67,7 @@ def test_mortality_rate():
 
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
-    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.0, ['age', 'year', 'sex', 'prevalence']))
+    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.0, ['age', 'year', 'sex', 'prevalence']), csmr_data=build_table(0.0))
 
     healthy.transition_set.append(Transition(mortality_state))
 
@@ -81,8 +81,7 @@ def test_mortality_rate():
     pump_simulation(simulation, iterations=1)
 
     # Folks instantly transition to sick so now our mortality rate should be much higher
-    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index))
-
+    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['death_due_to_sick'])
 
 
 @patch('ceam_public_health.components.disease.get_disease_states')

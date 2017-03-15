@@ -1,5 +1,3 @@
-# ~/ceam/ceam/modules/disease_models.py
-
 import pandas as pd
 
 from datetime import timedelta
@@ -14,6 +12,7 @@ from ceam_public_health.components.disease import DiseaseModel, DiseaseState, Ex
 from ceam_inputs import get_incidence, get_excess_mortality, get_prevalence, get_cause_specific_mortality
 from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache, get_disability_weight
 from ceam_inputs.gbd_ms_auxiliary_functions import normalize_for_simulation
+from ceam_inputs.util import gbd_year_range
 
 def side_effect_factory(male_probability, female_probability, hospitalization_type):
     @emits('hospitalization')
@@ -35,8 +34,7 @@ def heart_disease_factory():
     healthy = State('healthy', key='ihd')
 
     location_id = config.getint('simulation_parameters', 'location_id')
-    year_start = config.getint('simulation_parameters', 'year_start')
-    year_end = config.getint('simulation_parameters', 'year_end')
+    year_start, year_end = gbd_year_range()
 
     # Calculate an adjusted disability weight for the acute heart attack phase that
     # accounts for the fact that our timestep is longer than the phase length
@@ -56,7 +54,7 @@ def heart_disease_factory():
     moderate_angina = ExcessMortalityState('moderate_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1819), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1819), csmr_data=pd.DataFrame())
     severe_angina = ExcessMortalityState('severe_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1820), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1820), csmr_data=pd.DataFrame())
 
-    asymptomatic_ihd = ExcessMortalityState('asymptomatic_ihd', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=3233), excess_mortality_data=build_table(0.0), prevalence_data=get_prevalence(3233), csmr_data=get_cause_specific_mortality(3233))
+    asymptomatic_ihd = ExcessMortalityState('asymptomatic_ihd', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=3233), excess_mortality_data=0.0, prevalence_data=get_prevalence(3233), csmr_data=get_cause_specific_mortality(3233))
 
     heart_attack_transition = RateTransition(heart_attack, 'heart_attack', get_incidence(1814))
     healthy.transition_set.append(heart_attack_transition)
@@ -106,7 +104,7 @@ def heart_disease_factory():
 
 
 def stroke_factory():
-    module = DiseaseModel('hemorrhagic_stroke')
+    module = DiseaseModel('all_stroke')
 
     healthy = State('healthy', key='hemorrhagic_stroke')
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
@@ -127,6 +125,3 @@ def stroke_factory():
     module.states.extend([healthy, hemorrhagic_stroke, ischemic_stroke, chronic_stroke])
 
     return module
-
-
-# End.
