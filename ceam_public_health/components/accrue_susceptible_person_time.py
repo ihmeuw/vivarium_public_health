@@ -34,7 +34,6 @@ for age_bin in pd.unique(age_bins.age_group_name.values):
         for sex in ['Male', 'Female']:
             susceptible_person_time_cols.append("susceptible_person_time_" + age_bin + "_in_year_{}".format(year) + "_among_" + sex + "s")
 
-
 class AccrueSusceptiblePersonTime():
     # TODO: Need to figure out how pass in all of the diseases
     def __init__(self, disease_col, susceptible_col):
@@ -88,14 +87,30 @@ class AccrueSusceptiblePersonTime():
 
 
     @modifies_value('metrics')
-    @uses_columns(susceptible_person_time_cols)
-    def metrics(self, index, metrics, population_view):
-        population = population_view.get(index)
+    @uses_columns(['cause_of_death', 'death_day'] + susceptible_person_time_cols)
+    def calculate_mortality_rates(self, index, metrics, population_view):
+        pop = population_view.get(index)
 
-        for col in susceptible_person_time_cols:
-            metrics[col] = population[col].sum()
+        pop['death_year'] = pop['death_day'].map(lambda x: x.year)
 
+        for age_bin in pd.unique(age_bins.age_group_name.values):
+            for year in range(year_start, year_end+1):
+                for sex in ['Male', 'Female']:
+                    susceptible_person_time = pop["susceptible_person_time_{a}_in_year_{y}_among_{s}s".format(a=age_bin, y=year, s=sex)].sum()
+                    deaths_due_to_diarrhea = len(pop.query("death_year == {} and cause_of_death=='death_due_to_severe_diarrhea'".format(year)))
+                    if susceptible_person_time != 0:
+                        metrics["mortality_rate_" + age_bin + "_in_year_{}".format(year) + "_among_" + sex + "s"] = deaths_due_to_diarrhea / susceptible_person_time
         return metrics
+
+    # @modifies_value('metrics')
+    # @uses_columns(susceptible_person_time_cols)
+    # def metrics(self, index, metrics, population_view):
+    #    population = population_view.get(index)
+
+    #    for col in susceptible_person_time_cols:
+    #        metrics[col] = population[col].sum()
+
+    #    return metrics
 
 
 # End.
