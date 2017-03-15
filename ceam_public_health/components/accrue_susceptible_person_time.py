@@ -9,7 +9,6 @@ from ceam import config
 
 from ceam_inputs import get_age_bins
 
-susceptible_person_time_cols = ['susceptible_person_time_early_neonatal', 'susceptible_person_time_late_neonatal', 'susceptible_person_time_post_neonatal', 'susceptible_person_time_1_to_4', 'susceptible_person_time_5_to_9', 'susceptible_person_time_10_to_14', 'susceptible_person_time_15_to_19', 'susceptible_person_time_20_to_24', 'susceptible_person_time_25_to_29', 'susceptible_person_time_30_to_34', 'susceptible_person_time_35_to_39', 'susceptible_person_time_40_to_44', 'susceptible_person_time_45_to_49', 'susceptible_person_time_50_to_54', 'susceptible_person_time_55_to_59', 'susceptible_person_time_60_to_64', 'susceptible_person_time_65_to_69', 'susceptible_person_time_70_to_74', 'susceptible_person_time_75_to_79', 'susceptible_person_time_80_plus']
 
 # TODO: Don't duplicate code! Get rid of the duplicate lines in the block below and setup
 # get all gbd age groups
@@ -27,10 +26,12 @@ list_of_age_bins = []
 susceptible_person_time_cols = []
 
 year_start = config.getint('simulation_parameters', 'year_start')
+year_end = config.getint('simulation_parameters', 'year_end')
 
 for age_bin in pd.unique(age_bins.age_group_name.values):
-    susceptible_person_time_cols.append("susceptible_person_time_" + age_bin)
     list_of_age_bins.append(age_bin)
+    for year in range(year_start, year_end+1):
+        susceptible_person_time_cols.append("susceptible_person_time_" + age_bin + "_in_year_{}".format(year))
 
 
 class AccrueSusceptiblePersonTime():
@@ -68,13 +69,15 @@ class AccrueSusceptiblePersonTime():
     def count_time_steps_sim_has_diarrhea(self, event):
         pop = event.population_view.get(event.index)
 
+        current_year = pd.Timestamp(event.time).year
+
         last_age_group_max = 0
 
         # sort self.dict_of_age_group_name_and_max_values by value (max age)
         sorted_dict = sorted(self.dict_of_age_group_name_and_max_values.items(), key=operator.itemgetter(1))
         for key, value in sorted_dict:
             # FIXME: Susceptible person time estimates are off unless end data falls exactly on a time step (so this is fine for the diarrhea model -- 1 day timesteps -- but may not be ok for other causes)
-            pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max), 'susceptible_person_time_{}'.format(key)] += config.getfloat('simulation_parameters', 'time_step')
+            pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max), 'susceptible_person_time_{k}_in_year_{c}'.format(k=key, c=current_year)] += config.getfloat('simulation_parameters', 'time_step')
             last_age_group_max = value
 
 
