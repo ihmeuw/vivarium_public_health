@@ -31,7 +31,8 @@ year_end = config.getint('simulation_parameters', 'year_end')
 for age_bin in pd.unique(age_bins.age_group_name.values):
     list_of_age_bins.append(age_bin)
     for year in range(year_start, year_end+1):
-        susceptible_person_time_cols.append("susceptible_person_time_" + age_bin + "_in_year_{}".format(year))
+        for sex in ['Male', 'Female']:
+            susceptible_person_time_cols.append("susceptible_person_time_" + age_bin + "_in_year_{}".format(year) + "_among_" + sex + "s")
 
 
 class AccrueSusceptiblePersonTime():
@@ -65,7 +66,7 @@ class AccrueSusceptiblePersonTime():
 
 
     @listens_for('time_step', priority=9)
-    @uses_columns(['diarrhea', 'age'] + susceptible_person_time_cols, 'alive')
+    @uses_columns(['diarrhea', 'age', 'sex'] + susceptible_person_time_cols, 'alive')
     def count_time_steps_sim_has_diarrhea(self, event):
         pop = event.population_view.get(event.index)
 
@@ -75,10 +76,12 @@ class AccrueSusceptiblePersonTime():
 
         # sort self.dict_of_age_group_name_and_max_values by value (max age)
         sorted_dict = sorted(self.dict_of_age_group_name_and_max_values.items(), key=operator.itemgetter(1))
-        for key, value in sorted_dict:
-            # FIXME: Susceptible person time estimates are off unless end data falls exactly on a time step (so this is fine for the diarrhea model -- 1 day timesteps -- but may not be ok for other causes)
-            pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max), 'susceptible_person_time_{k}_in_year_{c}'.format(k=key, c=current_year)] += config.getfloat('simulation_parameters', 'time_step')
-            last_age_group_max = value
+
+        for sex in ["Male", "Female"]:
+            for key, value in sorted_dict:
+                # FIXME: Susceptible person time estimates are off unless end data falls exactly on a time step (so this is fine for the diarrhea model -- 1 day timesteps -- but may not be ok for other causes)
+                pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max) & (pop['sex'] == sex), 'susceptible_person_time_{k}_in_year_{c}_among_{s}s'.format(k=key, c=current_year, s=sex)] += config.getfloat('simulation_parameters', 'time_step')
+                last_age_group_max = value
 
 
         event.population_view.update(pop)
