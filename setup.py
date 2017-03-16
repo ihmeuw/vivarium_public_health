@@ -13,9 +13,6 @@ setup(name='ceam_public_health',
             'numpy',
             'scipy',
         ],
-        dependency_links=[
-            'ssh://git@stash.ihme.washington.edu:7999/cste/ceam-inputs.git#egg=ceam_inputs',
-        ]
      )
 
 

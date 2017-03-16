@@ -1,5 +1,3 @@
-# ~/ceam/ceam/modules/disease_models.py
-
 import pandas as pd
 
 from datetime import timedelta
@@ -9,22 +7,25 @@ from ceam import config
 from ceam.framework.randomness import filter_for_probability
 from ceam.framework.event import emits, Event
 from ceam.framework.state_machine import Transition, State, TransitionSet
+from ceam.framework.population import uses_columns
 from ceam_public_health.components.disease import DiseaseModel, DiseaseState, ExcessMortalityState, RateTransition, ProportionTransition
 from ceam_inputs import get_incidence, get_excess_mortality, get_prevalence, get_cause_specific_mortality
 from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache, get_disability_weight
 from ceam_inputs.gbd_ms_auxiliary_functions import normalize_for_simulation
+from ceam_inputs.util import gbd_year_range
 
-def side_effect_factory(male_rate, female_rate, hospitalization_type):
+def side_effect_factory(male_probability, female_probability, hospitalization_type):
     @emits('hospitalization')
     @uses_columns(['sex'])
     def hospitalization_side_effect(index, emitter, population_view):
         pop = population_view.get(index)
-        pop.loc[pop == 'Male'] = male_rate
-        pop.loc[pop == 'Female'] = female_rate
-        effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type), index, pop)
+        pop['probability'] = 0.0
+        pop.loc[pop.sex == 'Male', 'probability'] = male_probability
+        pop.loc[pop.sex == 'Female', 'probability'] = female_probability
+        effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type), pop.index, pop.probability)
         new_event = Event(effective_population)
         emitter(new_event)
-    return(hopsitalization_side_effect)
+    return hospitalization_side_effect
 
 
 def heart_disease_factory():
@@ -33,8 +34,7 @@ def heart_disease_factory():
     healthy = State('healthy', key='ihd')
 
     location_id = config.getint('simulation_parameters', 'location_id')
-    year_start = config.getint('simulation_parameters', 'year_start')
-    year_end = config.getint('simulation_parameters', 'year_end')
+    year_start, year_end = gbd_year_range()
 
     # Calculate an adjusted disability weight for the acute heart attack phase that
     # accounts for the fact that our timestep is longer than the phase length
@@ -54,9 +54,9 @@ def heart_disease_factory():
     moderate_angina = ExcessMortalityState('moderate_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1819), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1819), csmr_data=pd.DataFrame())
     severe_angina = ExcessMortalityState('severe_angina', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=1820), excess_mortality_data=get_excess_mortality(1817), prevalence_data=get_prevalence(1820), csmr_data=pd.DataFrame())
 
-    asymptomatic_ihd = ExcessMortalityState('asymptomatic_ihd', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=3233), excess_mortality_data=build_table(0.0), prevalence_data=get_prevalence(3233), csmr_data=get_cause_specific_mortality(3233))
+    asymptomatic_ihd = ExcessMortalityState('asymptomatic_ihd', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=3233), excess_mortality_data=0.0, prevalence_data=get_prevalence(3233), csmr_data=get_cause_specific_mortality(3233))
 
-    heart_attack_transition = RateTransition(heart_attack, 'incidence_rate.heart_attack', get_incidence(1814))
+    heart_attack_transition = RateTransition(heart_attack, 'heart_attack', get_incidence(1814))
     healthy.transition_set.append(heart_attack_transition)
 
     heart_failure_buckets = TransitionSet(allow_null_transition=False, key="heart_failure_split")
@@ -104,17 +104,17 @@ def heart_disease_factory():
 
 
 def stroke_factory():
-    module = DiseaseModel('hemorrhagic_stroke')
+    module = DiseaseModel('all_stroke')
 
     healthy = State('healthy', key='hemorrhagic_stroke')
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
     # correspond to healthstate ids which correspond to sequela) 
     hemorrhagic_stroke = ExcessMortalityState('hemorrhagic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9311), prevalence_data=get_prevalence(9311), csmr_data=get_cause_specific_mortality(9311), side_effect_function=side_effect_factory(0.52, 0.6, 'hemorrhagic stroke')) #rates as per Marcia e-mail 1/19/17
-    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310), side_effect_function=side_effect_factory(0.52, 0.6, 'iscemic stroke')) #rates as per Marcia e-mail 1/19/17
+    ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310), side_effect_function=side_effect_factory(0.52, 0.6, 'ischemic stroke')) #rates as per Marcia e-mail 1/19/17
     chronic_stroke = ExcessMortalityState('chronic_stroke', disability_weight=0.32, excess_mortality_data=get_excess_mortality(9312), prevalence_data=get_prevalence(9312), csmr_data=get_cause_specific_mortality(9312))
 
-    hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'incidence_rate.hemorrhagic_stroke', get_incidence(9311))
-    ischemic_transition = RateTransition(ischemic_stroke, 'incidence_rate.ischemic_stroke', get_incidence(9310))
+    hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'hemorrhagic_stroke', get_incidence(9311))
+    ischemic_transition = RateTransition(ischemic_stroke, 'ischemic_stroke', get_incidence(9310))
     healthy.transition_set.extend([hemorrhagic_transition, ischemic_transition])
 
     hemorrhagic_stroke.transition_set.append(Transition(chronic_stroke))
@@ -125,6 +125,3 @@ def stroke_factory():
     module.states.extend([healthy, hemorrhagic_stroke, ischemic_stroke, chronic_stroke])
 
     return module
-
-
-# End.

@@ -1,6 +1,6 @@
 # ~/ceam/ceam_tests/test_modules/test_opportunistic_screening.py
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 from collections import defaultdict
 
 import pytest
@@ -65,15 +65,19 @@ def test_drug_effects():
 
     starting_sbp = simulation.population.population.systolic_blood_pressure
 
+    event = Event(simulation.population.population.index)
+    event.time = datetime(1990, 1, 1)
+
     # No one is taking any drugs yet so there should be no effect on SBP
-    module.adjust_blood_pressure(Event(simulation.current_time, simulation.population.population.index))
+    module.adjust_blood_pressure(event)
     assert (starting_sbp == simulation.population.population.systolic_blood_pressure).all()
 
     # Now everyone is on the first drug
     population_view.update(pd.Series(1, index=simulation.population.population.index, name='medication_count'))
     for medication in MEDICATIONS:
         population_view.update(pd.Series(simulation.current_time, index=simulation.population.population.index, name=medication['name']+'_supplied_until'))
-    module.adjust_blood_pressure(Event(simulation.current_time, simulation.population.population.index))
+    event.index = simulation.population.population.index
+    module.adjust_blood_pressure(event)
     assert (starting_sbp[simulation.population.population.adherence_category == 'adherent'] > simulation.population.population.systolic_blood_pressure[simulation.population.population.adherence_category == 'adherent']).all()
     efficacy = MEDICATIONS[0]['efficacy']
     adherent_population = simulation.population.population[simulation.population.population.adherence_category == 'adherent']
@@ -87,7 +91,8 @@ def test_drug_effects():
     # Now everyone is on the first three drugs
     population_view.update(pd.Series(3, index=simulation.population.population.index, name='medication_count'))
     population_view.update(starting_sbp)
-    module.adjust_blood_pressure(Event(simulation.current_time, simulation.population.population.index))
+    event.index = simulation.population.population.index
+    module.adjust_blood_pressure(event)
     efficacy = sum(m['efficacy'] for m in MEDICATIONS[:3])
     adherent_population = simulation.population.population[simulation.population.population.adherence_category == 'adherent']
     assert (starting_sbp[adherent_population.index].round() == (adherent_population.systolic_blood_pressure + efficacy).round()).all()
@@ -124,6 +129,8 @@ def test_medication_cost():
     for medication in MEDICATIONS[1:]:
         assert np.all(simulation.population.population[medication['name'] + '_supplied_until'].isnull())
     assert np.all(simulation.population.population[MEDICATIONS[0]['name'] + '_supplied_until'] == simulation.current_time + timedelta(days=60))
+
+    module.cost_by_year = defaultdict(int)
 
     # Now everyone is on all the drugs
     population_view.update(pd.Series(len(MEDICATIONS), index=simulation.population.population.index, name='medication_count'))
@@ -192,7 +199,9 @@ def screening_setup():
     module = OpportunisticScreening()
     simulation = setup_simulation([generate_base_population, _population_setup, adherence, HealthcareAccess(), module], population_size=10)
 
-    pump_simulation(simulation, iterations=1)
+    #pump_simulation(simulation, iterations=1)
+    start_time = datetime(1990, 1, 1)
+    simulation.current_time = start_time
     return simulation, module
 
 
@@ -200,7 +209,7 @@ def screening_setup():
 # They must run in the order shown here since they represent a sequence of events with state shared through the screening_setup fixture.
 def test_general_blood_pressure_test(screening_setup):
     simulation, module = screening_setup
-    event = Event(simulation.current_time, simulation.population.population.index)
+    event = Event(simulation.population.population.index)
     simulation.events.get_emitter('general_healthcare_access')(event)
     normotensive, hypertensive, severe_hypertension = _hypertensive_categories(simulation.population.population)
     assert (normotensive.medication_count == 0).all()
@@ -214,7 +223,7 @@ def test_general_blood_pressure_test(screening_setup):
 def test_first_followup_blood_pressure_test(screening_setup):
     simulation, module = screening_setup
     simulation.current_time += timedelta(days=30) # Tick forward without triggering any actual events
-    event = Event(simulation.current_time, simulation.population.population.index)
+    event = Event(simulation.population.population.index)
     simulation.events.get_emitter('followup_healthcare_access')(event)
     normotensive, hypertensive, severe_hypertension = _hypertensive_categories(simulation.population.population)
     assert (normotensive.medication_count == 0).all()
@@ -228,7 +237,7 @@ def test_first_followup_blood_pressure_test(screening_setup):
 def test_second_followup_blood_pressure_test(screening_setup):
     simulation, module = screening_setup
     simulation.current_time += timedelta(days=30) # Tick forward without triggering any actual events
-    event = Event(simulation.current_time, simulation.population.population.index)
+    event = Event(simulation.population.population.index)
     simulation.events.get_emitter('followup_healthcare_access')(event)
     normotensive, hypertensive, severe_hypertension = _hypertensive_categories(simulation.population.population)
     assert (normotensive.medication_count == 0).all()
@@ -243,7 +252,7 @@ def test_Nth_followup_blood_pressure_test(screening_setup):
     simulation, module = screening_setup
     for _ in range(10):
         simulation.current_time += timedelta(days=30) # Tick forward without triggering any actual events
-        event = Event(simulation.current_time, simulation.population.population.index)
+        event = Event(simulation.population.population.index)
         simulation.events.get_emitter('followup_healthcare_access')(event)
 
     normotensive, hypertensive, severe_hypertension = _hypertensive_categories(simulation.population.population)

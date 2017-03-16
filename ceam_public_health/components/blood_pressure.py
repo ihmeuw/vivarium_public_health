@@ -1,5 +1,3 @@
-# ~/ceam/ceam/modules/blood_pressure.py
-
 import os.path
 from functools import partial
 
@@ -15,6 +13,7 @@ from ceam.framework.values import modifies_value
 
 from ceam_inputs.gbd_ms_functions import load_data_from_cache, normalize_for_simulation, get_sbp_mean_sd
 from ceam_inputs import make_gbd_risk_effects
+from ceam_inputs.util import gbd_year_range
 
 from ceam_public_health.util.risk import continuous_exposure_effect
 
@@ -55,8 +54,7 @@ class BloodPressure:
 
     def load_sbp_distribution(self):
         location_id = config.getint('simulation_parameters', 'location_id')
-        year_start = config.getint('simulation_parameters', 'year_start')
-        year_end = config.getint('simulation_parameters', 'year_end')
+        year_start, year_end = gbd_year_range()
 
         distribution = load_data_from_cache(get_sbp_mean_sd, col_name=['log_mean', 'log_sd'],
                             src_column=['log_mean_{draw}', 'log_sd_{draw}'],
@@ -72,5 +70,3 @@ class BloodPressure:
         new_sbp = np.exp(norm.ppf(event.population.systolic_blood_pressure_percentile,
                                   loc=distribution['log_mean'], scale=distribution['log_sd']))
         event.population_view.update(pd.Series(new_sbp, name='systolic_blood_pressure', index=event.index))
-
-# End.

@@ -13,6 +13,7 @@ from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
 from ceam_inputs.gbd_ms_functions import load_data_from_cache, get_modelable_entity_draws
+from ceam_inputs.util import gbd_year_range
 
 # draw random costs for doctor visit (time-specific)
 draw = config.getint('run_configuration', 'draw_number')
@@ -52,6 +53,7 @@ class HealthcareAccess:
         self.cost_by_year = defaultdict(float)
         self.general_access_count = 0
         self.followup_access_count = 0
+        self.hospitalization_count = 0
 
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
@@ -62,8 +64,7 @@ class HealthcareAccess:
         self.followup_random = builder.randomness('healthcare_followup_acess')
 
     def load_utilization(self, builder):
-        year_start = config.getint('simulation_parameters', 'year_start')
-        year_end = config.getint('simulation_parameters', 'year_end')
+        year_start, year_end = gbd_year_range()
         location_id = config.getint('simulation_parameters', 'location_id')
         # me_id 9458 is 'out patient visits'
         # measure 18 is 'Proportion'
@@ -121,6 +122,7 @@ class HealthcareAccess:
     @listens_for('hospitalization')
     def hospital_access(self, event):
         year = event.time.year
+        self.hospitalization_count += len(event.index)
         self.cost_by_year[year] += len(event.index) * hospitalization_cost[year]
 
 
@@ -129,6 +131,7 @@ class HealthcareAccess:
         metrics['healthcare_access_cost'] = sum(self.cost_by_year.values())
         metrics['general_healthcare_access'] = self.general_access_count
         metrics['followup_healthcare_access'] = self.followup_access_count
+        metrics['hospitalization_access'] = self.hospitalization_count
 
         if 'cost' in metrics:
             metrics['cost'] += metrics['healthcare_access_cost']
