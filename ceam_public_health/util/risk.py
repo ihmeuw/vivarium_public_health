@@ -34,8 +34,8 @@ def categorical_exposure_effect(exposure, susceptibility_column):
     @uses_columns([susceptibility_column])
     def inner(rates, rr, population_view):
         pop = population_view.get(rr.index)
-        exposed = pop[susceptibility_column] < exposure(rr.index)
-        return rates * (rr.values**exposed)
+        exposed = pop[susceptibility_column] < exposure(rr.index).cat1
+        return rates * (rr.cat1.values**exposed)
     return inner
 
 
