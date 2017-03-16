@@ -1,4 +1,5 @@
 import os.path
+from datetime import timedelta
 
 import pandas as pd
 import numpy as np
@@ -69,6 +70,7 @@ class Mortality:
             self.life_table = builder.lookup(pd.read_csv(f), key_columns=(), parameter_columns=('age',))
         self.random = builder.randomness('mortality_handler')
         self.csmr_data = builder.value('csmr_data')
+        self.clock = builder.clock()
 
     @listens_for('post_setup')
     def post_step(self, event):
@@ -128,3 +130,61 @@ class Mortality:
             metrics['deaths_from_{}'.format(condition)] = count
 
         return metrics
+
+    @modifies_value('epidemiological_measures')
+    @uses_columns(['age', 'death_day', 'cause_of_death', 'alive', 'sex'])
+    def all_cause_mortality(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
+        root_location = config.getint('simulation_parameters', 'location_id')
+        pop = population_view.get(index)
+
+        if all_locations:
+            locations = set(pop.location) | {-1}
+        else:
+            locations = {-1}
+
+        now = self.clock()
+        window_start = now - duration
+
+        causes_of_death = set(pop.cause_of_death.unique()) - {'not_dead'}
+
+        for low, high in age_groups:
+            for sex in sexes:
+                for location in locations:
+                    sub_pop = pop.query('age > @low and age <= @high and sex == @sex and (alive or death_day > @window_start)')
+                    if location >= 0:
+                        sub_pop = sub_pop.query('location == @location')
+
+                    if not sub_pop.empty:
+                        birthday = now - pd.to_timedelta(sub_pop.age, 'Y')
+                        time_before_birth = np.maximum(np.timedelta64(0), birthday - window_start).sum()
+                        time_after_death = np.minimum(np.maximum(np.timedelta64(0), sub_pop.death_day.dropna() - now), np.timedelta64(duration)).sum()
+                        time_in_sim = duration * len(pop) - (time_before_birth + time_after_death)
+                        time_in_sim = time_in_sim.total_seconds()/(timedelta(days=364).total_seconds())
+                        for cause in causes_of_death:
+                            deaths_in_period = (sub_pop.cause_of_death == cause).sum()
+
+                            cube.ix['mortality', low, high, sex, location if location >= 0 else root_location, cause] = deaths_in_period/time_in_sim
+        return cube
+
+    @modifies_value('epidemiological_measures')
+    @uses_columns(['death_day', 'sex', 'age', 'location'], 'not alive')
+    def deaths(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
+        root_location = config.getint('simulation_parameters', 'location_id')
+        pop = population_view.get(index)
+
+        if all_locations:
+            locations = set(pop.location) | {-1}
+        else:
+            locations = {-1}
+
+        now = self.clock()
+        window_start = now - duration
+        for low, high in age_groups:
+            for sex in sexes:
+                for location in locations:
+                    sub_pop = pop.query('age > @low and age <= @high and sex == @sex and (death_day > @window_start and death_day <= @now)')
+                    if location >= 0:
+                        sub_pop = sub_pop.query('location == @location')
+
+                    cube.ix['deaths', low, high, sex, location if location >= 0 else root_location, 'all'] = len(sub_pop)
+        return cube

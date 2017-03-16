@@ -46,7 +46,7 @@ def plot_convergence(ax, groups, title):
 def cached_draw(*args, **kwargs):
     return get_draws(*args, **kwargs)
 
-def graph_convergence(data, measure, output_directory):
+def graph_convergence(data, measure, measure_id, output_directory):
     data['age_group_id'] = get_age_group_ids(data)
     age_group_ids = data.age_group_id.unique()
     data['sex_id'] = np.where(data.sex == 'Male', 1, 2)
@@ -60,7 +60,12 @@ def graph_convergence(data, measure, output_directory):
     data['year_id'] = data.year.apply(round_to_gbd_year)
     draw_ids = data.draw.unique()
 
-    data['cause'] = data.cause.apply(lambda x: x[1])
+    groups = get_age_bins()
+
+    if measure == 'mortality':
+        # Get all cause mortality
+        source = 'codcorrect'
+        draws = cached_draw('cause_id', 294, location_ids=location_ids, source=source, sex_ids=sex_ids, age_group_ids=age_group_ids, year_ids=years, model_version_id=model_version).query('measure_id == @measure_id')[['location_id', 'year_id', 'age_group_id', 'sex_id', 'modelable_entity_id'] + ['draw_{}'.format(draw) for draw in draw_ids]]
     meids = {}
     for cause_name in data.cause.unique():
         if cause_name in causes:
@@ -71,17 +76,17 @@ def graph_convergence(data, measure, output_directory):
     data = data[data.cause.apply(lambda c: c in meids)]
     data['modelable_entity_id'] = data.cause.apply(lambda c: meids[c])
 
-    groups = get_age_bins()
-
     gbd_data = pd.DataFrame()
     meid_version_map = get_model_versions()
     for me_id in set(meids.values()):
         model_version = meid_version_map[me_id]
-        draws = cached_draw('modelable_entity_id', me_id, location_ids=location_ids, source='dismod', sex_ids=sex_ids, age_group_ids=age_group_ids, year_ids=years, model_version_id=model_version).query('measure_id == 5')[['location_id', 'year_id', 'age_group_id', 'sex_id', 'modelable_entity_id'] + ['draw_{}'.format(draw) for draw in draw_ids]]
+        source = 'dismod'
+        draws = cached_draw('modelable_entity_id', me_id, location_ids=location_ids, source=source, sex_ids=sex_ids, age_group_ids=age_group_ids, year_ids=years, model_version_id=model_version).query('measure_id == @measure_id')[['location_id', 'year_id', 'age_group_id', 'sex_id', 'modelable_entity_id'] + ['draw_{}'.format(draw) for draw in draw_ids]]
         draws = draws.set_index(['location_id', 'year_id', 'age_group_id', 'sex_id', 'modelable_entity_id'])
         gbd_data = gbd_data.append(draws, verify_integrity=True)
 
     gbd_data = gbd_data.reset_index()
+    age_group_ids = gbd_data.age_group_id.unique()
     data = data.pivot_table(columns='draw', values='value', index=[c for c in data.columns if c not in ['draw', 'value']])
     data.columns = ['draw_{}'.format(c) for c in data.columns]
     data = data.reset_index()
@@ -108,8 +113,8 @@ def graph_convergence(data, measure, output_directory):
         column_count = row_count
     fig, rows = plt.subplots(row_count, column_count, sharex='col', sharey='row')
     labels = [
-        fig.text(0.5, 0.0, 'Simulation', ha='center', va='center'),
-        fig.text(0.0, 0.5, 'GBD', ha='center', va='center', rotation='vertical'),
+        fig.text(0.5, 0.0, 'GBD', ha='center', va='center'),
+        fig.text(0.0, 0.5, 'Simulation', ha='center', va='center', rotation='vertical'),
         fig.suptitle(measure),
     ]
     i = 0
@@ -145,7 +150,17 @@ def main():
     data = pd.read_hdf(args.measure_data_path)
 
     for measure in data.measure.unique():
-        graph_convergence(data.query('measure == @measure'), measure, args.output_directory)
+        if measure == 'prevalence':
+            measure_id = 5
+        elif measure == 'mortality':
+            measure_id = 15
+            data = data.query('cause != "death_due_to_other_causes"')
+        elif measure == 'deaths':
+            measure_id = 1
+        elif measure == 'incidence':
+            measure_id = 6 
+
+        graph_convergence(data.query('measure == @measure'), measure, measure_id, args.output_directory)
 
 
 if __name__ == '__main__':

@@ -96,7 +96,7 @@ class ExcessMortalityState(DiseaseState):
     @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates_df):
         population = self.population_view.get(index)
-        rates_df['death_due_to_' + self.state_id] = self.mortality(population.index, skip_post_processor=True) * (population[self.condition] == self.state_id)
+        rates_df[self.state_id] = self.mortality(population.index, skip_post_processor=True) * (population[self.condition] == self.state_id)
 
         return rates_df
 
@@ -222,9 +222,9 @@ class DiseaseModel(Machine):
         self.population_view.update(condition_column)
 
     @modifies_value('epidemiological_measures')
-    def prevalence(self, index, age_groups, sexes, all_locations, cube):
+    def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
         root_location = config.getint('simulation_parameters', 'location_id')
-        pop = self.population_view.manager.population.ix[index]
+        pop = self.population_view.manager.population.ix[index].query('alive')
         causes = set(pop[self.condition]) - {'healthy'}
         if all_locations:
             locations = set(pop.location) | {-1}
@@ -239,7 +239,7 @@ class DiseaseModel(Machine):
                             sub_pop = sub_pop.query('location == @location')
                         if not sub_pop.empty:
                             affected = (sub_pop[self.condition] == cause).sum()
-                            cube.ix['prevalence', low, high, sex, location if location >= 0 else root_location, (self.condition, cause)] = affected/len(sub_pop)
+                            cube.ix['prevalence', low, high, sex, location if location >= 0 else root_location, cause] = affected/len(sub_pop)
         return cube
 
     @modifies_value('metrics')
