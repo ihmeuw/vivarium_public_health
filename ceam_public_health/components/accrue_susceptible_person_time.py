@@ -24,6 +24,7 @@ age_bins.age_group_name = [x.strip().replace(' ', '_') for x in age_bins.age_gro
 
 list_of_age_bins = []
 susceptible_person_time_cols = []
+diarrhea_event_count_cols = []
 
 year_start = config.getint('simulation_parameters', 'year_start')
 year_end = config.getint('simulation_parameters', 'year_end')
@@ -33,6 +34,9 @@ for age_bin in pd.unique(age_bins.age_group_name.values):
     for year in range(year_start, year_end+1):
         for sex in ['Male', 'Female']:
             susceptible_person_time_cols.append("susceptible_person_time_" + age_bin + "_in_year_{}".format(year) + "_among_" + sex + "s")
+            diarrhea_event_count_cols.append('diarrhea_event_count_{a}_in_year_{y}_among_{s}s'.format(a=age_bin, y=year, s=sex))
+            diarrhea_event_count_cols.append('diarrhea_event_count')
+
 
 class AccrueSusceptiblePersonTime():
     # TODO: Need to figure out how pass in all of the diseases
@@ -82,7 +86,6 @@ class AccrueSusceptiblePersonTime():
                 pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max) & (pop['sex'] == sex), 'susceptible_person_time_{k}_in_year_{c}_among_{s}s'.format(k=key, c=current_year, s=sex)] += config.getfloat('simulation_parameters', 'time_step')
                 last_age_group_max = value
 
-
         event.population_view.update(pop)
 
 
@@ -94,6 +97,7 @@ class AccrueSusceptiblePersonTime():
         pop['death_year'] = pop['death_day'].map(lambda x: x.year)
 
         for age_bin in pd.unique(age_bins.age_group_name.values):
+            # Write a function to return GBD years
             for year in range(year_start, year_end+1):
                 for sex in ['Male', 'Female']:
                     susceptible_person_time = pop["susceptible_person_time_{a}_in_year_{y}_among_{s}s".format(a=age_bin, y=year, s=sex)].sum()
@@ -101,6 +105,22 @@ class AccrueSusceptiblePersonTime():
                     if susceptible_person_time != 0:
                         metrics["mortality_rate_" + age_bin + "_in_year_{}".format(year) + "_among_" + sex + "s"] = deaths_due_to_diarrhea / susceptible_person_time
         return metrics
+
+
+    @modifies_value('metrics')
+    @uses_columns(['cause_of_death', 'death_day'] + susceptible_person_time_cols + diarrhea_event_count_cols)
+    def calculate_incidence_rates(self, index, metrics, population_view):
+        pop = population_view.get(index)
+
+        for age_bin in pd.unique(age_bins.age_group_name.values):
+            for year in range(year_start, year_end+1):
+                for sex in ['Male', 'Female']:
+                    susceptible_person_time = pop["susceptible_person_time_{a}_in_year_{y}_among_{s}s".format(a=age_bin, y=year, s=sex)].sum()
+                    num_diarrhea_cases = pop['diarrhea_event_count_{a}_in_year_{y}_among_{s}s'.format(a=age_bin, y=year, s=sex)].sum()
+                    if susceptible_person_time != 0:
+                        metrics["incidence_rate_" + age_bin + "_in_year_{}".format(year) + "_among_" + sex + "s"] = num_diarrhea_cases / susceptible_person_time
+        return metrics
+
 
     # @modifies_value('metrics')
     # @uses_columns(susceptible_person_time_cols)
