@@ -40,7 +40,7 @@ def ors_exposure_effect(exposure, susceptibility_column):
    
         population = population_view.get(rr.index)
  
-        pop = population.query("diarrhea == 'diarrhea'").copy()
+        pop = population.query("diarrhea != 'healthy'").copy()
 
         exp = exposure(pop.index)
 
