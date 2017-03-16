@@ -39,7 +39,7 @@ def heart_disease_factory():
 
     asymptomatic_ihd = ExcessMortalityState('asymptomatic_ihd', disability_weight=get_disability_weight(dis_weight_modelable_entity_id=3233), excess_mortality_data=0.0, prevalence_data=get_prevalence(3233), csmr_data=get_cause_specific_mortality(3233))
 
-    heart_attack_transition = RateTransition(heart_attack, 'incidence_rate.heart_attack', get_incidence(1814))
+    heart_attack_transition = RateTransition(heart_attack, 'heart_attack', get_incidence(1814))
     healthy.transition_set.append(heart_attack_transition)
 
     heart_failure_buckets = TransitionSet(allow_null_transition=False, key="heart_failure_split")
@@ -56,7 +56,7 @@ def heart_disease_factory():
         ProportionTransition(moderate_angina, proportion=0.126273),
         ProportionTransition(severe_angina, proportion=0.32958),
         ])
-    healthy.transition_set.append(RateTransition(angina_buckets, 'incidence_rate.non_mi_angina', get_incidence(1817)))
+    healthy.transition_set.append(RateTransition(angina_buckets, 'non_mi_angina', get_incidence(1817)))
 
     heart_attack.transition_set.allow_null_transition=False
 
@@ -96,8 +96,8 @@ def stroke_factory():
     ischemic_stroke = ExcessMortalityState('ischemic_stroke', disability_weight=0.32, dwell_time=timedelta(days=28), excess_mortality_data=get_excess_mortality(9310), prevalence_data=get_prevalence(9310), csmr_data=get_cause_specific_mortality(9310))
     chronic_stroke = ExcessMortalityState('chronic_stroke', disability_weight=0.32, excess_mortality_data=get_excess_mortality(9312), prevalence_data=get_prevalence(9312), csmr_data=get_cause_specific_mortality(9312))
 
-    hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'incidence_rate.hemorrhagic_stroke', get_incidence(9311))
-    ischemic_transition = RateTransition(ischemic_stroke, 'incidence_rate.ischemic_stroke', get_incidence(9310))
+    hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'hemorrhagic_stroke', get_incidence(9311))
+    ischemic_transition = RateTransition(ischemic_stroke, 'ischemic_stroke', get_incidence(9310))
     healthy.transition_set.extend([hemorrhagic_transition, ischemic_transition])
 
     hemorrhagic_stroke.transition_set.append(Transition(chronic_stroke))
