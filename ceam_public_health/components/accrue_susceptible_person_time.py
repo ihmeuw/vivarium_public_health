@@ -16,7 +16,7 @@ age_bins = get_age_bins()
 
 # filter down all age groups to only the ones we care about
 # FIXME: the age groups of interest will change for GBD 2016, since the 85-90 age group is in GBD 2016, but not 2015
-age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 21)]
+age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 5)]
 
 age_bins.age_group_name = age_bins.age_group_name.str.lower()
 
@@ -59,7 +59,7 @@ class AccrueSusceptiblePersonTime():
 
         # filter down all age groups to only the ones we care about
         # FIXME: the age groups of interest will change for GBD 2016, since the 85-90 age group is in GBD 2016, but not 2015
-        age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 21)]
+        age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 5)]
 
         age_bins.age_group_name = age_bins.age_group_name.str.lower()
 
@@ -113,8 +113,8 @@ class AccrueSusceptiblePersonTime():
                     if susceptible_person_time != 0:
                         metrics["mortality_rate_" + key + "_in_year_{}".format(year) + "_among_" + sex + "s"] = deaths_due_to_diarrhea / susceptible_person_time
                         row = pd.DataFrame({'measure': ['mortality'], 'age_low': [last_age_group_max], 'age_high': [value], 'sex': [sex], 'location': [180], 'cause': ['diarrhea'], 'value': [deaths_due_to_diarrhea / susceptible_person_time], 'year': [year], 'draw': [0]})
-                        mortality_df.append(row)
-                        last_age_group_max = value
+                        mortality_df = mortality_df.append(row)
+            last_age_group_max = value
 
         mortality_df.to_hdf("/share/scratch/users/emumford/mortality_rate.hdf", key="key")
 
@@ -143,10 +143,10 @@ class AccrueSusceptiblePersonTime():
                     if susceptible_person_time != 0:
                         metrics["incidence_rate_" + key + "_in_year_{}".format(year) + "_among_" + sex + "s"] = num_diarrhea_cases / susceptible_person_time
                         row = pd.DataFrame({'measure': ['incidence'], 'age_low': [last_age_group_max], 'age_high': [value], 'sex': [sex], 'location': [180], 'cause': ['diarrhea'], 'value': [num_diarrhea_cases / susceptible_person_time], 'year': [year], 'draw': [0]})
-                        incidence_df.append(row)
-                        last_age_group_max = value
+                        incidence_df = incidence_df.append(row)
+            last_age_group_max = value
 
-        incidence_df.to_hdf("/share/scratch/users/emumford/incidence_rate.hdf", key="key")
+        incidence_df = incidence_df.to_hdf("/share/scratch/users/emumford/incidence_rate.hdf", key="key")
 
         return metrics
 
