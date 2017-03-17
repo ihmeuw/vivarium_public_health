@@ -16,7 +16,13 @@ from ceam_inputs import get_severe_diarrhea_excess_mortality
 from ceam_inputs import get_age_bins
 import operator
 
-list_of_etiologies = ['diarrhea_due_to_shigellosis', 'diarrhea_due_to_cholera', 'diarrhea_due_to_other_salmonella', 'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC', 'diarrhea_due_to_campylobacter', 'diarrhea_due_to_amoebiasis', 'diarrhea_due_to_cryptosporidiosis', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_aeromonas', 'diarrhea_due_to_clostridium_difficile', 'diarrhea_due_to_norovirus', 'diarrhea_due_to_adenovirus']
+list_of_etiologies = ['diarrhea_due_to_shigellosis', 'diarrhea_due_to_cholera', 'diarrhea_due_to_other_salmonella', 'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC', 'diarrhea_due_to_campylobacter', 'diarrhea_due_to_amoebiasis', 'diarrhea_due_to_cryptosporidiosis', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_aeromonas', 'diarrhea_due_to_clostridium_difficile', 'diarrhea_due_to_norovirus', 'diarrhea_due_to_adenovirus', 'diarrhea_due_to_unattributed']
+
+
+# if config.getint('simulation_parameters', 'epi_analysis') == 0:
+#    diarrhea_event_count_cols = ['diarrhea_event_count']
+
+# if config.getint('simulation_parameters', 'epi_analysis') == 1:
 
 
 # TODO: Don't duplicate code! Get rid of the duplicate lines in the block below and setup
@@ -240,6 +246,12 @@ def diarrhea_factory():
             pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
             pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
 
+
+        # if config.getint('simulation_parameters', 'epi_analysis') == 0:
+        #    pass
+
+        # if config.getint('simulation_parameters', 'epi_analysis') == 1:
+
         # get all gbd age groups
         age_bins = get_age_bins()
 
@@ -269,6 +281,8 @@ def diarrhea_factory():
                 last_age_group_max = value
 
         pop.loc[pop['diarrhea'] == 'diarrhea', 'diarrhea_event_count'] += 1 
+
+        #########################################################################################
 
         # set diarrhea event time here
         pop.loc[pop['diarrhea'] == 'diarrhea', 'diarrhea_event_time'] = pd.Timestamp(event.time)
