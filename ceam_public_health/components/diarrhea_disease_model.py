@@ -31,7 +31,7 @@ age_bins = get_age_bins()
 
 # filter down all age groups to only the ones we care about
 # FIXME: the age groups of interest will change for GBD 2016, since the 85-90 age group is in GBD 2016, but not 2015
-age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 21)]
+age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 5)]
 
 age_bins.age_group_name = age_bins.age_group_name.str.lower()
 
@@ -184,6 +184,8 @@ def diarrhea_factory():
     """
     list_of_modules = []
 
+    # dict_of_etiologies_and_eti_risks = {'shigellosis': 175}
+
     dict_of_etiologies_and_eti_risks = {'cholera': 173, 'other_salmonella': 174, 'shigellosis': 175, 'EPEC': 176, 'ETEC': 177, 'campylobacter': 178, 'amoebiasis': 179, 'cryptosporidiosis': 180, 'rotaviral_entiritis': 181, 'aeromonas': 182, 'clostridium_difficile': 183, 'norovirus': 184, 'adenovirus': 185, 'unattributed': 'unattributed'}
 
     for key, value in dict_of_etiologies_and_eti_risks.items():
@@ -257,7 +259,7 @@ def diarrhea_factory():
 
         # filter down all age groups to only the ones we care about
         # FIXME: the age groups of interest will change for GBD 2016, since the 85-90 age group is in GBD 2016, but not 2015
-        age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 21)]
+        age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 5)]
 
         age_bins.age_group_name = age_bins.age_group_name.str.lower()
 
