@@ -116,7 +116,7 @@ class AccrueSusceptiblePersonTime():
                         mortality_df = mortality_df.append(row)
             last_age_group_max = value
 
-        mortality_df.to_hdf("/share/scratch/users/emumford/mortality_rate.hdf", key="key")
+        # mortality_df.to_hdf("/share/scratch/users/emumford/mortality_rate.hdf", key="key")
 
         return metrics
 
@@ -146,7 +146,7 @@ class AccrueSusceptiblePersonTime():
                         incidence_df = incidence_df.append(row)
             last_age_group_max = value
 
-        incidence_df = incidence_df.to_hdf("/share/scratch/users/emumford/incidence_rate.hdf", key="key")
+        # incidence_df = incidence_df.to_hdf("/share/scratch/users/emumford/incidence_rate.hdf", key="key")
 
         return metrics
 
