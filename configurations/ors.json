@@ -5,6 +5,7 @@
          "ceam_public_health.components.base_population.Mortality",
          "ceam_public_health.components.diarrhea_disease_model.diarrhea_factory()",
          "ceam_public_health.components.metrics.Metrics",
-         "ceam_public_health.components.interventions.ors_supplementation.ORS"
+         "ceam_public_health.components.interventions.ors_supplementation.ORS",
+         "ceam_public_health.components.risks.underweight.Underweight"
     ]
 }
