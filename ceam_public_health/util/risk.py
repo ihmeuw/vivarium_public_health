@@ -46,7 +46,8 @@ def assign_exposure_categories(df, susceptibility_column, categories):
     """
 
     bool_list = [c + '_bool' for c in categories]
-    
+   
+    # TODO: Confirm whether or not we want < or <= 
     for col in categories:
         df['{}_bool'.format(col)] = df['{}'.format(col)] < df[susceptibility_column]
 
