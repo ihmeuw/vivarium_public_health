@@ -31,18 +31,12 @@ class UnsafeSanitation:
 
         self.randomness = builder.randomness('unsafe_sanitation')
 
-        effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=84)), 'unsafe_sanitation_susceptibility')
-        risk_effects = make_gbd_risk_effects(84, [
-            # TODO: Make this not dependent on GBD! i.e. get rid of the risk id and cause id
-            (302, 'diarrhea_due_to_rotavirus'),
-            ], 'morbidity', effect_function)
+        list_of_etiologies = ['diarrhea_due_to_shigellosis', 'diarrhea_due_to_cholera', 'diarrhea_due_to_other_salmonella', 'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC', 'diarrhea_due_to_campylobacter', 'diarrhea_due_to_amoebiasis', 'diarrhea_due_to_cryptosporidiosis', 'diarrhea_due_to_rotaviral_entiritis', 'diarrhea_due_to_aeromonas', 'diarrhea_due_to_clostridium_difficile', 'diarrhea_due_to_norovirus', 'diarrhea_due_to_adenovirus']
 
-        return risk_effects
+        list_of_tuples = [(302, i) for i in list_of_etiologies]
 
         effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=84)), 'unsafe_sanitation_susceptibility')
-        risk_effects = make_gbd_risk_effects(84, [
-            (302, 'diarrhea_due_to_rotavirus'),
-            ], 'morbidity', effect_function)
+        risk_effects = make_gbd_risk_effects(84, list_of_tuples, effect_function)
 
         return risk_effects
 
