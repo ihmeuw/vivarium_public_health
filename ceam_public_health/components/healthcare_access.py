@@ -54,6 +54,8 @@ class HealthcareAccess:
         self.general_access_count = 0
         self.followup_access_count = 0
         self.hospitalization_count = 0
+        self.hospitalization_cost = defaultdict(float)
+        self.outpatient_cost = defaultdict(float)
 
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
@@ -94,6 +96,7 @@ class HealthcareAccess:
 
         year = event.time.year
         self.cost_by_year[year] += len(index) * appointment_cost[year]
+        self.outpatient_cost[year] += len(index) * appointment_cost[year]
 
     @listens_for('time_step')
     @uses_columns(['healthcare_last_visit_date', 'healthcare_followup_date', 'adherence_category'], 'alive')
@@ -118,11 +121,13 @@ class HealthcareAccess:
 
         year = event.time.year
         self.cost_by_year[year] += len(affected_population) * appointment_cost[year]
+        self.outpatient_cost[year] += len(affected_population) * appointment_cost[year]
 
     @listens_for('hospitalization')
     def hospital_access(self, event):
         year = event.time.year
         self.hospitalization_count += len(event.index)
+        self.hospitalization_cost[year] += len(event.index) * hospitalization_cost[year]
         self.cost_by_year[year] += len(event.index) * hospitalization_cost[year]
 
 
@@ -132,6 +137,8 @@ class HealthcareAccess:
         metrics['general_healthcare_access'] = self.general_access_count
         metrics['followup_healthcare_access'] = self.followup_access_count
         metrics['hospitalization_access'] = self.hospitalization_count
+        metrics['hospitalization_cost'] = sum(self.hospitalization_cost.values())
+        metrics['outpatient_cost'] = sum(self.outpatient_cost.values())
 
         if 'cost' in metrics:
             metrics['cost'] += metrics['healthcare_access_cost']

@@ -80,8 +80,6 @@ class OpportunisticScreening:
 
     def setup(self, builder):
         self.cost_by_year = defaultdict(int)
-        
-        self.screened_count = 0
 
         # draw random costs and effects for medications
         draw = config.getint('run_configuration', 'draw_number')
@@ -96,8 +94,8 @@ class OpportunisticScreening:
         self.semi_adherent_efficacy = r.normal(0.4, 0.0485)
 
         assert config.getint('opportunistic_screening', 'max_medications') <= len(MEDICATIONS), 'cannot model more medications than we have data for'
-
-        columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure', 'age', 'healthcare_followup_date']
+        
+        columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure', 'age', 'healthcare_followup_date', 'healthcare_last_visit_date', 'last_screening_date']
 
         for medication in MEDICATIONS:
             columns.append(medication['name']+'_supplied_until')
@@ -106,7 +104,7 @@ class OpportunisticScreening:
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         #TODO: Some people will start out taking medications?
-        population = pd.DataFrame({'medication_count': np.zeros(len(event.index), dtype=int)})
+        population = pd.DataFrame({'medication_count': np.zeros(len(event.index), dtype=int), 'last_screening_date': [pd.NaT]*len(event.index)})
         for medication in MEDICATIONS:
             population[medication['name']+'_supplied_until'] = pd.NaT
         self.population_view.update(population)
@@ -143,8 +141,6 @@ class OpportunisticScreening:
             appointment_cost = ceam_public_health.components.healthcare_access.appointment_cost[year]
             cost_per_simulant = appointment_cost * 0.25  # see CE-94 for discussion
             self.cost_by_year[year] += cost_per_simulant * len(affected_population)
-            
-            self.screened_count += len(affected_population)
 
             normotensive, hypertensive, severe_hypertension = _hypertensive_categories(affected_population)
 
@@ -160,6 +156,9 @@ class OpportunisticScreening:
             self.population_view.update(pd.Series(np.minimum(severe_hypertension['medication_count'] + 2, config.getint('opportunistic_screening', 'max_medications')), name='medication_count'))
 
             self._medication_costs(affected_population, event.time)
+            
+            self.population_view.update(pd.Series(event.time, index=affected_population.index, name='last_screening_date'))
+            
 
     @listens_for('followup_healthcare_access')
     def followup_blood_pressure_test(self, event):
@@ -211,7 +210,6 @@ class OpportunisticScreening:
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
-        metrics['screened_simulants'] = self.screened_count
         metrics['medication_cost'] = sum(self.cost_by_year.values())
         if 'cost' in metrics:
             metrics['cost'] += metrics['medication_cost']
@@ -219,6 +217,7 @@ class OpportunisticScreening:
             metrics['cost'] = metrics['medication_cost']
         pop = self.population_view.get(index)
         metrics['treated_individuals'] = (pop.medication_count > 0).sum()
+        metrics['screened_simulants'] = (~pop.last_screening_date.isnull()).sum()
         return metrics
 
 
