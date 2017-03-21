@@ -42,7 +42,7 @@ class DiseaseState(State):
         columns = [self.condition]
         if self.dwell_time > 0:
             columns += [self.event_time_column, self.event_count_column]
-        self.population_view = builder.population_view(columns, 'alive')
+        self.population_view = builder.population_view(columns)
         self.clock = builder.clock()
 
     @listens_for('initialize_simulants')
