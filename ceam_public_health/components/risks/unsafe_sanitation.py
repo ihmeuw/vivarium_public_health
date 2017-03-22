@@ -27,7 +27,9 @@ class UnsafeSanitation:
 
     def setup(self, builder):
 
-        self.exposure = builder.lookup(get_exposures(risk_id=84))
+        self.exposure = builder.value('unsafe_sanitation.exposure')
+
+        self.exposure.source = builder.lookup(get_exposures(risk_id=84))
 
         self.randomness = builder.randomness('unsafe_sanitation')
 
