@@ -1,9 +1,6 @@
 import os.path
 import argparse
-import warnings
 import math
-
-from joblib import Memory
 
 import pandas as pd
 import numpy as np
@@ -14,154 +11,152 @@ from matplotlib import cm
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 
-from transmogrifier.draw_ops import get_draws
+from ceam_inputs.cube import make_measure_cube_from_gbd
 
-from ceam_inputs import get_age_bins
-from ceam_inputs.gbd_ms_functions import get_model_versions
-from ceam_inputs.gbd_mapping import causes, meid
-from ceam_inputs.util import round_to_gbd_year
+def graph_measure(data, measure, output_directory):
+    """ Save the convergence graph for a particular measure
+    """
+    data = data.reset_index().query('measure == @measure')
+    age_groups = sorted(data.age.unique())
 
-memory = Memory(cachedir='~/.ceam_analysis', verbose=0)
-
-def get_age_group_ids(data):
-    groups = get_age_bins()[['age_group_years_start', 'age_group_years_end', 'age_group_id']].set_index(['age_group_years_start', 'age_group_years_end']).age_group_id
-    ids = []
-    for low, high in data[['age_low', 'age_high']].values.tolist():
-        ids.append(int(groups.ix[low, high]))
-    return ids
-
-def load_validation_data(cause_list, measure):
-    for parent, cause in cause_list:
-        if cause not in causes:
-            warnings.warn('Cause "{}" not in gbd mapping. Skipping'.format(cause))
-            continue
-
-def plot_convergence(ax, groups, title):
-    ax.set_title(title)
-    ax.plot(ax.get_xlim(), ax.get_ylim(),'w-', zorder=1, lw=0.5)
-    for gbd, simulation, color, shape in groups:
-        ax.scatter(gbd, simulation, color=color, zorder=2, marker=shape)
-
-@memory.cache
-def cached_draw(*args, **kwargs):
-    return get_draws(*args, **kwargs)
-
-def graph_convergence(data, measure, measure_id, output_directory):
-    data['age_group_id'] = get_age_group_ids(data)
-    age_group_ids = data.age_group_id.unique()
-    data['sex_id'] = np.where(data.sex == 'Male', 1, 2)
-    sex_ids = data.sex_id.unique()
-    data['location_id'] = data.location
-    location_ids = data.location.unique()
-    original_years = data.year.unique()
-    years = [round_to_gbd_year(year) for year in original_years]
-    if original_years != years:
-        warnings.warn("Some years don't align with GBD years, rounding to nearest GBD year instead. Raw years: {}".format(original_years))
-    data['year_id'] = data.year.apply(round_to_gbd_year)
-    draw_ids = data.draw.unique()
-
-    groups = get_age_bins()
-
-    if measure == 'mortality':
-        # Get all cause mortality
-        source = 'codcorrect'
-        draws = cached_draw('cause_id', 294, location_ids=location_ids, source=source, sex_ids=sex_ids, age_group_ids=age_group_ids, year_ids=years, model_version_id=model_version).query('measure_id == @measure_id')[['location_id', 'year_id', 'age_group_id', 'sex_id', 'modelable_entity_id'] + ['draw_{}'.format(draw) for draw in draw_ids]]
-    meids = {}
-    for cause_name in data.cause.unique():
-        if cause_name in causes:
-            cause = causes[cause_name]
-            if 'prevalence' in cause and isinstance(cause.prevalence, meid):
-                meids[cause_name] = cause.prevalence
-
-    data = data[data.cause.apply(lambda c: c in meids)]
-    data['modelable_entity_id'] = data.cause.apply(lambda c: meids[c])
-
-    gbd_data = pd.DataFrame()
-    meid_version_map = get_model_versions()
-    for me_id in set(meids.values()):
-        model_version = meid_version_map[me_id]
-        source = 'dismod'
-        draws = cached_draw('modelable_entity_id', me_id, location_ids=location_ids, source=source, sex_ids=sex_ids, age_group_ids=age_group_ids, year_ids=years, model_version_id=model_version).query('measure_id == @measure_id')[['location_id', 'year_id', 'age_group_id', 'sex_id', 'modelable_entity_id'] + ['draw_{}'.format(draw) for draw in draw_ids]]
-        draws = draws.set_index(['location_id', 'year_id', 'age_group_id', 'sex_id', 'modelable_entity_id'])
-        gbd_data = gbd_data.append(draws, verify_integrity=True)
-
-    gbd_data = gbd_data.reset_index()
-    age_group_ids = gbd_data.age_group_id.unique()
-    data = data.pivot_table(columns='draw', values='value', index=[c for c in data.columns if c not in ['draw', 'value']])
-    data.columns = ['draw_{}'.format(c) for c in data.columns]
-    data = data.reset_index()
-
-    comparison = pd.merge(gbd_data, data, on=['location_id', 'year_id', 'age_group_id', 'sex_id', 'modelable_entity_id'], suffixes=('_gbd', '_simulation'))
-
-    cause_num = {n:i for i,n in enumerate(sorted(np.unique(comparison.cause)))}
-    mc = np.max(list(cause_num.values()))
-    cause_num = {c:n/mc for c,n in cause_num.items()}
-    nums = [cause_num[cause] for cause in comparison.cause]
-    comparison['color'] = [tuple(r) for r in cm.rainbow(nums).tolist()]
-
+    # Setup the legend with color swatches and marker shape examples
     patches = []
-    for name, color in sorted(comparison[['cause', 'color']].drop_duplicates().values.tolist()):
+    for name, color in sorted(data[['cause', 'color']].drop_duplicates().values.tolist()):
         if name not in patches:
             patches.append(mpatches.Patch(color=color, label=str(name)))
+    shapes = {'Male': 's', 'Female': '^'}
+    for sex, shape in sorted(shapes.items(), key=lambda x:x[0]):
+        patches.append(Line2D([],[], marker=shape, label=sex, markeredgecolor='k', markeredgewidth=1, fillstyle='none', linestyle='None'))
 
-    row_count = math.sqrt(len(age_group_ids))
+    # Determine the shape of our sub-figure matrix
+    row_count = math.sqrt(len(age_groups))
     if row_count != int(row_count):
         row_count = int(row_count)
         column_count = row_count + 1
     else:
         row_count = int(row_count)
         column_count = row_count
-    fig, rows = plt.subplots(row_count, column_count, sharex='col', sharey='row')
+
+    # Create the sub-figure matrix and labels
+    fig, rows = plt.subplots(row_count, column_count)
     labels = [
         fig.text(0.5, 0.0, 'GBD', ha='center', va='center'),
         fig.text(0.0, 0.5, 'Simulation', ha='center', va='center', rotation='vertical'),
         fig.suptitle(measure),
     ]
-    i = 0
-    shapes = {'Male': 's', 'Female': '^'}
-    for sex, shape in shapes.items():
-        patches.append(Line2D([],[], marker=shape, label=sex, markeredgecolor='k', markeredgewidth=1, fillstyle='none', linestyle='None'))
+
+    # Walk through the age groups graphing one into each sub-figure until we run out
+    # and then hide the remaining figures
     for row in rows:
         for ax in row:
-            if i >= len(age_group_ids):
-                break
-            ax.set_xlim([0, max(comparison.draw_0_gbd.max(), comparison.draw_0_simulation.max())])
-            ax.set_ylim([0, max(comparison.draw_0_gbd.max(), comparison.draw_0_simulation.max())])
-            age_group_id = age_group_ids[i]
-            filtered = comparison.query('age_group_id == @age_group_id')
-            title = '{} - {}'.format(filtered.age_low.iloc[0], filtered.age_high.iloc[0])
-            groups = []
+            if not age_groups:
+                ax.axis('off')
+                continue
+
+            age = age_groups.pop(0)
+            filtered = data.query('age == @age')
+
+            # TODO: This may be better represented as mark size
+            mean_sample_size = filtered.sample_size.mean()
+
+            ax.set_xlim([0, max(filtered.gbd.max(), filtered.simulation.max())])
+            ax.set_ylim([0, max(filtered.gbd.max(), filtered.simulation.max())])
+
+            title = '{:.1f} ({})'.format(age, int(mean_sample_size))
+            ax.set_title(title)
+
+            # Draw the equivalence line
+            ax.plot(ax.get_xlim(), ax.get_ylim(),'w-', zorder=1, lw=1)
+
             for sex, shape in shapes.items():
-                groups.append(list(zip(*filtered.query('sex==@sex')[['draw_0_gbd', 'draw_0_simulation', 'color']].values.tolist())) + [shape])
-            plot_convergence(ax, groups, title)
-            i += 1
+                # Draw the actual points with different shapes for each sex
+                gbd, simulation, color = zip(*filtered.query('sex==@sex')[['gbd', 'simulation', 'color']].values.tolist())
+                ax.scatter(gbd, simulation, color=color, zorder=2, marker=shape)
+
+            # The graphs tend to be pretty tight so rotate the x axis labels to make better use of space
+            for tick in ax.get_xticklabels():
+                tick.set_rotation(30)
+
+    # Attach the legend in the upper right corner of the figure
     lgd = rows[0][-1].legend(handles=patches, bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+
     fig.set_size_inches(18.5, 10.5)
+    plt.tight_layout()
+    # Make room for the main title
+    plt.subplots_adjust(top=0.94)
     fig.savefig(os.path.join(output_directory, '{}.png'.format(measure)), dpi=100, bbox_extra_artists=[lgd]+labels, bbox_inches='tight')
 
+def prepare_comparison(data):
+    """Combines the simulation output with the corresponding GBD estimate for each
+    sample so they can be graphed together.
+    """
+    measures = data[['cause','measure']].drop_duplicates().values.tolist()
+    measure_cube = make_measure_cube_from_gbd(data.year.min(), data.year.max(), data.location.unique(), data.draw.unique(), measures)
 
+    # Resolve age ranges down to age group midpoints
+    # NOTE: If this midpoint doesn't exactly align with the one from GBD then the comparison
+    # won't work. It may be worth figuring out a less fragile approach which (ideally) doesn't
+    # involve leaning on age_group_ids
+    data['age'] = (data.age_low + data.age_high) / 2
+    del data['age_low']
+    del data['age_high']
+
+    # NOTE: This averages the draws without capturing uncertainty. May want to improve at some point.
+    measure_cube = measure_cube.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean()
+    del measure_cube['draw']
+    data = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean().reset_index()
+    del data['draw']
+
+    # Calculate RGB triples for each cause for use in coloring marks on the graphs
+    cmap = plt.get_cmap('jet')
+    # This sort and shuffle looks a bit odd but what it accomplishes is to deterministically
+    # spread the causes out across the color space which makes it easier to assign visually
+    # distinct colors to them that don't change from run to run
+    causes = sorted(data.cause.unique())
+    np.random.RandomState(1001).shuffle(causes)
+    color_map = {cause:tuple(color) for cause, color in zip(causes, cmap(np.linspace(0, 1, len(causes))))}
+    data['color'] = data.cause.apply(color_map.get)
+
+    data = data.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'])
+
+    # Give our value columns descriptive names so we know which is which
+    data = data.rename(columns={'value': 'simulation'})
+    measure_cube = measure_cube.rename(columns={'value': 'gbd'})
+    return data.merge(measure_cube, left_index=True, right_index=True)
+
+def graph_comparison(data, output_directory):
+    data = prepare_comparison(data)
+
+    # Save a graph for each measure
+    for measure in data.reset_index().measure.unique():
+        graph_measure(data, measure, output_directory)
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('measure_data_path', type=str)
     parser.add_argument('output_directory', type=str)
+    parser.add_argument('--year', '-y', default='last', type=str)
+    parser.add_argument('--draw', '-d', default='all', type=str)
     args = parser.parse_args()
 
-    data = pd.read_hdf(args.measure_data_path)
+    data = pd.read_hdf(args.measure_data_path, format='t')
 
-    for measure in data.measure.unique():
-        if measure == 'prevalence':
-            measure_id = 5
-        elif measure == 'mortality':
-            measure_id = 15
-            data = data.query('cause != "death_due_to_other_causes"')
-        elif measure == 'deaths':
-            measure_id = 1
-        elif measure == 'incidence':
-            measure_id = 6 
+    # TODO: right now this can only do one year per run.
+    # If we want to do multiple years, that's certainly possible
+    # it would just be a matter of deciding how to represent time.
+    # Could be separate graphs or some sort of timeseries thingy
+    if args.year == 'last':
+        year = data.year.max()
+    else:
+        year = int(args.year)
 
-        graph_convergence(data.query('measure == @measure'), measure, measure_id, args.output_directory)
+    data = data.query('year == @year')
 
+    if args.draw != 'all':
+        draw = int(args.draw)
+        data = data.query('draw == @draw')
+
+    graph_comparison(data, args.output_directory)
 
 if __name__ == '__main__':
     main()

@@ -239,7 +239,7 @@ class DiseaseModel(Machine):
                             sub_pop = sub_pop.query('location == @location')
                         if not sub_pop.empty:
                             affected = (sub_pop[self.condition] == cause).sum()
-                            cube.ix['prevalence', low, high, sex, location if location >= 0 else root_location, cause] = affected/len(sub_pop)
+                            cube = cube.append(pd.DataFrame({'measure': 'prevalence', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': cause, 'value': affected/len(sub_pop), 'sample_size': len(sub_pop)}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
         return cube
 
     @modifies_value('metrics')

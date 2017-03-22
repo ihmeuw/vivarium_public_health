@@ -103,6 +103,7 @@ class Mortality:
         prob_df['cause_of_death'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
 
         dead_pop = prob_df.query('cause_of_death != "no_death"').copy()
+        sub = dead_pop.query('cause_of_death != "death_due_to_other_causes"')
 
         dead_pop['alive'] = False
 
@@ -155,15 +156,17 @@ class Mortality:
                         sub_pop = sub_pop.query('location == @location')
 
                     if not sub_pop.empty:
-                        birthday = now - pd.to_timedelta(sub_pop.age, 'Y')
+                        birthday = sub_pop.death_day.fillna(now) - pd.to_timedelta(sub_pop.age, 'Y')
                         time_before_birth = np.maximum(np.timedelta64(0), birthday - window_start).sum()
-                        time_after_death = np.minimum(np.maximum(np.timedelta64(0), sub_pop.death_day.dropna() - now), np.timedelta64(duration)).sum()
+                        time_after_death = np.minimum(np.maximum(np.timedelta64(0), now - sub_pop.death_day.dropna()), np.timedelta64(duration)).sum()
                         time_in_sim = duration * len(pop) - (time_before_birth + time_after_death)
                         time_in_sim = time_in_sim.total_seconds()/(timedelta(days=364).total_seconds())
                         for cause in causes_of_death:
                             deaths_in_period = (sub_pop.cause_of_death == cause).sum()
 
-                            cube.ix['mortality', low, high, sex, location if location >= 0 else root_location, cause] = deaths_in_period/time_in_sim
+                            cube = cube.append(pd.DataFrame({'measure': 'mortality', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': cause, 'value': deaths_in_period/time_in_sim, 'sample_size': len(sub_pop)}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
+                        deaths_in_period = len(sub_pop.query('not alive'))
+                        cube = cube.append(pd.DataFrame({'measure': 'mortality', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'all', 'value': deaths_in_period/time_in_sim, 'sample_size': len(sub_pop)}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
         return cube
 
     @modifies_value('epidemiological_measures')
@@ -182,9 +185,11 @@ class Mortality:
         for low, high in age_groups:
             for sex in sexes:
                 for location in locations:
-                    sub_pop = pop.query('age > @low and age <= @high and sex == @sex and (death_day > @window_start and death_day <= @now)')
+                    sub_pop = pop.query('age > @low and age <= @high and sex == @sex')
+                    sample_size = len(sub_pop)
+                    sub_pop = sub_pop.query('death_day > @window_start and death_day <= @now')
                     if location >= 0:
                         sub_pop = sub_pop.query('location == @location')
 
-                    cube.ix['deaths', low, high, sex, location if location >= 0 else root_location, 'all'] = len(sub_pop)
+                    cube = cube.append(pd.DataFrame({'measure': 'deaths', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'all', 'value': len(sub_pop), 'sample_size': sample_size}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
         return cube

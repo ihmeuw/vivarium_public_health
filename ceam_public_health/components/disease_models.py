@@ -40,7 +40,7 @@ def heart_disease_factory():
 
     asymptomatic_ihd = make_gbd_disease_state(causes.asymptomatic_ihd)
 
-    heart_attack_transition = RateTransition(heart_attack, 'heart_attack', get_incidence(1814))
+    heart_attack_transition = RateTransition(heart_attack, 'heart_attack', get_incidence(causes.heart_attack.incidence))
     healthy.transition_set.append(heart_attack_transition)
 
     heart_failure_buckets = TransitionSet(allow_null_transition=False, key="heart_failure_split")
@@ -57,7 +57,7 @@ def heart_disease_factory():
         ProportionTransition(moderate_angina, proportion=0.126273),
         ProportionTransition(severe_angina, proportion=0.32958),
         ])
-    healthy.transition_set.append(RateTransition(angina_buckets, 'non_mi_angina', get_incidence(1817)))
+    healthy.transition_set.append(RateTransition(angina_buckets, 'non_mi_angina', get_incidence(causes.angina_not_due_to_MI.incidence)))
 
     heart_attack.transition_set.allow_null_transition=False
 
@@ -98,8 +98,8 @@ def stroke_factory():
     chronic_stroke = make_gbd_disease_state(causes.chronic_stroke)
 
 
-    hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'hemorrhagic_stroke', get_incidence(9311))
-    ischemic_transition = RateTransition(ischemic_stroke, 'ischemic_stroke', get_incidence(9310))
+    hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'hemorrhagic_stroke', get_incidence(causes.hemorrhagic_stroke.incidence))
+    ischemic_transition = RateTransition(ischemic_stroke, 'ischemic_stroke', get_incidence(causes.ischemic_stroke.incidence))
     healthy.transition_set.extend([hemorrhagic_transition, ischemic_transition])
 
     hemorrhagic_stroke.transition_set.append(Transition(chronic_stroke))

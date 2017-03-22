@@ -67,7 +67,7 @@ def test_mortality_rate():
 
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
-    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.0, ['age', 'year', 'sex', 'prevalence']), csmr_data=build_table(0.0))
+    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.00000001, ['age', 'year', 'sex', 'prevalence']), csmr_data=build_table(0.0))
 
     healthy.transition_set.append(Transition(mortality_state))
 
@@ -81,7 +81,7 @@ def test_mortality_rate():
     pump_simulation(simulation, iterations=1)
 
     # Folks instantly transition to sick so now our mortality rate should be much higher
-    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['death_due_to_sick'])
+    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['sick'])
 
 
 @patch('ceam_public_health.components.disease.get_disease_states')
