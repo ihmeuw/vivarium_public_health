@@ -73,7 +73,7 @@ def heart_disease_factory():
         ProportionTransition(moderate_angina, proportion=0.126273),
         ProportionTransition(severe_angina, proportion=0.32958),
         ])
-    healthy.transition_set.append(RateTransition(angina_buckets, 'incidence_rate.non_mi_angina', get_incidence(1817)))
+    healthy.transition_set.append(RateTransition(angina_buckets, 'non_mi_angina', get_incidence(1817)))
 
     heart_attack.transition_set.allow_null_transition=False
 

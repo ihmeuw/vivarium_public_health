@@ -13,7 +13,7 @@ from ceam_public_health.util.risk import continuous_exposure_effect
 
 def cholesterol_dists(func=None):
     df = get_exposures(106)
-    # NOTE: BMI is not modeled for younger ages so set them equal to the TMRL
+    # NOTE: Cholesterol is not modeled for younger ages so set them equal to the TMRL
     df.loc[df.age < 27.5, 'continuous'] = 3.08
     df = df.set_index(['age', 'sex', 'year'])
     means = df.mean(axis=1)
