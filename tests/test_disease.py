@@ -9,13 +9,11 @@ import numpy as np
 
 from ceam import config
 
-from ceam_tests.util import setup_simulation, pump_simulation, build_table
+from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
 
 from ceam.framework.util import from_yearly
 
 from ceam_inputs import get_incidence
-
-from ceam_public_health.components.base_population import generate_base_population
 
 from ceam.framework.state_machine import Transition, State
 from ceam.framework.event import Event
@@ -34,7 +32,7 @@ def test_dwell_time(get_disease_states_mock):
     event_state.transition_set.append(Transition(done_state))
     model.states.extend([healthy_state, event_state, done_state])
 
-    simulation = setup_simulation([generate_base_population, model], population_size=10)
+    simulation = setup_simulation([generate_test_population, model], population_size=10)
     emitter = simulation.events.get_emitter('time_step')
 
     # Move everyone into the event state
@@ -67,13 +65,13 @@ def test_mortality_rate():
 
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
-    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.00000001, ['age', 'year', 'sex', 'prevalence']), csmr_data=build_table(0.0))
+    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.0000001, ['age', 'year', 'sex', 'prevalence']), csmr_data=build_table(0.0))
 
     healthy.transition_set.append(Transition(mortality_state))
 
     model.states.extend([healthy, mortality_state])
 
-    simulation = setup_simulation([generate_base_population, model])
+    simulation = setup_simulation([generate_test_population, model])
 
     mortality_rate = simulation.values.get_rate('mortality_rate')
     mortality_rate.source = simulation.tables.build_table(build_table(0.0))
@@ -99,7 +97,7 @@ def test_incidence(get_disease_states_mock):
 
     model.states.extend([healthy, sick])
 
-    simulation = setup_simulation([generate_base_population, model])
+    simulation = setup_simulation([generate_test_population, model])
 
     transition.base_incidence = simulation.tables.build_table(build_table(0.7))
 
@@ -124,7 +122,7 @@ def test_risk_deletion(get_disease_states_mock):
 
     model.states.extend([healthy, sick])
 
-    simulation = setup_simulation([generate_base_population, model])
+    simulation = setup_simulation([generate_test_population, model])
 
     base_rate = 0.7
     paf = 0.1
@@ -148,7 +146,7 @@ def test_load_population_custom_columns(get_disease_states_mock):
 
     model.states.append(dwell_test)
 
-    simulation = setup_simulation([generate_base_population, model])
+    simulation = setup_simulation([generate_test_population, model])
 
     assert 'special_test_time' in simulation.population.population
     assert 'special_test_count' in simulation.population.population
