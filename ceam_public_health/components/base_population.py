@@ -134,7 +134,7 @@ class Mortality:
 
     @modifies_value('epidemiological_span_measures')
     @uses_columns(['age', 'death_day', 'cause_of_death', 'alive', 'sex'])
-    def all_cause_mortality(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
+    def calculate_mortality_measure(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
         root_location = config.getint('simulation_parameters', 'location_id')
         pop = population_view.get(index)
 
@@ -159,8 +159,8 @@ class Mortality:
                         birthday = sub_pop.death_day.fillna(now) - pd.to_timedelta(sub_pop.age, 'Y')
                         time_before_birth = np.maximum(np.timedelta64(0), birthday - window_start).sum()
                         time_after_death = np.minimum(np.maximum(np.timedelta64(0), now - sub_pop.death_day.dropna()), np.timedelta64(duration)).sum()
-                        time_in_sim = duration * len(pop) - (time_before_birth + time_after_death)
-                        time_in_sim = time_in_sim.total_seconds()/(timedelta(days=364).total_seconds())
+                        time_in_sim = duration.total_seconds() * len(pop) - (time_before_birth + time_after_death).total_seconds()
+                        time_in_sim = time_in_sim/(timedelta(days=364).total_seconds())
                         for cause in causes_of_death:
                             deaths_in_period = (sub_pop.cause_of_death == cause).sum()
 
