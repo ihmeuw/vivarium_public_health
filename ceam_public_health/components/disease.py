@@ -221,7 +221,7 @@ class DiseaseModel(Machine):
             condition_column = pd.Series('healthy', index=population.index, name=self.condition)
         self.population_view.update(condition_column)
 
-    @modifies_value('epidemiological_measures')
+    @modifies_value('epidemiological_point_measures')
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
         root_location = config.getint('simulation_parameters', 'location_id')
         pop = self.population_view.manager.population.ix[index].query('alive')

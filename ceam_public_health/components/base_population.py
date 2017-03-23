@@ -132,7 +132,7 @@ class Mortality:
 
         return metrics
 
-    @modifies_value('epidemiological_measures')
+    @modifies_value('epidemiological_span_measures')
     @uses_columns(['age', 'death_day', 'cause_of_death', 'alive', 'sex'])
     def all_cause_mortality(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
         root_location = config.getint('simulation_parameters', 'location_id')
@@ -169,7 +169,7 @@ class Mortality:
                         cube = cube.append(pd.DataFrame({'measure': 'mortality', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'all', 'value': deaths_in_period/time_in_sim, 'sample_size': len(sub_pop)}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
         return cube
 
-    @modifies_value('epidemiological_measures')
+    @modifies_value('epidemiological_span_measures')
     @uses_columns(['death_day', 'sex', 'age', 'location'], 'not alive')
     def deaths(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
         root_location = config.getint('simulation_parameters', 'location_id')
