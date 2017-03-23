@@ -1,3 +1,6 @@
+import matplotlib as mpl
+mpl.use('Agg')
+
 import os.path
 import argparse
 import math
@@ -29,7 +32,7 @@ def graph_measure(data, measure, output_directory):
         patches.append(Line2D([],[], marker=shape, label=sex, markeredgecolor='k', markeredgewidth=1, fillstyle='none', linestyle='None'))
 
     # Determine the shape of our sub-figure matrix
-    row_count = math.sqrt(len(age_groups))
+    row_count = max(2, math.sqrt(len(age_groups)))
     if row_count != int(row_count):
         row_count = int(row_count)
         column_count = row_count + 1
@@ -91,7 +94,9 @@ def prepare_comparison(data):
     sample so they can be graphed together.
     """
     measures = data[['cause','measure']].drop_duplicates().values.tolist()
-    measure_cube = make_measure_cube_from_gbd(data.year.min(), data.year.max(), data.location.unique(), data.draw.unique(), measures)
+    year_min = data.year.min()
+    year_max = data.year.max()
+    measure_cube = make_measure_cube_from_gbd(int(year_min), int(year_max), data.location.unique(), data.draw.unique(), measures)
 
     # Resolve age ranges down to age group midpoints
     # NOTE: If this midpoint doesn't exactly align with the one from GBD then the comparison
