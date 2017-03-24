@@ -157,9 +157,9 @@ class Mortality:
 
                     if not sub_pop.empty:
                         birthday = sub_pop.death_day.fillna(now) - pd.to_timedelta(sub_pop.age, 'Y')
-                        time_before_birth = np.maximum(np.timedelta64(0), birthday - window_start).sum()
-                        time_after_death = np.minimum(np.maximum(np.timedelta64(0), now - sub_pop.death_day.dropna()), np.timedelta64(duration)).sum()
-                        time_in_sim = duration.total_seconds() * len(pop) - (time_before_birth + time_after_death).total_seconds()
+                        time_before_birth = np.maximum(np.timedelta64(0), birthday - window_start).dt.total_seconds().sum()
+                        time_after_death = np.minimum(np.maximum(np.timedelta64(0), now - sub_pop.death_day.dropna()), np.timedelta64(duration)).dt.total_seconds().sum()
+                        time_in_sim = duration.total_seconds() * len(pop) - (time_before_birth + time_after_death)
                         time_in_sim = time_in_sim/(timedelta(days=364).total_seconds())
                         for cause in causes_of_death:
                             deaths_in_period = (sub_pop.cause_of_death == cause).sum()
