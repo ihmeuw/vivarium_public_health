@@ -6,12 +6,12 @@ from unittest.mock import patch
 import pytest
 
 from ceam import config
-from ceam_tests.util import setup_simulation, assert_rate, build_table
+from ceam_tests.util import setup_simulation, assert_rate, build_table, generate_test_population
 
 from ceam.framework.event import listens_for
 
 from ceam_public_health.components.healthcare_access import HealthcareAccess
-from ceam_public_health.components.base_population import generate_base_population, adherence
+from ceam_public_health.components.base_population import adherence
 
 import numpy as np
 
@@ -35,7 +35,7 @@ class Metrics:
 def test_general_access(utilization_rate_mock):
     utilization_rate_mock.side_effect = lambda *args, **kwargs: build_table(0.1, ['age', 'year', 'sex', 'utilization_proportion'])
     metrics = Metrics()
-    simulation = setup_simulation([generate_base_population, adherence, metrics, HealthcareAccess()])
+    simulation = setup_simulation([generate_test_population, adherence, metrics, HealthcareAccess()])
 
     # 1.2608717447575932 == a monthly probability 0.1 as a yearly rate
     assert_rate(simulation, 1.2608717447575932, lambda s: metrics.access_count)

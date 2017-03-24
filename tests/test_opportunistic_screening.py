@@ -11,7 +11,7 @@ import pandas as pd
 from ceam import config
 from ceam.framework.event import Event
 
-from ceam_tests.util import setup_simulation, pump_simulation
+from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
 
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
@@ -19,7 +19,7 @@ from ceam.framework.population import uses_columns
 from ceam_public_health.components.opportunistic_screening import _hypertensive_categories, OpportunisticScreening, MEDICATIONS
 from ceam_public_health.components.healthcare_access import HealthcareAccess
 from ceam_public_health.components.blood_pressure import BloodPressure
-from ceam_public_health.components.base_population import adherence, generate_base_population
+from ceam_public_health.components.base_population import adherence
 
 @listens_for('initialize_simulants')
 @uses_columns(['systolic_blood_pressure', 'age', 'fractional_age'])
@@ -197,7 +197,7 @@ def test_medication_cost():
 @pytest.fixture(scope="module")
 def screening_setup():
     module = OpportunisticScreening()
-    simulation = setup_simulation([generate_base_population, _population_setup, adherence, HealthcareAccess(), module], population_size=10)
+    simulation = setup_simulation([generate_test_population, _population_setup, adherence, HealthcareAccess(), module], population_size=10)
 
     #pump_simulation(simulation, iterations=1)
     start_time = datetime(1990, 1, 1)
