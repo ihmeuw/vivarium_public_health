@@ -37,7 +37,7 @@ class UnsafeSanitation:
 
         list_of_tuples = [(302, i) for i in list_of_etiologies]
 
-        effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=84)), 'unsafe_sanitation_susceptibility')
+        effect_function = categorical_exposure_effect(self.exposure, 'unsafe_sanitation_susceptibility')
         risk_effects = make_gbd_risk_effects(84, list_of_tuples, effect_function)
 
         return risk_effects
