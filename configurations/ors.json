@@ -6,7 +6,8 @@
          "ceam_public_health.components.diarrhea_disease_model.diarrhea_factory()",
          "ceam_public_health.components.metrics.Metrics",
          "ceam_public_health.components.interventions.ors_supplementation.ORS",
-         "ceam_public_health.components.risks.underweight.Underweight",
-         "ceam_public_health.components.risks.unsafe_sanitation.UnsafeSanitation"
+         "ceam_public_health.components.epidemiology.EpidemiologicalMeasures",
+         ["ceam_public_health.components.risks.categorical_risk_handler.CategoricalRiskHandler", [84, "unsafe_sanitation"], {}],
+         ["ceam_public_health.components.risks.categorical_risk_handler.CategoricalRiskHandler", [241, "stunting"], {}]
     ]
 }
