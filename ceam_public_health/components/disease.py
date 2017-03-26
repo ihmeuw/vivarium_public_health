@@ -125,7 +125,8 @@ class RateTransition(Transition):
         self.effective_incidence = builder.rate('{}.{}'.format(self.name_prefix, self.rate_label))
         self.effective_incidence.source = self.incidence_rates
         self.joint_paf = builder.value('paf.{}'.format(self.rate_label))
-        self.base_incidence = builder.lookup(self.rate_data)
+        self.base_incidence = builder.value('base_{}.{}'.format(self.name_prefix, self.rate_label))
+        self.base_incidence.source = builder.lookup(self.rate_data)
 
     def probability(self, index):
         return rate_to_probability(self.effective_incidence(index))
