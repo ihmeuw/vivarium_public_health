@@ -1,4 +1,4 @@
-# ~/ceam_public_health/components/risks/unsafe_sanitation.py
+# ~/ceam_public_health/components/risks/categorical_risk_handler.py
 
 import os.path
 from functools import partial
@@ -18,17 +18,21 @@ from ceam_public_health.util.risk import categorical_exposure_effect
 
 class CategoricalRiskHandler:
     """
-    Model unsafe sanitation. Simulants will be in a specific exposure category based on their `unsafe_sanitation_susceptibility`.
+    Model a categorical risk. Simulants will be in a specific exposure category based on their `categorical_risk_susceptibility`.
 
     Population Columns
     ------------------
-    unsafe_sanitation_susceptibility        
+    categorical_risk_susceptibility        
     """
-    def __init__(risk_id, risk_name):
+    def __init__(self, risk_id, risk_name):
         self.risk_id = risk_id
         self.risk_name = risk_name
 
     def setup(self, builder):
+
+        # get the population table to add the susceptibility column
+        column = [self.risk_name + '_susceptibility']
+        self.population_view = builder.population_view(column)
 
         self.exposure = builder.value('{}.exposure'.format(self.risk_name))
 
@@ -41,15 +45,13 @@ class CategoricalRiskHandler:
         list_of_tuples = [(302, i) for i in list_of_etiologies]
 
         effect_function = categorical_exposure_effect(self.exposure, '{}_susceptibility'.format(self.risk_name))
-        risk_effects = make_gbd_risk_effects(self.risk_id, list_of_tuples, effect_function)
+        risk_effects = make_gbd_risk_effects(self.risk_id, list_of_tuples, effect_function, self.risk_name)
 
         return risk_effects
 
-    def load_susceptibility(self):
-        @listens_for('initialize_simulants')
-        @uses_columns(['{}_susceptibility'.format(self.risk_name)])
-        def load_susceptibility(self, event):
-        event.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='{}_susceptibility'.format(self.risk_name)))
+    @listens_for('initialize_simulants')
+    def load_population_columns(self, event):
+        self.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='{}_susceptibility'.format(self.risk_name)))
 
 # End.
 
