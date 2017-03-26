@@ -152,16 +152,20 @@ class RiskEffect:
         relative risks and returns rates modified as appropriate for this risk
     """
 
-    def __init__(self, rr_data, paf_data, cause, exposure_effect):
+    def __init__(self, rr_data, paf_data, cause, risk_name, exposure_effect):
         self.rr_data = rr_data
         self.paf_data = paf_data
         self.cause_name = cause
         self.exposure_effect = exposure_effect
+        self.risk_name = risk_name        
 
     def setup(self, builder):
-        self.rr_lookup = builder.lookup(self.rr_data)
+        self.rr_lookup = builder.value('relative_risk_of_{r}_on_{c}'.format(r=self.risk_name, c=self.cause_name))
+        self.rr_lookup.source = builder.lookup(self.rr_data)
         builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause_name))
-        builder.modifies_value(builder.lookup(self.paf_data), 'paf.{}'.format(self.cause_name))
+        self.paf_lookup = builder.value('paf_of_{r}_on_{c}'.format(r=self.risk_name, c=self.cause_name))
+        self.paf_lookup.source = builder.lookup(self.paf_data)
+        builder.modifies_value(self.paf_lookup, 'paf.{}'.format(self.cause_name))
 
         return [self.exposure_effect]
 
