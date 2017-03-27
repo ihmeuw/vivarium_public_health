@@ -18,8 +18,10 @@ from ceam_inputs import get_disease_states, get_proportion
 
 
 class DiseaseState(State):
-    def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None):
+    def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None, side_effect_function=None):
         State.__init__(self, state_id)
+        
+        self.side_effect_function = side_effect_function
 
         # Condition is set when the state is added to a disease model
         self.condition = None
@@ -66,6 +68,8 @@ class DiseaseState(State):
             pop[self.event_time_column] = self.clock().timestamp()
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
+        if self.side_effect_function is not None:
+            self.side_effect_function(index)
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):

@@ -94,8 +94,8 @@ class OpportunisticScreening:
         self.semi_adherent_efficacy = r.normal(0.4, 0.0485)
 
         assert config.getint('opportunistic_screening', 'max_medications') <= len(MEDICATIONS), 'cannot model more medications than we have data for'
-
-        columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure', 'age', 'healthcare_followup_date']
+        
+        columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure', 'age', 'healthcare_followup_date', 'healthcare_last_visit_date', 'last_screening_date']
 
         for medication in MEDICATIONS:
             columns.append(medication['name']+'_supplied_until')
@@ -104,7 +104,7 @@ class OpportunisticScreening:
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         #TODO: Some people will start out taking medications?
-        population = pd.DataFrame({'medication_count': np.zeros(len(event.index), dtype=int)})
+        population = pd.DataFrame({'medication_count': np.zeros(len(event.index), dtype=int), 'last_screening_date': [pd.NaT]*len(event.index)})
         for medication in MEDICATIONS:
             population[medication['name']+'_supplied_until'] = pd.NaT
         self.population_view.update(population)
@@ -131,19 +131,18 @@ class OpportunisticScreening:
     @listens_for('general_healthcare_access')
     def general_blood_pressure_test(self, event):
         #TODO: Model blood pressure testing error
-
-        minimum_age_to_screen = config.getint('opportunistic_screening', 'minimum_age_to_screen')
-        affected_population = self.population_view.get(event.index)
-        affected_population = affected_population[affected_population.age >= minimum_age_to_screen]
-
-        year = event.time.year
-        appointment_cost = ceam_public_health.components.healthcare_access.appointment_cost[year]
-        cost_per_simulant = appointment_cost * 0.25  # see CE-94 for discussion
-        self.cost_by_year[year] += cost_per_simulant * len(affected_population)
-
-        normotensive, hypertensive, severe_hypertension = _hypertensive_categories(affected_population)
-
         if self.active:
+        
+            minimum_age_to_screen = config.getint('opportunistic_screening', 'minimum_age_to_screen')
+            affected_population = self.population_view.get(event.index)
+            affected_population = affected_population[affected_population.age >= minimum_age_to_screen]
+
+            year = event.time.year
+            appointment_cost = ceam_public_health.components.healthcare_access.appointment_cost[year]
+            cost_per_simulant = appointment_cost * 0.25  # see CE-94 for discussion
+            self.cost_by_year[year] += cost_per_simulant * len(affected_population)
+
+            normotensive, hypertensive, severe_hypertension = _hypertensive_categories(affected_population)
 
             # Normotensive simulants get a 60 month followup and no drugs
             self.population_view.update(pd.Series(event.time + timedelta(days=30.5*60), index=normotensive.index, name='healthcare_followup_date'))
@@ -156,53 +155,55 @@ class OpportunisticScreening:
 
             self.population_view.update(pd.Series(np.minimum(severe_hypertension['medication_count'] + 2, config.getint('opportunistic_screening', 'max_medications')), name='medication_count'))
 
-        self._medication_costs(affected_population, event.time)
+            self._medication_costs(affected_population, event.time)
+            
+            self.population_view.update(pd.Series(event.time, index=affected_population.index, name='last_screening_date'))
+            
 
     @listens_for('followup_healthcare_access')
     def followup_blood_pressure_test(self, event):
-        year = event.time.year
-        appointment_cost = ceam_public_health.components.healthcare_access.appointment_cost[year]
-        cost_per_simulant = appointment_cost
-
-        affected_population = self.population_view.get(event.index)
-        self.cost_by_year[year] += cost_per_simulant * len(affected_population)
-        normotensive, hypertensive, severe_hypertension = _hypertensive_categories(affected_population)
-
-        nonmedicated_normotensive = normotensive.loc[normotensive.medication_count == 0]
-        medicated_normotensive = normotensive.loc[normotensive.medication_count > 0]
-
-        # Unmedicated normotensive simulants get a 60 month followup
-        follow_up = event.time + timedelta(days=30.5*60)
         if self.active:
+        
+            year = event.time.year
+            appointment_cost = ceam_public_health.components.healthcare_access.appointment_cost[year]
+            cost_per_simulant = appointment_cost
+
+            affected_population = self.population_view.get(event.index)
+            self.cost_by_year[year] += cost_per_simulant * len(affected_population)
+            normotensive, hypertensive, severe_hypertension = _hypertensive_categories(affected_population)
+
+            nonmedicated_normotensive = normotensive.loc[normotensive.medication_count == 0]
+            medicated_normotensive = normotensive.loc[normotensive.medication_count > 0]
+
+            # Unmedicated normotensive simulants get a 60 month followup
+            follow_up = event.time + timedelta(days=30.5*60)
             self.population_view.update(pd.Series(follow_up, index=nonmedicated_normotensive.index, name='healthcare_followup_date'))
 
-        # Medicated normotensive simulants get an 11 month followup
-        follow_up = event.time + timedelta(days=30.5*11)
-        if self.active:
+            # Medicated normotensive simulants get an 11 month followup
+            follow_up = event.time + timedelta(days=30.5*11)
             self.population_view.update(pd.Series(follow_up, index=medicated_normotensive.index, name='healthcare_followup_date'))
 
-        # Hypertensive simulants get a 6 month followup and go on one drug
-        follow_up = event.time + timedelta(days=30.5*6)
-        if self.active:
+            # Hypertensive simulants get a 6 month followup and go on one drug
+            follow_up = event.time + timedelta(days=30.5*6)
             self.population_view.update(pd.Series(follow_up, index=hypertensive.index.append(severe_hypertension.index), name='healthcare_followup_date'))
             self.population_view.update(pd.Series(np.minimum(hypertensive['medication_count'] + 1, config.getint('opportunistic_screening', 'max_medications')), index=hypertensive.index, name='medication_count'))
             self.population_view.update(pd.Series(np.minimum(severe_hypertension.medication_count + 1, config.getint('opportunistic_screening', 'max_medications')), index=severe_hypertension.index, name='medication_count'))
 
-        self._medication_costs(affected_population, event.time)
+            self._medication_costs(affected_population, event.time)
 
     @listens_for('time_step__prepare', priority=9)
     def adjust_blood_pressure(self, event):
-        time_step = timedelta(days=config.getfloat('simulation_parameters', 'time_step'))
-        for medication_number, medication in enumerate(MEDICATIONS):
-            initial_affected_population = self.population_view.get(event.index)
-            affected_population = initial_affected_population[(initial_affected_population.medication_count > medication_number) & (initial_affected_population[medication['name']+'_supplied_until'] >= event.time - time_step)]
-            adherence = pd.Series(1, index=affected_population.index)
-            adherence[affected_population.adherence_category == 'non-adherent'] = 0
-            semi_adherents = affected_population.loc[affected_population.adherence_category == 'semi-adherent']
-            adherence[semi_adherents.index] = self.semi_adherent_efficacy
+        if self.active:
+            time_step = timedelta(days=config.getfloat('simulation_parameters', 'time_step'))
+            for medication_number, medication in enumerate(MEDICATIONS):
+                initial_affected_population = self.population_view.get(event.index)
+                affected_population = initial_affected_population[(initial_affected_population.medication_count > medication_number) & (initial_affected_population[medication['name']+'_supplied_until'] >= event.time - time_step)]
+                adherence = pd.Series(1, index=affected_population.index)
+                adherence[affected_population.adherence_category == 'non-adherent'] = 0
+                semi_adherents = affected_population.loc[affected_population.adherence_category == 'semi-adherent']
+                adherence[semi_adherents.index] = self.semi_adherent_efficacy
 
-            medication_efficacy = medication['efficacy'] * adherence
-            if self.active:
+                medication_efficacy = medication['efficacy'] * adherence
                 affected_population = affected_population.copy()
                 affected_population['systolic_blood_pressure'] -= medication_efficacy
                 self.population_view.update(affected_population['systolic_blood_pressure'])
@@ -216,6 +217,7 @@ class OpportunisticScreening:
             metrics['cost'] = metrics['medication_cost']
         pop = self.population_view.get(index)
         metrics['treated_individuals'] = (pop.medication_count > 0).sum()
+        metrics['screened_simulants'] = (~pop.last_screening_date.isnull()).sum()
         return metrics
 
 
