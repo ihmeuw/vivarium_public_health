@@ -135,7 +135,8 @@ class RateTransition(Transition):
         base_rates = self.base_incidence(index)
         joint_mediated_paf = self.joint_paf(index)
 
-        return pd.Series(base_rates.values * joint_mediated_paf.values, index=index)
+        # risk-deleted incidence is calculated by taking incidence from GBD and multiplying it by (1 - Joint PAF)
+        return pd.Series(base_rates.values * (1 - joint_mediated_paf.values), index=index)
 
     def __str__(self):
         return 'RateTransition("{0}", "{1}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label)
@@ -224,7 +225,7 @@ class DiseaseModel(Machine):
             condition_column = pd.Series('healthy', index=population.index, name=self.condition)
         self.population_view.update(condition_column)
 
-    @modifies_value('epidemiological_measures')
+    @modifies_value('epidemiological_point_measures')
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
         root_location = config.getint('simulation_parameters', 'location_id')
         pop = self.population_view.manager.population.ix[index].query('alive')
