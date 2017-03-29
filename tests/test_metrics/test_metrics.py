@@ -13,7 +13,6 @@ from ceam_public_health.components.disease import (DiseaseState,
                                                    ExcessMortalityState,
                                                    DiseaseModel)
 
-@pytest.fixture
 def set_up_test_parameters(flu=False, mumps=False):
     """
     Sets up a simulation with specified disease states
@@ -39,9 +38,11 @@ def set_up_test_parameters(flu=False, mumps=False):
 
     asymptomatic_disease_model.states.extend([asymptomatic_disease_state])
 
-    simulation = setup_simulation([generate_test_population,
-                                   asymptomatic_disease_model, Metrics()],
-                                  population_size=1000)
+
+    if not mumps and not flu:
+        simulation = setup_simulation([generate_test_population,
+                                       asymptomatic_disease_model, Metrics()],
+                                      population_size=1000)
 
     # Now let's set up a disease model for a disease that does have
     #     a disability weight
@@ -55,9 +56,10 @@ def set_up_test_parameters(flu=False, mumps=False):
 
         flu_model.states.extend([flu])
 
-        simulation = setup_simulation([generate_test_population,
-                                       asymptomatic_disease_model, flu_model,
-                                      Metrics()], population_size=1000)
+        if not mumps:
+            simulation = setup_simulation([generate_test_population,
+                                           asymptomatic_disease_model, flu_model,
+                                          Metrics()], population_size=1000)
 
     # Now let's set up another disease model so we can test that
     #     CEAM is calculating joint disability weights correctly
@@ -96,7 +98,7 @@ def test_that_healthy_people_dont_accrue_disability_weights():
 
     assert np.isclose(metrics(simulation.population.population.index)['years_lived_with_disability'],
                       10000 * 0.0, rtol=0.01), "If no one has a disabling" + \
-                                               "disease, YLDs should be 0"
+                                               " disease, YLDs should be 0"
 
 
 def test_single_disability_weight():
@@ -139,3 +141,4 @@ def test_joint_disability_weight():
                                                " disability weight of .52 for" + \
                                                " this year given that joint disability equals" + \
                                                " 1 - (1 - dis wt 1) * (1 - dis wt 2)... * (1 - dis wt i)"
+
