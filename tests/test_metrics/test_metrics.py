@@ -127,7 +127,7 @@ def test_joint_disability_weight():
 
     # check that JOINT disability weight is correctly calculated
     assert np.isclose(metrics(simulation.population.population.index)['years_lived_with_disability'],
-                      1000 * 0.52, rtol=0.01), "YLDs metric should accurately" + \
+                      1000 * (1-(1-.2)*(1-.4)), rtol=0.01), "YLDs metric should accurately" + \
                                                " sum up YLDs in the sim." + \
                                                " In this case, all simulants" + \
                                                " should accrue a disability" + \
