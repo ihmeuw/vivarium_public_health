@@ -10,23 +10,12 @@
          "ceam_public_health.components.blood_pressure.BloodPressure",
          "ceam_public_health.components.body_mass_index.BodyMassIndex",
          "ceam_public_health.components.smoking.Smoking",
+		 "ceam_public_health.components.secondhand_smoke.SecondhandSmoke",
+		 "ceam_public_health.components.household_air_pollution.HouseholdAirPollution",
          "ceam_public_health.components.cholesterol.TotalCholesterol",
          "ceam_public_health.components.fasting_plasma_glucose.FastingPlasmaGlucose",
          "ceam_public_health.components.healthcare_access.HealthcareAccess",
-         "ceam_public_health.components.metrics.Metrics"
-    ],
-    "comparisons": [
-        {
-            "name": "base",
-            "components": [
-                ["ceam_public_health.components.opportunistic_screening.OpportunisticScreening", [false], {}]
-            ]
-        },
-        {
-            "name": "intervention",
-            "components": [
-                ["ceam_public_health.components.opportunistic_screening.OpportunisticScreening", [true], {}]
-            ]
-        }
+         "ceam_public_health.components.metrics.Metrics",
+		 ["ceam_public_health.components.opportunistic_screening.OpportunisticScreening", [true], {}]
     ]
 }
