@@ -264,6 +264,10 @@ def diarrhea_factory():
         etiology_specific_incidence = get_etiology_specific_incidence(
             eti_risk_id=value, cause_id=302, me_id=1181)
 
+        if config.getint('simulation_parameters', 'diarrhea_constant_incidence') == 1:
+            etiology_specific_incidence = etiology_specific_incidence(
+                etiology_specific_incidence)
+
         # TODO: Need to figure out how to change priority on a RateTransition
         #     so that we can get ors_clock working
         transition = RateTransition(etiology_state,
@@ -387,19 +391,8 @@ def diarrhea_factory():
 
     # if we want constant mortality, need to do some processing
     if config.getint('simulation_parameters', 'diarrhea_constant_mortality') == 1:
-        df = pd.DataFrame()
-        for index, row in excess_mortality.loc[excess_mortality.age == 3].iterrows():
-            year = (row['year'])
-            age = 5
-            rate = (row['rate'])
-            sex = (row['sex'])
-            line = pd.DataFrame({"year": year,
-                                "age": 5, "rate": rate, "sex": sex},
-                                index=[index+1])
-            df = df.append(line)
-        excess_mortality = pd.concat([excess_mortality, df]).sort_values(
-            by=['year', 'age']).reset_index(drop=True)
-        excess_mortality.loc[excess_mortality.age == 3, 'age'] = 1
+        excess_mortality = make_age_group_1_to_4_rates_constant(
+            excess_mortality)
 
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
                                      cause_specific_mortality_data=get_cause_specific_mortality(1181),
