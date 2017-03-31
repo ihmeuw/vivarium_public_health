@@ -18,7 +18,7 @@ from ceam_inputs.gbd_ms_functions import get_disability_weight
 from ceam_inputs import (get_etiology_specific_prevalence,
                          get_etiology_specific_incidence, get_duration_in_days,
                          get_excess_mortality, get_cause_specific_mortality)
-
+from ceam_inputs import make_age_group_1_to_4_rates_constant
 
 from ceam_public_health.components.disease import DiseaseModel, RateTransition
 from ceam_public_health.components.accrue_susceptible_person_time import (
@@ -265,7 +265,7 @@ def diarrhea_factory():
             eti_risk_id=value, cause_id=302, me_id=1181)
 
         if config.getint('simulation_parameters', 'diarrhea_constant_incidence') == 1:
-            etiology_specific_incidence = etiology_specific_incidence(
+            etiology_specific_incidence = make_age_group_1_to_4_rates_constant(
                 etiology_specific_incidence)
 
         # TODO: Need to figure out how to change priority on a RateTransition
