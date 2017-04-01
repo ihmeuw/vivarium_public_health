@@ -17,3 +17,12 @@ components:
              - healthcare_access.HealthcareAccess()
              - metrics.Metrics()
              - opportunistic_screening.OpportunisticScreening(False)
+configuration_defaults:
+        simulation_parameters:
+                location_id: 180
+                year_start: 2005
+                year_end: 2010
+                time_step: 30.5 #Days
+                pap_age_start: 0
+                pop_age_end: 125
+                population_size: 10000
