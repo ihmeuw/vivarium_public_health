@@ -34,13 +34,13 @@ def heart_disease_factory():
 
     healthy = State('healthy', key='ihd')
 
-    location_id = config.getint('simulation_parameters', 'location_id')
+    location_id = config.simulation_parameters.location_id
     year_start, year_end = gbd_year_range()
 
     # Calculate an adjusted disability weight for the acute heart attack phase that
     # accounts for the fact that our timestep is longer than the phase length
     # TODO: This doesn't account for the fact that our timestep is longer than 28 days
-    timestep = config.getfloat('simulation_parameters', 'time_step')
+    timestep = config.simulation_parameters.time_step
     weight = 0.43*(2/timestep) + 0.07*(28/timestep)
 
     heart_attack = make_gbd_disease_state(causes.heart_attack, dwell_time=28, side_effect_function=side_effect_factory(0.6, 0.7, 'heart attack')) #rates as per Marcia e-mail 1/19/17

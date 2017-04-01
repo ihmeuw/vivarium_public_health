@@ -28,7 +28,7 @@ def make_model(incidence_rate, recovery_rate):
     return model
 
 def test_incidence_rate_recalculation():
-    config.set('simulation_parameters', 'time_step', '1')
+    config.simulation_parameters.time_step = 1
     incidence_rate = 0.01
     recovery_rate = 72 # Average duration of 5 days
     sim = setup_simulation([generate_test_population, make_model(incidence_rate, recovery_rate)], population_size=50000)

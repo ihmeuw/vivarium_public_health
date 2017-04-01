@@ -37,7 +37,7 @@ class EpidemiologicalMeasures:
     @listens_for('time_step')
     @emits('begin_epidemiological_measure_collection')
     def time_step(self, event, event_emitter):
-        time_step = timedelta(days=config.getfloat('simulation_parameters', 'time_step'))
+        time_step = timedelta(days=config.simulation_parameters.time_step)
         mid_year = datetime(year=event.time.year, month=6, day=1)
         year_start = datetime(year=event.time.year, month=1, day=1)
 
@@ -78,7 +78,7 @@ class EpidemiologicalMeasures:
             measures = self.span_measures
         df = measures(index, age_groups, ['Male', 'Female'], False, timedelta(days=365)).reset_index()
         df['year'] = self.last_collected_year
-        df['draw'] = config.getint('run_configuration', 'draw_number')
+        df['draw'] = config.run_configuration.draw_number
         existing_df = pd.read_hdf(self.output_path)
         df = existing_df.append(df)
         df.to_hdf(self.output_path, 'data')

@@ -53,7 +53,7 @@ class BloodPressure:
             }))
 
     def load_sbp_distribution(self):
-        location_id = config.getint('simulation_parameters', 'location_id')
+        location_id = config.simulation_parameters.location_id
         year_start, year_end = gbd_year_range()
 
         distribution = load_data_from_cache(get_sbp_mean_sd, col_name=['log_mean', 'log_sd'],

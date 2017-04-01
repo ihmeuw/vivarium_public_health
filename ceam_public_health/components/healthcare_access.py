@@ -16,8 +16,8 @@ from ceam_inputs.gbd_ms_functions import load_data_from_cache, get_modelable_ent
 from ceam_inputs.util import gbd_year_range
 
 # draw random costs for doctor visit (time-specific)
-draw = config.getint('run_configuration', 'draw_number')
-assert config.getint('simulation_parameters', 'location_id') == 180, 'FIXME: currently cost data for Kenya only'
+draw = config.run_configuration.draw_number
+assert config.simulation_parameters.location_id == 180, 'FIXME: currently cost data for Kenya only'
 
 cost_df = pd.read_csv('/home/j/Project/Cost_Effectiveness/dev/data_processed/doctor_visit_cost_KEN_20160804.csv', index_col=0)
 cost_df.index = cost_df.year_id
@@ -45,8 +45,19 @@ class HealthcareAccess:
         next scheduled follow-up appointment
     """
 
+    configuration_defaults = {
+            'appointments': {
+                'cost': 7.29,
+                'adherence': 0.6,
+                # 11% per month
+                'male_utilization_rate': 1.4,
+                # 13% per month
+                'female_utilization_rate': 1,
+            }
+    }
+
     def setup(self, builder):
-        draw_number = config.getint('run_configuration', 'draw_number')
+        draw_number = config.run_configuration.draw_number
         r = np.random.RandomState(123456+draw)
         self.semi_adherent_pr = r.normal(0.4, 0.0485)
 
@@ -67,7 +78,7 @@ class HealthcareAccess:
 
     def load_utilization(self, builder):
         year_start, year_end = gbd_year_range()
-        location_id = config.getint('simulation_parameters', 'location_id')
+        location_id = config.simulation_parameters.location_id
         # me_id 9458 is 'out patient visits'
         # measure 18 is 'Proportion'
         # TODO: Currently this is monthly, not anually
@@ -101,7 +112,7 @@ class HealthcareAccess:
     @listens_for('time_step')
     @uses_columns(['healthcare_last_visit_date', 'healthcare_followup_date', 'adherence_category'], 'alive')
     def followup_access(self, event):
-        time_step = timedelta(days=config.getfloat('simulation_parameters', 'time_step'))
+        time_step = timedelta(days=config.simulation_parameters.time_step)
         # determine population due for a follow-up appointment
         rows = (event.population.healthcare_followup_date > event.time-time_step) \
                & (event.population.healthcare_followup_date <= event.time)

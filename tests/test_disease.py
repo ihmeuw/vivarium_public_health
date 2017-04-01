@@ -60,7 +60,7 @@ def test_dwell_time(get_disease_states_mock):
 
 
 def test_mortality_rate():
-    time_step = config.getfloat('simulation_parameters', 'time_step')
+    time_step = config.simulation_parameters.time_step
     time_step = timedelta(days=time_step)
 
     model = DiseaseModel('test_disease')
@@ -84,7 +84,7 @@ def test_mortality_rate():
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_incidence(get_disease_states_mock):
-    time_step = config.getfloat('simulation_parameters', 'time_step')
+    time_step = config.simulation_parameters.time_step
     time_step = timedelta(days=time_step)
 
     get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'}, index=population.index)
@@ -109,7 +109,7 @@ def test_incidence(get_disease_states_mock):
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_risk_deletion(get_disease_states_mock):
-    time_step = config.getfloat('simulation_parameters', 'time_step')
+    time_step = config.simulation_parameters.time_step
     time_step = timedelta(days=time_step)
 
     get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'}, index=population.index)
