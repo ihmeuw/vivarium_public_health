@@ -8,6 +8,8 @@ from ceam.framework.values import modifies_value
 from ceam.framework.randomness import choice
 
 
+#### TODO: CONFIRM WITH IBRAHIM: SHOULD VACCINE LOSE EFFECT 2 YEARS AFTER ITS ADMINISTERED OR 2 YEARS AFTER IT STARTS TO HAVE AN EFFECT?
+
 def _determine_who_should_receive_dose(population, vaccine_col, true_weight,
                                        dose_age, dose_number):
     """
@@ -54,16 +56,16 @@ def _determine_who_should_receive_dose(population, vaccine_col, true_weight,
     elif previous_dose == 1:
         children_at_dose_age = population.query(
             "age_in_days == @dose_age and" +
-            "rotaviral_entiritis_vaccine_first_dose == 1").copy()
+            " rotaviral_entiritis_vaccine_first_dose == 1").copy()
 
     elif previous_dose == 2:
         children_at_dose_age = population.query(
             "age_in_days == @dose_age and" +
-            "rotaviral_entiritis_vaccine_second_dose == 1").copy()
+            " rotaviral_entiritis_vaccine_second_dose == 1").copy()
 
     else:
         raise(ValueError, "previous_dose cannot be any value other than" +
-                          "0, 1, or 2")
+                          " 0, 1, or 2")
 
     if not children_at_dose_age.empty:
         children_at_dose_age[vaccine_col] = choice(
@@ -214,10 +216,26 @@ class RotaVaccine():
             "_vaccine_third_dose_event_time"
 
         self.vaccine_duration_start_time = self.etiology + \
-            "_vaccine_duration_start_time"
+            "_vaccine_first_dose_duration_start_time"
         self.vaccine_duration_end_time = self.etiology + \
-            "_vaccine_duration_end_time"
-        self.vaccine_working_column = self.etiology + "_vaccine_is_working"
+            "_vaccine_first_dose_duration_end_time"
+
+        self.vaccine_duration_start_time = self.etiology + \
+            "_vaccine_second_dose_duration_start_time"
+        self.vaccine_duration_end_time = self.etiology + \
+            "_vaccine_second_dose_duration_end_time"
+
+        self.vaccine_duration_start_time = self.etiology + \
+            "_vaccine_third_dose_duration_start_time"
+        self.vaccine_duration_end_time = self.etiology + \
+            "_vaccine_third_dose_duration_end_time"
+
+        self.vaccine_first_dose_working_column = self.etiology + \
+            "_vaccine_first_dose_is_working"
+        self.vaccine_second_dose_working_column = self.etiology + \
+            "_vaccine_second_dose_is_working"
+        self.vaccine_third_dose_working_column = self.etiology + \
+            "_vaccine_third_dose_is_working"
 
         self.vaccine_unit_cost_column = self.etiology + "_vaccine_unit_cost"
         self.vaccine_cost_to_administer_column = "cost_to_administer_" + \
@@ -446,6 +464,7 @@ class RotaVaccine():
         vaccine_effectiveness = config.getfloat('rota_vaccine',
                                                 'total_vaccine_effectiveness')
 
+        # set up so that rates are manipulated for each working col separately
         if self.active:
 
             if population.query("{} == 1".format(self.vaccine_working_column)).empty:
