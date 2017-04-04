@@ -10,7 +10,7 @@ from ceam import config
 
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
-from ceam.framework.values import modifies_value, produces_value, joint_value_combiner, joint_value_post_processor, NullValue
+from ceam.framework.values import modifies_value, produces_value, list_combiner, joint_value_post_processor
 from ceam.framework.util import rate_to_probability
 from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
 
@@ -126,8 +126,8 @@ class RateTransition(Transition):
     def setup(self, builder):
         self.effective_incidence = builder.rate('{}.{}'.format(self.name_prefix, self.rate_label))
         self.effective_incidence.source = self.incidence_rates
-        self.joint_paf = builder.value('paf.{}'.format(self.rate_label), joint_value_combiner, joint_value_post_processor)
-        self.joint_paf.source = NullValue
+        self.joint_paf = builder.value('paf.{}'.format(self.rate_label), list_combiner, joint_value_post_processor)
+        self.joint_paf.source = lambda index: [pd.Series(0, index=index)]
         self.base_incidence = builder.lookup(self.rate_data)
 
     def probability(self, index):
