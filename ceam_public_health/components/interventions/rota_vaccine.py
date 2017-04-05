@@ -185,6 +185,83 @@ def determine_who_should_receive_dose(population, index, vaccine_col,
     return children_who_will_receive_dose
 
 
+def set_vaccine_duration(population, current_time, etiology, dose):
+    """ Function that sets vaccine duration
+    
+    Parameters
+    ----------
+    population : pd.DataFrame()
+        population_view of simulants that have just been vaccinated
+        
+    current_time: pd.Timestamp
+        current time in the simulation
+        
+    etiology: str
+        specific etiology that is being afftected by the vaccine.
+        in the case of rota, our etiology is rotaviral entiritis
+    
+    dose: str
+        can be "first", "second", or "third"
+    """
+    assert dose in ["first", "second", "third"], "dose can be one of first, second, or third"
+    
+    # determine when effect of the vaccine should start
+    time_after_dose_at_which_immunity_is_conferred = config.getint('rota_vaccine',
+                'time_after_{}_dose_at_which_immunity_is_conferred'.format(dose))
+
+    population["{e}_vaccine_{d}_dose_duration_start_time".format(e=etiology, d=dose)] = \
+        population["{e}_vaccine_{d}_dose_event_time".format(e=etiology, d=dose)] + \
+        pd.to_timedelta(time_after_dose_at_which_immunity_is_conferred, unit='D')
+    
+    # determine when the effect of the vaccine should end
+    vaccine_duration = config.getint('rota_vaccine', 'vaccine_duration')
+    
+    population["{e}_vaccine_{d}_dose_duration_end_time".format(e=etiology, d=dose)] = \
+        population["{e}_vaccine_{d}_dose_duration_start_time".format(e=etiology, d=dose)] + \
+        pd.to_timedelta(vaccine_duration, unit='D')
+        
+    return population
+
+
+def _set_working_column(population, current_time, etiology):
+    """
+    Function that sets the "working column", a binary column that indicates whether the vaccine is working (1) or not working (0).
+    A vaccine will only be working after it has been administered and if the current time is in between the vaccine start and end
+    time and the next vaccine isn't working. If the next vaccine is working, then we want to use the effect of the next vaccine,
+    so we don't want the previous vaccine to be working. For instance, if a simulant has received 2 doses of a vaccine, we want
+    for the benefit of 2 doses, not one dose, to be conferred to the simulant
+    
+    Parameters
+    ----------
+    population : pd.DataFrame()
+        population_view of simulants
+        
+    current_time: pd.Timestamp
+        current time in the simulation    
+    
+    etiology: str
+        specific etiology that is being afftected by the vaccine.
+        in the case of rota, our etiology is rotaviral entiritis
+    """
+    # set the dose working cols to 1 if  vaccine_duration_start<=current_time<=vaccine_duration_end
+    for dose in ["first", "second", "third"]:
+        population.loc[(current_time >= population[
+            "{e}_vaccine_{d}_dose_duration_start_time".format(e=etiology, d=dose)]) 
+            & (current_time <= population[
+            "{e}_vaccine_{d}_dose_duration_end_time".format(e=etiology, d=dose)]),
+            "{e}_vaccine_{d}_dose_is_working".format(e=etiology, d=dose)] = 1
+
+    # now make sure that the working col is 1 only for the most recently administered vaccine
+    # if third dose has been administered, set the first and second working cols to 0
+    population.loc[population["rotaviral_entiritis_vaccine_third_dose_is_working"] == 1, "rotaviral_entiritis_vaccine_first_dose_is_working"] = 0
+    population.loc[population["rotaviral_entiritis_vaccine_third_dose_is_working"] == 1, "rotaviral_entiritis_vaccine_second_dose_is_working"] = 0
+
+    # if the second dose has been administered, set the first working col to 0
+    population.loc[population["rotaviral_entiritis_vaccine_second_dose_is_working"] == 1, "rotaviral_entiritis_vaccine_first_dose_is_working"] = 0
+
+    return population
+
+
 class RotaVaccine():
     """
     Class that determines who gets vaccinated, how the vaccine affects
@@ -215,19 +292,19 @@ class RotaVaccine():
         self.vaccine_third_dose_time_column = self.etiology + \
             "_vaccine_third_dose_event_time"
 
-        self.vaccine_duration_start_time = self.etiology + \
+        self.vaccine_first_dose_duration_start_time = self.etiology + \
             "_vaccine_first_dose_duration_start_time"
-        self.vaccine_duration_end_time = self.etiology + \
+        self.vaccine_first_dose_duration_end_time = self.etiology + \
             "_vaccine_first_dose_duration_end_time"
 
-        self.vaccine_duration_start_time = self.etiology + \
+        self.vaccine_second_dose_duration_start_time = self.etiology + \
             "_vaccine_second_dose_duration_start_time"
-        self.vaccine_duration_end_time = self.etiology + \
+        self.vaccine_second_dose_duration_end_time = self.etiology + \
             "_vaccine_second_dose_duration_end_time"
 
-        self.vaccine_duration_start_time = self.etiology + \
+        self.vaccine_third_dose_duration_start_time = self.etiology + \
             "_vaccine_third_dose_duration_start_time"
-        self.vaccine_duration_end_time = self.etiology + \
+        self.vaccine_third_dose_duration_end_time = self.etiology + \
             "_vaccine_third_dose_duration_end_time"
 
         self.vaccine_first_dose_working_column = self.etiology + \
@@ -254,9 +331,15 @@ class RotaVaccine():
                    self.vaccine_first_dose_count_column,
                    self.vaccine_second_dose_count_column,
                    self.vaccine_third_dose_count_column,
-                   self.vaccine_duration_start_time,
-                   self.vaccine_duration_end_time,
-                   self.vaccine_working_column,
+                   self.vaccine_first_dose_duration_start_time,
+                   self.vaccine_first_dose_duration_end_time,
+                   self.vaccine_second_dose_duration_start_time,
+                   self.vaccine_second_dose_duration_end_time,
+                   self.vaccine_third_dose_duration_start_time,
+                   self.vaccine_third_dose_duration_end_time,
+                   self.vaccine_first_dose_working_column,
+                   self.vaccine_second_dose_working_column,
+                   self.vaccine_third_dose_working_column,
                    'age']
 
         self.population_view = builder.population_view(columns, query='alive')
@@ -295,13 +378,34 @@ class RotaVaccine():
             index=event.index))
 
         self.population_view.update(pd.DataFrame({
-            self.vaccine_duration_start_time: [pd.NaT]*len(event.index)},
+            self.vaccine_first_dose_duration_start_time: [pd.NaT]*len(event.index)},
             index=event.index))
         self.population_view.update(pd.DataFrame({
-            self.vaccine_duration_end_time: [pd.NaT]*len(event.index)},
+            self.vaccine_first_dose_duration_end_time: [pd.NaT]*len(event.index)},
             index=event.index))
         self.population_view.update(pd.DataFrame({
-            self.vaccine_working_column: np.zeros(len(event.index),
+            self.vaccine_second_dose_duration_start_time: [pd.NaT]*len(event.index)},
+            index=event.index))
+        self.population_view.update(pd.DataFrame({
+            self.vaccine_second_dose_duration_end_time: [pd.NaT]*len(event.index)},
+            index=event.index))
+        self.population_view.update(pd.DataFrame({
+            self.vaccine_third_dose_duration_start_time: [pd.NaT]*len(event.index)},
+            index=event.index))
+        self.population_view.update(pd.DataFrame({
+            self.vaccine_third_dose_duration_end_time: [pd.NaT]*len(event.index)},
+            index=event.index))
+
+        self.population_view.update(pd.DataFrame({
+            self.vaccine_first_dose_working_column: np.zeros(len(event.index),
+            dtype=int)}, index=event.index))
+
+        self.population_view.update(pd.DataFrame({
+            self.vaccine_second_dose_working_column: np.zeros(len(event.index),
+            dtype=int)}, index=event.index))
+
+        self.population_view.update(pd.DataFrame({
+            self.vaccine_third_dose_working_column: np.zeros(len(event.index),
             dtype=int)}, index=event.index))
 
         self.population_view.update(pd.DataFrame({
@@ -325,9 +429,15 @@ class RotaVaccine():
                    'rotaviral_entiritis_vaccine_third_dose_event_time',
                    'rotaviral_entiritis_vaccine_unit_cost',
                    'cost_to_administer_rotaviral_entiritis_vaccine',
-                   'rotaviral_entiritis_vaccine_duration_start_time',
-                   'rotaviral_entiritis_vaccine_duration_end_time',
-                   'rotaviral_entiritis_vaccine_is_working'], 'alive')
+                   'rotaviral_entiritis_vaccine_first_dose_duration_start_time',
+                   'rotaviral_entiritis_vaccine_first_dose_duration_end_time',
+                   'rotaviral_entiritis_vaccine_second_dose_duration_start_time',
+                   'rotaviral_entiritis_vaccine_second_dose_duration_end_time',
+                   'rotaviral_entiritis_vaccine_third_dose_duration_start_time',
+                   'rotaviral_entiritis_vaccine_third_dose_duration_end_time',
+                   'rotaviral_entiritis_vaccine_first_dose_is_working',
+                   'rotaviral_entiritis_vaccine_second_dose_is_working',
+                   'rotaviral_entiritis_vaccine_third_dose_is_working'], 'alive')
     def _determine_who_gets_vaccinated(self, event):
         """
         Each time step, call the _determine_who_should_receive_dose function to
@@ -352,13 +462,11 @@ class RotaVaccine():
                     self.vaccine_cost_to_administer_column,
                     pd.Timestamp(event.time))
 
-                self.population_view.update(
-                    children_who_will_receive_first_dose[[
-                        self.vaccine_first_dose_column,
-                        self.vaccine_first_dose_time_column,
-                        self.vaccine_first_dose_count_column,
-                        self.vaccine_unit_cost_column,
-                        self.vaccine_cost_to_administer_column]])
+                children_who_will_receive_first_dose = set_vaccine_duration(
+                    children_who_will_receive_first_dose, event.time,
+                    "rotaviral_entiritis", "first")
+
+                self.population_view.update(children_who_will_receive_first_dose)
 
             # Second dose
             children_who_will_receive_second_dose = determine_who_should_receive_dose(
@@ -373,12 +481,11 @@ class RotaVaccine():
                     self.vaccine_cost_to_administer_column,
                     pd.Timestamp(event.time))
 
-                self.population_view.update(children_who_will_receive_second_dose[[
-                    self.vaccine_second_dose_column,
-                    self.vaccine_second_dose_time_column,
-                    self.vaccine_second_dose_count_column,
-                    self.vaccine_unit_cost_column,
-                    self.vaccine_cost_to_administer_column]])
+                children_who_will_receive_second_dose = set_vaccine_duration(
+                    children_who_will_receive_second_dose, event.time,
+                    "rotaviral_entiritis", "second")
+
+                self.population_view.update(children_who_will_receive_second_dose)
 
             # Third dose
             children_who_will_receive_third_dose = determine_who_should_receive_dose(
@@ -393,52 +500,36 @@ class RotaVaccine():
                     self.vaccine_cost_to_administer_column,
                     pd.Timestamp(event.time))
 
-                # set time at which immunity starts
-                time_after_dose_at_which_immunity_is_conferred = config.getint(
-                    'rota_vaccine',
-                    'time_after_dose_at_which_immunity_is_conferred')
-                children_who_will_receive_third_dose[
-                    self.vaccine_duration_start_time] = \
-                    children_who_will_receive_third_dose[
-                        self.vaccine_third_dose_time_column] + \
-                        pd.to_timedelta(
-                            time_after_dose_at_which_immunity_is_conferred,
-                            unit='D')
+                children_who_will_receive_third_dose = set_vaccine_duration(
+                    children_who_will_receive_third_dose, event.time,
+                    "rotaviral_entiritis", "third")
 
-                # set time for which immunity will last
-                vaccine_duration = config.getint('rota_vaccine',
-                                                 'vaccine_duration')
+                self.population_view.update(children_who_will_receive_third_dose)
 
-                children_who_will_receive_third_dose[
-                    self.vaccine_duration_end_time] = children_who_will_receive_third_dose[
-                    self.vaccine_duration_start_time] + pd.to_timedelta(
-                        vaccine_duration, unit='D')
+    @listens_for('time_step')
+    @uses_columns(['rotaviral_entiritis_vaccine_first_dose_duration_start_time',
+                   'rotaviral_entiritis_vaccine_first_dose_duration_end_time',
+                   'rotaviral_entiritis_vaccine_second_dose_duration_start_time',
+                   'rotaviral_entiritis_vaccine_second_dose_duration_end_time',
+                   'rotaviral_entiritis_vaccine_third_dose_duration_start_time',
+                   'rotaviral_entiritis_vaccine_third_dose_duration_end_time',
+                   'rotaviral_entiritis_vaccine_first_dose_is_working',
+                   'rotaviral_entiritis_vaccine_second_dose_is_working',
+                   'rotaviral_entiritis_vaccine_third_dose_is_working'], 'alive')
+    def set_working_column(self, event):
+        population = self.population_view.get(event.index)
 
-                self.population_view.update(
-                    children_who_will_receive_third_dose[[
-                        self.vaccine_third_dose_column,
-                        self.vaccine_third_dose_time_column,
-                        self.vaccine_third_dose_count_column,
-                        self.vaccine_unit_cost_column,
-                        self.vaccine_cost_to_administer_column,
-                        self.vaccine_duration_start_time,
-                        self.vaccine_duration_end_time]])
+        population = _set_working_column(population, event.time, "rotaviral_entiritis")
 
-            current_time = pd.Timestamp(event.time)
-
-            # set flags for when someone should be immunized or not
-            population.loc[current_time >= population[
-                self.vaccine_duration_start_time], self.vaccine_working_column] = 1
-            population.loc[current_time >= population[
-                self.vaccine_duration_end_time], self.vaccine_working_column] = 0
-
-            self.population_view.update(population[[self.vaccine_working_column]])
+        self.population_view.update(population)
 
 
     @modifies_value('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
     @uses_columns(['diarrhea_due_to_rotaviral_entiritis',
                    'rotaviral_entiritis_vaccine_third_dose',
-                   'rotaviral_entiritis_vaccine_is_working'], 'alive')
+                   'rotaviral_entiritis_vaccine_first_dose_is_working',
+                   'rotaviral_entiritis_vaccine_second_dose_is_working',
+                   'rotaviral_entiritis_vaccine_third_dose_is_working'], 'alive')
     def incidence_rates(self, index, rates, population_view):
         """
         If the intervention is running, determine who is currently receiving
@@ -461,25 +552,21 @@ class RotaVaccine():
         """
         population = self.population_view.get(index)
 
-        vaccine_effectiveness = config.getfloat('rota_vaccine',
-                                                'total_vaccine_effectiveness')
-
         # set up so that rates are manipulated for each working col separately
         if self.active:
+            # TODO: Make this more flexible. It would be nice to be able to have
+            #     this function work regardless of the number of doses
 
-            if population.query("{} == 1".format(self.vaccine_working_column)).empty:
+            for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
+                # TODO: Figure out how to pass etiology in as an argument here so that rotaviral entiritis isn't hardcoded into line below
+                dose_working_index = population.query("rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
+                # confer full protection to people that receive 3 vaccines,
+                #     partial protection to those that only receive 1 or 2
+                vaccine_effectiveness = config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
+                rates.loc[dose_working_index] *= (1 - vaccine_effectiveness)
 
-                return rates
+            return rates
 
-            else:
-                # filter population to only people for whom the vaccine is
-                #    working
-                pop = population.query("{} == 1".format(
-                    self.vaccine_working_column)).copy()
-
-                rates.loc[pop.index] *= (1 - vaccine_effectiveness)
-
-                return rates
         else:
             return rates
 
