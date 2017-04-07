@@ -262,6 +262,62 @@ def _set_working_column(population, current_time, etiology):
     return population
 
 
+def wane_immunity(days, duration, vaccine_effectiveness):
+    """
+    Create waning immunity function. This function returns a univariate spline that can be called to get an effectiveness estimate
+    when supplied a certain number of days since vaccination
+    
+    Parameters
+    ----------
+    days: int
+        number of days since vaccine duration start date
+
+    vaccine_duration: int
+        number of days that the vaccine will last
+
+    vaccine_effectiveness: float
+        reduction in incidence as a result of receiving the vaccine
+    """
+    # FIXME: Probably a better way to 735 as the end point of vaccine effectiveness 
+    x = [0, duration] + [duration + .00001]
+    y = [vaccine_effectiveness, vaccine_effectiveness] + [0]
+    spl = UnivariateSpline(x, y, k=1, s=0, ext=1)
+    return spl(days)
+
+
+def determine_vaccine_effectiveness(pop, dose_working_index, waning_immunity_function, current_time, dose, duration, vaccine_effectiveness):
+    """
+    Determine the effectiveness of a vaccine based on how many days its been since the simulant received the vaccine
+    
+    Parameters
+    ----------
+    pop: pd.DataFrame
+        population_view of simulants
+        
+    dose_working_index: pandas index
+        index of simulants for whom the current dose is working
+    
+    waning_immunity_function: UnivariateSpline object
+        scipy.interpolat.UnivariateSpline object containing estimates of vaccine effectiveness (Y) given number of days since vaccination (X)
+        
+    current_time: datetime.datetime
+        current time in the simulation
+        
+    dose: str
+        can be one of "first", "second", or "third"
+    """
+    pop['days_since_vaccination'] = current_time - \
+    pop['rotaviral_entiritis_vaccine_{}_dose_duration_start_time'.format(dose)]
+    
+    pop = pop[pop.days_since_vaccination.notnull()]
+    
+    pop['days_since_vaccination'] = (pop['days_since_vaccination'] / np.timedelta64(1, 'D')).astype(int)
+    
+    pop['effectiveness'] = pop['days_since_vaccination'].apply(lambda days: waning_immunity_function(days))
+    
+    return pop.loc[dose_working_index]['effectiveness']
+
+
 class RotaVaccine():
     """
     Class that determines who gets vaccinated, how the vaccine affects
@@ -342,6 +398,7 @@ class RotaVaccine():
                    self.vaccine_third_dose_working_column,
                    'age']
 
+        self.clock = builder.clock()
         self.population_view = builder.population_view(columns, query='alive')
 
 
@@ -562,8 +619,12 @@ class RotaVaccine():
                 dose_working_index = population.query("rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
                 # confer full protection to people that receive 3 vaccines,
                 #     partial protection to those that only receive 1 or 2
-                vaccine_effectiveness = config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
+                duration = config.getint('rota_vaccine', 'vaccine_duration')
+                effectiveness =  config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
+                vaccine_effectiveness = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, self.clock(), dose, duration, effectiveness)
+                # vaccine_effectiveness =  config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
                 rates.loc[dose_working_index] *= (1 - vaccine_effectiveness)
+                import pdb; pdb.set_trace()
 
             return rates
 
