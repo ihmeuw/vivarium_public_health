@@ -16,7 +16,7 @@ from ceam.framework.util import rate_to_probability
 from ceam import config
 
 @listens_for('initialize_simulants', priority=0)
-@uses_columns(['age', 'fractional_age', 'sex', 'alive'])
+@uses_columns(['age', 'fractional_age', 'sex', 'alive', 'location'])
 def generate_base_population(event):
     year_start = event.time.year
     population_size = len(event.index)
@@ -137,6 +137,7 @@ class Mortality:
     @modifies_value('epidemiological_span_measures')
     @uses_columns(['age', 'death_day', 'cause_of_death', 'alive', 'sex'])
     def calculate_mortality_measure(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
+        import pdb; pdb.set_trace()
         root_location = config.getint('simulation_parameters', 'location_id')
         pop = population_view.get(index)
 

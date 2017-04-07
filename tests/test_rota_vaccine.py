@@ -189,3 +189,35 @@ def test_incidence_rates():
 
     # find an example of simulants of the same age and sex, but not vaccination status, and then compare their incidence rates
     assert np.allclose(pd.unique(rota_inc(vaccinated.index)), pd.unique(rota_inc(not_vaccinated.index)*(1-vaccine_effectiveness))), "simulants that receive vaccine should have lower incidence of diarrhea due to rota"
+
+# 5. determine_vaccine_effectiveness
+def test_determine_vaccine_effectiveness():
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()],
+                              start=datetime(2005, 1, 1))
+
+    # pump the simulation forward
+    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=80), year_start=2005)
+
+    population = simulation.population.population
+    dose_working_index = population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1").index
+
+    series = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, simulation.current_time, "first")
+
+    assert np.allclose(series, .39), "determine vaccine effectiveness should return the" + \
+                                     "correct effectiveness for each simulant based on vaccination status and time since vaccination"
+
+    assert len(series) == len(dose_working_index), "number of effectiveness estimates that are" + \
+                                                   "returned matches the number of simulants who have their working"
+
+    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=1000), year_start=2005)
+
+    population = simulation.population.population
+    dose_working_index = population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 1").index
+
+    series = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, simulation.current_time, "third")
+
+    assert np.allclose(series, wane_immunity(882)), "determine vaccine effectiveness should return the" + \
+                                     "correct effectiveness for each simulant based on vaccination status and time since vaccination"
+
+    assert len(series) == len(dose_working_index), "number of effectiveness estimates that are" + \
+                                                   "returned matches the number of simulants who have their working"
