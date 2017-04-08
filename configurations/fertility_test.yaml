@@ -1,0 +1,7 @@
+components:
+    - ceam_public_health.components:
+      - base_population:
+        - generate_base_population
+        - age_simulants
+        - Mortality()
+      - fertility.Fertility()
