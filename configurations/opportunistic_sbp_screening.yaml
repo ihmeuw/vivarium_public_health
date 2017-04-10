@@ -17,6 +17,7 @@ components:
              - healthcare_access.HealthcareAccess()
              - metrics.Metrics()
              - opportunistic_screening.OpportunisticScreening(False)
+
 model_configuration:
         simulation_parameters:
                 location_id: 180
