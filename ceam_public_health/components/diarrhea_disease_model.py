@@ -39,38 +39,45 @@ list_of_etiologies = ['diarrhea_due_to_shigellosis',
                       'diarrhea_due_to_adenovirus',
                       'diarrhea_due_to_unattributed']
 
-
-# if config.getint('simulation_parameters', 'epi_analysis') == 0:
-#    diarrhea_event_count_cols = ['diarrhea_event_count']
-
-# if config.getint('simulation_parameters', 'epi_analysis') == 1:
-
-
-# TODO: Don't duplicate code! Get rid of the duplicate lines in the block below
-#     and setup
-# get all gbd age groups
-age_bins = get_age_bins()
-
-# filter down all age groups to only the ones we care about
-# FIXME: the age groups of interest will change for GBD 2016, since the 85-90
-#     age group is in GBD 2016, but not 2015
-age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 5)]
-
-age_bins.age_group_name = age_bins.age_group_name.str.lower()
-
-age_bins.age_group_name = [x.strip().replace(' ', '_') for x in
+def make_cols_demographically_specific(col_name, age_group_id_min, age_group_id_max):
+    """
+    Returns a list of demographically specific (denoted with a specific age, sex, and year) column names
+    
+    Parameters
+    ----------
+    col_name: str
+        the name of the column
+    
+    age_group_id_min: int
+        number representing the youngest age group to be used in creating the columns
+        
+    age_group_id_max: int
+        number representing the youngest age group to be used in creating the columns
+        
+    Examples
+    --------
+    make_cols_demographically_specific('diarrhea_event_count', 2, 5) returns a list of column names of the format
+    'diarrhea_count_1_to_4_in_year_2010_among_Females' for each age, year, and sex combination
+    """
+    age_bins = get_age_bins()
+    age_bins = age_bins[(age_bins.age_group_id >= age_group_id_min) & (age_bins.age_group_id <= age_group_id_max)]
+    age_bins.age_group_name = age_bins.age_group_name.str.lower()
+    age_bins.age_group_name = [x.strip().replace(' ', '_') for x in
                            age_bins.age_group_name]
+    cols = []
+    
+    year_start = config.getint('simulation_parameters', 'year_start')
+    year_end = config.getint('simulation_parameters', 'year_end')
+    
+    for age_bin in pd.unique(age_bins.age_group_name.values):
+        for year in range(year_start, year_end+1):
+            for sex in ['Male', 'Female']:
+                cols.append('{c}_{a}_in_year_{y}_among_{s}s'.format(c=col_name, a=age_bin, y=year, s=sex))
+    
+    return cols
 
-diarrhea_event_count_cols = []
-
-year_start = config.getint('simulation_parameters', 'year_start')
-year_end = config.getint('simulation_parameters', 'year_end')
-
-for age_bin in pd.unique(age_bins.age_group_name.values):
-    for year in range(year_start, year_end+1):
-        for sex in ['Male', 'Female']:
-            diarrhea_event_count_cols.append('diarrhea_event_count_{a}_in_year_{y}_among_{s}s'.format(a=age_bin, y=year, s=sex))
-            diarrhea_event_count_cols.append('diarrhea_event_count')
+diarrhea_event_count_cols = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
+diarrhea_event_count_cols.append('diarrhea_event_count')
 
 
 class DiarrheaEtiologyState(State):
