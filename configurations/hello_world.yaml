@@ -6,7 +6,7 @@ components:
                 - hello_world.SimpleIntervention()
                 - hello_world.SimpleMetrics()
 
-model_configuration:
+configuration:
         simulation_parameters:
                 location_id: 180
                 year_start: 2005

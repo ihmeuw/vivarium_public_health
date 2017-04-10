@@ -18,7 +18,7 @@ components:
              - metrics.Metrics()
              - opportunistic_screening.OpportunisticScreening(False)
 
-model_configuration:
+configuration:
         simulation_parameters:
                 location_id: 180
                 year_start: 2005
