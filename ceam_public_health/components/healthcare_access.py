@@ -48,11 +48,6 @@ class HealthcareAccess:
     configuration_defaults = {
             'appointments': {
                 'cost': 7.29,
-                'adherence': 0.6,
-                # 11% per month
-                'male_utilization_rate': 1.4,
-                # 13% per month
-                'female_utilization_rate': 1,
             }
     }
 
