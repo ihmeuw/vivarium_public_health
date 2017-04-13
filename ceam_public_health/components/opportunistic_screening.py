@@ -44,8 +44,8 @@ MEDICATIONS = [
 
 
 def _hypertensive_categories(population):
-    hypertensive_threshold = config.getint('opportunistic_screening', 'hypertensive_threshold')
-    severe_hypertensive_threshold = config.getint('opportunistic_screening', 'severe_hypertensive_threshold')
+    hypertensive_threshold = config.opportunistic_screening.hypertensive_threshold
+    severe_hypertensive_threshold = config.opportunistic_screening.severe_hypertensive_threshold
     under_60 = population.age < 60
     over_60 = population.age >= 60
     under_hypertensive = population.systolic_blood_pressure < hypertensive_threshold
@@ -67,13 +67,24 @@ class OpportunisticScreening:
     """
     Model an intervention where simulants have their blood pressure tested every time they access health care and are prescribed
     blood pressure reducing medication if they are found to be hypertensive. Each simulant can be prescribed up to
-    `config.getint('opportunistic_screening', 'max_medications')` drugs. If they are still hypertensive while taking all the drugs then there is no further treatment.
+    `config.opportunistic_screening.max_medications` drugs. If they are still hypertensive while taking all the drugs then there is no further treatment.
 
     Population Columns
     ------------------
     medication_count : int
     MEDICATION_supplied_until : pd.Timestamp
     """
+
+    configuration_defaults = {
+            'opportunistic_screening': {
+                'max_medications': 4,
+                'blood_pressure_test_cost': 2.43,
+                'max_medications': 4,
+                'hypertensive_threshold': 140,
+                'severe_hypertensive_threshold': 180,
+                'minimum_age_to_screen': 0,
+            }
+    }
 
     def __init__(self, active=True):
         self.active = active
@@ -82,9 +93,9 @@ class OpportunisticScreening:
         self.cost_by_year = defaultdict(int)
 
         # draw random costs and effects for medications
-        draw = config.getint('run_configuration', 'draw_number')
+        draw = config.run_configuration.draw_number
         r = np.random.RandomState(12345+draw)
-        j_drive = config.get('general', 'j_drive')
+        j_drive = config.input_data.j_drive
         cost_df = pd.read_csv(os.path.join(j_drive, 'Project/Cost_Effectiveness/dev/data_processed/higashi_drug_costs_20160804.csv'), index_col='name')
 
         for med in MEDICATIONS:
@@ -93,7 +104,7 @@ class OpportunisticScreening:
 
         self.semi_adherent_efficacy = r.normal(0.4, 0.0485)
 
-        assert config.getint('opportunistic_screening', 'max_medications') <= len(MEDICATIONS), 'cannot model more medications than we have data for'
+        assert config.opportunistic_screening.max_medications <= len(MEDICATIONS), 'cannot model more medications than we have data for'
         
         columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure', 'age', 'healthcare_followup_date', 'healthcare_last_visit_date', 'last_screening_date']
 
@@ -133,7 +144,7 @@ class OpportunisticScreening:
         #TODO: Model blood pressure testing error
         if self.active:
         
-            minimum_age_to_screen = config.getint('opportunistic_screening', 'minimum_age_to_screen')
+            minimum_age_to_screen = config.opportunistic_screening.minimum_age_to_screen
             affected_population = self.population_view.get(event.index)
             affected_population = affected_population[affected_population.age >= minimum_age_to_screen]
 
@@ -153,7 +164,7 @@ class OpportunisticScreening:
             # Severe hypertensive simulants get a 1 month followup and two drugs
             self.population_view.update(pd.Series(event.time + timedelta(days=30.5*6), index=severe_hypertension.index, name='healthcare_followup_date'))
 
-            self.population_view.update(pd.Series(np.minimum(severe_hypertension['medication_count'] + 2, config.getint('opportunistic_screening', 'max_medications')), name='medication_count'))
+            self.population_view.update(pd.Series(np.minimum(severe_hypertension['medication_count'] + 2, config.opportunistic_screening.max_medications), name='medication_count'))
 
             self._medication_costs(affected_population, event.time)
             
@@ -186,15 +197,15 @@ class OpportunisticScreening:
             # Hypertensive simulants get a 6 month followup and go on one drug
             follow_up = event.time + timedelta(days=30.5*6)
             self.population_view.update(pd.Series(follow_up, index=hypertensive.index.append(severe_hypertension.index), name='healthcare_followup_date'))
-            self.population_view.update(pd.Series(np.minimum(hypertensive['medication_count'] + 1, config.getint('opportunistic_screening', 'max_medications')), index=hypertensive.index, name='medication_count'))
-            self.population_view.update(pd.Series(np.minimum(severe_hypertension.medication_count + 1, config.getint('opportunistic_screening', 'max_medications')), index=severe_hypertension.index, name='medication_count'))
+            self.population_view.update(pd.Series(np.minimum(hypertensive['medication_count'] + 1, config.opportunistic_screening.max_medications), index=hypertensive.index, name='medication_count'))
+            self.population_view.update(pd.Series(np.minimum(severe_hypertension.medication_count + 1, config.opportunistic_screening.max_medications), index=severe_hypertension.index, name='medication_count'))
 
             self._medication_costs(affected_population, event.time)
 
     @listens_for('time_step__prepare', priority=9)
     def adjust_blood_pressure(self, event):
         if self.active:
-            time_step = timedelta(days=config.getfloat('simulation_parameters', 'time_step'))
+            time_step = timedelta(days=config.simulation_parameters.time_step)
             for medication_number, medication in enumerate(MEDICATIONS):
                 initial_affected_population = self.population_view.get(event.index)
                 affected_population = initial_affected_population[(initial_affected_population.medication_count > medication_number) & (initial_affected_population[medication['name']+'_supplied_until'] >= event.time - time_step)]

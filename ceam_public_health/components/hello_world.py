@@ -22,7 +22,7 @@ class SimpleIntervention:
     def track_cost(self, event):
         self.year = event.time.year
         if event.time.year >= 1995:
-            time_step = config.getfloat('simulation_parameters', 'time_step')
+            time_step = config.simulation_parameters.time_step
             self.cumulative_cost += 2.0 * len(event.index) * (time_step / 365.0) # FIXME: charge full price once per year?
 
     @modifies_value('mortality_rate')
