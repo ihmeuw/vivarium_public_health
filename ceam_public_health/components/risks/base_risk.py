@@ -197,13 +197,19 @@ class ContinuousRiskComponent:
         self.exposure_function = exposure_function
 
     def setup(self, builder):
+        # This import is here to avoid a cyclic dependency with ceam_inputs.
+        # Rather than significantly reorganizing the code to fix this now I'm
+        # going to wait until we fully decouple this code from GBD access by
+        # switching to bundled input data at which point this will just
+        # vanish. -Alec 04/2017
+        from ceam_inputs import make_gbd_risk_effects
+
         self.distribution = self._distribution_loader(builder)
         self.randomness = builder.randomness(self._risk.name)
 
         effect_function = continuous_exposure_effect(self._risk)
 
         effected_causes = [(c.gbd_cause, c.name) for c in self._risk.effected_causes]
-        from ceam_inputs import make_gbd_risk_effects
         risk_effects = make_gbd_risk_effects(self._risk.gbd_risk, effected_causes, effect_function)
 
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
@@ -242,7 +248,14 @@ class CategoricalRiskComponent:
         self._risk = risk
 
     def setup(self, builder):
+        # These imports are here to avoid a cyclic dependency with ceam_inputs.
+        # Rather than significantly reorganizing the code to fix this now I'm
+        # going to wait until we fully decouple this code from GBD access by
+        # switching to bundled input data at which point this will just
+        # vanish. -Alec 04/2017
         from ceam_inputs import get_exposures
+        from ceam_inputs import make_gbd_risk_effects
+
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
 
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
@@ -252,7 +265,6 @@ class CategoricalRiskComponent:
 
         effect_function = categorical_exposure_effect(self._risk)
         effected_causes = [(c.gbd_cause, c.name) for c in self._risk.effected_causes]
-        from ceam_inputs import make_gbd_risk_effects
         risk_effects = make_gbd_risk_effects(self._risk.gbd_risk, effected_causes, effect_function)
 
         return risk_effects
