@@ -34,8 +34,8 @@ def continuous_exposure_effect(risk):
         return rates * np.maximum(rr.values**((population_view.get(rr.index)[exposure_column] - risk.tmrl) / risk.scale).values, 1)
     return inner
 
-def categorical_exposure_effect(risk, exposure):
-    """Factory that makes function which can be used as the exposure_effect
+def categorical_exposure_effect(risk):
+    """Factory that makes functions which can be used as the exposure_effect
     for binary categorical risks
 
     Parameters
@@ -45,11 +45,10 @@ def categorical_exposure_effect(risk, exposure):
     susceptibility_column : str
         The name of the column which contains susceptibility data
     """
-    propensity_column = risk.name+'_propensity'
-    @uses_columns([propensity_column])
+    exposure_column = risk.name+'_exposure'
+    @uses_columns([exposure_column])
     def inner(rates, rr, population_view):
-        pop = population_view.get(rr.index)
-        exposed = pop[propensity_column] < exposure(rr.index).cat1
+        exposed = population_view.get(rr.index)[exposure_column]
         return rates * (rr.cat1.values**exposed)
     return inner
 
@@ -94,6 +93,29 @@ def uncorrelated_propensity(population):
     return random('initial_propensity', population.index)
 
 def correlated_propensity(population, risk_factor):
+    """Choose a propensity to the risk factor for each simulant that respects
+    the risk factor's expected correlation with other risk factors unless there
+    is no correlation data available in which case a uniformly distributed
+    random propensity will be chosen.
+
+    Parameters
+    ----------
+    population: pd.DataFrame
+        The population to get propensities for. Must include 'sex' and 'age' columns.
+    risk_factor: ceam_inputs.gbd_mapping.risk_factors element
+        The risk_factor to get propensities for.
+
+    Notes
+    -----
+    This function does some calculation, including loading the correlation
+    matrices, once for each risk where they could be done once for all
+    risks. In practice this doesn't seem to cause meaningful performance
+    problems and it simplifies the code significantly. It's something to be aware
+    of though, especially for a model with high fertility or migration where
+    this code may be run in each time step rather than primarily during
+    initialization.
+    """
+
     correlation_matrices = load_matrices().set_index(['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
     if risk_factor not in correlation_matrices.risk_factor:
         # There's no correlation data for this risk, just pick a uniform random propensity
@@ -126,10 +148,39 @@ def correlated_propensity(population, risk_factor):
     return pd.Series(quantiles, index=population.index)
 
 def basic_exposure_function(propensity, distribution):
+    """This function handles the simple common case for getting a simulant's
+    based on their propensity for the risk. Some risks will require a more
+    complex version of this.
+
+    Parameters
+    ----------
+    propensity : pandas.Series
+        The propensity for each simulant
+    distribution : function
+        A function with maps propensities to values from the distribution
+    """
     return distribution(propensity)
 
 class ContinuousRiskComponent:
+    """A model for a risk factor defined by a continuous value. For example
+    high systolic blood pressure as a risk where the SBP is not dichotomized
+    into hypotension and normal but is treated as the actual SBP measurement.
+    """
     def __init__(self, risk, distribution_loader, exposure_function=basic_exposure_function):
+        """
+        Parameters
+        ----------
+        risk : ceam_inputs.gbd_mapping.risk_factors element
+            The configuration data for the risk
+        distribution_loader : function
+            A function which take a builder and returns a standard CEAM
+            lookup table which returns distribution data.
+        exposure_function : function
+            A function which takes the output of the lookup table created
+            by distribution_loader and a propensity value for each simulant
+            and returns the current exposure to this risk factor.
+        """
+
         if isinstance(risk, str):
             risk = risk_factors[risk]
 
@@ -175,21 +226,31 @@ class ContinuousRiskComponent:
         self.population_view.update(pd.Series(new_exposure, name=self._risk.name+'_exposure', index=event.index))
 
 class CategoricalRiskComponent:
+    """A model for a risk factor defined by a dichotomous value. For example
+    smoking as two categories: current smoker and non-smoker.
+    """
     def __init__(self, risk):
+        """
+        Parameters
+        ----------
+        risk : ceam_inputs.gbd_mapping.risk_factors element
+            The configuration data for the risk
+        """
+
         if isinstance(risk, str):
             risk = risk_factors[risk]
         self._risk = risk
 
     def setup(self, builder):
         from ceam_inputs import get_exposures
-        self.population_view = builder.population_view([self._risk.name+'_propensity'])
+        self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
 
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
         self.exposure.source = builder.lookup(get_exposures(risk_id=self._risk.gbd_risk))
 
         self.randomness = builder.randomness(self._risk.name)
 
-        effect_function = categorical_exposure_effect(self._risk, builder.lookup(get_exposures(risk_id=self._risk.gbd_risk)))
+        effect_function = categorical_exposure_effect(self._risk)
         effected_causes = [(c.gbd_cause, c.name) for c in self._risk.effected_causes]
         from ceam_inputs import make_gbd_risk_effects
         risk_effects = make_gbd_risk_effects(self._risk.gbd_risk, effected_causes, effect_function)
@@ -197,5 +258,15 @@ class CategoricalRiskComponent:
         return risk_effects
 
     @listens_for('initialize_simulants')
+    @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
-        self.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='{}_propensity'.format(self._risk.name)))
+        self.population_view.update(pd.DataFrame({
+            self._risk.name+'_propensity': correlated_propensity(event.population, self._risk),
+            self._risk.name+'_exposure': np.full(len(event.index), False),
+        }))
+
+    @listens_for('time_step__prepare', priority=8)
+    def update_exposure(self, event):
+        pop = self.population_view.get(event.index)
+        exposed = pop[self._risk.name+'_propensity'] < self.exposure(event.index).cat1
+        self.population_view.update(pd.Series(exposed, name=self._risk.name+'_exposure'))
