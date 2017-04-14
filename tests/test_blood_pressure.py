@@ -5,7 +5,9 @@ from datetime import timedelta
 
 from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
 
-from ceam_public_health.components.blood_pressure import BloodPressure
+from ceam_public_health.components.risks import ContinuousRiskComponent
+
+from ceam_public_health.components.risks.blood_pressure import distribution_loader, exposure_function
 from ceam_public_health.components.base_population import age_simulants
 from ceam_public_health.components.disease_models import heart_disease_factory, stroke_factory
 
@@ -15,7 +17,10 @@ np.random.seed(100)
 
 @pytest.mark.slow
 def test_basic_SBP_bounds():
-    simulation = setup_simulation([generate_test_population, age_simulants, BloodPressure()])
+    simulation = setup_simulation([
+        generate_test_population,
+        age_simulants,
+        ContinuousRiskComponent('systolic_blood_pressure', distribution_loader, exposure_function)])
 
     sbp_mean = 138 # Mean across all demographics
     sbp_std = 15 # Standard deviation across all demographics

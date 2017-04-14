@@ -16,9 +16,10 @@ from ceam_tests.util import setup_simulation, pump_simulation, generate_test_pop
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 
+from ceam_public_health.components.risks import ContinuousRiskComponent
 from ceam_public_health.components.opportunistic_screening import _hypertensive_categories, OpportunisticScreening, MEDICATIONS
 from ceam_public_health.components.healthcare_access import HealthcareAccess
-from ceam_public_health.components.blood_pressure import BloodPressure
+from ceam_public_health.components.risks.blood_pressure import distribution_loader, exposure_function
 from ceam_public_health.components.base_population import adherence
 
 @listens_for('initialize_simulants')
@@ -197,7 +198,13 @@ def test_medication_cost():
 @pytest.fixture(scope="module")
 def screening_setup():
     module = OpportunisticScreening()
-    simulation = setup_simulation([generate_test_population, _population_setup, adherence, HealthcareAccess(), module], population_size=10)
+    simulation = setup_simulation([
+        generate_test_population,
+        _population_setup,
+        adherence,
+        HealthcareAccess(),
+        ContinuousRiskComponent('systolic_blood_pressure', distribution_loader, exposure_function),
+        module], population_size=10)
 
     #pump_simulation(simulation, iterations=1)
     start_time = datetime(1990, 1, 1)

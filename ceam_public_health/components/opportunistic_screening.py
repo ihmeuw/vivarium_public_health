@@ -105,8 +105,8 @@ class OpportunisticScreening:
         self.semi_adherent_efficacy = r.normal(0.4, 0.0485)
 
         assert config.opportunistic_screening.max_medications <= len(MEDICATIONS), 'cannot model more medications than we have data for'
-        
-        columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure', 'age', 'healthcare_followup_date', 'healthcare_last_visit_date', 'last_screening_date']
+
+        columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure_exposure', 'age', 'healthcare_followup_date', 'healthcare_last_visit_date', 'last_screening_date']
 
         for medication in MEDICATIONS:
             columns.append(medication['name']+'_supplied_until')
@@ -143,7 +143,7 @@ class OpportunisticScreening:
     def general_blood_pressure_test(self, event):
         #TODO: Model blood pressure testing error
         if self.active:
-        
+
             minimum_age_to_screen = config.opportunistic_screening.minimum_age_to_screen
             affected_population = self.population_view.get(event.index)
             affected_population = affected_population[affected_population.age >= minimum_age_to_screen]
@@ -167,14 +167,14 @@ class OpportunisticScreening:
             self.population_view.update(pd.Series(np.minimum(severe_hypertension['medication_count'] + 2, config.opportunistic_screening.max_medications), name='medication_count'))
 
             self._medication_costs(affected_population, event.time)
-            
+
             self.population_view.update(pd.Series(event.time, index=affected_population.index, name='last_screening_date'))
-            
+
 
     @listens_for('followup_healthcare_access')
     def followup_blood_pressure_test(self, event):
         if self.active:
-        
+
             year = event.time.year
             appointment_cost = ceam_public_health.components.healthcare_access.appointment_cost[year]
             cost_per_simulant = appointment_cost
@@ -230,6 +230,3 @@ class OpportunisticScreening:
         metrics['treated_individuals'] = (pop.medication_count > 0).sum()
         metrics['screened_simulants'] = (~pop.last_screening_date.isnull()).sum()
         return metrics
-
-
-# End.

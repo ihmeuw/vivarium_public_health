@@ -7,10 +7,11 @@ import numpy as np, pandas as pd
 
 from ceam import config
 
-from ceam.framework.event import listens_for
+from ceam.framework.event import listens_for, emits, Event
 from ceam.framework.util import from_yearly
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
+from ceam.framework.randomness import filter_for_probability
 
 from ceam_inputs.gbd_ms_functions import load_data_from_cache, get_modelable_entity_draws
 from ceam_inputs.util import gbd_year_range
@@ -26,6 +27,19 @@ appointment_cost = cost_df['draw_{}'.format(draw)]
 ip_cost_df = pd.read_csv('/home/j/Project/Cost_Effectiveness/dev/data_processed/inpatient_visit_cost_KEN_20170125.csv', index_col=0)
 ip_cost_df.index = ip_cost_df.year_id
 hospitalization_cost = ip_cost_df['draw_{}'.format(draw)]
+
+def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
+    @emits('hospitalization')
+    @uses_columns(['sex'])
+    def hospitalization_side_effect(index, emitter, population_view):
+        pop = population_view.get(index)
+        pop['probability'] = 0.0
+        pop.loc[pop.sex == 'Male', 'probability'] = male_probability
+        pop.loc[pop.sex == 'Female', 'probability'] = female_probability
+        effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type), pop.index, pop.probability)
+        new_event = Event(effective_population)
+        emitter(new_event)
+    return hospitalization_side_effect
 
 class HealthcareAccess:
     """Model health care utilization. This includes access events due to
