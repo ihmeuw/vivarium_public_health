@@ -9,7 +9,6 @@ from ceam import config
 
 from ceam.framework.population import uses_columns
 from ceam.framework.event import listens_for
-from ceam.framework.randomness import random
 
 from ceam_inputs.risk_factor_correlation import load_matrices
 from ceam_inputs.gbd_mapping import risk_factors
