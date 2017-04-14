@@ -30,7 +30,7 @@ class SimpleIntervention:
     def mortality_rates(self, index, rates, population_view):
         if self.year >= 1995:
             pop = population_view.get(index)
-            rates[pop.index] *= 0.5
+            rates.loc[pop.index] *= 0.5
         return rates
 
     def reset(self):
