@@ -4,8 +4,6 @@ import pytest
 
 from ceam_tests.util import setup_simulation, pump_simulation
 
-#from ceam_public_health.components.smoking import Smoking
-from ceam_public_health.components.disease_models import heart_disease_factory, stroke_factory
 
 
 # TODO: Risk deleted incidence changes the assumption here. We need a new face validity test

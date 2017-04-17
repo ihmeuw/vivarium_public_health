@@ -22,8 +22,8 @@ from ceam_public_health.components.healthcare_access import HealthcareAccess
 from ceam_public_health.components.risks.blood_pressure import distribution_loader, exposure_function
 from ceam_public_health.components.base_population import adherence
 
-@listens_for('initialize_simulants')
-@uses_columns(['systolic_blood_pressure', 'age', 'fractional_age'])
+@listens_for('initialize_simulants', priority=9)
+@uses_columns(['systolic_blood_pressure_exposure', 'age', 'fractional_age'])
 def _population_setup(event):
     age_sbps = []
     age_sbps.append((40, 130.0)) # Normotensive, below 60
@@ -42,7 +42,7 @@ def _population_setup(event):
     ages, sbps = zip(*age_sbps)
     population = pd.DataFrame(index=event.index)
     population['age'] = ages
-    population['systolic_blood_pressure'] = sbps
+    population['systolic_blood_pressure_exposure'] = sbps
 
     population['fractional_age'] = population['age']
 
@@ -61,17 +61,17 @@ def test_hypertensive_categories():
 
 def test_drug_effects():
     simulation, module = screening_setup()
-    columns = ['medication_count', 'systolic_blood_pressure'] + [m['name']+'_supplied_until' for m in MEDICATIONS]
+    columns = ['medication_count', 'systolic_blood_pressure_exposure'] + [m['name']+'_supplied_until' for m in MEDICATIONS]
     population_view = simulation.population.get_view(columns)
 
-    starting_sbp = simulation.population.population.systolic_blood_pressure
+    starting_sbp = simulation.population.population.systolic_blood_pressure_exposure
 
     event = Event(simulation.population.population.index)
     event.time = datetime(1990, 1, 1)
 
     # No one is taking any drugs yet so there should be no effect on SBP
     module.adjust_blood_pressure(event)
-    assert (starting_sbp == simulation.population.population.systolic_blood_pressure).all()
+    assert (starting_sbp == simulation.population.population.systolic_blood_pressure_exposure).all()
 
     # Now everyone is on the first drug
     population_view.update(pd.Series(1, index=simulation.population.population.index, name='medication_count'))
@@ -79,15 +79,15 @@ def test_drug_effects():
         population_view.update(pd.Series(simulation.current_time, index=simulation.population.population.index, name=medication['name']+'_supplied_until'))
     event.index = simulation.population.population.index
     module.adjust_blood_pressure(event)
-    assert (starting_sbp[simulation.population.population.adherence_category == 'adherent'] > simulation.population.population.systolic_blood_pressure[simulation.population.population.adherence_category == 'adherent']).all()
+    assert (starting_sbp[simulation.population.population.adherence_category == 'adherent'] > simulation.population.population.systolic_blood_pressure_exposure[simulation.population.population.adherence_category == 'adherent']).all()
     efficacy = MEDICATIONS[0]['efficacy']
     adherent_population = simulation.population.population[simulation.population.population.adherence_category == 'adherent']
-    assert (starting_sbp[adherent_population.index] == (adherent_population.systolic_blood_pressure + efficacy)).all()
+    assert (starting_sbp[adherent_population.index] == (adherent_population.systolic_blood_pressure_exposure + efficacy)).all()
     non_adherent_population = simulation.population.population[simulation.population.population.adherence_category == 'non-adherent']
-    assert (starting_sbp[non_adherent_population.index] == non_adherent_population.systolic_blood_pressure).all()
+    assert (starting_sbp[non_adherent_population.index] == non_adherent_population.systolic_blood_pressure_exposure).all()
     semi_adherent_population = simulation.population.population[simulation.population.population.adherence_category == 'semi-adherent']
     assert np.allclose(starting_sbp[semi_adherent_population.index],
-                       (semi_adherent_population.systolic_blood_pressure + efficacy*module.semi_adherent_efficacy))
+                       (semi_adherent_population.systolic_blood_pressure_exposure + efficacy*module.semi_adherent_efficacy))
 
     # Now everyone is on the first three drugs
     population_view.update(pd.Series(3, index=simulation.population.population.index, name='medication_count'))
@@ -96,12 +96,12 @@ def test_drug_effects():
     module.adjust_blood_pressure(event)
     efficacy = sum(m['efficacy'] for m in MEDICATIONS[:3])
     adherent_population = simulation.population.population[simulation.population.population.adherence_category == 'adherent']
-    assert (starting_sbp[adherent_population.index].round() == (adherent_population.systolic_blood_pressure + efficacy).round()).all()
+    assert (starting_sbp[adherent_population.index].round() == (adherent_population.systolic_blood_pressure_exposure + efficacy).round()).all()
     non_adherent_population = simulation.population.population[simulation.population.population.adherence_category == 'non-adherent']
-    assert (starting_sbp[non_adherent_population.index] == non_adherent_population.systolic_blood_pressure).all()
+    assert (starting_sbp[non_adherent_population.index] == non_adherent_population.systolic_blood_pressure_exposure).all()
     semi_adherent_population = simulation.population.population[simulation.population.population.adherence_category == 'semi-adherent']
     assert np.allclose(starting_sbp[semi_adherent_population.index],
-                       (semi_adherent_population.systolic_blood_pressure + efficacy*module.semi_adherent_efficacy))
+                       (semi_adherent_population.systolic_blood_pressure_exposure + efficacy*module.semi_adherent_efficacy))
 
 
 
@@ -181,7 +181,7 @@ def test_medication_cost():
 #
 #    # For the sake of this test, everyone is healthy so we don't have to worry about them getting prescribed drugs
 #    # which will change our costs.
-#    simulation.population.population['systolic_blood_pressure'] = 112
+#    simulation.population.population['systolic_blood_pressure_exposure'] = 112
 #
 #    # Everybody goes to the hospital
 #    simulation.emit_event(PopulationEvent('general_healthcare_access', simulation.population.population))

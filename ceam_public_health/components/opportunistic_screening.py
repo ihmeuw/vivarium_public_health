@@ -48,9 +48,9 @@ def _hypertensive_categories(population):
     severe_hypertensive_threshold = config.opportunistic_screening.severe_hypertensive_threshold
     under_60 = population.age < 60
     over_60 = population.age >= 60
-    under_hypertensive = population.systolic_blood_pressure < hypertensive_threshold
-    under_hypertensive_older = population.systolic_blood_pressure < hypertensive_threshold+10
-    under_severe_hypertensive = population.systolic_blood_pressure < severe_hypertensive_threshold
+    under_hypertensive = population.systolic_blood_pressure_exposure < hypertensive_threshold
+    under_hypertensive_older = population.systolic_blood_pressure_exposure < hypertensive_threshold+10
+    under_severe_hypertensive = population.systolic_blood_pressure_exposure < severe_hypertensive_threshold
 
     normotensive = under_60 & (under_hypertensive)
     normotensive |= over_60 & (under_hypertensive_older)
@@ -216,8 +216,8 @@ class OpportunisticScreening:
 
                 medication_efficacy = medication['efficacy'] * adherence
                 affected_population = affected_population.copy()
-                affected_population['systolic_blood_pressure'] -= medication_efficacy
-                self.population_view.update(affected_population['systolic_blood_pressure'])
+                affected_population['systolic_blood_pressure_exposure'] -= medication_efficacy
+                self.population_view.update(affected_population['systolic_blood_pressure_exposure'])
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):

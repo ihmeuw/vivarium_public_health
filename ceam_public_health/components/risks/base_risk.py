@@ -9,9 +9,11 @@ from ceam import config
 
 from ceam.framework.population import uses_columns
 from ceam.framework.event import listens_for
+from ceam.framework.randomness import random
 
 from ceam_inputs.risk_factor_correlation import load_matrices
 from ceam_inputs.gbd_mapping import risk_factors
+import ceam_inputs as inputs
 
 
 def continuous_exposure_effect(risk):
@@ -196,13 +198,6 @@ class ContinuousRiskComponent:
         self.exposure_function = exposure_function
 
     def setup(self, builder):
-        # This import is here to avoid a cyclic dependency with ceam_inputs.
-        # Rather than significantly reorganizing the code to fix this now I'm
-        # going to wait until we fully decouple this code from GBD access by
-        # switching to bundled input data at which point this will just
-        # vanish. -Alec 04/2017
-        from ceam_inputs import make_gbd_risk_effects
-
         self.distribution = self._distribution_loader(builder)
         self.randomness = builder.randomness(self._risk.name)
 
@@ -230,6 +225,19 @@ class ContinuousRiskComponent:
         new_exposure = self.exposure_function(population[self._risk.name+'_propensity'], distribution)
         self.population_view.update(pd.Series(new_exposure, name=self._risk.name+'_exposure', index=event.index))
 
+def make_gbd_risk_effects(risk_id, causes, effect_function):
+        # These imports are here to avoid a cyclic dependency with ceam_inputs.
+        # Rather than significantly reorganizing the code to fix this now I'm
+        # going to wait until we fully decouple this code from GBD access by
+        # switching to bundled input data at which point this will just
+        # vanish. -Alec 04/2017
+    return [RiskEffect(
+        inputs.get_relative_risks(risk_id=risk_id, cause_id=cause_id),
+        inputs.get_pafs(risk_id=risk_id, cause_id=cause_id),
+        cause_name,
+        effect_function)
+        for cause_id, cause_name in causes]
+
 class CategoricalRiskComponent:
     """A model for a risk factor defined by a dichotomous value. For example
     smoking as two categories: current smoker and non-smoker.
@@ -247,18 +255,10 @@ class CategoricalRiskComponent:
         self._risk = risk
 
     def setup(self, builder):
-        # These imports are here to avoid a cyclic dependency with ceam_inputs.
-        # Rather than significantly reorganizing the code to fix this now I'm
-        # going to wait until we fully decouple this code from GBD access by
-        # switching to bundled input data at which point this will just
-        # vanish. -Alec 04/2017
-        from ceam_inputs import get_exposures
-        from ceam_inputs import make_gbd_risk_effects
-
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
 
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
-        self.exposure.source = builder.lookup(get_exposures(risk_id=self._risk.gbd_risk))
+        self.exposure.source = builder.lookup(inputs.get_exposures(risk_id=self._risk.gbd_risk))
 
         self.randomness = builder.randomness(self._risk.name)
 
