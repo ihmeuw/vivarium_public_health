@@ -6,7 +6,8 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 from ceam.framework.randomness import choice
-
+from scipy.interpolate import UnivariateSpline
+from ceam_inputs import get_covariate_estimates
 
 #### TODO: CONFIRM WITH IBRAHIM: SHOULD VACCINE LOSE EFFECT 2 YEARS AFTER ITS ADMINISTERED OR 2 YEARS AFTER IT STARTS TO HAVE AN EFFECT?
 
@@ -130,7 +131,7 @@ def accrue_vaccine_cost_and_count(population, vaccine_time_column,
 
 
 def determine_who_should_receive_dose(population, index, vaccine_col,
-                                      dose_number):
+                                      dose_number, current_time):
     """
     Function will determine who should receive 1st, 2nd, and 3rd doses of a
     vaccine based on proportions/age at first dose as specified in the config
@@ -154,6 +155,9 @@ def determine_who_should_receive_dose(population, index, vaccine_col,
 
     dose_number: int
         1, 2, or 3 depending on which dose is currently being evaluated
+
+    current_time:
+        current_time in the simulation
     """
 
     population['age_in_days'] = population['age'] * 365
@@ -162,22 +166,26 @@ def determine_who_should_receive_dose(population, index, vaccine_col,
 
     # FIXME: Need to figure out how to include baseline vaccine coverage
     #     from GBD in the model
+    # coverage_estimates = get_covariate_estimates('ROTA_coverage_prop')
+    # year = current_time.year
+    # true_coverage = coverage_estimates.query("year_id == {}".format(year))['mean_value'].iloc[0]
+    true_coverage = 0
+
     if dose_number == 1:
-        true_weight = config.getfloat('rota_vaccine',
+        true_weight =  true_coverage + config.getfloat('rota_vaccine',
                                       'vaccination_proportion_increase')
 
         dose_age = config.getint('rota_vaccine', 'age_at_first_dose')
 
     if dose_number == 2:
-        true_weight = config.getint('rota_vaccine', 'second_dose_retention')
-        dose_age = config.getint('rota_vaccine', 'age_at_first_dose') + 61
+        true_weight = true_coverage + config.getint('rota_vaccine', 'second_dose_retention')
+        # FIXME: Change back to 61 at some point
+        dose_age = config.getint('rota_vaccine', 'age_at_second_dose')
 
     if dose_number == 3:
-        true_weight = config.getint('rota_vaccine', 'third_dose_retention')
-        dose_age = config.getint('rota_vaccine', 'age_at_first_dose') + 61 + 61
+        true_weight = true_coverage + config.getint('rota_vaccine', 'third_dose_retention')
+        dose_age = config.getint('rota_vaccine', 'age_at_third_dose')
 
-    # TODO: Make the proportion to vaccinate include the baseline vaccination
-    #    rates
     children_who_will_receive_dose = _determine_who_should_receive_dose(
         population=population, vaccine_col=vaccine_col,
         true_weight=true_weight, dose_age=dose_age, dose_number=dose_number)
@@ -207,7 +215,7 @@ def set_vaccine_duration(population, current_time, etiology, dose):
     
     # determine when effect of the vaccine should start
     time_after_dose_at_which_immunity_is_conferred = config.getint('rota_vaccine',
-                'time_after_{}_dose_at_which_immunity_is_conferred'.format(dose))
+                'time_after_dose_at_which_immunity_is_conferred')
 
     population["{e}_vaccine_{d}_dose_duration_start_time".format(e=etiology, d=dose)] = \
         population["{e}_vaccine_{d}_dose_event_time".format(e=etiology, d=dose)] + \
@@ -245,6 +253,7 @@ def _set_working_column(population, current_time, etiology):
     """
     # set the dose working cols to 1 if  vaccine_duration_start<=current_time<=vaccine_duration_end
     for dose in ["first", "second", "third"]:
+        population["{e}_vaccine_{d}_dose_is_working".format(e=etiology, d=dose)] = 0
         population.loc[(current_time >= population[
             "{e}_vaccine_{d}_dose_duration_start_time".format(e=etiology, d=dose)]) 
             & (current_time <= population[
@@ -261,8 +270,8 @@ def _set_working_column(population, current_time, etiology):
 
     return population
 
-
-def wane_immunity(days, duration, vaccine_effectiveness):
+# TODO: Results changed a bit when this function was added. Confirm that the function is working correctly
+def wane_immunity(days, duration, vaccine_waning_time, vaccine_effectiveness):
     """
     Create waning immunity function. This function returns a univariate spline that can be called to get an effectiveness estimate
     when supplied a certain number of days since vaccination
@@ -272,20 +281,24 @@ def wane_immunity(days, duration, vaccine_effectiveness):
     days: int
         number of days since vaccine duration start date
 
-    vaccine_duration: int
-        number of days that the vaccine will last
+    duration: int
+        number of days that the vaccine will last at full effectiveness
+
+    vaccine_waning_time: int
+        number of days vaccine will wane
 
     vaccine_effectiveness: float
         reduction in incidence as a result of receiving the vaccine
     """
     # FIXME: Probably a better way to 735 as the end point of vaccine effectiveness 
-    x = [0, duration] + [duration + .00001]
+    x = [0, duration] + [duration + vaccine_waning_time  + .00001]
     y = [vaccine_effectiveness, vaccine_effectiveness] + [0]
+    # set the order to 1 (linear), s to 0 (sum of least squares=0), ext to 1 (all extrapolated values are 0)
     spl = UnivariateSpline(x, y, k=1, s=0, ext=1)
     return spl(days)
 
 
-def determine_vaccine_effectiveness(pop, dose_working_index, waning_immunity_function, current_time, dose, duration, vaccine_effectiveness):
+def determine_vaccine_effectiveness(pop, dose_working_index, waning_immunity_function, current_time, dose, duration, vaccine_waning_time, vaccine_effectiveness):
     """
     Determine the effectiveness of a vaccine based on how many days its been since the simulant received the vaccine
     
@@ -305,6 +318,9 @@ def determine_vaccine_effectiveness(pop, dose_working_index, waning_immunity_fun
         
     dose: str
         can be one of "first", "second", or "third"
+
+    vaccine_waning_time: int
+        number of days vaccine will wane
     """
     pop['days_since_vaccination'] = current_time - \
     pop['rotaviral_entiritis_vaccine_{}_dose_duration_start_time'.format(dose)]
@@ -313,7 +329,7 @@ def determine_vaccine_effectiveness(pop, dose_working_index, waning_immunity_fun
     
     pop['days_since_vaccination'] = (pop['days_since_vaccination'] / np.timedelta64(1, 'D')).astype(int)
     
-    pop['effectiveness'] = pop['days_since_vaccination'].apply(lambda days: waning_immunity_function(days))
+    pop['effectiveness'] = pop['days_since_vaccination'].apply(lambda days: waning_immunity_function(days, duration, vaccine_waning_time, vaccine_effectiveness))
     
     return pop.loc[dose_working_index]['effectiveness']
 
@@ -508,7 +524,7 @@ class RotaVaccine():
             population = self.population_view.get(event.index)
 
             children_who_will_receive_first_dose = determine_who_should_receive_dose(
-                population, event.index, self.vaccine_first_dose_column, 1)
+                population, event.index, self.vaccine_first_dose_column, 1, event.time)
 
             if not children_who_will_receive_first_dose.empty:
                 children_who_will_receive_first_dose = accrue_vaccine_cost_and_count(
@@ -527,7 +543,7 @@ class RotaVaccine():
 
             # Second dose
             children_who_will_receive_second_dose = determine_who_should_receive_dose(
-                population, event.index, self.vaccine_second_dose_column, 2)
+                population, event.index, self.vaccine_second_dose_column, 2, event.time)
 
             if not children_who_will_receive_second_dose.empty:
                 children_who_will_receive_second_dose = accrue_vaccine_cost_and_count(
@@ -546,7 +562,7 @@ class RotaVaccine():
 
             # Third dose
             children_who_will_receive_third_dose = determine_who_should_receive_dose(
-                population, event.index, self.vaccine_third_dose_column, 3)
+                population, event.index, self.vaccine_third_dose_column, 3, event.time)
 
             if not children_who_will_receive_third_dose.empty:
                 children_who_will_receive_third_dose = accrue_vaccine_cost_and_count(
@@ -609,11 +625,11 @@ class RotaVaccine():
         """
         population = self.population_view.get(index)
 
+        # start with refactoring, then move to looking at scalar vs. constant spline
         # set up so that rates are manipulated for each working col separately
         if self.active:
             # TODO: Make this more flexible. It would be nice to be able to have
             #     this function work regardless of the number of doses
-
             for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
                 # TODO: Figure out how to pass etiology in as an argument here so that rotaviral entiritis isn't hardcoded into line below
                 dose_working_index = population.query("rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
@@ -621,10 +637,13 @@ class RotaVaccine():
                 #     partial protection to those that only receive 1 or 2
                 duration = config.getint('rota_vaccine', 'vaccine_duration')
                 effectiveness =  config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
-                vaccine_effectiveness = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, self.clock(), dose, duration, effectiveness)
-                # vaccine_effectiveness =  config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
+                waning_immunity_time = config.getfloat('rota_vaccine', 'waning_immunity_time')
+                #if not len(dose_working_index) == 0:
+                #    vaccine_effectiveness = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, self.clock(), dose, duration, waning_immunity_time, effectiveness)
+                vaccine_effectiveness =  config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
+                #else:
+                #    vaccine_effectiveness = 0
                 rates.loc[dose_working_index] *= (1 - vaccine_effectiveness)
-                import pdb; pdb.set_trace()
 
             return rates
 
