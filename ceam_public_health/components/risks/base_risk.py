@@ -74,13 +74,13 @@ class RiskEffect:
         """
         self.rr_data = rr_data
         self.paf_data = paf_data
-        self.cause_name = cause
+        self.cause = cause
         self.exposure_effect = exposure_effect
 
     def setup(self, builder):
         self.rr_lookup = builder.lookup(self.rr_data)
-        builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause_name))
-        builder.modifies_value(builder.lookup(self.paf_data), 'paf.{}'.format(self.cause_name))
+        builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause.name))
+        builder.modifies_value(builder.lookup(self.paf_data), 'paf.{}'.format(self.cause.name))
 
         return [self.exposure_effect]
 
@@ -203,8 +203,7 @@ class ContinuousRiskComponent:
 
         effect_function = continuous_exposure_effect(self._risk)
 
-        effected_causes = [(c.gbd_cause, c.name) for c in self._risk.effected_causes]
-        risk_effects = make_gbd_risk_effects(self._risk.gbd_risk, effected_causes, effect_function)
+        risk_effects = make_gbd_risk_effects(self._risk, effect_function)
 
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
 
@@ -225,18 +224,18 @@ class ContinuousRiskComponent:
         new_exposure = self.exposure_function(population[self._risk.name+'_propensity'], distribution)
         self.population_view.update(pd.Series(new_exposure, name=self._risk.name+'_exposure', index=event.index))
 
-def make_gbd_risk_effects(risk_id, causes, effect_function):
-        # These imports are here to avoid a cyclic dependency with ceam_inputs.
-        # Rather than significantly reorganizing the code to fix this now I'm
-        # going to wait until we fully decouple this code from GBD access by
-        # switching to bundled input data at which point this will just
-        # vanish. -Alec 04/2017
+def make_gbd_risk_effects(risk, effect_function):
+    # This is here to avoid a cyclic dependency with ceam_inputs.
+    # Rather than significantly reorganizing the code to fix this now I'm
+    # going to wait until we fully decouple this code from GBD access by
+    # switching to bundled input data at which point this will just
+    # vanish. -Alec 04/2017
     return [RiskEffect(
-        inputs.get_relative_risks(risk_id=risk_id, cause_id=cause_id),
-        inputs.get_pafs(risk_id=risk_id, cause_id=cause_id),
-        cause_name,
+        inputs.get_relative_risks(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
+        inputs.get_pafs(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
+        cause,
         effect_function)
-        for cause_id, cause_name in causes]
+        for cause in risk.effected_causes]
 
 class CategoricalRiskComponent:
     """A model for a risk factor defined by a dichotomous value. For example
@@ -263,8 +262,7 @@ class CategoricalRiskComponent:
         self.randomness = builder.randomness(self._risk.name)
 
         effect_function = categorical_exposure_effect(self._risk)
-        effected_causes = [(c.gbd_cause, c.name) for c in self._risk.effected_causes]
-        risk_effects = make_gbd_risk_effects(self._risk.gbd_risk, effected_causes, effect_function)
+        risk_effects = make_gbd_risk_effects(self._risk, effect_function)
 
         return risk_effects
 
