@@ -15,7 +15,7 @@ from ceam.framework.population import uses_columns
 
 from ceam_inputs.gbd_mapping import risk_factors, causes
 
-from ceam_public_health.components.risks.base_risk import RiskEffect, continuous_exposure_effect, categorical_exposure_effect, CategoricalRiskComponent, ContinuousRiskComponent
+from ceam_public_health.components.risks.base_risk import RiskEffect, continuous_exposure_effect, categorical_exposure_effect, CategoricalRiskComponent, ContinuousRiskComponent, correlated_propensity
 
 def test_RiskEffect():
     time_step = timedelta(days=30.5)
@@ -138,3 +138,31 @@ def test_ContinuousRiskComponent(inputs_mock):
     expected_value = 0.01 * (1.01**((130 - 112) / 10))
 
     assert np.allclose(incidence_rate(simulation.population.population.index), from_yearly(expected_value, time_step), rtol=0.001)
+
+@patch('ceam_public_health.components.risks.base_risk.load_matrices')
+def test_correlated_propensity(correlation_loader_mock):
+    correlation_matrix = pd.DataFrame({
+        'systolic_blood_pressure':    [1,0.282213017344475,0.110525231808424,0.130475437755401,0.237914389663941],
+        'body_mass_index':            [0.282213017344475,1,0.0928986519575119,-0.119147761153339,0.212531763837137],
+        'cholesterol':                [0.110525231808424,0.0928986519575119,1,0.175454370605231,0.0476387962101613],
+        'smoking':                    [0.130475437755401,-0.119147761153339,0.175454370605231,1,0.0770317213079334],
+        'fasting_plasma_glucose':     [0.237914389663941,0.212531763837137,0.0476387962101613,0.0770317213079334,1],
+        'risk_factor':                ['systolic_blood_pressure', 'body_mass_index', 'cholesterol', 'smoking', 'fasting_plasma_glucose',],
+        })
+    correlation_matrix['age'] = 30
+    correlation_matrix['sex'] = 'Male'
+    correlation_loader_mock.return_value = correlation_matrix
+
+    pop = pd.DataFrame({'age': [30]*100000, 'sex': ['Male']*100000})
+
+    propensities = []
+    for risk in [
+            risk_factors.systolic_blood_pressure,
+            risk_factors.body_mass_index,
+            risk_factors.cholesterol,
+            risk_factors.smoking,
+            risk_factors.fasting_plasma_glucose]:
+        propensities.append(correlated_propensity(pop, risk))
+
+    matrix = np.corrcoef(np.array(propensities))
+    assert np.allclose(correlation_matrix[['systolic_blood_pressure', 'body_mass_index', 'cholesterol', 'smoking', 'fasting_plasma_glucose',]].values, matrix, rtol=0.15)

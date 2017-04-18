@@ -118,13 +118,13 @@ def correlated_propensity(population, risk_factor):
     """
 
     correlation_matrices = load_matrices().set_index(['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
-    if risk_factor not in correlation_matrices.risk_factor:
+    if risk_factor.name not in correlation_matrices.risk_factor.unique():
         # There's no correlation data for this risk, just pick a uniform random propensity
         return uncorrelated_propensity(population)
 
     risk_factor_idx = sorted(correlation_matrices.risk_factor.unique()).index(risk_factor.name)
     ages = sorted(correlation_matrices.age.unique())
-    age_idx = np.broadcast_to(population.age, (len(ages), len(population))).T > np.broadcast_to(ages, (len(population), len(ages)))
+    age_idx = np.broadcast_to(population.age, (len(ages), len(population))).T >= np.broadcast_to(ages, (len(population), len(ages)))
     age_idx = np.minimum(len(ages) - 1, np.sum(age_idx, axis=1))
 
     qdist = norm(loc=0, scale=1)
@@ -142,7 +142,7 @@ def correlated_propensity(population, risk_factor):
         dist = multivariate_normal(mean=np.zeros(len(matrix)), cov=matrix)
         draw = dist.rvs(group.index.max()+1, random_state=seed)
         draw = draw[group.index]
-        quantiles.append(
+        quantiles = quantiles.append(
                 pd.Series(qdist.cdf(draw).T[risk_factor_idx], index=group.index)
         )
 
