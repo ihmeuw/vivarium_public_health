@@ -17,5 +17,5 @@ def distribution_loader(builder):
     std = np.sqrt(means)
     std.name = 'std'
     dist = pd.concat([means, std], axis=1).reset_index()
-    dist = Interpolation(dist, ['sex'], ['age', 'year'], func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).cdf)
+    dist = Interpolation(dist, ['sex'], ['age', 'year'], func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
     return builder.lookup(dist)
