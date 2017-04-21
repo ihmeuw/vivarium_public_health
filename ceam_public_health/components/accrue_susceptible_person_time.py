@@ -7,35 +7,14 @@ from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 from ceam import config
 
+from ceam_public_health.components.util import make_age_bin_age_group_max_dict
+
 from ceam_inputs import get_age_bins
 
-
-# TODO: Don't duplicate code! Get rid of the duplicate lines in the block below and setup
-# get all gbd age groups
-age_bins = get_age_bins()
-
-# filter down all age groups to only the ones we care about
-# FIXME: the age groups of interest will change for GBD 2016, since the 85-90 age group is in GBD 2016, but not 2015
-age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 5)]
-
-age_bins.age_group_name = age_bins.age_group_name.str.lower()
-
-age_bins.age_group_name = [x.strip().replace(' ', '_') for x in age_bins.age_group_name]
-
-list_of_age_bins = []
-susceptible_person_time_cols = []
-diarrhea_event_count_cols = []
-
-year_start = config.getint('simulation_parameters', 'year_start')
-year_end = config.getint('simulation_parameters', 'year_end')
-
-for age_bin in pd.unique(age_bins.age_group_name.values):
-    list_of_age_bins.append(age_bin)
-    for year in range(year_start, year_end+1):
-        for sex in ['Male', 'Female']:
-            susceptible_person_time_cols.append("susceptible_person_time_" + age_bin + "_in_year_{}".format(year) + "_among_" + sex + "s")
-            diarrhea_event_count_cols.append('diarrhea_event_count_{a}_in_year_{y}_among_{s}s'.format(a=age_bin, y=year, s=sex))
-            diarrhea_event_count_cols.append('diarrhea_event_count')
+from ceam_public_health.components.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
+susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", 2, 5)
+diarrhea_event_count_cols = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
+diarrhea_event_count_cols.append('diarrhea_event_count')
 
 
 class AccrueSusceptiblePersonTime():
@@ -54,18 +33,7 @@ class AccrueSusceptiblePersonTime():
 
 
     def setup(self, builder):
-        # get all gbd age groups
-        age_bins = get_age_bins()
-
-        # filter down all age groups to only the ones we care about
-        # FIXME: the age groups of interest will change for GBD 2016, since the 85-90 age group is in GBD 2016, but not 2015
-        age_bins = age_bins[(age_bins.age_group_id > 1) & (age_bins.age_group_id <= 5)]
-
-        age_bins.age_group_name = age_bins.age_group_name.str.lower()
-
-        age_bins.age_group_name = [x.strip().replace(' ', '_') for x in age_bins.age_group_name]
-
-        self.dict_of_age_group_name_and_max_values = dict(zip(age_bins.age_group_name, age_bins.age_group_years_end))
+        self.sorted_dict = make_age_bin_age_group_max_dict(age_group_id_min=2, age_group_id_max=5) 
 
 
     @listens_for('time_step', priority=9)
@@ -77,11 +45,9 @@ class AccrueSusceptiblePersonTime():
 
         last_age_group_max = 0
 
-        # sort self.dict_of_age_group_name_and_max_values by value (max age)
-        self.sorted_dict = sorted(self.dict_of_age_group_name_and_max_values.items(), key=operator.itemgetter(1))
-
         for sex in ["Male", "Female"]:
             for key, value in self.sorted_dict:
+                # FIXME: Do we want to calculate incidence rates on a per population or susceptible person time basis?
                 # FIXME: Susceptible person time estimates are off unless end data falls exactly on a time step (so this is fine for the diarrhea model -- 1 day timesteps -- but may not be ok for other causes)
                 pop.loc[(pop[self.disease_col] != self.susceptible_col) & (pop['age'] < value) & (pop['age'] >= last_age_group_max) & (pop['sex'] == sex), 'susceptible_person_time_{k}_in_year_{c}_among_{s}s'.format(k=key, c=current_year, s=sex)] += config.getfloat('simulation_parameters', 'time_step')
                 last_age_group_max = value
@@ -92,11 +58,6 @@ class AccrueSusceptiblePersonTime():
     @modifies_value('metrics')
     @uses_columns(['cause_of_death', 'death_day'] + susceptible_person_time_cols)
     def calculate_mortality_rates(self, index, metrics, population_view):
-        # if config.getint('simulation_parameters', 'epi_analysis') == 0:
-        #    pass
-
-        # if config.getint('simulation_parameters', 'epi_analysis') == 1:
-
         pop = population_view.get(index)
 
         mortality_df = pd.DataFrame(columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'year', 'draw'])
@@ -124,11 +85,6 @@ class AccrueSusceptiblePersonTime():
     @modifies_value('metrics')
     @uses_columns(['cause_of_death', 'death_day'] + susceptible_person_time_cols + diarrhea_event_count_cols)
     def calculate_incidence_rates(self, index, metrics, population_view):
-        # if config.getint('simulation_parameters', 'epi_analysis') == 0:
-        #    pass
-
-        # if config.getint('simulation_parameters', 'epi_analysis') == 1:
-
         pop = population_view.get(index)
 
         incidence_df = pd.DataFrame(columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'year', 'draw'])
