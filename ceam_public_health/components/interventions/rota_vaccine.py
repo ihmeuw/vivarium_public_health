@@ -11,10 +11,11 @@ from ceam_inputs import get_covariate_estimates
 
 #### TODO: CONFIRM WITH IBRAHIM: SHOULD VACCINE LOSE EFFECT 2 YEARS AFTER ITS ADMINISTERED OR 2 YEARS AFTER IT STARTS TO HAVE AN EFFECT?
 
+
 def _determine_who_should_receive_dose(population, vaccine_col, true_weight,
                                        dose_age, dose_number):
     """
-    Uses choice to determine if simulant should receive a dose. Returns a
+    Uses choice to determine if each simulant should receive a dose. Returns a
         population of simulants that should receive a dose (most of the time
         this function will return an empty population)
 
@@ -24,8 +25,8 @@ def _determine_who_should_receive_dose(population, vaccine_col, true_weight,
         population view of all of the simulants who are currently alive
 
     vaccine_col: str
-        str representing the name of a column,
-        either rotaviral_entiritis_vaccine_first_dose or second dose.
+        str representing the name of a column, one of
+        rotaviral_entiritis_vaccine_first_dose, second, or third dose.
         The column represents whether or not the simulant received the first
         and second dose of the vaccine, which is important because we want to
         make sure that only people who got the previous vaccine can get the
@@ -162,7 +163,7 @@ def determine_who_should_receive_dose(population, index, vaccine_col,
 
     population['age_in_days'] = population['age'] * 365
 
-    population['age_in_days'] = population['age_in_days'].astype(int)
+    population['age_in_days'] = population['age_in_days'].round()
 
     # FIXME: Need to figure out how to include baseline vaccine coverage
     #     from GBD in the model
@@ -638,11 +639,10 @@ class RotaVaccine():
                 duration = config.getint('rota_vaccine', 'vaccine_duration')
                 effectiveness =  config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
                 waning_immunity_time = config.getfloat('rota_vaccine', 'waning_immunity_time')
-                #if not len(dose_working_index) == 0:
-                #    vaccine_effectiveness = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, self.clock(), dose, duration, waning_immunity_time, effectiveness)
-                vaccine_effectiveness =  config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
-                #else:
-                #    vaccine_effectiveness = 0
+                if not len(dose_working_index) == 0:
+                    vaccine_effectiveness = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, self.clock(), dose, duration, waning_immunity_time, effectiveness)
+                else:
+                    vaccine_effectiveness = 0
                 rates.loc[dose_working_index] *= (1 - vaccine_effectiveness)
 
             return rates
