@@ -16,6 +16,8 @@ from ceam_inputs import get_exposures, make_gbd_risk_effects
 
 from ceam_public_health.util.risk import categorical_exposure_effect
 
+# TODO: Change 'susceptibility' to propensity
+
 class CategoricalRiskHandler:
     """
     Model a categorical risk. Simulants will be in a specific exposure category based on their `categorical_risk_susceptibility`.
