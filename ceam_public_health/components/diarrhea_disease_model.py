@@ -21,9 +21,11 @@ from ceam_inputs import (get_etiology_specific_prevalence,
 from ceam_inputs import make_age_group_1_to_4_rates_constant
 
 from ceam_public_health.components.disease import DiseaseModel, RateTransition
+from ceam_public_health.components.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
 from ceam_public_health.components.accrue_susceptible_person_time import (
     AccrueSusceptiblePersonTime)
 
+# FIXME: DIARRHEA IS NOT BEING DELETED IN THE CAUSE DELETED MORTALITY RATE! MUST FIX
 
 list_of_etiologies = ['diarrhea_due_to_shigellosis',
                       'diarrhea_due_to_cholera',
@@ -38,43 +40,6 @@ list_of_etiologies = ['diarrhea_due_to_shigellosis',
                       'diarrhea_due_to_norovirus',
                       'diarrhea_due_to_adenovirus',
                       'diarrhea_due_to_unattributed']
-
-def make_cols_demographically_specific(col_name, age_group_id_min, age_group_id_max):
-    """
-    Returns a list of demographically specific (denoted with a specific age, sex, and year) column names
-    
-    Parameters
-    ----------
-    col_name: str
-        the name of the column
-    
-    age_group_id_min: int
-        number representing the youngest age group to be used in creating the columns
-        
-    age_group_id_max: int
-        number representing the youngest age group to be used in creating the columns
-        
-    Examples
-    --------
-    make_cols_demographically_specific('diarrhea_event_count', 2, 5) returns a list of column names of the format
-    'diarrhea_count_1_to_4_in_year_2010_among_Females' for each age, year, and sex combination
-    """
-    age_bins = get_age_bins()
-    age_bins = age_bins[(age_bins.age_group_id >= age_group_id_min) & (age_bins.age_group_id <= age_group_id_max)]
-    age_bins.age_group_name = age_bins.age_group_name.str.lower()
-    age_bins.age_group_name = [x.strip().replace(' ', '_') for x in
-                           age_bins.age_group_name]
-    cols = []
-    
-    year_start = config.getint('simulation_parameters', 'year_start')
-    year_end = config.getint('simulation_parameters', 'year_end')
-    
-    for age_bin in pd.unique(age_bins.age_group_name.values):
-        for year in range(year_start, year_end+1):
-            for sex in ['Male', 'Female']:
-                cols.append('{c}_{a}_in_year_{y}_among_{s}s'.format(c=col_name, a=age_bin, y=year, s=sex))
-    
-    return cols
 
 diarrhea_event_count_cols = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
 diarrhea_event_count_cols.append('diarrhea_event_count')
@@ -203,7 +168,7 @@ class DiarrheaBurden:
     #     severity levels
     # FIXME: Per conversation with Abie on 2.22, we would like to have a
     #     distribution surrounding duration
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + list_of_etiologies)
+    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + list_of_etiologies, 'alive')
     @listens_for('time_step', priority=8)
     def _apply_remission(self, event):
 
@@ -260,8 +225,6 @@ def diarrhea_factory():
         # TODO: Where should I define the healthy state?
         healthy = State('healthy', key=diarrhea_due_to_pathogen)
 
-        # TODO: Get severity split draws so that we can have full uncertainty
-        #     surrounding disability
         # Potential FIXME: Might want to actually have severity states in the
         #     future. Will need to figure out how to make sure that people with
         #     multiple pathogens have only one severity
@@ -287,7 +250,6 @@ def diarrhea_factory():
 
         list_of_modules.append(module)
 
-
     @listens_for('initialize_simulants')
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + diarrhea_event_count_cols)
     def _create_diarrhea_column(event):
@@ -312,7 +274,7 @@ def diarrhea_factory():
     # FIXME: This is a super slow function. Try to speed it up by using numbers
     #     instead of strings
     @listens_for('time_step', priority=6)
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] + list_of_etiologies + [i + '_event_count' for i in list_of_etiologies] + diarrhea_event_count_cols)
+    @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] + list_of_etiologies + [i + '_event_count' for i in list_of_etiologies] + diarrhea_event_count_cols, 'alive')
     def _move_people_into_diarrhea_state(event):
         """
         Determines who should move from the healthy state to the diarrhea state
@@ -331,36 +293,11 @@ def diarrhea_factory():
             pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
             pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
 
-        # if config.getint('simulation_parameters', 'epi_analysis') == 0:
-        #    pass
-
-        # if config.getint('simulation_parameters', 'epi_analysis') == 1:
-
-        # get all gbd age groups
-        age_bins = get_age_bins()
-
-        # filter down all age groups to only the ones we care about
-        # FIXME: the age groups of interest will change for GBD 2016, since the
-        #     85-90 age group is in GBD 2016, but not 2015
-        age_bins = age_bins[(age_bins.age_group_id > 1) & (
-            age_bins.age_group_id <= 5)]
-
-        age_bins.age_group_name = age_bins.age_group_name.str.lower()
-
-        age_bins.age_group_name = [x.strip().replace(' ', '_') for x in
-                                   age_bins.age_group_name]
-
-        dict_of_age_group_name_and_max_values = dict(zip(
-            age_bins.age_group_name, age_bins.age_group_years_end))
-
-        current_year = pd.Timestamp(event.time).year
-
         last_age_group_max = 0
 
         # sort self.dict_of_age_group_name_and_max_values by value (max age)
-        sorted_dict = sorted(dict_of_age_group_name_and_max_values.items(),
-                             key=operator.itemgetter(1))
-
+        sorted_dict = make_age_bin_age_group_max_dict(age_group_id_min=2, age_group_id_max=5)
+                            
         current_year = pd.Timestamp(event.time).year
 
         # need to set this up so that it counts events properly for specific
@@ -408,9 +345,7 @@ def diarrhea_factory():
 
     list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state,
                                                    _create_diarrhea_column,
-                                                   diarrhea_burden,
-                                                   AccrueSusceptiblePersonTime(
-                                                   'diarrhea', 'diarrhea')]
+                                                   diarrhea_burden]
 
     return list_of_module_and_functs
 
