@@ -17,8 +17,6 @@ def test_determine_who_should_receive_dose():
     """
     factory = diarrhea_factory()
 
-    import pdb; pdb.set_trace()
-
     simulation = setup_simulation([generate_test_population, RotaVaccine()] + factory)
 
     pop = simulation.population.population
@@ -57,18 +55,18 @@ def test_set_vaccine_duration():
     pop['rotaviral_entiritis_vaccine_first_dose_event_time'] = simulation.current_time
     new_pop = set_vaccine_duration(pop, simulation.current_time, "rotaviral_entiritis", "first")
 
-    time_after_first_dose_at_which_immunity_is_conferred = pd.to_timedelta(config.getint('rota_vaccine','time_after_first_dose_at_which_immunity_is_conferred'), unit='D')
+    time_after_dose_at_which_immunity_is_conferred = pd.to_timedelta(1, unit='D')
     vaccine_duration = pd.to_timedelta(config.getint('rota_vaccine', 'vaccine_duration'), unit='D')
-
+    waning_immunity_time = pd.to_timedelta(config.getint('rota_vaccine', 'waning_immunity_time'), unit='D')
 
     # assert that the vaccine starts two weeks after its administered
     assert np.all(new_pop['rotaviral_entiritis_vaccine_first_dose_duration_start_time'] == simulation.current_time + \
-                  time_after_first_dose_at_which_immunity_is_conferred)
+                  time_after_dose_at_which_immunity_is_conferred)
 
     # # assert that the vaccine ends 2 years after it starts to have an effect
     assert np.all(new_pop['rotaviral_entiritis_vaccine_first_dose_duration_end_time'] == simulation.current_time + \
-                  time_after_first_dose_at_which_immunity_is_conferred + \
-                  vaccine_duration)
+                  time_after_dose_at_which_immunity_is_conferred + \
+                  vaccine_duration + waning_immunity_time)
 
 # 3: set_working_column
 def test_set_working_column():
@@ -120,7 +118,7 @@ def test_set_working_column2():
     simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], start=datetime(2005, 1, 1))
 
     # pump the simulation far enough ahead that simulants can get first dose
-    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=7), year_start=2005)
+    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=8), year_start=2005)
 
     not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 0")
 
@@ -128,6 +126,7 @@ def test_set_working_column2():
 
     # find an example of simulants of the same age and sex, but not vaccination status, and then compare their incidence rates
     assert np.allclose(len(vaccinated)/100, config.getfloat('rota_vaccine', 'vaccination_proportion_increase'), atol=.1), "working column should ensure that the correct number of simulants are receiving the benefits of the vaccine"
+
 
 #4: incidence_rates
 def test_incidence_rates():
@@ -141,7 +140,7 @@ def test_incidence_rates():
 
     vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1")
 
-    rota_table = build_table(1000, ['age', 'year', 'sex', 'cat1'])    
+    rota_table = build_table(1000, ['age', 'year', 'sex', 'cat1'])
 
     rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
 
@@ -158,7 +157,7 @@ def test_incidence_rates():
     # now try with two doses
     simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], start=datetime(2005, 1, 1))
 
-    # pump the simulation far enough ahead that simulants can get first dose
+    # pump the simulation far enough ahead that simulants can get second dose
     pump_simulation(simulation, time_step_days=1, duration=timedelta(days=13), year_start=2005)
 
     not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_second_dose_is_working == 0")
@@ -182,7 +181,7 @@ def test_incidence_rates():
     # now try with three doses
     simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], start=datetime(2005, 1, 1))
 
-    # pump the simulation far enough ahead that simulants can get first dose
+    # pump the simulation far enough ahead that simulants can get third dose
     pump_simulation(simulation, time_step_days=1, duration=timedelta(days=19), year_start=2005)
 
     not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 0")
@@ -208,27 +207,47 @@ def test_determine_vaccine_effectiveness():
                               start=datetime(2005, 1, 1))
 
     # pump the simulation forward
-    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=7), year_start=2005)
+    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=8), year_start=2005)
 
     population = simulation.population.population
     dose_working_index = population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1").index
 
-    series = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, simulation.current_time, "first")
+    duration = config.getint('rota_vaccine', 'vaccine_duration')
+    effectiveness =  config.getfloat('rota_vaccine', 'first_dose_effectiveness')
+    waning_immunity_time = config.getfloat('rota_vaccine', 'waning_immunity_time')
 
-    assert np.allclose(series, .39), "determine vaccine effectiveness should return the" + \
+    series = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, simulation.current_time, "first", duration, waning_immunity_time, effectiveness)
+
+    assert np.allclose(series, effectiveness), "determine vaccine effectiveness should return the" + \
                                      "correct effectiveness for each simulant based on vaccination status and time since vaccination"
 
     assert len(series) == len(dose_working_index), "number of effectiveness estimates that are" + \
                                                    "returned matches the number of simulants who have their working"
 
-    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=19), year_start=2005)
+
+def test_determine_vaccine_effectiveness2():
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()],
+                              start=datetime(2005, 1, 1))
+
+    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=50), year_start=2005)
 
     population = simulation.population.population
+    pop = population.copy()
+    pop['days_since_vaccination'] = simulation.current_time - pop['rotaviral_entiritis_vaccine_third_dose_duration_start_time']
+    pop = pop[pop.days_since_vaccination.notnull()]
+    pop['days_since_vaccination'] = (pop['days_since_vaccination'] / np.timedelta64(1, 'D')).astype(int)
+    days = pop['days_since_vaccination'].unique()
+     
+    
+
     dose_working_index = population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 1").index
+    effectiveness =  config.getfloat('rota_vaccine', 'third_dose_effectiveness')
+    duration = config.getint('rota_vaccine', 'vaccine_duration')
+    waning_immunity_time = config.getfloat('rota_vaccine', 'waning_immunity_time')
 
-    series = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, simulation.current_time, "third")
+    series = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, simulation.current_time, "third", duration, waning_immunity_time, effectiveness)
 
-    assert np.allclose(series, wane_immunity(19)), "determine vaccine effectiveness should return the" + \
+    assert np.allclose(series, wane_immunity(days, duration, waning_immunity_time, effectiveness)), "determine vaccine effectiveness should return the" + \
                                      "correct effectiveness for each simulant based on vaccination status and time since vaccination"
 
     assert len(series) == len(dose_working_index), "number of effectiveness estimates that are" + \
