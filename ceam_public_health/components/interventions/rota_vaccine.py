@@ -224,14 +224,23 @@ def set_vaccine_duration(population, current_time, etiology, dose):
     
     # determine when the effect of the vaccine should end
     vaccine_duration = config.getint('rota_vaccine', 'vaccine_duration')
-    
-    population["{e}_vaccine_{d}_dose_duration_end_time".format(e=etiology, d=dose)] = \
-        population["{e}_vaccine_{d}_dose_duration_start_time".format(e=etiology, d=dose)] + \
-        pd.to_timedelta(vaccine_duration, unit='D')
+    waning_immunity_time = config.getint('rota_vaccine', 'waning_immunity_time')
+
+    if waning_immunity_time == 0:
+        population["{e}_vaccine_{d}_dose_duration_end_time".format(e=etiology, d=dose)] = \
+            population["{e}_vaccine_{d}_dose_duration_start_time".format(e=etiology, d=dose)] + \
+            pd.to_timedelta(vaccine_duration, unit='D')
+
+    if waning_immunity_time != 0:
+        population["{e}_vaccine_{d}_dose_duration_end_time".format(e=etiology, d=dose)] = \
+            population["{e}_vaccine_{d}_dose_duration_start_time".format(e=etiology, d=dose)] + \
+            pd.to_timedelta(vaccine_duration, unit='D') + pd.to_timedelta(waning_immunity_time, unit='D')
         
     return population
 
-
+# FIXME: Do not need the dose working index anymore. Should start to write code to move away from this. 
+#     Can just set up the code so that effectiveness is either 0 or gt than
+#     0, depending on whether the simulant was vaccinated
 def _set_working_column(population, current_time, etiology):
     """
     Function that sets the "working column", a binary column that indicates whether the vaccine is working (1) or not working (0).
