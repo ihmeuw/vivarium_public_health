@@ -139,6 +139,46 @@ def test_ContinuousRiskComponent(inputs_mock):
 
     assert np.allclose(incidence_rate(simulation.population.population.index), from_yearly(expected_value, time_step), rtol=0.001)
 
+@patch('ceam_public_health.components.risks.base_risk.inputs')
+def test_propensity_effect(inputs_mock):
+    time_step = timedelta(days=30.5)
+    risk = risk_factors.systolic_blood_pressure
+    inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
+    inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(1.01)
+    inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
+
+    def loader(builder):
+        dist = Interpolation(
+                build_table([130, 15], ['age', 'year', 'sex', 'mean', 'std']),
+                ['sex'],
+                ['age', 'year'],
+                func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
+        return builder.lookup(dist)
+
+    component = ContinuousRiskComponent(risk, loader)
+
+    simulation = setup_simulation([generate_test_population, component], 100000)
+    pop_view = simulation.population.get_view([risk.name+'_propensity'])
+
+    pop_view.update(pd.Series(0.00001, index=simulation.population.population.index))
+    pump_simulation(simulation, iterations=1)
+
+    expected_value = norm(loc=130, scale=15).ppf(0.00001)
+    assert np.allclose(simulation.population.population[risk.name+'_exposure'], expected_value)
+
+    pop_view.update(pd.Series(0.5, index=simulation.population.population.index))
+    pump_simulation(simulation, iterations=1)
+
+    expected_value = 130
+    assert np.allclose(simulation.population.population[risk.name+'_exposure'], expected_value)
+
+    pop_view.update(pd.Series(0.99999, index=simulation.population.population.index))
+    pump_simulation(simulation, iterations=1)
+
+    expected_value = norm(loc=130, scale=15).ppf(0.99999)
+    assert np.allclose(simulation.population.population[risk.name+'_exposure'], expected_value)
+
+
 @patch('ceam_public_health.components.risks.base_risk.load_matrices')
 def test_correlated_propensity(correlation_loader_mock):
     correlation_matrix = pd.DataFrame({
