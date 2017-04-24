@@ -55,57 +55,56 @@ class AccrueSusceptiblePersonTime():
         event.population_view.update(pop)
 
 
-    @modifies_value('metrics')
-    @uses_columns(['cause_of_death', 'death_day'] + susceptible_person_time_cols)
-    def calculate_mortality_rates(self, index, metrics, population_view):
-        pop = population_view.get(index)
+#    @modifies_value('metrics')
+#    @uses_columns(['cause_of_death', 'death_day'] + susceptible_person_time_cols)
+#    def calculate_mortality_rates(self, index, metrics, population_view):
+#        pop = population_view.get(index)
 
-        mortality_df = pd.DataFrame(columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'year', 'draw'])
+#        mortality_df = pd.DataFrame(columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'year', 'draw'])
 
-        last_age_group_max = 0
+#        last_age_group_max = 0
 
-        pop['death_year'] = pop['death_day'].map(lambda x: x.year)
+#        pop['death_year'] = pop['death_day'].map(lambda x: x.year)
 
-        for key, value in self.sorted_dict:
-            for year in range(year_start, year_end+1):
-                for sex in ['Male', 'Female']:
-                    susceptible_person_time = pop["susceptible_person_time_{a}_in_year_{y}_among_{s}s".format(a=key, y=year, s=sex)].sum()
-                    deaths_due_to_diarrhea = len(pop.query("death_year == {} and cause_of_death=='death_due_to_severe_diarrhea'".format(year)))
-                    if susceptible_person_time != 0:
-                        metrics["mortality_rate_" + key + "_in_year_{}".format(year) + "_among_" + sex + "s"] = deaths_due_to_diarrhea / susceptible_person_time
-                        row = pd.DataFrame({'measure': ['mortality'], 'age_low': [last_age_group_max], 'age_high': [value], 'sex': [sex], 'location': [180], 'cause': ['diarrhea'], 'value': [deaths_due_to_diarrhea / susceptible_person_time], 'year': [year], 'draw': [0]})
-                        mortality_df = mortality_df.append(row)
-            last_age_group_max = value
+#        for key, value in self.sorted_dict:
+#            for year in range(year_start, year_end+1):
+#                for sex in ['Male', 'Female']:
+#                    susceptible_person_time = pop["susceptible_person_time_{a}_in_year_{y}_among_{s}s".format(a=key, y=year, s=sex)].sum()
+#                    deaths_due_to_diarrhea = len(pop.query("death_year == {} and cause_of_death=='death_due_to_severe_diarrhea'".format(year)))
+#                    if susceptible_person_time != 0:
+#                        metrics["mortality_rate_" + key + "_in_year_{}".format(year) + "_among_" + sex + "s"] = deaths_due_to_diarrhea / susceptible_person_time
+#                        row = pd.DataFrame({'measure': ['mortality'], 'age_low': [last_age_group_max], 'age_high': [value], 'sex': [sex], 'location': [180], 'cause': ['diarrhea'], 'value': [deaths_due_to_diarrhea / susceptible_person_time], 'year': [year], 'draw': [0]})
+#                        mortality_df = mortality_df.append(row)
+#            last_age_group_max = value
 
         # mortality_df.to_hdf("/share/scratch/users/emumford/mortality_rate.hdf", key="key")
 
-        return metrics
+#        return metrics
 
 
-    @modifies_value('metrics')
-    @uses_columns(['cause_of_death', 'death_day'] + susceptible_person_time_cols + diarrhea_event_count_cols)
-    def calculate_incidence_rates(self, index, metrics, population_view):
-        pop = population_view.get(index)
+#    @modifies_value('metrics')
+#    @uses_columns(['cause_of_death', 'death_day'] + susceptible_person_time_cols + diarrhea_event_count_cols)
+#    def calculate_incidence_rates(self, index, metrics, population_view):
+#        pop = population_view.get(index)
 
-        incidence_df = pd.DataFrame(columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'year', 'draw'])
+#        incidence_df = pd.DataFrame(columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'year', 'draw'])
 
-        last_age_group_max = 0
+#        last_age_group_max = 0
 
-        for key, value in self.sorted_dict:
-            for year in range(year_start, year_end+1):
-                for sex in ['Male', 'Female']:
-                    susceptible_person_time = pop["susceptible_person_time_{a}_in_year_{y}_among_{s}s".format(a=key, y=year, s=sex)].sum()
-                    num_diarrhea_cases = pop['diarrhea_event_count_{a}_in_year_{y}_among_{s}s'.format(a=key, y=year, s=sex)].sum()
-                    if susceptible_person_time != 0:
-                        metrics["incidence_rate_" + key + "_in_year_{}".format(year) + "_among_" + sex + "s"] = num_diarrhea_cases / susceptible_person_time
-                        row = pd.DataFrame({'measure': ['incidence'], 'age_low': [last_age_group_max], 'age_high': [value], 'sex': [sex], 'location': [180], 'cause': ['diarrhea'], 'value': [num_diarrhea_cases / susceptible_person_time], 'year': [year], 'draw': [0]})
-                        incidence_df = incidence_df.append(row)
-            last_age_group_max = value
+#        for key, value in self.sorted_dict:
+#            for year in range(year_start, year_end+1):
+#                for sex in ['Male', 'Female']:
+#                    susceptible_person_time = pop["susceptible_person_time_{a}_in_year_{y}_among_{s}s".format(a=key, y=year, s=sex)].sum()
+#                    num_diarrhea_cases = pop['diarrhea_event_count_{a}_in_year_{y}_among_{s}s'.format(a=key, y=year, s=sex)].sum()
+#                    if susceptible_person_time != 0:
+#                        metrics["incidence_rate_" + key + "_in_year_{}".format(year) + "_among_" + sex + "s"] = num_diarrhea_cases / susceptible_person_time
+#                        row = pd.DataFrame({'measure': ['incidence'], 'age_low': [last_age_group_max], 'age_high': [value], 'sex': [sex], 'location': [180], 'cause': ['diarrhea'], 'value': [num_diarrhea_cases / susceptible_person_time], 'year': [year], 'draw': [0]})
+#                        incidence_df = incidence_df.append(row)
+#            last_age_group_max = value
 
         # incidence_df = incidence_df.to_hdf("/share/scratch/users/emumford/incidence_rate.hdf", key="key")
 
-        return metrics
-
+#        return metrics
 
     # @modifies_value('metrics')
     # @uses_columns(susceptible_person_time_cols)
