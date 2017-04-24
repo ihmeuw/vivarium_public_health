@@ -15,6 +15,11 @@ from ceam.framework.population import uses_columns
 from ceam.framework.util import rate_to_probability
 from ceam import config
 
+from ceam_public_health.components.util import make_cols_demographically_specific
+
+susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", 2, 5)
+diarrhea_event_count_cols = make_cols_demographically_specific("diarrhea_event_count", 2, 5)
+
 @listens_for('initialize_simulants', priority=0)
 @uses_columns(['age', 'fractional_age', 'sex', 'alive', 'location'])
 def generate_base_population(event):
@@ -199,7 +204,7 @@ class Mortality:
     # TODO: Would be nice to use age_group_name instead of age_group_high and age_group_low. Using age_group_name is more specific, will make the graphs cleaner, and is more interpretable for the under 1 (neonatal) age groups.
     # FIXME: Should move the epi measures code to its own class, probably its own script
     @modifies_value('epidemiological_span_measures')
-    @uses_columns(['age', 'death_day', 'cause_of_death', 'alive', 'sex'])
+    @uses_columns(['age', 'death_day', 'cause_of_death', 'alive', 'sex'] + susceptible_person_time_cols + diarrhea_event_count_cols)
     def calculate_incidence_measure(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
         root_location = config.getint('simulation_parameters', 'location_id')
         pop = population_view.get(index)
@@ -211,21 +216,24 @@ class Mortality:
 
         now = self.clock()
         window_start = now - duration
+        current_year = window_start.year
 
-        for low, high in age_groups:
-            low = str(np.round(low, 2))
-            high = str(np.round(high, 2))
+
+        # FIXME: Don't want to have age_groups[0:3] hard-coded in. Need to make a component that calculates susceptible person time for all age groups so that this can be avoided 
+        for low, high in age_groups[0:4]:
             for sex in sexes:
                 for location in locations:
                     sub_pop = pop.query('age > @low and age <= @high and sex == @sex')
+                    low_str = str(np.round(low, 2))
+                    high_str = str(np.round(high, 2))
                     if location >= 0:
                         sub_pop = sub_pop.query('location == @location')
 
                     # TODO: Make this more flexible. Don't want to have diarrhea hard-coded in here. Want the susceptibility column and disease column to be variables that get passed into the class.
                     # TODO: Need to figure out best place for this 
                     if not sub_pop.empty:
-                        susceptible_person_time = pop["susceptible_person_time_{l}_to_{h}_in_year_{y}_among_{s}s".format(l=low, h=high, y=year, s=sex)].sum()
-                        num_diarrhea_cases = pop['diarrhea_event_count_{l}_to_{h}_in_year_{y}_among_{s}s'.format(l=low, h=high, y=year, s=sex)].sum()
-
-                        cube = cube.append(pd.DataFrame({'measure': 'incidence', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'diarrhea', 'envelope': num_diarrhea_cases/susceptible_person_time, 'sample_size': len(sub_pop)}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
+                        susceptible_person_time = pop["susceptible_person_time_{l}_to_{h}_in_year_{y}_among_{s}s".format(l=low_str, h=high_str, y=current_year, s=sex)].sum()
+                        num_diarrhea_cases = pop['diarrhea_event_count_{l}_to_{h}_in_year_{y}_among_{s}s'.format(l=low_str, h=high_str, y=current_year, s=sex)].sum()
+                        if susceptible_person_time != 0:
+                            cube = cube.append(pd.DataFrame({'measure': 'incidence', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'diarrhea', 'value': num_diarrhea_cases/susceptible_person_time, 'sample_size': len(sub_pop)}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
         return cube
