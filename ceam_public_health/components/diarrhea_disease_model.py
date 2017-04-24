@@ -345,7 +345,8 @@ def diarrhea_factory():
 
     list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state,
                                                    _create_diarrhea_column,
-                                                   diarrhea_burden]
+                                                   diarrhea_burden, AccrueSusceptiblePersonTime(
+						   "diarrhea", "severe_diarrhea")]
 
     return list_of_module_and_functs
 
