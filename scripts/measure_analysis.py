@@ -96,7 +96,8 @@ def prepare_comparison(data):
     measures = data[['cause','measure']].drop_duplicates().values.tolist()
     year_min = data.year.min()
     year_max = data.year.max()
-    measure_cube = make_measure_cube_from_gbd(int(year_min), int(year_max), data.location.unique(), data.draw.unique(), measures)
+
+    measure_cube = make_measure_cube_from_gbd(int(year_min), int(year_max), [int(data.location.unique())], data.draw.unique(), measures)
 
     # Resolve age ranges down to age group midpoints
     # NOTE: If this midpoint doesn't exactly align with the one from GBD then the comparison
