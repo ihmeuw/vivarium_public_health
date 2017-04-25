@@ -1,8 +1,8 @@
 components:
+        - ceam_tests.util.generate_test_population
         - ceam_public_health.components:
-                - base_population.generate_base_population
                 - base_population.age_simulants
-                - base_population.Mortality()
+                - hello_world.SimpleMortality()
                 - hello_world.SimpleIntervention()
                 - hello_world.SimpleMetrics()
 
