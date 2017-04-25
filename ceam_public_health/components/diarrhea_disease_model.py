@@ -44,12 +44,12 @@ list_of_etiologies = ['diarrhea_due_to_shigellosis',
 diarrhea_event_count_cols = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
 diarrhea_event_count_cols.append('diarrhea_event_count')
 
-
+# TODO: Update doc string
 class DiarrheaEtiologyState(State):
     """
     Sets up a diarrhea etiology state (e.g. a column that states that simulant
     either has diarrhea due to rotavirus or does not have diarrhea due to
-    rotavirus. Child class of State.
+    rotavirus). Child class of State.
 
     Parameters
     ----------
@@ -57,8 +57,7 @@ class DiarrheaEtiologyState(State):
         string that describes the etiology state.
 
     disability_weight: float
-        disability associated with diarrhea, regardless of which etiologies are
-        associated with the bout of diarrhea
+        disability associated with diarrhea, disability weight is not etiology specific
     """
     def __init__(self, state_id, key='state'):
 
@@ -83,6 +82,8 @@ class DiarrheaEtiologyState(State):
                                                  np.zeros(population_size)},
                                                  index=event.index))
 
+    # Output metrics counting the number of cases of diarrhea and number of cases overall of diarrhea due to each pathogen
+    # TODO: Why are the diarrhea event count cols in this uses_columns statement but they aren't being called? Are we counting them somewhere else?
     @modifies_value('metrics')
     @uses_columns(diarrhea_event_count_cols + [i + '_event_count' for i in
                                                list_of_etiologies])
@@ -93,14 +94,17 @@ class DiarrheaEtiologyState(State):
 
         return metrics
 
-
-# TODO: After the MVS is finished, include transitions to non-fully healthy
+# FIXME: Docstring needs to be updated
+# FIXME: This is where we want to make sure that cause-deleted mortality rate is correctly included in the model
+#     Also include a test to ensure that diarrhea is being cause-deleted
+# TODO: Eventually we may want to include transitions to non-fully healthy
 #     states (e.g. malnourished and stunted health states)
-# TODO: Figure out how remission rates can be different across diarrhea due to
+# TODO: Eventually may want remission rates can be different across diarrhea due to
 #     the different etiologies
 class DiarrheaBurden:
     """
-    Assigns an excess mortality and duration to people that have diarrhea
+    Assigns an excess mortality and duration of diarrhea 
+        to people that have diarrhea
 
     Parameters
     ----------
@@ -143,7 +147,7 @@ class DiarrheaBurden:
     @modifies_value('mortality_rate')
     @uses_columns(['diarrhea'], 'alive')
     def mortality_rates(self, index, rates_df, population_view):
-        # FIXME: Might want to use population_view instead of
+        # FIXME: Might want to use population_view passed in by function instead of
         #     self.population_view in line below
         population = self.population_view.get(index)
         # TODO: Need to write tests that ensure that only people with severe
@@ -168,6 +172,7 @@ class DiarrheaBurden:
     #     severity levels
     # FIXME: Per conversation with Abie on 2.22, we would like to have a
     #     distribution surrounding duration
+    # TODO: Confirm whether we need a distribution surrounding duration for this paper
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + list_of_etiologies, 'alive')
     @listens_for('time_step', priority=8)
     def _apply_remission(self, event):
@@ -176,6 +181,8 @@ class DiarrheaBurden:
 
         affected_population = population.query("diarrhea != 'healthy'").copy()
 
+
+        # TODO: Make this clearer. Why is event.index being used on a df that only includes people with diarrhea?
         affected_population['duration'] = pd.to_timedelta(self.duration(
                                                           event.index),
                                                           unit='D')
@@ -189,9 +196,11 @@ class DiarrheaBurden:
 
         affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
 
+        # TODO: Confirm why we are setting etiologies to healthy here. Is this messing up counts?
         for etiology in list_of_etiologies:
             affected_population['{}'.format(etiology)] = 'healthy'
 
+        # TODO: Confirm whether or not Duration column needs to be updated
         event.population_view.update(affected_population[list_of_etiologies + ['diarrhea', 'diarrhea_event_end_time']])
 
 
@@ -202,8 +211,8 @@ def diarrhea_factory():
     """
     list_of_modules = []
 
-    # dict_of_etiologies_and_eti_risks = {'shigellosis': 175}
-
+    # TODO: Need to re-confirm that these are the correct rei_ids
+    # TODO: This seems like an easy place to make a mistake. Is there a better way to set the risk ids for each etiology?
     dict_of_etiologies_and_eti_risks = {'cholera': 173,
                                         'other_salmonella': 174,
                                         'shigellosis': 175, 'EPEC': 176,
@@ -225,15 +234,14 @@ def diarrhea_factory():
         # TODO: Where should I define the healthy state?
         healthy = State('healthy', key=diarrhea_due_to_pathogen)
 
-        # Potential FIXME: Might want to actually have severity states in the
-        #     future. Will need to figure out how to make sure that people with
-        #     multiple pathogens have only one severity
+        # TODO: Make sure it makes sense to have the state_id and key be the same thing
         etiology_state = DiarrheaEtiologyState(diarrhea_due_to_pathogen,
                                                key=diarrhea_due_to_pathogen)
 
         etiology_specific_incidence = get_etiology_specific_incidence(
             eti_risk_id=value, cause_id=302, me_id=1181)
 
+        # FIXME: Merge in develop and use Alec's piecewise constant interpolation instead of the make_age_group_1_to_4_rates_constant function
         if config.getint('simulation_parameters', 'diarrhea_constant_incidence') == 1:
             etiology_specific_incidence = make_age_group_1_to_4_rates_constant(
                 etiology_specific_incidence)
@@ -250,6 +258,8 @@ def diarrhea_factory():
 
         list_of_modules.append(module)
 
+    # TODO: Improve the name of this function
+    # TODO: Put all of the columns into a dataframe and update the population_view one time
     @listens_for('initialize_simulants')
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + diarrhea_event_count_cols)
     def _create_diarrhea_column(event):
@@ -273,6 +283,7 @@ def diarrhea_factory():
 
     # FIXME: This is a super slow function. Try to speed it up by using numbers
     #     instead of strings
+    # TODO: I don't like how priorities are set in a different way than the code flows. Would be nice if priority 0 stuff could be at the top, priority 9 stuff at the bottom
     @listens_for('time_step', priority=6)
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] + list_of_etiologies + [i + '_event_count' for i in list_of_etiologies] + diarrhea_event_count_cols, 'alive')
     def _move_people_into_diarrhea_state(event):
@@ -315,6 +326,7 @@ def diarrhea_factory():
         # set diarrhea event time here
         pop.loc[pop['diarrhea'] == 'diarrhea', 'diarrhea_event_time'] = pd.Timestamp(event.time)
 
+        # FIXME: Why is the line below here? Doesn't seem to do anything. Should confirm it does nothing and then delete
         pop = pop.query("diarrhea == 'diarrhea'").copy()
 
         # get diarrhea severity splits
@@ -331,6 +343,8 @@ def diarrhea_factory():
             [i + '_event_count' for i in list_of_etiologies] +
             diarrhea_event_count_cols])
 
+
+    # TODO: Add some commenting letting the reader know that we're back into the factory
     excess_mortality = get_severe_diarrhea_excess_mortality()
 
     # if we want constant mortality, need to do some processing
@@ -338,6 +352,7 @@ def diarrhea_factory():
         excess_mortality = make_age_group_1_to_4_rates_constant(
             excess_mortality)
 
+    # FIXME: Why is get_severity_splits being passed into the severe diarrhea_disability_weight function? That can't be right. There is also an error in the get_severity_splits code where draw_1 is hardcoded in. This will need to be updated.
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
                                      cause_specific_mortality_data=get_cause_specific_mortality(1181),
                                      severe_diarrhea_disability_weight=get_severity_splits(1181, 2610),
