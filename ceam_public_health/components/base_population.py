@@ -18,12 +18,11 @@ from ceam import config
 @listens_for('initialize_simulants', priority=0)
 @uses_columns(['age', 'fractional_age', 'sex', 'alive'])
 def generate_base_population(event):
-    year_start = event.time.year
     population_size = len(event.index)
 
     initial_age = event.user_data.get('initial_age', None)
 
-    population = generate_ceam_population(year_start=year_start, number_of_simulants=population_size, initial_age=initial_age)
+    population = generate_ceam_population(time=event.time, number_of_simulants=population_size, initial_age=initial_age)
     population['age'] = population.age.astype(int)
     population.index = event.index
     population['fractional_age'] = population.age.astype(float)
