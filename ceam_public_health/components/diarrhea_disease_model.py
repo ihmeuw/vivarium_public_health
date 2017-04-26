@@ -122,9 +122,10 @@ class DiarrheaBurden:
                  severe_disability_weight, duration_data):
         self.excess_mortality_data = excess_mortality_data
         self.cause_specific_mortality_data = cause_specific_mortality_data
-        self.severe_disability_weight = severe_disability_weight
-        self.moderate_disability_weight = moderate_disability_weight
-        self.mild_disability_weight = mild_disability_weight
+        self.severity_dict = {}
+        self.severity_dict["severe"] = severe_disability_weight
+        self.severity_dict["moderate"] = moderate_disability_weight
+        self.severity_dict["mild"] = mild_disability_weight
         self.duration_data = duration_data
 
     def setup(self, builder):
@@ -169,16 +170,16 @@ class DiarrheaBurden:
     def disability_weight(self, index):
         population = self.population_view.get(index)
 
-        # severe diarrhea
-        dis_weight_series = self.severe_disability_weight * (population['diarrhea'] == 'severe_diarrhea')
+        # Initialize a series where each value is 0. We add in disability to people in the infected states below
+        dis_weight_series = pd.Series(0, index=index)
 
-        # moderate diarrhea
-        moderate_index = population.query("diarrhea == 'moderate_diarrhea'").index
-        dis_weight_series.loc[moderate_index] = self.moderate_disability_weight
+        # Assert error if the diarrhea column has values that we do not expect
+        assert set(population.diarrhea.unique()) == set(['healthy', 'mild_diarrhea', 'moderate_diarrhea', 'severe_diarrhea']), "simulants can have no, mild, moderate, or severe diarrhea. this test is meant to confirm that there are no values outside of what we expect"
 
-        # mild diarrhea
-        mild_index = population.query("diarrhea == 'mild_diarrhea'").index
-        dis_weight_series.loc[mild_index] = self.mild_disability_weight 
+        # Mild, moderate, and severe each have their own disability weight, which we assign in the loop below.
+        for severity in ["mild", "moderate", "severe"]:
+            severity_index = population.query("diarrhea == '{}_diarrhea'".format(severity)).index 
+            dis_weight_series.loc[severity_index] = self.severity_dict[severity]
 
         # TODO: Write a test to ensure that disability is only associated with
         #     severe diarrhea, and not mild/moderate
