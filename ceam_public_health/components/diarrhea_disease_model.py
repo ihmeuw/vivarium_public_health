@@ -118,10 +118,13 @@ class DiarrheaBurden:
         df with duration data (in days) for each age, sex, year, loc
     """
     def __init__(self, excess_mortality_data, cause_specific_mortality_data,
-                 severe_diarrhea_disability_weight, duration_data):
+                 mild_disability_weight, moderate_disability_weight, 
+                 severe_disability_weight, duration_data):
         self.excess_mortality_data = excess_mortality_data
         self.cause_specific_mortality_data = cause_specific_mortality_data
-        self._severe_diarrhea_disability_weight = severe_diarrhea_disability_weight
+        self.severe_disability_weight = severe_disability_weight
+        self.moderate_disability_weight = moderate_disability_weight
+        self.mild_disability_weight = mild_disability_weight
         self.duration_data = duration_data
 
     def setup(self, builder):
@@ -158,15 +161,28 @@ class DiarrheaBurden:
 
         return rates_df
 
+    # FIXME: Would be nice if functions with the @modifies_value('disability_weight') took an argument that is similar to the 'rates' argument in functions with the @modifies_value('mortality_rate') decorator
     # FIXME: Need to set a priority on this function so that it is set after
     #     _move_people_into_diarrhea_state
+    # TODO: Does it make sense that this function doesn't get called if I change the name from disability weight to something else?
     @modifies_value('disability_weight')
     def disability_weight(self, index):
         population = self.population_view.get(index)
 
+        # severe diarrhea
+        dis_weight_series = self.severe_disability_weight * (population['diarrhea'] == 'severe_diarrhea')
+
+        # moderate diarrhea
+        moderate_index = population.query("diarrhea == 'moderate_diarrhea'").index
+        dis_weight_series.loc[moderate_index] = self.moderate_disability_weight
+
+        # mild diarrhea
+        mild_index = population.query("diarrhea == 'mild_diarrhea'").index
+        dis_weight_series.loc[mild_index] = self.mild_disability_weight 
+
         # TODO: Write a test to ensure that disability is only associated with
         #     severe diarrhea, and not mild/moderate
-        return self._severe_diarrhea_disability_weight * (population['diarrhea'] == 'severe_diarrhea')
+        return dis_weight_series
 
     # TODO: Confirm whether or not we need different durations for different
     #     severity levels
@@ -355,7 +371,9 @@ def diarrhea_factory():
     # FIXME: Why is get_severity_splits being passed into the severe diarrhea_disability_weight function? That can't be right. There is also an error in the get_severity_splits code where draw_1 is hardcoded in. This will need to be updated.
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
                                      cause_specific_mortality_data=get_cause_specific_mortality(1181),
-                                     severe_diarrhea_disability_weight=get_severity_splits(1181, 2610),
+                                     mild_disability_weight=get_disability_weight(2608),
+                                     moderate_disability_weight=get_disability_weight(2609),
+                                     severe_disability_weight=get_disability_weight(2610),
                                      duration_data=get_duration_in_days(1181))
 
     list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state,
