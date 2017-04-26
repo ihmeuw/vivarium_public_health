@@ -14,16 +14,17 @@ from ceam.framework.values import modifies_value
 
 from ceam_inputs.gbd_ms_functions import load_data_from_cache, get_modelable_entity_draws
 from ceam_inputs.util import gbd_year_range
+from ceam_inputs.auxiliary_files import auxiliary_file_path
 
 # draw random costs for doctor visit (time-specific)
 draw = config.run_configuration.draw_number
 assert config.simulation_parameters.location_id == 180, 'FIXME: currently cost data for Kenya only'
 
-cost_df = pd.read_csv('/home/j/Project/Cost_Effectiveness/dev/data_processed/doctor_visit_cost_KEN_20160804.csv', index_col=0)
+cost_df = pd.read_csv(auxiliary_file_path('Doctor Visit Costs'), index_col=0)
 cost_df.index = cost_df.year_id
 appointment_cost = cost_df['draw_{}'.format(draw)]
 
-ip_cost_df = pd.read_csv('/home/j/Project/Cost_Effectiveness/dev/data_processed/inpatient_visit_cost_KEN_20170125.csv', index_col=0)
+ip_cost_df = pd.read_csv(auxiliary_file_path('Inpatient Visit Costs'), index_col=0)
 ip_cost_df.index = ip_cost_df.year_id
 hospitalization_cost = ip_cost_df['draw_{}'.format(draw)]
 
