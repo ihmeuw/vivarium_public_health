@@ -14,6 +14,8 @@ from ceam.framework.values import modifies_value
 
 import ceam_public_health.components.healthcare_access
 
+from ceam_inputs.auxiliary_files import auxiliary_file_path
+
 #TODO: This feels like configuration but is difficult to express in ini type files.
 MEDICATIONS = [
     {
@@ -95,8 +97,7 @@ class OpportunisticScreening:
         # draw random costs and effects for medications
         draw = config.run_configuration.draw_number
         r = np.random.RandomState(12345+draw)
-        j_drive = config.input_data.j_drive
-        cost_df = pd.read_csv(os.path.join(j_drive, 'Project/Cost_Effectiveness/dev/data_processed/higashi_drug_costs_20160804.csv'), index_col='name')
+        cost_df = pd.read_csv(auxiliary_file_path('Hypertension Drug Costs'), index_col='name')
 
         for med in MEDICATIONS:
             med['efficacy'] = r.normal(loc=med['efficacy_mean'], scale=med['efficacy_sd'])
