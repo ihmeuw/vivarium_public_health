@@ -7,8 +7,7 @@ import numpy as np
 from ceam import config
 from ceam_inputs import get_age_specific_fertility_rates
 from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
-from ceam.framework.population import creates_simulants
+from ceam.framework.population import uses_columns, creates_simulants
 from ceam_inputs.gbd_ms_auxiliary_functions import get_populations
 from ceam.framework.util import rate_to_probability
 
@@ -95,7 +94,7 @@ def _get_birth_rate(year):
     population_table = get_populations(location_id, year, 3)
 
     population = population_table.pop_scaled.sum()
-    births = population_table.pop_scaled[population_table.age<1].sum()
+    births = population_table.pop_scaled[population_table.age < 1].sum()
 
     return births / population
 
