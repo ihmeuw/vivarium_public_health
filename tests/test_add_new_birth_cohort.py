@@ -11,17 +11,17 @@ from ceam import config
 def test_add_new_birth_cohorts_deterministic():
     start_population_size = 1000
     annual_new_simulants = 1000
-    num_days = pd.Timedelta(100)
+    num_days = 100
     time_step = 10  # Days
     time_start = pd.Timestamp('1990-01-01')
     config.read_dict({'simulation_parameters':
-                          {'pop_age_start': '0', 'pop_age_end': '125',
-                           'number_of_new_simulants_each_year': str(annual_new_simulants)}},
+                          {'pop_age_start': 0, 'pop_age_end': 125,
+                           'number_of_new_simulants_each_year': annual_new_simulants}},
                      layer='override')
 
     components = [generate_test_population, anbc.add_new_birth_cohort]
     simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
-    pump_simulation(simulation, time_step_days=time_step, duration=num_days)
+    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
 
     # No death in this model.
@@ -29,20 +29,20 @@ def test_add_new_birth_cohorts_deterministic():
 
     # We expect to have n_days/time_step steps each producing
     # ceil(1000 * time_step / 365) new simulants, so
-    assert (num_days / time_step * np.ceil(1000 * time_step / 365.) +
-            start_population_size == len(pop.age)), 'expect new simulants'
+    assert (num_days / time_step * np.ceil(annual_new_simulants * time_step / 365.)
+            == len(pop.age) - start_population_size), 'expect new simulants'
 
 
 def test_add_new_birth_cohorts_nondeterministic():
-    start_population_size = 1000
-    num_days = pd.Timedelta(100)
+    start_population_size = 10000
+    num_days = 100
     time_step = 10  # Days
     time_start = pd.Timestamp('1990-01-01')
-    config.read_dict({'simulation_parameters': {'pop_age_start': '0', 'pop_age_end': '125'}}, layer='override')
+    config.read_dict({'simulation_parameters': {'pop_age_start': 0, 'pop_age_end': 125}}, layer='override')
 
     components = [generate_test_population, anbc.add_new_birth_cohort_nondeterministic]
     simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
-    pump_simulation(simulation, time_step_days=time_step, duration=num_days)
+    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
 
     # No death in this model.
@@ -54,10 +54,10 @@ def test_add_new_birth_cohorts_nondeterministic():
 
 def test_fertility_module():
     start_population_size = 1000
-    num_days = pd.Timedelta(1000)
+    num_days = 1000
     time_step = 10  # Days
     time_start = pd.Timestamp('1990-01-01')
-    config.read_dict({'simulation_parameters': {'pop_age_start': '0', 'pop_age_end': '125'}}, layer='override')
+    config.read_dict({'simulation_parameters': {'pop_age_start': 0, 'pop_age_end': 125}}, layer='override')
 
     components = [generate_test_population, anbc.Fertility()]
     simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
@@ -67,7 +67,7 @@ def test_fertility_module():
     assert 'parent' in simulation.population.population.columns, \
         'expect Fertility module to update state table.'
 
-    pump_simulation(simulation, time_step_days=time_step, duration=num_days)
+    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
 
     # No death in this model.
