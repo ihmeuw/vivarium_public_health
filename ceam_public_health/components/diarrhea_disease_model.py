@@ -174,7 +174,7 @@ class DiarrheaBurden:
         dis_weight_series = pd.Series(0, index=index)
 
         # Assert error if the diarrhea column has values that we do not expect
-        assert set(population.diarrhea.unique()) == set(['healthy', 'mild_diarrhea', 'moderate_diarrhea', 'severe_diarrhea']), "simulants can have no, mild, moderate, or severe diarrhea. this test is meant to confirm that there are no values outside of what we expect"
+        assert set(population.diarrhea.unique()).issubset(['healthy', 'mild_diarrhea', 'moderate_diarrhea', 'severe_diarrhea']), "simulants can have no, mild, moderate, or severe diarrhea. this test is meant to confirm that there are no values outside of what we expect"
 
         # Mild, moderate, and severe each have their own disability weight, which we assign in the loop below.
         for severity in ["mild", "moderate", "severe"]:
