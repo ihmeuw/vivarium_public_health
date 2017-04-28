@@ -111,17 +111,17 @@ class DiarrheaBurden:
     excess_mortality_data: df
         df with excess mortality rate for each age, sex, year, loc
 
-    cause_specific_mortality_data: df
+    csmr_data: df
         df with csmr for each age, sex, year, loc
 
     duration_data: df
         df with duration data (in days) for each age, sex, year, loc
     """
-    def __init__(self, excess_mortality_data, cause_specific_mortality_data,
+    def __init__(self, excess_mortality_data, csmr_data,
                  mild_disability_weight, moderate_disability_weight, 
                  severe_disability_weight, duration_data):
         self.excess_mortality_data = excess_mortality_data
-        self.cause_specific_mortality_data = cause_specific_mortality_data
+        self.csmr_data = csmr_data
         self.severity_dict = {}
         self.severity_dict["severe"] = severe_disability_weight
         self.severity_dict["moderate"] = moderate_disability_weight
@@ -143,9 +143,9 @@ class DiarrheaBurden:
         # this gives you a base value. intervention will change this value
         self.duration.source = builder.lookup(self.duration_data)
 
-    @modifies_value('cause_specific_mortality_data')
+    @modifies_value('csmr_data')
     def mmeids(self):
-        return self.cause_specific_mortality_data
+        return self.csmr_data
 
 
     @modifies_value('mortality_rate')
@@ -371,10 +371,7 @@ def diarrhea_factory():
 
     # FIXME: Why is get_severity_splits being passed into the severe diarrhea_disability_weight function? That can't be right. There is also an error in the get_severity_splits code where draw_1 is hardcoded in. This will need to be updated.
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
-                                     cause_specific_mortality_data=get_cause_specific_mortality(1181),
-                                     mild_disability_weight=get_disability_weight(2608),
-                                     moderate_disability_weight=get_disability_weight(2609),
-                                     severe_disability_weight=get_disability_weight(2610),
+                                     csmr_data=get_cause_specific_mortality(1181),
                                      duration_data=get_duration_in_days(1181))
 
     list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state,
