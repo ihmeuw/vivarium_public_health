@@ -372,6 +372,10 @@ def diarrhea_factory():
     # FIXME: Why is get_severity_splits being passed into the severe diarrhea_disability_weight function? That can't be right. There is also an error in the get_severity_splits code where draw_1 is hardcoded in. This will need to be updated.
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
                                      csmr_data=get_cause_specific_mortality(1181),
+                                     # double check the healthstate id values once the db is up and running again
+                                     mild_disability_weight=get_disability_weight(healthstate_id=355),
+                                     moderate_disability_weight=get_disability_weight(healthstate_id=356),
+                                     severe_disability_weight=get_disability_weight(healthstate_id=357),
                                      duration_data=get_duration_in_days(1181))
 
     list_of_module_and_functs = list_of_modules + [_move_people_into_diarrhea_state,
