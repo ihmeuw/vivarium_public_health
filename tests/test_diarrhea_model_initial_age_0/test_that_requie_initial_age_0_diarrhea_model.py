@@ -29,6 +29,9 @@ def test_cause_deletion():
     cause_deleted_mr_values = cause_deleted_mr.query("year==2005 and age<.01").cause_deleted_mortality_rate.values
     simulation_values = simulation_mortality_rate(simulation.population.population.index).death_due_to_other_causes.unique()
 
-    # check that the value in the simulation is what it should be
-    assert np.allclose((cause_deleted_mr_values * 1/365), (simulation_values), atol=.01), "ensure that the mortality rate at the start of the simulation is the diarrhea cause-deleted mortality rate"
+    ts = config.getint('simulation_parameters', 'time_step')
 
+    # check that the value in the simulation is what it should be
+    # @Alecwd: I don't like how I have to specify an absolute tolerance when I use np.allclose here. Even though the numbers that I want to compare are really close, I'm concerned because the assertion that the two parameters are equal fails without the atol parameter being specified as below. Is there a better way to confirm that the numbers are only different because of floating point error and not something that we need to be concerned about?
+    import pdb; pdb.set_trace()
+    np.allclose(np.sort(simulation_values), np.sort(cause_deleted_mr_values * ts/365), atol=.000001)
