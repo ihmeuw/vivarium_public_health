@@ -68,15 +68,15 @@ def test_disability_weights():
 
     # TEST 2A --> Check that there are no unexpected disability weights
     only_men = simulation.population.population.query("sex == 'Male'")
-    assert np.allclose(pd.unique(dis_weight(only_men.index)), [mild_disability_weight, moderate_disability_weight, severe_disability_weight], atol=.01)
+    assert np.allclose(np.sort(pd.unique(dis_weight(only_men.index))), np.sort([mild_disability_weight, moderate_disability_weight, severe_disability_weight])), "assert that disability weights values are what they are expected to be"
 
     # TEST 2B --> Check that the disability weights are mapped correctly
     mild_diarrhea_index = simulation.population.population.query("diarrhea == 'mild_diarrhea'").index
     moderate_diarrhea_index = simulation.population.population.query("diarrhea == 'moderate_diarrhea'").index
     severe_diarrhea_index = simulation.population.population.query("diarrhea == 'severe_diarrhea'").index
-    assert np.allclose(pd.unique(dis_weight(mild_diarrhea_index)), np.array([mild_disability_weight]), atol=.01), "diarrhea severity state should be correctly mapped to its specific disability weight"
-    assert np.allclose(pd.unique(dis_weight(moderate_diarrhea_index)), np.array([moderate_disability_weight]), atol=.01), "diarrhea severity state should be correctly mapped to its specific disability weight"
-    assert np.allclose(pd.unique(dis_weight(severe_diarrhea_index)), np.array([severe_disability_weight]), atol=.01), "diarrhea severity state should be correctly mapped to its specific disability weight"
+    assert np.allclose(pd.unique(dis_weight(mild_diarrhea_index)), np.array([mild_disability_weight])), "diarrhea severity state should be correctly mapped to its specific disability weight"
+    assert np.allclose(pd.unique(dis_weight(moderate_diarrhea_index)), np.array([moderate_disability_weight])), "diarrhea severity state should be correctly mapped to its specific disability weight"
+    assert np.allclose(pd.unique(dis_weight(severe_diarrhea_index)), np.array([severe_disability_weight])), "diarrhea severity state should be correctly mapped to its specific disability weight"
 
 # TEST 3 --> test excess mortality
 def test_excess_mortality():
