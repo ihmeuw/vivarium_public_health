@@ -144,5 +144,41 @@ def test_remission():
     # make sure that all simulants between the age of 20 and 40 that got diarrhea in the first time step still have diarrhea
     assert "healthy" not in pd.unique(simulation.population.population.loc[diarrhea_first_time_step.index].query("age >= 20 and age < 40 and sex == 'Male'").diarrhea), "duration should correctly determine the duration of a bout of diarrhea"
 
+# TEST 5 --> test that severe_diarrhea is the only severity level of diarrhea associated with an excess mortality
+def test_diarrhea_elevated_mortality():
+    factory = diarrhea_factory()
+
+    simulation = setup_simulation([generate_test_population] + factory, start=datetime(2005, 1, 1))
+
+    # make it so that all men will get incidence due to rotaviral entiritis
+    inc = build_table(0)
+
+    inc.loc[inc.sex == 'Male', 'rate'] = 14000
+
+    rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
+
+    rota_inc.source = simulation.tables.build_table(inc)
+
+    # make the base mortality_rate 0
+    mortality_rate = simulation.values.get_rate('mortality_rate')
+
+    mortality_rate.source = simulation.tables.build_table(build_table(0))
+ 
+    pump_simulation(simulation, time_step_days=1, iterations=1, year_start=2005)
+
+    pop = simulation.population.population
+
+    severe_diarrhea_index = pop.query("diarrhea == 'severe_diarrhea'").index
+
+    excess_mortality_rate = simulation.values.get_rate('mortality_rate')
+
+    # FIXME: @Alecwd -- is this the correct use of .all()? Are there better ways to check that all values are greater than 0? Similar question applies to two tests below.
+    assert excess_mortality_rate(severe_diarrhea_index)['death_due_to_severe_diarrhea'].all() > 0, "people with diarrhea should have an elevated mortality rate"
+
+    mild_diarrhea_index = pop.query("diarrhea == 'mild_diarrhea'").index
+    moderate_diarrhea_index = pop.query("diarrhea == 'moderate_diarrhea'").index
+
+    assert excess_mortality_rate(mild_diarrhea_index).all() == 0, "people with mild/moderate diarrhea should have no elevated mortality due to diarrhea (or due to anything else in this test)"
+    assert excess_mortality_rate(moderate_diarrhea_index).all() == 0, "people with mild/moderate diarrhea should have no elevated mortality due to diarrhea (or due to anything else in this test)"
 
 # End.
