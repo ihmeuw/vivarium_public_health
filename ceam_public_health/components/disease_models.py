@@ -36,6 +36,7 @@ def heart_disease_factory():
 
     location_id = config.simulation_parameters.location_id
     year_start, year_end = gbd_year_range()
+    draw = config.run_configuration.draw_number
 
     # Calculate an adjusted disability weight for the acute heart attack phase that
     # accounts for the fact that our timestep is longer than the phase length
@@ -79,9 +80,9 @@ def heart_disease_factory():
 
     # TODO: Need to figure out best way to implemnet functions here
     # TODO: Need to figure out where transition from rates to probabilities needs to happen
-    hf_prop_df = load_data_from_cache(get_post_mi_heart_failure_proportion_draws, col_name='proportion', src_column='draw_{draw}', location_id=location_id, year_start=year_start, year_end=year_end)
+    hf_prop_df = load_data_from_cache(get_post_mi_heart_failure_proportion_draws, col_name='proportion', src_column='draw_{draw}', location_id=location_id, year_start=year_start, year_end=year_end, draw_number=draw)
     angina_prop_df = load_data_from_cache(get_angina_proportions, col_name='proportion', src_column='angina_prop')#, year_start=year_start, year_end=year_end)
-    asympt_prop_df = load_data_from_cache(get_asympt_ihd_proportions, col_name='proportion', src_column='asympt_prop_{draw}', location_id=location_id, year_start=year_start, year_end=year_end)
+    asympt_prop_df = load_data_from_cache(get_asympt_ihd_proportions, col_name='proportion', src_column='asympt_prop_{draw}', location_id=location_id, year_start=year_start, year_end=year_end, draw_number=draw)
 
     # post-mi transitions
     # TODO: Figure out if we can pass in me_id here to get incidence for the correct cause of heart failure
