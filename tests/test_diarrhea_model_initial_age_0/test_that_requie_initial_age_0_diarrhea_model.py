@@ -33,5 +33,4 @@ def test_cause_deletion():
 
     # check that the value in the simulation is what it should be
     # @Alecwd: I don't like how I have to specify an absolute tolerance when I use np.allclose here. Even though the numbers that I want to compare are really close, I'm concerned because the assertion that the two parameters are equal fails without the atol parameter being specified as below. Is there a better way to confirm that the numbers are only different because of floating point error and not something that we need to be concerned about?
-    import pdb; pdb.set_trace()
     np.allclose(np.sort(simulation_values), np.sort(cause_deleted_mr_values * ts/365), atol=.000001)
