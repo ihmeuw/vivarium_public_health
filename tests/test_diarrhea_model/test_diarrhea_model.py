@@ -13,6 +13,7 @@ from ceam.framework.event import Event
 from datetime import timedelta, datetime
 from ceam_public_health.components.base_population import Mortality
 from ceam_inputs.gbd_ms_functions import get_disability_weight
+from ceam_inputs import get_severity_splits
 
 def make_simulation_object():
     factory = diarrhea_factory()
@@ -180,5 +181,41 @@ def test_diarrhea_elevated_mortality():
 
     assert excess_mortality_rate(mild_diarrhea_index).all() == 0, "people with mild/moderate diarrhea should have no elevated mortality due to diarrhea (or due to anything else in this test)"
     assert excess_mortality_rate(moderate_diarrhea_index).all() == 0, "people with mild/moderate diarrhea should have no elevated mortality due to diarrhea (or due to anything else in this test)"
+
+# TEST 6 --> test that severity proportions are correctly being applied
+def test_severity_proportions():
+    factory = diarrhea_factory()
+
+    simulation = setup_simulation([generate_test_population] + factory, start=datetime(2005, 1, 1), population_size=1000)
+
+    # give everyone diarrhea
+    inc = build_table(14000)
+
+    rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
+
+    rota_inc.source = simulation.tables.build_table(inc)
+
+    # pump the simulation forward 1 time period
+    pump_simulation(simulation, time_step_days=1, iterations=1, year_start=2005)
+
+    pop = simulation.population.population
+
+    mild_prop_in_sim = len(pop.query("diarrhea == 'mild_diarrhea'"))/1000
+
+    moderate_prop_in_sim = len(pop.query("diarrhea == 'moderate_diarrhea'"))/1000
+
+    severe_prop_in_sim = len(pop.query("diarrhea == 'severe_diarrhea'"))/1000
+
+    severe_prop_in_GBD = get_severity_splits(1181, 2610)
+
+    moderate_prop_in_GBD = get_severity_splits(1181, 2609)
+
+    mild_prop_in_GBD = get_severity_splits(1181, 2608)
+
+    assert np.allclose(mild_prop_in_sim, mild_prop_in_GBD, atol=.01)
+
+    assert np.allclose(moderate_prop_in_sim, moderate_prop_in_GBD, atol=.01)
+
+    assert np.allclose(severe_prop_in_sim, severe_prop_in_GBD, atol=.01)
 
 # End.
