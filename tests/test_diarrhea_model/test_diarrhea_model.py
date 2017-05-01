@@ -145,22 +145,4 @@ def test_remission():
     assert "healthy" not in pd.unique(simulation.population.population.loc[diarrhea_first_time_step.index].query("age >= 20 and age < 40 and sex == 'Male'").diarrhea), "duration should correctly determine the duration of a bout of diarrhea"
 
 
-# TODO: Determine whether or not we want to use this test to look at the mortality rates in the entire population or just new borns
-def test_cause_deletion():
-    factory = diarrhea_factory()
-    simulation = setup_simulation([generate_test_population, Mortality()] + factory, start=datetime(2005, 1, 1))
-
-    # determine what the cause-deleted mortality rate should be
-    cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(1181)])
-
-    # get the mortality rate from the simulation
-    simulation_mortality_rate = simulation.values.get_rate('mortality_rate')
-
-    # compare for the earliest age group (this test requires that generate_test_population is set to create a cohort of newborns)
-    cause_deleted_mr_values = cause_deleted_mr.query("year==2005").cause_deleted_mortality_rate.values
-    simulation_values = simulation_mortality_rate(simulation.population.population.index).death_due_to_other_causes.unique()
-
-    # check that the value in the simulation is what it should be
-    assert np.allclose((cause_deleted_mr_values * 1/365), (simulation_values), atol=.01), "ensure that the mortality rate at the start of the simulation is the diarrhea cause-deleted mortality rate" 
-
 # End.
