@@ -350,7 +350,7 @@ def diarrhea_factory():
         # now we want to make sure we're counting the bouts of diarrhea
         #    correctly, for each specific age/sex/year. We need demographic-
         #    specific counts for the incidence rates that we'll calculate later
-        affected_pop = pop.query("diarrhea == 'diarrhea'").copy()
+        affected_pop = pop.query("diarrhea == 'diarrhea'")
 
         # key= age_bin, and value=age_bin_max
         age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
