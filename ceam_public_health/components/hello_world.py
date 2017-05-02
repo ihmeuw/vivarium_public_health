@@ -42,12 +42,16 @@ class SimpleIntervention:
         print('Cost:', self.cumulative_cost)
 
 class SimpleMortality:
+    configuration_defaults = {
+            'hello_world': {'mortality_rate': 0.01}
+    }
+
     def setup(self, builder):
         self.mortality_rate = builder.rate('mortality_rate')
 
     @produces_value('mortality_rate')
     def base_mortality_rate(self, index):
-        return pd.Series(0.01, index=index)
+        return pd.Series(config.hello_world.mortality_rate, index=index)
 
     @listens_for('time_step')
     @emits('deaths')
