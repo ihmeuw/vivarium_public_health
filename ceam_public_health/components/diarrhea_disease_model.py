@@ -104,8 +104,11 @@ class DiarrheaEtiologyState(State):
 # due to the different etiologies
 class DiarrheaBurden:
     """
-    Assigns an excess mortality and duration of diarrhea
-        to people that have diarrhea
+    This class accomplishes several things.
+        1) deletes the diarrhea csmr from the background mortality rate
+        2) assigns an elevated mortality to people with severe diarrhea
+        3) assigns disability weight
+        4) determines when a simulant should remit out of the diarrhea state
 
     Parameters
     ----------
