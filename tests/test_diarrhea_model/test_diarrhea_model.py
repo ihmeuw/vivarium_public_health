@@ -122,8 +122,6 @@ def test_remission():
 
     rota_inc.source = simulation.tables.build_table(inc)
 
-    # pump_simulation(simulation, time_step_days=2, iterations=1)    
-    # Move everyone into the event state
     emitter(Event(simulation.population.population.index))
 
     simulation.current_time += timedelta(days=1)
