@@ -21,8 +21,7 @@ from ceam_public_health.components.diarrhea_disease_model import (DiarrheaEtiolo
 def make_simulation_object():
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population] + factory,
-                                  start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population] + factory)
 
     # make it so that all men will get incidence due to rotaviral entiritis
     inc = build_table(0)
@@ -105,7 +104,7 @@ def test_excess_mortality():
 def test_remission():
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population] + factory, start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population] + factory)
     emitter = simulation.events.get_emitter('time_step')
 
     # make it so that duration of diarrhea is 1 day among all men except for men between age 20 and 40, for whom duration will be 2 days
@@ -151,7 +150,7 @@ def test_remission():
 def test_diarrhea_elevated_mortality():
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population] + factory, start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population] + factory)
 
     # make it so that all men will get incidence due to rotaviral entiritis
     inc = build_table(0)
@@ -188,7 +187,7 @@ def test_diarrhea_elevated_mortality():
 def test_severity_proportions():
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population] + factory, start=datetime(2005, 1, 1), population_size=1000)
+    simulation = setup_simulation([generate_test_population] + factory, population_size=1000)
 
     # give everyone diarrhea
     inc = build_table(14000)
@@ -225,7 +224,7 @@ def test_cause_deletion():
     config.set('simulation_parameters', 'initial_age', '0')
 
     factory = diarrhea_factory()
-    simulation = setup_simulation([generate_test_population, Mortality()] + factory, start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population, Mortality()] + factory)
 
     # determine what the cause-deleted mortality rate should be
     cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(1181)])
