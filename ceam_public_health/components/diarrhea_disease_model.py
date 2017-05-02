@@ -234,7 +234,7 @@ class DiarrheaBurden:
         #     healthy as well
         current_time = pd.Timestamp(event.time)
 
-        affected_population.loc[affected_population['diarrhea_event_end_time']<= current_time, 'diarrhea'] = 'healthy'
+        affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
 
         for etiology in list_of_etiologies:
             affected_population['{}'.format(etiology)] = 'healthy'
