@@ -178,7 +178,9 @@ class DiarrheaBurden:
         return rates_df
 
     # @Alecwd: Can I set a priority on modifies value so that the disability
-    #    is applied after the move_people_into_diarrhea_state function?
+    #    is applied after the move_people_into_diarrhea_state function? Do I
+    #    need to do that? Same question applies the mortality_rates method 
+    #    above
     @modifies_value('disability_weight')
     def disability_weight(self, index):
         population = self.population_view.get(index)
@@ -193,8 +195,8 @@ class DiarrheaBurden:
                                                            'moderate_diarrhea',
                                                            'severe_diarrhea']), \
             "simulants can have no, mild, moderate, or severe diarrhea" + \
-            "this test is meant to confirm that there are no values" + \
-            "outside of what we expect"
+            " this assert statement is meant to confirm that there are" + \
+            " no values outside of what we expect"
 
         # Mild, moderate, and severe each have their own disability weight,
         #     which we assign in the loop below.
@@ -217,10 +219,10 @@ class DiarrheaBurden:
 
         affected_population = population.query("diarrhea != 'healthy'").copy()
 
-        # TODO: I want to think of another test for this block of the code.
+        # TODO: I want to think of another test for apply_remission.
         #     There was an error before (event.index instead of
-        #     affected_population.index was being passed in). @Alecwd: any
-        #     suggestions for another test for apply_remission?
+        #     affected_population.index was being passed in). Alec/James: 
+        #     any suggestions for another test for apply_remission?
         affected_population['duration'] = pd.to_timedelta(self.duration(
                                                           affected_population.index),
                                                           unit='D')
@@ -251,7 +253,7 @@ def diarrhea_factory():
     # TODO: This seems like an easy place to make a mistake. The better way of
     #    getting the risk id data would be to run a get_ids query and have that
     #    return the ids we want (that statement could apply to anywhere we use
-    #    gbd id of some sort
+    #    a gbd id of some sort)
     dict_of_etiologies_and_eti_risks = {'cholera': 173,
                                         'other_salmonella': 174,
                                         'shigellosis': 175, 'EPEC': 176,
@@ -332,9 +334,10 @@ def diarrhea_factory():
         pop = event.population_view.get(event.index)
 
         # Now we're making it so that only healthy people can get diarrhea
-        #     (i.e. people currently with diarrhea are not susceptible)
-        #     This is the assumption were working with for now, but we may
-        #     want to change in the future
+        #     (i.e. people currently with diarrhea are not susceptible for
+        #     reinfection). This is the assumption were working with for
+        #     now, but we may want to change in the future so that people
+        #     currently infected with diarrhea can be reinfected
         pop = pop.query("diarrhea == 'healthy'")
 
         # for people that got diarrhea due to an etiology (or multiple
@@ -370,7 +373,7 @@ def diarrhea_factory():
                                  a=age_bin, c=current_year, s=sex)] += 1
                 last_age_group_max = upr_bound
 
-        # also get the overall count among all simulants in the simulation
+        # also track the overall count among all simulants in the simulation
         affected_pop['diarrhea_event_count'] += 1
 
         # set diarrhea event time
