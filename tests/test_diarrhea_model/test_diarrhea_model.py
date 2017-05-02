@@ -17,10 +17,12 @@ from ceam_public_health.components.diarrhea_disease_model import (DiarrheaEtiolo
                                                                   DiarrheaBurden,
                                                                   diarrhea_factory)
 
+
 def make_simulation_object():
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population] + factory, start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population] + factory,
+                                  start=datetime(2005, 1, 1))
 
     # make it so that all men will get incidence due to rotaviral entiritis
     inc = build_table(0)
@@ -39,7 +41,7 @@ def make_simulation_object():
 
     excess_mortality_rate = simulation.values.get_rate('excess_mortality.diarrhea')
 
-    excess_mortality_rate.source = simulation.tables.build_table(x_mort) 
+    excess_mortality_rate.source = simulation.tables.build_table(x_mort)
 
     return simulation
 
@@ -49,7 +51,7 @@ def test_incidence_rates():
     simulation = make_simulation_object()
 
     # pump the simulation forward 1 time period
-    pump_simulation(simulation, time_step_days=1, iterations=1, year_start=2005)
+    pump_simulation(simulation, time_step_days=1, iterations=1)
 
     only_men = simulation.population.population.query("sex == 'Male'")
 
@@ -62,7 +64,7 @@ def test_disability_weights():
     dis_weight = simulation.values.get_value('disability_weight')
 
     # pump the simulation forward 1 time period
-    pump_simulation(simulation, time_step_days=1, iterations=1, year_start=2005)
+    pump_simulation(simulation, time_step_days=1, iterations=1)
 
     ts = config.getint('simulation_parameters', 'time_step')
     mild_disability_weight = get_disability_weight(healthstate_id=355)*ts/365
@@ -86,7 +88,7 @@ def test_excess_mortality():
     simulation = make_simulation_object()
 
     # pump the simulation forward 1 time period
-    pump_simulation(simulation, time_step_days=1, iterations=1, year_start=2005)
+    pump_simulation(simulation, time_step_days=1, iterations=1)
 
     excess_mortality_rate = simulation.values.get_rate('excess_mortality.diarrhea')
 
@@ -165,7 +167,7 @@ def test_diarrhea_elevated_mortality():
 
     mortality_rate.source = simulation.tables.build_table(build_table(0))
  
-    pump_simulation(simulation, time_step_days=1, iterations=1, year_start=2005)
+    pump_simulation(simulation, time_step_days=1, iterations=1)
 
     pop = simulation.population.population
 
@@ -196,7 +198,7 @@ def test_severity_proportions():
     rota_inc.source = simulation.tables.build_table(inc)
 
     # pump the simulation forward 1 time period
-    pump_simulation(simulation, time_step_days=1, iterations=1, year_start=2005)
+    pump_simulation(simulation, time_step_days=1, iterations=1)
 
     pop = simulation.population.population
 
