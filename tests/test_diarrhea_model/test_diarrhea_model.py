@@ -1,19 +1,21 @@
+import pandas as pd
+import numpy as np
 import pytest
-import pandas as pd, numpy as np
-from ceam import config
-from ceam_public_health.components.diarrhea_disease_model import DiarrheaEtiologyState, DiarrheaBurden, diarrhea_factory
-from ceam_tests.util import build_table, setup_simulation, generate_test_population, pump_simulation
-from ceam_public_health.components.disease import DiseaseModel, RateTransition
-from ceam.framework.state_machine import State, Transition
-from ceam_inputs import get_etiology_specific_incidence, get_excess_mortality, get_cause_specific_mortality, get_duration_in_days, get_cause_deleted_mortality_rate, get_cause_specific_mortality
-from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
-from ceam_public_health.components.accrue_susceptible_person_time import AccrueSusceptiblePersonTime
-from ceam.framework.event import Event
 from datetime import timedelta, datetime
-from ceam_public_health.components.base_population import Mortality
+
+from ceam import config
+from ceam.framework.event import Event
+from ceam_tests.util import (build_table, setup_simulation,
+                             generate_test_population, pump_simulation)
+
 from ceam_inputs.gbd_ms_functions import get_disability_weight
-from ceam_inputs import get_severity_splits
+from ceam_inputs import (get_severity_splits, get_cause_specific_mortality,
+                         get_cause_deleted_mortality_rate)
+
+from ceam_public_health.components.base_population import Mortality
+from ceam_public_health.components.diarrhea_disease_model import (DiarrheaEtiologyState,
+                                                                  DiarrheaBurden,
+                                                                  diarrhea_factory)
 
 def make_simulation_object():
     factory = diarrhea_factory()
