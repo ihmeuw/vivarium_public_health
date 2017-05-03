@@ -206,6 +206,90 @@ class DiarrheaBurden:
 
         return dis_weight_series
 
+
+    # FIXME: This is a super slow function. Try to speed it up by using numbers
+    #     instead of strings
+    # TODO: Might be worthwhile to have code read from top to bottom in the
+    #    order of priority
+    # TODO: This method needs some more tests. Open to suggestions on how to
+    #    best test this method
+    @listens_for('time_step', priority=6)
+    @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] +
+                  list_of_etiologies +
+                  [i + '_event_count' for i in list_of_etiologies] +
+                  diarrhea_event_count_cols, 'alive')
+    def move_people_into_diarrhea_state(self, event):
+        """
+        Determines who should move from the healthy state to the diarrhea state
+        and counts both cases of diarrhea and cases of diarrhea due to specific
+        etiologies
+        """
+
+        pop = event.population_view.get(event.index)
+
+        # Now we're making it so that only healthy people can get diarrhea
+        #     (i.e. people currently with diarrhea are not susceptible for
+        #     reinfection). This is the assumption were working with for
+        #     now, but we may want to change in the future so that people
+        #     currently infected with diarrhea can be reinfected
+        pop = pop.query("diarrhea == 'healthy'")
+
+        # for people that got diarrhea due to an etiology (or multiple
+        #     etiologies) in the current time step, we manually set the
+        #     diarrhea column to equal "diarrhea"
+        for etiology in list_of_etiologies:
+            pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
+            pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
+
+        # now we want to make sure we're counting the bouts of diarrhea
+        #    correctly, for each specific age/sex/year. We need demographic-
+        #    specific counts for the incidence rates that we'll calculate later
+        affected_pop = pop.query("diarrhea == 'diarrhea'")
+
+        # key= age_bin, and value=age_bin_max
+        age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
+                                                                     age_group_id_max=5)
+
+        last_age_group_max = 0
+        current_year = pd.Timestamp(event.time).year
+
+        for sex in ["Male", "Female"]:
+            for age_bin, upr_bound in age_bin_age_group_max_dict:
+                # We use GTE age group lower bound and LT age group upper bound
+                #     because of how GBD age groups are set up. For example, a
+                #     A simulant can be 1 or 4.999 years old and be considered
+                #     part of the 1-5 year old group, but once they turn 5 they
+                #     are part of the 5-10 age group
+                affected_pop.loc[(affected_pop['age'] < upr_bound) &
+                                 (affected_pop['age'] >= last_age_group_max) &
+                                 (affected_pop['sex'] == sex),
+                                 'diarrhea_event_count_{a}_in_year_{c}_among_{s}s'.format(
+                                 a=age_bin, c=current_year, s=sex)] += 1
+                last_age_group_max = upr_bound
+
+        # also track the overall count among all simulants in the simulation
+        affected_pop['diarrhea_event_count'] += 1
+
+        # set diarrhea event time
+        affected_pop['diarrhea_event_time'] = pd.Timestamp(event.time)
+
+        # get diarrhea severity splits
+        mild_weight = get_severity_splits(1181, 2608)
+        moderate_weight = get_severity_splits(1181, 2609)
+        severe_weight = get_severity_splits(1181, 2610)
+
+        # Now we split out diarrhea by severity split. We use the choice method
+        #    CEAM.framework.randomness. This is probably the simplest way of
+        #    assigning assigning severity splits and we need to decide if it
+        #    is the right way
+        affected_pop['diarrhea'] = choice('determine_diarrhea_severity',
+                                          affected_pop.index,
+                                          ["mild_diarrhea", "moderate_diarrhea", "severe_diarrhea"],
+                                          [mild_weight, moderate_weight, severe_weight])
+
+        event.population_view.update(affected_pop)
+
+
     # TODO: Confirm whether or not we need different durations for different
     #     severity levels
     # TODO: Per conversation with Abie on 2.22, we would like to have a
@@ -313,87 +397,6 @@ def diarrhea_factory():
         event.population_view.update(df)
 
 
-    # FIXME: This is a super slow function. Try to speed it up by using numbers
-    #     instead of strings
-    # TODO: Might be worthwhile to have code read from top to bottom in the
-    #    order of priority
-    # TODO: This method needs some more tests. Open to suggestions on how to
-    #    best test this method
-    @listens_for('time_step', priority=6)
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] +
-                  list_of_etiologies +
-                  [i + '_event_count' for i in list_of_etiologies] +
-                  diarrhea_event_count_cols, 'alive')
-    def move_people_into_diarrhea_state(event):
-        """
-        Determines who should move from the healthy state to the diarrhea state
-        and counts both cases of diarrhea and cases of diarrhea due to specific
-        etiologies
-        """
-
-        pop = event.population_view.get(event.index)
-
-        # Now we're making it so that only healthy people can get diarrhea
-        #     (i.e. people currently with diarrhea are not susceptible for
-        #     reinfection). This is the assumption were working with for
-        #     now, but we may want to change in the future so that people
-        #     currently infected with diarrhea can be reinfected
-        pop = pop.query("diarrhea == 'healthy'")
-
-        # for people that got diarrhea due to an etiology (or multiple
-        #     etiologies) in the current time step, we manually set the
-        #     diarrhea column to equal "diarrhea"
-        for etiology in list_of_etiologies:
-            pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
-            pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
-
-        # now we want to make sure we're counting the bouts of diarrhea
-        #    correctly, for each specific age/sex/year. We need demographic-
-        #    specific counts for the incidence rates that we'll calculate later
-        affected_pop = pop.query("diarrhea == 'diarrhea'")
-
-        # key= age_bin, and value=age_bin_max
-        age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
-                                                                     age_group_id_max=5)
-
-        last_age_group_max = 0
-        current_year = pd.Timestamp(event.time).year
-
-        for sex in ["Male", "Female"]:
-            for age_bin, upr_bound in age_bin_age_group_max_dict:
-                # We use GTE age group lower bound and LT age group upper bound
-                #     because of how GBD age groups are set up. For example, a
-                #     A simulant can be 1 or 4.999 years old and be considered
-                #     part of the 1-5 year old group, but once they turn 5 they
-                #     are part of the 5-10 age group
-                affected_pop.loc[(affected_pop['age'] < upr_bound) &
-                                 (affected_pop['age'] >= last_age_group_max) &
-                                 (affected_pop['sex'] == sex),
-                                 'diarrhea_event_count_{a}_in_year_{c}_among_{s}s'.format(
-                                 a=age_bin, c=current_year, s=sex)] += 1
-                last_age_group_max = upr_bound
-
-        # also track the overall count among all simulants in the simulation
-        affected_pop['diarrhea_event_count'] += 1
-
-        # set diarrhea event time
-        affected_pop['diarrhea_event_time'] = pd.Timestamp(event.time)
-
-        # get diarrhea severity splits
-        mild_weight = get_severity_splits(1181, 2608)
-        moderate_weight = get_severity_splits(1181, 2609)
-        severe_weight = get_severity_splits(1181, 2610)
-
-        # Now we split out diarrhea by severity split. We use the choice method
-        #    CEAM.framework.randomness. This is probably the simplest way of
-        #    assigning assigning severity splits and we need to decide if it
-        #    is the right way
-        affected_pop['diarrhea'] = choice('determine_diarrhea_severity',
-                                          affected_pop.index,
-                                          ["mild_diarrhea", "moderate_diarrhea", "severe_diarrhea"],
-                                          [mild_weight, moderate_weight, severe_weight])
-
-        event.population_view.update(affected_pop)
 
     excess_mortality = get_severe_diarrhea_excess_mortality()
 
@@ -404,8 +407,7 @@ def diarrhea_factory():
                                      severe_disability_weight=get_disability_weight(healthstate_id=357),
                                      duration_data=get_duration_in_days(1181))
 
-    list_of_module_and_functs = list_of_modules + [move_people_into_diarrhea_state,
-                                                   create_columns,
+    list_of_module_and_functs = list_of_modules + [create_columns,
                                                    diarrhea_burden,
                                                    # TODO: Will want to move
                                                    #    AccrueSusceptiblePersonTime
