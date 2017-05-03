@@ -196,6 +196,8 @@ class DiarrheaBurden:
 
         # Mild, moderate, and severe each have their own disability weight,
         #     which we assign in the loop below.
+        # In the future, we may want pathogens to be differentially
+        #     associated with severity
         for severity in ["mild", "moderate", "severe"]:
             severity_index = population.query("diarrhea == '{}_diarrhea'".format(severity)).index
             dis_weight_series.loc[severity_index] = self.severity_dict[severity]
