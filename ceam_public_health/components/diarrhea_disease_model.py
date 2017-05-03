@@ -177,10 +177,6 @@ class DiarrheaBurden:
 
         return rates_df
 
-    # @Alecwd: Can I set a priority on modifies value so that the disability
-    #    is applied after the move_people_into_diarrhea_state function? Do I
-    #    need to do that? Same question applies the mortality_rates method 
-    #    above
     @modifies_value('disability_weight')
     def disability_weight(self, index):
         population = self.population_view.get(index)
