@@ -70,7 +70,7 @@ class DiarrheaEtiologyState(State):
         self.event_count_column = state_id + '_event_count'
 
     def setup(self, builder):
-        columns = [self.state_id, 'diarrhea', self.event_count_column]
+        columns = [self.event_count_column]
 
         self.population_view = builder.population_view(columns, 'alive')
 
