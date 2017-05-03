@@ -203,6 +203,7 @@ class DiarrheaBurden:
         return dis_weight_series
 
 
+    # TODO: Shorten the length of this function
     # FIXME: This is a super slow function. Try to speed it up by using numbers
     #     instead of strings
     # TODO: Might be worthwhile to have code read from top to bottom in the
