@@ -41,8 +41,8 @@ list_of_etiologies = ['diarrhea_due_to_shigellosis',
                       'diarrhea_due_to_unattributed']
 
 
-diarrhea_event_count_cols = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
-diarrhea_event_count_cols.append('diarrhea_event_count')
+DIARRHEA_EVENT_COUNT_COLS = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
+DIARRHEA_EVENT_COUNT_COLS.append('diarrhea_event_count')
 
 
 # TODO: Update doc string
@@ -88,7 +88,7 @@ class DiarrheaEtiologyState(State):
     # Output metrics counting the number of cases of diarrhea and number of
     #     cases overall of diarrhea due to each pathogen
     @modifies_value('metrics')
-    @uses_columns(diarrhea_event_count_cols + [i + '_event_count' for i in
+    @uses_columns(DIARRHEA_EVENT_COUNT_COLS + [i + '_event_count' for i in
                                                list_of_etiologies])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
@@ -214,7 +214,7 @@ class DiarrheaBurden:
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] +
                   list_of_etiologies +
                   [i + '_event_count' for i in list_of_etiologies] +
-                  diarrhea_event_count_cols, 'alive')
+                  DIARRHEA_EVENT_COUNT_COLS, 'alive')
     def move_people_into_diarrhea_state(self, event):
         """
         Determines who should move from the healthy state to the diarrhea state
@@ -376,14 +376,14 @@ def diarrhea_factory():
         list_of_modules.append(module)
 
     @listens_for('initialize_simulants')
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + diarrhea_event_count_cols)
+    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + DIARRHEA_EVENT_COUNT_COLS)
     def create_columns(event):
 
         length = len(event.index)
 
         df = pd.DataFrame({'diarrhea':['healthy']*length}, index=event.index)
 
-        for col in diarrhea_event_count_cols:
+        for col in DIARRHEA_EVENT_COUNT_COLS:
             df[col] = pd.Series([0]*length, index=df.index)
 
         df['diarrhea_event_time'] = pd.Series([pd.NaT]*length, index=df.index)
