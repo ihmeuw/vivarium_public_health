@@ -207,22 +207,19 @@ class DiarrheaBurden:
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] +
                   list_of_etiologies +
                   [i + '_event_count' for i in list_of_etiologies] +
-                  DIARRHEA_EVENT_COUNT_COLS, 'alive')
+                  DIARRHEA_EVENT_COUNT_COLS, 'alive and diarrhea == "healthy"')
     def move_people_into_diarrhea_state(self, event):
         """
         Determines who should move from the healthy state to the diarrhea state
         and counts both cases of diarrhea and cases of diarrhea due to specific
         etiologies
         """
-
-        pop = event.population
-
         # Now we're making it so that only healthy people can get diarrhea
         #     (i.e. people currently with diarrhea are not susceptible for
         #     reinfection). This is the assumption were working with for
         #     now, but we may want to change in the future so that people
         #     currently infected with diarrhea can be reinfected
-        pop = pop.query("diarrhea == 'healthy'")
+        pop = event.population
 
         # for people that got diarrhea due to an etiology (or multiple
         #     etiologies) in the current time step, we manually set the
