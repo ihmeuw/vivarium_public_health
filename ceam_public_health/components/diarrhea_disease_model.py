@@ -151,7 +151,7 @@ class DiarrheaBurden:
         columns = ['diarrhea']
         self.population_view = builder.population_view(columns, 'alive')
 
-        # create a rate table and establish a source for excess mortality
+        # create a lookup table and establish a source for excess mortality
         self.diarrhea_excess_mortality = builder.rate(
             'excess_mortality.diarrhea')
         self.diarrhea_excess_mortality.source = builder.lookup(
@@ -159,7 +159,7 @@ class DiarrheaBurden:
 
         self.clock = builder.clock()
 
-        # create a rate table and establish a source for duration
+        # create a lookup table and establish a source for duration
         self.duration = builder.value('duration.diarrhea')
         self.duration.source = builder.lookup(self.duration_data)
 
