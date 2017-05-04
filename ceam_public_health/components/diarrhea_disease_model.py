@@ -108,7 +108,8 @@ class DiarrheaBurden:
         1) deletes the diarrhea csmr from the background mortality rate
         2) assigns an elevated mortality to people with severe diarrhea
         3) assigns disability weight
-        4) determines when a simulant should remit out of the diarrhea state
+        4) move people into the diarrhea state
+        5) determines when a simulant should remit out of the diarrhea state
 
     Parameters
     ----------
