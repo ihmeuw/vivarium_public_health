@@ -177,7 +177,7 @@ class DiarrheaBurden:
 
     # delete the diarrhea csmr from the background mortality rate
     @modifies_value('csmr_data')
-    def mmeids(self):
+    def csmr(self):
         return self.csmr_data
 
     @modifies_value('mortality_rate')
