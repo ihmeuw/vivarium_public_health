@@ -6,6 +6,7 @@ from ceam_inputs import get_relative_risks, get_etiology_specific_incidence, get
 from ceam_public_health.components.diarrhea_disease_model import diarrhea_factory
 from datetime import datetime
 
+@pytest.mark.xfail # this test will fail now that we have the categorical risk handler, but we may want to test the Categorical Risk Handler similarly so I'm not deleting this test yet
 def test_unsafe_sanitation():
     simulation = setup_simulation(components=[generate_test_population, UnsafeSanitation()] + diarrhea_factory(), start=datetime(2005, 1, 1))
 
