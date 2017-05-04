@@ -157,6 +157,24 @@ class DiarrheaBurden:
         self.duration = builder.value('duration.diarrhea')
         self.duration.source = builder.lookup(self.duration_data)
 
+    @listens_for('initialize_simulants')
+    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + DIARRHEA_EVENT_COUNT_COLS)
+    def create_columns(self, event):
+
+        length = len(event.index)
+
+        df = pd.DataFrame({'diarrhea':['healthy']*length}, index=event.index)
+
+        for col in DIARRHEA_EVENT_COUNT_COLS:
+            df[col] = pd.Series([0]*length, index=df.index)
+
+        df['diarrhea_event_time'] = pd.Series([pd.NaT]*length, index=df.index)
+
+        df['diarrhea_event_end_time'] = pd.Series([pd.NaT]*length,
+                                                  index=df.index)
+
+        event.population_view.update(df)
+
     # delete the diarrhea csmr from the background mortality rate
     @modifies_value('csmr_data')
     def mmeids(self):
@@ -362,23 +380,6 @@ def diarrhea_factory():
 
         list_of_modules.append(module)
 
-    @listens_for('initialize_simulants')
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + DIARRHEA_EVENT_COUNT_COLS)
-    def create_columns(event):
-
-        length = len(event.index)
-
-        df = pd.DataFrame({'diarrhea':['healthy']*length}, index=event.index)
-
-        for col in DIARRHEA_EVENT_COUNT_COLS:
-            df[col] = pd.Series([0]*length, index=df.index)
-
-        df['diarrhea_event_time'] = pd.Series([pd.NaT]*length, index=df.index)
-
-        df['diarrhea_event_end_time'] = pd.Series([pd.NaT]*length,
-                                                  index=df.index)
-
-        event.population_view.update(df)
 
 
 
@@ -391,8 +392,7 @@ def diarrhea_factory():
                                      severe_disability_weight=get_disability_weight(healthstate_id=357),
                                      duration_data=get_duration_in_days(1181))
 
-    list_of_module_and_functs = list_of_modules + [create_columns,
-                                                   diarrhea_burden,
+    list_of_module_and_functs = list_of_modules + [diarrhea_burden,
                                                    # TODO: Will want to move
                                                    #    AccrueSusceptiblePersonTime
                                                    #    so that it's only
