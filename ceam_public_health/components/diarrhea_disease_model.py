@@ -168,7 +168,7 @@ class DiarrheaBurden:
         # @ Alecwd: would I want to use a population_view passed in by the
         #     mortality_rates method or the population_view established
         #     earlier in this class (self.population_view)? Does it matter?
-        population = self.population_view.get(index)
+        population = population_view.get(index)
 
         # only apply excess mortality to people with severe diarrhea
         rates_df['death_due_to_severe_diarrhea'] = self.diarrhea_excess_mortality(
