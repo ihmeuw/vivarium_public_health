@@ -10,7 +10,7 @@ from ceam_inputs.gbd_ms_functions import assign_subregions
 from ceam_inputs.auxiliary_files import open_auxiliary_file
 
 from ceam.framework.event import listens_for
-from ceam.framework.values import produces_value, modifies_value
+from ceam.framework.values import produces_value, modifies_value, list_combiner
 from ceam.framework.population import uses_columns
 from ceam.framework.util import rate_to_probability
 from ceam import config
@@ -21,18 +21,15 @@ susceptible_person_time_cols = make_cols_demographically_specific("susceptible_p
 diarrhea_event_count_cols = make_cols_demographically_specific("diarrhea_event_count", 2, 5)
 
 @listens_for('initialize_simulants', priority=0)
-@uses_columns(['age', 'fractional_age', 'sex', 'alive', 'location'])
+@uses_columns(['age', 'sex', 'alive', 'location'])
 def generate_base_population(event):
-    year_start = event.time.year
     population_size = len(event.index)
 
     # TODO: FIGURE OUT HOW TO SET INITIAL AGE OUTSIDE OF MANUALLY SETTING BELOW
     initial_age = event.user_data.get('initial_age', None)
 
-    # TODO: Make sure line below doesn't mess up the fertility.py code, which doesn't need to pass in a year start
-    year_start = event.user_data.get('year_start', None)
-
-    population = generate_ceam_population(year_start=year_start, number_of_simulants=population_size, initial_age=initial_age)
+    population = generate_ceam_population(time=event.time, number_of_simulants=population_size, initial_age=initial_age)
+    population['age'] = population.age.astype(int)
     population.index = event.index
 
     event.population_view.update(population)
@@ -41,7 +38,7 @@ def generate_base_population(event):
 @listens_for('initialize_simulants', priority=1)
 @uses_columns(['location'])
 def assign_location(event):
-    main_location = config.getint('simulation_parameters', 'location_id')
+    main_location = config.simulation_parameters.location_id
     event.population_view.update(assign_subregions(event.index, main_location, event.time.year))
 
 @listens_for('initialize_simulants')
@@ -51,7 +48,7 @@ def adherence(event):
     # use a dirichlet distribution with means matching Marcia's
     # paper and sum chosen to provide standard deviation on first
     # term also matching paper
-    draw_number = config.getint('run_configuration', 'draw_number')
+    draw_number = config.run_configuration.draw_number
     r = np.random.RandomState(1234567+draw_number)
     alpha = np.array([0.6, 0.25, 0.15]) * 100
     p = r.dirichlet(alpha)
@@ -62,7 +59,7 @@ def adherence(event):
 @listens_for('time_step')
 @uses_columns(['age'], 'alive')
 def age_simulants(event):
-    time_step = config.getfloat('simulation_parameters', 'time_step')
+    time_step = config.simulation_parameters.time_step
     event.population['age'] += time_step/365.0
     event.population_view.update(event.population)
 
@@ -75,7 +72,8 @@ class Mortality:
         with open_auxiliary_file('Life Table') as f:
             self.life_table = builder.lookup(pd.read_csv(f), key_columns=(), parameter_columns=('age',))
         self.random = builder.randomness('mortality_handler')
-        self.csmr_data = builder.value('csmr_data')
+        self.csmr_data = builder.value('csmr_data', list_combiner)
+        self.csmr_data.source = list
         self.clock = builder.clock()
 
     @listens_for('post_setup')
@@ -142,7 +140,7 @@ class Mortality:
     @modifies_value('epidemiological_span_measures')
     @uses_columns(['age', 'death_day', 'cause_of_death', 'alive', 'sex'])
     def calculate_mortality_measure(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
-        root_location = config.getint('simulation_parameters', 'location_id')
+        root_location = config.simulation_parameters.location_id
         pop = population_view.get(index)
 
         if all_locations:
@@ -164,9 +162,9 @@ class Mortality:
 
                     if not sub_pop.empty:
                         birthday = sub_pop.death_day.fillna(now) - pd.to_timedelta(sub_pop.age, 'Y')
-                        time_before_birth = np.maximum(np.timedelta64(0), birthday - window_start).sum()
-                        time_after_death = np.minimum(np.maximum(np.timedelta64(0), now - sub_pop.death_day.dropna()), np.timedelta64(duration)).sum()
-                        time_in_sim = duration.total_seconds() * len(pop) - (time_before_birth + time_after_death).total_seconds()
+                        time_before_birth = np.maximum(np.timedelta64(0), birthday - window_start).dt.total_seconds().sum()
+                        time_after_death = np.minimum(np.maximum(np.timedelta64(0), now - sub_pop.death_day.dropna()), np.timedelta64(duration)).dt.total_seconds().sum()
+                        time_in_sim = duration.total_seconds() * len(pop) - (time_before_birth + time_after_death)
                         time_in_sim = time_in_sim/(timedelta(days=364).total_seconds())
                         for cause in causes_of_death:
                             deaths_in_period = (sub_pop.cause_of_death == cause).sum()
@@ -179,7 +177,7 @@ class Mortality:
     @modifies_value('epidemiological_span_measures')
     @uses_columns(['death_day', 'sex', 'age', 'location'], 'not alive')
     def deaths(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
-        root_location = config.getint('simulation_parameters', 'location_id')
+        root_location = config.simulation_parameters.location_id
         pop = population_view.get(index)
 
         if all_locations:

@@ -1,0 +1,29 @@
+components:
+        - ceam_public_health.components:
+             - base_population.generate_base_population
+             - base_population.age_simulants
+             - base_population.adherence
+             - base_population.Mortality()
+             - base_population.assign_location
+             - disease_models.heart_disease_factory()
+             - disease_models.stroke_factory()
+             - blood_pressure.BloodPressure()
+             - body_mass_index.BodyMassIndex()
+             - smoking.Smoking()
+             - secondhand_smoke.SecondhandSmoke()
+             - household_air_pollution.HouseholdAirPollution()
+             - cholesterol.TotalCholesterol()
+             - fasting_plasma_glucose.FastingPlasmaGlucose()
+             - healthcare_access.HealthcareAccess()
+             - metrics.Metrics()
+             - opportunistic_screening.OpportunisticScreening(False)
+
+configuration:
+        simulation_parameters:
+                location_id: 180
+                year_start: 2005
+                year_end: 2010
+                time_step: 30.5 #Days
+                pop_age_start: 0
+                pop_age_end: 125
+                population_size: 10000

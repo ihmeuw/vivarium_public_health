@@ -171,8 +171,6 @@ class RiskEffect:
 
     def incidence_rates(self, index, rates):
         rr = self.rr_lookup(index)
-
-        return self.exposure_effect(rates, rr)
-
-
-# End.
+        
+        newrr = self.exposure_effect(rates, rr)
+        return newrr

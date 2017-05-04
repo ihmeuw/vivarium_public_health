@@ -1,13 +1,14 @@
 import time, os
 
 import pandas as pd
+import numpy as np
 
 from ceam import config
 
 from ceam_inputs.auxiliary_files import open_auxiliary_file
 
-from ceam.framework.event import listens_for
-from ceam.framework.values import modifies_value
+from ceam.framework.event import listens_for, emits
+from ceam.framework.values import modifies_value, produces_value
 from ceam.framework.population import uses_columns
 
 class SimpleIntervention:
@@ -22,7 +23,7 @@ class SimpleIntervention:
     def track_cost(self, event):
         self.year = event.time.year
         if event.time.year >= 1995:
-            time_step = config.getfloat('simulation_parameters', 'time_step')
+            time_step = config.simulation_parameters.time_step
             self.cumulative_cost += 2.0 * len(event.index) * (time_step / 365.0) # FIXME: charge full price once per year?
 
     @modifies_value('mortality_rate')
@@ -39,6 +40,29 @@ class SimpleIntervention:
     @listens_for('simulation_end', priority=0)
     def dump_metrics(self, event):
         print('Cost:', self.cumulative_cost)
+
+class SimpleMortality:
+    configuration_defaults = {
+            'hello_world': {'mortality_rate': 0.01}
+    }
+
+    def setup(self, builder):
+        self.mortality_rate = builder.rate('mortality_rate')
+
+    @produces_value('mortality_rate')
+    def base_mortality_rate(self, index):
+        return pd.Series(config.hello_world.mortality_rate, index=index)
+
+    @listens_for('time_step')
+    @emits('deaths')
+    @uses_columns(['alive'], 'alive == True')
+    def handler(self, event, death_emitter):
+        effective_rate = self.mortality_rate(event.index)
+        effective_probability = 1-np.exp(-effective_rate)
+        draw = np.random.random(size=len(event.index))
+        affected_simulants = draw < effective_probability
+        event.population_view.update(pd.Series(False, index=event.index[affected_simulants]))
+        death_emitter(event.split(affected_simulants.index))
 
 class SimpleMetrics:
     def setup(self, builder):
