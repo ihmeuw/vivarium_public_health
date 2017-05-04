@@ -185,15 +185,6 @@ class DiarrheaBurden:
         #     We add in disability to people in the infected states below
         dis_weight_series = pd.Series(0, index=index)
 
-        # Assert error if the diarrhea column has values that we do not expect
-        assert set(population.diarrhea.unique()).issubset(['healthy',
-                                                           'mild_diarrhea',
-                                                           'moderate_diarrhea',
-                                                           'severe_diarrhea']), \
-            "simulants can have no, mild, moderate, or severe diarrhea" + \
-            " this assert statement is meant to confirm that there are" + \
-            " no values outside of what we expect"
-
         # Mild, moderate, and severe each have their own disability weight,
         #     which we assign in the loop below.
         # In the future, we may want pathogens to be differentially
