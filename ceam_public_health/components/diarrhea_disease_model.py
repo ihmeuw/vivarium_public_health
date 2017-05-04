@@ -88,7 +88,7 @@ class DiarrheaEtiologyState(State):
     # Output metrics counting the number of cases of diarrhea and number of
     #     cases overall of diarrhea due to each pathogen
     @modifies_value('metrics')
-    @uses_columns(DIARRHEA_EVENT_COUNT_COLS + [i + '_event_count' for i in
+    @uses_columns(DIARRHEA_EVENT_COUNT_COLS + [eti + '_event_count' for eti in
                                                list_of_etiologies])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
@@ -224,7 +224,7 @@ class DiarrheaBurden:
     @listens_for('time_step', priority=6)
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] +
                   list_of_etiologies +
-                  [i + '_event_count' for i in list_of_etiologies] +
+                  [eti + '_event_count' for eti in list_of_etiologies] +
                   DIARRHEA_EVENT_COUNT_COLS, 'alive and diarrhea == "healthy"')
     def move_people_into_diarrhea_state(self, event):
         """
