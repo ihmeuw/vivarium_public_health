@@ -282,23 +282,20 @@ class DiarrheaBurden:
     # TODO: Per conversation with Abie on 2.22, we would like to have a
     #     distribution surrounding duration
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + \
-                  list_of_etiologies, 'alive')
+                  list_of_etiologies, 'alive and diarrhea != "healthy"')
     @listens_for('time_step', priority=8)
     def apply_remission(self, event):
 
-        population = event.population
-
-        affected_population = population.query("diarrhea != 'healthy'").copy()
+        affected_population = event.population
 
         # TODO: I want to think of another test for apply_remission.
         #     There was an error before (event.index instead of
         #     affected_population.index was being passed in). Alec/James: 
         #     any suggestions for another test for apply_remission?
-        affected_population['duration'] = pd.to_timedelta(self.duration(
-                                                          affected_population.index),
-                                                          unit='D')
+        duration_series = pd.to_timedelta(self.duration(affected_population.index),
+                                                        unit='D')
 
-        affected_population['diarrhea_event_end_time'] = affected_population['duration'] + \
+        affected_population['diarrhea_event_end_time'] = duration_series + \
                                                          affected_population['diarrhea_event_time']
 
         # manually set diarrhea to healthy and set all etiology columns to
