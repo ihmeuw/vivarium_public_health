@@ -215,7 +215,7 @@ class DiarrheaBurden:
         etiologies
         """
 
-        pop = event.population_view.get(event.index)
+        pop = event.population
 
         # Now we're making it so that only healthy people can get diarrhea
         #     (i.e. people currently with diarrhea are not susceptible for
@@ -289,7 +289,7 @@ class DiarrheaBurden:
     @listens_for('time_step', priority=8)
     def apply_remission(self, event):
 
-        population = event.population_view.get(event.index)
+        population = event.population
 
         affected_population = population.query("diarrhea != 'healthy'").copy()
 
