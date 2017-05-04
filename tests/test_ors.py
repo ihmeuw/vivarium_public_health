@@ -6,7 +6,6 @@ from ceam_tests.util import pump_simulation, generate_test_population, setup_sim
 from ceam import config
 from ceam_inputs import get_ors_exposure
 from ceam.framework.event import Event
-from ceam_public_health.components.base_population import generate_base_population
 import pytest
 
 def test_ors_exposure_effect():
@@ -16,11 +15,8 @@ def test_ors_exposure_effect():
     factory = diarrhea_factory()
 
     # FIXME: This function will only work if all simulants are the same age
-    simulation = setup_simulation([generate_base_population, ORS()] + factory)
+    simulation = setup_simulation([generate_test_population, ORS()] + factory)
     emitter = simulation.events.get_emitter('time_step')
-
-    simulation.population.population.age = 0
-    simulation.population.population.fractional_age = 0
 
     # make the incidence really high
     inc = build_table(1000)
@@ -30,9 +26,7 @@ def test_ors_exposure_effect():
     rota_inc.source = simulation.tables.build_table(inc)
 
     # make ors exposure 50/50 so that we have some people that get ors, some that don't. will compare later to make sure that people that receive ORS have decreased mortality
-    ors = get_ors_exposure()
-
-    ors['cat1'] = .5
+    ors = build_table (.5, ['age', 'year', 'sex', 'cat1'])
 
     ors['cat2'] = .5
 
