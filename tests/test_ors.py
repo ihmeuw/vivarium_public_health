@@ -56,5 +56,5 @@ def test_ors_exposure_effect():
 
     assert pd.unique(mortality_rate_no_ors) == pd.unique(mortality_rate_ors) * config.getfloat('ORS', 'ors_effectiveness'), "people that receive ORS should have a decreased excess mortality"
 
-
+# write a test to ensure that ors is applied to all severity levels of diarrhea
 # End.
