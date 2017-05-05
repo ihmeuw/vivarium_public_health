@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 
-from ceam import config
 from ceam_tests.util import setup_simulation, assert_rate, build_table, generate_test_population
 
 from ceam.framework.event import listens_for

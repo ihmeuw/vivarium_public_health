@@ -14,15 +14,19 @@ from ceam.framework.values import modifies_value
 
 from ceam_inputs.gbd_ms_functions import load_data_from_cache, get_modelable_entity_draws
 from ceam_inputs.util import gbd_year_range
+from ceam_inputs.auxiliary_files import auxiliary_file_path
 
 # draw random costs for doctor visit (time-specific)
-draw = config.getint('run_configuration', 'draw_number')
-assert config.getint('simulation_parameters', 'location_id') == 180, 'FIXME: currently cost data for Kenya only'
+draw = config.run_configuration.draw_number
+assert config.simulation_parameters.location_id == 180, 'FIXME: currently cost data for Kenya only'
 
-cost_df = pd.read_csv('/home/j/Project/Cost_Effectiveness/dev/data_processed/doctor_visit_cost_KEN_20160804.csv', index_col=0)
+cost_df = pd.read_csv(auxiliary_file_path('Doctor Visit Costs'), index_col=0)
 cost_df.index = cost_df.year_id
 appointment_cost = cost_df['draw_{}'.format(draw)]
 
+ip_cost_df = pd.read_csv(auxiliary_file_path('Inpatient Visit Costs'), index_col=0)
+ip_cost_df.index = ip_cost_df.year_id
+hospitalization_cost = ip_cost_df['draw_{}'.format(draw)]
 
 class HealthcareAccess:
     """Model health care utilization. This includes access events due to
@@ -42,14 +46,23 @@ class HealthcareAccess:
         next scheduled follow-up appointment
     """
 
+    configuration_defaults = {
+            'appointments': {
+                'cost': 7.29,
+            }
+    }
+
     def setup(self, builder):
-        draw_number = config.getint('run_configuration', 'draw_number')
+        draw_number = config.run_configuration.draw_number
         r = np.random.RandomState(123456+draw)
         self.semi_adherent_pr = r.normal(0.4, 0.0485)
 
         self.cost_by_year = defaultdict(float)
         self.general_access_count = 0
         self.followup_access_count = 0
+        self.hospitalization_count = 0
+        self.hospitalization_cost = defaultdict(float)
+        self.outpatient_cost = defaultdict(float)
 
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
@@ -61,7 +74,7 @@ class HealthcareAccess:
 
     def load_utilization(self, builder):
         year_start, year_end = gbd_year_range()
-        location_id = config.getint('simulation_parameters', 'location_id')
+        location_id = config.simulation_parameters.location_id
         # me_id 9458 is 'out patient visits'
         # measure 18 is 'Proportion'
         # TODO: Currently this is monthly, not anually
@@ -90,11 +103,12 @@ class HealthcareAccess:
 
         year = event.time.year
         self.cost_by_year[year] += len(index) * appointment_cost[year]
+        self.outpatient_cost[year] += len(index) * appointment_cost[year]
 
     @listens_for('time_step')
     @uses_columns(['healthcare_last_visit_date', 'healthcare_followup_date', 'adherence_category'], 'alive')
     def followup_access(self, event):
-        time_step = timedelta(days=config.getfloat('simulation_parameters', 'time_step'))
+        time_step = timedelta(days=config.simulation_parameters.time_step)
         # determine population due for a follow-up appointment
         rows = (event.population.healthcare_followup_date > event.time-time_step) \
                & (event.population.healthcare_followup_date <= event.time)
@@ -114,12 +128,24 @@ class HealthcareAccess:
 
         year = event.time.year
         self.cost_by_year[year] += len(affected_population) * appointment_cost[year]
+        self.outpatient_cost[year] += len(affected_population) * appointment_cost[year]
+
+    @listens_for('hospitalization')
+    def hospital_access(self, event):
+        year = event.time.year
+        self.hospitalization_count += len(event.index)
+        self.hospitalization_cost[year] += len(event.index) * hospitalization_cost[year]
+        self.cost_by_year[year] += len(event.index) * hospitalization_cost[year]
+
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
         metrics['healthcare_access_cost'] = sum(self.cost_by_year.values())
         metrics['general_healthcare_access'] = self.general_access_count
         metrics['followup_healthcare_access'] = self.followup_access_count
+        metrics['hospitalization_access'] = self.hospitalization_count
+        metrics['hospitalization_cost'] = sum(self.hospitalization_cost.values())
+        metrics['outpatient_cost'] = sum(self.outpatient_cost.values())
 
         if 'cost' in metrics:
             metrics['cost'] += metrics['healthcare_access_cost']

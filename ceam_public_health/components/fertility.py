@@ -18,7 +18,7 @@ from ceam.framework.population import uses_columns, creates_simulants
 
 class Fertility:
     def setup(self, builder):
-        time_step = config.getfloat('simulation_parameters', 'time_step')
+        time_step = config.simulation_parameters.time_step
         time_step = timedelta(days=time_step)
 
         self.transitions = TransitionSet('fertility')

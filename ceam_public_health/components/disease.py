@@ -12,7 +12,7 @@ from ceam import config
 
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
-from ceam.framework.values import modifies_value, produces_value
+from ceam.framework.values import modifies_value, produces_value, list_combiner, joint_value_post_processor
 from ceam.framework.util import rate_to_probability
 from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
 
@@ -20,8 +20,10 @@ from ceam_inputs import get_disease_states, get_proportion
 
 
 class DiseaseState(State):
-    def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None):
+    def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None, side_effect_function=None):
         State.__init__(self, state_id)
+
+        self.side_effect_function = side_effect_function
 
         # Condition is set when the state is added to a disease model
         self.condition = None
@@ -68,6 +70,8 @@ class DiseaseState(State):
             pop[self.event_time_column] = self.clock().timestamp()
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
+        if self.side_effect_function is not None:
+            self.side_effect_function(index)
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
@@ -124,9 +128,9 @@ class RateTransition(Transition):
     def setup(self, builder):
         self.effective_incidence = builder.rate('{}.{}'.format(self.name_prefix, self.rate_label))
         self.effective_incidence.source = self.incidence_rates
-        self.joint_paf = builder.value('paf.{}'.format(self.rate_label))
-        self.base_incidence = builder.value('base_{}.{}'.format(self.name_prefix, self.rate_label))
-        self.base_incidence.source = builder.lookup(self.rate_data)
+        self.joint_paf = builder.value('paf.{}'.format(self.rate_label), list_combiner, joint_value_post_processor)
+        self.joint_paf.source = lambda index: [pd.Series(0, index=index)]
+        self.base_incidence = builder.lookup(self.rate_data)
 
     def probability(self, index):
         return rate_to_probability(self.effective_incidence(index))
@@ -227,7 +231,7 @@ class DiseaseModel(Machine):
 
     @modifies_value('epidemiological_point_measures')
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
-        root_location = config.getint('simulation_parameters', 'location_id')
+        root_location = config.simulation_parameters.location_id
         pop = self.population_view.manager.population.ix[index].query('alive')
         causes = set(pop[self.condition]) - {'healthy'}
         if all_locations:

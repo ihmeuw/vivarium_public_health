@@ -184,13 +184,13 @@ def test_medication_cost():
 #
 #    # Everybody goes to the hospital
 #    simulation.emit_event(PopulationEvent('general_healthcare_access', simulation.population.population))
-#    cost_of_a_single_test = config.getfloat('opportunistic_screening', 'blood_pressure_test_cost')
+#    cost_of_a_single_test = config.opportunistic_screening.blood_pressure_test_cost
 #    assert module.cost_by_year[simulation.current_time.year] == cost_of_a_single_test * len(simulation.population.population)
 #
 #    # Later, everybody goes to their followup appointment
 #    simulation.current_time += timedelta(days=361) # Force us into the next year
 #    simulation.emit_event(PopulationEvent('followup_healthcare_access', simulation.population.population))
-#    cost_of_a_followup = cost_of_a_single_test + config.getfloat('appointments', 'cost')
+#    cost_of_a_followup = cost_of_a_single_test + config.appointments.cost
 #    assert module.cost_by_year[simulation.current_time.year] == cost_of_a_followup * len(simulation.population.population)
 
 
