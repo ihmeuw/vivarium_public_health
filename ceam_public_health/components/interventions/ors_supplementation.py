@@ -78,7 +78,7 @@ def ors_exposure_effect(exposure, susceptibility_column):
 
         # TODO: Need to bring in the GBD estimates of ORS effectiveness
         df.loc[received_ors_index, 'relative_risk_value'] = 1 - \
-            config.getfloat('ORS', 'ors_effectiveness')
+            config.ORS.ors_effectiveness
 
         # TODO: Make sure the categories make sense. Exposure to ORS should
         #     decrease risk (i.e. RR should be less than 1)
@@ -94,9 +94,9 @@ def ors_exposure_effect(exposure, susceptibility_column):
             import pdb; pdb.set_trace()
             received_ors_pop = pop.loc[received_ors_index]
             received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count,
-                'ors_unit_cost'] += config.getfloat('ORS', 'ORS_unit_cost')
+                'ors_unit_cost'] += config.ORS.ORS_unit_cost
             received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count,
-                'ors_cost_to_administer'] += config.getfloat('ORS', 'cost_to_administer_ORS')
+                'ors_cost_to_administer'] += config.ORS.cost_to_administer_ORS
             received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count,
                 'ors_count'] += 1
             received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count,
@@ -164,7 +164,7 @@ class ORS():
     """
 
     def __init__(self):
-        self.active = config.getboolean('ORS', 'run_intervention')
+        self.active = config.ORS.run_intervention
 
     def setup(self, builder):
 
@@ -172,8 +172,7 @@ class ORS():
 
         if self.active:
             # add exposure above baseline increase in intervention scenario
-            ors_exposure_increase_above_baseline = config.getfloat('ORS',
-                'ors_exposure_increase_above_baseline')
+            ors_exposure_increase_above_baseline = config.ORS.ors_exposure_increase_above_baseline
             ors_exposure['cat1'] += ors_exposure_increase_above_baseline
             ors_exposure['cat2'] -= ors_exposure_increase_above_baseline
 
