@@ -241,10 +241,6 @@ def diarrhea_factory():
         etiology_specific_incidence = get_etiology_specific_incidence(
             eti_risk_id=value, cause_id=302, me_id=1181)
 
-        # FIXME: Merge in develop and use Alec's piecewise constant interpolation instead of the make_age_group_1_to_4_rates_constant function
-        if config.getint('simulation_parameters', 'diarrhea_constant_incidence') == 1:
-            etiology_specific_incidence = make_age_group_1_to_4_rates_constant(
-                etiology_specific_incidence)
 
         # TODO: Need to figure out how to change priority on a RateTransition
         #     so that we can get ors_clock working
@@ -346,11 +342,6 @@ def diarrhea_factory():
 
     # TODO: Add some commenting letting the reader know that we're back into the factory
     excess_mortality = get_severe_diarrhea_excess_mortality()
-
-    # if we want constant mortality, need to do some processing
-    if config.getint('simulation_parameters', 'diarrhea_constant_mortality') == 1:
-        excess_mortality = make_age_group_1_to_4_rates_constant(
-            excess_mortality)
 
     # FIXME: Why is get_severity_splits being passed into the severe diarrhea_disability_weight function? That can't be right. There is also an error in the get_severity_splits code where draw_1 is hardcoded in. This will need to be updated.
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
