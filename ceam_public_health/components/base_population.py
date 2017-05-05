@@ -29,7 +29,6 @@ def generate_base_population(event):
     initial_age = event.user_data.get('initial_age', None)
 
     population = generate_ceam_population(time=event.time, number_of_simulants=population_size, initial_age=initial_age)
-    population['age'] = population.age.astype(int)
     population.index = event.index
 
     event.population_view.update(population)
