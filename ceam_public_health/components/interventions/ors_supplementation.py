@@ -90,6 +90,8 @@ def ors_exposure_effect(exposure, susceptibility_column):
         # using this ors_clock variable to make sure ors count and ors costs
         #     are only counted once per bout
         if not pop.loc[received_ors_index].empty:
+
+            import pdb; pdb.set_trace()
             received_ors_pop = pop.loc[received_ors_index]
             received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count,
                 'ors_unit_cost'] += config.getfloat('ORS', 'ORS_unit_cost')

@@ -304,8 +304,6 @@ def diarrhea_factory():
             pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
             pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
 
-        last_age_group_max = 0
-
         # sort self.dict_of_age_group_name_and_max_values by value (max age)
         sorted_dict = make_age_bin_age_group_max_dict(age_group_id_min=2, age_group_id_max=5)
                             
@@ -313,7 +311,9 @@ def diarrhea_factory():
 
         # need to set this up so that it counts events properly for specific
         #    age groups
+        # TODO: This loop needs to be tested
         for sex in ["Male", "Female"]:
+            last_age_group_max = 0
             for key, value in sorted_dict:
                 pop.loc[(pop['diarrhea'] == 'diarrhea') & (pop['age'] < value) &
                         (pop['age'] >= last_age_group_max) & (pop['sex'] == sex),

@@ -5,7 +5,6 @@ from ceam_public_health.components.diarrhea_disease_model import diarrhea_factor
 from ceam_tests.util import pump_simulation, generate_test_population, setup_simulation, build_table
 from ceam import config
 from ceam_inputs import get_ors_exposure
-from ceam.framework.event import Event
 import pytest
 
 def test_ors_exposure_effect():
@@ -16,10 +15,9 @@ def test_ors_exposure_effect():
 
     # FIXME: This function will only work if all simulants are the same age
     simulation = setup_simulation([generate_test_population, ORS()] + factory)
-    emitter = simulation.events.get_emitter('time_step')
 
     # make the incidence really high
-    inc = build_table(1000)
+    inc = build_table(14000)
 
     rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
 
@@ -37,9 +35,7 @@ def test_ors_exposure_effect():
     # get mortality rate before ORS is applied in time step
     mortality_rate = simulation.values.get_value('excess_mortality.diarrhea')
 
-    # pump the simulation forward 5 time period
-    # pump_simulation(simulation, time_step_days=5, iterations=1)
-    emitter(Event(simulation.population.population.index))
+    pump_simulation(simulation, iterations=10)
 
     # build test pops
     male_ors_pop = simulation.population.population.query("ors_clock == 1 and sex == 'Male'")
