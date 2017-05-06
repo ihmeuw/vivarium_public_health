@@ -1,5 +1,5 @@
 components:
-    -ceam_public_health.components:
+    - ceam_public_health.components:
         - base_population.generate_base_population
         - base_population.age_simulants
         - base_population.Mortality
