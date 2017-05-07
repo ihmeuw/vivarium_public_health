@@ -1,5 +1,5 @@
 from ceam import config
 
-config.set('simulation_parameters', 'initial_age', '0')
-config.set('simulation_parameters', 'year_start', '2005')
-config.set('simulation_parameters', 'time_step', '1')
+config.simulation_parameters.initial_age = 0
+config.simulation_parameters.year_start = 2005
+config.simulation_parameters.time_step = 1
