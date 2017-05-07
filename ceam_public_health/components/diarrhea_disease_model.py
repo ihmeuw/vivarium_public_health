@@ -27,7 +27,7 @@ from ceam_public_health.components.util import make_cols_demographically_specifi
 from ceam_public_health.components.util import make_age_bin_age_group_max_dict
 
 
-list_of_etiologies = ['diarrhea_due_to_shigellosis',
+LIST_OF_ETIOLOGIES = ['diarrhea_due_to_shigellosis',
                       'diarrhea_due_to_cholera',
                       'diarrhea_due_to_other_salmonella',
                       'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC',
@@ -89,7 +89,7 @@ class DiarrheaEtiologyState(State):
     #     cases overall of diarrhea due to each pathogen
     @modifies_value('metrics')
     @uses_columns(DIARRHEA_EVENT_COUNT_COLS + [eti + '_event_count' for eti in
-                                               list_of_etiologies])
+                                               LIST_OF_ETIOLOGIES])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
 
@@ -232,8 +232,8 @@ class DiarrheaBurden:
     #    best test this method
     @listens_for('time_step', priority=6)
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] +
-                  list_of_etiologies +
-                  [eti + '_event_count' for eti in list_of_etiologies] +
+                  LIST_OF_ETIOLOGIES +
+                  [eti + '_event_count' for eti in LIST_OF_ETIOLOGIES] +
                   DIARRHEA_EVENT_COUNT_COLS, 'alive and diarrhea == "healthy"')
     def move_people_into_diarrhea_state(self, event):
         """
@@ -251,7 +251,7 @@ class DiarrheaBurden:
         # for people that got diarrhea due to an etiology (or multiple
         #     etiologies) in the current time step, we manually set the
         #     diarrhea column to equal "diarrhea"
-        for etiology in list_of_etiologies:
+        for etiology in LIST_OF_ETIOLOGIES:
             pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
             pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
 
@@ -308,7 +308,7 @@ class DiarrheaBurden:
     # TODO: Per conversation with Abie on 2.22, we would like to have a
     #     distribution surrounding duration
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + \
-                  list_of_etiologies, 'alive and diarrhea != "healthy"')
+                  LIST_OF_ETIOLOGIES, 'alive and diarrhea != "healthy"')
     @listens_for('time_step', priority=8)
     def apply_remission(self, event):
 
@@ -330,10 +330,10 @@ class DiarrheaBurden:
 
         affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
 
-        for etiology in list_of_etiologies:
+        for etiology in LIST_OF_ETIOLOGIES:
             affected_population['{}'.format(etiology)] = 'healthy'
 
-        event.population_view.update(affected_population[list_of_etiologies +
+        event.population_view.update(affected_population[LIST_OF_ETIOLOGIES +
                                      ['diarrhea', 'diarrhea_event_end_time']])
 
 
