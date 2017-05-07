@@ -7,3 +7,20 @@ components:
         - metrics.Metrics()
         - interventions.ors_supplementation.ORS()
 
+configuration:
+    simulation_parameters:
+        location_id: 180
+        year_start: 2005
+        year_end: 2010
+        time_step: 365
+        pop_age_start:
+        pop_age_end:
+        initial_age: 0
+        population_size: 20000
+    ORS:
+        ORS_unit_cost: .1
+        cost_to_administer_ORS: 0
+        ors_exposure_increase_above_baseline: .25
+        ors_effectiveness: .93
+        run_intervention: False
+
