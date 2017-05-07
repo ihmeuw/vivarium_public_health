@@ -163,6 +163,9 @@ class DiarrheaBurden:
         self.duration = builder.value('duration.diarrhea')
         self.duration.source = builder.lookup(self.duration_data)
 
+        # create a randomness stream
+        self.randomness = builder.randomness('determine_diarrhea_severity')
+
     @listens_for('initialize_simulants')
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + DIARRHEA_EVENT_COUNT_COLS)
     def create_columns(self, event):
@@ -293,8 +296,7 @@ class DiarrheaBurden:
         #    CEAM.framework.randomness. This is probably the simplest way of
         #    assigning assigning severity splits and we need to decide if it
         #    is the right way
-        affected_pop['diarrhea'] = choice('determine_diarrhea_severity',
-                                          affected_pop.index,
+        affected_pop['diarrhea'] = self.randomness.choice(affected_pop.index,
                                           ["mild_diarrhea", "moderate_diarrhea", "severe_diarrhea"],
                                           [mild_weight, moderate_weight, severe_weight])
 
