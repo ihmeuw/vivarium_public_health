@@ -15,7 +15,7 @@ configuration:
         time_step: 365
         pop_age_start:
         pop_age_end:
-        initial_age: 0
+        initial_age: 0.0
         population_size: 20000
     ORS:
         ORS_unit_cost: .1
