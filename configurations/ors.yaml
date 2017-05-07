@@ -2,10 +2,8 @@ components:
     - ceam_public_health.components:
         - base_population.generate_base_population
         - base_population.age_simulants
-        - base_population.Mortality
+        - base_population.Mortality()
         - diarrhea_disease_model.diarrhea_factory()
-        - metrics.Metrics
-        - interventions.ors_supplementation.ORS
-        - epidemiology.EpidemiologicalMeasures
-        - risks.categorical_risk_handler.CategoricalRiskHandler(84, "unsafe_sanitation")
-        - risks.categorical_risk_handler.CategoricalRiskHandler(241, "stunting") 
+        - metrics.Metrics()
+        - interventions.ors_supplementation.ORS()
+
