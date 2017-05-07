@@ -46,7 +46,6 @@ DIARRHEA_EVENT_COUNT_COLS = make_cols_demographically_specific('diarrhea_event_c
 DIARRHEA_EVENT_COUNT_COLS.append('diarrhea_event_count')
 
 
-# TODO: Update doc string
 class DiarrheaEtiologyState(State):
     """
     Sets up a diarrhea etiology state (e.g. a column that states that simulant
