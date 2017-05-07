@@ -14,16 +14,17 @@ from ceam_inputs import get_severity_splits
 from ceam_inputs import get_severe_diarrhea_excess_mortality
 from ceam_inputs import get_age_bins
 from ceam_inputs import get_disability_weight
-from ceam_inputs import (get_etiology_specific_prevalence,
-                         get_etiology_specific_incidence, get_duration_in_days,
-                         get_excess_mortality, get_cause_specific_mortality)
+from ceam_inputs import get_etiology_specific_prevalence
+from ceam_inputs import get_etiology_specific_incidence
+from ceam_inputs import get_duration_in_days
+from ceam_inputs import get_excess_mortality
+from ceam_inputs import get_cause_specific_mortality
 from ceam_inputs import make_age_group_1_to_4_rates_constant
 
-from ceam_public_health.components.disease import DiseaseModel, RateTransition
-from ceam_public_health.components.util import (make_cols_demographically_specific,
-                                                make_age_bin_age_group_max_dict)
-from ceam_public_health.components.accrue_susceptible_person_time import (
-    AccrueSusceptiblePersonTime)
+from ceam_public_health.components.disease import DiseaseModel
+from ceam_public_health.components.disease import RateTransition
+from ceam_public_health.components.util import make_cols_demographically_specific
+from ceam_public_health.components.util import make_age_bin_age_group_max_dict
 
 
 list_of_etiologies = ['diarrhea_due_to_shigellosis',
@@ -400,13 +401,5 @@ def diarrhea_factory():
                                      severe_severity_split=get_severity_splits(1181, 2610),
                                      duration_data=get_duration_in_days(1181))
 
-    list_of_module_and_functs = list_of_modules + [diarrhea_burden,
-                                                   # TODO: Will want to move
-                                                   #    AccrueSusceptiblePersonTime
-                                                   #    so that it's only
-                                                   #    calculated in GBD years
-                                                   AccrueSusceptiblePersonTime(
-                                                       "diarrhea",
-                                                       "severe_diarrhea")]
+    return list_of_modules + [diarrhea_burden]
 
-    return list_of_module_and_functs
