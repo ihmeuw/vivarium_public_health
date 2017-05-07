@@ -13,7 +13,7 @@ from ceam.framework.randomness import choice
 from ceam_inputs import get_severity_splits
 from ceam_inputs import get_severe_diarrhea_excess_mortality
 from ceam_inputs import get_age_bins
-from ceam_inputs.gbd_ms_functions import get_disability_weight
+from ceam_inputs import get_disability_weight
 from ceam_inputs import (get_etiology_specific_prevalence,
                          get_etiology_specific_incidence, get_duration_in_days,
                          get_excess_mortality, get_cause_specific_mortality)
@@ -386,101 +386,8 @@ def diarrhea_factory():
 
         list_of_modules.append(module)
 
-
-    # TODO: Improve the name of this function
-    # TODO: Put all of the columns into a dataframe and update the population_view one time
-    @listens_for('initialize_simulants')
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + diarrhea_event_count_cols)
-    def _create_diarrhea_column(event):
-
-        length = len(event.index)
-
-        # TODO: Make one df, update one df as opposed to multiple one column
-        #     updates
-        event.population_view.update(pd.DataFrame({'diarrhea': ['healthy']*length},
-                                                  index=event.index))
-
-        for col in diarrhea_event_count_cols:
-            event.population_view.update(pd.DataFrame({col: np.zeros(len(event.index),
-                                                      dtype=int)}, index=event.index))
-
-        event.population_view.update(pd.DataFrame({'diarrhea_event_time': [pd.NaT]*length},
-                                                  index=event.index))
-        event.population_view.update(pd.DataFrame({'diarrhea_event_end_time': [pd.NaT]*length},
-                                                  index=event.index))
-
-
-    # FIXME: This is a super slow function. Try to speed it up by using numbers
-    #     instead of strings
-    # TODO: I don't like how priorities are set in a different way than the code flows. Would be nice if priority 0 stuff could be at the top, priority 9 stuff at the bottom
-    @listens_for('time_step', priority=6)
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] + list_of_etiologies + [i + '_event_count' for i in list_of_etiologies] + diarrhea_event_count_cols, 'alive')
-    def _move_people_into_diarrhea_state(event):
-        """
-        Determines who should move from the healthy state to the diarrhea state
-        and counts both cases of diarrhea and cases of diarrhea due to specific
-        etiologies
-        """
-
-        pop = event.population_view.get(event.index)
-
-        # Potential FIXME: Now we're making it so that only healthy people can
-        #     get diarrhea (i.e. people currently with diarrhea are not
-        #     susceptible)
-        pop = pop.query("diarrhea == 'healthy'")
-
-        for etiology in list_of_etiologies:
-            pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
-            pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
-
-        # sort self.dict_of_age_group_name_and_max_values by value (max age)
-        sorted_dict = make_age_bin_age_group_max_dict(age_group_id_min=2, age_group_id_max=5)
-                            
-        current_year = pd.Timestamp(event.time).year
-
-        # need to set this up so that it counts events properly for specific
-        #    age groups
-        # TODO: This loop needs to be tested
-        for sex in ["Male", "Female"]:
-            last_age_group_max = 0
-            for key, value in sorted_dict:
-                pop.loc[(pop['diarrhea'] == 'diarrhea') & (pop['age'] < value) &
-                        (pop['age'] >= last_age_group_max) & (pop['sex'] == sex),
-                        'diarrhea_event_count_{k}_in_year_{c}_among_{s}s'.format(
-                            k=key, c=current_year, s=sex)] += 1
-                last_age_group_max = value
-
-        pop.loc[pop['diarrhea'] == 'diarrhea', 'diarrhea_event_count'] += 1
-
-        # set diarrhea event time here
-        pop.loc[pop['diarrhea'] == 'diarrhea', 'diarrhea_event_time'] = pd.Timestamp(event.time)
-
-        # FIXME: Why is the line below here? Doesn't seem to do anything. Should confirm it does nothing and then delete
-        pop = pop.query("diarrhea == 'diarrhea'").copy()
-
-        # get diarrhea severity splits
-        mild_weight = get_severity_splits(1181, 2608)
-        moderate_weight = get_severity_splits(1181, 2609)
-        severe_weight = get_severity_splits(1181, 2610)
-
-        pop['diarrhea'] = choice('determine_diarrhea_severity', pop.index,
-                                 ["mild_diarrhea", "moderate_diarrhea",
-                                  "severe_diarrhea"],
-                                 [mild_weight, moderate_weight, severe_weight])
-
-        event.population_view.update(pop[['diarrhea', 'diarrhea_event_time'] +
-            [i + '_event_count' for i in list_of_etiologies] +
-            diarrhea_event_count_cols])
-
-
-    # TODO: Add some commenting letting the reader know that we're back into the factory
     excess_mortality = get_severe_diarrhea_excess_mortality()
 
-    # FIXME: Why is get_severity_splits being passed into the severe diarrhea_disability_weight function? That can't be right. There is also an error in the get_severity_splits code where draw_1 is hardcoded in. This will need to be updated.
-=======
-    excess_mortality = get_severe_diarrhea_excess_mortality()
-
->>>>>>> CE-578-submit-pr-for-diarrhea_disease_model
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
                                      csmr_data=get_cause_specific_mortality(1181),
                                      mild_disability_weight=get_disability_weight(healthstate_id=355),
