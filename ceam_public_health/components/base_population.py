@@ -21,7 +21,7 @@ susceptible_person_time_cols = make_cols_demographically_specific("susceptible_p
 diarrhea_event_count_cols = make_cols_demographically_specific("diarrhea_event_count", 2, 5)
 
 @listens_for('initialize_simulants', priority=0)
-@uses_columns(['age', 'sex', 'alive', 'location'])
+@uses_columns(['age', 'fractional_age', 'sex', 'alive', 'location'])
 def generate_base_population(event):
     population_size = len(event.index)
 
@@ -29,7 +29,9 @@ def generate_base_population(event):
     initial_age = event.user_data.get('initial_age', None)
 
     population = generate_ceam_population(time=event.time, number_of_simulants=population_size, initial_age=initial_age)
+    population['age'] = population.age.astype(int)
     population.index = event.index
+    population['fractional_age'] = population.age.astype(float)
 
     event.population_view.update(population)
 
@@ -56,10 +58,11 @@ def adherence(event):
     event.population_view.update(pd.Series(r.choice(['adherent', 'semi-adherent', 'non-adherent'], p=p, size=population_size), dtype='category'))
 
 @listens_for('time_step')
-@uses_columns(['age'], 'alive')
+@uses_columns(['age', 'fractional_age'], 'alive')
 def age_simulants(event):
     time_step = config.simulation_parameters.time_step
-    event.population['age'] += time_step/365.0
+    event.population['fractional_age'] += time_step/365.0
+    event.population['age'] = event.population.fractional_age.astype(int)
     event.population_view.update(event.population)
 
 
