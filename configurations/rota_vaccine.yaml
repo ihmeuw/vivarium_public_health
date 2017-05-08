@@ -25,9 +25,9 @@ configuration:
         third_dose_effectiveness: .39
         vaccine_duration: 730
         waning_immunity_time: 0
-        age_at_first_dose: 61
-        age_at_second_dose: 122
-        age_at_third_dose: 183
+        age_at_first_dose: 365
+        age_at_second_dose: 730
+        age_at_third_dose: 1095
         second_dose_retention: 1
         third_dose_retention: 1
         vaccination_proportion_increase: .5
