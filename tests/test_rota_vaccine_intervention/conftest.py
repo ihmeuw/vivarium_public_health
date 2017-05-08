@@ -1,5 +1,8 @@
 from ceam import config
 
+# Remove user overrides but keep custom cache locations if any
+config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path', 'input_data.auxiliary_data_folder'])
+
 config.rota_vaccine.age_at_first_dose= 6
 config.rota_vaccine.age_at_second_dose = 12
 config.rota_vaccine.age_at_third_dose = 18
