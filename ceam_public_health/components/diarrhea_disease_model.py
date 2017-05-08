@@ -166,8 +166,6 @@ class DiarrheaBurden:
         self.diarrhea_excess_mortality.source = builder.lookup(
             self.excess_mortality_data)
 
-        self.clock = builder.clock()
-
         # create a lookup table and establish a source for duration
         self.duration = builder.value('duration.diarrhea')
         self.duration.source = builder.lookup(self.duration_data)
