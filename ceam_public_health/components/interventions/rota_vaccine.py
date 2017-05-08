@@ -1,12 +1,13 @@
 import pandas as pd
 import numpy as np
+from scipy.interpolate import UnivariateSpline
 
 from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 from ceam.framework.randomness import choice
-from scipy.interpolate import UnivariateSpline
+
 from ceam_inputs import get_covariate_estimates
 
 #### TODO: CONFIRM WITH IBRAHIM: SHOULD VACCINE LOSE EFFECT 2 YEARS AFTER ITS ADMINISTERED OR 2 YEARS AFTER IT STARTS TO HAVE AN EFFECT?
