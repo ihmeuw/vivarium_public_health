@@ -346,6 +346,24 @@ class RotaVaccine():
     Class that determines who gets vaccinated, how the vaccine affects
     incidence, and counts vaccinations
     """
+    configuration_defaults = {
+            'rota_vaccine': {
+                'RV5_dose_cost': 3.5,
+                'cost_to_administer_each_dose': 0,
+                'first_dose_effectiveness': 0,
+                'second_dose_effectiveness': 0,
+                'third_dose_effectiveness': .39,
+                'vaccine_duration': 730,
+                'waning_immunity_time': 0,
+                'age_at_first_dose': 61,
+                'age_at_second_dose': 122,
+                'age_at_third_dose': 183,
+                'second_dose_retention': 1,
+                'third_dose_retention': 1,
+                'vaccination_proportion_increase': .5,
+                'time_after_dose_at_which_immunity_is_conferred': 14,
+            }
+    }
 
     def __init__(self, active):
         self.active = active
