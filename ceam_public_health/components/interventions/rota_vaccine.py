@@ -160,7 +160,7 @@ def determine_who_should_receive_dose(population, index, vaccine_col,
         current_time in the simulation
     """
 
-    population['age_in_days'] = population['age'] * 365
+    population['age_in_days'] = population['fractional_age'] * 365
 
     population['age_in_days'] = population['age_in_days'].round()
 
@@ -419,7 +419,7 @@ class RotaVaccine():
                    self.vaccine_first_dose_working_column,
                    self.vaccine_second_dose_working_column,
                    self.vaccine_third_dose_working_column,
-                   'age']
+                   'fractional_age']
 
         self.clock = builder.clock()
         self.population_view = builder.population_view(columns, query='alive')
@@ -498,7 +498,7 @@ class RotaVaccine():
     # FIXME: An emitter could potentially be faster. Could have an emitter that
     #     says when people reach a certain age, give them a vaccine dose.
     @listens_for('time_step')
-    @uses_columns(['age', 'rotaviral_entiritis_vaccine_first_dose',
+    @uses_columns(['fractional_age', 'rotaviral_entiritis_vaccine_first_dose',
                    'rotaviral_entiritis_vaccine_second_dose',
                    'rotaviral_entiritis_vaccine_third_dose',
                    'rotaviral_entiritis_vaccine_first_dose_count',
