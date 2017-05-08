@@ -268,10 +268,10 @@ class DiarrheaBurden:
         age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
                                                                      age_group_id_max=5)
 
-        last_age_group_max = 0
         current_year = pd.Timestamp(event.time).year
 
         for sex in ["Male", "Female"]:
+            last_age_group_max = 0
             for age_bin, upr_bound in age_bin_age_group_max_dict:
                 # We use GTE age group lower bound and LT age group upper bound
                 #     because of how GBD age groups are set up. For example, a
