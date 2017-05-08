@@ -17,7 +17,7 @@ def test_determine_who_should_receive_dose():
     """
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population, RotaVaccine()] + factory)
+    simulation = setup_simulation([generate_test_population, RotaVaccine(True)] + factory)
 
     pop = simulation.population.population
 
@@ -78,14 +78,14 @@ def test_set_working_column():
         pop["rotaviral_entiritis_vaccine_{}_dose_duration_end_time".format(dose)] = simulation.current_time + pd.to_timedelta(num_days + 1, unit='D')
 
     # 1 day in, we should see that everyone got the first dose and its working
-    pump_simulation(simulation, time_step_days=1, iterations=1)
+    pump_simulation(simulation, iterations=1)
 
     pop = _set_working_column(pop, simulation.current_time, "rotaviral_entiritis")
 
     assert np.all(pop["rotaviral_entiritis_vaccine_first_dose_is_working"] == 1)
 
     # 3 days in, we should see that the second vaccine is working and the first is not
-    pump_simulation(simulation, time_step_days=3, iterations=1)
+    pump_simulation(simulation, iterations=3)
 
     pop = _set_working_column(pop, simulation.current_time, "rotaviral_entiritis")
 
@@ -93,7 +93,7 @@ def test_set_working_column():
     assert np.all(pop["rotaviral_entiritis_vaccine_first_dose_is_working"] == 0)
 
     # 5 days in, we should see that the third vaccine is working and the first and second are not
-    pump_simulation(simulation, time_step_days=5, iterations=1)
+    pump_simulation(simulation, iterations=5)
 
     pop = _set_working_column(pop, simulation.current_time, "rotaviral_entiritis")
 
@@ -103,7 +103,7 @@ def test_set_working_column():
     assert np.all(pop["rotaviral_entiritis_vaccine_second_dose_is_working"] == 0)
 
     # 7 days in, we should see that none of the vaccines are working
-    pump_simulation(simulation, time_step_days=7, iterations=1)
+    pump_simulation(simulation, iterations=7)
 
     pop = _set_working_column(pop, simulation.current_time, "rotaviral_entiritis")
 
@@ -115,10 +115,10 @@ def test_set_working_column():
 # 3b: set_working_column
 def test_set_working_column2():
 
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine(True)])
 
     # pump the simulation far enough ahead that simulants can get first dose
-    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=8), year_start=2005)
+    pump_simulation(simulation, duration=timedelta(days=8))
 
     not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 0")
 
@@ -131,10 +131,10 @@ def test_set_working_column2():
 #4: incidence_rates
 def test_incidence_rates():
 
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine(True)])
 
     # pump the simulation far enough ahead that simulants can get first dose
-    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=7), year_start=2005)
+    pump_simulation(simulation, duration=timedelta(days=7))
 
     not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 0")
 
@@ -154,10 +154,10 @@ def test_incidence_rates():
 
 
     # now try with two doses
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine(True)])
 
     # pump the simulation far enough ahead that simulants can get second dose
-    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=13), year_start=2005)
+    pump_simulation(simulation, duration=timedelta(days=13))
 
     not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_second_dose_is_working == 0")
 
@@ -177,10 +177,10 @@ def test_incidence_rates():
 
 
     # now try with three doses
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine(True)])
 
     # pump the simulation far enough ahead that simulants can get third dose
-    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=19), year_start=2005)
+    pump_simulation(simulation, duration=timedelta(days=19))
 
     not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 0")
 
@@ -200,11 +200,11 @@ def test_incidence_rates():
 
 # 5. determine_vaccine_effectiveness
 def test_determine_vaccine_effectiveness():
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()],
-                              start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine(True)])
+                              
 
     # pump the simulation forward
-    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=8), year_start=2005)
+    pump_simulation(simulation, duration=timedelta(days=8))
 
     population = simulation.population.population
     dose_working_index = population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1").index
@@ -223,10 +223,9 @@ def test_determine_vaccine_effectiveness():
 
 
 def test_determine_vaccine_effectiveness2():
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()],
-                              start=datetime(2005, 1, 1))
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine(True)])
 
-    pump_simulation(simulation, time_step_days=1, duration=timedelta(days=50), year_start=2005)
+    pump_simulation(simulation, duration=timedelta(days=50))
 
     population = simulation.population.population
     pop = population.copy()
