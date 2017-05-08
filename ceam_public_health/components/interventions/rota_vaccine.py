@@ -122,11 +122,9 @@ def accrue_vaccine_cost_and_count(population, vaccine_time_column,
     population[vaccine_count_column] += 1
 
     # Accrue cost
-    population[vaccine_unit_cost_column] += config.getfloat('rota_vaccine',
-                                                            'RV5_dose_cost')
+    population[vaccine_unit_cost_column] += config.rota_vaccine.RV5_dose_cost
 
-    population[vaccine_cost_to_administer_column] += config.getint(
-        'rota_vaccine', 'cost_to_administer_each_dose')
+    population[vaccine_cost_to_administer_column] += config.rota_vaccine.cost_to_administer_each_dose
 
     return population
 
@@ -173,19 +171,18 @@ def determine_who_should_receive_dose(population, index, vaccine_col,
     true_coverage = 0
 
     if dose_number == 1:
-        true_weight =  true_coverage + config.getfloat('rota_vaccine',
-                                      'vaccination_proportion_increase')
+        true_weight =  true_coverage + config.rota_vaccine.vaccination_proportion_increase
 
-        dose_age = config.getint('rota_vaccine', 'age_at_first_dose')
+        dose_age = config.rota_vaccine.age_at_first_dose
 
     if dose_number == 2:
-        true_weight = true_coverage + config.getint('rota_vaccine', 'second_dose_retention')
+        true_weight = true_coverage + config.rota_vaccine.second_dose_retention
         # FIXME: Change back to 61 at some point
-        dose_age = config.getint('rota_vaccine', 'age_at_second_dose')
+        dose_age = config.rota_vaccine.age_at_second_dose
 
     if dose_number == 3:
-        true_weight = true_coverage + config.getint('rota_vaccine', 'third_dose_retention')
-        dose_age = config.getint('rota_vaccine', 'age_at_third_dose')
+        true_weight = true_coverage + config.rota_vaccine.third_dose_retention
+        dose_age = config.rota_vaccine.age_at_third_dose
 
     children_who_will_receive_dose = _determine_who_should_receive_dose(
         population=population, vaccine_col=vaccine_col,
@@ -215,16 +212,15 @@ def set_vaccine_duration(population, current_time, etiology, dose):
     assert dose in ["first", "second", "third"], "dose can be one of first, second, or third"
     
     # determine when effect of the vaccine should start
-    time_after_dose_at_which_immunity_is_conferred = config.getint('rota_vaccine',
-                'time_after_dose_at_which_immunity_is_conferred')
+    time_after_dose_at_which_immunity_is_conferred = config.rota_vaccine.time_after_dose_at_which_immunity_is_conferred
 
     population["{e}_vaccine_{d}_dose_duration_start_time".format(e=etiology, d=dose)] = \
         population["{e}_vaccine_{d}_dose_event_time".format(e=etiology, d=dose)] + \
         pd.to_timedelta(time_after_dose_at_which_immunity_is_conferred, unit='D')
     
     # determine when the effect of the vaccine should end
-    vaccine_duration = config.getint('rota_vaccine', 'vaccine_duration')
-    waning_immunity_time = config.getint('rota_vaccine', 'waning_immunity_time')
+    vaccine_duration = config.rota_vaccine.vaccine_duration
+    waning_immunity_time = config.rota_vaccine.waning_immunity_time
 
     if waning_immunity_time == 0:
         population["{e}_vaccine_{d}_dose_duration_end_time".format(e=etiology, d=dose)] = \
@@ -350,8 +346,8 @@ class RotaVaccine():
     incidence, and counts vaccinations
     """
 
-    def __init__(self):
-        self.active = config.getboolean('rota_vaccine', 'run_intervention')
+    def __init__(self, active):
+        self.active = active
         self.etiology = 'rotaviral_entiritis'
         self.etiology_column = 'diarrhea_due_to_' + self.etiology
 
@@ -645,9 +641,18 @@ class RotaVaccine():
                 dose_working_index = population.query("rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
                 # confer full protection to people that receive 3 vaccines,
                 #     partial protection to those that only receive 1 or 2
-                duration = config.getint('rota_vaccine', 'vaccine_duration')
-                effectiveness =  config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
-                waning_immunity_time = config.getfloat('rota_vaccine', 'waning_immunity_time')
+                duration = config.rota_vaccine.vaccine_duration
+
+                # FIXME: I feel like there should be a better way to get effectiveness using the new config, but I don't know how. Using the old config, I could say config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
+                if dose == "first":
+                    effectiveness =  config.rota_vaccine.first_dose_effectiveness
+                if dose == "second":
+                    effectiveness =  config.rota_vaccine.second_dose_effectiveness
+                if dose == "third":
+                    effectiveness =  config.rota_vaccine.third_dose_effectiveness
+
+                waning_immunity_time = config.rota_vaccine.waning_immunity_time
+
                 if not len(dose_working_index) == 0:
                     vaccine_effectiveness = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, self.clock(), dose, duration, waning_immunity_time, effectiveness)
                 else:
