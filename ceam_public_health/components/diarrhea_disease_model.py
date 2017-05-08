@@ -128,6 +128,15 @@ class DiarrheaBurden:
     severe_disability_weight: float
         disability weight associated with severe diarrhea
 
+    mild_severity_split: float
+        proportion of diarrhea cases that are mild
+
+    moderate_severity_split: float
+        proportion of diarrhea cases that are moderate
+
+    severe_severity_split: float
+        proportion of diarrhea cases that are severe
+
     duration_data: df
         df with duration data (in days) for each age, sex, year, loc
     """
