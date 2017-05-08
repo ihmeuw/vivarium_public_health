@@ -49,26 +49,24 @@ def _determine_who_should_receive_dose(population, vaccine_col, true_weight,
     """
 
     false_weight = 1 - true_weight
-    # TODO: Don't need previous dose, use dose_number instead
-    previous_dose = dose_number - 1
 
-    if previous_dose == 0:
+    if dose_number == 1:
         children_at_dose_age = population.query(
             "age_in_days == @dose_age").copy()
 
-    elif previous_dose == 1:
+    elif dose_number == 2:
         children_at_dose_age = population.query(
             "age_in_days == @dose_age and" +
             " rotaviral_entiritis_vaccine_first_dose == 1").copy()
 
-    elif previous_dose == 2:
+    elif dose_number == 3:
         children_at_dose_age = population.query(
             "age_in_days == @dose_age and" +
             " rotaviral_entiritis_vaccine_second_dose == 1").copy()
 
     else:
-        raise(ValueError, "previous_dose cannot be any value other than" +
-                          " 0, 1, or 2")
+        raise(ValueError, "dose_number cannot be any value other than" +
+                          " 1, 2, or 3")
 
     if not children_at_dose_age.empty:
         children_at_dose_age[vaccine_col] = choice(
