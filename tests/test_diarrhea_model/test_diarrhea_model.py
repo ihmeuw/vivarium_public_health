@@ -201,7 +201,7 @@ def test_severity_proportions():
     factory = diarrhea_factory()
 
     simulation = setup_simulation([generate_test_population] + factory,
-                                  population_size=1000)
+                                  population_size=10000)
 
     # give everyone diarrhea
     inc = build_table(14000)
@@ -215,11 +215,11 @@ def test_severity_proportions():
 
     pop = simulation.population.population
 
-    mild_prop_in_sim = len(pop.query("diarrhea == 'mild_diarrhea'"))/1000
+    mild_prop_in_sim = len(pop.query("diarrhea == 'mild_diarrhea'"))/10000
 
-    moderate_prop_in_sim = len(pop.query("diarrhea == 'moderate_diarrhea'"))/1000
+    moderate_prop_in_sim = len(pop.query("diarrhea == 'moderate_diarrhea'"))/10000
 
-    severe_prop_in_sim = len(pop.query("diarrhea == 'severe_diarrhea'"))/1000
+    severe_prop_in_sim = len(pop.query("diarrhea == 'severe_diarrhea'"))/10000
 
     severe_prop_in_GBD = get_severity_splits(1181, 2610)
 
