@@ -23,30 +23,30 @@ def test_determine_who_should_receive_dose():
 
     pop['rotaviral_entiritis_vaccine_first_dose'] = 0
 
-    pop['age'] = config.getint('rota_vaccine', 'age_at_first_dose') / 365
+    pop['age'] = config.rota_vaccine.age_at_first_dose / 365
 
     first_dose_pop = determine_who_should_receive_dose(pop, pop.index, 'rotaviral_entiritis_vaccine_first_dose', 1, simulation.current_time)
 
     # FIXME: This test will fail in years in which there is vaccination coverage in the baseline scenario
-    assert np.allclose(len(pop)*config.getfloat('rota_vaccine', 'vaccination_proportion_increase'),  len(first_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
+    assert np.allclose(len(pop)*config.rota_vaccine.vaccination_proportion_increase,  len(first_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
 
     first_dose_pop['rotaviral_entiritis_vaccine_second_dose'] = 0
 
-    first_dose_pop['age'] = config.getint('rota_vaccine', 'age_at_second_dose') / 365
+    first_dose_pop['age'] = config.rota_vaccine.age_at_second_dose / 365
 
     second_dose_pop = determine_who_should_receive_dose(first_dose_pop, first_dose_pop.index, 'rotaviral_entiritis_vaccine_second_dose', 2, simulation.current_time)
 
     # FIXME: This test will fail in years in which there is vaccination coverage in the baseline scenario
-    assert np.allclose(len(pop)*config.getfloat('rota_vaccine', 'vaccination_proportion_increase')*config.getfloat('rota_vaccine', 'second_dose_retention'),  len(second_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
+    assert np.allclose(len(pop)*config.rota_vaccine.vaccination_proportion_increase*config.rota_vaccine.second_dose_retention,  len(second_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
 
     second_dose_pop['rotaviral_entiritis_vaccine_third_dose'] = 0
 
-    second_dose_pop['age'] = config.getint('rota_vaccine', 'age_at_third_dose') / 365
+    second_dose_pop['age'] = config.rota_vaccine.age_at_third_dose / 365
 
     third_dose_pop = determine_who_should_receive_dose(second_dose_pop, second_dose_pop.index, 'rotaviral_entiritis_vaccine_third_dose', 3, simulation.current_time)
 
     # FIXME: This test will fail in years in which there is vaccination coverage in the baseline scenario
-    assert np.allclose(len(pop)*config.getfloat('rota_vaccine', 'vaccination_proportion_increase')*config.getfloat('rota_vaccine', 'second_dose_retention')*config.getfloat('rota_vaccine', 'third_dose_retention'),  len(third_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
+    assert np.allclose(len(pop)*config.rota_vaccine.vaccination_proportion_increase*config.rota_vaccine.second_dose_retention*config.rota_vaccine.third_dose_retention,  len(third_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
 
 # 2: set_vaccine_duration
 def test_set_vaccine_duration():
@@ -56,8 +56,8 @@ def test_set_vaccine_duration():
     new_pop = set_vaccine_duration(pop, simulation.current_time, "rotaviral_entiritis", "first")
 
     time_after_dose_at_which_immunity_is_conferred = pd.to_timedelta(1, unit='D')
-    vaccine_duration = pd.to_timedelta(config.getint('rota_vaccine', 'vaccine_duration'), unit='D')
-    waning_immunity_time = pd.to_timedelta(config.getint('rota_vaccine', 'waning_immunity_time'), unit='D')
+    vaccine_duration = pd.to_timedelta(config.rota_vaccine.vaccine_duration, unit='D')
+    waning_immunity_time = pd.to_timedelta(config.rota_vaccine.waning_immunity_time, unit='D')
 
     # assert that the vaccine starts two weeks after its administered
     assert np.all(new_pop['rotaviral_entiritis_vaccine_first_dose_duration_start_time'] == simulation.current_time + \
@@ -125,7 +125,7 @@ def test_set_working_column2():
     vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1")
 
     # find an example of simulants of the same age and sex, but not vaccination status, and then compare their incidence rates
-    assert np.allclose(len(vaccinated)/100, config.getfloat('rota_vaccine', 'vaccination_proportion_increase'), atol=.1), "working column should ensure that the correct number of simulants are receiving the benefits of the vaccine"
+    assert np.allclose(len(vaccinated)/100, config.rota_vaccine.vaccination_proportion_increase, atol=.1), "working column should ensure that the correct number of simulants are receiving the benefits of the vaccine"
 
 
 #4: incidence_rates
@@ -147,8 +147,7 @@ def test_incidence_rates():
     rota_inc.source = simulation.tables.build_table(
         rota_table)
 
-    vaccine_effectiveness = config.getfloat('rota_vaccine',
-                                            'first_dose_effectiveness')
+    vaccine_effectiveness = config.rota_vaccine.first_dose_effectiveness
 
     # find an example of simulants of the same age and sex, but not vaccination status, and then compare their incidence rates
     assert np.allclose(pd.unique(rota_inc(vaccinated.index)), pd.unique(rota_inc(not_vaccinated.index)*(1-vaccine_effectiveness))), "simulants that receive vaccine should have lower incidence of diarrhea due to rota"
@@ -171,8 +170,7 @@ def test_incidence_rates():
     rota_inc.source = simulation.tables.build_table(
         rota_table)
 
-    vaccine_effectiveness = config.getfloat('rota_vaccine',
-                                            'second_dose_effectiveness')
+    vaccine_effectiveness = config.rota_vaccine.second_dose_effectiveness
 
     # find an example of simulants of the same age and sex, but not vaccination status, and then compare their incidence rates
     assert np.allclose(pd.unique(rota_inc(vaccinated.index)), pd.unique(rota_inc(not_vaccinated.index)*(1-vaccine_effectiveness))), "simulants that receive vaccine should have lower incidence of diarrhea due to rota"
@@ -195,8 +193,7 @@ def test_incidence_rates():
     rota_inc.source = simulation.tables.build_table(
         rota_table)
 
-    vaccine_effectiveness = config.getfloat('rota_vaccine',
-                                            'third_dose_effectiveness')
+    vaccine_effectiveness = config.rota_vaccine.third_dose_effectiveness
 
     # find an example of simulants of the same age and sex, but not vaccination status, and then compare their incidence rates
     assert np.allclose(pd.unique(rota_inc(vaccinated.index)), pd.unique(rota_inc(not_vaccinated.index)*(1-vaccine_effectiveness))), "simulants that receive vaccine should have lower incidence of diarrhea due to rota"
@@ -212,9 +209,9 @@ def test_determine_vaccine_effectiveness():
     population = simulation.population.population
     dose_working_index = population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1").index
 
-    duration = config.getint('rota_vaccine', 'vaccine_duration')
-    effectiveness =  config.getfloat('rota_vaccine', 'first_dose_effectiveness')
-    waning_immunity_time = config.getfloat('rota_vaccine', 'waning_immunity_time')
+    duration = config.rota_vaccine.vaccine_duration
+    effectiveness =  config.rota_vaccine.first_dose_effectiveness
+    waning_immunity_time = config.rota_vaccine.waning_immunity_time
 
     series = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, simulation.current_time, "first", duration, waning_immunity_time, effectiveness)
 
@@ -241,9 +238,9 @@ def test_determine_vaccine_effectiveness2():
     
 
     dose_working_index = population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 1").index
-    effectiveness =  config.getfloat('rota_vaccine', 'third_dose_effectiveness')
-    duration = config.getint('rota_vaccine', 'vaccine_duration')
-    waning_immunity_time = config.getfloat('rota_vaccine', 'waning_immunity_time')
+    effectiveness =  config.rota_vaccine.third_dose_effectiveness
+    duration = config.rota_vaccine.vaccine_duration
+    waning_immunity_time = config.rota_vaccine.waning_immunity_time
 
     series = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, simulation.current_time, "third", duration, waning_immunity_time, effectiveness)
 
