@@ -1,0 +1,37 @@
+components:
+    - ceam_public_health.components:
+        - base_population.generate_base_population
+        - base_population.age_simulants
+        - base_population.Mortality()
+        - diarrhea_disease_model.diarrhea_factory()
+        - metrics.Metrics()
+        - interventions.rota_vaccine.RotaVaccine()
+
+configuration:
+    simulation_parameters:
+        location_id: 180
+        year_start: 2005
+        year_end: 2010
+        time_step: 365
+        pop_age_start:
+        pop_age_end:
+        initial_age: 0.0
+        population_size: 20000
+    rota_vaccine:
+        RV5_dose_cost: 3.5
+        cost_to_administer_each_dose: 0
+        first_dose_effectiveness: 0
+        second_dose_effectiveness: 0
+        third_dose_effectiveness: .39
+        vaccine_duration: 730
+        waning_immunity_time: 0
+        age_at_first_dose: 61
+        age_at_second_dose: 122
+        age_at_third_dose: 183
+        second_dose_retention: 1
+        third_dose_retention: 1
+        vaccination_proportion_increase: .5
+        # FIXME: Figure out if we need a different time after dose for each dose
+        time_after_dose_at_which_immunity_is_conferred: 14
+        run_intervention: True
+
