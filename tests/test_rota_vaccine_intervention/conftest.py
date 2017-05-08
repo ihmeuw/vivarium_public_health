@@ -11,3 +11,4 @@ config.rota_vaccine.vaccine_duration = 20
 config.rota_vaccine.waning_immunity_time = 20
 config.simulation_parameters.time_step = 1
 config.simulation_parameters.year_start = 2005
+config.simulation_parameters.initial_age = 0
