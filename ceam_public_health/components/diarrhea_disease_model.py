@@ -230,11 +230,8 @@ class DiarrheaBurden:
         return dis_weight_series
 
 
-    # TODO: Shorten the length of this function
     # FIXME: This is a super slow function. Try to speed it up by using numbers
     #     instead of strings
-    # TODO: Might be worthwhile to have code read from top to bottom in the
-    #    order of priority
     # TODO: This method needs some more tests. Open to suggestions on how to
     #    best test this method
     @listens_for('time_step', priority=6)
@@ -383,8 +380,6 @@ def diarrhea_factory():
         etiology_specific_incidence = get_etiology_specific_incidence(
             eti_risk_id=value, cause_id=302, me_id=1181)
 
-        # TODO: Need to figure out how to change priority on a RateTransition
-        #     so that we can get ors_clock working
         transition = RateTransition(etiology_state,
                                     diarrhea_due_to_pathogen,
                                     etiology_specific_incidence)
