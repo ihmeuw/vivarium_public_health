@@ -6,3 +6,5 @@ config.rota_vaccine.age_at_third_dose = 18
 config.rota_vaccine.time_after_dose_at_which_immunity_is_conferred = 1
 config.rota_vaccine.vaccine_duration = 20
 config.rota_vaccine.waning_immunity_time = 20
+config.simulation_parameters.time_step = 1
+config.simulation_parameters.year_start = 2005
