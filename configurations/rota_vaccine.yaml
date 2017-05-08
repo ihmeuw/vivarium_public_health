@@ -5,7 +5,7 @@ components:
         - base_population.Mortality()
         - diarrhea_disease_model.diarrhea_factory()
         - metrics.Metrics()
-        - interventions.rota_vaccine.RotaVaccine()
+        - interventions.rota_vaccine.RotaVaccine(True)
 
 configuration:
     simulation_parameters:
@@ -33,5 +33,4 @@ configuration:
         vaccination_proportion_increase: .5
         # FIXME: Figure out if we need a different time after dose for each dose
         time_after_dose_at_which_immunity_is_conferred: 14
-        run_intervention: True
 
