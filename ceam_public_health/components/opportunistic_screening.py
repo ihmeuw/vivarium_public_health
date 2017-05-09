@@ -1,6 +1,5 @@
 # ~/ceam/ceam/modules/opportunistic_screening.py
 
-import os.path
 from datetime import timedelta
 from collections import defaultdict
 
