@@ -326,6 +326,9 @@ def determine_vaccine_effectiveness(pop, dose_working_index, waning_immunity_fun
 
     vaccine_waning_time: int
         number of days vaccine will wane
+
+    vaccine_effectiveness: float
+        effectiveness of the current dose of the vaccine
     """
     pop['days_since_vaccination'] = current_time - \
     pop['rotaviral_entiritis_vaccine_{}_dose_duration_start_time'.format(dose)]
