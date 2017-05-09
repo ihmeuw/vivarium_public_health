@@ -83,7 +83,7 @@ class FertilityCrudeBirthRate:
         self.randomness = builder.randomness('crude_birth_rate')
 
     @listens_for('time_step')
-    @uses_columns([], 'alive == True and age <= 5')
+    @uses_columns([], 'alive == True and age <= {}'.format(config.simulation_parameters.pop_age_end))
     @creates_simulants
     def add_new_birth_cohort(self, event, creator):
         """Adds new simulants every time step based on the Crude Birth Rate
