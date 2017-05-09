@@ -330,14 +330,14 @@ def determine_vaccine_effectiveness(pop, dose_working_index, waning_immunity_fun
     vaccine_effectiveness: float
         effectiveness of the current dose of the vaccine
     """
-    pop['days_since_vaccination'] = current_time - \
+    pop['days_since_vaccine_started_working'] = current_time - \
     pop['rotaviral_entiritis_vaccine_{}_dose_duration_start_time'.format(dose)]
     
-    pop = pop[pop.days_since_vaccination.notnull()]
+    pop = pop[pop.days_since_vaccine_started_working.notnull()]
     
-    pop['days_since_vaccination'] = (pop['days_since_vaccination'] / np.timedelta64(1, 'D')).astype(int)
+    pop['days_since_vaccine_started_working'] = (pop['days_since_vaccine_started_working'] / np.timedelta64(1, 'D')).astype(int)
     
-    pop['effectiveness'] = pop['days_since_vaccination'].apply(lambda days: waning_immunity_function(days, duration, vaccine_waning_time, vaccine_effectiveness))
+    pop['effectiveness'] = pop['days_since_vaccine_started_working'].apply(lambda days: waning_immunity_function(days, duration, vaccine_waning_time, vaccine_effectiveness))
     
     return pop.loc[dose_working_index]['effectiveness']
 
