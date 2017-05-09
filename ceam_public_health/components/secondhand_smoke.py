@@ -1,15 +1,8 @@
 # ~/ceam/ceam/modules/secondhand_smoke.py
 
-import os.path
-from functools import partial
-
 import pandas as pd
-import numpy as np
-
-from ceam import config
 
 from ceam.framework.event import listens_for
-from ceam.framework.values import modifies_value
 from ceam.framework.population import uses_columns
 
 from ceam_inputs import get_exposures, make_gbd_risk_effects

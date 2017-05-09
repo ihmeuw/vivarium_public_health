@@ -1,4 +1,3 @@
-import os.path
 from datetime import timedelta
 
 import pandas as pd
