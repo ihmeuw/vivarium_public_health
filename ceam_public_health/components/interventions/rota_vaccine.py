@@ -169,6 +169,8 @@ def determine_who_should_receive_dose(population, index, vaccine_col,
     # true_coverage = coverage_estimates.query("year_id == {}".format(year))['mean_value'].iloc[0]
     true_coverage = 0
 
+    # FIXME: GBD coverage metric is a measure of people that receive all 3 vaccines, not just 1.
+    #     Need to figure out a way to capture this in the model
     if dose_number == 1:
         true_weight =  true_coverage + config.rota_vaccine.vaccination_proportion_increase
 
