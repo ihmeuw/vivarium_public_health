@@ -547,7 +547,7 @@ class RotaVaccine():
             return
 
         else:
-            population = self.population_view.get(event.index)
+            population = event.population
 
             children_who_will_receive_first_dose = determine_who_should_receive_dose(
                 population, event.index, self.vaccine_first_dose_column, 1, event.time)
@@ -565,7 +565,7 @@ class RotaVaccine():
                     children_who_will_receive_first_dose, event.time,
                     "rotaviral_entiritis", "first")
 
-                self.population_view.update(children_who_will_receive_first_dose)
+                event.population_view.update(children_who_will_receive_first_dose)
 
             # Second dose
             children_who_will_receive_second_dose = determine_who_should_receive_dose(
@@ -584,7 +584,7 @@ class RotaVaccine():
                     children_who_will_receive_second_dose, event.time,
                     "rotaviral_entiritis", "second")
 
-                self.population_view.update(children_who_will_receive_second_dose)
+                event.population_view.update(children_who_will_receive_second_dose)
 
             # Third dose
             children_who_will_receive_third_dose = determine_who_should_receive_dose(
@@ -603,7 +603,7 @@ class RotaVaccine():
                     children_who_will_receive_third_dose, event.time,
                     "rotaviral_entiritis", "third")
 
-                self.population_view.update(children_who_will_receive_third_dose)
+                event.population_view.update(children_who_will_receive_third_dose)
 
     @listens_for('time_step')
     @uses_columns(['rotaviral_entiritis_vaccine_first_dose_duration_start_time',
@@ -616,11 +616,11 @@ class RotaVaccine():
                    'rotaviral_entiritis_vaccine_second_dose_is_working',
                    'rotaviral_entiritis_vaccine_third_dose_is_working'], 'alive')
     def set_working_column(self, event):
-        population = self.population_view.get(event.index)
+        population = event.population
 
         population = _set_working_column(population, event.time, "rotaviral_entiritis")
 
-        self.population_view.update(population)
+        event.population_view.update(population)
 
 
     @modifies_value('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
@@ -628,7 +628,10 @@ class RotaVaccine():
                    'rotaviral_entiritis_vaccine_third_dose',
                    'rotaviral_entiritis_vaccine_first_dose_is_working',
                    'rotaviral_entiritis_vaccine_second_dose_is_working',
-                   'rotaviral_entiritis_vaccine_third_dose_is_working'], 'alive')
+                   'rotaviral_entiritis_vaccine_third_dose_is_working',
+                   'rotaviral_entiritis_vaccine_first_dose_duration_start_time',
+                   'rotaviral_entiritis_vaccine_second_dose_duration_start_time',
+                   'rotaviral_entiritis_vaccine_third_dose_duration_start_time'], 'alive')
     def incidence_rates(self, index, rates, population_view):
         """
         If the intervention is running, determine who is currently receiving
@@ -649,7 +652,7 @@ class RotaVaccine():
             rotaviral_entiritis_vaccine_third_dose,
             rotaviral_entiritis_vaccine_is_working
         """
-        population = self.population_view.get(index)
+        population = population_view.get(index)
 
         # start with refactoring, then move to looking at scalar vs. constant spline
         # set up so that rates are manipulated for each working col separately
