@@ -1,105 +1,150 @@
-from math import ceil
-from scipy.stats import poisson
+"""This module contains several components that  model birth rates."""
 import pandas as pd
 import numpy as np
 
-
 from ceam import config
-from ceam_inputs import get_age_specific_fertility_rates
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns, creates_simulants
-from ceam_inputs.gbd_ms_auxiliary_functions import get_populations
-from ceam.framework.util import rate_to_probability
 
-DAYS_PER_YEAR = 365.
+from ceam_inputs import get_age_specific_fertility_rates, get_annual_live_births
+from ceam_inputs.gbd_ms_auxiliary_functions import get_populations
+
+
+DAYS_PER_YEAR = 365
+# TODO: Incorporate GBD estimates into gestational model (probably as a separate component)
 PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
 
 
-@listens_for('time_step', priority=9)
-@creates_simulants
-def add_new_birth_cohort(event, creator):
-    """Deterministically adds a new set of simulants at every timestep
-    based on a parameter in the configuration.
+class FertilityDeterministic:
+    """Deterministic model of births.
     
-    Parameters
+    This model of fertility expects that 
+    `config.simulation_parameters.number_of_new_simulants_each_year` is
+    set in some configuration file.  It adds simulants every time-step
+    by scaling this parameter by the time-step size.    
+    
+    Attributes
     ----------
-    event : ceam.population.PopulationEvent
-        The event that triggered the function call.
-    creator : method
-        A function or method for creating a population.
+    fractional_new_births : float
+        A rolling record of the fractional part of new births generated 
+        each time-step that allows us to 
     """
-    # Assume time step comes to us in days
-    time_step_size = config.simulation_parameters.time_step
-    annual_new_simulants = config.simulation_parameters.number_of_new_simulants_each_year
+    def __init__(self):
+        self.fractional_new_births = 0
 
-    # Assume births are uniformly distributed throughout the year.
-    # N.B. Tracking things like leap years, etc., seems silly at this level
-    # of model detail, so we don't.
-    simulants_to_add = int(ceil(
-        annual_new_simulants * time_step_size / DAYS_PER_YEAR))
+    @listens_for('time_step')
+    @creates_simulants
+    def add_new_birth_cohort(self, event, creator):
+        """Deterministically adds a new set of simulants at every timestep
+        based on a parameter in the configuration.
+ 
+        Parameters
+        ----------
+        event : ceam.population.PopulationEvent
+            The event that triggered the function call.
+        creator : method
+            A function or method for creating a population.
+        """
+        # Assume time step comes to us in days
+        time_step_size = config.simulation_parameters.time_step
+        annual_new_simulants = config.simulation_parameters.number_of_new_simulants_each_year
 
-    creator(simulants_to_add,
-            population_configuration={
-                'initial_age': 0.0,
-            })
+        # Assume births are uniformly distributed throughout the year.
+        simulants_to_add = annual_new_simulants*time_step_size/DAYS_PER_YEAR + self.fractional_new_births
+        self.fractional_new_births = simulants_to_add % 1
+        simulants_to_add = int(simulants_to_add)
+
+        creator(simulants_to_add,
+                population_configuration={
+                    'initial_age': 0.0,
+                })
 
 
-@listens_for('time_step', priority=9)
-@creates_simulants
-def add_new_birth_cohort_nondeterministic(event, creator):
-    """Adds new simulants every time step based on the Crude Birth Rate
-    and an assumption that birth is a Poisson process
+class FertilityCrudeBirthRate:
+    """Population-level model of births using Crude Birth Rate.
     
-    Parameters
+    Attributes
     ----------
-    event : ceam.population.PopulationEvent
-        The event that triggered the function call.
-    creator : method
-        A function or method for creating a population. 
-    """
-    birth_rate = _get_birth_rate(event.time.year)
-    population_size = len(event.index)
-    time_step_size = config.simulation_parameters.time_step
-    mean_births = birth_rate*population_size*time_step_size/DAYS_PER_YEAR
-
-    # Make the random draws deterministic w/r/t the configuration draw number.
-    seed = (config.run_configuration.draw_number + hash(event.time)) % (2**32 - 1)
-
-    # Assume births occur as a Poisson process
-    simulants_to_add = poisson.rvs(mean_births, random_state=seed)
-
-    creator(simulants_to_add,
-            population_configuration={
-                'initial_age': 0.0,
-            })
-
-
-def _get_birth_rate(year):
-    """Computes a crude birth rate from demographic data in a given year.
+    randomness : `randomness.RandomStream`
+        A named stream of random numbers bound to CEAM's common
+        random number framework.
+        
+    Notes
+    -----
+    The OECD definition of Crude Birthrate can be found on their 
+    website_, while a more thorough discussion of fertility and
+    birth rate models can be found on Wikipedia_ or in demography
+    textbooks. 
     
-    Parameters
-    ----------
-    year : int
-        The year we want the birth rate for.
-    
-    Returns
-    -------
-    float
-        The crude birth rate of the population in the given year in 
-        births per person per year.
+    .. _website: https://stats.oecd.org/glossary/detail.asp?ID=490
+    .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
-    location_id = config.simulation_parameters.location_id
+    def setup(self, builder):
+        self.randomness = builder.randomness('crude_birth_rate')
 
-    # 3 is the sex_id to pull both males and females
-    population_table = get_populations(location_id, year, 3)
+    @listens_for('time_step')
+    @uses_columns([], 'alive == True and age <= 5')
+    @creates_simulants
+    def add_new_birth_cohort(self, event, creator):
+        """Adds new simulants every time step based on the Crude Birth Rate
+        and an assumption that birth is a Poisson process
+    
+        Parameters
+        ----------
+        event : ceam.population.PopulationEvent
+            The event that triggered the function call.
+        creator : method
+            A function or method for creating a population. 
+            
+        Notes
+        -----
+        The method for computing the Crude Birth Rate employed here is 
+        approximate. 
+          
+        """
+        birth_rate = self._get_birth_rate(event.time.year)
+        population_size = len(event.index)
+        time_step_size = config.simulation_parameters.time_step
 
-    population = population_table.pop_scaled.sum()
-    births = population_table.pop_scaled[population_table.age < 1].sum()
+        mean_births = birth_rate*population_size*time_step_size/DAYS_PER_YEAR
 
-    return births / population
+        # Assume births occur as a Poisson process
+        r = np.random.RandomState(seed=self.randomness.get_seed())
+        simulants_to_add = r.poisson(mean_births)
+
+        creator(simulants_to_add,
+                population_configuration={
+                    'initial_age': 0.0,
+                })
+
+    @staticmethod
+    def _get_birth_rate(year):
+        """Computes a crude birth rate from demographic data in a given year.
+    
+        Parameters
+        ----------
+        year : int
+            The year we want the birth rate for.
+    
+        Returns
+        -------
+        float
+            The crude birth rate of the population in the given year in 
+            births per person per year.
+        """
+
+        location_id = config.simulation_parameters.location_id
+        simulation_max_age = int(config.simulation_parameters.pop_age_end)
+
+        # 3 is the sex_id to pull both males and females
+        population_table = get_populations(location_id, year, 3)
+        population = population_table.pop_scaled[population_table.age < simulation_max_age].sum()
+        births = float(get_annual_live_births(location_id, year))
+
+        return births / population
 
 
-class Fertility:
+class FertilityAgeSpecificRates:
     """
     A simulant-specific model for fertility and pregnancies.
     """
@@ -115,13 +160,13 @@ class Fertility:
          
         """
 
-        self.random = builder.randomness('fertility')
+        self.randomness = builder.randomness('fertility')
         self.asfr = builder.lookup(get_age_specific_fertility_rates()[['year', 'age', 'mean_value']],
                                    key_columns=(),
                                    parameter_columns=('year', 'age',))
 
     @listens_for('initialize_simulants')
-    @uses_columns(['last_birth_time', 'sex', 'parent'])
+    @uses_columns(['last_birth_time', 'sex', 'parent_id'])
     def update_state_table(self, event):
         """ Adds 'last_birth_time' and 'parent' columns to the state table.
         
@@ -136,13 +181,13 @@ class Fertility:
 
         # Do the naive thing, set so all women can have children
         # and none of them have had a child in the last year.
-        last_birth_time[women] = event.time - pd.Timedelta(days=365)
+        last_birth_time[women] = event.time - pd.Timedelta(days=DAYS_PER_YEAR)
 
         event.population_view.update(last_birth_time)
-        event.population_view.update(pd.Series(-1, name='parent', index=event.index, dtype=np.int64))
+        event.population_view.update(pd.Series(-1, name='parent_id', index=event.index, dtype=np.int64))
 
-    @listens_for('time_step', priority=8)
-    @uses_columns(['last_birth_time', 'parent'], 'alive == True and sex =="Female"')
+    @listens_for('time_step')
+    @uses_columns(['last_birth_time', 'parent_id'], 'alive == True and sex =="Female"')
     @creates_simulants
     def step(self, event, creator):
         """Produces new children and updates parent status on time steps.
@@ -154,21 +199,13 @@ class Fertility:
         creator : method
             A function or method for creating a population. 
         """
-        # Get a view on all living women who haven't had a child
-        # in at least nine months.
+        # Get a view on all living women who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
         can_have_children = event.population.query('last_birth_time < @nine_months_ago')
 
-        # Get the age-specific rates, convert to probabilities
         rate_series = self.asfr(can_have_children.index)
-        prob_series = rate_to_probability(rate_series)
-        # Determine whether each eligible simulant had a child.
-        prob_df = pd.DataFrame({'birth': prob_series, 'no_birth': 1-prob_series})
-        prob_df['outcome'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
+        had_children = self.randomness.filter_for_rate(can_have_children, rate_series)
 
-        # Get all simulants who had children and record that
-        # they just had a child.
-        had_children = prob_df.query('outcome == "birth"').copy()
         had_children['last_birth_time'] = event.time
         event.population_view.update(had_children['last_birth_time'])
 
@@ -177,9 +214,5 @@ class Fertility:
         num_babies = len(had_children)
         if num_babies:
             idx = creator(num_babies, population_configuration={'initial_age': 0})
-            parents = pd.Series(data=had_children.index, index=idx, name='parent')
+            parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
             event.population_view.update(parents)
-
-
-
-
