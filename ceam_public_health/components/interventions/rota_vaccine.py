@@ -7,9 +7,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import get_covariate_estimates
-
-#### TODO: CONFIRM WITH IBRAHIM: SHOULD VACCINE LOSE EFFECT 2 YEARS AFTER ITS ADMINISTERED OR 2 YEARS AFTER IT STARTS TO HAVE AN EFFECT?
+from ceam_inputs import get_rota_vaccine_coverage
 
 
 def accrue_vaccine_cost_and_count(population, vaccine_time_column,
@@ -59,8 +57,6 @@ def accrue_vaccine_cost_and_count(population, vaccine_time_column,
     population[vaccine_cost_to_administer_column] += config.rota_vaccine.cost_to_administer_each_dose
 
     return population
-
-
 
 
 def set_vaccine_duration(population, current_time, etiology, dose):
@@ -321,6 +317,9 @@ class RotaVaccine():
         self.randomness_dict['dose_2'] = builder.randomness('second_dose_randomness')
         self.randomness_dict['dose_3'] = builder.randomness('third_dose_randomness')
 
+        self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
+        self.vaccine_coverage.source = builder.lookup(get_rota_vaccine_coverage())
+
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
@@ -448,7 +447,7 @@ class RotaVaccine():
 
         if not children_at_dose_age.empty:
             children_at_dose_age[vaccine_col] = self.randomness_dict['dose_{}'.format(dose_number)].choice(
-                children_at_dose_age.index, [1, 0], [true_weight, false_weight])
+                children_at_dose_age.index, [1]*len(true_weight) + [0]*len(false_weight), true_weight.tolist() + false_weight.tolist())
 
         children_who_will_receive_dose = children_at_dose_age.query(
             "{} == 1".format(vaccine_col))
@@ -490,27 +489,20 @@ class RotaVaccine():
 
         population['age_in_days'] = population['age_in_days'].round()
 
-        # FIXME: Need to figure out how to include baseline vaccine coverage
-        #     from GBD in the model
-        # coverage_estimates = get_covariate_estimates('ROTA_coverage_prop')
-        # year = current_time.year
-        # true_coverage = coverage_estimates.query("year_id == {}".format(year))['mean_value'].iloc[0]
-        true_coverage = 0
+        vaccine_coverage = self.vaccine_coverage(population.index)
 
         # FIXME: GBD coverage metric is a measure of people that receive all 3 vaccines, not just 1.
         #     Need to figure out a way to capture this in the model
         if dose_number == 1:
-            true_weight =  true_coverage + config.rota_vaccine.vaccination_proportion_increase
-
+            true_weight =  vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
             dose_age = config.rota_vaccine.age_at_first_dose
 
         if dose_number == 2:
-            true_weight = true_coverage + config.rota_vaccine.second_dose_retention
-            # FIXME: Change back to 61 at some point
+            true_weight = pd.Series(config.rota_vaccine.second_dose_retention, index=population.index)
             dose_age = config.rota_vaccine.age_at_second_dose
 
         if dose_number == 3:
-            true_weight = true_coverage + config.rota_vaccine.third_dose_retention
+            true_weight = pd.Series(config.rota_vaccine.third_dose_retention, index=population.index)
             dose_age = config.rota_vaccine.age_at_third_dose
 
         children_who_will_receive_dose = self._determine_who_should_receive_dose(
