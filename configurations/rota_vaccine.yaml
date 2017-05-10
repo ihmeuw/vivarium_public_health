@@ -10,8 +10,8 @@ components:
 configuration:
     simulation_parameters:
         location_id: 180
-        year_start: 2005
-        year_end: 2010
+        year_start: 2014
+        year_end: 2015
         time_step: 365
         pop_age_start:
         pop_age_end:
