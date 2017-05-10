@@ -3,7 +3,8 @@
 from collections import defaultdict
 from datetime import timedelta
 
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
 
 from ceam import config
 
@@ -11,8 +12,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs.gbd_ms_functions import load_data_from_cache, get_modelable_entity_draws
-from ceam_inputs.util import gbd_year_range
+from ceam_inputs import get_utilization_proportion
 from ceam_inputs.auxiliary_files import auxiliary_file_path
 
 # draw random costs for doctor visit (time-specific)
@@ -66,20 +66,11 @@ class HealthcareAccess:
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
 
-        self.load_utilization(builder)
+        self.utilization_proportion = builder.lookup(get_utilization_proportion())
 
         self.general_random = builder.randomness('healthcare_general_acess')
         self.followup_random = builder.randomness('healthcare_followup_acess')
 
-    def load_utilization(self, builder):
-        year_start, year_end = gbd_year_range()
-        location_id = config.simulation_parameters.location_id
-        # me_id 9458 is 'out patient visits'
-        # measure 18 is 'Proportion'
-        # TODO: Currently this is monthly, not anually
-        lookup_table = load_data_from_cache(get_modelable_entity_draws, col_name='utilization_proportion',
-                                            year_start=year_start, year_end=year_end, location_id=location_id, measure=18, me_id=9458)
-        self.utilization_proportion = builder.lookup(lookup_table)
 
     @listens_for('initialize_simulants')
     @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date'])
