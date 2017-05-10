@@ -17,7 +17,9 @@ def test_determine_who_should_receive_dose():
     """
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population, RotaVaccine(True)] + factory)
+    rv_instance = RotaVaccine(True)
+
+    simulation = setup_simulation([generate_test_population, rv_instance] + factory, population_size=10000)
 
     pop = simulation.population.population
 
@@ -25,9 +27,7 @@ def test_determine_who_should_receive_dose():
 
     pop['fractional_age'] = config.rota_vaccine.age_at_first_dose / 365
 
-    self = RotaVaccine(True)
-
-    first_dose_pop = RotaVaccine.determine_who_should_receive_dose(self, pop, pop.index, 'rotaviral_entiritis_vaccine_first_dose', 1, simulation.current_time)
+    first_dose_pop = rv_instance.determine_who_should_receive_dose(pop, pop.index, 'rotaviral_entiritis_vaccine_first_dose', 1, simulation.current_time)
 
     # FIXME: This test will fail in years in which there is vaccination coverage in the baseline scenario
     assert np.allclose(len(pop)*config.rota_vaccine.vaccination_proportion_increase,  len(first_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
@@ -36,7 +36,7 @@ def test_determine_who_should_receive_dose():
 
     first_dose_pop['fractional_age'] = config.rota_vaccine.age_at_second_dose / 365
 
-    second_dose_pop = RotaVaccine.determine_who_should_receive_dose(first_dose_pop, first_dose_pop.index, 'rotaviral_entiritis_vaccine_second_dose', 2, simulation.current_time)
+    second_dose_pop = rv_instance.determine_who_should_receive_dose(first_dose_pop, first_dose_pop.index, 'rotaviral_entiritis_vaccine_second_dose', 2, simulation.current_time)
 
     # FIXME: This test will fail in years in which there is vaccination coverage in the baseline scenario
     assert np.allclose(len(pop)*config.rota_vaccine.vaccination_proportion_increase*config.rota_vaccine.second_dose_retention,  len(second_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
@@ -45,7 +45,7 @@ def test_determine_who_should_receive_dose():
 
     second_dose_pop['fractional_age'] = config.rota_vaccine.age_at_third_dose / 365
 
-    third_dose_pop = RotaVaccine.determine_who_should_receive_dose(second_dose_pop, second_dose_pop.index, 'rotaviral_entiritis_vaccine_third_dose', 3, simulation.current_time)
+    third_dose_pop = rv_instance.determine_who_should_receive_dose(second_dose_pop, second_dose_pop.index, 'rotaviral_entiritis_vaccine_third_dose', 3, simulation.current_time)
 
     # FIXME: This test will fail in years in which there is vaccination coverage in the baseline scenario
     assert np.allclose(len(pop)*config.rota_vaccine.vaccination_proportion_increase*config.rota_vaccine.second_dose_retention*config.rota_vaccine.third_dose_retention,  len(third_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
