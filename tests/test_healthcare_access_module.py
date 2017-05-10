@@ -1,6 +1,4 @@
 # ~/ceam/ceam_tests/test_modules/test_healthcare_access_module.py
-
-from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -30,7 +28,7 @@ class Metrics:
 
 
 @pytest.mark.slow
-@patch('ceam_public_health.components.healthcare_access.load_data_from_cache')
+@patch('ceam_public_health.components.healthcare_access.get_utilization_proportion')
 def test_general_access(utilization_rate_mock):
     utilization_rate_mock.side_effect = lambda *args, **kwargs: build_table(0.1, ['age', 'year', 'sex', 'utilization_proportion'])
     metrics = Metrics()
