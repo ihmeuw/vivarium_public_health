@@ -6,77 +6,10 @@ from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
-from ceam.framework.randomness import choice
 
 from ceam_inputs import get_covariate_estimates
 
 #### TODO: CONFIRM WITH IBRAHIM: SHOULD VACCINE LOSE EFFECT 2 YEARS AFTER ITS ADMINISTERED OR 2 YEARS AFTER IT STARTS TO HAVE AN EFFECT?
-
-
-def _determine_who_should_receive_dose(population, vaccine_col, true_weight,
-                                       dose_age, dose_number):
-    """
-    Uses choice to determine if each simulant should receive a dose. Returns a
-        population of simulants that should receive a dose (most of the time
-        this function will return an empty population)
-
-    Parameters
-    ----------
-    population: pd.DataFrame
-        population view of all of the simulants who are currently alive
-
-    vaccine_col: str
-        str representing the name of a column, one of
-        rotaviral_entiritis_vaccine_first_dose, second, or third dose.
-        The column represents whether or not the simulant received the first
-        and second dose of the vaccine, which is important because we want to
-        make sure that only people who got the previous vaccine can get the
-        vaccine that is currently being modelled
-
-    true_weight: float
-        number between 0 and 1 that represents the probability of being
-        vaccinated
-
-    dose_age: number
-        age in days at which simulant should receive specific dose
-
-    dose_number: int
-        1, 2, or 3 depending on which dose is currently being evaluated
-
-    Used by
-    -------
-    determine_who_should_receive_dose
-    """
-
-    false_weight = 1 - true_weight
-
-    if dose_number == 1:
-        children_at_dose_age = population.query(
-            "age_in_days == @dose_age").copy()
-
-    elif dose_number == 2:
-        children_at_dose_age = population.query(
-            "age_in_days == @dose_age and" +
-            " rotaviral_entiritis_vaccine_first_dose == 1").copy()
-
-    elif dose_number == 3:
-        children_at_dose_age = population.query(
-            "age_in_days == @dose_age and" +
-            " rotaviral_entiritis_vaccine_second_dose == 1").copy()
-
-    else:
-        raise(ValueError, "dose_number cannot be any value other than" +
-                          " 1, 2, or 3")
-
-    if not children_at_dose_age.empty:
-        children_at_dose_age[vaccine_col] = choice(
-            'determine_who_should_receive_dose_{}'.format(dose_number),
-            children_at_dose_age.index, [1, 0], [true_weight, false_weight])
-
-    children_who_will_receive_dose = children_at_dose_age.query(
-        "{} == 1".format(vaccine_col))
-
-    return children_who_will_receive_dose
 
 
 def accrue_vaccine_cost_and_count(population, vaccine_time_column,
@@ -128,68 +61,6 @@ def accrue_vaccine_cost_and_count(population, vaccine_time_column,
     return population
 
 
-def determine_who_should_receive_dose(population, index, vaccine_col,
-                                      dose_number, current_time):
-    """
-    Function will determine who should receive 1st, 2nd, and 3rd doses of a
-    vaccine based on proportions/age at first dose as specified in the config
-    file
-
-    Parameters
-    ----------
-    population: df
-        population view of all of the simulants who are currently alive
-
-    index: pandas index
-        index is just the index of all simulants who are currently alive.
-
-    vaccine_col: str
-        str representing the name of a column, either
-        rotaviral_entiritis_vaccine_first_dose or second dose. The column
-        represents whether or not the simulant received the first and second
-        dose of the vaccine, which is important because we want to make sure
-        that only people who got the previous vaccine can get the vaccine that
-        is currently being modelled
-
-    dose_number: int
-        1, 2, or 3 depending on which dose is currently being evaluated
-
-    current_time:
-        current_time in the simulation
-    """
-
-    population['age_in_days'] = population['fractional_age'] * 365
-
-    population['age_in_days'] = population['age_in_days'].round()
-
-    # FIXME: Need to figure out how to include baseline vaccine coverage
-    #     from GBD in the model
-    # coverage_estimates = get_covariate_estimates('ROTA_coverage_prop')
-    # year = current_time.year
-    # true_coverage = coverage_estimates.query("year_id == {}".format(year))['mean_value'].iloc[0]
-    true_coverage = 0
-
-    # FIXME: GBD coverage metric is a measure of people that receive all 3 vaccines, not just 1.
-    #     Need to figure out a way to capture this in the model
-    if dose_number == 1:
-        true_weight =  true_coverage + config.rota_vaccine.vaccination_proportion_increase
-
-        dose_age = config.rota_vaccine.age_at_first_dose
-
-    if dose_number == 2:
-        true_weight = true_coverage + config.rota_vaccine.second_dose_retention
-        # FIXME: Change back to 61 at some point
-        dose_age = config.rota_vaccine.age_at_second_dose
-
-    if dose_number == 3:
-        true_weight = true_coverage + config.rota_vaccine.third_dose_retention
-        dose_age = config.rota_vaccine.age_at_third_dose
-
-    children_who_will_receive_dose = _determine_who_should_receive_dose(
-        population=population, vaccine_col=vaccine_col,
-        true_weight=true_weight, dose_age=dose_age, dose_number=dose_number)
-
-    return children_who_will_receive_dose
 
 
 def set_vaccine_duration(population, current_time, etiology, dose):
@@ -445,6 +316,10 @@ class RotaVaccine():
         self.clock = builder.clock()
         self.population_view = builder.population_view(columns, query='alive')
 
+        self.randomness_dict = {}
+        self.randomness_dict['dose_1'] = builder.randomness('first_dose_randomness')
+        self.randomness_dict['dose_2'] = builder.randomness('second_dose_randomness')
+        self.randomness_dict['dose_3'] = builder.randomness('third_dose_randomness')
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
@@ -516,6 +391,135 @@ class RotaVaccine():
             self.vaccine_cost_to_administer_column: np.zeros(len(event.index),
             dtype=int)}, index=event.index))
 
+    def _determine_who_should_receive_dose(self, population, vaccine_col, true_weight,
+                                           dose_age, dose_number):
+        """
+        Uses choice to determine if each simulant should receive a dose. Returns a
+            population of simulants that should receive a dose (most of the time
+            this function will return an empty population)
+
+        Parameters
+        ----------
+        population: pd.DataFrame
+            population view of all of the simulants who are currently alive
+
+        vaccine_col: str
+            str representing the name of a column, one of
+            rotaviral_entiritis_vaccine_first_dose, second, or third dose.
+            The column represents whether or not the simulant received the first
+            and second dose of the vaccine, which is important because we want to
+            make sure that only people who got the previous vaccine can get the
+            vaccine that is currently being modelled
+
+        true_weight: float
+            number between 0 and 1 that represents the probability of being
+            vaccinated
+
+        dose_age: number
+            age in days at which simulant should receive specific dose
+
+        dose_number: int
+            1, 2, or 3 depending on which dose is currently being evaluated
+
+        Used by
+        -------
+        determine_who_should_receive_dose
+        """
+
+        false_weight = 1 - true_weight
+
+        if dose_number == 1:
+            children_at_dose_age = population.query(
+                "age_in_days == @dose_age").copy()
+
+        elif dose_number == 2:
+            children_at_dose_age = population.query(
+                "age_in_days == @dose_age and" +
+                " rotaviral_entiritis_vaccine_first_dose == 1").copy()
+
+        elif dose_number == 3:
+            children_at_dose_age = population.query(
+                "age_in_days == @dose_age and" +
+                " rotaviral_entiritis_vaccine_second_dose == 1").copy()
+
+        else:
+            raise(ValueError, "dose_number cannot be any value other than" +
+                              " 1, 2, or 3")
+
+        if not children_at_dose_age.empty:
+            children_at_dose_age[vaccine_col] = self.randomness_dict['dose_{}'.format(dose_number)].choice(
+                children_at_dose_age.index, [1, 0], [true_weight, false_weight])
+
+        children_who_will_receive_dose = children_at_dose_age.query(
+            "{} == 1".format(vaccine_col))
+
+        return children_who_will_receive_dose
+
+
+    def determine_who_should_receive_dose(self, population, index, vaccine_col,
+                                          dose_number, current_time):
+        """
+        Function will determine who should receive 1st, 2nd, and 3rd doses of a
+        vaccine based on proportions/age at first dose as specified in the config
+        file
+
+        Parameters
+        ----------
+        population: df
+            population view of all of the simulants who are currently alive
+
+        index: pandas index
+            index is just the index of all simulants who are currently alive.
+
+        vaccine_col: str
+            str representing the name of a column, either
+            rotaviral_entiritis_vaccine_first_dose or second dose. The column
+            represents whether or not the simulant received the first and second
+            dose of the vaccine, which is important because we want to make sure
+            that only people who got the previous vaccine can get the vaccine that
+            is currently being modelled
+
+        dose_number: int
+            1, 2, or 3 depending on which dose is currently being evaluated
+
+        current_time:
+            current_time in the simulation
+        """
+
+        population['age_in_days'] = population['fractional_age'] * 365
+
+        population['age_in_days'] = population['age_in_days'].round()
+
+        # FIXME: Need to figure out how to include baseline vaccine coverage
+        #     from GBD in the model
+        # coverage_estimates = get_covariate_estimates('ROTA_coverage_prop')
+        # year = current_time.year
+        # true_coverage = coverage_estimates.query("year_id == {}".format(year))['mean_value'].iloc[0]
+        true_coverage = 0
+
+        # FIXME: GBD coverage metric is a measure of people that receive all 3 vaccines, not just 1.
+        #     Need to figure out a way to capture this in the model
+        if dose_number == 1:
+            true_weight =  true_coverage + config.rota_vaccine.vaccination_proportion_increase
+
+            dose_age = config.rota_vaccine.age_at_first_dose
+
+        if dose_number == 2:
+            true_weight = true_coverage + config.rota_vaccine.second_dose_retention
+            # FIXME: Change back to 61 at some point
+            dose_age = config.rota_vaccine.age_at_second_dose
+
+        if dose_number == 3:
+            true_weight = true_coverage + config.rota_vaccine.third_dose_retention
+            dose_age = config.rota_vaccine.age_at_third_dose
+
+        children_who_will_receive_dose = self._determine_who_should_receive_dose(
+            population=population, vaccine_col=vaccine_col,
+            true_weight=true_weight, dose_age=dose_age, dose_number=dose_number)
+
+        return children_who_will_receive_dose
+
+
     # FIXME: An emitter could potentially be faster. Could have an emitter that
     #     says when people reach a certain age, give them a vaccine dose.
     @listens_for('time_step')
@@ -551,7 +555,7 @@ class RotaVaccine():
         else:
             population = event.population
 
-            children_who_will_receive_first_dose = determine_who_should_receive_dose(
+            children_who_will_receive_first_dose = self.determine_who_should_receive_dose(
                 population, event.index, self.vaccine_first_dose_column, 1, event.time)
 
             if not children_who_will_receive_first_dose.empty:
@@ -570,7 +574,7 @@ class RotaVaccine():
                 event.population_view.update(children_who_will_receive_first_dose)
 
             # Second dose
-            children_who_will_receive_second_dose = determine_who_should_receive_dose(
+            children_who_will_receive_second_dose = self.determine_who_should_receive_dose(
                 population, event.index, self.vaccine_second_dose_column, 2, event.time)
 
             if not children_who_will_receive_second_dose.empty:
@@ -589,7 +593,7 @@ class RotaVaccine():
                 event.population_view.update(children_who_will_receive_second_dose)
 
             # Third dose
-            children_who_will_receive_third_dose = determine_who_should_receive_dose(
+            children_who_will_receive_third_dose = self.determine_who_should_receive_dose(
                 population, event.index, self.vaccine_third_dose_column, 3, event.time)
 
             if not children_who_will_receive_third_dose.empty:
