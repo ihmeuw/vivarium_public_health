@@ -489,6 +489,7 @@ class RotaVaccine():
 
         population['age_in_days'] = population['age_in_days'].round()
 
+        # FIXME: Want for true vaccine coverage to occurr in baseline (active = False) scenario
         vaccine_coverage = self.vaccine_coverage(population.index)
 
         # FIXME: GBD coverage metric is a measure of people that receive all 3 vaccines, not just 1.
@@ -678,6 +679,7 @@ class RotaVaccine():
                     vaccine_effectiveness = determine_vaccine_effectiveness(population, dose_working_index, wane_immunity, self.clock(), dose, duration, waning_immunity_time, effectiveness)
                 else:
                     vaccine_effectiveness = 0
+                # TODO: Confirm whether this affects rates or probabilities
                 rates.loc[dose_working_index] *= (1 - vaccine_effectiveness)
 
             return rates
