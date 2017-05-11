@@ -238,7 +238,7 @@ class RotaVaccine():
     def __init__(self, active):
         self.active = active
         self.etiology = 'rotaviral_entiritis'
-        self.etiology_column = 'diarrhea_due_to_' + self.etiology
+        self.etiology_column = self.etiology
 
         self.vaccine_first_dose_column = self.etiology + "_vaccine_first_dose"
         self.vaccine_second_dose_column = self.etiology + \
@@ -622,8 +622,8 @@ class RotaVaccine():
         event.population_view.update(population)
 
 
-    @modifies_value('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
-    @uses_columns(['diarrhea_due_to_rotaviral_entiritis',
+    @modifies_value('incidence_rate.rotaviral_entiritis')
+    @uses_columns(['rotaviral_entiritis',
                    'rotaviral_entiritis_vaccine_third_dose',
                    'rotaviral_entiritis_vaccine_first_dose_is_working',
                    'rotaviral_entiritis_vaccine_second_dose_is_working',
@@ -647,7 +647,7 @@ class RotaVaccine():
 
         population_view: pd.DataFrame
             dataframe of all simulants that are alive with columns
-            diarrhea_due_to_rotaviral_entiritis,
+            rotaviral_entiritis,
             rotaviral_entiritis_vaccine_third_dose,
             rotaviral_entiritis_vaccine_is_working
         """
