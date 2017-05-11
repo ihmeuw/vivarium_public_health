@@ -235,8 +235,6 @@ def test_determine_vaccine_effectiveness2():
     pop = pop[pop.days_since_vaccination.notnull()]
     pop['days_since_vaccination'] = (pop['days_since_vaccination'] / np.timedelta64(1, 'D')).astype(int)
     days = pop['days_since_vaccination'].unique()
-     
-    
 
     dose_working_index = population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 1").index
     effectiveness =  config.rota_vaccine.third_dose_effectiveness
