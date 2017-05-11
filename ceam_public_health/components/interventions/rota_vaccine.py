@@ -12,7 +12,6 @@ from ceam_inputs import get_rota_vaccine_coverage
 
 
 def accrue_vaccine_cost_and_count(population, vaccine_time_column,
-                                  vaccine_count_column,
                                   vaccine_unit_cost_column,
                                   vaccine_cost_to_administer_column,
                                   current_time):
@@ -33,11 +32,6 @@ def accrue_vaccine_cost_and_count(population, vaccine_time_column,
         column indicating which vaccine was just administered. the value of the
         column will be the time at which the vaccine was administered
 
-    vaccine_count_column: pd.Series
-        column indicating which vaccine was just administered. the value of the
-        column will be the number of vaccines of the specific dose that
-        have been administered
-
     vaccine_cost_to_administer_column: pd.Series
         column indicating which vaccine was just administered. the value of the
         column will be the total cost of administering each dose of the vaccine
@@ -48,9 +42,6 @@ def accrue_vaccine_cost_and_count(population, vaccine_time_column,
     """
     # Setting time here in case we want to use an emitter in the future
     population[vaccine_time_column] = current_time
-
-    # Count vaccination dose
-    population[vaccine_count_column] += 1
 
     # Accrue cost
     population[vaccine_unit_cost_column] += config.rota_vaccine.RV5_dose_cost
@@ -242,13 +233,6 @@ class RotaVaccine():
 
         self.vaccine_column = self.etiology + "_vaccine"
 
-        self.vaccine_first_dose_count_column = self.etiology + \
-            "_vaccine_first_dose_count"
-        self.vaccine_second_dose_count_column = self.etiology + \
-            "_vaccine_second_dose_count"
-        self.vaccine_third_dose_count_column = self.etiology + \
-            "_vaccine_third_dose_count"
-
         self.vaccine_first_dose_time_column = self.etiology + \
             "_vaccine_first_dose_event_time"
         self.vaccine_second_dose_time_column = self.etiology + \
@@ -290,9 +274,6 @@ class RotaVaccine():
                    self.vaccine_first_dose_time_column,
                    self.vaccine_second_dose_time_column,
                    self.vaccine_third_dose_time_column,
-                   self.vaccine_first_dose_count_column,
-                   self.vaccine_second_dose_count_column,
-                   self.vaccine_third_dose_count_column,
                    self.vaccine_first_dose_duration_start_time,
                    self.vaccine_first_dose_duration_end_time,
                    self.vaccine_second_dose_duration_start_time,
@@ -319,16 +300,6 @@ class RotaVaccine():
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
             self.vaccine_column: np.zeros(len(event.index),
-            dtype=int)}, index=event.index))
-
-        self.population_view.update(pd.DataFrame({
-            self.vaccine_first_dose_count_column: np.zeros(len(event.index),
-            dtype=int)}, index=event.index))
-        self.population_view.update(pd.DataFrame({
-            self.vaccine_second_dose_count_column: np.zeros(len(event.index),
-            dtype=int)}, index=event.index))
-        self.population_view.update(pd.DataFrame({
-            self.vaccine_third_dose_count_column: np.zeros(len(event.index),
             dtype=int)}, index=event.index))
 
         self.population_view.update(pd.DataFrame({
@@ -467,9 +438,6 @@ class RotaVaccine():
     #     says when people reach a certain age, give them a vaccine dose.
     @listens_for('time_step')
     @uses_columns(['fractional_age', 'rotaviral_entiritis_vaccine',
-                   'rotaviral_entiritis_vaccine_first_dose_count',
-                   'rotaviral_entiritis_vaccine_second_dose_count',
-                   'rotaviral_entiritis_vaccine_third_dose_count',
                    'rotaviral_entiritis_vaccine_first_dose_event_time',
                    'rotaviral_entiritis_vaccine_second_dose_event_time',
                    'rotaviral_entiritis_vaccine_third_dose_event_time',
@@ -503,7 +471,6 @@ class RotaVaccine():
                 children_who_will_receive_first_dose = accrue_vaccine_cost_and_count(
                     children_who_will_receive_first_dose,
                     self.vaccine_first_dose_time_column,
-                    self.vaccine_first_dose_count_column,
                     self.vaccine_unit_cost_column,
                     self.vaccine_cost_to_administer_column,
                     pd.Timestamp(event.time))
@@ -522,7 +489,6 @@ class RotaVaccine():
                 children_who_will_receive_second_dose = accrue_vaccine_cost_and_count(
                     children_who_will_receive_second_dose,
                     self.vaccine_second_dose_time_column,
-                    self.vaccine_second_dose_count_column,
                     self.vaccine_unit_cost_column,
                     self.vaccine_cost_to_administer_column,
                     pd.Timestamp(event.time))
@@ -541,7 +507,6 @@ class RotaVaccine():
                 children_who_will_receive_third_dose = accrue_vaccine_cost_and_count(
                     children_who_will_receive_third_dose,
                     self.vaccine_third_dose_time_column,
-                    self.vaccine_third_dose_count_column,
                     self.vaccine_unit_cost_column,
                     self.vaccine_cost_to_administer_column,
                     pd.Timestamp(event.time))
@@ -636,9 +601,7 @@ class RotaVaccine():
 
 
     @modifies_value('metrics')
-    @uses_columns(['rotaviral_entiritis_vaccine_first_dose_count',
-                   'rotaviral_entiritis_vaccine_second_dose_count',
-                   'rotaviral_entiritis_vaccine_third_dose_count',
+    @uses_columns(['rotaviral_entiritis_vaccine',
                    'rotaviral_entiritis_vaccine_unit_cost',
                    'cost_to_administer_rotaviral_entiritis_vaccine'])
     def metrics(self, index, metrics, population_view):
@@ -666,12 +629,11 @@ class RotaVaccine():
 
         population = population_view.get(index)
 
-        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = population[
-            'rotaviral_entiritis_vaccine_first_dose_count'].sum()
-        metrics['rotaviral_entiritis_vaccine_second_dose_count'] = population[
-            'rotaviral_entiritis_vaccine_second_dose_count'].sum()
-        metrics['rotaviral_entiritis_vaccine_third_dose_count'] = population[
-            'rotaviral_entiritis_vaccine_third_dose_count'].sum()
+        count_vacs = population.groupby('rotaviral_entiritis_vaccine').size()
+
+        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = count_vacs[1] + count_vacs[2] + count_vacs[3]
+        metrics['rotaviral_entiritis_vaccine_second_dose_count'] = count_vacs[2] + count_vacs[3]
+        metrics['rotaviral_entiritis_vaccine_third_dose_count'] = count_vacs[3]
 
         metrics[self.vaccine_unit_cost_column] = population[
             self.vaccine_unit_cost_column].sum()
