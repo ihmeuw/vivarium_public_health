@@ -239,12 +239,8 @@ class RotaVaccine():
     def __init__(self, active):
         self.active = active
         self.etiology = 'rotaviral_entiritis'
-        self.etiology_column = self.etiology
 
-        self.vaccine_first_dose_column = self.etiology + "_vaccine_first_dose"
-        self.vaccine_second_dose_column = self.etiology + \
-            "_vaccine_second_dose"
-        self.vaccine_third_dose_column = self.etiology + "_vaccine_third_dose"
+        self.vaccine_column = self.etiology + "_vaccine"
 
         self.vaccine_first_dose_count_column = self.etiology + \
             "_vaccine_first_dose_count"
@@ -288,9 +284,7 @@ class RotaVaccine():
 
     def setup(self, builder):
 
-        columns = [self.vaccine_first_dose_column,
-                   self.vaccine_second_dose_column,
-                   self.vaccine_third_dose_column,
+        columns = [self.vaccine_column,
                    self.vaccine_unit_cost_column,
                    self.vaccine_cost_to_administer_column,
                    self.vaccine_first_dose_time_column,
@@ -324,13 +318,7 @@ class RotaVaccine():
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
-            self.vaccine_first_dose_column: np.zeros(len(event.index),
-            dtype=int)}, index=event.index))
-        self.population_view.update(pd.DataFrame({
-            self.vaccine_second_dose_column: np.zeros(len(event.index),
-            dtype=int)}, index=event.index))
-        self.population_view.update(pd.DataFrame({
-            self.vaccine_third_dose_column: np.zeros(len(event.index),
+            self.vaccine_column: np.zeros(len(event.index),
             dtype=int)}, index=event.index))
 
         self.population_view.update(pd.DataFrame({
@@ -433,6 +421,8 @@ class RotaVaccine():
         # FIXME: Want for true vaccine coverage to occurr in baseline (active = False) scenario
         vaccine_coverage = self.vaccine_coverage(population.index)
 
+        previous_dose = dose_number - 1
+
         # FIXME: GBD coverage metric is a measure of people that receive all 3 vaccines, not just 1.
         #     Need to figure out a way to capture this in the model
         if dose_number == 1:
@@ -445,14 +435,14 @@ class RotaVaccine():
             dose_age = config.rota_vaccine.age_at_second_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age and" +
-                " rotaviral_entiritis_vaccine_first_dose == 1").copy()
+                " rotaviral_entiritis_vaccine == {pd}".format(pd=previous_dose)).copy()
             true_weight = pd.Series(config.rota_vaccine.second_dose_retention, index=children_at_dose_age.index)
 
         elif dose_number == 3:
             dose_age = config.rota_vaccine.age_at_third_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age and" +
-                " rotaviral_entiritis_vaccine_second_dose == 1").copy()
+                " rotaviral_entiritis_vaccine == {pd}".format(pd=previous_dose)).copy()
             true_weight = pd.Series(config.rota_vaccine.third_dose_retention, index=children_at_dose_age.index)
 
         else:
@@ -469,16 +459,14 @@ class RotaVaccine():
 
         children_who_will_receive_dose = children_at_dose_age.loc[children_who_will_receive_dose_index]
 
-        children_who_will_receive_dose[vaccine_col] = 1
+        children_who_will_receive_dose[vaccine_col] = dose_number
 
         return children_who_will_receive_dose
 
     # FIXME: An emitter could potentially be faster. Could have an emitter that
     #     says when people reach a certain age, give them a vaccine dose.
     @listens_for('time_step')
-    @uses_columns(['fractional_age', 'rotaviral_entiritis_vaccine_first_dose',
-                   'rotaviral_entiritis_vaccine_second_dose',
-                   'rotaviral_entiritis_vaccine_third_dose',
+    @uses_columns(['fractional_age', 'rotaviral_entiritis_vaccine',
                    'rotaviral_entiritis_vaccine_first_dose_count',
                    'rotaviral_entiritis_vaccine_second_dose_count',
                    'rotaviral_entiritis_vaccine_third_dose_count',
@@ -509,7 +497,7 @@ class RotaVaccine():
             population = event.population
 
             children_who_will_receive_first_dose = self.determine_who_should_receive_dose(
-                population, self.vaccine_first_dose_column, 1)
+                population, self.vaccine_column, 1)
 
             if not children_who_will_receive_first_dose.empty:
                 children_who_will_receive_first_dose = accrue_vaccine_cost_and_count(
@@ -528,7 +516,7 @@ class RotaVaccine():
 
             # Second dose
             children_who_will_receive_second_dose = self.determine_who_should_receive_dose(
-                population, self.vaccine_second_dose_column, 2)
+                population, self.vaccine_column, 2)
 
             if not children_who_will_receive_second_dose.empty:
                 children_who_will_receive_second_dose = accrue_vaccine_cost_and_count(
@@ -547,7 +535,7 @@ class RotaVaccine():
 
             # Third dose
             children_who_will_receive_third_dose = self.determine_who_should_receive_dose(
-                population, self.vaccine_third_dose_column, 3)
+                population, self.vaccine_column, 3)
 
             if not children_who_will_receive_third_dose.empty:
                 children_who_will_receive_third_dose = accrue_vaccine_cost_and_count(
@@ -584,7 +572,6 @@ class RotaVaccine():
 
     @modifies_value('incidence_rate.rotaviral_entiritis')
     @uses_columns(['rotaviral_entiritis',
-                   'rotaviral_entiritis_vaccine_third_dose',
                    'rotaviral_entiritis_vaccine_first_dose_is_working',
                    'rotaviral_entiritis_vaccine_second_dose_is_working',
                    'rotaviral_entiritis_vaccine_third_dose_is_working',
