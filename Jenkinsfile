@@ -19,7 +19,6 @@ EOF
        sh '''
            source /ihme/costeffectiveness/conda_env/bin/activate /ihme/costeffectiveness/conda_env
            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH://ihme/costeffectiveness/conda_env/lib
-           export SGE_CLUSTER_NAME=dev
            tox --recreate -e py35
        '''
 
