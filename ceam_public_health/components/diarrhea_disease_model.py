@@ -1,49 +1,69 @@
 import pandas as pd
 import numpy as np
-import operator
-from datetime import timedelta
 
-from ceam import config
 from ceam.framework.state_machine import State
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
-from ceam.framework.randomness import choice
 
-from ceam_inputs import get_severity_splits
-from ceam_inputs import get_severe_diarrhea_excess_mortality
-from ceam_inputs import get_age_bins
-from ceam_inputs import get_disability_weight
-from ceam_inputs import get_etiology_specific_prevalence
-from ceam_inputs import get_etiology_specific_incidence
-from ceam_inputs import get_duration_in_days
-from ceam_inputs import get_excess_mortality
-from ceam_inputs import get_cause_specific_mortality
-from ceam_inputs import make_age_group_1_to_4_rates_constant
+from ceam_inputs import (get_severity_splits, get_severe_diarrhea_excess_mortality,
+                         get_disability_weight, get_etiology_specific_incidence,
+                         get_cause_specific_mortality, get_incidence,
+                         get_pafs, get_remission)
 
-from ceam_public_health.components.disease import DiseaseModel
-from ceam_public_health.components.disease import RateTransition
-from ceam_public_health.components.util import make_cols_demographically_specific
-from ceam_public_health.components.util import make_age_bin_age_group_max_dict
+from ceam_inputs.gbd_mapping import causes, risk_factors
+
+from ceam_public_health.components.disease import DiseaseModel, RateTransition, DiseaseState
+from ceam_public_health.components.util import (make_cols_demographically_specific,
+                                                make_age_bin_age_group_max_dict)
 
 
-LIST_OF_ETIOLOGIES = ['diarrhea_due_to_shigellosis',
-                      'diarrhea_due_to_cholera',
-                      'diarrhea_due_to_other_salmonella',
-                      'diarrhea_due_to_EPEC', 'diarrhea_due_to_ETEC',
-                      'diarrhea_due_to_campylobacter',
-                      'diarrhea_due_to_amoebiasis',
-                      'diarrhea_due_to_cryptosporidiosis',
-                      'diarrhea_due_to_rotaviral_entiritis',
-                      'diarrhea_due_to_aeromonas',
-                      'diarrhea_due_to_clostridium_difficile',
-                      'diarrhea_due_to_norovirus',
-                      'diarrhea_due_to_adenovirus',
-                      'diarrhea_due_to_unattributed']
 
 
 DIARRHEA_EVENT_COUNT_COLS = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
 DIARRHEA_EVENT_COUNT_COLS.append('diarrhea_event_count')
+
+
+def diarrhea_etiology_model_factory(etiology_name):
+
+    etiology = risk_factors[etiology_name]
+
+    module = DiseaseModel(etiology_name)
+    healty = State('healthy', key=etiology_name)
+    sick = DiseaseState('infected', disability_weight=0, track_events=True)
+
+    diarrhea_incidence = get_incidence(modelable_entity_id=causes.diarrhea.incidence)
+    etiology_paf = get_etiology_paf(etiology_name)
+    # Multiply diarrhea incidence by etiology paf to get etiology incidence
+    etiology_incidence = diarrhea_incidence.append(etiology_paf).groupby(
+        ['age', 'sex_id', 'year_id'])[['draw_{}'.format(i) for i in range(1000)]].prod().reset_index()
+
+
+
+
+
+
+
+
+def get_etiology_paf(etiology_name):
+    if etiology_name == 'unattributed':
+        attributable_etiologies = [name for name, etiology in risk_factors
+                                   if causes.diarrhea in etiology.effected_causes]
+
+        all_etiology_paf = pd.DataFrame()
+        for etiology in attributable_etiologies:
+            all_etiology_paf.append(get_etiology_paf(etiology))
+
+        all_etiology_paf = all_etiology_paf.groupby(
+            ['age', 'sex_id', 'year_id'])[['draw_{}'.format(i) for i in range(1000)]].sum()
+
+        return pd.DataFrame(1 - all_etiology_paf,
+                            columns=['draw_{}'.format(i) for i in range(1000)],
+                            index=all_etiology_paf.index).reset_index()
+    else:
+        return get_pafs(risk_id=risk_factors[etiology_name].gbd_risk, cause_id=causes.diarrhea.gbd_cause)
+
+
 
 
 class DiarrheaEtiologyState(State):
@@ -348,10 +368,7 @@ def diarrhea_factory():
     """
     list_of_modules = []
 
-    # TODO: This seems like an easy place to make a mistake. The better way of
-    #    getting the risk id data would be to run a get_ids query and have that
-    #    return the ids we want (that statement could apply to anywhere we use
-    #    a gbd id of some sort)
+
     dict_of_etiologies_and_eti_risks = {'cholera': 173,
                                         'other_salmonella': 174,
                                         'shigellosis': 175, 'EPEC': 176,
@@ -404,3 +421,21 @@ def diarrhea_factory():
 
     return list_of_modules + [diarrhea_burden]
 
+
+def get_duration_in_days(modelable_entity_id):
+    """Get duration of disease for a modelable entity in days.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Table with 'age', 'sex', 'year' and 'duration' columns
+    """
+    remission = get_remission(modelable_entity_id)
+
+    duration = remission.copy()
+
+    duration['duration'] = (1 / duration['remission']) *365
+
+    duration.metadata = {'modelable_entity_id': modelable_entity_id}
+
+    return duration[['year', 'age', 'duration', 'sex']]

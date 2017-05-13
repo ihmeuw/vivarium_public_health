@@ -18,7 +18,9 @@ from ceam_inputs import get_disease_states, get_proportion
 
 
 class DiseaseState(State):
-    def __init__(self, state_id, disability_weight, dwell_time=0, event_time_column=None, event_count_column=None, side_effect_function=None):
+    def __init__(self, state_id, disability_weight, dwell_time=0,
+                 event_time_column=None, event_count_column=None, side_effect_function=None,
+                 track_events=False):
         State.__init__(self, state_id)
 
         self.side_effect_function = side_effect_function
@@ -52,7 +54,9 @@ class DiseaseState(State):
     def load_population_columns(self, event):
         if self.dwell_time > 0:
             population_size = len(event.index)
-            self.population_view.update(pd.DataFrame({self.event_time_column: np.zeros(population_size), self.event_count_column: np.zeros(population_size)}, index=event.index))
+            self.population_view.update(pd.DataFrame({self.event_time_column: np.zeros(population_size),
+                                                      self.event_count_column: np.zeros(population_size)},
+                                                     index=event.index))
 
     def next_state(self, index, population_view):
         if self.dwell_time > 0:
@@ -141,7 +145,9 @@ class RateTransition(Transition):
         return pd.Series(base_rates.values * (1 - joint_mediated_paf.values), index=index)
 
     def __str__(self):
-        return 'RateTransition("{0}", "{1}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.rate_label)
+        return 'RateTransition("{0}", "{1}")'.format(
+            self.output.state_id if hasattr(self.output, 'state_id')
+            else [str(x) for x in self.output], self.rate_label)
 
 
 class ProportionTransition(Transition):
