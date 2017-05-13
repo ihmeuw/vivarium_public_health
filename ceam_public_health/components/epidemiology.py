@@ -1,11 +1,9 @@
 from datetime import timedelta, datetime
 
-import numpy as np
 import pandas as pd
 
 from ceam.framework.values import produces_value
 from ceam.framework.event import listens_for, emits
-from ceam.framework.population import uses_columns
 
 from ceam import config
 

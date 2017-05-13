@@ -1,7 +1,6 @@
 # ~/ceam/ceam/modules/sample_history.py
 
 import pandas as pd
-import numpy as np
 
 from ceam import config
 

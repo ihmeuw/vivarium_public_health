@@ -1,0 +1,16 @@
+draw_count: 32
+branches:
+        - hello_world:
+                mortality_rate: 0.001
+
+        - hello_world:
+                mortality_rate: 0.01
+
+        - hello_world:
+                mortality_rate: 0.1
+
+        - hello_world:
+                mortality_rate: 0.2
+
+        - hello_world:
+                mortality_rate: 0.3
