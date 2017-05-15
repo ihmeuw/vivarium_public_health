@@ -29,6 +29,7 @@ class DiseaseState(State):
         self.condition = None
         self._disability_weight = disability_weight
         self.dwell_time = dwell_time
+        self.track_events = track_events or dwell_time > 0
 
         if isinstance(self.dwell_time, timedelta):
             self.dwell_time = self.dwell_time.total_seconds()
@@ -52,7 +53,7 @@ class DiseaseState(State):
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
-        if self.dwell_time > 0:
+        if self.track_events:
             population_size = len(event.index)
             self.population_view.update(pd.DataFrame({self.event_time_column: np.zeros(population_size),
                                                       self.event_count_column: np.zeros(population_size)},
