@@ -10,34 +10,8 @@ from ceam.framework.randomness import filter_for_probability
 
 from ceam_inputs import get_rota_vaccine_coverage
 
-
-def accrue_vaccine_cost_and_count(population, vaccine_time_column,
-                                  current_time):
-    """
-    Takes a population of simulants that have just been vaccinated as an input
-    along with several column names and a timestamp of the current time. The
-    function determines how much money was spent on the vaccines in the current
-    time step, how many vaccines were administered, and when vaccines sets a
-    column signifying when the vaccines were administered
-
-    Parameters
-    ----------
-    population: pd.DataFrame
-        population of simulants that have just been vaccinated in the current
-        time step
-
-    vaccine_time_column: pd.Series
-        column indicating which vaccine was just administered. the value of the
-        column will be the time at which the vaccine was administered
-
-    current_time: pd.Timestamp
-        Timestamp of the current time in the simulation. we'll set the
-        vaccine_time_column value using this timestamp
-    """
-    # Setting time here in case we want to use an emitter in the future
-    population[vaccine_time_column] = current_time
-
-    return population
+# use immunity or protection instead of effectiveness in language
+# produce the daly plot with different coverages, would be cool to match up the draws separately 
 
 
 def set_vaccine_duration(population, current_time, etiology, dose):
@@ -444,10 +418,7 @@ class RotaVaccine():
                 population, self.vaccine_column, 1)
 
             if not children_who_will_receive_first_dose.empty:
-                children_who_will_receive_first_dose = accrue_vaccine_cost_and_count(
-                    children_who_will_receive_first_dose,
-                    self.vaccine_first_dose_time_column,
-                    pd.Timestamp(event.time))
+                children_who_will_receive_first_dose[self.vaccine_first_dose_time_column] = event.time
 
                 children_who_will_receive_first_dose = set_vaccine_duration(
                     children_who_will_receive_first_dose, event.time,
@@ -460,10 +431,7 @@ class RotaVaccine():
                 population, self.vaccine_column, 2)
 
             if not children_who_will_receive_second_dose.empty:
-                children_who_will_receive_second_dose = accrue_vaccine_cost_and_count(
-                    children_who_will_receive_second_dose,
-                    self.vaccine_second_dose_time_column,
-                    pd.Timestamp(event.time))
+                children_who_will_receive_second_dose[self.vaccine_second_dose_time_column] = event.time
 
                 children_who_will_receive_second_dose = set_vaccine_duration(
                     children_who_will_receive_second_dose, event.time,
@@ -476,10 +444,7 @@ class RotaVaccine():
                 population, self.vaccine_column, 3)
 
             if not children_who_will_receive_third_dose.empty:
-                children_who_will_receive_third_dose = accrue_vaccine_cost_and_count(
-                    children_who_will_receive_third_dose,
-                    self.vaccine_third_dose_time_column,
-                    pd.Timestamp(event.time))
+                children_who_will_receive_third_dose[self.vaccine_third_dose_time_column] = event.time
 
                 children_who_will_receive_third_dose = set_vaccine_duration(
                     children_who_will_receive_third_dose, event.time,
