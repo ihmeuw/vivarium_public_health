@@ -1,6 +1,4 @@
-import os.path
 from datetime import timedelta
-from functools import partial
 import numbers
 
 import pandas as pd
@@ -10,7 +8,7 @@ from ceam import config
 
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
-from ceam.framework.values import modifies_value, produces_value, list_combiner, joint_value_post_processor
+from ceam.framework.values import modifies_value, list_combiner, joint_value_post_processor
 from ceam.framework.util import rate_to_probability
 from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
 
@@ -105,7 +103,8 @@ class ExcessMortalityState(DiseaseState):
     @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates_df):
         population = self.population_view.get(index)
-        rates_df[self.state_id] = self.mortality(population.index, skip_post_processor=True) * (population[self.condition] == self.state_id)
+        rates_df[self.state_id] = (self.mortality(population.index, skip_post_processor=True)
+                                   * (population[self.condition] == self.state_id))
 
         return rates_df
 

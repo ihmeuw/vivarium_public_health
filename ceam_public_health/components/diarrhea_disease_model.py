@@ -6,31 +6,29 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import (get_severity_splits, get_severe_diarrhea_excess_mortality,
+from ceam_inputs import (get_severity_splits, get_excess_mortality,
                          get_disability_weight, get_etiology_specific_incidence,
                          get_cause_specific_mortality, get_incidence,
                          get_pafs, get_remission)
 
 from ceam_inputs.gbd_mapping import causes, risk_factors
 
-from ceam_public_health.components.disease import DiseaseModel, RateTransition, DiseaseState
+from ceam_public_health.components.disease import (DiseaseModel, RateTransition,
+                                                   DiseaseState, ExcessMortalityState)
 from ceam_public_health.components.util import (make_cols_demographically_specific,
                                                 make_age_bin_age_group_max_dict)
-
-
-
 
 DIARRHEA_EVENT_COUNT_COLS = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
 DIARRHEA_EVENT_COUNT_COLS.append('diarrhea_event_count')
 
 
-def diarrhea_etiology_model_factory(etiology_name):
-
-    etiology = risk_factors[etiology_name]
-
-    module = DiseaseModel(etiology_name)
-    healty = State('healthy', key=etiology_name)
-    sick = DiseaseState('infected', disability_weight=0, track_events=True)
+def make_etiology_model(etiology_name, cause_diarrhea):
+    disease_model = DiseaseModel(etiology_name)
+    healthy = State('healthy', key=etiology_name)
+    sick = DiseaseState('infected',
+                        disability_weight=0,
+                        side_effect_function=cause_diarrhea,
+                        track_events=True)
 
     diarrhea_incidence = get_incidence(modelable_entity_id=causes.diarrhea.incidence)
     etiology_paf = get_etiology_paf(etiology_name)
@@ -38,11 +36,11 @@ def diarrhea_etiology_model_factory(etiology_name):
     etiology_incidence = diarrhea_incidence.append(etiology_paf).groupby(
         ['age', 'sex_id', 'year_id'])[['draw_{}'.format(i) for i in range(1000)]].prod().reset_index()
 
+    transition = RateTransition(sick, etiology_name, etiology_incidence)
+    healthy.transition_set.append(transition)
 
-
-
-
-
+    disease_model.states.extend([healthy, sick])
+    return disease_model
 
 
 def get_etiology_paf(etiology_name):
@@ -63,6 +61,41 @@ def get_etiology_paf(etiology_name):
     else:
         return get_pafs(risk_id=risk_factors[etiology_name].gbd_risk, cause_id=causes.diarrhea.gbd_cause)
 
+
+def diarrhea_factory():
+    disease_model = DiseaseModel('diarrhea')
+    healthy = State('healthy', key='diarrhea')
+
+    @uses_columns(['diarrhea'])
+    def cause_diarrhea(index, population_view):
+        pop = population_view.get(index)
+
+
+    etiologies = [make_etiology_model(name, cause_diarrhea)
+                  for name, etiology in risk_factors if causes.diarrhea in etiology.effected_causes]
+    etiologies.append(make_etiology_model('unattributed', cause_diarrhea))
+
+    mild_diarrhea = DiseaseState('mild_diarrhea',
+                                 disability_weight=get_disability_weight(
+                                     causes.diarrhea.severity.mild.disability_weight),
+                                 # TODO: Make Disease state take a distribution for dwell times.
+                                 dwell_time=5)
+    moderate_diarrhea = DiseaseState('moderate_diarrhea',
+                                     disability_weight=get_disability_weight(
+                                         causes.diarrhea.severity.mild.disability_weight),
+                                     dwell_time=5)
+    severe_diarrhea = ExcessMortalityState('moderate_diarrhea',
+                                           excess_mortality_data=get_severe_diarrhea_excess_mortality(),
+                                           disability_weight=get_disability_weight(
+                                               causes.diarrhea.severity.mild.disability_weight),
+                                           dwell_time=5)
+
+
+def get_severe_diarrhea_excess_mortality():
+    diarrhea_excess_mortality = get_excess_mortality(causes.diarrhea.excess_mortality)
+    severe_diarrhea_proportion = get_severity_splits(causes.diarrhea.incidence,
+                                                     causes.diarrhea.severity.severe.incidence)
+    return diarrhea_excess_mortality.rate/severe_diarrhea_proportion
 
 
 
