@@ -309,20 +309,21 @@ class DiarrheaBurden:
         #     There was an error before (event.index instead of
         #     affected_population.index was being passed in). Alec/James: 
         #     any suggestions for another test for apply_remission?
-        duration_series = pd.to_timedelta(self.duration(affected_population.index),
-                                                        unit='D')
+        if not affected_population.empty:
+            duration_series = pd.to_timedelta(self.duration(affected_population.index),
+                                                            unit='D')
 
-        affected_population['diarrhea_event_end_time'] = duration_series + \
-                                                         affected_population['diarrhea_event_time']
+            affected_population['diarrhea_event_end_time'] = duration_series + \
+                                                             affected_population['diarrhea_event_time']
 
-        # manually set diarrhea to healthy and set all etiology columns to
-        #     healthy as well
-        current_time = pd.Timestamp(event.time)
+            # manually set diarrhea to healthy and set all etiology columns to
+            #     healthy as well
+            current_time = pd.Timestamp(event.time)
 
-        affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
+            affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
 
-        for etiology in ETIOLOGIES:
-            affected_population['{}'.format(etiology)] = 'healthy'
+            for etiology in ETIOLOGIES:
+                affected_population['{}'.format(etiology)] = 'healthy'
 
         event.population_view.update(affected_population[ETIOLOGIES +
                                      ['diarrhea', 'diarrhea_event_end_time']])
