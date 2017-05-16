@@ -1,17 +1,13 @@
-import pandas as pd
-
-from datetime import timedelta
-
-from ceam_tests.util import build_table
 from ceam import config
 from ceam.framework.randomness import filter_for_probability
 from ceam.framework.event import emits, Event
 from ceam.framework.state_machine import Transition, State, TransitionSet
-from ceam_public_health.components.disease import DiseaseModel,  ExcessMortalityState, RateTransition, ProportionTransition
-from ceam_inputs import get_incidence, get_excess_mortality, get_prevalence, get_cause_specific_mortality, make_gbd_disease_state
 from ceam.framework.population import uses_columns
-from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache, get_disability_weight
-from ceam_inputs.gbd_ms_auxiliary_functions import normalize_for_simulation
+
+from ceam_public_health.components.disease import DiseaseModel, RateTransition, ProportionTransition, make_disease_state
+from ceam_inputs import get_incidence
+from ceam_inputs.gbd_ms_functions import get_post_mi_heart_failure_proportion_draws, get_angina_proportions, get_asympt_ihd_proportions, load_data_from_cache
+
 from ceam_inputs.util import gbd_year_range
 from ceam_inputs.gbd_mapping import causes
 
@@ -44,18 +40,18 @@ def heart_disease_factory():
     timestep = config.simulation_parameters.time_step
     weight = 0.43*(2/timestep) + 0.07*(28/timestep)
 
-    heart_attack = make_gbd_disease_state(causes.heart_attack, dwell_time=28, side_effect_function=side_effect_factory(0.6, 0.7, 'heart attack')) #rates as per Marcia e-mail 1/19/17
-    mild_heart_failure = make_gbd_disease_state(causes.mild_heart_failure)
-    moderate_heart_failure = make_gbd_disease_state(causes.moderate_heart_failure)
-    severe_heart_failure = make_gbd_disease_state(causes.severe_heart_failure)
+    heart_attack = make_disease_state(causes.heart_attack, dwell_time=28, side_effect_function=side_effect_factory(0.6, 0.7, 'heart attack')) #rates as per Marcia e-mail 1/19/17
+    mild_heart_failure = make_disease_state(causes.mild_heart_failure)
+    moderate_heart_failure = make_disease_state(causes.moderate_heart_failure)
+    severe_heart_failure = make_disease_state(causes.severe_heart_failure)
 
-    asymptomatic_angina = make_gbd_disease_state(causes.asymptomatic_angina)
+    asymptomatic_angina = make_disease_state(causes.asymptomatic_angina)
 
-    mild_angina = make_gbd_disease_state(causes.mild_angina)
-    moderate_angina = make_gbd_disease_state(causes.moderate_angina)
-    severe_angina = make_gbd_disease_state(causes.severe_angina)
+    mild_angina = make_disease_state(causes.mild_angina)
+    moderate_angina = make_disease_state(causes.moderate_angina)
+    severe_angina = make_disease_state(causes.severe_angina)
 
-    asymptomatic_ihd = make_gbd_disease_state(causes.asymptomatic_ihd)
+    asymptomatic_ihd = make_disease_state(causes.asymptomatic_ihd)
 
     heart_attack_transition = RateTransition(heart_attack, 'heart_attack', get_incidence(causes.heart_attack.incidence))
     healthy.transition_set.append(heart_attack_transition)
@@ -110,9 +106,9 @@ def stroke_factory():
     healthy = State('healthy', key='all_stroke')
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
     # correspond to healthstate ids which correspond to sequela) 
-    hemorrhagic_stroke = make_gbd_disease_state(causes.hemorrhagic_stroke, dwell_time=28, side_effect_function=side_effect_factory(0.52, 0.6, 'hemorrhagic stroke')) #rates as per Marcia e-mail
-    ischemic_stroke = make_gbd_disease_state(causes.ischemic_stroke, dwell_time=28, side_effect_function=side_effect_factory(0.52, 0.6, 'ischemic stroke')) #rates as per Marcia e-mail
-    chronic_stroke = make_gbd_disease_state(causes.chronic_stroke)
+    hemorrhagic_stroke = make_disease_state(causes.hemorrhagic_stroke, dwell_time=28, side_effect_function=side_effect_factory(0.52, 0.6, 'hemorrhagic stroke')) #rates as per Marcia e-mail
+    ischemic_stroke = make_disease_state(causes.ischemic_stroke, dwell_time=28, side_effect_function=side_effect_factory(0.52, 0.6, 'ischemic stroke')) #rates as per Marcia e-mail
+    chronic_stroke = make_disease_state(causes.chronic_stroke)
 
     hemorrhagic_transition = RateTransition(hemorrhagic_stroke, 'hemorrhagic_stroke', get_incidence(causes.hemorrhagic_stroke.incidence))
     ischemic_transition = RateTransition(ischemic_stroke, 'ischemic_stroke', get_incidence(causes.ischemic_stroke.incidence))

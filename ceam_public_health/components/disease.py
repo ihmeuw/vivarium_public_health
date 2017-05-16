@@ -12,35 +12,44 @@ from ceam.framework.values import modifies_value, list_combiner, joint_value_pos
 from ceam.framework.util import rate_to_probability
 from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
 
-from ceam_inputs import get_disease_states, get_proportion
+from ceam_inputs import (get_disease_states, get_proportion, get_cause_specific_mortality,
+                         get_disability_weight, get_prevalence, get_excess_mortality)
+from ceam_inputs.gbd_mapping import meid, hid
 
 
 class DiseaseState(State):
+    """State representing a disease in a state machine model.
+    
+    Attributes
+    ----------
+    state_id : str
+        The name of this state.
+    transition_set : `ceam.framework.state_machine.TransitionSet`
+        A container for potential transitions out of this state.
+    dwell_time : `pandas.DataFrame`
+    condition : ?
+    event_time_column : str, optional
+    event_count_column : str, optional
+    side_effect_function : callable, optional
+    track_events : bool, optional
+    
+    Additional Parameters
+    ---------------------
+    disability_weight : `pandas.DataFrame`
+    
+    """
     def __init__(self, state_id, disability_weight, dwell_time=0,
-                 event_time_column=None, event_count_column=None, side_effect_function=None,
-                 track_events=False):
-        State.__init__(self, state_id)
-
+                 event_time_column=None, event_count_column=None,
+                 side_effect_function=None, track_events=False):
+        super().__init__(state_id)
+        self._disability_weight = disability_weight
+        self.dwell_time = dwell_time.total_seconds if isinstance(dwell_time, timedelta) else dwell_time
+        self.event_time_column = event_time_column if event_time_column else self.state_id + '_event_time'
+        self.event_count_column = event_count_column if event_count_column else self.state_id + 'event_count'
         self.side_effect_function = side_effect_function
-
+        self.track_events = track_events or dwell_time > 0
         # Condition is set when the state is added to a disease model
         self.condition = None
-        self._disability_weight = disability_weight
-        self.dwell_time = dwell_time
-        self.track_events = track_events or dwell_time > 0
-
-        if isinstance(self.dwell_time, timedelta):
-            self.dwell_time = self.dwell_time.total_seconds()
-
-        if event_time_column:
-            self.event_time_column = event_time_column
-        else:
-            self.event_time_column = self.state_id + '_event_time'
-
-        if event_count_column:
-            self.event_count_column = event_count_column
-        else:
-            self.event_count_column = self.state_id + '_event_count'
 
     def setup(self, builder):
         columns = [self.condition]
@@ -222,7 +231,7 @@ class DiseaseModel(Machine):
     def load_population_columns(self, event):
         population = event.population
 
-        state_map = {s.state_id:s.prevalence_data for s in self.states if hasattr(s, 'prevalence_data')}
+        state_map = {s.state_id: s.prevalence_data for s in self.states if hasattr(s, 'prevalence_data')}
 
         if state_map:
             # only do this if there are states in the model that supply prevalence data
@@ -259,3 +268,47 @@ class DiseaseModel(Machine):
         population = self.population_view.get(index)
         metrics[self.condition + '_count'] = (population[self.condition] != 'healthy').sum()
         return metrics
+
+
+def make_disease_state(cause, dwell_time=0, side_effect_function=None):
+    if 'mortality' in cause:
+        csmr = get_cause_specific_mortality(cause.mortality) if isinstance(cause.mortality, meid) else cause.mortality
+    else:
+        csmr = pd.DataFrame()
+    if 'disability_weight' in cause:
+        if isinstance(cause.disability_weight, meid):
+            disability_weight = get_disability_weight(dis_weight_modelable_entity_id=cause.disability_weight)
+        elif isinstance(cause.disability_weight, hid):
+            disability_weight = get_disability_weight(healthstate_id=cause.disability_weight)
+        else:
+            disability_weight = cause.disability_weight
+    else:
+        disability_weight = 0.0
+    if 'prevalence' in cause:
+        if isinstance(cause.prevalence, meid):
+            prevalence = get_prevalence(cause.prevalence)
+        else:
+            prevalence = cause.prevalence
+    else:
+        prevalence = 0.0
+    if 'excess_mortality' in cause:
+        if isinstance(cause.excess_mortality, meid):
+            excess_mortality = get_excess_mortality(cause.excess_mortality)
+        else:
+            excess_mortality = cause.excess_mortality
+    else:
+        excess_mortality = 0.0
+
+    if excess_mortality:
+        return ExcessMortalityState(cause.name,
+                                    dwell_time=dwell_time,
+                                    disability_weight=disability_weight,
+                                    excess_mortality_data=excess_mortality,
+                                    prevalence_data=prevalence,
+                                    csmr_data=csmr,
+                                    side_effect_function=side_effect_function)
+    else:
+        return DiseaseState(cause.name,
+                            dwell_time=dwell_time,
+                            disability_weight=disability_weight,
+                            side_effect_function=side_effect_function)
