@@ -267,7 +267,9 @@ def test_wane_immunity():
 
 def test_rota_vaccine_coverage():
     # create a simulation object where there is no intervention
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine(False)], start=datetime(2014, 1, 1), population_size=10000)
+    config.simulation_parameters.year_start = 2014
+
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine(False)], population_size=10000)
 
     # pump the simulation forward
     pump_simulation(simulation, duration=timedelta(days=8))
@@ -280,4 +282,4 @@ def test_rota_vaccine_coverage():
     # pump the simulation forward
     pump_simulation(simulation2, duration=timedelta(days=8))
 
-    assert np.allclose(len(simulation.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1"))/10000 + config.rota_vaccine.vaccination_proportion_increase, len(simulation2.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1"))/10000), "when including an intervention, ensure that the intervention increases the proportion of people that get vaccinated"
+    assert np.allclose(len(simulation.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1"))/10000 + config.rota_vaccine.vaccination_proportion_increase, len(simulation2.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1"))/10000, rtol=.05), "when including an intervention, ensure that the intervention increases the proportion of people that get vaccinated"
