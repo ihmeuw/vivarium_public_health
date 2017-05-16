@@ -287,12 +287,10 @@ class RotaVaccine():
         -------
         determine_who_should_receive_dose
         """
-
         population['age_in_days'] = population['fractional_age'] * 365
 
         population['age_in_days'] = population['age_in_days'].round()
 
-        # FIXME: Want for true vaccine coverage to occurr in baseline (active = False) scenario
         vaccine_coverage = self.vaccine_coverage(population.index)
 
         previous_dose = dose_number - 1
@@ -303,7 +301,10 @@ class RotaVaccine():
             dose_age = config.rota_vaccine.age_at_first_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age").copy()
-            true_weight =  vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
+            if self.active:
+                true_weight =  vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
+            else:
+                true_weight = vaccine_coverage
 
         elif dose_number == 2:
             dose_age = config.rota_vaccine.age_at_second_dose
@@ -474,37 +475,25 @@ class RotaVaccine():
         """
         population = population_view.get(index)
 
-        # start with refactoring, then move to looking at scalar vs. constant spline
-        # set up so that rates are manipulated for each working col separately
-        if self.active:
-            # TODO: Make this more flexible. It would be nice to be able to have
-            #     this function work regardless of the number of doses
-            for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
-                # TODO: Figure out how to pass etiology in as an argument here so that rotaviral entiritis isn't hardcoded into line below
-                dose_working_index = population.query("rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
-                # confer full protection to people that receive 3 vaccines,
-                #     partial protection to those that only receive 1 or 2
-                duration = config.rota_vaccine.vaccine_duration
+        for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
+            dose_working_index = population.query("rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
+            
+            # FIXME: I feel like there should be a better way to get effectiveness using the new config, but I don't know how. Using the old config, I could say config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
+            if dose == "first":
+                effectiveness =  config.rota_vaccine.first_dose_effectiveness
+            if dose == "second":
+                effectiveness =  config.rota_vaccine.second_dose_effectiveness
+            if dose == "third":
+                effectiveness =  config.rota_vaccine.third_dose_effectiveness
 
-                # FIXME: I feel like there should be a better way to get effectiveness using the new config, but I don't know how. Using the old config, I could say config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
-                if dose == "first":
-                    effectiveness =  config.rota_vaccine.first_dose_effectiveness
-                if dose == "second":
-                    effectiveness =  config.rota_vaccine.second_dose_effectiveness
-                if dose == "third":
-                    effectiveness =  config.rota_vaccine.third_dose_effectiveness
+                vaccine_protection = determine_vaccine_protection(population, dose_working_index, wane_immunity, self.clock(), dose, effectiveness)
+            else:
+                vaccine_protection = 0
 
-                    vaccine_protection = determine_vaccine_protection(population, dose_working_index, wane_immunity, self.clock(), dose, effectiveness)
-                else:
-                    vaccine_protection = 0
+            # TODO: Confirm whether this affects rates or probabilities
+            rates.loc[dose_working_index] *= (1 - vaccine_protection)
 
-                # TODO: Confirm whether this affects rates or probabilities
-                rates.loc[dose_working_index] *= (1 - vaccine_protection)
-
-            return rates
-
-        else:
-            return rates
+        return rates
 
 
     @modifies_value('metrics')
