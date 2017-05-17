@@ -213,6 +213,67 @@ class ORS():
                                                    dtype=int)},
                                                    index=event.index))
 
+    # FIXME: Pick the correct priority here. Check diarrhea disease model to make sure this is correct
+    @listens_for('time_step', priority=)
+    @uses_columns(['ors_propensity', 'diarrhea', 'diarrhea_event_time'], 'alive')
+    def set_ors_working_column(self, event):
+        pop = event.population
+
+        # if current time > ORS_end_time, set ORS working col to 0
+
+
+        # filter to people that got diarrhea in the current time step 
+        # FIXME: pretty unrealistic if we're assuming that everyone that gets ORS gets it on the first day that they get diarrhea, but also seems necessary to ensure correct exposure
+        pop = pop.query("diarrhea_event_time == {}".format(event.time))
+
+        # set an ORS start time and an ORS end time
+
+        exp = self.exposure(pop.index)
+
+        exp, categories = naturally_sort_df(exp)
+
+        # cumulatively sum over exposures
+        exp = np.cumsum(exp, axis=1)
+
+        exp = pop.join(exp)
+
+        exp = assign_exposure_categories(exp, self.propensity_column,
+                                         categories)
+
+        df = exp.join(self.rr)
+
+        df = assign_relative_risk_value(df, categories)
+
+        # costs and counts
+        received_ors_index = df.query("exposure_category == 'cat1'").index
+
+        # TODO: Need to bring in the GBD estimates of ORS effectiveness
+        df.loc[received_ors_index, 'relative_risk_value'] = 1 - \
+            config.ORS.ors_effectiveness
+
+        # TODO: Make sure the categories make sense. Exposure to ORS should
+        #     decrease risk (i.e. RR should be less than 1)
+        # TODO: Confirm that excess mortality rates are being fed in here
+        rates.loc[pop.index] *= (df.relative_risk_value.values)
+
+        # FIXME: ORS clock isn't working properly. This function needs to
+        #     happen later in the priority!
+        # using this ors_clock variable to make sure ors count and ors costs
+        #     are only counted once per bout
+        if not pop.loc[received_ors_index].empty:
+
+            received_ors_pop = pop.loc[received_ors_index]
+            received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count,
+                'ors_unit_cost'] += config.ORS.ORS_unit_cost
+            received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count,
+                'ors_cost_to_administer'] += config.ORS.cost_to_administer_ORS
+            received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count,
+                'ors_count'] += 1
+            received_ors_pop.loc[received_ors_pop.ors_clock < received_ors_pop.diarrhea_event_count,
+                'ors_clock'] = received_ors_pop['diarrhea_event_count']
+
+            population_view.update(received_ors_pop)
+
     @modifies_value('metrics')
     @uses_columns(['ors_count', 'ors_unit_cost', 'ors_cost_to_administer'])
     def metrics(self, index, metrics, population_view):
