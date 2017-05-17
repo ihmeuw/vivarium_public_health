@@ -294,45 +294,6 @@ def test_determine_vaccine_protection():
                                                    " of simulants who have their working"
 
 
-def test_determine_vaccine_protection2():
-    simulation = setup_simulation([generate_test_population, age_simulants,
-                                   RotaVaccine(True)])
-
-    pump_simulation(simulation, duration=timedelta(days=50))
-
-    population = simulation.population.population
-    pop = population.copy()
-    pop['days_since_vaccination'] = simulation.current_time - \
-        pop['rotaviral_entiritis_vaccine_third_dose_immunity_start_time']
-    pop = pop[pop.days_since_vaccination.notnull()]
-    pop['days_since_vaccination'] = (pop['days_since_vaccination'] / \
-        np.timedelta64(1, 'D')).astype(int)
-    days = pop['days_since_vaccination'].unique()
-
-    dose_working_index = population.query(
-        "rotaviral_entiritis_vaccine_third_dose_is_working == 1").index
-
-    effectiveness = config.rota_vaccine.third_dose_effectiveness
-    duration = config.rota_vaccine.vaccine_full_immunity_duration
-    waning_immunity_time = config.rota_vaccine.waning_immunity_time
-
-    series = determine_vaccine_protection(population, dose_working_index,
-                                          wane_immunity,
-                                          simulation.current_time, "third",
-                                          effectiveness)
-
-    assert np.allclose(series, wane_immunity(days, duration,
-                                             waning_immunity_time,
-                                             effectiveness)), \
-        "determine vaccine effectiveness should return the" + \
-        " correct effectiveness for each simulant based on vaccination status" + \
-        " and time since vaccination"
-
-    assert len(series) == len(dose_working_index), \
-        "number of effectiveness estimates that are" + \
-        "returned matches the number of simulants who have their working"
-
-
 def test_wane_immunity():
     assert np.allclose(.25, wane_immunity(30, 20, 20, .5)), \
         "vaccine should confer 50% as much benefit when halfway through" + \

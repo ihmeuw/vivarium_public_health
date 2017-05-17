@@ -108,8 +108,8 @@ def determine_vaccine_protection(pop, dose_working_index,
     vaccine_effectiveness: float
         effectiveness of the current dose of the vaccine
     """
-    pop['days_since_vaccine_started_conferring_immunity'] = current_time - \
-    pop['rotaviral_entiritis_vaccine_{}_dose_immunity_start_time'.format(dose)]
+    pop['days_since_vaccine_started_conferring_immunity'] = (current_time -
+        pop['rotaviral_entiritis_vaccine_{}_dose_immunity_start_time'.format(dose)])
 
     pop = pop[pop.days_since_vaccine_started_conferring_immunity.notnull()]
 
@@ -517,6 +517,8 @@ class RotaVaccine():
             if dose == "third":
                 effectiveness = config.rota_vaccine.third_dose_effectiveness
 
+
+            if len(dose_working_index) > 0:
                 vaccine_protection = determine_vaccine_protection(population,
                                                                   dose_working_index,
                                                                   wane_immunity,
