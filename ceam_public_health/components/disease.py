@@ -1,3 +1,4 @@
+"""A toolbox for modeling diseases as state machines."""
 from datetime import timedelta
 import numbers
 
@@ -20,46 +21,90 @@ from ceam_inputs.gbd_mapping import meid, hid
 class DiseaseState(State):
     """State representing a disease in a state machine model.
     
-    Attributes
+    Parameters
     ----------
     state_id : str
         The name of this state.
-    transition_set : `ceam.framework.state_machine.TransitionSet`
-        A container for potential transitions out of this state.
-    dwell_time : `pandas.DataFrame`
-    condition : ?
+    disability_weight : `pandas.DataFrame`, optional
+        The amount of disability associated with this state.
+    prevalence_data : `pandas.DataFrame`, optional
+        The baseline occurrence of this state in a population.
+    dwell_time : `pandas.DataFrame` or float or `datetime.timedelta`, optional
+        The minimum time a simulant exists in this state.
     event_time_column : str, optional
+        The name of a column to track the last time this state was entered.
     event_count_column : str, optional
+        The name of a column to track the number of times this state was entered.
     side_effect_function : callable, optional
+        A function to be called when this state is entered.
     track_events : bool, optional
     
-    Additional Parameters
-    ---------------------
-    disability_weight : `pandas.DataFrame`
-    
+    Attributes
+    ----------
+    state_id : str
+        The name of this state.    
+    prevalence_data : `pandas.DataFrame`
+        The baseline occurrence of this state in a population.
+    dwell_time : `pandas.DataFrame`
+        The minimum time a simulant exists in this state.
+    event_time_column : str
+        The name of a column to track the last time this state was entered.
+    event_count_column : str
+        The name of a column to track the number of times this state was entered.
+    side_effect_function : callable
+        A function to be called when this state is entered.
+    track_events : bool    
+        Flag to indicate whether the last time this state was entered and the number of times 
+        it has been entered should be tracked.
+    condition : ?
+    population_view : `pandas.DataFrame`
+        A view into the simulation state table.
     """
-    def __init__(self, state_id, disability_weight, dwell_time=0,
-                 event_time_column=None, event_count_column=None,
-                 side_effect_function=None, track_events=False):
+    def __init__(self, state_id, disability_weight=None, prevalence_data=None,
+                 dwell_time=0, event_time_column=None, event_count_column=None,
+                 side_effect_function=None, track_events=True):
         super().__init__(state_id)
-        self._disability_weight = disability_weight
-        self.dwell_time = dwell_time.total_seconds if isinstance(dwell_time, timedelta) else dwell_time
+        self._disability_weight_data = disability_weight
+        self.prevalence_data = prevalence_data
+        self._dwell_time = dwell_time.total_seconds() if isinstance(dwell_time, timedelta) else dwell_time
         self.event_time_column = event_time_column if event_time_column else self.state_id + '_event_time'
-        self.event_count_column = event_count_column if event_count_column else self.state_id + 'event_count'
+        self.event_count_column = event_count_column if event_count_column else self.state_id + '_event_count'
         self.side_effect_function = side_effect_function
-        self.track_events = track_events or dwell_time > 0
+        self.track_events = track_events or isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time > 0
         # Condition is set when the state is added to a disease model
         self.condition = None
 
     def setup(self, builder):
+        """Performs this component's simulation setup and return sub-components.
+        
+        Parameters
+        ----------
+        builder : `engine.Builder`
+            Interface to several simulation tools.
+
+        Returns
+        -------
+        iterable
+            This component's sub-components.
+        """
         columns = [self.condition]
-        if self.dwell_time > 0:
+        if self.track_events:
             columns += [self.event_time_column, self.event_count_column]
         self.population_view = builder.population_view(columns)
         self.clock = builder.clock()
+        self._disability_weight = builder.lookup(self._disability_weight_data)
+        self.dwell_time = builder.value('{}.dwell_time'.format(self.state_id))
+        self.dwell_time.source = builder.lookup(self._dwell_time)
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
+        """Adds this state's columns to the simulation state table.
+        
+        Parameters
+        ----------
+        event : `ceam.framework.population.PopulationEvent`
+            An event signaling the creation of new simulants.
+        """
         if self.track_events:
             population_size = len(event.index)
             self.population_view.update(pd.DataFrame({self.event_time_column: np.zeros(population_size),
@@ -67,15 +112,44 @@ class DiseaseState(State):
                                                      index=event.index))
 
     def next_state(self, index, population_view):
-        if self.dwell_time > 0:
-            population = self.population_view.get(index)
-            eligible_index = population.loc[population[self.event_time_column] < self.clock().timestamp() - self.dwell_time].index
-        else:
-            eligible_index = index
-        return super(DiseaseState, self).next_state(eligible_index, population_view)
+        """Moves a population among different disease states.    
+        
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.    
+        population_view : `pandas.DataFrame`
+            A view of the internal state of the simulation.
+        """
+        eligible_index = self._filter_for_transition_eligibility(index)
+        return super().next_state(eligible_index, population_view)
+
+    def _filter_for_transition_eligibility(self, index):
+        """Filter out all simulants who haven't been in the state for the prescribed dwell time.
+        
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.    
+        
+        Returns
+        -------
+        iterable of ints
+            A filtered index of the simulants.
+        """
+        population = self.population_view.get(index)
+        return population.loc[population[self.event_time_column]
+                              < self.clock().timestamp() - self.dwell_time(index)].index
 
     def _transition_side_effect(self, index):
-        if self.dwell_time > 0:
+        """Updates the simulation state and triggers any side-effects associated with this state.
+
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.    
+        """
+        if self.track_events:
             pop = self.population_view.get(index)
             pop[self.event_time_column] = self.clock().timestamp()
             pop[self.event_count_column] += 1
@@ -85,40 +159,102 @@ class DiseaseState(State):
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
-        if self.dwell_time > 0:
+        """Records data for simulation post-processing.
+        
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.
+        metrics : `pandas.DataFrame`
+            A table for recording simulation events of interest in post-processing.
+        
+        Returns
+        -------
+        `pandas.DataFrame`
+            The metrics table updated to reflect new simulation state."""
+        if self.track_events:
             population = self.population_view.get(index)
             metrics[self.event_count_column] = population[self.event_count_column].sum()
         return metrics
 
+    # TODO: Make this work with dataframes
     @modifies_value('disability_weight')
     def disability_weight(self, index):
+        """Gets the disability weight associated with this state. 
+        
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.
+        
+        Returns
+        -------
+        `pandas.Series`
+            An iterable of disability weights indexed by the provided `index`."""
+
         population = self.population_view.get(index)
-        return self._disability_weight * (population[self.condition] == self.state_id)
+        return self._disability_weight(index) * (population[self.condition] == self.state_id)
+
+    def name(self):
+        return '{}'.format(self.state_id)
+
+    def __str__(self):
+        return 'DiseaseState("{}" ...)'.format(self.state_id)
 
 
 class ExcessMortalityState(DiseaseState):
-    def __init__(self, state_id, excess_mortality_data, prevalence_data, csmr_data, **kwargs):
-        DiseaseState.__init__(self, state_id, **kwargs)
+    """State representing a disease with excess mortality in a state machine model.
+    
+    Attributes
+    ----------
+    state_id : str
+        The name of this state.
+    excess_mortality_data : `pandas.DataFrame`
+        A table of excess mortality data associated with this state.
+    csmr_data : `pandas.DataFrame`
+        A table of excess mortality data associated with this state.
+    """
+    def __init__(self, state_id, excess_mortality_data, csmr_data, **kwargs):
+        super().__init__(state_id, **kwargs)
 
         self.excess_mortality_data = excess_mortality_data
-        self.prevalence_data = prevalence_data
         self.csmr_data = csmr_data
 
     def setup(self, builder):
-        self.mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
-        self.mortality.source = builder.lookup(self.excess_mortality_data)
-        return super(ExcessMortalityState, self).setup(builder)
+        """Performs this component's simulation setup and return sub-components.
+        Parameters
+        ----------
+        builder : `engine.Builder`
+            Interface to several simulation tools.
+
+        Returns
+        -------
+        iterable
+             This component's sub-components.
+        """
+        self._mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
+        self._mortality.source = builder.lookup(self.excess_mortality_data)
+        return super().setup(builder)
 
     @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates_df):
+        """Modifies the baseline mortality rate for a simulant if they are in this state.
+        
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.
+        rates_df : `pandas.DataFrame`
+            
+        """
         population = self.population_view.get(index)
-        rates_df[self.state_id] = (self.mortality(population.index, skip_post_processor=True)
+        rates_df[self.state_id] = (self._mortality(population.index, skip_post_processor=True)
                                    * (population[self.condition] == self.state_id))
 
         return rates_df
 
     @modifies_value('csmr_data')
-    def mmeids(self):
+    def get_csmr(self):
         return self.csmr_data
 
     def name(self):
@@ -195,7 +331,6 @@ class ProportionTransition(Transition):
         return 'ProportionTransition("{}", "{}", "{}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.modelable_entity_id, self.proportion)
 
 
-
 class DiseaseModel(Machine):
     def __init__(self, condition):
         Machine.__init__(self, condition)
@@ -260,7 +395,15 @@ class DiseaseModel(Machine):
                             sub_pop = sub_pop.query('location == @location')
                         if not sub_pop.empty:
                             affected = (sub_pop[self.condition] == cause).sum()
-                            cube = cube.append(pd.DataFrame({'measure': 'prevalence', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': cause, 'value': affected/len(sub_pop), 'sample_size': len(sub_pop)}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
+                            cube = cube.append(pd.DataFrame({'measure': 'prevalence',
+                                                             'age_low': low,
+                                                             'age_high': high,
+                                                             'sex': sex,
+                                                             'location': location if location >= 0 else root_location,
+                                                             'cause': cause, 'value': affected/len(sub_pop),
+                                                             'sample_size': len(sub_pop)},
+                                                            index=[0]).set_index(
+                                ['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
         return cube
 
     @modifies_value('metrics')
@@ -311,4 +454,5 @@ def make_disease_state(cause, dwell_time=0, side_effect_function=None):
         return DiseaseState(cause.name,
                             dwell_time=dwell_time,
                             disability_weight=disability_weight,
+                            prevalence_data=prevalence,
                             side_effect_function=side_effect_function)
