@@ -1,0 +1,19 @@
+draw_count: 100
+
+branches:
+    - rota_vaccine:
+        vaccination_proportion_increase: .05
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .1
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .15
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .2
+
+
+
+
+
