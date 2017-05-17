@@ -1,22 +1,120 @@
 import pandas as pd
 import numpy as np
 import os.path
-import pdb
-
 from functools import partial
 
 from ceam import config
-
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 from ceam.framework.randomness import choice
 
-from ceam_public_health.util.risk import natural_key, naturally_sort_df, \
-                                         assign_exposure_categories, \
-                                         assign_relative_risk_value
-from ceam_inputs import get_exposures, get_relative_risks, \
-                        get_pafs, get_ors_exposure
+from ceam_inputs import (get_exposures, get_relative_risks,
+                        get_pafs, get_ors_exposure)
+
+from ceam_public_health.util.risk import (natural_key, naturally_sort_df,
+                                         assign_exposure_categories,
+                                         assign_relative_risk_value)
+
+
+# FIXME: We're not actually ensuring that the correct proportion of simulants
+#     are receiving ORS. We would need to take a draw each timestep to do that
+#     which we likely do not want to do, since it is likely that some people are
+#     more likely to receive ORS at any given time step than others
+#     A potential way to solve this is to make sure that a certain proportion of 
+#     people that got diarrhea in the current time step get ORS.
+
+
+class ORS():
+    """
+    Determines the change in ORS exposure due to the intervention (change is
+    specified in the config file)
+    """
+
+    def __init__(self):
+        self.active = config.ORS.run_intervention
+
+    def setup(self, builder):
+
+        ors_exposure = get_ors_exposure()
+
+        if self.active:
+            # add exposure above baseline increase in intervention scenario
+            ors_exposure_increase_above_baseline = config.ORS.ors_exposure_increase_above_baseline
+            ors_exposure['cat1'] += ors_exposure_increase_above_baseline
+            ors_exposure['cat2'] -= ors_exposure_increase_above_baseline
+
+        self.exposure = builder.value('exposure.ors')
+        self.exposure.source = builder.lookup(ors_exposure)
+
+        self.randomness = builder.randomness('ors')
+
+        self.paf = builder.value('paf.ors')
+        self.paf.source = builder.lookup(get_ors_pafs())
+
+        # FIXME: Update to use the ORS rei id
+        effect_function = ors_exposure_effect(self.exposure,
+                                              'ors_susceptibility')
+        risk_effects = make_gbd_risk_effects(238, [
+            (302, 'diarrhea'),
+            ], 'mortality', effect_function)
+
+        return risk_effects
+
+    # FIXME: May want to rethink susceptibility column getting assigned at
+    #     birth. Distribution of susceptibility may differ for people that
+    #     actually get diarrhea
+    @listens_for('initialize_simulants')
+    @uses_columns(['ors_susceptibility', 'ors_unit_cost',
+                   'ors_cost_to_administer', 'ors_count', 'ors_clock'])
+    def load_columns(self, event):
+        event.population_view.update(pd.Series(self.randomness.get_draw(event.index),
+                                               name='ors_susceptibility',
+                                               index=event.index))
+        event.population_view.update(pd.DataFrame({'ors_unit_cost': np.zeros(len(event.index),
+                                                   dtype=float)},
+                                                   index=event.index))
+        event.population_view.update(pd.DataFrame({'ors_cost_to_administer': np.zeros(len(event.index),
+                                                   dtype=float)},
+                                                   index=event.index))
+        event.population_view.update(pd.DataFrame({'ors_count': np.zeros(len(event.index),
+                                                   dtype=int)},
+                                                   index=event.index))
+        event.population_view.update(pd.DataFrame({'ors_clock': np.zeros(len(event.index),
+                                                   dtype=int)},
+                                                   index=event.index))
+
+    @modifies_value('metrics')
+    @uses_columns(['ors_count', 'ors_unit_cost', 'ors_cost_to_administer'])
+    def metrics(self, index, metrics, population_view):
+        """
+        Update the output metrics with information regarding the vaccine
+        intervention
+
+        Parameters
+        ----------
+        index: pandas Index
+            Index of all simulants, alive or dead
+
+        metrics: pd.Dictionary
+            Dictionary of metrics that will be printed out at the end of the
+            simulation
+
+        population_view: pd.DataFrame
+            df of all simulants, alive or dead with columns
+            rotaviral_entiritis_vaccine_first_dose_count,
+            rotaviral_entiritis_vaccine_second_dose_count,
+            rotaviral_entiritis_vaccine_third_dose_count,
+            rotaviral_entiritis_vaccine_unit_cost,
+            cost_to_administer_rotaviral_entiritis_vaccine
+        """
+        population = population_view.get(index)
+
+        metrics['ors_unit_cost'] = population['ors_unit_cost'].sum()
+        metrics['ors_count'] = population['ors_count'].sum()
+        metrics['ors_cost_to_administer'] = population['ors_cost_to_administer'].sum()
+
+        return metrics
 
 
 # TODO: Get rid of duplication in below + ceam_public_health/util/risk.py.
@@ -155,95 +253,3 @@ def make_gbd_risk_effects(risk_id, causes, rr_type, effect_function):
                         effect_function)
                         for cause_id, cause_name in causes]
 
-
-class ORS():
-    """
-    Determines the change in ORS exposure due to the intervention (change is
-    specified in the config file)
-    """
-
-    def __init__(self):
-        self.active = config.ORS.run_intervention
-
-    def setup(self, builder):
-
-        ors_exposure = get_ors_exposure()
-
-        if self.active:
-            # add exposure above baseline increase in intervention scenario
-            ors_exposure_increase_above_baseline = config.ORS.ors_exposure_increase_above_baseline
-            ors_exposure['cat1'] += ors_exposure_increase_above_baseline
-            ors_exposure['cat2'] -= ors_exposure_increase_above_baseline
-
-        self.exposure = builder.value('exposure.ors')
-
-        self.exposure.source = builder.lookup(ors_exposure)
-
-        self.randomness = builder.randomness('ors')
-
-        # FIXME: Update to use the ORS rei id
-        effect_function = ors_exposure_effect(self.exposure,
-                                              'ors_susceptibility')
-        risk_effects = make_gbd_risk_effects(238, [
-            (302, 'diarrhea'),
-            ], 'mortality', effect_function)
-
-        return risk_effects
-
-    # FIXME: May want to rethink susceptibility column getting assigned at
-    #     birth. Distribution of susceptibility may differ for people that
-    #     actually get diarrhea
-    @listens_for('initialize_simulants')
-    @uses_columns(['ors_susceptibility', 'ors_unit_cost',
-                   'ors_cost_to_administer', 'ors_count', 'ors_clock'])
-    def load_columns(self, event):
-        event.population_view.update(pd.Series(self.randomness.get_draw(event.index),
-                                               name='ors_susceptibility',
-                                               index=event.index))
-        event.population_view.update(pd.DataFrame({'ors_unit_cost': np.zeros(len(event.index),
-                                                   dtype=float)},
-                                                   index=event.index))
-        event.population_view.update(pd.DataFrame({'ors_cost_to_administer': np.zeros(len(event.index),
-                                                   dtype=float)},
-                                                   index=event.index))
-        event.population_view.update(pd.DataFrame({'ors_count': np.zeros(len(event.index),
-                                                   dtype=int)},
-                                                   index=event.index))
-        event.population_view.update(pd.DataFrame({'ors_clock': np.zeros(len(event.index),
-                                                   dtype=int)},
-                                                   index=event.index))
-
-    @modifies_value('metrics')
-    @uses_columns(['ors_count', 'ors_unit_cost', 'ors_cost_to_administer'])
-    def metrics(self, index, metrics, population_view):
-        """
-        Update the output metrics with information regarding the vaccine
-        intervention
-
-        Parameters
-        ----------
-        index: pandas Index
-            Index of all simulants, alive or dead
-
-        metrics: pd.Dictionary
-            Dictionary of metrics that will be printed out at the end of the
-            simulation
-
-        population_view: pd.DataFrame
-            df of all simulants, alive or dead with columns
-            rotaviral_entiritis_vaccine_first_dose_count,
-            rotaviral_entiritis_vaccine_second_dose_count,
-            rotaviral_entiritis_vaccine_third_dose_count,
-            rotaviral_entiritis_vaccine_unit_cost,
-            cost_to_administer_rotaviral_entiritis_vaccine
-        """
-        population = population_view.get(index)
-
-        metrics['ors_unit_cost'] = population['ors_unit_cost'].sum()
-        metrics['ors_count'] = population['ors_count'].sum()
-        metrics['ors_cost_to_administer'] = population['ors_cost_to_administer'].sum()
-
-        return metrics
-
-
-# End.
