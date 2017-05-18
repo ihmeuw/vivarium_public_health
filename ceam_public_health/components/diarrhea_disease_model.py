@@ -1,131 +1,88 @@
-from collections import namedtuple
 import pandas as pd
+import numpy as np
 
-from ceam.framework.state_machine import State, TransitionSet
+from ceam.framework.state_machine import State
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import (get_severity_splits, get_excess_mortality,
-                         get_disability_weight, get_etiology_specific_incidence,
-                         get_cause_specific_mortality, get_incidence,
-                         get_pafs, get_remission)
+import ceam_inputs as ci
 
-from ceam_inputs.gbd_mapping import causes, risk_factors
+from ceam_public_health.components.disease import DiseaseModel
+from ceam_public_health.components.disease import RateTransition
+from ceam_public_health.components.util import make_cols_demographically_specific
+from ceam_public_health.components.util import make_age_bin_age_group_max_dict
 
-from ceam_public_health.components.disease import (DiseaseModel, RateTransition, DiseaseState,
-                                                   ExcessMortalityState, ProportionTransition)
-from ceam_public_health.components.util import (make_cols_demographically_specific,
-                                                make_age_bin_age_group_max_dict)
+
+ETIOLOGIES = ['shigellosis',
+              'cholera',
+              'other_salmonella',
+              'EPEC', 'ETEC',
+              'campylobacter',
+              'amoebiasis',
+              'cryptosporidiosis',
+              'rotaviral_entiritis',
+              'aeromonas',
+              'clostridium_difficile',
+              'norovirus',
+              'adenovirus',
+              'unattributed_diarrhea']
+
 
 DIARRHEA_EVENT_COUNT_COLS = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
 DIARRHEA_EVENT_COUNT_COLS.append('diarrhea_event_count')
 
 
-def make_etiology_model(etiology_name, infection_side_effect=None):
-    diarrhea_incidence = get_incidence(modelable_entity_id=causes.diarrhea.incidence)
-    etiology_paf = get_etiology_paf(etiology_name)
-    # Multiply diarrhea incidence by etiology paf to get etiology incidence
-    etiology_incidence = diarrhea_incidence.append(etiology_paf).groupby(
-        ['age', 'sex_id', 'year_id'])[['draw_{}'.format(i) for i in range(1000)]].prod().reset_index()
+class DiarrheaEtiologyState(State):
+    """
+    Sets up a diarrhea etiology state (e.g. a column that states that simulant
+    either has diarrhea due to rotavirus or does not have diarrhea due to
+    rotavirus). Child class of State.
 
-    model = DiseaseModel(etiology_name)
+    Parameters
+    ----------
+    state_id: str
+        string that describes the etiology state.
 
-    healthy = DiseaseState('healthy', track_events=False, key=etiology_name)
-    sick = DiseaseState('infected',
-                        disability_weight=0,
-                        side_effect_function=infection_side_effect)
+    key: str
+        key is a necessary input to ensure random numbers are generated
+        correctly @Alecwd: can you help me define key better here?
+    """
+    def __init__(self, state_id, key='state'):
 
-    healthy.add_transition(sick, rates=etiology_incidence)
-    recovery_trigger = sick.add_transition(healthy, triggered=True)
-    model.add_states([healthy, sick])
-    Etiology = namedtuple('Etiology', ['model', 'recovery_trigger'])
+        State.__init__(self, state_id)
 
-    return Etiology(model=model,
-                    recovery_trigger=recovery_trigger,
-                    pre_trigger_state=sick)
+        self.state_id = state_id
 
+        self.event_count_column = state_id + '_event_count'
 
-def get_etiology_paf(etiology_name):
-    if etiology_name == 'unattributed':
-        attributable_etiologies = [name for name, etiology in risk_factors
-                                   if causes.diarrhea in etiology.effected_causes]
+    def setup(self, builder):
+        columns = [self.event_count_column]
 
-        all_etiology_paf = pd.DataFrame()
-        for etiology in attributable_etiologies:
-            all_etiology_paf.append(get_etiology_paf(etiology))
+        self.population_view = builder.population_view(columns, 'alive')
 
-        all_etiology_paf = all_etiology_paf.groupby(
-            ['age', 'sex_id', 'year_id'])[['draw_{}'.format(i) for i in range(1000)]].sum()
+        # @Alecwd: is this the best way to set up a population? I could
+        # use a little help determining why the super is necessary below
+        return super(DiarrheaEtiologyState, self).setup(builder)
 
-        return pd.DataFrame(1 - all_etiology_paf,
-                            columns=['draw_{}'.format(i) for i in range(1000)],
-                            index=all_etiology_paf.index).reset_index()
-    else:
-        return get_pafs(risk_id=risk_factors[etiology_name].gbd_risk, cause_id=causes.diarrhea.gbd_cause)
+    @listens_for('initialize_simulants')
+    def load_population_columns(self, event):
+        population_size = len(event.index)
+        self.population_view.update(pd.DataFrame({self.event_count_column:
+                                                 np.zeros(population_size)},
+                                                 index=event.index))
 
+    # Output metrics counting the number of cases of diarrhea and number of
+    #     cases overall of diarrhea due to each pathogen
+    @modifies_value('metrics')
+    @uses_columns(DIARRHEA_EVENT_COUNT_COLS + [eti + '_event_count' for eti in
+                                               ETIOLOGIES])
+    def metrics(self, index, metrics, population_view):
+        population = population_view.get(index)
 
-def diarrhea_model():
+        metrics[self.event_count_column] = population[self.event_count_column].sum()
 
-    disease_model = DiseaseModel('diarrhea')
-
-    healthy = DiseaseState('healthy', track_events=False, key='diarrhea')
-    diarrhea = DiseaseState('diarrhea')
-    diarrhea_trigger = healthy.add_transition(diarrhea, triggered=True)
-
-    @uses_columns(['diarrhea'])
-    def cause_diarrhea(index, population_view):
-        diarrhea_trigger(index)
-        healthy.next_state(index, population_view)
-
-    etiologies = [make_etiology_model(name, cause_diarrhea)
-                  for name, etiology in risk_factors if causes.diarrhea in etiology.effected_causes]
-    etiologies.append(make_etiology_model('unattributed', cause_diarrhea))
-
-    @uses_columns(['{}'.format(name) for name, etiology in risk_factors if causes.diarrhea in etiology.effected_causes])
-    def reset_etiologies(index, population_view):
-        for disease in etiologies:
-            disease.recovery_trigger(index)
-            disease.pre_trigger_state.next_state(index, population_view)
-
-    healthy.side_effect_function = reset_etiologies
-
-    mild_diarrhea = DiseaseState('mild_diarrhea',
-                                 disability_weight=get_disability_weight(
-                                     causes.mild_diarrhea.disability_weight),
-                                 dwell_time=get_duration_in_days(causes.mild_diarrhea.duration))
-    moderate_diarrhea = DiseaseState('moderate_diarrhea',
-                                     disability_weight=get_disability_weight(
-                                         causes.moderate_diarrhea.disability_weight),
-                                     dwell_time=get_duration_in_days(causes.moderate_diarrhea.duration))
-    severe_diarrhea = ExcessMortalityState('severe_diarrhea',
-                                           excess_mortality_data=get_severe_diarrhea_excess_mortality(),
-                                           csmr_data=get_cause_specific_mortality(causes.severe_diarrhea.mortality),
-                                           disability_weight=get_disability_weight(
-                                               causes.severe_diarrhea.disability_weight),
-                                           dwell_time=get_duration_in_days(causes.severe_diarrhea.duration))
-
-    diarrhea_transitions = TransitionSet(
-        ProportionTransition(mild_diarrhea, proportion=get_severity_splits(
-            causes.diarrhea.incidence, causes.mild_diarrhea.incidence)),
-        ProportionTransition(moderate_diarrhea, proportion=get_severity_splits(
-            causes.diarrhea.incidence, causes.moderate_diarrhea.incidence)),
-        ProportionTransition(severe_diarrhea, proportion=get_severity_splits(
-            causes.diarrhea.incidence, causes.severe_diarrhea.incidence))
-    )
-
-    diarrhea.add_transition(diarrhea_transitions)
-    mild_diarrhea.add_transition(healthy)
-    moderate_diarrhea.add_transition(healthy)
-    severe_diarrhea.add_transition(healthy)
-
-
-def get_severe_diarrhea_excess_mortality():
-    diarrhea_excess_mortality = get_excess_mortality(causes.diarrhea.excess_mortality)
-    severe_diarrhea_proportion = get_severity_splits(causes.diarrhea.incidence,
-                                                     causes.severe_diarrhea.incidence)
-    return diarrhea_excess_mortality.rate/severe_diarrhea_proportion
-
+        return metrics
 
 
 # TODO: Eventually we may want to include transitions to non-fully healthy
@@ -172,8 +129,8 @@ class DiarrheaBurden:
     """
     def __init__(self, excess_mortality_data, csmr_data,
                  mild_disability_weight, moderate_disability_weight,
-                 severe_disability_weight, mild_severity_split, 
-                 moderate_severity_split, severe_severity_split, 
+                 severe_disability_weight, mild_severity_split,
+                 moderate_severity_split, severe_severity_split,
                  duration_data):
         self.excess_mortality_data = excess_mortality_data
         self.csmr_data = csmr_data
@@ -266,8 +223,8 @@ class DiarrheaBurden:
     #    best test this method
     @listens_for('time_step', priority=6)
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] +
-                  LIST_OF_ETIOLOGIES +
-                  [eti + '_event_count' for eti in LIST_OF_ETIOLOGIES] +
+                  ETIOLOGIES +
+                  [eti + '_event_count' for eti in ETIOLOGIES] +
                   DIARRHEA_EVENT_COUNT_COLS, 'alive and diarrhea == "healthy"')
     def move_people_into_diarrhea_state(self, event):
         """
@@ -285,7 +242,7 @@ class DiarrheaBurden:
         # for people that got diarrhea due to an etiology (or multiple
         #     etiologies) in the current time step, we manually set the
         #     diarrhea column to equal "diarrhea"
-        for etiology in LIST_OF_ETIOLOGIES:
+        for etiology in ETIOLOGIES:
             pop.loc[pop['{}'.format(etiology)] == etiology, 'diarrhea'] = 'diarrhea'
             pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
 
@@ -342,7 +299,7 @@ class DiarrheaBurden:
     # TODO: Per conversation with Abie on 2.22, we would like to have a
     #     distribution surrounding duration
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + \
-                  LIST_OF_ETIOLOGIES, 'alive and diarrhea != "healthy"')
+                  ETIOLOGIES, 'alive and diarrhea != "healthy"')
     @listens_for('time_step', priority=8)
     def apply_remission(self, event):
 
@@ -350,24 +307,25 @@ class DiarrheaBurden:
 
         # TODO: I want to think of another test for apply_remission.
         #     There was an error before (event.index instead of
-        #     affected_population.index was being passed in). Alec/James: 
+        #     affected_population.index was being passed in). Alec/James:
         #     any suggestions for another test for apply_remission?
-        duration_series = pd.to_timedelta(self.duration(affected_population.index),
-                                                        unit='D')
+        if not affected_population.empty:
+            duration_series = pd.to_timedelta(self.duration(affected_population.index),
+                                                            unit='D')
 
-        affected_population['diarrhea_event_end_time'] = duration_series + \
-                                                         affected_population['diarrhea_event_time']
+            affected_population['diarrhea_event_end_time'] = duration_series + \
+                                                             affected_population['diarrhea_event_time']
 
-        # manually set diarrhea to healthy and set all etiology columns to
-        #     healthy as well
-        current_time = pd.Timestamp(event.time)
+            # manually set diarrhea to healthy and set all etiology columns to
+            #     healthy as well
+            current_time = pd.Timestamp(event.time)
 
-        affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
+            affected_population.loc[affected_population['diarrhea_event_end_time'] <= current_time, 'diarrhea'] = 'healthy'
 
-        for etiology in LIST_OF_ETIOLOGIES:
-            affected_population['{}'.format(etiology)] = 'healthy'
+            for etiology in ETIOLOGIES:
+                affected_population['{}'.format(etiology)] = 'healthy'
 
-        event.population_view.update(affected_population[LIST_OF_ETIOLOGIES +
+        event.population_view.update(affected_population[ETIOLOGIES +
                                      ['diarrhea', 'diarrhea_event_end_time']])
 
 
@@ -378,7 +336,10 @@ def diarrhea_factory():
     """
     list_of_modules = []
 
-
+    # TODO: This seems like an easy place to make a mistake. The better way of
+    #    getting the risk id data would be to run a get_ids query and have that
+    #    return the ids we want (that statement could apply to anywhere we use
+    #    a gbd id of some sort)
     dict_of_etiologies_and_eti_risks = {'cholera': 173,
                                         'other_salmonella': 174,
                                         'shigellosis': 175, 'EPEC': 176,
@@ -389,26 +350,24 @@ def diarrhea_factory():
                                         'aeromonas': 182,
                                         'clostridium_difficile': 183,
                                         'norovirus': 184, 'adenovirus': 185,
-                                        'unattributed': 'unattributed'}
+                                        'unattributed_diarrhea': 'unattributed'}
 
-    for key, value in dict_of_etiologies_and_eti_risks.items():
+    for pathogen, risk_id in dict_of_etiologies_and_eti_risks.items():
 
-        diarrhea_due_to_pathogen = 'diarrhea_due_to_{}'.format(key)
+        module = DiseaseModel(pathogen)
 
-        module = DiseaseModel(diarrhea_due_to_pathogen)
-
-        healthy = State('healthy', key=diarrhea_due_to_pathogen)
+        healthy = State('healthy', key=pathogen)
 
         # @Alecwd does it make sense to have the state_id and key be the same
         #    string?
-        etiology_state = DiarrheaEtiologyState(diarrhea_due_to_pathogen,
-                                               key=diarrhea_due_to_pathogen)
+        etiology_state = DiarrheaEtiologyState(pathogen,
+                                               key=pathogen)
 
-        etiology_specific_incidence = get_etiology_specific_incidence(
-            eti_risk_id=value, cause_id=302, me_id=1181)
+        etiology_specific_incidence = ci.get_etiology_specific_incidence(
+            eti_risk_id=risk_id, cause_id=302, me_id=1181)
 
         transition = RateTransition(etiology_state,
-                                    diarrhea_due_to_pathogen,
+                                    pathogen,
                                     etiology_specific_incidence)
 
         healthy.transition_set.append(transition)
@@ -417,35 +376,16 @@ def diarrhea_factory():
 
         list_of_modules.append(module)
 
-    excess_mortality = get_severe_diarrhea_excess_mortality()
+    excess_mortality = ci.get_severe_diarrhea_excess_mortality()
 
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
-                                     csmr_data=get_cause_specific_mortality(1181),
-                                     mild_disability_weight=get_disability_weight(healthstate_id=355),
-                                     moderate_disability_weight=get_disability_weight(healthstate_id=356),
-                                     severe_disability_weight=get_disability_weight(healthstate_id=357),
-                                     mild_severity_split=get_severity_splits(1181, 2608),
-                                     moderate_severity_split=get_severity_splits(1181, 2609),
-                                     severe_severity_split=get_severity_splits(1181, 2610),
-                                     duration_data=get_duration_in_days(1181))
+                                     csmr_data=ci.get_cause_specific_mortality(1181),
+                                     mild_disability_weight=ci.get_disability_weight(healthstate_id=355),
+                                     moderate_disability_weight=ci.get_disability_weight(healthstate_id=356),
+                                     severe_disability_weight=ci.get_disability_weight(healthstate_id=357),
+                                     mild_severity_split=ci.get_severity_splits(1181, 2608),
+                                     moderate_severity_split=ci.get_severity_splits(1181, 2609),
+                                     severe_severity_split=ci.get_severity_splits(1181, 2610),
+                                     duration_data=ci.get_duration_in_days(1181))
 
     return list_of_modules + [diarrhea_burden]
-
-
-def get_duration_in_days(modelable_entity_id):
-    """Get duration of disease for a modelable entity in days.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Table with 'age', 'sex', 'year' and 'duration' columns
-    """
-    remission = get_remission(modelable_entity_id)
-
-    duration = remission.copy()
-
-    duration['duration'] = (1 / duration['remission']) *365
-
-    duration.metadata = {'modelable_entity_id': modelable_entity_id}
-
-    return duration[['year', 'age', 'duration', 'sex']]

@@ -28,7 +28,7 @@ def make_simulation_object():
 
     inc.loc[inc.sex == 'Male', 'rate'] = 14000
 
-    rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
+    rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
 
     rota_inc.source = simulation.tables.build_table(inc)
 
@@ -57,7 +57,7 @@ def test_incidence_rates():
 
     only_men = simulation.population.population.query("sex == 'Male'")
 
-    assert simulation.population.population.diarrhea_due_to_rotaviral_entiritis_event_count.sum() == len(only_men), "all men should have diarrhea due to rotavirus after the first timestep in this test"
+    assert simulation.population.population.rotaviral_entiritis_event_count.sum() == len(only_men), "all men should have diarrhea due to rotavirus after the first timestep in this test"
 
 
 # TEST 2 --> test that disability weight is correctly being applied
@@ -118,7 +118,7 @@ def test_remission():
 
     inc.loc[inc.sex == 'Male', 'rate'] = 200
 
-    rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
+    rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
 
     rota_inc.source = simulation.tables.build_table(inc)
 
@@ -164,7 +164,7 @@ def test_diarrhea_elevated_mortality():
 
     inc.loc[inc.sex == 'Male', 'rate'] = 14000
 
-    rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
+    rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
 
     rota_inc.source = simulation.tables.build_table(inc)
 
@@ -206,7 +206,7 @@ def test_severity_proportions():
     # give everyone diarrhea
     inc = build_table(14000)
 
-    rota_inc = simulation.values.get_rate('incidence_rate.diarrhea_due_to_rotaviral_entiritis')
+    rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
 
     rota_inc.source = simulation.tables.build_table(inc)
 
