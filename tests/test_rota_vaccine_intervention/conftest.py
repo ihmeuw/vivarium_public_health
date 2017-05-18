@@ -13,3 +13,5 @@ config.simulation_parameters.time_step = 1
 config.simulation_parameters.year_start = 2005
 config.simulation_parameters.initial_age = 0
 config.rota_vaccine.vaccination_proportion_increase = .1
+config.rota_vaccine.third_dose_retention = 1
+config.rota_vaccine.second_dose_retention = 1

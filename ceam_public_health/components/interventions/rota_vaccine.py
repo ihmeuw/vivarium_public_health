@@ -50,10 +50,10 @@ def set_vaccine_duration(population, etiology, dose):
 
 
 def wane_immunity(days, full_immunity_duration, vaccine_waning_time,
-                  vaccine_effectiveness):
+                  vaccine_protection):
     """
     Create waning immunity function. This function returns a univariate spline
-    that can be called to get an effectiveness estimate when supplied a certain
+    that can be called to get a protection estimate when supplied a certain
     number of days since the dose's immunity start time
 
     Parameters
@@ -62,16 +62,16 @@ def wane_immunity(days, full_immunity_duration, vaccine_waning_time,
         number of days since vaccine duration start date
 
     full_immunity_duration: int
-        number of days that the vaccine will last at full effectiveness
+        number of days that the vaccine will last at full protection
 
     vaccine_waning_time: int
         number of days vaccine will wane
 
-    vaccine_effectiveness: float
+    vaccine_protection: float
         reduction in incidence as a result of receiving the vaccine
     """
     x = [0, full_immunity_duration, full_immunity_duration + vaccine_waning_time + .00001]
-    y = [vaccine_effectiveness, vaccine_effectiveness, 0]
+    y = [vaccine_protection, vaccine_protection, 0]
 
     # set the order to 1 (linear), s to 0 (sum of least squares=0), ext to 1
     # (all extrapolated values are 0)
@@ -81,7 +81,7 @@ def wane_immunity(days, full_immunity_duration, vaccine_waning_time,
 
 def determine_vaccine_protection(pop, dose_working_index,
                                  waning_immunity_function, current_time, dose,
-                                 vaccine_effectiveness):
+                                 vaccine_protection):
     """
     Determine the protection of a vaccine based on how many days its been since
     the simulant received the vaccine
@@ -96,7 +96,7 @@ def determine_vaccine_protection(pop, dose_working_index,
 
     waning_immunity_function: UnivariateSpline object
         function that returns a scipy.interpolate.UnivariateSpline object
-        containing estimates of vaccine effectiveness (Y) given number of days
+        containing estimates of vaccine protection (Y) given number of days
         since vaccine immunity start time (X)
 
     current_time: datetime.datetime
@@ -105,8 +105,8 @@ def determine_vaccine_protection(pop, dose_working_index,
     dose: str
         can be one of "first", "second", or "third"
 
-    vaccine_effectiveness: float
-        effectiveness of the current dose of the vaccine
+    vaccine_protection: float
+        protection of the current dose of the vaccine
     """
     pop['days_since_vaccine_started_conferring_immunity'] = (current_time -
         pop['rotaviral_entiritis_vaccine_{}_dose_immunity_start_time'.format(dose)])
@@ -120,9 +120,9 @@ def determine_vaccine_protection(pop, dose_working_index,
 
     waning_immunity_time = config.rota_vaccine.waning_immunity_time
 
-    pop['effectiveness'] = pop['days_since_vaccine_started_conferring_immunity'].apply(lambda days: waning_immunity_function(days, full_immunity_duration, waning_immunity_time, vaccine_effectiveness))
+    pop['vaccine_protection'] = pop['days_since_vaccine_started_conferring_immunity'].apply(lambda days: waning_immunity_function(days, full_immunity_duration, waning_immunity_time, vaccine_protection))
 
-    return pop.loc[dose_working_index]['effectiveness']
+    return pop.loc[dose_working_index]['vaccine_protection']
 
 
 class RotaVaccine():
@@ -146,9 +146,9 @@ class RotaVaccine():
             'rota_vaccine': {
                 'RV5_dose_cost': 3.5,
                 'cost_to_administer_each_dose': 0,
-                'first_dose_effectiveness': 0,
-                'second_dose_effectiveness': 0,
-                'third_dose_effectiveness': .39,
+                'first_dose_protection': 0,
+                'second_dose_protection': 0,
+                'third_dose_protection': .39,
                 'vaccine_full_immunity_duration': 730,
                 'waning_immunity_time': 0,
                 'age_at_first_dose': 61,
@@ -344,9 +344,7 @@ class RotaVaccine():
             raise(ValueError, "dose_number cannot be any value other than" +
                               " 1, 2, or 3")
 
-        false_weight = 1 - true_weight
-
-        children_who_will_receive_dose_index = pd.Index
+        children_who_will_receive_dose_index = pd.Index([])
 
         if not children_at_dose_age.empty:
             children_who_will_receive_dose_index = self.randomness['dose_{}'.format(dose_number)].filter_for_probability(
@@ -485,7 +483,7 @@ class RotaVaccine():
         """
         If the intervention is running, determine who is currently receiving
         the intervention and then decrease their incidence of diarrhea due to
-        rota by the effectiveness specified in the config file
+        rota by the protection specified in the config file
 
         Parameters
         ----------
@@ -507,16 +505,15 @@ class RotaVaccine():
             dose_working_index = population.query("rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
 
             # FIXME: I feel like there should be a better way to get
-            # effectiveness using the new config, but I don't know how. Using
+            # protection using the new config, but I don't know how. Using
             # the old config, I could say
-            # config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
+            # config.getfloat('rota_vaccine', '{}_dose_protection'.format(dose))
             if dose == "first":
-                effectiveness = config.rota_vaccine.first_dose_effectiveness
+                protection = config.rota_vaccine.first_dose_protection
             if dose == "second":
-                effectiveness = config.rota_vaccine.second_dose_effectiveness
+                protection = config.rota_vaccine.second_dose_protection
             if dose == "third":
-                effectiveness = config.rota_vaccine.third_dose_effectiveness
-
+                protection = config.rota_vaccine.third_dose_protection
 
             if len(dose_working_index) > 0:
                 vaccine_protection = determine_vaccine_protection(population,
@@ -524,7 +521,7 @@ class RotaVaccine():
                                                                   wane_immunity,
                                                                   self.clock(),
                                                                   dose,
-                                                                  effectiveness)
+                                                                  protection)
             else:
                 vaccine_protection = 0
 

@@ -21,9 +21,12 @@ from ceam_public_health.components.base_population import (generate_base_populat
 def test_determine_who_should_receive_dose():
     """
     Determine if people are receiving the correct dosages.
-    ove the simulation forward a few times to make sure that people who should
+    Move the simulation forward a few times to make sure that people who should
     get the vaccine do get the vaccine
     """
+    config.rota_vaccine.second_dose_retention = .8
+    config.rota_vaccine.third_dose_retention = .4
+    
     factory = diarrhea_factory()
 
     rv_instance = RotaVaccine(True)
@@ -44,8 +47,9 @@ def test_determine_who_should_receive_dose():
     # FIXME: This test will fail in years in which there is vaccination
     #     coverage in the baseline scenario
     assert np.allclose(len(pop)*config.rota_vaccine.vaccination_proportion_increase,
-           len(first_dose_pop), .1), "determine who should receive dose needs" + \
-                                     "to give doses at the correct age"
+           len(first_dose_pop), rtol=.1), "determine who should receive dose should give" + \
+                                     "doses to the correct proportion of sims at" + \
+                                     "the correct age"
 
     first_dose_pop['rotaviral_entiritis_vaccine_second_dose'] = 0
 
@@ -58,8 +62,9 @@ def test_determine_who_should_receive_dose():
     # FIXME: This test will fail in years in which there is vaccination
     #     coverage in the baseline scenario
     assert np.allclose(len(pop) * config.rota_vaccine.vaccination_proportion_increase * \
-        config.rota_vaccine.second_dose_retention,  len(second_dose_pop), .1), \
-        "determine who should receive dose needs to give doses at the correct age"
+        config.rota_vaccine.second_dose_retention,  len(second_dose_pop), rtol=.1), \
+        "determine who should receive dose should give doses to the correct" + \
+        " proportion of sims at the correct age"
 
     second_dose_pop['rotaviral_entiritis_vaccine_third_dose'] = 0
 
@@ -72,8 +77,9 @@ def test_determine_who_should_receive_dose():
     # FIXME: This test will fail in years in which there is vaccination
     #     coverage in the baseline scenario
     assert np.allclose(len(pop) * config.rota_vaccine.vaccination_proportion_increase * \
-        config.rota_vaccine.second_dose_retention*config.rota_vaccine.third_dose_retention, \
-        len(third_dose_pop), .1), "determine who should receive dose needs to give doses at the correct age"
+        config.rota_vaccine.second_dose_retention * config.rota_vaccine.third_dose_retention, \
+        len(third_dose_pop), rtol=.1), "determine who should receive dose should give" + \
+        "doses to the correct proportion of sims at the correct age"
 
 
 # 2: set_vaccine_duration
@@ -121,12 +127,30 @@ def test_set_working_column1(get_indexes):
     # find an example of simulants of the same age and sex, but not vaccination
     #     status, and then compare their incidence rates
     assert np.allclose(len(vaccinated)/100, config.rota_vaccine.vaccination_proportion_increase,
-        atol=.1), "working column should ensure that the correct number of simulants are receiving the benefits of the vaccine"
+        rtol=.1), "working column should ensure that the correct number of simulants are receiving the benefits of the vaccine"
 
-    assert np.all(vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 1), "everyone that receives vaccine should have the working col set to true here"
+    assert np.all(vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 1), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
 
+    assert np.all(vaccinated["rotaviral_entiritis_vaccine_second_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_second_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+
+    assert np.all(vaccinated["rotaviral_entiritis_vaccine_third_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_third_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
 
 def test_set_working_column2(get_indexes):
+    # FIXME: I set second/third dose retention in the conftest file, but they get overriden when I set them
+    #    in test_determine_who_should_receive_dose, so I need to reset them here. I don't know why that is,
+    #    but it seems confusing
+    config.rota_vaccine.second_dose_retention = 1
+    config.rota_vaccine.third_dose_retention = 1
+    
     # pump the simulation far enough ahead that simulants can get second dose
     simulation = setup_simulation([generate_test_population, age_simulants,
                                    RotaVaccine(True)] + diarrhea_factory())
@@ -138,13 +162,30 @@ def test_set_working_column2(get_indexes):
     vaccinated = simulation.population.population.loc[vaccinated.index]
     not_vaccinated = simulation.population.population.loc[not_vaccinated.index]
 
-    assert np.all(vaccinated["rotaviral_entiritis_vaccine_second_dose_is_working"] == 1)
-    assert np.all(vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 0)
-    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_second_dose_is_working"] == 0)
-    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 0)
+    assert np.all(vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+
+    assert np.all(vaccinated["rotaviral_entiritis_vaccine_second_dose_is_working"] == 1), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_second_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+
+    assert np.all(vaccinated["rotaviral_entiritis_vaccine_third_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_third_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+
 
 
 def test_set_working_column3(get_indexes):
+    # FIXME: I set second/third dose retention in the conftest file, but they get overriden when I set them
+    #    in test_determine_who_should_receive_dose, so I need to reset them here. I don't know why that is,
+    #    but it seems confusing
+    config.rota_vaccine.second_dose_retention = 1
+    config.rota_vaccine.third_dose_retention = 1
+    
     # 19 days in, we should see that the third vaccine is working and the first
     #     and second are not
     simulation = setup_simulation([generate_test_population, age_simulants,
@@ -157,10 +198,20 @@ def test_set_working_column3(get_indexes):
     vaccinated = simulation.population.population.loc[vaccinated.index]
     not_vaccinated = simulation.population.population.loc[not_vaccinated.index]
 
-    assert np.all(vaccinated["rotaviral_entiritis_vaccine_third_dose_is_working"] == 1)
-    assert np.all(vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 0)
-    assert np.all(vaccinated["rotaviral_entiritis_vaccine_second_dose_is_working"] == 0)
-    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_third_dose_is_working"] == 0)
+    assert np.all(vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_first_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+
+    assert np.all(vaccinated["rotaviral_entiritis_vaccine_second_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_second_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+
+    assert np.all(vaccinated["rotaviral_entiritis_vaccine_third_dose_is_working"] == 1), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
+    assert np.all(not_vaccinated["rotaviral_entiritis_vaccine_third_dose_is_working"] == 0), \
+        "set_working_column needs to correctly identify who has ben vaccinated and whether the vaccine should be conferring any benefit"
 
 
 def test_set_working_column4():
@@ -179,6 +230,8 @@ def test_set_working_column4():
 
 # 4: incidence_rates
 def test_incidence_rates():
+    config.rota_vaccine.first_dose_protection = .1
+    config.rota_vaccine.second_dose_protection = .2
 
     simulation = setup_simulation([generate_test_population, age_simulants,
                                    RotaVaccine(True)] + diarrhea_factory())
@@ -190,7 +243,7 @@ def test_incidence_rates():
     rota_inc.source = simulation.tables.build_table(
         rota_table)
 
-    vaccine_effectiveness = config.rota_vaccine.first_dose_effectiveness
+    vaccine_protection = config.rota_vaccine.first_dose_protection
 
     # pump the simulation far enough ahead that simulants can get first dose
     pump_simulation(simulation, duration=timedelta(days=7))
@@ -204,7 +257,7 @@ def test_incidence_rates():
     # find an example of simulants of the same age and sex, but not vaccination
     #     status, and then compare their incidence rates
     assert np.allclose(pd.unique(rota_inc(vaccinated.index)), pd.unique(
-        rota_inc(not_vaccinated.index)*(1-vaccine_effectiveness))), \
+        rota_inc(not_vaccinated.index)*(1-vaccine_protection))), \
         "simulants that receive vaccine should have lower incidence of diarrhea" \
         "due to rota"
 
@@ -219,7 +272,7 @@ def test_incidence_rates():
     rota_inc.source = simulation.tables.build_table(
         rota_table)
 
-    vaccine_effectiveness = config.rota_vaccine.second_dose_effectiveness
+    vaccine_protection = config.rota_vaccine.second_dose_protection
 
     # pump the simulation far enough ahead that simulants can get second dose
     pump_simulation(simulation, duration=timedelta(days=13))
@@ -233,7 +286,7 @@ def test_incidence_rates():
     # find an example of simulants of the same age and sex, but not vaccination
     #     status, and then compare their incidence rates
     assert np.allclose(pd.unique(rota_inc(vaccinated.index)), pd.unique(
-        rota_inc(not_vaccinated.index)*(1-vaccine_effectiveness))), \
+        rota_inc(not_vaccinated.index)*(1-vaccine_protection))), \
         "simulants that receive vaccine should have lower incidence of diarrhea due to rota"
 
     # now try with three doses
@@ -247,7 +300,7 @@ def test_incidence_rates():
     rota_inc.source = simulation.tables.build_table(
         rota_table)
 
-    vaccine_effectiveness = config.rota_vaccine.third_dose_effectiveness
+    vaccine_protection = config.rota_vaccine.third_dose_protection
 
     # pump the simulation far enough ahead that simulants can get third dose
     pump_simulation(simulation, duration=timedelta(days=19))
@@ -261,7 +314,7 @@ def test_incidence_rates():
     # find an example of simulants of the same age and sex, but not vaccination
     #     status, and then compare their incidence rates
     assert np.allclose(pd.unique(rota_inc(vaccinated.index)), pd.unique(
-        rota_inc(not_vaccinated.index)*(1-vaccine_effectiveness))), \
+        rota_inc(not_vaccinated.index)*(1-vaccine_protection))), \
         "simulants that receive vaccine should have lower incidence of diarrhea due to rota"
 
 
@@ -277,19 +330,19 @@ def test_determine_vaccine_protection():
         "rotaviral_entiritis_vaccine_first_dose_is_working == 1").index
 
     duration = config.rota_vaccine.vaccine_full_immunity_duration
-    effectiveness = config.rota_vaccine.first_dose_effectiveness
+    protection = config.rota_vaccine.first_dose_protection
     waning_immunity_time = config.rota_vaccine.waning_immunity_time
 
     series = determine_vaccine_protection(population, dose_working_index,
                                           wane_immunity, simulation.current_time,
-                                          "first", effectiveness)
+                                          "first", protection)
 
-    assert np.allclose(series, effectiveness), "determine vaccine effectiveness" + \
-                                     " should return the correct effectiveness" + \
+    assert np.allclose(series, protection), "determine vaccine protection" + \
+                                     " should return the correct protection" + \
                                      " for each simulant based on vaccination status" + \
                                      "and time since vaccination"
 
-    assert len(series) == len(dose_working_index), "number of effectiveness estimates that are" + \
+    assert len(series) == len(dose_working_index), "number of protection estimates that are" + \
                                                    " returned matches the number" + \
                                                    " of simulants who have their working"
 
@@ -330,3 +383,4 @@ def test_rota_vaccine_coverage():
         rtol=.05), "when including an intervention, ensure that the" + \
                    "intervention increases the proportion of people that get" + \
                    "vaccinated"
+
