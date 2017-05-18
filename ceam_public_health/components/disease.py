@@ -62,8 +62,8 @@ class DiseaseState(State):
     """
     def __init__(self, state_id, disability_weight=None, prevalence_data=None,
                  dwell_time=0, event_time_column=None, event_count_column=None,
-                 side_effect_function=None, track_events=True):
-        super().__init__(state_id)
+                 side_effect_function=None, track_events=True, key='state'):
+        super().__init__(state_id, key=key)
         self._disability_weight_data = disability_weight
         self.prevalence_data = prevalence_data
         self._dwell_time = dwell_time.total_seconds() if isinstance(dwell_time, timedelta) else dwell_time
@@ -156,6 +156,31 @@ class DiseaseState(State):
             self.population_view.update(pop)
         if self.side_effect_function is not None:
             self.side_effect_function(index)
+
+    def add_transition(self, output, proportions=None, rates=None, triggered=False):
+
+        if proportions is not None and rates is not None:
+            raise ValueError("Both proportion and rate data provided.")
+
+        if proportions is not None:
+            self.transition_set.append(ProportionTransition(output=output,
+                                                            proportion=proportions))
+        elif rates is not None:
+            self.transition_set.append(RateTransition(output=output,
+                                                      rate_label=output.name(),
+                                                      rate_data=rates))
+        elif triggered:
+            transition = TriggeredTransition(output)
+            self.transition_set.append(transition)
+            return transition.trigger
+        elif isinstance(output, TransitionSet):  # TODO: This is kind of weird and needs some design evaluation.
+            self.transition_set.append(output)
+        else:
+            super().add_transition(output)
+
+
+
+
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
@@ -266,7 +291,7 @@ class ExcessMortalityState(DiseaseState):
 
 class RateTransition(Transition):
     def __init__(self, output, rate_label, rate_data, name_prefix='incidence_rate'):
-        Transition.__init__(self, output, self.probability)
+        super().__init__(output, self.probability)
 
         self.rate_label = rate_label
         self.rate_data = rate_data
@@ -297,7 +322,7 @@ class RateTransition(Transition):
 
 class ProportionTransition(Transition):
     def __init__(self, output, modelable_entity_id=None, proportion=None):
-        Transition.__init__(self, output, self.probability)
+        super().__init__(output, self.probability)
 
         if modelable_entity_id and proportion:
             raise ValueError("Must supply modelable_entity_id or proportion (proportion can be an int or df) but not both")
@@ -331,6 +356,23 @@ class ProportionTransition(Transition):
         return 'ProportionTransition("{}", "{}", "{}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.modelable_entity_id, self.proportion)
 
 
+class TriggeredTransition(Transition):
+    def __init__(self, output):
+        super().__init__(output, self.probability)
+        self.active = None
+
+    def probability(self, index):
+        if self.active is not None:
+            assert self.active.equals(index)
+            self.active = None
+            return np.ones(len(index), dtype=float)
+        else:
+            return np.zeros(len(index), dtype=float)
+
+    def trigger(self, index):
+        self.active = index
+
+
 class DiseaseModel(Machine):
     def __init__(self, condition):
         Machine.__init__(self, condition)
@@ -341,6 +383,9 @@ class DiseaseModel(Machine):
     @property
     def condition(self):
         return self.state_column
+
+    def add_states(self, states):
+        self.states.extend(states)
 
     def setup(self, builder):
         self.population_view = builder.population_view([self.condition], 'alive')

@@ -40,13 +40,15 @@ def heart_disease_factory():
     timestep = config.simulation_parameters.time_step
     weight = 0.43*(2/timestep) + 0.07*(28/timestep)
 
-    heart_attack = make_disease_state(causes.heart_attack, dwell_time=28, side_effect_function=side_effect_factory(0.6, 0.7, 'heart attack')) #rates as per Marcia e-mail 1/19/17
+    heart_attack = make_disease_state(causes.heart_attack,
+                                      dwell_time=28,
+                                      side_effect_function=side_effect_factory(0.6, 0.7, 'heart attack')) #rates as per Marcia e-mail 1/19/17
+
     mild_heart_failure = make_disease_state(causes.mild_heart_failure)
     moderate_heart_failure = make_disease_state(causes.moderate_heart_failure)
     severe_heart_failure = make_disease_state(causes.severe_heart_failure)
 
     asymptomatic_angina = make_disease_state(causes.asymptomatic_angina)
-
     mild_angina = make_disease_state(causes.mild_angina)
     moderate_angina = make_disease_state(causes.moderate_angina)
     severe_angina = make_disease_state(causes.severe_angina)
