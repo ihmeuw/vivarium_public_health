@@ -1,14 +1,105 @@
-draw_count: 1000
+draw_count: 100
 
 branches:
     - rota_vaccine:
-        vaccination_proportion_increase: .25
+        vaccination_proportion_increase: 0
 
     - rota_vaccine:
-        vaccination_proportion_increase: .5
+        vaccination_proportion_increase: .03
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .06
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .09
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .12
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .15
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .18
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .21
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .24
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .27
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .3
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .33
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .36
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .39
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .42
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .45
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .48
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .51
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .54
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .57
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .6
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .63
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .66
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .69
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .72
 
     - rota_vaccine:
         vaccination_proportion_increase: .75
 
+    - rota_vaccine:
+        vaccination_proportion_increase: .78
 
+    - rota_vaccine:
+        vaccination_proportion_increase: .81
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .84
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .87
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .9
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .93
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .96
+
+    - rota_vaccine:
+        vaccination_proportion_increase: .99
 
