@@ -11,7 +11,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value, list_combiner, joint_value_post_processor
 from ceam.framework.util import rate_to_probability
-from ceam.framework.state_machine import Machine, State, Transition, TransitionSet
+from ceam.framework.state_machine import Machine, State, TransientState, Transition, TransitionSet
 
 from ceam_inputs import (get_disease_states, get_proportion, get_cause_specific_mortality,
                          get_disability_weight, get_prevalence, get_excess_mortality)
@@ -92,9 +92,10 @@ class DiseaseState(State):
             columns += [self.event_time_column, self.event_count_column]
         self.population_view = builder.population_view(columns)
         self.clock = builder.clock()
-        self._disability_weight = builder.lookup(self._disability_weight_data)
+        self._disability_weight = builder.lookup(self._disability_weight_data) if self._disability_weight_data else None
         self.dwell_time = builder.value('{}.dwell_time'.format(self.state_id))
         self.dwell_time.source = builder.lookup(self._dwell_time)
+        return super().setup(builder)
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
@@ -138,8 +139,11 @@ class DiseaseState(State):
             A filtered index of the simulants.
         """
         population = self.population_view.get(index)
-        return population.loc[population[self.event_time_column]
-                              < self.clock().timestamp() - self.dwell_time(index)].index
+        if self.track_events:  # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
+            return population.loc[population[self.event_time_column]
+                                  < self.clock().timestamp() - self.dwell_time(index)].index
+        else:
+            return index
 
     def _transition_side_effect(self, index):
         """Updates the simulation state and triggers any side-effects associated with this state.
@@ -157,30 +161,23 @@ class DiseaseState(State):
         if self.side_effect_function is not None:
             self.side_effect_function(index)
 
-    def add_transition(self, output, proportions=None, rates=None, triggered=False):
+    def add_transition(self, output, proportion=None, rates=None, triggered=False):
 
-        if proportions is not None and rates is not None:
+        if proportion is not None and rates is not None:
             raise ValueError("Both proportion and rate data provided.")
-
-        if proportions is not None:
-            self.transition_set.append(ProportionTransition(output=output,
-                                                            proportion=proportions))
+        if proportion is not None:
+            t = ProportionTransition(output=output,
+                                     proportion=proportion,
+                                     triggered=triggered)
         elif rates is not None:
-            self.transition_set.append(RateTransition(output=output,
-                                                      rate_label=output.name(),
-                                                      rate_data=rates))
-        elif triggered:
-            transition = TriggeredTransition(output)
-            self.transition_set.append(transition)
-            return transition.trigger
-        elif isinstance(output, TransitionSet):  # TODO: This is kind of weird and needs some design evaluation.
-            self.transition_set.append(output)
+            t = RateTransition(output=output,
+                               rate_label=output.name(),
+                               rate_data=rates,
+                               triggered=triggered)
         else:
-            super().add_transition(output)
-
-
-
-
+            t = super().add_transition(output, triggered=triggered)
+        self.transition_set.append(t)
+        return t
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
@@ -202,7 +199,6 @@ class DiseaseState(State):
             metrics[self.event_count_column] = population[self.event_count_column].sum()
         return metrics
 
-    # TODO: Make this work with dataframes
     @modifies_value('disability_weight')
     def disability_weight(self, index):
         """Gets the disability weight associated with this state. 
@@ -224,7 +220,27 @@ class DiseaseState(State):
         return '{}'.format(self.state_id)
 
     def __str__(self):
-        return 'DiseaseState("{}" ...)'.format(self.state_id)
+        return 'DiseaseState({})'.format(self.state_id)
+
+
+class TransientDiseaseState(TransientState):
+    def add_transition(self, output, proportion=None, rates=None, triggered=False):
+
+        if proportion is not None and rates is not None:
+            raise ValueError("Both proportion and rate data provided.")
+        if proportion is not None:
+            t = ProportionTransition(output=output,
+                                     proportion=proportion,
+                                     triggered=triggered)
+        elif rates is not None:
+            t = RateTransition(output=output,
+                               rate_label=output.name(),
+                               rate_data=rates,
+                               triggered=triggered)
+        else:
+            t = super().add_transition(output, triggered=triggered)
+        self.transition_set.append(t)
+        return t
 
 
 class ExcessMortalityState(DiseaseState):
@@ -286,12 +302,12 @@ class ExcessMortalityState(DiseaseState):
         return '{}'.format(self.state_id)
 
     def __str__(self):
-        return 'ExcessMortalityState("{}" ...)'.format(self.state_id)
+        return 'ExcessMortalityState({})'.format(self.state_id)
 
 
 class RateTransition(Transition):
-    def __init__(self, output, rate_label, rate_data, name_prefix='incidence_rate'):
-        super().__init__(output, self.probability)
+    def __init__(self, output, rate_label, rate_data, name_prefix='incidence_rate', **kwargs):
+        super().__init__(output, probability_func=self._probability, **kwargs)
 
         self.rate_label = rate_label
         self.rate_data = rate_data
@@ -304,32 +320,31 @@ class RateTransition(Transition):
         self.joint_paf.source = lambda index: [pd.Series(0, index=index)]
         self.base_incidence = builder.lookup(self.rate_data)
 
-    def probability(self, index):
+    def _probability(self, index):
         return rate_to_probability(self.effective_incidence(index))
 
     def incidence_rates(self, index):
         base_rates = self.base_incidence(index)
         joint_mediated_paf = self.joint_paf(index)
-
         # risk-deleted incidence is calculated by taking incidence from GBD and multiplying it by (1 - Joint PAF)
         return pd.Series(base_rates.values * (1 - joint_mediated_paf.values), index=index)
 
     def __str__(self):
-        return 'RateTransition("{0}", "{1}")'.format(
+        return 'RateTransition({0}, {1})'.format(
             self.output.state_id if hasattr(self.output, 'state_id')
             else [str(x) for x in self.output], self.rate_label)
 
 
 class ProportionTransition(Transition):
-    def __init__(self, output, modelable_entity_id=None, proportion=None):
-        super().__init__(output, self.probability)
+    def __init__(self, output, modelable_entity_id=None, proportion=None, **kwargs):
+        super().__init__(output, probability_func=self._probability, **kwargs)
 
         if modelable_entity_id and proportion:
             raise ValueError("Must supply modelable_entity_id or proportion (proportion can be an int or df) but not both")
 
         # @alecwd: had to change line below since it was erroring out when proportion is a dataframe. might be a cleaner way to do this that I don't know of
         if modelable_entity_id is None and proportion is None:
-           raise ValueError("Must supply either modelable_entity_id or proportion (proportion can be int or df)")
+            raise ValueError("Must supply either modelable_entity_id or proportion (proportion can be int or df)")
 
         self.modelable_entity_id = modelable_entity_id
         self.proportion = proportion
@@ -340,7 +355,7 @@ class ProportionTransition(Transition):
         elif not isinstance(self.proportion, numbers.Number):
             self.proportion = builder.lookup(self.proportion)
 
-    def probability(self, index):
+    def _probability(self, index):
         if callable(self.proportion):
             return self.proportion(index)
         else:
@@ -353,24 +368,7 @@ class ProportionTransition(Transition):
             return str(self.proportion)
 
     def __str__(self):
-        return 'ProportionTransition("{}", "{}", "{}")'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.modelable_entity_id, self.proportion)
-
-
-class TriggeredTransition(Transition):
-    def __init__(self, output):
-        super().__init__(output, self.probability)
-        self.active = None
-
-    def probability(self, index):
-        if self.active is not None:
-            assert self.active.equals(index)
-            self.active = None
-            return np.ones(len(index), dtype=float)
-        else:
-            return np.zeros(len(index), dtype=float)
-
-    def trigger(self, index):
-        self.active = index
+        return 'ProportionTransition({}, {}, {})'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.modelable_entity_id, self.proportion)
 
 
 class DiseaseModel(Machine):
@@ -411,7 +409,8 @@ class DiseaseModel(Machine):
     def load_population_columns(self, event):
         population = event.population
 
-        state_map = {s.state_id: s.prevalence_data for s in self.states if hasattr(s, 'prevalence_data')}
+        state_map = {s.state_id: s.prevalence_data for s in self.states
+                     if hasattr(s, 'prevalence_data') and s.prevalence_data is not None}
 
         if state_map:
             # only do this if there are states in the model that supply prevalence data

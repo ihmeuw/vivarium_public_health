@@ -1,269 +1,190 @@
+from datetime import timedelta
+
 import pandas as pd
 import numpy as np
-import pytest
-from datetime import timedelta, datetime
+
+from ceam_public_health.components.base_population import Mortality
+from ceam_public_health.components.diarrhea import build_diarrhea_model
 
 from ceam import config
-from ceam.framework.event import Event
 from ceam_tests.util import (build_table, setup_simulation,
                              generate_test_population, pump_simulation)
 
-from ceam_inputs import get_disability_weight
 from ceam_inputs import (get_severity_splits, get_cause_specific_mortality,
-                         get_cause_deleted_mortality_rate)
-
-from ceam_public_health.components.base_population import Mortality
-from ceam_public_health.components.diarrhea_disease_model import (DiarrheaEtiologyState,
-                                                                  DiarrheaBurden,
-                                                                  diarrhea_factory)
+                         get_cause_deleted_mortality_rate, get_disability_weight)
+from ceam_inputs.gbd_mapping import causes
 
 
 def make_simulation_object():
-    factory = diarrhea_factory()
-
-    simulation = setup_simulation([generate_test_population] + factory)
+    diarrhea_and_etiology_models = build_diarrhea_model()
+    simulation = setup_simulation([generate_test_population] + diarrhea_and_etiology_models)
 
     # make it so that all men will get incidence due to rotaviral entiritis
-    inc = build_table(0)
-
-    inc.loc[inc.sex == 'Male', 'rate'] = 14000
-
-    rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
-
-    rota_inc.source = simulation.tables.build_table(inc)
+    incidence = build_table(0)
+    incidence.loc[incidence.sex == 'Male', 'rate'] = 14000
+    rota_incidence = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
+    rota_incidence.source = simulation.tables.build_table(incidence)
 
     # make it so that all men who get diarrhea over the age of 40 have a high
-    #     excess mortality, all men under the age of 40 do not
-    x_mort = build_table(0)
-
-    # TODO: Figure out the exact rate needed to get a probability of 1 when
-    #     timestep is 1
-    x_mort.loc[x_mort.age >= 40, 'rate'] = 14000
-
+    # excess mortality, all men under the age of 40 do not
+    excess_mortality = build_table(0)
+    excess_mortality.loc[excess_mortality.age >= 40, 'rate'] = 14000
     excess_mortality_rate = simulation.values.get_rate('excess_mortality.diarrhea')
-
-    excess_mortality_rate.source = simulation.tables.build_table(x_mort)
+    excess_mortality_rate.source = simulation.tables.build_table(excess_mortality)
 
     return simulation
 
 
-# TEST 1 --> test that incidence rate is correctly being applied
 def test_incidence_rates():
-
     simulation = make_simulation_object()
-
-    # pump the simulation forward 1 time period
     pump_simulation(simulation, iterations=1)
-
     only_men = simulation.population.population.query("sex == 'Male'")
+    err_msg = "All men should have diarrhea due to rotavirus after the first timestep in this test."
+    print(simulation.population.population.shape)
+    assert simulation.population.population.rotaviral_entiritis_event_count.sum() == len(only_men), err_msg
 
-    assert simulation.population.population.rotaviral_entiritis_event_count.sum() == len(only_men), "all men should have diarrhea due to rotavirus after the first timestep in this test"
 
-
-# TEST 2 --> test that disability weight is correctly being applied
 def test_disability_weights():
     simulation = make_simulation_object()
-
-    dis_weight = simulation.values.get_value('disability_weight')
-
-    # pump the simulation forward 1 time period
+    disability_weight = simulation.values.get_value('disability_weight')
     pump_simulation(simulation, iterations=1)
 
-    ts = config.simulation_parameters.time_step
-    mild_disability_weight = get_disability_weight(healthstate_id=355)*ts/365
-    moderate_disability_weight = get_disability_weight(healthstate_id=356)*ts/365
-    severe_disability_weight = get_disability_weight(healthstate_id=357)*ts/365
+    time_step = config.simulation_parameters.time_step
+    mild_disability_weight = get_disability_weight(
+        healthstate_id=causes.mild_diarrhea.disability_weight) * time_step / 365
+    moderate_disability_weight = get_disability_weight(
+        healthstate_id=causes.moderate_diarrhea.disability_weight) * time_step / 365
+    severe_disability_weight = get_disability_weight(
+        healthstate_id=causes.severe_diarrhea.disability_weight)*time_step/365
 
-    # TEST 2A --> Check that there are no unexpected disability weights
     only_men = simulation.population.population.query("sex == 'Male'")
-    simulation_weights = np.sort(pd.unique(dis_weight(only_men.index)))
-    GBD_weights = np.sort([mild_disability_weight, moderate_disability_weight,
-                           severe_disability_weight])
+    simulation_weights = np.sort(pd.unique(disability_weight(only_men.index)))
+    GBD_weights = np.sort([mild_disability_weight, moderate_disability_weight, severe_disability_weight])
+    assert np.allclose(simulation_weights, GBD_weights), "Unexpected disability weights values."
 
-    assert np.allclose(simulation_weights, GBD_weights), \
-        "assert that disability weights values are what they are expected to be"
-
-    # TEST 2B --> Check that the disability weights are mapped correctly
     mild_diarrhea_index = simulation.population.population.query("diarrhea == 'mild_diarrhea'").index
     moderate_diarrhea_index = simulation.population.population.query("diarrhea == 'moderate_diarrhea'").index
     severe_diarrhea_index = simulation.population.population.query("diarrhea == 'severe_diarrhea'").index
 
-    assert np.allclose(pd.unique(dis_weight(mild_diarrhea_index)), mild_disability_weight), \
-        "diarrhea severity state should be correctly mapped to its specific disability weight"
-    assert np.allclose(pd.unique(dis_weight(moderate_diarrhea_index)), moderate_disability_weight), \
-        "diarrhea severity state should be correctly mapped to its specific disability weight"
-    assert np.allclose(pd.unique(dis_weight(severe_diarrhea_index)), severe_disability_weight), \
-        "diarrhea severity state should be correctly mapped to its specific disability weight"
+    err_msg = "diarrhea severity state should be correctly mapped to its specific disability weight"
+    assert np.allclose(pd.unique(disability_weight(mild_diarrhea_index)), mild_disability_weight), err_msg
+    assert np.allclose(pd.unique(disability_weight(moderate_diarrhea_index)), moderate_disability_weight), err_msg
+    assert np.allclose(pd.unique(disability_weight(severe_diarrhea_index)), severe_disability_weight), err_msg
 
 
-# TEST 3 --> test remission
 def test_remission():
-    factory = diarrhea_factory()
+    diarrhea_and_etiology_models = build_diarrhea_model()
+    simulation = setup_simulation([generate_test_population] + diarrhea_and_etiology_models)
 
-    simulation = setup_simulation([generate_test_population] + factory)
-    emitter = simulation.events.get_emitter('time_step')
-
-    # make it so that duration of diarrhea is 1 day among all men except for
-    #     men over age 20, for whom duration will be 2 days
-    dur = build_table(1, ['age', 'year', 'sex', 'duration'])
-
-    dur.loc[dur.age >= 20, 'duration'] = 2
-
+    # Make it so that duration of diarrhea is 1 day among all men
+    # except for men over age 20, for whom duration will be 2 days.
+    duration_data = build_table(1, ['age', 'year', 'sex', 'duration'])
+    duration_data.loc[duration_data.age >= 20, 'duration'] = 2
     duration = simulation.values.get_value('duration.diarrhea')
-
-    duration.source = simulation.tables.build_table(dur)
+    duration.source = simulation.tables.build_table(duration_data)
 
     # make it so that some men will get diarrhea due to rota
-    inc = build_table(0)
+    incidence = build_table(0)
+    incidence.loc[incidence.sex == 'Male', 'rate'] = 200
+    rota_incidence = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
+    rota_incidence.source = simulation.tables.build_table(incidence)
 
-    inc.loc[inc.sex == 'Male', 'rate'] = 200
-
-    rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
-
-    rota_inc.source = simulation.tables.build_table(inc)
-
-    # we need two separate time steps, so we use the event emitter instead of
-    #     pump simulation because we need two separate time steps
-    emitter(Event(simulation.population.population.index))
-
-    simulation.current_time += timedelta(days=1)
-
+    pump_simulation(simulation, iterations=1)
     pop = simulation.population.population
-
     diarrhea_first_time_step = pop[pop.diarrhea_event_time.notnull()]
 
     # check that everyone has been moved into the diarrhea state
-    assert set(pd.unique(diarrhea_first_time_step.diarrhea)) == \
-        set(['mild_diarrhea', 'moderate_diarrhea', 'severe_diarrhea']), \
-        "duration should correctly determine the duration of a bout of diarrhea"
+    err_msg = "duration should correctly determine the duration of a bout of diarrhea"
+    assert ({pd.unique(diarrhea_first_time_step.diarrhea)}
+            == {'mild_diarrhea', 'moderate_diarrhea', 'severe_diarrhea'}), err_msg
 
-    emitter(Event(simulation.population.population.index))
+    pump_simulation(simulation, iterations=1)
 
-    simulation.current_time += timedelta(days=1)
+    # Make sure that at least some male simulants under 20 remitted into
+    # the healthy state (some may not be healthy if they got diarrhea again).
+    had_diarrhea = simulation.population.population.loc[diarrhea_first_time_step.index]
+    err_msg = "Diarrhea duration incorrectly calculated."
+    assert "healthy" in pd.unique(had_diarrhea.query("age < 20 and sex == 'Male'").diarrhea), err_msg
 
-    # Make sure that at least some male simulants under 20 remitted into the
-    #     healthy state (some may not be healthy if they got diarrhea again)
-    assert "healthy" in pd.unique(simulation.population.population.loc[diarrhea_first_time_step.index].query("age < 20 and sex == 'Male'").diarrhea), \
-        "DiarrheaBurden class should correctly determine the duration of a bout of diarrhea"
-
-    # make sure that all simulants between the over age 20 that got diarrhea in
-    #     the first time step still have diarrhea
-    assert "healthy" not in pd.unique(simulation.population.population.loc[diarrhea_first_time_step.index].query("age >= 20 and sex == 'Male'").diarrhea), \
-        "DiarrheaBurden class should correctly determine the duration of a bout of diarrhea"
+    # Make sure that all simulants between the over age 20 that got
+    # diarrhea in the first time step still have diarrhea.
+    assert "healthy" not in pd.unique(had_diarrhea.query("age >= 20 and sex == 'Male'").diarrhea), err_msg
 
 
-# TEST 4 --> test that severe_diarrhea is the only severity level of diarrhea
-#     associated with an excess mortality
+# Test that severe_diarrhea is the only severity level of diarrhea associated with an excess mortality.
 def test_diarrhea_elevated_mortality():
-    factory = diarrhea_factory()
+    diarrhea_and_etiology_models = build_diarrhea_model()
+    simulation = setup_simulation([generate_test_population] + diarrhea_and_etiology_models)
 
-    simulation = setup_simulation([generate_test_population] + factory)
-
-    # make it so that all men will get incidence due to rotaviral entiritis
-    inc = build_table(0)
-
-    inc.loc[inc.sex == 'Male', 'rate'] = 14000
-
-    rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
-
-    rota_inc.source = simulation.tables.build_table(inc)
+    incidence = build_table(0)
+    incidence.loc[incidence.sex == 'Male', 'rate'] = 14000
+    rota_incidence = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
+    rota_incidence.source = simulation.tables.build_table(incidence)
 
     # make the base mortality_rate 0
     mortality_rate = simulation.values.get_rate('mortality_rate')
-
     mortality_rate.source = simulation.tables.build_table(build_table(0))
-
     pump_simulation(simulation, iterations=1)
 
     pop = simulation.population.population
-
-    severe_diarrhea_index = pop.query("diarrhea == 'severe_diarrhea'").index
-
-    # FIXME: @Alecwd -- is this the correct use of .all()? Are there better
-    #     ways to check that all values are greater than 0? Similar question
-    #     applies to two tests below.
-    assert mortality_rate(severe_diarrhea_index)['death_due_to_severe_diarrhea'].all() > 0, \
-        "people with diarrhea should have an elevated mortality rate"
-
     mild_diarrhea_index = pop.query("diarrhea == 'mild_diarrhea'").index
     moderate_diarrhea_index = pop.query("diarrhea == 'moderate_diarrhea'").index
+    severe_diarrhea_index = pop.query("diarrhea == 'severe_diarrhea'").index
 
-    assert mortality_rate(mild_diarrhea_index).all() == 0, \
-        "people with mild/moderate diarrhea should have no elevated" \
-        " mortality due to diarrhea (or due to anything else in this test)"
-    assert mortality_rate(moderate_diarrhea_index).all() == 0, \
-        "people with mild/moderate diarrhea should have no elevated" \
-        " mortality due to diarrhea (or due to anything else in this test)"
+    err_msg = "People with severe diarrhea should have an elevated mortality rate."
+    assert np.all(mortality_rate(severe_diarrhea_index)['death_due_to_severe_diarrhea'] > 0), err_msg
+
+    err_msg = "People with mild/moderate diarrhea should have no elevated mortality."
+    assert np.all(mortality_rate(mild_diarrhea_index) == 0), err_msg
+    assert np.all(mortality_rate(moderate_diarrhea_index) == 0), err_msg
 
 
-# TEST 5 --> test that severity proportions are correctly being applied
 def test_severity_proportions():
-    factory = diarrhea_factory()
-
-    simulation = setup_simulation([generate_test_population] + factory,
+    diarrhea_and_etiology_models = build_diarrhea_model()
+    simulation = setup_simulation([generate_test_population] + diarrhea_and_etiology_models,
                                   population_size=10000)
+    # Give everyone diarrhea
+    incidence = build_table(14000)
+    rota_incidence = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
+    rota_incidence.source = simulation.tables.build_table(incidence)
 
-    # give everyone diarrhea
-    inc = build_table(14000)
-
-    rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
-
-    rota_inc.source = simulation.tables.build_table(inc)
-
-    # pump the simulation forward 1 time period
     pump_simulation(simulation, iterations=1)
-
     pop = simulation.population.population
 
-    mild_prop_in_sim = len(pop.query("diarrhea == 'mild_diarrhea'"))/10000
+    mild_proportion_in_sim = len(pop.query("diarrhea == 'mild_diarrhea'"))/10000
+    moderate_proportion_in_sim = len(pop.query("diarrhea == 'moderate_diarrhea'"))/10000
+    severe_proportion_in_sim = len(pop.query("diarrhea == 'severe_diarrhea'"))/10000
 
-    moderate_prop_in_sim = len(pop.query("diarrhea == 'moderate_diarrhea'"))/10000
+    mild_proportion_in_GBD = get_severity_splits(causes.diarrhea.incidence, causes.mild_diarrhea.incidence)
+    moderate_proportion_in_GBD = get_severity_splits(causes.diarrhea.incidence, causes.moderate_diarrhea.incidence)
+    severe_proportion_in_GBD = get_severity_splits(causes.diarrhea.incidence, causes.severe_diarrhea.incidence)
 
-    severe_prop_in_sim = len(pop.query("diarrhea == 'severe_diarrhea'"))/10000
-
-    severe_prop_in_GBD = get_severity_splits(1181, 2610)
-
-    moderate_prop_in_GBD = get_severity_splits(1181, 2609)
-
-    mild_prop_in_GBD = get_severity_splits(1181, 2608)
-
-    assert np.allclose(mild_prop_in_sim, mild_prop_in_GBD, atol=.01)
-
-    assert np.allclose(moderate_prop_in_sim, moderate_prop_in_GBD, atol=.01)
-
-    assert np.allclose(severe_prop_in_sim, severe_prop_in_GBD, atol=.01)
+    err_msg = "Severity splits not calculated correctly."
+    assert np.isclose(mild_proportion_in_sim, mild_proportion_in_GBD, atol=.01), err_msg
+    assert np.isclose(moderate_proportion_in_sim, moderate_proportion_in_GBD, atol=.01), err_msg
+    assert np.isclose(severe_proportion_in_sim, severe_proportion_in_GBD, atol=.01), err_msg
 
 
-# TEST 6 -- test that diarrhea csmr is deleted from the background mortality
-#     rate
+# Test that diarrhea csmr is deleted from the background mortality rate.
 def test_cause_deletion():
     config.simulation_parameters.initial_age = 0
+    diarrhea_and_etiology_models = build_diarrhea_model()
+    simulation = setup_simulation([generate_test_population, Mortality()] + diarrhea_and_etiology_models)
 
-    factory = diarrhea_factory()
-    simulation = setup_simulation([generate_test_population, Mortality()] + \
-                                  factory)
-
-    # determine what the cause-deleted mortality rate should be
-    cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(1181)])
-
-    # get the mortality rate from the simulation
+    cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(causes.diarrhea.mortality)])
     simulation_mortality_rate = simulation.values.get_rate('mortality_rate')
 
-    # compare for the earliest age group (this test requires that
-    #     generate_test_population is set to create a cohort of newborns)
-    cause_deleted_mr_values = cause_deleted_mr.query("year==2005 and age<.01").cause_deleted_mortality_rate.values
-    simulation_values = simulation_mortality_rate(simulation.population.population.index).death_due_to_other_causes.unique()
+    # compare for the earliest age group (this test requires
+    # that generate_test_population is set to create a cohort of newborns)
+    cause_deleted_mr_values = cause_deleted_mr.query(
+        "year==2005 and age<.01").cause_deleted_mortality_rate.values
+    simulation_values = simulation_mortality_rate(
+        simulation.population.population.index).death_due_to_other_causes.unique()
 
-    ts = config.simulation_parameters.time_step
+    time_step = config.simulation_parameters.time_step
 
-    # check that the value in the simulation is what it should be
-    # @Alecwd: I don't like how I have to specify an absolute tolerance when I
-    #     use np.allclose here. Even though the numbers that I want to compare
-    #     are really close, I'm concerned because the assertion that the two
-    #     parameters are equal fails without the atol parameter being specified
-    #     as below. Is there a better way to confirm that the numbers are only
-    #     different because of floating point error and not something that we
-    #     need to be concerned about?
-    assert np.allclose(np.sort(simulation_values), np.sort(cause_deleted_mr_values * ts/365), atol=.000001), \
-        "make sure diarrhea has been deleted from the background mortality rate"
+    err_msg = "Diarrhea has been deleted from the background mortality rate."
+    assert np.allclose(np.sort(simulation_values),
+                       np.sort(cause_deleted_mr_values * time_step/365), atol=.000001), err_msg
+
 
