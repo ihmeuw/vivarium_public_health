@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 
@@ -10,6 +11,23 @@ from ceam_public_health.components.metrics import Metrics
 from ceam_tests.util import (build_table, setup_simulation,
                              generate_test_population, pump_simulation)
 from ceam_public_health.components.diarrhea_due_to_etiologies.disease_model import build_diarrhea_model
+
+
+def setup():
+    # Remove user overrides but keep custom cache locations if any
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 2005, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 1, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('num_simulants', 1000, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 def make_simulation_object():
     diarrhea_and_etiology_models = build_diarrhea_model()
@@ -32,14 +50,10 @@ def make_simulation_object():
 
 
 def test_incidence_rates():
-    # FIXME: Config is not being used correctly throughout tests, so hacky fix.
-    config.simulation_parameters.time_step = 1
-    print(config.simulation_parameters)
     simulation = make_simulation_object()
     pump_simulation(simulation, iterations=1)
     only_men = simulation.population.population.query("sex == 'Male'")
     err_msg = "All men should have diarrhea due to rotavirus after the first timestep in this test."
-    print(list(simulation.population.population.rotaviral_entiritis))
     assert simulation.population.population.rotaviral_entiritis_event_count.sum() == len(only_men), err_msg
     assert sum(simulation.population.population.rotaviral_entiritis == 'rotaviral_entiritis') == len(only_men), err_msg
 
@@ -180,9 +194,7 @@ def test_severity_proportions():
 # Test that diarrhea csmr is deleted from the background mortality rate.
 def test_cause_deletion():
     # FIXME: Config is not being used correctly throughout tests, so hacky fix.
-    config.simulation_parameters.initial_age = 0
-    config.simulation_parameters.year_start = 2005
-    config.simulation_parameters.year_end = 2010
+    config.simulation_parameters.set_with_metadata('initial_age', 0, layer='override', source=os.path.realpath(__file__))
     diarrhea_and_etiology_models = build_diarrhea_model()
     simulation = setup_simulation([generate_test_population, Mortality()] + diarrhea_and_etiology_models)
 

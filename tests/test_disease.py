@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch
 from datetime import timedelta
 
@@ -9,7 +10,6 @@ from ceam_public_health.components.disease import DiseaseState, RateTransition, 
 from ceam import config
 from ceam.framework.util import from_yearly
 from ceam.framework.state_machine import Transition, State
-from ceam.framework.event import Event
 
 from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
 
@@ -18,7 +18,7 @@ from ceam_inputs import get_incidence
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_dwell_time(get_disease_states_mock):
-    config.simulation_parameters.time_step = 10  # Days
+    config.simulation_parameters.set_with_metadata('time_step', 10, layer='override', source=os.path.realpath(__file__))
     get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('state')
     healthy_state = State('healthy')

@@ -2,10 +2,13 @@ import numpy as np
 import pandas as pd
 
 import ceam_inputs as ci
+
+from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.state_machine import State
 from ceam.framework.values import modifies_value
+
 from ceam_public_health.components.disease import DiseaseModel, RateTransition
 from ceam_public_health.components.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
 from ceam_public_health.components.diarrhea_due_to_etiologies.disease_model import get_duration_in_days
@@ -45,7 +48,6 @@ class DiarrheaEtiologyState(State):
         correctly @Alecwd: can you help me define key better here?
     """
     def __init__(self, state_id, key='state'):
-
         State.__init__(self, state_id)
 
         self.state_id = state_id
@@ -194,8 +196,9 @@ class DiarrheaBurden:
         return rates_df
 
     @modifies_value('disability_weight')
-    def disability_weight(self, index):
+    def disability_weight(self, index, disability_weights):
         population = self.population_view.get(index)
+        print(disability_weights)
 
         # Initialize a series where each value is 0.
         #     We add in disability to people in the infected states below
@@ -207,9 +210,9 @@ class DiarrheaBurden:
         #     associated with severity
         for severity in ["mild", "moderate", "severe"]:
             severity_index = population.query("diarrhea == '{}_diarrhea'".format(severity)).index
-            dis_weight_series.loc[severity_index] = self.severity_dict[severity]
+            disability_weights.loc[severity_index] = self.severity_dict[severity]
 
-        return dis_weight_series
+        return disability_weights
 
 
     # FIXME: This is a super slow function. Try to speed it up by using numbers
@@ -251,7 +254,7 @@ class DiarrheaBurden:
                                                                      age_group_id_max=5)
 
         current_year = pd.Timestamp(event.time).year
-
+        # WTF?
         for sex in ["Male", "Female"]:
             last_age_group_max = 0
             for age_bin, upr_bound in age_bin_age_group_max_dict:
@@ -366,18 +369,19 @@ def diarrhea_factory():
                                     etiology_specific_incidence)
 
         healthy.transition_set.append(transition)
-
+        healthy.allow_self_transitions()
         module.states.extend([healthy, etiology_state])
 
         list_of_modules.append(module)
 
     excess_mortality = ci.get_severe_diarrhea_excess_mortality()
+    time_step = config.simulation_parameters.time_step
 
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
                                      csmr_data=ci.get_cause_specific_mortality(1181),
-                                     mild_disability_weight=ci.get_disability_weight(healthstate_id=355),
-                                     moderate_disability_weight=ci.get_disability_weight(healthstate_id=356),
-                                     severe_disability_weight=ci.get_disability_weight(healthstate_id=357),
+                                     mild_disability_weight=ci.get_disability_weight(healthstate_id=355)*time_step/365,
+                                     moderate_disability_weight=ci.get_disability_weight(healthstate_id=356)*time_step/365,
+                                     severe_disability_weight=ci.get_disability_weight(healthstate_id=357)*time_step/365,
                                      mild_severity_split=ci.get_severity_splits(1181, 2608),
                                      moderate_severity_split=ci.get_severity_splits(1181, 2609),
                                      severe_severity_split=ci.get_severity_splits(1181, 2610),
