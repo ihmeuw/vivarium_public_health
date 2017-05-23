@@ -198,11 +198,6 @@ class DiarrheaBurden:
     @modifies_value('disability_weight')
     def disability_weight(self, index, disability_weights):
         population = self.population_view.get(index)
-        print(disability_weights)
-
-        # Initialize a series where each value is 0.
-        #     We add in disability to people in the infected states below
-        dis_weight_series = pd.Series(0, index=index)
 
         # Mild, moderate, and severe each have their own disability weight,
         #     which we assign in the loop below.
