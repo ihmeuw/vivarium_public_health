@@ -147,19 +147,7 @@ class DiseaseState(State):
             A filtered index of the simulants.
         """
         population = self.population_view.get(index)
-        #print()
-        #print(self.state_id)
-        #print("Before population {}".format(population))
         if self.track_events:  # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
-            #print(pd.Timestamp(self.clock()))
-            #print(self.dwell_time(index))
-            #print(population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D'))
-            #print(population)
-            #print()
-            #print(population.loc[population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
-            #                     < pd.Timestamp(self.clock())
-            #                     + pd.Timedelta(config.simulation_parameters.time_step, unit='D')])
-            #print()
             return population.loc[population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
                                   < pd.Timestamp(self.clock())
                                   + pd.Timedelta(config.simulation_parameters.time_step, unit='D')].index
@@ -177,10 +165,6 @@ class DiseaseState(State):
         if self.track_events:
             pop = self.population_view.get(index)
             pop[self.event_time_column] = pd.Timestamp(self.clock())
-
-            #if 'diarrhea' in self.state_id:
-            #    print(pop[self.event_time_column])
-            #    print(self.dwell_time(pop.index))
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
         if self.side_effect_function is not None:
@@ -241,8 +225,6 @@ class DiseaseState(State):
         `pandas.Series`
             An iterable of disability weights indexed by the provided `index`."""
         population = self.population_view.get(index)
-        #print("{} {}".format(self.condition, self.state_id))
-        #print(any(population[self.condition] == self.state_id))
         return self._disability_weight(index) * (population[self.condition] == self.state_id)
 
     def name(self):
@@ -295,8 +277,6 @@ class TransientDiseaseState(TransientState):
         if self.track_events:
             pop = self.population_view.get(index)
             pop[self.event_time_column] = pd.Timestamp(self.clock().timestamp())
-            #print(index)
-            #print(pop[self.event_time_column])
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
         if self.side_effect_function is not None:
