@@ -8,7 +8,7 @@ from ceam.framework.state_machine import State
 from ceam.framework.values import modifies_value
 from ceam_public_health.components.disease import DiseaseModel, RateTransition
 from ceam_public_health.components.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
-from components.diarrhea_due_to_etiologies.disease_model import get_duration_in_days
+from ceam_public_health.components.diarrhea_due_to_etiologies.disease_model import get_duration_in_days
 
 ETIOLOGIES = ['shigellosis',
               'cholera',
