@@ -67,6 +67,8 @@ class DiseaseState(State):
         self._disability_weight_data = disability_weight
         self.prevalence_data = prevalence_data
         self._dwell_time = dwell_time.total_seconds() if isinstance(dwell_time, timedelta) else dwell_time
+        if self._dwell_time is not None:
+            self.transition_set.allow_null_transition = True
         self.event_time_column = event_time_column if event_time_column else self.state_id + '_event_time'
         self.event_count_column = event_count_column if event_count_column else self.state_id + '_event_count'
         self.side_effect_function = side_effect_function
@@ -92,8 +94,11 @@ class DiseaseState(State):
             columns += [self.event_time_column, self.event_count_column]
         self.population_view = builder.population_view(columns)
         self.clock = builder.clock()
-        self._disability_weight = builder.lookup(self._disability_weight_data) if self._disability_weight_data else None
-        self.dwell_time = builder.value('{}.dwell_time'.format(self.state_id))
+        if self._disability_weight_data is not None:
+            self._disability_weight = builder.lookup(self._disability_weight_data)
+        else:
+            self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
+        self.dwell_time = builder.value('dwell_time.{}'.format(self.state_id))
         self.dwell_time.source = builder.lookup(self._dwell_time)
         return super().setup(builder)
 
@@ -108,7 +113,7 @@ class DiseaseState(State):
         """
         if self.track_events:
             population_size = len(event.index)
-            self.population_view.update(pd.DataFrame({self.event_time_column: np.zeros(population_size),
+            self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series([pd.NaT]*population_size),
                                                       self.event_count_column: np.zeros(population_size)},
                                                      index=event.index))
 
@@ -139,9 +144,20 @@ class DiseaseState(State):
             A filtered index of the simulants.
         """
         population = self.population_view.get(index)
+        #print()
+        #print(self.state_id)
+        #print("Before population {}".format(population))
         if self.track_events:  # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
-            return population.loc[population[self.event_time_column]
-                                  < self.clock().timestamp() - self.dwell_time(index)].index
+            #print(pd.Timestamp(self.clock()))
+            #print(pd.to_timedelta(self.dwell_time(index), unit='D'))
+            #print(population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D'))
+            #print(population.loc[population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
+            #                     < pd.Timestamp(self.clock())
+            #                     + pd.Timedelta(config.simulation_parameters.time_step, unit='D')])
+            #print()
+            return population.loc[population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
+                                  < pd.Timestamp(self.clock())
+                                  + pd.Timedelta(config.simulation_parameters.time_step, unit='D')].index
         else:
             return index
 
@@ -155,7 +171,11 @@ class DiseaseState(State):
         """
         if self.track_events:
             pop = self.population_view.get(index)
-            pop[self.event_time_column] = self.clock().timestamp()
+            pop[self.event_time_column] = pd.Timestamp(self.clock())
+
+            #if 'diarrhea' in self.state_id:
+            #    print(pop[self.event_time_column])
+            #    print(self.dwell_time(pop.index))
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
         if self.side_effect_function is not None:
@@ -169,15 +189,18 @@ class DiseaseState(State):
             t = ProportionTransition(output=output,
                                      proportion=proportion,
                                      triggered=triggered)
+            self.transition_set.append(t)
+            return t
         elif rates is not None:
             t = RateTransition(output=output,
                                rate_label=output.name(),
                                rate_data=rates,
                                triggered=triggered)
+            self.transition_set.append(t)
+            return t
         else:
-            t = super().add_transition(output, triggered=triggered)
-        self.transition_set.append(t)
-        return t
+            return super().add_transition(output, triggered=triggered)
+
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
@@ -212,8 +235,9 @@ class DiseaseState(State):
         -------
         `pandas.Series`
             An iterable of disability weights indexed by the provided `index`."""
-
         population = self.population_view.get(index)
+        #print("{} {}".format(self.condition, self.state_id))
+        #print(any(population[self.condition] == self.state_id))
         return self._disability_weight(index) * (population[self.condition] == self.state_id)
 
     def name(self):
@@ -224,6 +248,70 @@ class DiseaseState(State):
 
 
 class TransientDiseaseState(TransientState):
+    def __init__(self, state_id, event_time_column=None, event_count_column=None,
+                 side_effect_function=None, track_events=True, key='state'):
+        super().__init__(state_id, key=key)
+        self.event_time_column = event_time_column if event_time_column else self.state_id + '_event_time'
+        self.event_count_column = event_count_column if event_count_column else self.state_id + '_event_count'
+
+        self.side_effect_function = side_effect_function
+        self.track_events = track_events
+        # Condition is set when the state is added to a disease model
+        self.condition = None
+
+    def setup(self, builder):
+        """Performs this component's simulation setup and return sub-components.
+
+        Parameters
+        ----------
+        builder : `engine.Builder`
+            Interface to several simulation tools.
+
+        Returns
+        -------
+        iterable
+            This component's sub-components.
+        """
+        columns = [self.condition]
+        if self.track_events:
+            columns += [self.event_time_column, self.event_count_column]
+        self.population_view = builder.population_view(columns)
+        self.clock = builder.clock()
+        return super().setup(builder)
+
+    def _transition_side_effect(self, index):
+        """Updates the simulation state and triggers any side-effects associated with this state.
+
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.    
+        """
+        if self.track_events:
+            pop = self.population_view.get(index)
+            pop[self.event_time_column] = pd.Timestamp(self.clock().timestamp())
+            #print(index)
+            #print(pop[self.event_time_column])
+            pop[self.event_count_column] += 1
+            self.population_view.update(pop)
+        if self.side_effect_function is not None:
+            self.side_effect_function(index)
+
+    @listens_for('initialize_simulants')
+    def load_population_columns(self, event):
+        """Adds this state's columns to the simulation state table.
+
+        Parameters
+        ----------
+        event : `ceam.framework.population.PopulationEvent`
+            An event signaling the creation of new simulants.
+        """
+        if self.track_events:
+            population_size = len(event.index)
+            self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series([pd.NaT]*population_size),
+                                                      self.event_count_column: np.zeros(population_size)},
+                                                     index=event.index))
+
     def add_transition(self, output, proportion=None, rates=None, triggered=False):
 
         if proportion is not None and rates is not None:
@@ -372,8 +460,8 @@ class ProportionTransition(Transition):
 
 
 class DiseaseModel(Machine):
-    def __init__(self, condition):
-        Machine.__init__(self, condition)
+    def __init__(self, condition, **kwargs):
+        super().__init__(condition, **kwargs)
 
     def module_id(self):
         return str((self.__class__, self.state_column))
@@ -381,9 +469,6 @@ class DiseaseModel(Machine):
     @property
     def condition(self):
         return self.state_column
-
-    def add_states(self, states):
-        self.states.extend(states)
 
     def setup(self, builder):
         self.population_view = builder.population_view([self.condition], 'alive')
@@ -405,7 +490,7 @@ class DiseaseModel(Machine):
 
 
     @listens_for('initialize_simulants')
-    @uses_columns(['age', 'sex'])
+    @uses_columns(['age', 'sex', condition])
     def load_population_columns(self, event):
         population = event.population
 

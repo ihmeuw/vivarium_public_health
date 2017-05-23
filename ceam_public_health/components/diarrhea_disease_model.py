@@ -1,18 +1,14 @@
-import pandas as pd
 import numpy as np
-
-from ceam.framework.state_machine import State
-from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
-from ceam.framework.values import modifies_value
+import pandas as pd
 
 import ceam_inputs as ci
-
-from ceam_public_health.components.disease import DiseaseModel
-from ceam_public_health.components.disease import RateTransition
-from ceam_public_health.components.util import make_cols_demographically_specific
-from ceam_public_health.components.util import make_age_bin_age_group_max_dict
-
+from ceam.framework.event import listens_for
+from ceam.framework.population import uses_columns
+from ceam.framework.state_machine import State
+from ceam.framework.values import modifies_value
+from ceam_public_health.components.disease import DiseaseModel, RateTransition
+from ceam_public_health.components.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
+from components.diarrhea_due_to_etiologies.disease_model import get_duration_in_days
 
 ETIOLOGIES = ['shigellosis',
               'cholera',
@@ -75,8 +71,7 @@ class DiarrheaEtiologyState(State):
     # Output metrics counting the number of cases of diarrhea and number of
     #     cases overall of diarrhea due to each pathogen
     @modifies_value('metrics')
-    @uses_columns(DIARRHEA_EVENT_COUNT_COLS + [eti + '_event_count' for eti in
-                                               ETIOLOGIES])
+    @uses_columns(DIARRHEA_EVENT_COUNT_COLS + [eti + '_event_count' for eti in ETIOLOGIES])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
 
@@ -192,9 +187,9 @@ class DiarrheaBurden:
         population = population_view.get(index)
 
         # only apply excess mortality to people with severe diarrhea
-        rates_df['death_due_to_severe_diarrhea'] = self.diarrhea_excess_mortality(
-            population.index, skip_post_processor=True) * \
-                (population['diarrhea'] == 'severe_diarrhea')
+        rates_df['death_due_to_severe_diarrhea'] = (
+            self.diarrhea_excess_mortality(population.index, skip_post_processor=True)
+            * (population['diarrhea'] == 'severe_diarrhea'))
 
         return rates_df
 
@@ -386,6 +381,6 @@ def diarrhea_factory():
                                      mild_severity_split=ci.get_severity_splits(1181, 2608),
                                      moderate_severity_split=ci.get_severity_splits(1181, 2609),
                                      severe_severity_split=ci.get_severity_splits(1181, 2610),
-                                     duration_data=ci.get_duration_in_days(1181))
+                                     duration_data=get_duration_in_days(1181))
 
     return list_of_modules + [diarrhea_burden]
