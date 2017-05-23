@@ -11,7 +11,6 @@ from ceam_tests.util import (build_table, setup_simulation,
                              generate_test_population, pump_simulation)
 from ceam_public_health.components.diarrhea_due_to_etiologies.disease_model import build_diarrhea_model
 
-
 def make_simulation_object():
     diarrhea_and_etiology_models = build_diarrhea_model()
     simulation = setup_simulation([generate_test_population, Metrics()] + diarrhea_and_etiology_models)
@@ -33,10 +32,14 @@ def make_simulation_object():
 
 
 def test_incidence_rates():
+    # FIXME: Config is not being used correctly throughout tests, so hacky fix.
+    config.simulation_parameters.time_step = 1
+    print(config.simulation_parameters)
     simulation = make_simulation_object()
     pump_simulation(simulation, iterations=1)
     only_men = simulation.population.population.query("sex == 'Male'")
     err_msg = "All men should have diarrhea due to rotavirus after the first timestep in this test."
+    print(list(simulation.population.population.rotaviral_entiritis))
     assert simulation.population.population.rotaviral_entiritis_event_count.sum() == len(only_men), err_msg
     assert sum(simulation.population.population.rotaviral_entiritis == 'rotaviral_entiritis') == len(only_men), err_msg
 
@@ -176,13 +179,18 @@ def test_severity_proportions():
 
 # Test that diarrhea csmr is deleted from the background mortality rate.
 def test_cause_deletion():
+    # FIXME: Config is not being used correctly throughout tests, so hacky fix.
     config.simulation_parameters.initial_age = 0
+    config.simulation_parameters.year_start = 2005
+    config.simulation_parameters.year_end = 2010
     diarrhea_and_etiology_models = build_diarrhea_model()
     simulation = setup_simulation([generate_test_population, Mortality()] + diarrhea_and_etiology_models)
 
     cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(causes.diarrhea.mortality)])
+    print(cause_deleted_mr)
     simulation_mortality_rate = simulation.values.get_rate('mortality_rate')
-    pop = simulation.population.population
+    #pop = simulation.population.population
+    #print(pop.age)
     # compare for the earliest age group (this test requires
     # that generate_test_population is set to create a cohort of newborns)
     cause_deleted_mr_values = cause_deleted_mr.query(
