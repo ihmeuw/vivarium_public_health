@@ -76,7 +76,6 @@ def build_diarrhea_model():
         @uses_columns([etiology.name], 'alive')
         def reset_etiology(index, population_view):
             if not index.empty:
-                #print('Resetting {}'.format(etiology.name))
                 etiology.recovery_transition.set_active(index)
                 etiology.pre_trigger_state.next_state(index, population_view)
                 etiology.recovery_transition.set_inactive(index)
@@ -86,7 +85,6 @@ def build_diarrhea_model():
     recovery_side_effects = [etiology_recovery_factory(etiology) for etiology in etiologies]
 
     def reset_etiologies(index):
-        #print('Resetting etioloties for {} simulants'.format(len(index)))
         for side_effect in recovery_side_effects:
             side_effect(index)
 

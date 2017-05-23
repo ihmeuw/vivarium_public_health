@@ -377,9 +377,12 @@ class ExcessMortalityState(DiseaseState):
             
         """
         population = self.population_view.get(index)
-        rates_df[self.state_id] = (self._mortality(population.index, skip_post_processor=True)
-                                   * (population[self.condition] == self.state_id))
-
+        rate = (self._mortality(population.index, skip_post_processor=True)
+                * (population[self.condition] == self.state_id))
+        if isinstance(rates_df, pd.Series):
+            rates_df = pd.DataFrame({'rate': rates_df, self.state_id: rate})
+        else:
+            rates_df[self.state_id] = rate
         return rates_df
 
     @modifies_value('csmr_data')
