@@ -60,8 +60,6 @@ def test_incidence_rates():
 
 def test_disability_weights():
     simulation = make_simulation_object()
-    #for value in sorted(list(simulation.values._pipelines.keys())):
-    #    print(value)
     disability_weight = simulation.values.get_value('disability_weight')
 
     pump_simulation(simulation, iterations=1)
@@ -98,7 +96,6 @@ def test_remission():
     # except for men over age 20, for whom duration will be 2 days.
     duration_data = build_table(1, ['age', 'year', 'sex', 'duration'])
     duration_data.loc[duration_data.age >= 20, 'duration'] = 2
-    #print(duration_data)
     duration = simulation.values.get_value('dwell_time.mild_diarrhea')
     duration.source = simulation.tables.build_table(duration_data)
     duration = simulation.values.get_value('dwell_time.moderate_diarrhea')
@@ -199,19 +196,15 @@ def test_cause_deletion():
     simulation = setup_simulation([generate_test_population, Mortality()] + diarrhea_and_etiology_models)
 
     cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(causes.diarrhea.mortality)])
-    print(cause_deleted_mr)
     simulation_mortality_rate = simulation.values.get_rate('mortality_rate')
-    #pop = simulation.population.population
-    #print(pop.age)
+
     # compare for the earliest age group (this test requires
     # that generate_test_population is set to create a cohort of newborns)
     cause_deleted_mr_values = cause_deleted_mr.query(
         "year==2005 and age<.01").cause_deleted_mortality_rate.values
-    #print(cause_deleted_mr_values)
+
     simulation_values = simulation_mortality_rate(
         simulation.population.population.index).death_due_to_other_causes.unique()
-    #print(simulation_values)
-
     time_step = config.simulation_parameters.time_step
 
     err_msg = "Diarrhea has been deleted from the background mortality rate."
