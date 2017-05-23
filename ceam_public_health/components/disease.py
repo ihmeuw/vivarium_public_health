@@ -66,7 +66,7 @@ class DiseaseState(State):
         super().__init__(state_id, key=key)
         self._disability_weight_data = disability_weight
         self.prevalence_data = prevalence_data
-        self._dwell_time = dwell_time.total_seconds() if isinstance(dwell_time, timedelta) else dwell_time
+        self._dwell_time = dwell_time
         if self._dwell_time is not None:
             self.transition_set.allow_null_transition = True
         self.event_time_column = event_time_column if event_time_column else self.state_id + '_event_time'
@@ -99,6 +99,9 @@ class DiseaseState(State):
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
         self.dwell_time = builder.value('dwell_time.{}'.format(self.state_id))
+        if isinstance(self._dwell_time, timedelta):
+            self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
+
         self.dwell_time.source = builder.lookup(self._dwell_time)
         return super().setup(builder)
 
@@ -149,8 +152,10 @@ class DiseaseState(State):
         #print("Before population {}".format(population))
         if self.track_events:  # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
             #print(pd.Timestamp(self.clock()))
-            #print(pd.to_timedelta(self.dwell_time(index), unit='D'))
+            #print(self.dwell_time(index))
             #print(population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D'))
+            #print(population)
+            #print()
             #print(population.loc[population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
             #                     < pd.Timestamp(self.clock())
             #                     + pd.Timedelta(config.simulation_parameters.time_step, unit='D')])
