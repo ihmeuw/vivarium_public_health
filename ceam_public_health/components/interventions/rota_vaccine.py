@@ -554,14 +554,29 @@ class RotaVaccine():
         population = population_view.get(index)
 
         count_vacs = population.groupby('rotaviral_entiritis_vaccine').size()
+       
+        if 1 in count_vacs.keys():
+            first_dose_count = count_vacs[1]
+        else:
+            first_dose_count = 0
 
-        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = count_vacs[1] + count_vacs[2] + count_vacs[3]
-        metrics['rotaviral_entiritis_vaccine_second_dose_count'] = count_vacs[2] + count_vacs[3]
-        metrics['rotaviral_entiritis_vaccine_third_dose_count'] = count_vacs[3]
+        if 2 in count_vacs.keys():
+            second_dose_count = count_vacs[2]
+        else:
+            second_dose_count = 0
+
+        if 3 in count_vacs.keys():
+            third_dose_count = count_vacs[3]
+        else:
+            third_dose_count = 0
+
+        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = first_dose_count + second_dose_count + third_dose_count
+        metrics['rotaviral_entiritis_vaccine_second_dose_count'] = second_dose_count + third_dose_count
+        metrics['rotaviral_entiritis_vaccine_third_dose_count'] = third_dose_count
 
         total_number_of_administered_vaccines = metrics['rotaviral_entiritis_vaccine_first_dose_count'] + \
-                                                metrics['rotaviral_entiritis_vaccine_second_dose_count'] + \
-                                                metrics['rotaviral_entiritis_vaccine_third_dose_count']
+                                            metrics['rotaviral_entiritis_vaccine_second_dose_count'] + \
+                                            metrics['rotaviral_entiritis_vaccine_third_dose_count']
 
         metrics['vaccine_unit_cost_column'] = (total_number_of_administered_vaccines) * \
                                                config.rota_vaccine.RV5_dose_cost
