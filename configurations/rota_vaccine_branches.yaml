@@ -1,105 +1,168 @@
-draw_count: 100
+draw_count: 50
 
 branches:
-    - rota_vaccine:
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
         vaccination_proportion_increase: 0
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .03
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
+        vaccination_proportion_increase: .1
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .06
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
+        vaccination_proportion_increase: .2
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .09
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .12
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .15
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .18
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .21
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .24
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .27
-
-    - rota_vaccine:
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
         vaccination_proportion_increase: .3
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .33
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
+        vaccination_proportion_increase: .4
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .36
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
+        vaccination_proportion_increase: .5
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .39
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .42
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .45
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .48
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .51
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .54
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .57
-
-    - rota_vaccine:
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
         vaccination_proportion_increase: .6
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .63
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
+        vaccination_proportion_increase: .7
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .66
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
+        vaccination_proportion_increase: .8
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .69
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .72
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .75
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .78
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .81
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .84
-
-    - rota_vaccine:
-        vaccination_proportion_increase: .87
-
-    - rota_vaccine:
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
         vaccination_proportion_increase: .9
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .93
+    - simulation_parameters:
+        location_id: 179
+      rota_vaccine:
+        vaccination_proportion_increase: 1
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .96
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: 0
 
-    - rota_vaccine:
-        vaccination_proportion_increase: .99
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: .1
+
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: .2
+
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: .3
+
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: .4
+
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: .5
+
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: .6
+
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: .7
+
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: .8
+
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: .9
+
+    - simulation_parameters:
+        location_id: 161
+      rota_vaccine:
+        vaccination_proportion_increase: 1
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: 0
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: .1
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: .2
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: .3
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: .4
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: .5
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: .6
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: .7
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: .8
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: .9
+
+    - simulation_parameters:
+        location_id: 214
+      rota_vaccine:
+        vaccination_proportion_increase: 1  
 
