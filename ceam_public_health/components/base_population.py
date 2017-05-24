@@ -29,7 +29,7 @@ def generate_base_population(event):
     initial_age = event.user_data.get('initial_age', None)
 
     population = generate_ceam_population(time=event.time, number_of_simulants=population_size, initial_age=initial_age)
-    population['age'] = population.age.astype(int)
+    population['age'] = population.age.astype(float)
     population.index = event.index
     population['fractional_age'] = population.age.astype(float)
 
@@ -62,7 +62,7 @@ def adherence(event):
 def age_simulants(event):
     time_step = config.simulation_parameters.time_step
     event.population['fractional_age'] += time_step/365.0
-    event.population['age'] = event.population.fractional_age.astype(int)
+    event.population['age'] = event.population.fractional_age.astype(float)
     event.population_view.update(event.population)
 
 
