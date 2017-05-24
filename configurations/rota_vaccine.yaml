@@ -16,5 +16,4 @@ configuration:
         pop_age_start:
         pop_age_end:
         initial_age: 0.0
-        population_size: 20000
-
+        population_size: 100000
