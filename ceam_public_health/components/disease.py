@@ -552,15 +552,12 @@ def make_disease_state(cause, dwell_time=0, side_effect_function=None):
             prevalence = cause.prevalence
     else:
         prevalence = 0.0
+
     if 'excess_mortality' in cause:
         if isinstance(cause.excess_mortality, meid):
             excess_mortality = get_excess_mortality(cause.excess_mortality)
         else:
             excess_mortality = cause.excess_mortality
-    else:
-        excess_mortality = 0.0
-
-    if excess_mortality:
         return ExcessMortalityState(cause.name,
                                     dwell_time=dwell_time,
                                     disability_weight=disability_weight,
