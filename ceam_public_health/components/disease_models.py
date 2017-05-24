@@ -78,14 +78,14 @@ def heart_disease_factory():
     heart_attack.add_transition(angina, proportion=angina_prop_df)
     heart_attack.add_transition(asymptomatic_ihd, proportion=asympt_prop_df)
 
-    mild_heart_failure.add_transition(heart_attack, rates=causes.heart_attack.incidence)
-    moderate_heart_failure.add_transition(heart_attack, rates=causes.heart_attack.incidence)
-    severe_heart_failure.add_transition(heart_attack, rates=causes.heart_attack.incidence)
-    asymptomatic_angina.add_transition(heart_attack, rates=causes.heart_attack.incidence)
-    mild_angina.add_transition(heart_attack, rates=causes.heart_attack.incidence)
-    moderate_angina.add_transition(heart_attack, rates=causes.heart_attack.incidence)
-    severe_angina.add_transition(heart_attack, rates=causes.heart_attack.incidence)
-    asymptomatic_ihd.add_transition(heart_attack, rates=causes.heart_attack.incidence)
+    mild_heart_failure.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
+    moderate_heart_failure.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
+    severe_heart_failure.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
+    asymptomatic_angina.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
+    mild_angina.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
+    moderate_angina.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
+    severe_angina.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
+    asymptomatic_ihd.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
 
     return DiseaseModel('ihd',
                         states=[healthy,
