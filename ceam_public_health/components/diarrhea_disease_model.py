@@ -13,6 +13,7 @@ from ceam_public_health.components.disease import DiseaseModel, RateTransition
 from ceam_public_health.components.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
 from ceam_public_health.components.diarrhea_due_to_etiologies.disease_model import get_duration_in_days
 
+
 ETIOLOGIES = ['shigellosis',
               'cholera',
               'other_salmonella',
@@ -210,6 +211,7 @@ class DiarrheaBurden:
         return disability_weights
 
 
+
     # FIXME: This is a super slow function. Try to speed it up by using numbers
     #     instead of strings
     # TODO: This method needs some more tests. Open to suggestions on how to
@@ -249,7 +251,7 @@ class DiarrheaBurden:
                                                                      age_group_id_max=5)
 
         current_year = pd.Timestamp(event.time).year
-        # WTF?
+
         for sex in ["Male", "Female"]:
             last_age_group_max = 0
             for age_bin, upr_bound in age_bin_age_group_max_dict:
@@ -370,6 +372,7 @@ def diarrhea_factory():
         list_of_modules.append(module)
 
     excess_mortality = ci.get_severe_diarrhea_excess_mortality()
+
     time_step = config.simulation_parameters.time_step
 
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
@@ -383,3 +386,4 @@ def diarrhea_factory():
                                      duration_data=get_duration_in_days(1181))
 
     return list_of_modules + [diarrhea_burden]
+

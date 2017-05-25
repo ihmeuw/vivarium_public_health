@@ -45,6 +45,7 @@ class BloodPressure:
             'systolic_blood_pressure': np.full(population_size, 112.0),
             }))
 
+
     @listens_for('time_step__prepare', priority=8)
     @uses_columns(['systolic_blood_pressure', 'systolic_blood_pressure_percentile'], 'alive')
     def update_systolic_blood_pressure(self, event):
