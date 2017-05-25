@@ -32,7 +32,7 @@ class BloodPressure:
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
             (591, 'ckd'),
-            ], effect_function)
+            ], effect_function, 'systolic_blood_pressure')
 
         return risk_effects
 
