@@ -97,7 +97,7 @@ def test_incidence(get_disease_states_mock):
 
     pump_simulation(simulation, iterations=1)
 
-    assert np.all(from_yearly(0.7, time_step) == incidence_rate(simulation.population.population.index))
+    assert np.allclose(from_yearly(0.7, time_step), incidence_rate(simulation.population.population.index), atol=0.00001)
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_risk_deletion(get_disease_states_mock):
@@ -128,7 +128,8 @@ def test_risk_deletion(get_disease_states_mock):
 
     expected_rate = base_rate * (1 - paf)
 
-    assert np.all(from_yearly(expected_rate, time_step) == incidence_rate(simulation.population.population.index))
+    assert np.allclose(from_yearly(expected_rate, time_step),
+                       incidence_rate(simulation.population.population.index), atol=0.00001)
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_load_population_custom_columns(get_disease_states_mock):
