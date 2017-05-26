@@ -26,7 +26,7 @@ def test_determine_who_should_receive_dose():
     """
     config.rota_vaccine.second_dose_retention = .8
     config.rota_vaccine.third_dose_retention = .4
-    
+
     factory = diarrhea_factory()
 
     rv_instance = RotaVaccine(True)
@@ -150,7 +150,7 @@ def test_set_working_column2(get_indexes):
     #    but it seems confusing
     config.rota_vaccine.second_dose_retention = 1
     config.rota_vaccine.third_dose_retention = 1
-    
+
     # pump the simulation far enough ahead that simulants can get second dose
     simulation = setup_simulation([generate_test_population, age_simulants,
                                    RotaVaccine(True)] + diarrhea_factory())
@@ -185,7 +185,7 @@ def test_set_working_column3(get_indexes):
     #    but it seems confusing
     config.rota_vaccine.second_dose_retention = 1
     config.rota_vaccine.third_dose_retention = 1
-    
+
     # 19 days in, we should see that the third vaccine is working and the first
     #     and second are not
     simulation = setup_simulation([generate_test_population, age_simulants,
@@ -236,26 +236,23 @@ def test_incidence_rates():
     simulation = setup_simulation([generate_test_population, age_simulants,
                                    RotaVaccine(True)] + diarrhea_factory())
 
-    rota_table = build_table(7000, ['age', 'year', 'sex', 'cat1'])
-
+    rota_table = build_table(7000)
     rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
-
-    rota_inc.source = simulation.tables.build_table(
-        rota_table)
+    rota_inc.source = simulation.tables.build_table(rota_table)
 
     vaccine_protection = config.rota_vaccine.first_dose_protection
 
     # pump the simulation far enough ahead that simulants can get first dose
-    pump_simulation(simulation, duration=timedelta(days=7))
+    pump_simulation(simulation, duration=timedelta(days=8))
 
     not_vaccinated = simulation.population.population.query(
                     "rotaviral_entiritis_vaccine_first_dose_is_working == 0")
-
     vaccinated = simulation.population.population.query(
                     "rotaviral_entiritis_vaccine_first_dose_is_working == 1")
 
     # find an example of simulants of the same age and sex, but not vaccination
     #     status, and then compare their incidence rates
+
     assert np.allclose(pd.unique(rota_inc(vaccinated.index)), pd.unique(
         rota_inc(not_vaccinated.index)*(1-vaccine_protection))), \
         "simulants that receive vaccine should have lower incidence of diarrhea" \
@@ -265,7 +262,7 @@ def test_incidence_rates():
     simulation = setup_simulation([generate_test_population, age_simulants,
                                    RotaVaccine(True)] + diarrhea_factory())
 
-    rota_table = build_table(1000, ['age', 'year', 'sex', 'cat1'])
+    rota_table = build_table(1000)
 
     rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
 
@@ -275,7 +272,7 @@ def test_incidence_rates():
     vaccine_protection = config.rota_vaccine.second_dose_protection
 
     # pump the simulation far enough ahead that simulants can get second dose
-    pump_simulation(simulation, duration=timedelta(days=13))
+    pump_simulation(simulation, duration=timedelta(days=14))
 
     not_vaccinated = simulation.population.population.query(
         "rotaviral_entiritis_vaccine_second_dose_is_working == 0")
@@ -293,7 +290,7 @@ def test_incidence_rates():
     simulation = setup_simulation([generate_test_population, age_simulants,
                                    RotaVaccine(True)] + diarrhea_factory())
 
-    rota_table = build_table(1000, ['age', 'year', 'sex', 'cat1'])
+    rota_table = build_table(1000)
 
     rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
 
@@ -303,7 +300,7 @@ def test_incidence_rates():
     vaccine_protection = config.rota_vaccine.third_dose_protection
 
     # pump the simulation far enough ahead that simulants can get third dose
-    pump_simulation(simulation, duration=timedelta(days=19))
+    pump_simulation(simulation, duration=timedelta(days=21))
 
     not_vaccinated = simulation.population.population.query(
                      "rotaviral_entiritis_vaccine_third_dose_is_working == 0")
