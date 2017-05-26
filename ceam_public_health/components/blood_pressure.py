@@ -32,7 +32,7 @@ class BloodPressure:
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
             (591, 'ckd'),
-            ], effect_function)
+            ], effect_function, 'systolic_blood_pressure')
 
         return risk_effects
 
@@ -44,6 +44,7 @@ class BloodPressure:
             'systolic_blood_pressure_percentile': self.randomness.get_draw(event.index)*0.98+0.01,
             'systolic_blood_pressure': np.full(population_size, 112.0),
             }))
+
 
     @listens_for('time_step__prepare', priority=8)
     @uses_columns(['systolic_blood_pressure', 'systolic_blood_pressure_percentile'], 'alive')

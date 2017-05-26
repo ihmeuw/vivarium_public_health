@@ -37,11 +37,12 @@ from ceam_public_health.components.base_population import Mortality
 from ceam_public_health.components.diarrhea_disease_model import (DiarrheaEtiologyState,
                                                                   DiarrheaBurden,
                                                                   diarrhea_factory)
+from ceam_public_health.components.metrics import Metrics  # Source of disability weight
 
 def make_simulation_object():
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population] + factory)
+    simulation = setup_simulation([generate_test_population, Metrics()] + factory)
 
     # make it so that all men will get incidence due to rotaviral entiritis
     inc = build_table(0)
@@ -84,10 +85,7 @@ def test_incidence_rates():
 # TEST 2 --> test that disability weight is correctly being applied
 def test_disability_weights():
     simulation = make_simulation_object()
-
-    dis_weight_data = build_table(0)
     dis_weight = simulation.values.get_value('disability_weight')
-    dis_weight.source = simulation.tables.build_table(dis_weight_data)
 
     # pump the simulation forward 1 time period
     pump_simulation(simulation, iterations=1)

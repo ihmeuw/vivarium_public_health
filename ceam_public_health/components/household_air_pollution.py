@@ -30,7 +30,7 @@ class HouseholdAirPollution:
             (493, 'heart_attack'),
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
-            ], effect_function)
+            ], effect_function, 'household_air_pollution')
 
         return risk_effects
 

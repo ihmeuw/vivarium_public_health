@@ -30,7 +30,7 @@ class SecondhandSmoke:
             (493, 'heart_attack'),
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
-            ], effect_function)
+            ], effect_function, 'secondhand_smoke')
 
         return risk_effects
 

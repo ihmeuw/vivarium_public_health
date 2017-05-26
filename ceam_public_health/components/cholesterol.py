@@ -41,7 +41,7 @@ class TotalCholesterol:
         risk_effects = make_gbd_risk_effects(106, [
             (493, 'heart_attack'),
             (495, 'ischemic_stroke'),
-            ], effect_function)
+            ], effect_function, 'total_cholesterol')
         return risk_effects
 
 
