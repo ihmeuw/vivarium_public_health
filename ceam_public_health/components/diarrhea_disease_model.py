@@ -197,17 +197,16 @@ class DiarrheaBurden:
         return rates_df
 
     @modifies_value('disability_weight')
-    def disability_weight(self, index, disability_weights):
+    def disability_weight(self, index):
         population = self.population_view.get(index)
-
+        disability_weights = pd.Series(np.zeros(len(index), dtype=float), index=index)
         # Mild, moderate, and severe each have their own disability weight,
         #     which we assign in the loop below.
         # In the future, we may want pathogens to be differentially
         #     associated with severity
         for severity in ["mild", "moderate", "severe"]:
             severity_index = population.query("diarrhea == '{}_diarrhea'".format(severity)).index
-            disability_weights.loc[severity_index] = self.severity_dict[severity]
-
+            disability_weights[severity_index] = self.severity_dict[severity]
         return disability_weights
 
 
@@ -377,9 +376,9 @@ def diarrhea_factory():
 
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
                                      csmr_data=ci.get_cause_specific_mortality(1181),
-                                     mild_disability_weight=ci.get_disability_weight(healthstate_id=355)*time_step/365,
-                                     moderate_disability_weight=ci.get_disability_weight(healthstate_id=356)*time_step/365,
-                                     severe_disability_weight=ci.get_disability_weight(healthstate_id=357)*time_step/365,
+                                     mild_disability_weight=ci.get_disability_weight(healthstate_id=355),
+                                     moderate_disability_weight=ci.get_disability_weight(healthstate_id=356),
+                                     severe_disability_weight=ci.get_disability_weight(healthstate_id=357),
                                      mild_severity_split=ci.get_severity_splits(1181, 2608),
                                      moderate_severity_split=ci.get_severity_splits(1181, 2609),
                                      severe_severity_split=ci.get_severity_splits(1181, 2610),
