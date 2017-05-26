@@ -1,13 +1,10 @@
 from datetime import timedelta
 
 import pandas as pd
-import numpy as np
-
-from scipy.stats import norm
 
 from ceam import config
 
-from ceam.framework.util import rate_to_probability, from_yearly
+from ceam.framework.util import rate_to_probability
 
 from ceam_inputs import get_age_specific_fertility_rates
 

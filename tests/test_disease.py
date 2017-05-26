@@ -1,27 +1,24 @@
-# ~/ceam/ceam_tests/test_modules/test_disease.py
-
-import pytest
-from unittest.mock import Mock, patch
+import os
+from unittest.mock import patch
 from datetime import timedelta
 
 import pandas as pd
 import numpy as np
 
+from ceam_public_health.components.disease import DiseaseState, RateTransition, ExcessMortalityState, DiseaseModel
+
 from ceam import config
+from ceam.framework.util import from_yearly
+from ceam.framework.state_machine import Transition, State
 
 from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
 
-from ceam.framework.util import from_yearly
-
 from ceam_inputs import get_incidence
-
-from ceam.framework.state_machine import Transition, State
-from ceam.framework.event import Event
-from ceam_public_health.components.disease import DiseaseState, RateTransition, ExcessMortalityState, DiseaseModel
 
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_dwell_time(get_disease_states_mock):
+    config.simulation_parameters.set_with_metadata('time_step', 10, layer='override', source=os.path.realpath(__file__))
     get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('state')
     healthy_state = State('healthy')
@@ -33,29 +30,24 @@ def test_dwell_time(get_disease_states_mock):
     model.states.extend([healthy_state, event_state, done_state])
 
     simulation = setup_simulation([generate_test_population, model], population_size=10)
-    emitter = simulation.events.get_emitter('time_step')
 
     # Move everyone into the event state
-    emitter(Event(simulation.population.population.index))
     event_time = simulation.current_time
+    pump_simulation(simulation, iterations=1)
+
 
     assert np.all(simulation.population.population.state == 'event')
-
-    simulation.current_time += timedelta(days=10)
 
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    emitter(Event(simulation.population.population.index))
+    pump_simulation(simulation, iterations=1)
 
     assert np.all(simulation.population.population.state == 'event')
 
-    simulation.current_time += timedelta(days=20)
+    pump_simulation(simulation, iterations=1)
 
     # Now enough time has passed so people should transition away
-    emitter(Event(simulation.population.population.index))
-
     assert np.all(simulation.population.population.state == 'sick')
-
-    assert np.all(simulation.population.population.event_event_time == event_time.timestamp())
+    assert np.all(simulation.population.population.event_event_time == pd.to_datetime(event_time))
     assert np.all(simulation.population.population.event_event_count == 1)
 
 
@@ -151,7 +143,8 @@ def test_load_population_custom_columns(get_disease_states_mock):
     assert 'special_test_time' in simulation.population.population
     assert 'special_test_count' in simulation.population.population
     assert np.all(simulation.population.population.special_test_count == 0)
-    assert np.all(simulation.population.population.special_test_time == 0)
+
+    assert np.all(simulation.population.population.special_test_time.isnull())
 
 
 # End.

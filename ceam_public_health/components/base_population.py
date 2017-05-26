@@ -1,12 +1,9 @@
-import os.path
 from datetime import timedelta
 
 import pandas as pd
 import numpy as np
 
-from ceam_inputs import generate_ceam_population
-from ceam_inputs import get_cause_deleted_mortality_rate
-from ceam_inputs.gbd_ms_functions import assign_subregions
+from ceam_inputs import generate_ceam_population, assign_subregions, get_cause_deleted_mortality_rate
 from ceam_inputs.auxiliary_files import open_auxiliary_file
 
 from ceam.framework.event import listens_for
