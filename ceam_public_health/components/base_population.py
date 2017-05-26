@@ -26,7 +26,7 @@ def generate_base_population(event):
     initial_age = event.user_data.get('initial_age', None)
 
     population = generate_ceam_population(time=event.time, number_of_simulants=population_size, initial_age=initial_age)
-    population['age'] = population.age.astype(float)
+    population['age'] = population.age.astype(int)
 
     population.index = event.index
     population['fractional_age'] = population.age.astype(float)
@@ -60,7 +60,7 @@ def adherence(event):
 def age_simulants(event):
     time_step = config.simulation_parameters.time_step
     event.population['fractional_age'] += time_step/365.0
-    event.population['age'] = event.population.fractional_age.astype(float)
+    event.population['age'] = event.population.fractional_age.astype(int)
     event.population_view.update(event.population)
 
 
@@ -92,7 +92,7 @@ class Mortality:
         event.population_view.update(pd.Series(pd.NaT, name='death_day', index=event.index))
         event.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
 
-    # FIXME: Set the time of death to be the midpoint between the current and next time step. this is important for the mortality rate calculations 
+    # FIXME: Set the time of death to be the midpoint between the current and next time step. this is important for the mortality rate calculations
     @listens_for('time_step', priority=0)
     @uses_columns(['alive', 'death_day', 'cause_of_death'], 'alive')
     def mortality_handler(self, event):
@@ -217,7 +217,7 @@ class Mortality:
         current_year = window_start.year
 
 
-        # FIXME: Don't want to have age_groups[0:3] hard-coded in. Need to make a component that calculates susceptible person time for all age groups so that this can be avoided 
+        # FIXME: Don't want to have age_groups[0:3] hard-coded in. Need to make a component that calculates susceptible person time for all age groups so that this can be avoided
         for low, high in age_groups[0:4]:
             for sex in sexes:
                 for location in locations:
@@ -228,7 +228,7 @@ class Mortality:
                         sub_pop = sub_pop.query('location == @location')
 
                     # TODO: Make this more flexible. Don't want to have diarrhea hard-coded in here. Want the susceptibility column and disease column to be variables that get passed into the class.
-                    # TODO: Need to figure out best place for this 
+                    # TODO: Need to figure out best place for this
                     if not sub_pop.empty:
                         susceptible_person_time = pop["susceptible_person_time_{l}_to_{h}_in_year_{y}_among_{s}s".format(l=low_str, h=high_str, y=current_year, s=sex)].sum()
                         num_diarrhea_cases = pop['diarrhea_event_count_{l}_to_{h}_in_year_{y}_among_{s}s'.format(l=low_str, h=high_str, y=current_year, s=sex)].sum()
