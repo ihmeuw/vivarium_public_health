@@ -4,8 +4,7 @@ import numpy as np
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 
-from ceam_inputs import get_bmi_distributions
-from ceam_inputs import make_gbd_risk_effects
+from ceam_inputs import get_bmi_distributions, make_gbd_risk_effects
 
 from ceam_public_health.util.risk import continuous_exposure_effect
 

@@ -5,10 +5,7 @@ import pandas as pd
 from ceam import config
 
 from ceam_inputs import (get_excess_mortality, get_prevalence, get_cause_specific_mortality,
-                         get_incidence, get_cause_deleted_mortality_rate, get_disability_weight)
-
-
-from ceam_inputs.gbd_mapping import causes
+                         get_incidence, get_cause_deleted_mortality_rate, get_disability_weight, causes)
 
 
 def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures):

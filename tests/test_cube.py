@@ -2,15 +2,15 @@ from unittest.mock import patch
 
 import numpy as np
 
-from ceam_inputs.gbd_mapping import causes
+from ceam_inputs import causes
 from ceam_tests.util import build_table
 from ceam_public_health.components.cube import make_measure_cube_from_gbd
 
 
-@patch('ceam_inputs.cube.get_prevalence')
-@patch('ceam_inputs.cube.get_incidence')
-@patch('ceam_inputs.cube.get_cause_specific_mortality')
-@patch('ceam_inputs.cube.get_cause_deleted_mortality_rate')
+@patch('ceam_public_health.components.cube.get_prevalence')
+@patch('ceam_public_health.components.cube.get_incidence')
+@patch('ceam_public_health.components.cube.get_cause_specific_mortality')
+@patch('ceam_public_health.components.cube.get_cause_deleted_mortality_rate')
 def test_make_measure_cube(all_cause, csmr_mock, incidence_mock, prevalence_mock):
     prevalence_dummies = {
             causes.heart_attack.prevalence: build_table(0.5),

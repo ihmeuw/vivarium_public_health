@@ -29,9 +29,8 @@ from ceam.framework.event import Event
 from ceam_tests.util import (build_table, setup_simulation,
                              generate_test_population, pump_simulation)
 
-from ceam_inputs import get_disability_weight
 from ceam_inputs import (get_severity_splits, get_cause_specific_mortality,
-                         get_cause_deleted_mortality_rate)
+                         get_cause_deleted_mortality_rate, get_disability_weight)
 
 from ceam_public_health.components.base_population import Mortality
 from ceam_public_health.components.diarrhea_disease_model import (DiarrheaEtiologyState,
