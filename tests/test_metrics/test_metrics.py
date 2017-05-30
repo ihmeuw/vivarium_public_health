@@ -1,17 +1,28 @@
+import os
+
 import numpy as np
-import pytest
 
 from datetime import timedelta
 
-from ceam.framework.state_machine import Transition, State
-
+from ceam import config
 from ceam_tests.util import (setup_simulation, pump_simulation, build_table,
                              generate_test_population)
 
 from ceam_public_health.components.metrics import Metrics
-from ceam_public_health.components.disease import (DiseaseState,
-                                                   ExcessMortalityState,
-                                                   DiseaseModel)
+from ceam_public_health.components.disease import (ExcessMortalityState, DiseaseModel)
+
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2000, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 def set_up_test_parameters(flu=False, mumps=False):
     """

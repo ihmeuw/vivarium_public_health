@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 import pandas as pd
 
@@ -28,6 +29,7 @@ def setup():
                                                    source=os.path.realpath(__file__))
     config.simulation_parameters.set_with_metadata('num_simulants', 1000, layer='override',
                                                    source=os.path.realpath(__file__))
+    return config
 
 def make_simulation_object():
     diarrhea_and_etiology_models = build_diarrhea_model()
@@ -190,7 +192,6 @@ def test_severity_proportions():
 
 # Test that diarrhea csmr is deleted from the background mortality rate.
 def test_cause_deletion():
-    # FIXME: Config is not being used correctly throughout tests, so hacky fix.
     config.simulation_parameters.set_with_metadata('initial_age', 0, layer='override', source=os.path.realpath(__file__))
     diarrhea_and_etiology_models = build_diarrhea_model()
     simulation = setup_simulation([generate_test_population, Mortality()] + diarrhea_and_etiology_models)

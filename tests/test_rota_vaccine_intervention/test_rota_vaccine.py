@@ -1,10 +1,13 @@
+import os
+
+import pytest
 import pandas as pd
 import numpy as np
-import pytest
-from datetime import timedelta, datetime
+
+from datetime import timedelta
 
 from ceam import config
-from ceam.framework.event import Event
+
 from ceam_tests.util import (pump_simulation, generate_test_population,
                              setup_simulation, build_table)
 
@@ -13,9 +16,39 @@ from ceam_public_health.components.interventions.rota_vaccine import (set_vaccin
                                                                       determine_vaccine_protection,
                                                                       wane_immunity)
 from ceam_public_health.components.interventions.rota_vaccine import RotaVaccine
-from ceam_public_health.components.base_population import (generate_base_population,
-                                                           age_simulants)
+from ceam_public_health.components.base_population import age_simulants
 
+def setup():
+    # Remove user overrides but keep custom cache locations if any
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+
+    config.simulation_parameters.set_with_metadata('year_start', 2005, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 1, layer='override', source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('initial_age', 0, layer='override',
+                                                   source=os.path.realpath(__file__))
+
+    config.rota_vaccine.set_with_metadata('age_at_first_dose', 6, layer='override', source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('age_at_second_dose', 12, layer='override', source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('age_at_third_dose', 18, layer='override', source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('time_after_dose_at_which_immunity_is_conferred', 1,
+                                          layer='override', source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('vaccine_full_immunity_duration', 20,
+                                          layer='override', source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('waning_immunity_time', 20, layer='override',
+                                          source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('vaccination_proportion_increase', 0.1, layer='override',
+                                          source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('second_dose_retention', 1, layer='override',
+                                          source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('third_dose_retention', 1, layer='override',
+                                          source=os.path.realpath(__file__))
 
 # 1: determine_who_should_receive_dose
 def test_determine_who_should_receive_dose():
@@ -24,8 +57,10 @@ def test_determine_who_should_receive_dose():
     Move the simulation forward a few times to make sure that people who should
     get the vaccine do get the vaccine
     """
-    config.rota_vaccine.second_dose_retention = .8
-    config.rota_vaccine.third_dose_retention = .4
+    config.rota_vaccine.set_with_metadata('second_dose_retention', 0.8, layer='override',
+                                          source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('third_dose_retention', 0.4, layer='override',
+                                          source=os.path.realpath(__file__))
 
     factory = diarrhea_factory()
 
@@ -148,8 +183,10 @@ def test_set_working_column2(get_indexes):
     # FIXME: I set second/third dose retention in the conftest file, but they get overriden when I set them
     #    in test_determine_who_should_receive_dose, so I need to reset them here. I don't know why that is,
     #    but it seems confusing
-    config.rota_vaccine.second_dose_retention = 1
-    config.rota_vaccine.third_dose_retention = 1
+    config.rota_vaccine.set_with_metadata('second_dose_retention', 1, layer='override',
+                                          source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('third_dose_retention', 1, layer='override',
+                                          source=os.path.realpath(__file__))
 
     # pump the simulation far enough ahead that simulants can get second dose
     simulation = setup_simulation([generate_test_population, age_simulants,
@@ -183,8 +220,10 @@ def test_set_working_column3(get_indexes):
     # FIXME: I set second/third dose retention in the conftest file, but they get overriden when I set them
     #    in test_determine_who_should_receive_dose, so I need to reset them here. I don't know why that is,
     #    but it seems confusing
-    config.rota_vaccine.second_dose_retention = 1
-    config.rota_vaccine.third_dose_retention = 1
+    config.rota_vaccine.set_with_metadata('second_dose_retention', 1, layer='override',
+                                          source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('third_dose_retention', 1, layer='override',
+                                          source=os.path.realpath(__file__))
 
     # 19 days in, we should see that the third vaccine is working and the first
     #     and second are not
@@ -230,8 +269,10 @@ def test_set_working_column4():
 
 # 4: incidence_rates
 def test_incidence_rates():
-    config.rota_vaccine.first_dose_protection = .1
-    config.rota_vaccine.second_dose_protection = .2
+    config.rota_vaccine.set_with_metadata('first_dose_protection', .1, layer='override',
+                                          source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('second_dose_protection', .2, layer='override',
+                                          source=os.path.realpath(__file__))
 
     simulation = setup_simulation([generate_test_population, age_simulants,
                                    RotaVaccine(True)] + diarrhea_factory())
@@ -354,7 +395,9 @@ def test_wane_immunity():
 
 def test_rota_vaccine_coverage():
     # create a simulation object where there is no intervention
-    config.simulation_parameters.year_start = 2014
+    config.simulation_parameters.set_with_metadata('year_start', 2014, layer='override',
+                                                   source=os.path.realpath(__file__))
+
 
     simulation = setup_simulation([generate_test_population, age_simulants,
                                    RotaVaccine(False)], population_size=10000)
