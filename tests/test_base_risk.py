@@ -12,6 +12,7 @@ from ceam.interpolation import Interpolation
 from ceam.framework.util import from_yearly
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
+from ceam.config_tree import ConfigTree
 
 from ceam_inputs.gbd_mapping import risk_factors, causes
 
@@ -206,3 +207,40 @@ def test_correlated_propensity(correlation_loader_mock):
 
     matrix = np.corrcoef(np.array(propensities))
     assert np.allclose(correlation_matrix[['systolic_blood_pressure', 'body_mass_index', 'cholesterol', 'smoking', 'fasting_plasma_glucose',]].values, matrix, rtol=0.15)
+
+
+def mock_get_exposures(risk_id):
+    e = {1: 0.5, 2: 0.25, 3:0.001, 4:0.02}[risk_id]
+    return build_table(e)
+
+def mock_get_relative_risk(risk_id, cause_id):
+    return build_table(0)
+
+def mock_get_pafs(risk_id, cause_id):
+    return build_table(0)
+
+@patch('ceam_public_health.components.risks.base_risk.inputs')
+@patch('ceam_public_health.components.risks.base_risk.load_matrices')
+def test_correlated_exposures(correlation_loader_mock, inputs_mock):
+    inputs_mock.get_exposures = mock_get_exposures
+    inputs_mock.get_relative_risk = mock_get_relative_risk
+    inputs_mock.get_pafs = mock_get_pafs
+
+    continuous_1 = ConfigTree({'name': 'continuous_1', 'gbd_risk': 1, 'effected_causes': [], 'tmrl': 112.5, 'scale': 10})
+    continuous_2 = ConfigTree({'name': 'continuous_2', 'gbd_risk': 2, 'effected_causes': [], 'tmrl': 3.08, 'scale': 1})
+    categorical_1 = ConfigTree({'name': 'categorical_1', 'gbd_risk': 3, 'effected_causes': []})
+    categorical_2 = ConfigTree({'name': 'categorical_2', 'gbd_risk': 4, 'effected_causes': []})
+
+    def loader(builder):
+        dist = Interpolation(
+                build_table([130, 15], ['age', 'year', 'sex', 'mean', 'std']),
+                ['sex'],
+                ['age', 'year'],
+                func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
+        return builder.lookup(dist)
+
+    continuous_1_component = ContinuousRiskComponent(continuous_1, loader)
+    continuous_2_component = ContinuousRiskComponent(continuous_2, loader)
+    categorical_1_component = CategoricalRiskComponent(categorical_1)
+    categorical_2_component = CategoricalRiskComponent(categorical_2)
+    simulation = setup_simulation([generate_test_population, continuous_1_component, continuous_2_component, categorical_1_component, categorical_2_component], 100)
