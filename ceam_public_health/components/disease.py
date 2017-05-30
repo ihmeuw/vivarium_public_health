@@ -21,7 +21,7 @@ from ceam_inputs.gbd_mapping import meid, hid
 
 class DiseaseState(State):
     """State representing a disease in a state machine model.
-    
+
     Parameters
     ----------
     state_id : str
@@ -39,11 +39,11 @@ class DiseaseState(State):
     side_effect_function : callable, optional
         A function to be called when this state is entered.
     track_events : bool, optional
-    
+
     Attributes
     ----------
     state_id : str
-        The name of this state.    
+        The name of this state.
     prevalence_data : `pandas.DataFrame`
         The baseline occurrence of this state in a population.
     dwell_time : `pandas.DataFrame`
@@ -54,8 +54,8 @@ class DiseaseState(State):
         The name of a column to track the number of times this state was entered.
     side_effect_function : callable
         A function to be called when this state is entered.
-    track_events : bool    
-        Flag to indicate whether the last time this state was entered and the number of times 
+    track_events : bool
+        Flag to indicate whether the last time this state was entered and the number of times
         it has been entered should be tracked.
     condition : ?
     population_view : `pandas.DataFrame`
@@ -79,7 +79,7 @@ class DiseaseState(State):
 
     def setup(self, builder):
         """Performs this component's simulation setup and return sub-components.
-        
+
         Parameters
         ----------
         builder : `engine.Builder`
@@ -109,7 +109,7 @@ class DiseaseState(State):
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         """Adds this state's columns to the simulation state table.
-        
+
         Parameters
         ----------
         event : `ceam.framework.population.PopulationEvent`
@@ -122,12 +122,12 @@ class DiseaseState(State):
                                                      index=event.index))
 
     def next_state(self, index, population_view):
-        """Moves a population among different disease states.    
-        
+        """Moves a population among different disease states.
+
         Parameters
         ----------
         index : iterable of ints
-            An iterable of integer labels for the simulants.    
+            An iterable of integer labels for the simulants.
         population_view : `pandas.DataFrame`
             A view of the internal state of the simulation.
         """
@@ -136,12 +136,12 @@ class DiseaseState(State):
 
     def _filter_for_transition_eligibility(self, index):
         """Filter out all simulants who haven't been in the state for the prescribed dwell time.
-        
+
         Parameters
         ----------
         index : iterable of ints
-            An iterable of integer labels for the simulants.    
-        
+            An iterable of integer labels for the simulants.
+
         Returns
         -------
         iterable of ints
@@ -161,7 +161,7 @@ class DiseaseState(State):
         Parameters
         ----------
         index : iterable of ints
-            An iterable of integer labels for the simulants.    
+            An iterable of integer labels for the simulants.
         """
         if self.track_events:
             pop = self.population_view.get(index)
@@ -172,37 +172,35 @@ class DiseaseState(State):
             self.side_effect_function(index)
 
     def add_transition(self, output, proportion=None, rates=None, triggered=False):
-
         if proportion is not None and rates is not None:
             raise ValueError("Both proportion and rate data provided.")
         if proportion is not None:
             t = ProportionTransition(output=output,
                                      proportion=proportion,
                                      triggered=triggered)
-            self.transition_set.append(t)
-            return t
         elif rates is not None:
             t = RateTransition(output=output,
                                rate_label=output.name(),
                                rate_data=rates,
                                triggered=triggered)
-            self.transition_set.append(t)
-            return t
         else:
             return super().add_transition(output, triggered=triggered)
+
+        self.transition_set.append(t)
+        return t
 
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
         """Records data for simulation post-processing.
-        
+
         Parameters
         ----------
         index : iterable of ints
             An iterable of integer labels for the simulants.
         metrics : `pandas.DataFrame`
             A table for recording simulation events of interest in post-processing.
-        
+
         Returns
         -------
         `pandas.DataFrame`
@@ -214,13 +212,13 @@ class DiseaseState(State):
 
     @modifies_value('disability_weight')
     def disability_weight(self, index):
-        """Gets the disability weight associated with this state. 
-        
+        """Gets the disability weight associated with this state.
+
         Parameters
         ----------
         index : iterable of ints
             An iterable of integer labels for the simulants.
-        
+
         Returns
         -------
         `pandas.Series`
@@ -273,7 +271,7 @@ class TransientDiseaseState(TransientState):
         Parameters
         ----------
         index : iterable of ints
-            An iterable of integer labels for the simulants.    
+            An iterable of integer labels for the simulants.
         """
         if self.track_events:
             pop = self.population_view.get(index)
@@ -319,7 +317,7 @@ class TransientDiseaseState(TransientState):
 
 class ExcessMortalityState(DiseaseState):
     """State representing a disease with excess mortality in a state machine model.
-    
+
     Attributes
     ----------
     state_id : str
@@ -354,13 +352,13 @@ class ExcessMortalityState(DiseaseState):
     @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates_df):
         """Modifies the baseline mortality rate for a simulant if they are in this state.
-        
+
         Parameters
         ----------
         index : iterable of ints
             An iterable of integer labels for the simulants.
         rates_df : `pandas.DataFrame`
-            
+
         """
         population = self.population_view.get(index)
         rate = (self._mortality(population.index, skip_post_processor=True)
@@ -419,7 +417,6 @@ class ProportionTransition(Transition):
         if modelable_entity_id and proportion:
             raise ValueError("Must supply modelable_entity_id or proportion (proportion can be an int or df) but not both")
 
-        # @alecwd: had to change line below since it was erroring out when proportion is a dataframe. might be a cleaner way to do this that I don't know of
         if modelable_entity_id is None and proportion is None:
             raise ValueError("Must supply either modelable_entity_id or proportion (proportion can be int or df)")
 
