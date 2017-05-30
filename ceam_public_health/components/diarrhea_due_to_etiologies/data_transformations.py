@@ -1,8 +1,7 @@
 import pandas as pd
 
 from ceam_inputs import (get_excess_mortality, get_severity_splits,
-                         get_remission, get_incidence, get_pafs,
-                         causes, risk_factors)
+                         get_remission, get_incidence, get_pafs, causes, risk_factors)
 
 
 def get_severe_diarrhea_excess_mortality():
