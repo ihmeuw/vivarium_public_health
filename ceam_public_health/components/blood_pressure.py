@@ -5,9 +5,9 @@ from scipy.stats import norm
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 
-from ceam_inputs import make_gbd_risk_effects, get_sbp_distribution
+from ceam_inputs import get_sbp_distribution
 
-from ceam_public_health.util.risk import continuous_exposure_effect
+from ceam_public_health.util.risk import continuous_exposure_effect, make_risk_effects
 
 
 class BloodPressure:
@@ -27,7 +27,7 @@ class BloodPressure:
         self.randomness = builder.randomness('blood_pressure')
 
         effect_function = continuous_exposure_effect('systolic_blood_pressure', tmrl=112.5, scale=10)
-        risk_effects = make_gbd_risk_effects(107, [
+        risk_effects = make_risk_effects(107, [
             (493, 'heart_attack'),
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
