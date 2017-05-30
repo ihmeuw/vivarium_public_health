@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import pytest
+import os
 from datetime import timedelta, datetime
 
 from ceam import config
