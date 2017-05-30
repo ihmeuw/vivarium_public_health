@@ -9,28 +9,11 @@ components:
 
 configuration:
     simulation_parameters:
-        location_id: 180
+        location_id: 179
         year_start: 2010
         year_end: 2015
-        time_step: 365
+        time_step: 1
         pop_age_start:
         pop_age_end:
         initial_age: 0.0
-        population_size: 20000
-    rota_vaccine:
-        RV5_dose_cost: 3.5
-        cost_to_administer_each_dose: 0
-        first_dose_effectiveness: 0
-        second_dose_effectiveness: 0
-        third_dose_effectiveness: .39
-        vaccine_duration: 730
-        waning_immunity_time: 0
-        age_at_first_dose: 365
-        age_at_second_dose: 730
-        age_at_third_dose: 1095
-        second_dose_retention: 1
-        third_dose_retention: 1
-        vaccination_proportion_increase: .5
-        # FIXME: Figure out if we need a different time after dose for each dose
-        time_after_dose_at_which_immunity_is_conferred: 0
-
+        population_size: 100000

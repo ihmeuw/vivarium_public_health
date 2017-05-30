@@ -27,7 +27,7 @@ class BodyMassIndex:
             (493, 'heart_attack'),
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
-            ], effect_function)
+            ], effect_function, 'bmi')
         return risk_effects
 
 

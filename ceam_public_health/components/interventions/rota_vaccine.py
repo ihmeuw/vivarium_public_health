@@ -6,7 +6,6 @@ from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
-from ceam.framework.randomness import filter_for_probability
 
 from ceam_inputs import get_rota_vaccine_coverage
 
@@ -14,134 +13,156 @@ from ceam_inputs import get_rota_vaccine_coverage
 def set_vaccine_duration(population, etiology, dose):
     """
     Function that sets vaccine dose immunity start/end time
-    
+
     Parameters
     ----------
     population : pd.DataFrame()
         population_view of simulants that have just been vaccinated
-        
+
     etiology: str
         specific etiology that is being afftected by the vaccine.
         in the case of rota, our etiology is rotaviral entiritis
-    
+
     dose: str
         can be "first", "second", or "third"
     """
-    assert dose in ["first", "second", "third"], "dose can be one of first, second, or third"
-    
+    assert dose in ["first", "second", "third"], "dose can be one of first" + \
+                                                 "second, or third"
+
     # determine when effect of the vaccine should start
     time_after_dose_at_which_immunity_is_conferred = config.rota_vaccine.time_after_dose_at_which_immunity_is_conferred
 
     population["{e}_vaccine_{d}_dose_immunity_start_time".format(e=etiology, d=dose)] = \
         population["{e}_vaccine_{d}_dose_event_time".format(e=etiology, d=dose)] + \
         pd.to_timedelta(time_after_dose_at_which_immunity_is_conferred, unit='D')
- 
+
     # determine when the effect of the vaccine should end
     vaccine_full_immunity_duration = config.rota_vaccine.vaccine_full_immunity_duration
     waning_immunity_time = config.rota_vaccine.waning_immunity_time
 
     population["{e}_vaccine_{d}_dose_immunity_end_time".format(e=etiology, d=dose)] = \
         population["{e}_vaccine_{d}_dose_immunity_start_time".format(e=etiology, d=dose)] + \
-        pd.to_timedelta(vaccine_full_immunity_duration, unit='D') + pd.to_timedelta(waning_immunity_time, unit='D')
-        
+        pd.to_timedelta(vaccine_full_immunity_duration, unit='D') + \
+        pd.to_timedelta(waning_immunity_time, unit='D')
+
     return population
 
 
-def wane_immunity(days, full_immunity_duration, vaccine_waning_time, vaccine_effectiveness):
+def wane_immunity(days, full_immunity_duration, vaccine_waning_time,
+                  vaccine_protection):
     """
-    Create waning immunity function. This function returns a univariate spline that can be called to get an effectiveness estimate
-    when supplied a certain number of days since the dose's immunity start time
-    
+    Create waning immunity function. This function returns a univariate spline
+    that can be called to get a protection estimate when supplied a certain
+    number of days since the dose's immunity start time
+
     Parameters
     ----------
     days: int
         number of days since vaccine duration start date
 
     full_immunity_duration: int
-        number of days that the vaccine will last at full effectiveness
+        number of days that the vaccine will last at full protection
 
     vaccine_waning_time: int
         number of days vaccine will wane
 
-    vaccine_effectiveness: float
+    vaccine_protection: float
         reduction in incidence as a result of receiving the vaccine
     """
-    x = [0, full_immunity_duration, full_immunity_duration + vaccine_waning_time  + .00001]
-    y = [vaccine_effectiveness, vaccine_effectiveness, 0]
+    x = [0, full_immunity_duration, full_immunity_duration + vaccine_waning_time + .00001]
+    y = [vaccine_protection, vaccine_protection, 0]
 
-    # set the order to 1 (linear), s to 0 (sum of least squares=0), ext to 1 (all extrapolated values are 0)
+    # set the order to 1 (linear), s to 0 (sum of least squares=0), ext to 1
+    # (all extrapolated values are 0)
     spl = UnivariateSpline(x, y, k=1, s=0, ext=1)
     return spl(days)
 
 
-def determine_vaccine_protection(pop, dose_working_index, waning_immunity_function, current_time, dose, vaccine_effectiveness):
+def determine_vaccine_protection(pop, dose_working_index,
+                                 waning_immunity_function, current_time, dose,
+                                 vaccine_protection):
     """
-    Determine the protection of a vaccine based on how many days its been since the simulant received the vaccine
-    
+    Determine the protection of a vaccine based on how many days its been since
+    the simulant received the vaccine
+
     Parameters
     ----------
     pop: pd.DataFrame
         population_view of simulants
-        
+
     dose_working_index: pandas index
         index of simulants for whom the current dose is working
-    
+
     waning_immunity_function: UnivariateSpline object
-        function that returns a scipy.interpolate.UnivariateSpline object containing estimates of vaccine effectiveness (Y) given number of days since vaccine immunity start time (X)
-        
+        function that returns a scipy.interpolate.UnivariateSpline object
+        containing estimates of vaccine protection (Y) given number of days
+        since vaccine immunity start time (X)
+
     current_time: datetime.datetime
         current time in the simulation
-        
+
     dose: str
         can be one of "first", "second", or "third"
 
-    vaccine_effectiveness: float
-        effectiveness of the current dose of the vaccine
+    vaccine_protection: float
+        protection of the current dose of the vaccine
     """
-    pop['days_since_vaccine_started_conferring_immunity'] = current_time - \
-    pop['rotaviral_entiritis_vaccine_{}_dose_immunity_start_time'.format(dose)]
-    
+    pop['days_since_vaccine_started_conferring_immunity'] = (current_time -
+                                                             pop[
+                                                                 'rotaviral_entiritis_vaccine_{'
+                                                                 '}_dose_immunity_start_time'.format(
+                                                                     dose)])
+
     pop = pop[pop.days_since_vaccine_started_conferring_immunity.notnull()]
-    
-    pop['days_since_vaccine_started_conferring_immunity'] = (pop['days_since_vaccine_started_conferring_immunity'] / np.timedelta64(1, 'D')).astype(int)
+
+    pop['days_since_vaccine_started_conferring_immunity'] = (
+        pop['days_since_vaccine_started_conferring_immunity'] / np.timedelta64(1, 'D')).astype(int)
 
     full_immunity_duration = config.rota_vaccine.vaccine_full_immunity_duration
 
     waning_immunity_time = config.rota_vaccine.waning_immunity_time
 
-    pop['effectiveness'] = pop['days_since_vaccine_started_conferring_immunity'].apply(lambda days: waning_immunity_function(days, full_immunity_duration, waning_immunity_time, vaccine_effectiveness))
-    
-    return pop.loc[dose_working_index]['effectiveness']
+    pop['vaccine_protection'] = pop['days_since_vaccine_started_conferring_immunity'].apply(
+        lambda days: waning_immunity_function(days, full_immunity_duration, waning_immunity_time, vaccine_protection))
+
+    return pop.loc[dose_working_index]['vaccine_protection']
 
 
 class RotaVaccine():
     """
-    RotaVaccine accomplishes several tasks 
-        1) We administer the vaccine. We use determine which simulants should receive a dose of the vaccine, set the time at which the received the vaccine, and set the vaccine full immunity duration + waning immunity time 
-        2) We set a 'working col' for each dose of the vaccine, to determine which whether or not the simulant should be experiencing any protection from the vaccine
-        3) We then use the estimate of vaccine protection to reduce the incidence of rotaviral entiritis infection. The protection conferred by the vaccine depends on how long ago the vaccine was administered and how many doses a simulant has received
+    RotaVaccine accomplishes several tasks
+        1) We administer the vaccine. We use determine which simulants should
+        receive a dose of the vaccine, set the time at which the received the
+        vaccine, and set the vaccine full immunity duration + waning immunity
+        time
+        2) We set a 'working col' for each dose of the vaccine, to determine
+        which whether or not the simulant should be experiencing any protection
+        from the vaccine
+        3) We then use the estimate of vaccine protection to reduce the
+        incidence of rotaviral entiritis infection. The protection conferred by
+        the vaccine depends on how long ago the vaccine was administered and
+        how many doses a simulant has received
         4) Finally, we output vaccine cost/count metrics
     """
-    
-    configuration_defaults = {
-            'rota_vaccine': {
-                'RV5_dose_cost': 3.5,
-                'cost_to_administer_each_dose': 0,
-                'first_dose_effectiveness': 0,
-                'second_dose_effectiveness': 0,
-                'third_dose_effectiveness': .39,
-                'vaccine_full_immunity_duration': 730,
-                'waning_immunity_time': 0,
-                'age_at_first_dose': 61,
-                'age_at_second_dose': 122,
-                'age_at_third_dose': 183,
-                'second_dose_retention': 1,
-                'third_dose_retention': 1,
-                'vaccination_proportion_increase': .5,
-                'time_after_dose_at_which_immunity_is_conferred': 14,
-            }
-    }
 
+    configuration_defaults = {
+        'rota_vaccine': {
+            'RV5_dose_cost': 3.5,
+            'cost_to_administer_each_dose': 0,
+            'first_dose_protection': 0,
+            'second_dose_protection': 0,
+            'third_dose_protection': .39,
+            'vaccine_full_immunity_duration': 730,
+            'waning_immunity_time': 0,
+            'age_at_first_dose': 61,
+            'age_at_second_dose': 122,
+            'age_at_third_dose': 183,
+            'second_dose_retention': 1,
+            'third_dose_retention': 1,
+            'vaccination_proportion_increase': .5,
+            'time_after_dose_at_which_immunity_is_conferred': 14,
+        }
+    }
 
     def __init__(self, active):
         self.active = active
@@ -150,34 +171,33 @@ class RotaVaccine():
         self.vaccine_column = self.etiology + "_vaccine"
 
         self.vaccine_first_dose_time_column = self.etiology + \
-            "_vaccine_first_dose_event_time"
+                                              "_vaccine_first_dose_event_time"
         self.vaccine_second_dose_time_column = self.etiology + \
-            "_vaccine_second_dose_event_time"
+                                               "_vaccine_second_dose_event_time"
         self.vaccine_third_dose_time_column = self.etiology + \
-            "_vaccine_third_dose_event_time"
+                                              "_vaccine_third_dose_event_time"
 
         self.vaccine_first_dose_immunity_start_time = self.etiology + \
-            "_vaccine_first_dose_immunity_start_time"
+                                                      "_vaccine_first_dose_immunity_start_time"
         self.vaccine_first_dose_immunity_end_time = self.etiology + \
-            "_vaccine_first_dose_immunity_end_time"
+                                                    "_vaccine_first_dose_immunity_end_time"
 
         self.vaccine_second_dose_immunity_start_time = self.etiology + \
-            "_vaccine_second_dose_immunity_start_time"
+                                                       "_vaccine_second_dose_immunity_start_time"
         self.vaccine_second_dose_immunity_end_time = self.etiology + \
-            "_vaccine_second_dose_immunity_end_time"
+                                                     "_vaccine_second_dose_immunity_end_time"
 
         self.vaccine_third_dose_immunity_start_time = self.etiology + \
-            "_vaccine_third_dose_immunity_start_time"
+                                                      "_vaccine_third_dose_immunity_start_time"
         self.vaccine_third_dose_immunity_end_time = self.etiology + \
-            "_vaccine_third_dose_immunity_end_time"
+                                                    "_vaccine_third_dose_immunity_end_time"
 
         self.vaccine_first_dose_working_column = self.etiology + \
-            "_vaccine_first_dose_is_working"
+                                                 "_vaccine_first_dose_is_working"
         self.vaccine_second_dose_working_column = self.etiology + \
-            "_vaccine_second_dose_is_working"
+                                                  "_vaccine_second_dose_is_working"
         self.vaccine_third_dose_working_column = self.etiology + \
-            "_vaccine_third_dose_is_working"
-
+                                                 "_vaccine_third_dose_is_working"
 
     def setup(self, builder):
 
@@ -210,55 +230,55 @@ class RotaVaccine():
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
             self.vaccine_column: np.zeros(len(event.index),
-            dtype=int)}, index=event.index))
+                                          dtype=int)}, index=event.index))
 
         self.population_view.update(pd.DataFrame({
-            self.vaccine_first_dose_time_column: [pd.NaT]*len(event.index)},
+            self.vaccine_first_dose_time_column: [pd.NaT] * len(event.index)},
             index=event.index))
         self.population_view.update(pd.DataFrame({
-            self.vaccine_second_dose_time_column: [pd.NaT]*len(event.index)},
+            self.vaccine_second_dose_time_column: [pd.NaT] * len(event.index)},
             index=event.index))
         self.population_view.update(pd.DataFrame({
-            self.vaccine_third_dose_time_column: [pd.NaT]*len(event.index)},
+            self.vaccine_third_dose_time_column: [pd.NaT] * len(event.index)},
             index=event.index))
 
         self.population_view.update(pd.DataFrame({
-            self.vaccine_first_dose_immunity_start_time: [pd.NaT]*len(event.index)},
-            index=event.index))
+            self.vaccine_first_dose_immunity_start_time: [pd.NaT] * len(
+                event.index)}, index=event.index))
         self.population_view.update(pd.DataFrame({
-            self.vaccine_first_dose_immunity_end_time: [pd.NaT]*len(event.index)},
-            index=event.index))
+            self.vaccine_first_dose_immunity_end_time: [pd.NaT] * len(
+                event.index)}, index=event.index))
         self.population_view.update(pd.DataFrame({
-            self.vaccine_second_dose_immunity_start_time: [pd.NaT]*len(event.index)},
-            index=event.index))
+            self.vaccine_second_dose_immunity_start_time: [pd.NaT] * len(
+                event.index)}, index=event.index))
         self.population_view.update(pd.DataFrame({
-            self.vaccine_second_dose_immunity_end_time: [pd.NaT]*len(event.index)},
-            index=event.index))
+            self.vaccine_second_dose_immunity_end_time: [pd.NaT] * len(
+                event.index)}, index=event.index))
         self.population_view.update(pd.DataFrame({
-            self.vaccine_third_dose_immunity_start_time: [pd.NaT]*len(event.index)},
-            index=event.index))
+            self.vaccine_third_dose_immunity_start_time: [pd.NaT] * len(
+                event.index)}, index=event.index))
         self.population_view.update(pd.DataFrame({
-            self.vaccine_third_dose_immunity_end_time: [pd.NaT]*len(event.index)},
-            index=event.index))
+            self.vaccine_third_dose_immunity_end_time: [pd.NaT] * len(
+                event.index)}, index=event.index))
 
         self.population_view.update(pd.DataFrame({
             self.vaccine_first_dose_working_column: np.zeros(len(event.index),
-            dtype=int)}, index=event.index))
+                                                             dtype=int)}, index=event.index))
 
         self.population_view.update(pd.DataFrame({
             self.vaccine_second_dose_working_column: np.zeros(len(event.index),
-            dtype=int)}, index=event.index))
+                                                              dtype=int)}, index=event.index))
 
         self.population_view.update(pd.DataFrame({
             self.vaccine_third_dose_working_column: np.zeros(len(event.index),
-            dtype=int)}, index=event.index))
-
+                                                             dtype=int)}, index=event.index))
 
     def determine_who_should_receive_dose(self, population, vaccine_col,
-                                           dose_number):
+                                          dose_number):
         """
-        Uses choice to determine if each simulant should receive a dose. Returns a
-            population of simulants that should receive a dose of a vaccine
+        Uses choice to determine if each simulant should receive a dose.
+            Returns a population of simulants that should receive a dose of a
+            vaccine
 
         Parameters
         ----------
@@ -268,10 +288,10 @@ class RotaVaccine():
         vaccine_col: str
             str representing the name of a column, one of
             rotaviral_entiritis_vaccine_first_dose, second, or third dose.
-            The column represents whether or not the simulant received the first
-            and second dose of the vaccine, which is important because we want to
-            make sure that only people who got the previous vaccine can get the
-            vaccine that is currently being administered
+            The column represents whether or not the simulant received the
+            first and second dose of the vaccine, which is important because we
+            want to make sure that only people who got the previous vaccine can
+            get the vaccine that is currently being administered
 
         true_weight: float
             number between 0 and 1 that represents the probability of being
@@ -295,14 +315,15 @@ class RotaVaccine():
 
         previous_dose = dose_number - 1
 
-        # FIXME: GBD coverage metric is a measure of people that receive all 3 vaccines, not just 1.
-        #     Need to figure out a way to capture this in the model
+        # FIXME: GBD coverage metric is a measure of people that receive all 3
+        #     vaccines, not just 1. Need to figure out a way to capture this in
+        #     the model
         if dose_number == 1:
             dose_age = config.rota_vaccine.age_at_first_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age").copy()
             if self.active:
-                true_weight =  vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
+                true_weight = vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
             else:
                 true_weight = vaccine_coverage
 
@@ -311,25 +332,26 @@ class RotaVaccine():
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age and" +
                 " rotaviral_entiritis_vaccine == {pd}".format(pd=previous_dose)).copy()
-            true_weight = pd.Series(config.rota_vaccine.second_dose_retention, index=children_at_dose_age.index)
+            true_weight = pd.Series(config.rota_vaccine.second_dose_retention,
+                                    index=children_at_dose_age.index)
 
         elif dose_number == 3:
             dose_age = config.rota_vaccine.age_at_third_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age and" +
                 " rotaviral_entiritis_vaccine == {pd}".format(pd=previous_dose)).copy()
-            true_weight = pd.Series(config.rota_vaccine.third_dose_retention, index=children_at_dose_age.index)
+            true_weight = pd.Series(config.rota_vaccine.third_dose_retention,
+                                    index=children_at_dose_age.index)
 
         else:
-            raise(ValueError, "dose_number cannot be any value other than" +
-                              " 1, 2, or 3")
+            raise (ValueError, "dose_number cannot be any value other than" +
+                   " 1, 2, or 3")
 
-        false_weight = 1 - true_weight
-
-        children_who_will_receive_dose_index = pd.Index
+        children_who_will_receive_dose_index = pd.Index([])
 
         if not children_at_dose_age.empty:
-            children_who_will_receive_dose_index = self.randomness['dose_{}'.format(dose_number)].filter_for_probability(
+            children_who_will_receive_dose_index = self.randomness[
+                'dose_{}'.format(dose_number)].filter_for_probability(
                 children_at_dose_age.index, true_weight)
 
         children_who_will_receive_dose = children_at_dose_age.loc[children_who_will_receive_dose_index]
@@ -337,7 +359,6 @@ class RotaVaccine():
         children_who_will_receive_dose[vaccine_col] = dose_number
 
         return children_who_will_receive_dose
-
 
     @listens_for('time_step')
     @uses_columns(['fractional_age', 'rotaviral_entiritis_vaccine',
@@ -371,7 +392,7 @@ class RotaVaccine():
             children_who_will_receive_first_dose[self.vaccine_first_dose_time_column] = event.time
 
             children_who_will_receive_first_dose = set_vaccine_duration(
-                children_who_will_receive_first_dose, 
+                children_who_will_receive_first_dose,
                 "rotaviral_entiritis", "first")
 
             event.population_view.update(children_who_will_receive_first_dose)
@@ -397,11 +418,10 @@ class RotaVaccine():
             children_who_will_receive_third_dose[self.vaccine_third_dose_time_column] = event.time
 
             children_who_will_receive_third_dose = set_vaccine_duration(
-                children_who_will_receive_third_dose, 
+                children_who_will_receive_third_dose,
                 "rotaviral_entiritis", "third")
 
             event.population_view.update(children_who_will_receive_third_dose)
-
 
     @listens_for('time_step')
     @uses_columns(['rotaviral_entiritis_vaccine_first_dose_immunity_start_time',
@@ -415,35 +435,44 @@ class RotaVaccine():
                    'rotaviral_entiritis_vaccine_third_dose_is_working'], 'alive')
     def set_working_column(self, event):
         """
-        Function that sets the "working column", a binary column that indicates whether the vaccine is working (1) or not working (0).
-        A vaccine will only be working after it has been administered and if the current time is in between the vaccine immunity start
-        and end time and the next vaccine isn't working. If the next vaccine is working, then we want to use the effect of the next 
-        vaccine, so we don't want the previous vaccine to be working. For instance, if a simulant has received 2 doses of a vaccine, 
-        we want for the benefit of 2 doses, not one dose, to be conferred to the simulant
+        Function that sets the "working column", a binary column that indicates
+        whether the vaccine is working (1) or not working (0). A vaccine will
+        only be working after it has been administered and if the current time
+        is in between the vaccine immunity start and end time and the next
+        vaccine isn't working. If the next vaccine is working, then we want to
+        use the effect of the next vaccine, so we don't want the previous
+        vaccine to be working. For instance, if a simulant has received 2 doses
+        of a vaccine, we want for the benefit of 2 doses, not one dose, to be
+        conferred to the simulant
         """
         population = event.population
 
         for dose in ["first", "second", "third"]:
-
-            # set the working col to 0 for now, we'll set the col for some simulants to 1 below
+            # set the working col to 0 for now, we'll set the col for some
+            #     simulants to 1 below
             population["rotaviral_entiritis_vaccine_{d}_dose_is_working".format(d=dose)] = 0
 
             population.loc[(event.time >= population[
-                "rotaviral_entiritis_vaccine_{d}_dose_immunity_start_time".format(d=dose)]) 
-                & (event.time <= population[
+                "rotaviral_entiritis_vaccine_{d}_dose_immunity_start_time".format(d=dose)])
+                           & (event.time <= population[
                 "rotaviral_entiritis_vaccine_{d}_dose_immunity_end_time".format(d=dose)]),
-                "rotaviral_entiritis_vaccine_{d}_dose_is_working".format(d=dose)] = 1
+                           "rotaviral_entiritis_vaccine_{d}_dose_is_working".format(d=dose)] = 1
 
-        # now make sure that the working col is 1 only for the most recently administered vaccine
-        # if third dose has been administered, set the first and second working cols to 0
-        population.loc[population["rotaviral_entiritis_vaccine_third_dose_is_working"] == 1, "rotaviral_entiritis_vaccine_first_dose_is_working"] = 0
-        population.loc[population["rotaviral_entiritis_vaccine_third_dose_is_working"] == 1, "rotaviral_entiritis_vaccine_second_dose_is_working"] = 0
+        # now make sure that the working col is 1 only for the most recently
+        #     administered vaccine
+        # if third dose has been administered, set the first and second working
+        #     cols to 0
+        population.loc[population["rotaviral_entiritis_vaccine_third_dose_is_working"] == 1,
+                       "rotaviral_entiritis_vaccine_first_dose_is_working"] = 0
+        population.loc[population["rotaviral_entiritis_vaccine_third_dose_is_working"] == 1,
+                       "rotaviral_entiritis_vaccine_second_dose_is_working"] = 0
 
-        # if the second dose has been administered, set the first working col to 0
-        population.loc[population["rotaviral_entiritis_vaccine_second_dose_is_working"] == 1, "rotaviral_entiritis_vaccine_first_dose_is_working"] = 0
+        # if the second dose has been administered, set the first working col
+        #     to 0
+        population.loc[population["rotaviral_entiritis_vaccine_second_dose_is_working"] == 1,
+                       "rotaviral_entiritis_vaccine_first_dose_is_working"] = 0
 
         event.population_view.update(population)
-
 
     @modifies_value('incidence_rate.rotaviral_entiritis')
     @uses_columns(['rotaviral_entiritis',
@@ -457,7 +486,7 @@ class RotaVaccine():
         """
         If the intervention is running, determine who is currently receiving
         the intervention and then decrease their incidence of diarrhea due to
-        rota by the effectiveness specified in the config file
+        rota by the protection specified in the config file
 
         Parameters
         ----------
@@ -476,17 +505,27 @@ class RotaVaccine():
         population = population_view.get(index)
 
         for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
-            dose_working_index = population.query("rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
-            
-            # FIXME: I feel like there should be a better way to get effectiveness using the new config, but I don't know how. Using the old config, I could say config.getfloat('rota_vaccine', '{}_dose_effectiveness'.format(dose))
-            if dose == "first":
-                effectiveness =  config.rota_vaccine.first_dose_effectiveness
-            if dose == "second":
-                effectiveness =  config.rota_vaccine.second_dose_effectiveness
-            if dose == "third":
-                effectiveness =  config.rota_vaccine.third_dose_effectiveness
+            dose_working_index = population.query(
+                "rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
 
-                vaccine_protection = determine_vaccine_protection(population, dose_working_index, wane_immunity, self.clock(), dose, effectiveness)
+            # FIXME: I feel like there should be a better way to get
+            # protection using the new config, but I don't know how. Using
+            # the old config, I could say
+            # config.getfloat('rota_vaccine', '{}_dose_protection'.format(dose))
+            if dose == "first":
+                protection = config.rota_vaccine.first_dose_protection
+            if dose == "second":
+                protection = config.rota_vaccine.second_dose_protection
+            if dose == "third":
+                protection = config.rota_vaccine.third_dose_protection
+
+            if len(dose_working_index) > 0:
+                vaccine_protection = determine_vaccine_protection(population,
+                                                                  dose_working_index,
+                                                                  wane_immunity,
+                                                                  self.clock(),
+                                                                  dose,
+                                                                  protection)
             else:
                 vaccine_protection = 0
 
@@ -494,7 +533,6 @@ class RotaVaccine():
             rates.loc[dose_working_index] *= (1 - vaccine_protection)
 
         return rates
-
 
     @modifies_value('metrics')
     @uses_columns(['rotaviral_entiritis_vaccine'])
@@ -521,13 +559,33 @@ class RotaVaccine():
 
         count_vacs = population.groupby('rotaviral_entiritis_vaccine').size()
 
-        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = count_vacs[1] + count_vacs[2] + count_vacs[3]
-        metrics['rotaviral_entiritis_vaccine_second_dose_count'] = count_vacs[2] + count_vacs[3]
-        metrics['rotaviral_entiritis_vaccine_third_dose_count'] = count_vacs[3]
+        if 1 in count_vacs.keys():
+            first_dose_count = count_vacs[1]
+        else:
+            first_dose_count = 0
 
-        total_number_of_administered_vaccines = metrics['rotaviral_entiritis_vaccine_first_dose_count'] + metrics['rotaviral_entiritis_vaccine_second_dose_count'] + metrics['rotaviral_entiritis_vaccine_third_dose_count']
+        if 2 in count_vacs.keys():
+            second_dose_count = count_vacs[2]
+        else:
+            second_dose_count = 0
 
-        metrics['vaccine_unit_cost_column'] = (total_number_of_administered_vaccines) * config.rota_vaccine.RV5_dose_cost
-        metrics['vaccine_cost_to_administer_column'] = (total_number_of_administered_vaccines) * config.rota_vaccine.cost_to_administer_each_dose
+        if 3 in count_vacs.keys():
+            third_dose_count = count_vacs[3]
+        else:
+            third_dose_count = 0
+
+        metrics[
+            'rotaviral_entiritis_vaccine_first_dose_count'] = first_dose_count + second_dose_count + third_dose_count
+        metrics['rotaviral_entiritis_vaccine_second_dose_count'] = second_dose_count + third_dose_count
+        metrics['rotaviral_entiritis_vaccine_third_dose_count'] = third_dose_count
+
+        total_number_of_administered_vaccines = metrics['rotaviral_entiritis_vaccine_first_dose_count'] + \
+                                                metrics['rotaviral_entiritis_vaccine_second_dose_count'] + \
+                                                metrics['rotaviral_entiritis_vaccine_third_dose_count']
+
+        metrics['vaccine_unit_cost_column'] = (total_number_of_administered_vaccines) * \
+                                              config.rota_vaccine.RV5_dose_cost
+        metrics['vaccine_cost_to_administer_column'] = (total_number_of_administered_vaccines) * \
+                                                       config.rota_vaccine.cost_to_administer_each_dose
 
         return metrics

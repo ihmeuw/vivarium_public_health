@@ -1,16 +1,30 @@
-from ceam_public_health.util.risk import naturally_sort_df, assign_exposure_categories, assign_relative_risk_value
+import os
+
 import pandas as pd
 import numpy as np
 
-def test_naturally_sort_df():
-    df = pd.DataFrame({'simulant_id': [x for x in range(0, 5)], 'cat2': 5 * [.5], 'cat1': 5*[.1], 'cat3': 5* [.4] })
-    df, categories = naturally_sort_df(df)
-    assert df.columns.tolist() == ['cat1', 'cat2', 'cat3'], "naturally_sort_df should naturally sort (i.e. cat1, cat2, etc.) category columns"
-    assert categories == ['cat1', 'cat2', 'cat3'], "naturally_sort_df should return all of the categories for a given categorical risk factor"
+from ceam import config
+
+from ceam_public_health.util.risk import assign_exposure_categories, assign_relative_risk_value
+
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 def test_assign_exposure_categories():
     df = pd.DataFrame({'simulant_id': [x for x in range(0, 100000)], 'cat2': 100000*[.5], 'cat1': 100000*[.1], 'cat3': 100000*[.4] })
-    df, categories = naturally_sort_df(df)
+    categories = sorted([column for column in list(df) if 'cat' in column],
+                        key=lambda s: int(s.split('cat')[1]))
+    df = df[categories]
     df = np.cumsum(df, axis=1)
     df['susceptibility_colum'] = np.random.uniform(0, 1, size=100000)
     df = assign_exposure_categories(df, 'susceptibility_colum', categories)

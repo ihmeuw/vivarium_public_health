@@ -16,6 +16,19 @@ from ceam_tests.util import setup_simulation, pump_simulation, build_table, gene
 from ceam_inputs import get_incidence
 
 
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
+
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_dwell_time(get_disease_states_mock):
     config.simulation_parameters.set_with_metadata('time_step', 10, layer='override', source=os.path.realpath(__file__))
@@ -97,7 +110,7 @@ def test_incidence(get_disease_states_mock):
 
     pump_simulation(simulation, iterations=1)
 
-    assert np.all(from_yearly(0.7, time_step) == incidence_rate(simulation.population.population.index))
+    assert np.allclose(from_yearly(0.7, time_step), incidence_rate(simulation.population.population.index), atol=0.00001)
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_risk_deletion(get_disease_states_mock):
@@ -128,7 +141,8 @@ def test_risk_deletion(get_disease_states_mock):
 
     expected_rate = base_rate * (1 - paf)
 
-    assert np.all(from_yearly(expected_rate, time_step) == incidence_rate(simulation.population.population.index))
+    assert np.allclose(from_yearly(expected_rate, time_step),
+                       incidence_rate(simulation.population.population.index), atol=0.00001)
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_load_population_custom_columns(get_disease_states_mock):

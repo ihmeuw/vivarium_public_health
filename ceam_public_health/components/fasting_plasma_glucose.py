@@ -27,7 +27,7 @@ class FastingPlasmaGlucose:
             (493, 'heart_attack'),
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),
-            ], effect_function)
+            ], effect_function, 'fpg')
         return risk_effects
 
 

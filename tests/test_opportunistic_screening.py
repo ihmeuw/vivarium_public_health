@@ -1,25 +1,37 @@
-# ~/ceam/ceam_tests/test_modules/test_opportunistic_screening.py
-
-from datetime import timedelta, datetime
+import os
 from collections import defaultdict
+from datetime import timedelta, datetime
 
 import pytest
-
 import numpy as np
 import pandas as pd
 
 from ceam import config
 from ceam.framework.event import Event
 
-from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
+from ceam_tests.util import setup_simulation, generate_test_population
 
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 
 from ceam_public_health.components.opportunistic_screening import _hypertensive_categories, OpportunisticScreening, MEDICATIONS
 from ceam_public_health.components.healthcare_access import HealthcareAccess
-from ceam_public_health.components.blood_pressure import BloodPressure
 from ceam_public_health.components.base_population import adherence
+
+
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
+
 
 @listens_for('initialize_simulants')
 @uses_columns(['systolic_blood_pressure', 'age', 'fractional_age'])

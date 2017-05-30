@@ -13,6 +13,7 @@ from ceam_public_health.components.disease import DiseaseModel, RateTransition
 from ceam_public_health.components.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
 from ceam_public_health.components.diarrhea_due_to_etiologies.disease_model import get_duration_in_days
 
+
 ETIOLOGIES = ['shigellosis',
               'cholera',
               'other_salmonella',
@@ -196,18 +197,18 @@ class DiarrheaBurden:
         return rates_df
 
     @modifies_value('disability_weight')
-    def disability_weight(self, index, disability_weights):
+    def disability_weight(self, index):
         population = self.population_view.get(index)
-
+        disability_weights = pd.Series(np.zeros(len(index), dtype=float), index=index)
         # Mild, moderate, and severe each have their own disability weight,
         #     which we assign in the loop below.
         # In the future, we may want pathogens to be differentially
         #     associated with severity
         for severity in ["mild", "moderate", "severe"]:
             severity_index = population.query("diarrhea == '{}_diarrhea'".format(severity)).index
-            disability_weights.loc[severity_index] = self.severity_dict[severity]
-
+            disability_weights[severity_index] = self.severity_dict[severity]
         return disability_weights
+
 
 
     # FIXME: This is a super slow function. Try to speed it up by using numbers
@@ -249,7 +250,7 @@ class DiarrheaBurden:
                                                                      age_group_id_max=5)
 
         current_year = pd.Timestamp(event.time).year
-        # WTF?
+
         for sex in ["Male", "Female"]:
             last_age_group_max = 0
             for age_bin, upr_bound in age_bin_age_group_max_dict:
@@ -370,16 +371,18 @@ def diarrhea_factory():
         list_of_modules.append(module)
 
     excess_mortality = ci.get_severe_diarrhea_excess_mortality()
+
     time_step = config.simulation_parameters.time_step
 
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
                                      csmr_data=ci.get_cause_specific_mortality(1181),
-                                     mild_disability_weight=ci.get_disability_weight(healthstate_id=355)*time_step/365,
-                                     moderate_disability_weight=ci.get_disability_weight(healthstate_id=356)*time_step/365,
-                                     severe_disability_weight=ci.get_disability_weight(healthstate_id=357)*time_step/365,
+                                     mild_disability_weight=ci.get_disability_weight(healthstate_id=355),
+                                     moderate_disability_weight=ci.get_disability_weight(healthstate_id=356),
+                                     severe_disability_weight=ci.get_disability_weight(healthstate_id=357),
                                      mild_severity_split=ci.get_severity_splits(1181, 2608),
                                      moderate_severity_split=ci.get_severity_splits(1181, 2609),
                                      severe_severity_split=ci.get_severity_splits(1181, 2610),
                                      duration_data=get_duration_in_days(1181))
 
     return list_of_modules + [diarrhea_burden]
+
