@@ -9,7 +9,7 @@ components:
 
 configuration:
     simulation_parameters:
-        location_id: 180
+        location_id: 179
         year_start: 2010
         year_end: 2015
         time_step: 1
