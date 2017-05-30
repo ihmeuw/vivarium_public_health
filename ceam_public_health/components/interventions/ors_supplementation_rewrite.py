@@ -69,10 +69,10 @@ class ORS():
         event.population_view.update(df)
 
     
-    # TODO: Using a fake exposure and population of a bunch of people that just got diarrhea, check 
+    # TODO: Using a fake exposure and population of a bunch of people that just got diarrhea, test that pafs and rrs are being correctly incorporated 
     @listens_for('time_step', priority=6)
     @uses_columns(['ors_propensity', 'diarrhea_event_time', 'diarrhea_event_end_time', 'ors_working', 'ors_end_time', 'ors_count', 'ors_outpatient_visit_cost'], 'alive')
-    def determine_simulant_ORS_relative_risks(self, event):
+    def determine_who_gets_ors(self, event):
         """
         This method determines who should be seeing the benefit of ORS
         """
@@ -122,7 +122,7 @@ class ORS():
         pop = population_view.get(index)
 
         # manually set the ORS-deleted mortality rate
-        rates *= self.paf(index)
+        rates *= 1 - self.paf(index)
         
         # manually increase the diarrhea excess mortality rate for people that do not get ORS
         ors_not_working_index = pop.query("ors_working == 0").index
