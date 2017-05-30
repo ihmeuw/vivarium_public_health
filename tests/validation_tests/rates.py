@@ -1,4 +1,4 @@
-import pytest
+import os
 
 from datetime import timedelta
 
@@ -7,12 +7,24 @@ import numpy as np
 
 from ceam import config
 from ceam.framework.engine import _step
-from ceam.framework.util import from_yearly
-
-from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population, assert_rate
-
-from ceam_public_health.components.disease import DiseaseModel, DiseaseState, RateTransition, Transition
 from ceam.framework.state_machine import State
+from ceam_tests.util import setup_simulation, build_table, generate_test_population
+
+from ceam_public_health.components.disease import DiseaseModel, RateTransition
+
+
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 def make_model(incidence_rate, recovery_rate):
     healthy = State('healthy')
@@ -28,7 +40,8 @@ def make_model(incidence_rate, recovery_rate):
     return model
 
 def test_incidence_rate_recalculation():
-    config.simulation_parameters.time_step = 1
+    config.simulation_parameters.set_with_metadata('time_step', 1, layer='override',
+                                                   source=os.path.realpath(__file__))
     incidence_rate = 0.01
     recovery_rate = 72 # Average duration of 5 days
     sim = setup_simulation([generate_test_population, make_model(incidence_rate, recovery_rate)], population_size=50000)

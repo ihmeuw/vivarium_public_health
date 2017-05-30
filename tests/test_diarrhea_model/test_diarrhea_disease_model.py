@@ -2,28 +2,9 @@ import os
 import pandas as pd
 import numpy as np
 
-from datetime import timedelta, datetime
+from datetime import timedelta
 
 from ceam import config
-
-# Global config is a killer...
-# the disease model has some global variables that call a function at import time
-# which means the config needs to be adjusted before imports happen.
-try:
-    config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                  'input_data.auxiliary_data_folder'])
-except KeyError:
-    pass
-config.simulation_parameters.set_with_metadata('year_start', 2005, layer='override',
-                                               source=os.path.realpath(__file__))
-config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
-                                               source=os.path.realpath(__file__))
-config.simulation_parameters.set_with_metadata('time_step', 1, layer='override',
-                                               source=os.path.realpath(__file__))
-config.simulation_parameters.set_with_metadata('initial_age', None, layer='override',
-                                               source=os.path.realpath(__file__))
-config.simulation_parameters.set_with_metadata('num_simulants', 1000, layer='override',
-                                               source=os.path.realpath(__file__))
 
 from ceam.framework.event import Event
 from ceam_tests.util import (build_table, setup_simulation,
@@ -34,10 +15,26 @@ from ceam_inputs import (get_severity_splits, get_cause_specific_mortality,
                          get_cause_deleted_mortality_rate)
 
 from ceam_public_health.components.base_population import Mortality
-from ceam_public_health.components.diarrhea_disease_model import (DiarrheaEtiologyState,
-                                                                  DiarrheaBurden,
-                                                                  diarrhea_factory)
+from ceam_public_health.components.diarrhea_disease_model import diarrhea_factory
 from ceam_public_health.components.metrics import Metrics  # Source of disability weight
+
+
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 2005, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 1, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('initial_age', None, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('num_simulants', 1000, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 def make_simulation_object():
     factory = diarrhea_factory()
@@ -72,7 +69,6 @@ def make_simulation_object():
 def test_incidence_rates():
 
     simulation = make_simulation_object()
-    print([a for a in sorted(list(simulation.population.population)) if 'diarrhea_event_count_0.0' in a])
 
     # pump the simulation forward 1 time period
     pump_simulation(simulation, iterations=1)
@@ -258,7 +254,8 @@ def test_severity_proportions():
 # TEST 6 -- test that diarrhea csmr is deleted from the background mortality
 #     rate
 def test_cause_deletion():
-    config.simulation_parameters.initial_age = 0
+    config.simulation_parameters.set_with_metadata('initial_age', 0, layer='override',
+                                                   source=os.path.realpath(__file__))
 
     factory = diarrhea_factory()
     simulation = setup_simulation([generate_test_population, Mortality()] + \
