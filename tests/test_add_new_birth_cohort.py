@@ -1,9 +1,23 @@
+import os
 import pandas as pd
 import numpy as np
+
 from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
 from ceam_public_health.components import add_new_birth_cohorts as anbc
 from ceam import config
 
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 def test_FertilityDeterministic():
     start_population_size = 1000

@@ -1,7 +1,24 @@
-from ceam_public_health.util.risk import assign_exposure_categories, assign_relative_risk_value
+import os
+
 import pandas as pd
 import numpy as np
 
+from ceam import config
+
+from ceam_public_health.util.risk import assign_exposure_categories, assign_relative_risk_value
+
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 def test_assign_exposure_categories():
     df = pd.DataFrame({'simulant_id': [x for x in range(0, 100000)], 'cat2': 100000*[.5], 'cat1': 100000*[.1], 'cat3': 100000*[.4] })

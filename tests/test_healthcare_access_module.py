@@ -1,8 +1,9 @@
-# ~/ceam/ceam_tests/test_modules/test_healthcare_access_module.py
-from unittest.mock import patch
+import os
 
+from unittest.mock import patch
 import pytest
 
+from ceam import config
 from ceam_tests.util import setup_simulation, assert_rate, build_table, generate_test_population
 
 from ceam.framework.event import listens_for
@@ -13,6 +14,20 @@ from ceam_public_health.components.base_population import adherence
 import numpy as np
 
 np.random.seed(100)
+
+
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 
 class Metrics:
