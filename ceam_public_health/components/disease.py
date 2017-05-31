@@ -15,8 +15,7 @@ from ceam.framework.util import rate_to_probability
 from ceam.framework.state_machine import Machine, State, TransientState, Transition, TransitionSet
 
 from ceam_inputs import (get_disease_states, get_proportion, get_cause_specific_mortality,
-                         get_disability_weight, get_prevalence, get_excess_mortality)
-from ceam_inputs.gbd_mapping import meid, hid
+                         get_disability_weight, get_prevalence, get_excess_mortality, meid, hid)
 
 
 class DiseaseState(State):

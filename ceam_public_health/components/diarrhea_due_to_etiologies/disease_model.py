@@ -5,8 +5,8 @@ from .data_transformations import (get_etiology_incidence, get_duration_in_days,
 
 from ceam.framework.population import uses_columns
 
-from ceam_inputs import (get_severity_splits, get_disability_weight, get_cause_specific_mortality)
-from ceam_inputs.gbd_mapping import causes, risk_factors
+from ceam_inputs import (get_severity_splits, get_disability_weight,
+                         get_cause_specific_mortality, causes, risk_factors)
 
 from ceam_public_health.components.disease import (DiseaseModel, DiseaseState,
                                                    TransientDiseaseState, ExcessMortalityState)

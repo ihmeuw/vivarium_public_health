@@ -5,7 +5,7 @@ import numpy as np
 
 from ceam import config
 
-from ceam_inputs.auxiliary_files import open_auxiliary_file
+from ceam_inputs import get_life_table
 
 from ceam.framework.event import listens_for, emits
 from ceam.framework.values import modifies_value, produces_value
@@ -67,8 +67,7 @@ class SimpleMortality:
 class SimpleMetrics:
     def setup(self, builder):
         self.reset()
-        with open_auxiliary_file('Life Table') as f:
-            self.life_table = builder.lookup(pd.read_csv(f), key_columns=(), parameter_columns=('age',))
+        self.life_table = builder.lookup(get_life_table(), key_columns=(), parameter_columns=('age',))
 
     @listens_for('deaths')
     def count_deaths_and_ylls(self, event):

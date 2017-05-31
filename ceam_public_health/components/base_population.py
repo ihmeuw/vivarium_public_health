@@ -3,8 +3,8 @@ from datetime import timedelta
 import pandas as pd
 import numpy as np
 
-from ceam_inputs import generate_ceam_population, assign_subregions, get_cause_deleted_mortality_rate
-from ceam_inputs.auxiliary_files import open_auxiliary_file
+from ceam_inputs import (generate_ceam_population, assign_subregions,
+                         get_cause_deleted_mortality_rate, get_life_table)
 
 from ceam.framework.event import listens_for
 from ceam.framework.values import produces_value, modifies_value, list_combiner
@@ -69,8 +69,7 @@ class Mortality:
         self._mortality_rate_builder = lambda: builder.lookup(self.load_all_cause_mortality())
         self.mortality_rate = builder.rate('mortality_rate')
         self.death_emitter = builder.emitter('deaths')
-        with open_auxiliary_file('Life Table') as f:
-            self.life_table = builder.lookup(pd.read_csv(f), key_columns=(), parameter_columns=('age',))
+        self.life_table = builder.lookup(get_life_table(), key_columns=(), parameter_columns=('age',))
         self.random = builder.randomness('mortality_handler')
         self.csmr_data = builder.value('csmr_data', list_combiner)
         self.csmr_data.source = list

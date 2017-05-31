@@ -5,9 +5,9 @@ from scipy.stats import norm
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 
-from ceam_inputs import make_gbd_risk_effects, get_sbp_distribution
+from ceam_inputs import get_sbp_distribution, risk_factors
 
-from ceam_public_health.util.risk import continuous_exposure_effect
+from ceam_public_health.util.risk import continuous_exposure_effect, make_risk_effects
 
 
 class BloodPressure:
@@ -23,28 +23,26 @@ class BloodPressure:
     """
 
     def setup(self, builder):
+        self.default = 112.0
+        self.name = 'systolic_blood_pressure'
+        self.risk = risk_factors[self.name]
         self.sbp_distribution = builder.lookup(get_sbp_distribution())
-        self.randomness = builder.randomness('blood_pressure')
+        self.randomness = builder.randomness(self.name)
 
-        effect_function = continuous_exposure_effect('systolic_blood_pressure', tmrl=112.5, scale=10)
-        risk_effects = make_gbd_risk_effects(107, [
-            (493, 'heart_attack'),
-            (496, 'hemorrhagic_stroke'),
-            (495, 'ischemic_stroke'),
-            (591, 'ckd'),
-            ], effect_function, 'systolic_blood_pressure')
-
+        effect_function = continuous_exposure_effect(self.name, tmrl=self.risk.tmrl, scale=self.risk.scale)
+        risk_effects = make_risk_effects(self.risk.gbd_risk,
+                                         [(c.gbd_cause, c) for c in self.risk.effected_causes],
+                                         effect_function,
+                                         self.name)
         return risk_effects
 
     @listens_for('initialize_simulants')
     @uses_columns(['systolic_blood_pressure_percentile', 'systolic_blood_pressure'])
     def load_population_columns(self, event):
-        population_size = len(event.index)
         event.population_view.update(pd.DataFrame({
-            'systolic_blood_pressure_percentile': self.randomness.get_draw(event.index)*0.98+0.01,
-            'systolic_blood_pressure': np.full(population_size, 112.0),
+            '{}_percentile'.format(self.name): self.randomness.get_draw(event.index)*0.98+0.01,
+            self.name: np.full(len(event.index), self.default),
             }))
-
 
     @listens_for('time_step__prepare', priority=8)
     @uses_columns(['systolic_blood_pressure', 'systolic_blood_pressure_percentile'], 'alive')
@@ -52,4 +50,4 @@ class BloodPressure:
         distribution = self.sbp_distribution(event.index)
         new_sbp = np.exp(norm.ppf(event.population.systolic_blood_pressure_percentile,
                                   loc=distribution['log_mean'], scale=distribution['log_sd']))
-        event.population_view.update(pd.Series(new_sbp, name='systolic_blood_pressure', index=event.index))
+        event.population_view.update(pd.Series(new_sbp, name=self.name, index=event.index))

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from ceam.framework.population import uses_columns
-
+from ceam_inputs import get_relative_risks, get_pafs
 
 def assign_exposure_categories(df, susceptibility_column, categories):
     """
@@ -196,3 +196,16 @@ class RiskEffect:
 
         newrr = self.exposure_effect(rates, rr)
         return newrr
+
+
+def make_risk_effects(risk_id, causes, effect_function, risk_name):
+    return [make_risk_effect(risk_id, cause_id, cause_name, effect_function, risk_name)
+            for cause_id, cause_name in causes]
+
+
+def make_risk_effect(risk_id, cause_id, cause_name, effect_function, risk_name):
+    return RiskEffect(
+        get_relative_risks(risk_id=risk_id, cause_id=cause_id),
+        get_pafs(risk_id=risk_id, cause_id=cause_id),
+        cause_name, risk_name,
+        effect_function)

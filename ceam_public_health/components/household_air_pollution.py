@@ -5,9 +5,9 @@ import pandas as pd
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 
-from ceam_inputs import get_exposures, make_gbd_risk_effects
+from ceam_inputs import get_exposures
 
-from ceam_public_health.util.risk import categorical_exposure_effect
+from ceam_public_health.util.risk import categorical_exposure_effect, make_risk_effects
 
 class HouseholdAirPollution:
     """
@@ -26,7 +26,7 @@ class HouseholdAirPollution:
         self.randomness = builder.randomness('household_air_pollution')
 
         effect_function = categorical_exposure_effect(builder.lookup(get_exposures(risk_id=87)), 'hap_susceptibility')
-        risk_effects = make_gbd_risk_effects(87, [
+        risk_effects = make_risk_effects(87, [
             (493, 'heart_attack'),
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),

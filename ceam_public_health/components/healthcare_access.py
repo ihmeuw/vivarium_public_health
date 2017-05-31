@@ -12,18 +12,17 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import get_utilization_proportion
-from ceam_inputs.auxiliary_files import auxiliary_file_path
+from ceam_inputs import get_utilization_proportion, get_doctor_visit_costs, get_inpatient_visit_costs
 
 # draw random costs for doctor visit (time-specific)
 draw = config.run_configuration.draw_number
 assert config.simulation_parameters.location_id == 180, 'FIXME: currently cost data for Kenya only'
 
-cost_df = pd.read_csv(auxiliary_file_path('Doctor Visit Costs'), index_col=0)
+cost_df = get_doctor_visit_costs()
 cost_df.index = cost_df.year_id
 appointment_cost = cost_df['draw_{}'.format(draw)]
 
-ip_cost_df = pd.read_csv(auxiliary_file_path('Inpatient Visit Costs'), index_col=0)
+ip_cost_df = get_inpatient_visit_costs()
 ip_cost_df.index = ip_cost_df.year_id
 hospitalization_cost = ip_cost_df['draw_{}'.format(draw)]
 

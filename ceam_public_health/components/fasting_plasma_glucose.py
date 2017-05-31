@@ -4,10 +4,9 @@ import numpy as np
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 
-from ceam_inputs import make_gbd_risk_effects
 from ceam_inputs import get_fpg_distributions
 
-from ceam_public_health.util.risk import continuous_exposure_effect
+from ceam_public_health.util.risk import continuous_exposure_effect, make_risk_effects
 
 class FastingPlasmaGlucose:
     """Model FastingPlasmaGlucose
@@ -23,7 +22,7 @@ class FastingPlasmaGlucose:
         self.randomness = builder.randomness('fpg')
 
         effect_function = continuous_exposure_effect('fpg', tmrl=5.1, scale=1)
-        risk_effects = make_gbd_risk_effects(141, [
+        risk_effects = make_risk_effects(141, [
             (493, 'heart_attack'),
             (496, 'hemorrhagic_stroke'),
             (495, 'ischemic_stroke'),

@@ -8,9 +8,7 @@ from ceam.framework.population import uses_columns
 from ceam_public_health.components.disease import (DiseaseModel, RateTransition, DiseaseState, TransientDiseaseState,
                                                    ProportionTransition, make_disease_state)
 from ceam_inputs import (get_incidence, get_post_mi_heart_failure_proportion_draws,
-                         get_angina_proportions, get_asympt_ihd_proportions)
-
-from ceam_inputs.gbd_mapping import causes
+                         get_angina_proportions, get_asympt_ihd_proportions, causes)
 
 
 def side_effect_factory(male_probability, female_probability, hospitalization_type):
@@ -99,7 +97,7 @@ def stroke_factory():
     healthy = DiseaseState('healthy', track_events=False, key='all_stroke')
     healthy.allow_self_transitions()
     # TODO: need to model severity splits for stroke. then we can bring in correct disability weights (dis weights
-    # correspond to healthstate ids which correspond to sequela) 
+    # correspond to healthstate ids which correspond to sequela)
     hemorrhagic_stroke = make_disease_state(causes.hemorrhagic_stroke,
                                             dwell_time=28,
                                             side_effect_function=side_effect_factory(0.52, 0.6, 'hemorrhagic stroke')) #rates as per Marcia e-mail

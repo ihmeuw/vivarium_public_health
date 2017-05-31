@@ -7,9 +7,9 @@ from ceam.interpolation import Interpolation
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 
-from ceam_inputs import get_exposures, make_gbd_risk_effects
+from ceam_inputs import get_exposures
 
-from ceam_public_health.util.risk import continuous_exposure_effect
+from ceam_public_health.util.risk import continuous_exposure_effect, make_risk_effects
 
 def cholesterol_dists(func=None):
     df = get_exposures(106)
@@ -38,7 +38,7 @@ class TotalCholesterol:
         self.randomness = builder.randomness('total_cholesterol')
 
         effect_function = continuous_exposure_effect('total_cholesterol', tmrl=3.08, scale=1)
-        risk_effects = make_gbd_risk_effects(106, [
+        risk_effects = make_risk_effects(106, [
             (493, 'heart_attack'),
             (495, 'ischemic_stroke'),
             ], effect_function, 'total_cholesterol')

@@ -13,7 +13,7 @@ from ceam.framework.values import modifies_value
 
 import ceam_public_health.components.healthcare_access
 
-from ceam_inputs.auxiliary_files import auxiliary_file_path
+from ceam_inputs import get_hypertension_drug_costs
 
 #TODO: This feels like configuration but is difficult to express in ini type files.
 MEDICATIONS = [
@@ -96,7 +96,7 @@ class OpportunisticScreening:
         # draw random costs and effects for medications
         draw = config.run_configuration.draw_number
         r = np.random.RandomState(12345+draw)
-        cost_df = pd.read_csv(auxiliary_file_path('Hypertension Drug Costs'), index_col='name')
+        cost_df = get_hypertension_drug_costs()
 
         for med in MEDICATIONS:
             med['efficacy'] = r.normal(loc=med['efficacy_mean'], scale=med['efficacy_sd'])
@@ -105,7 +105,7 @@ class OpportunisticScreening:
         self.semi_adherent_efficacy = r.normal(0.4, 0.0485)
 
         assert config.opportunistic_screening.max_medications <= len(MEDICATIONS), 'cannot model more medications than we have data for'
-        
+
         columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure', 'age', 'healthcare_followup_date', 'healthcare_last_visit_date', 'last_screening_date']
 
         for medication in MEDICATIONS:
@@ -143,7 +143,7 @@ class OpportunisticScreening:
     def general_blood_pressure_test(self, event):
         #TODO: Model blood pressure testing error
         if self.active:
-        
+
             minimum_age_to_screen = config.opportunistic_screening.minimum_age_to_screen
             affected_population = self.population_view.get(event.index)
             affected_population = affected_population[affected_population.age >= minimum_age_to_screen]
@@ -167,14 +167,14 @@ class OpportunisticScreening:
             self.population_view.update(pd.Series(np.minimum(severe_hypertension['medication_count'] + 2, config.opportunistic_screening.max_medications), name='medication_count'))
 
             self._medication_costs(affected_population, event.time)
-            
+
             self.population_view.update(pd.Series(event.time, index=affected_population.index, name='last_screening_date'))
-            
+
 
     @listens_for('followup_healthcare_access')
     def followup_blood_pressure_test(self, event):
         if self.active:
-        
+
             year = event.time.year
             appointment_cost = ceam_public_health.components.healthcare_access.appointment_cost[year]
             cost_per_simulant = appointment_cost
