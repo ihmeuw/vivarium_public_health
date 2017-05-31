@@ -1,17 +1,15 @@
-# ~/ceam/ceam_tests/test_modules/test_opportunistic_screening.py
-
-from datetime import timedelta, datetime
+import os
 from collections import defaultdict
+from datetime import timedelta, datetime
 
 import pytest
-
 import numpy as np
 import pandas as pd
 
 from ceam import config
 from ceam.framework.event import Event
 
-from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
+from ceam_tests.util import setup_simulation, generate_test_population
 
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
@@ -22,8 +20,23 @@ from ceam_public_health.components.healthcare_access import HealthcareAccess
 from ceam_public_health.components.risks.blood_pressure import distribution_loader, exposure_function
 from ceam_public_health.components.base_population import adherence
 
-@listens_for('initialize_simulants', priority=9)
-@uses_columns(['systolic_blood_pressure_exposure', 'age', 'fractional_age'])
+
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
+
+
+@listens_for('initialize_simulants')
+@uses_columns(['systolic_blood_pressure', 'age', 'fractional_age'])
 def _population_setup(event):
     age_sbps = []
     age_sbps.append((40, 130.0)) # Normotensive, below 60
@@ -266,6 +279,3 @@ def test_Nth_followup_blood_pressure_test(screening_setup):
     assert (normotensive.medication_count == 0).all()
     assert (hypertensive.medication_count == len(MEDICATIONS)).all()
     assert (severe_hypertension.medication_count == len(MEDICATIONS)).all()
-
-
-# End.

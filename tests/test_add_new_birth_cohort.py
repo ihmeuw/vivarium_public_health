@@ -1,9 +1,23 @@
+import os
 import pandas as pd
 import numpy as np
+
 from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
 from ceam_public_health.components import add_new_birth_cohorts as anbc
 from ceam import config
 
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 def test_FertilityDeterministic():
     start_population_size = 1000
@@ -13,19 +27,18 @@ def test_FertilityDeterministic():
     time_start = pd.Timestamp('1990-01-01')
     config.read_dict({'simulation_parameters':
                           {'pop_age_start': 0, 'pop_age_end': 125,
-                           'number_of_new_simulants_each_year': annual_new_simulants}},
+                           'number_of_new_simulants_each_year': annual_new_simulants,
+                           'time_step': time_step}},
                      layer='override')
 
     components = [generate_test_population, anbc.FertilityDeterministic()]
     simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
-    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    num_steps = pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    assert num_steps == num_days // time_step
     pop = simulation.population.population
 
     # No death in this model.
     assert np.all(simulation.population.population.alive), 'expect all simulants to be alive'
-
-    # We expect to have n_days/time_step steps each producing
-    # ceil(1000 * time_step / 365) new simulants, so
     assert (int(num_days * annual_new_simulants / anbc.DAYS_PER_YEAR)
             == len(pop.age) - start_population_size), 'expect new simulants'
 

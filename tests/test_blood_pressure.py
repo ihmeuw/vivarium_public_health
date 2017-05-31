@@ -1,8 +1,9 @@
-# ~/ceam/ceam_tests/test_modules/test_blood_pressure.py
+import os
 
 import pytest
 from datetime import timedelta
 
+from ceam import config
 from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
 
 from ceam_public_health.components.risks import ContinuousRiskComponent
@@ -15,6 +16,19 @@ from ceam_public_health.components.causes.stroke import factory as stroke_factor
 import numpy as np
 
 np.random.seed(100)
+
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 @pytest.mark.slow
 def test_basic_SBP_bounds():
@@ -69,6 +83,3 @@ def test_basic_SBP_bounds():
 #
 #    # Increase in incidence should rise over time as the cohort ages and SBP increases
 #    assert bp_incidence.mean() < simulation.incidence_rates(simulation.population, rate_label).mean()
-
-
-# End.

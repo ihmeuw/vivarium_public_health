@@ -12,15 +12,22 @@ from ceam.framework.population import uses_columns
 from ceam.framework.util import rate_to_probability
 from ceam import config
 
+from ceam_public_health.components.util import make_cols_demographically_specific
+
+susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", 2, 5)
+diarrhea_event_count_cols = make_cols_demographically_specific("diarrhea_event_count", 2, 5)
+
 @listens_for('initialize_simulants', priority=0)
-@uses_columns(['age', 'fractional_age', 'sex', 'alive'])
+@uses_columns(['age', 'fractional_age', 'sex', 'alive', 'location'])
 def generate_base_population(event):
     population_size = len(event.index)
 
+    # TODO: FIGURE OUT HOW TO SET INITIAL AGE OUTSIDE OF MANUALLY SETTING BELOW
     initial_age = event.user_data.get('initial_age', None)
 
     population = generate_ceam_population(time=event.time, number_of_simulants=population_size, initial_age=initial_age)
     population['age'] = population.age.astype(int)
+
     population.index = event.index
     population['fractional_age'] = population.age.astype(float)
 
@@ -85,6 +92,7 @@ class Mortality:
         event.population_view.update(pd.Series(pd.NaT, name='death_day', index=event.index))
         event.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
 
+    # FIXME: Set the time of death to be the midpoint between the current and next time step. this is important for the mortality rate calculations
     @listens_for('time_step', priority=0)
     @uses_columns(['alive', 'death_day', 'cause_of_death'], 'alive')
     def mortality_handler(self, event):
@@ -124,8 +132,8 @@ class Mortality:
         metrics['total_population'] = len(population)
         metrics['total_population__living'] = len(population) - len(the_dead)
         metrics['total_population__dead'] = len(the_dead)
-        for (condition, count) in pd.value_counts(population.cause_of_death).to_dict().items():
-            metrics['deaths_from_{}'.format(condition)] = count
+        for (condition, count) in pd.value_counts(the_dead.cause_of_death).to_dict().items():
+            metrics['{}'.format(condition)] = count
 
         return metrics
 
@@ -189,4 +197,41 @@ class Mortality:
                         sub_pop = sub_pop.query('location == @location')
 
                     cube = cube.append(pd.DataFrame({'measure': 'deaths', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'all', 'value': len(sub_pop), 'sample_size': sample_size}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
+        return cube
+
+    # TODO: Would be nice to use age_group_name instead of age_group_high and age_group_low. Using age_group_name is more specific, will make the graphs cleaner, and is more interpretable for the under 1 (neonatal) age groups.
+    # FIXME: Should move the epi measures code to its own class, probably its own script
+    @modifies_value('epidemiological_span_measures')
+    @uses_columns(['age', 'death_day', 'cause_of_death', 'alive', 'sex'] + susceptible_person_time_cols + diarrhea_event_count_cols)
+    def calculate_incidence_measure(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
+        root_location = config.getint('simulation_parameters', 'location_id')
+        pop = population_view.get(index)
+
+        if all_locations:
+            locations = set(pop.location) | {-1}
+        else:
+            locations = {-1}
+
+        now = self.clock()
+        window_start = now - duration
+        current_year = window_start.year
+
+
+        # FIXME: Don't want to have age_groups[0:3] hard-coded in. Need to make a component that calculates susceptible person time for all age groups so that this can be avoided
+        for low, high in age_groups[0:4]:
+            for sex in sexes:
+                for location in locations:
+                    sub_pop = pop.query('age > @low and age <= @high and sex == @sex')
+                    low_str = str(np.round(low, 2))
+                    high_str = str(np.round(high, 2))
+                    if location >= 0:
+                        sub_pop = sub_pop.query('location == @location')
+
+                    # TODO: Make this more flexible. Don't want to have diarrhea hard-coded in here. Want the susceptibility column and disease column to be variables that get passed into the class.
+                    # TODO: Need to figure out best place for this
+                    if not sub_pop.empty:
+                        susceptible_person_time = pop["susceptible_person_time_{l}_to_{h}_in_year_{y}_among_{s}s".format(l=low_str, h=high_str, y=current_year, s=sex)].sum()
+                        num_diarrhea_cases = pop['diarrhea_event_count_{l}_to_{h}_in_year_{y}_among_{s}s'.format(l=low_str, h=high_str, y=current_year, s=sex)].sum()
+                        if susceptible_person_time != 0:
+                            cube = cube.append(pd.DataFrame({'measure': 'incidence', 'age_low': low, 'age_high': high, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'diarrhea', 'value': num_diarrhea_cases/susceptible_person_time, 'sample_size': len(sub_pop)}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
         return cube

@@ -31,6 +31,9 @@ class FertilityDeterministic:
     """
     def __init__(self):
         self.fractional_new_births = 0
+        # Assume time step comes to us in days
+        self.time_step_size = config.simulation_parameters.time_step
+        self.annual_new_simulants = config.simulation_parameters.number_of_new_simulants_each_year
 
     @listens_for('time_step')
     @creates_simulants
@@ -45,12 +48,9 @@ class FertilityDeterministic:
         creator : method
             A function or method for creating a population.
         """
-        # Assume time step comes to us in days
-        time_step_size = config.simulation_parameters.time_step
-        annual_new_simulants = config.simulation_parameters.number_of_new_simulants_each_year
 
         # Assume births are uniformly distributed throughout the year.
-        simulants_to_add = annual_new_simulants*time_step_size/DAYS_PER_YEAR + self.fractional_new_births
+        simulants_to_add = self.annual_new_simulants*self.time_step_size/DAYS_PER_YEAR + self.fractional_new_births
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
 
