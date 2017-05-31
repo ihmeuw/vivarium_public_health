@@ -35,7 +35,7 @@ class ORS():
         # pull exposure and include any interventions that change exposure
         ors_exposure = get_ors_exposures()
         
-        if config.simulation_parameters.run_intervention:
+        if config.ORS.run_intervention:
             # add exposure above baseline increase in intervention scenario
             ors_exposure_increase_above_baseline = config.ORS.ors_exposure_increase_above_baseline
             ors_exposure['cat1'] -= ors_exposure_increase_above_baseline
@@ -70,7 +70,7 @@ class ORS():
 
     
     # TODO: Using a fake exposure and population of a bunch of people that just got diarrhea, test that pafs and rrs are being correctly incorporated 
-    @listens_for('time_step', priority=6)
+    @listens_for('time_step', priority=7)
     @uses_columns(['ors_propensity', 'diarrhea_event_time', 'diarrhea_event_end_time', 'ors_working', 'ors_end_time', 'ors_count', 'ors_outpatient_visit_cost'], 'alive')
     def determine_who_gets_ors(self, event):
         """
@@ -112,7 +112,8 @@ class ORS():
         pop.loc[pop['ors_working'] == 1, 'ors_outpatient_visit_cost'] += current_cost
                 
         event.population_view.update(pop)
-    
+
+    # FIXME: Need to ensure the mortality rates calculation happens after determine_who_gets_ors
     @modifies_value('excess_mortality.diarrhea')
     @uses_columns(['ors_working'], 'alive')
     def mortality_rates(self, index, rates, population_view):
@@ -127,8 +128,9 @@ class ORS():
         # manually increase the diarrhea excess mortality rate for people that do not get ORS
         ors_not_working_index = pop.query("ors_working == 0").index
 
-        # FIXME: Not sure if this is the best way to do things. Do I need the flatten here?
-        rates.loc[ors_not_working_index] *= self.rr(ors_not_working_index)[['cat1']].values.flatten()
+        if not ors_not_working_index.empty:
+            # FIXME: Not sure if this is the best way to do things. Do I need the flatten here?
+            rates.loc[ors_not_working_index] *= self.rr(ors_not_working_index)[['cat1']].values.flatten()
         
         return rates
         
