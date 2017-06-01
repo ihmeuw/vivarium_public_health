@@ -15,7 +15,7 @@ from ceam_inputs import (get_ors_exposures, get_ors_pafs,
 from ceam_public_health.components.base_population import Mortality
 from ceam_public_health.components.diarrhea_disease_model import diarrhea_factory
 
-from ceam_public_health.components.interventions.ors_supplementation_rewrite import ORS
+from ceam_public_health.components.interventions.ors import ORS
 
 
 def setup():

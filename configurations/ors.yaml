@@ -5,7 +5,7 @@ components:
         - base_population.Mortality()
         - diarrhea_disease_model.diarrhea_factory()
         - metrics.Metrics()
-        - interventions.ors_supplementation.ORS()
+        - interventions.ors.ORS()
 
 configuration:
     simulation_parameters:
@@ -18,9 +18,7 @@ configuration:
         initial_age: 0.0
         population_size: 20000
     ORS:
-        ORS_unit_cost: .1
-        cost_to_administer_ORS: 0
+        facility_cost: 0
         ors_exposure_increase_above_baseline: .25
-        ors_effectiveness: .93
-        run_intervention: False
+        run_intervention: True
 
