@@ -35,8 +35,8 @@ def setup():
                                                    source=os.path.realpath(__file__))
 
 
-@listens_for('initialize_simulants')
-@uses_columns(['systolic_blood_pressure', 'age', 'fractional_age'])
+@listens_for('initialize_simulants', priority=9)
+@uses_columns(['systolic_blood_pressure_exposure', 'age', 'fractional_age'])
 def _population_setup(event):
     age_sbps = []
     age_sbps.append((40, 130.0)) # Normotensive, below 60

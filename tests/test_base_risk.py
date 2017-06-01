@@ -8,6 +8,7 @@ import pandas as pd
 from scipy.stats import norm
 
 from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
+from ceam import config
 from ceam.interpolation import Interpolation
 from ceam.framework.util import from_yearly
 from ceam.framework.event import listens_for
@@ -19,6 +20,7 @@ from ceam_inputs.gbd_mapping import risk_factors, causes
 from ceam_public_health.components.risks.base_risk import RiskEffect, continuous_exposure_effect, categorical_exposure_effect, CategoricalRiskComponent, ContinuousRiskComponent, correlated_propensity
 
 def test_RiskEffect():
+    config.simulation_parameters.time_step = 30.5
     time_step = timedelta(days=30.5)
     test_exposure = [0]
     def test_function(rates, rr):

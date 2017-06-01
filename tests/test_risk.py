@@ -5,7 +5,7 @@ import numpy as np
 
 from ceam import config
 
-from ceam_public_health.util.risk import assign_exposure_categories, assign_relative_risk_value
+from ceam_public_health.components.risks.base_risk import assign_exposure_categories, assign_relative_risk_value
 
 def setup():
     try:
