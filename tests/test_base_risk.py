@@ -17,7 +17,7 @@ from ceam.config_tree import ConfigTree
 
 from ceam_inputs.gbd_mapping import risk_factors, causes
 
-from ceam_public_health.components.risks.base_risk import RiskEffect, continuous_exposure_effect, categorical_exposure_effect, CategoricalRiskComponent, ContinuousRiskComponent, correlated_propensity
+from ceam_public_health.components.risks.base_risk import RiskEffect, continuous_exposure_effect, categorical_exposure_effect, CategoricalRiskComponent, ContinuousRiskComponent, correlated_propensity, uncorrelated_propensity
 
 def test_RiskEffect():
     config.simulation_parameters.time_step = 30.5
@@ -239,6 +239,22 @@ def test_correlated_propensity(inputs_mock):
     matrix = np.corrcoef(np.array(propensities))
     assert np.allclose(correlation_matrix[['systolic_blood_pressure', 'body_mass_index', 'cholesterol', 'smoking', 'fasting_plasma_glucose',]].values, matrix, rtol=0.15)
 
+def test_uncorrelated_propensity():
+    pop = pd.DataFrame({'age': [30]*1000000, 'sex': ['Male']*1000000})
+    propensities = []
+    for risk in [
+            risk_factors.systolic_blood_pressure,
+            risk_factors.body_mass_index,
+            risk_factors.cholesterol,
+            risk_factors.smoking,
+            risk_factors.fasting_plasma_glucose]:
+        propensities.append(uncorrelated_propensity(pop, risk))
+
+    propensities = np.array(propensities)
+    assert propensities.min() >= 0
+    assert propensities.max() <= 1
+    hist, _ = np.histogram(propensities, 100, density=True)
+    assert np.all(np.abs(hist - 1) < 0.01)
 
 def mock_get_exposures(risk_id):
     e = {1: 0.5, 2: 0.25, 3:0.001, 4:0.02}[risk_id]

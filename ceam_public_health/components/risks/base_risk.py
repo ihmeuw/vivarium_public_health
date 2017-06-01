@@ -86,8 +86,8 @@ class RiskEffect:
         newrr = self.exposure_effect(rates, rr)
         return newrr
 
-def uncorrelated_propensity(population):
-    return random('initial_propensity', population.index)
+def uncorrelated_propensity(population, risk_factor):
+    return random('initial_propensity_{}'.format(risk_factor.name), population.index)
 
 def correlated_propensity(population, risk_factor):
     """Choose a propensity to the risk factor for each simulant that respects
@@ -116,7 +116,7 @@ def correlated_propensity(population, risk_factor):
     correlation_matrices = inputs.load_risk_correlation_matrices().set_index(['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
     if risk_factor.name not in correlation_matrices.risk_factor.unique():
         # There's no correlation data for this risk, just pick a uniform random propensity
-        return uncorrelated_propensity(population)
+        return uncorrelated_propensity(population, risk_factor)
 
     risk_factor_idx = sorted(correlation_matrices.risk_factor.unique()).index(risk_factor.name)
     ages = sorted(correlation_matrices.age.unique())
@@ -209,7 +209,7 @@ class ContinuousRiskComponent:
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': uncorrelated_propensity(event.population),
+            self._risk.name+'_propensity': uncorrelated_propensity(event.population, self._risk),
             self._risk.name+'_exposure': np.full(len(event.index), float(self._risk.tmrl)),
         }))
 
@@ -266,7 +266,7 @@ class CategoricalRiskComponent:
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': uncorrelated_propensity(event.population),
+            self._risk.name+'_propensity': uncorrelated_propensity(event.population, self._risk),
             self._risk.name+'_exposure': np.full(len(event.index), ''),
         }))
 
