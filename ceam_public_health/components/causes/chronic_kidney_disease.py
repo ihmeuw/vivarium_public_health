@@ -1,13 +1,13 @@
-from ceam.framework.state_machine import State
-
 from ceam_inputs import get_disability_weight, get_incidence, get_remission
-from ceam_public_health.components.disease import DiseaseModel, ExcessMortalityState, RateTransition
+from ceam_public_health.components.disease import DiseaseModel, ExcessMortalityState, RateTransition, DiseaseState
 
 
+# FIXME: This component does not use the State Machine API correctly.
+# FIXME: Also, missing lots of data (e.g. excess_mortality, csmr, duration)
 def ckd_factory():
     component = DiseaseModel('ckd')
 
-    healthy = State('healthy', key='ckd')
+    healthy = DiseaseState('healthy', track_events=False, key='ckd')
 
     # NOTE: According to Carrie Purcell, stage three and four only have
     # disability weight in the presence of anemia, which we are not
@@ -15,8 +15,12 @@ def ckd_factory():
     # TODO: The only stage referenced in the weights CSV file is stage four
     # so I'm giving that weight to both stages four and five until I get clarity
     stage_three = ExcessMortalityState('stage_three_ckd', disability_weight=0, modelable_entity_id=2018)
-    stage_four = ExcessMortalityState('stage_four_ckd', disability_weight=get_disability_weight(healthstate_id=391), modelable_entity_id=2019)
-    stage_five = ExcessMortalityState('stage_five_ckd', disability_weight=get_disability_weight(healthstate_id=391), modelable_entity_id=2022)
+    stage_four = ExcessMortalityState('stage_four_ckd',
+                                      disability_weight=get_disability_weight(healthstate_id=391),
+                                      modelable_entity_id=2019)
+    stage_five = ExcessMortalityState('stage_five_ckd',
+                                      disability_weight=get_disability_weight(healthstate_id=391),
+                                      modelable_entity_id=2022)
 
     stage_three_transition = RateTransition(stage_three, 'stage_three_ckd', get_incidence(2018))
     # NOTE: These "incidence rates" come from the remission measure because the

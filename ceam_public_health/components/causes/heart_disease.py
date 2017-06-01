@@ -8,9 +8,11 @@ from ceam_inputs import (get_incidence, get_post_mi_heart_failure_proportion_dra
 def factory():
     healthy = DiseaseState('healthy', track_events=False, key='ihd')
     healthy.allow_self_transitions()
+
     heart_attack = make_disease_state(causes.heart_attack,
                                       dwell_time=28,
-                                      side_effect_function=hospitalization_side_effect_factory(0.6, 0.7, 'heart attack')) #rates as per Marcia e-mail 1/19/17
+                                      side_effect_function=hospitalization_side_effect_factory(
+                                          0.6, 0.7, 'heart attack'))  # rates as per Marcia e-mail 1/19/17
 
     heart_failure = TransientDiseaseState('heart_failure', track_events=False)
     mild_heart_failure = make_disease_state(causes.mild_heart_failure)
@@ -36,7 +38,6 @@ def factory():
     angina.add_transition(moderate_angina, proportion=0.126273)
     angina.add_transition(severe_angina, proportion=0.32958)
 
-
     # TODO: Need to figure out best way to implement functions here
     # TODO: Need to figure out where transition from rates to probabilities needs to happen
     hf_prop_df = get_post_mi_heart_failure_proportion_draws()
@@ -45,7 +46,8 @@ def factory():
 
     # post-mi transitions
     # TODO: Figure out if we can pass in me_id here to get incidence for the correct cause of heart failure
-    # TODO: Figure out how to make asymptomatic ihd be equal to whatever is left after people get heart failure and angina
+    # TODO: Figure out how to make asymptomatic ihd be equal to
+    # whatever is left after people get heart failure and angina
     heart_attack.add_transition(heart_failure, proportion=hf_prop_df)
     heart_attack.add_transition(angina, proportion=angina_prop_df)
     heart_attack.add_transition(asymptomatic_ihd, proportion=asympt_prop_df)

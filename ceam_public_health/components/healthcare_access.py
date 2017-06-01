@@ -7,7 +7,6 @@ import pandas as pd
 from ceam import config
 
 from ceam.framework.event import listens_for, emits, Event
-from ceam.framework.util import from_yearly
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 from ceam.framework.randomness import filter_for_probability
@@ -19,6 +18,7 @@ from ceam_inputs.auxiliary_files import auxiliary_file_path
 draw = config.run_configuration.draw_number
 assert config.simulation_parameters.location_id == 180, 'FIXME: currently cost data for Kenya only'
 
+# FIXME: This data handling belongs in ceam-inputs
 cost_df = pd.read_csv(auxiliary_file_path('Doctor Visit Costs'), index_col=0)
 cost_df.index = cost_df.year_id
 appointment_cost = cost_df['draw_{}'.format(draw)]
@@ -26,6 +26,7 @@ appointment_cost = cost_df['draw_{}'.format(draw)]
 ip_cost_df = pd.read_csv(auxiliary_file_path('Inpatient Visit Costs'), index_col=0)
 ip_cost_df.index = ip_cost_df.year_id
 hospitalization_cost = ip_cost_df['draw_{}'.format(draw)]
+
 
 def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
     @emits('hospitalization')
@@ -35,19 +36,20 @@ def hospitalization_side_effect_factory(male_probability, female_probability, ho
         pop['probability'] = 0.0
         pop.loc[pop.sex == 'Male', 'probability'] = male_probability
         pop.loc[pop.sex == 'Female', 'probability'] = female_probability
-        effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type), pop.index, pop.probability)
+        effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type),
+                                                      pop.index, pop.probability)
         new_event = Event(effective_population)
         emitter(new_event)
     return hospitalization_side_effect
 
+
 class HealthcareAccess:
-    """Model health care utilization. This includes access events due to
-    chance (broken arms, flu, etc.) and those due to follow up
-    appointments, which are affected by adherence rate. This module
-    does not schedule follow-up visits.  But it implements the
-    response to follow-ups added to the `healthcare_followup_date`
-    column by other modules (for example
-    opportunistic_screening.OpportunisticScreeningModule).
+    """Model health care utilization. 
+    
+    This includes access events due to chance (broken arms, flu, etc.) and those due to follow up
+    appointments, which are affected by adherence rate. This module does not schedule 
+    follow-up visits.  But it implements the response to follow-ups added to the `healthcare_followup_date`
+    column by other modules (for example opportunistic_screening.OpportunisticScreeningModule).
 
     Population Columns
     ------------------
@@ -65,8 +67,10 @@ class HealthcareAccess:
     }
 
     def setup(self, builder):
-        draw_number = config.run_configuration.draw_number
-        r = np.random.RandomState(123456+draw)
+        self.general_random = builder.randomness('healthcare_general_access')
+        self.followup_random = builder.randomness('healthcare_followup_access')
+        r = np.random.RandomState(self.general_random.get_seed())
+
         self.semi_adherent_pr = r.normal(0.4, 0.0485)
 
         self.cost_by_year = defaultdict(float)
@@ -81,23 +85,20 @@ class HealthcareAccess:
 
         self.utilization_proportion = builder.lookup(get_utilization_proportion())
 
-        self.general_random = builder.randomness('healthcare_general_acess')
-        self.followup_random = builder.randomness('healthcare_followup_acess')
-
-
     @listens_for('initialize_simulants')
     @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date'])
     def load_population_columns(self, event):
         population_size = len(event.index)
         event.population_view.update(pd.DataFrame({'healthcare_followup_date': [pd.NaT]*population_size,
-                             'healthcare_last_visit_date': [pd.NaT]*population_size}))
+                                                   'healthcare_last_visit_date': [pd.NaT]*population_size}))
 
     @listens_for('time_step')
     @uses_columns(['healthcare_last_visit_date'], 'alive')
     def general_access(self, event):
         # determine population who accesses care
         t = self.utilization_proportion(event.index)
-        index = self.general_random.filter_for_probability(event.index, t)  # FIXME: currently assumes timestep is one month
+        # FIXME: currently assumes timestep is one month
+        index = self.general_random.filter_for_probability(event.index, t)
 
         # for those who show up, emit_event that the visit has happened, and tally the cost
         event.population_view.update(pd.Series(event.time, index=index))
@@ -139,7 +140,6 @@ class HealthcareAccess:
         self.hospitalization_count += len(event.index)
         self.hospitalization_cost[year] += len(event.index) * hospitalization_cost[year]
         self.cost_by_year[year] += len(event.index) * hospitalization_cost[year]
-
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
