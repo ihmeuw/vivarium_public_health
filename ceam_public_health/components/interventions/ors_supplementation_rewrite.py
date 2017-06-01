@@ -56,7 +56,7 @@ class ORS:
         self.exposure.source = builder.lookup(ors_exposure)
         self.randomness = builder.randomness('ors_susceptibility')
 
-        self.cost = get_outpatient_visit_cost()
+        self.cost = get_outpatient_visit_costs()
 
     @listens_for('initialize_simulants')
     @uses_columns(['ors_count', 'ors_propensity', 'ors_outpatient_visit_cost',
@@ -141,7 +141,7 @@ class ORS:
     # FIXME: Need to ensure the mortality rates calculation happens after
     #     determine_who_gets_ors
     @modifies_value('excess_mortality.diarrhea')
-    @uses_columns(['ors_working'], 'alive')
+    @uses_columns(['ors_working'])
     def mortality_rates(self, index, rates, population_view):
         """
         Set the lack of ORS-deleted mortality rate for all simulants. For those
