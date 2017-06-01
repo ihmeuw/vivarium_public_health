@@ -17,7 +17,8 @@ from ceam_inputs import risk_factors, causes
 
 from ceam_public_health.components.risks.base_risk import (RiskEffect, continuous_exposure_effect,
                                                            categorical_exposure_effect, CategoricalRiskComponent,
-                                                           ContinuousRiskComponent, correlated_propensity)
+                                                           ContinuousRiskComponent, correlated_propensity,
+                                                           uncorrelated_propensity)
 
 
 def test_RiskEffect():
@@ -82,27 +83,30 @@ def test_categorical_exposure_effect():
     exposure_function = categorical_exposure_effect(risk)
 
     simulation = setup_simulation([generate_test_population,
-                                   make_dummy_column(risk.name+'_exposure', False), exposure_function])
+                                   make_dummy_column(risk.name+'_exposure', 'cat2'), exposure_function])
 
     rates = pd.Series(0.01, index=simulation.population.population.index)
-    rr = pd.DataFrame({'cat1': 1.01}, index=simulation.population.population.index)
+    rr = pd.DataFrame({'cat1': 1.01, 'cat2': 1}, index=simulation.population.population.index)
 
     assert np.all(exposure_function(rates, rr) == 0.01)
 
     simulation.population.get_view([risk.name+'_exposure']).update(
-        pd.Series(True, index=simulation.population.population.index))
+        pd.Series('cat1', index=simulation.population.population.index))
 
     assert np.allclose(exposure_function(rates, rr), 0.0101)
 
 
 @patch('ceam_public_health.components.risks.base_risk.inputs')
-def test_CategoricalRiskComponent(inputs_mock):
+def test_CategoricalRiskComponent_dichotomous_case(inputs_mock):
     time_step = timedelta(days=30.5)
+    config.simulation_parameters.time_step = 30.5
     risk = risk_factors.smoking
+
     inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(
         0.5, ['age', 'year', 'sex', 'cat1', 'cat2'])
     inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(
-        [1.01, 0], ['age', 'year', 'sex', 'cat1', 'cat2'])
+        [1.01, 1], ['age', 'year', 'sex', 'cat1', 'cat2'])
+
     inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
 
     component = CategoricalRiskComponent(risk)
@@ -114,16 +118,50 @@ def test_CategoricalRiskComponent(inputs_mock):
     incidence_rate.source = simulation.tables.build_table(build_table(0.01))
     paf = simulation.values.get_rate('paf.'+risk.effected_causes[-1].name)
 
-    assert np.isclose(simulation.population.population[risk.name+'_exposure'].sum()
+    assert np.isclose((simulation.population.population[risk.name+'_exposure'] == 'cat1').sum()
                       / len(simulation.population.population), 0.5, rtol=0.01)
+
     expected_exposed_value = 0.01 * 1.01
     expected_unexposed_value = 0.01
 
-    exposed_index = simulation.population.population.index[simulation.population.population[risk.name+'_exposure']]
-    unexposed_index = simulation.population.population.index[~simulation.population.population[risk.name+'_exposure']]
+    exposed_index = simulation.population.population.index[
+        simulation.population.population[risk.name+'_exposure'] == 'cat1']
+    unexposed_index = simulation.population.population.index[
+        simulation.population.population[risk.name+'_exposure'] == 'cat2']
 
     assert np.allclose(incidence_rate(exposed_index), from_yearly(expected_exposed_value, time_step))
     assert np.allclose(incidence_rate(unexposed_index), from_yearly(expected_unexposed_value, time_step))
+
+
+@patch('ceam_public_health.components.risks.base_risk.inputs')
+def test_CategoricalRiskComponent_polydomous_case(inputs_mock):
+    time_step = timedelta(days=30.5)
+    config.simulation_parameters.time_step = 30.5
+    risk = risk_factors.smoking
+    inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(
+        0.25, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
+    inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(
+        [1.03, 1.02, 1.01, 1], ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
+    inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
+
+    component = CategoricalRiskComponent(risk)
+
+    simulation = setup_simulation([generate_test_population, component], 100000)
+    pump_simulation(simulation, iterations=1)
+
+    incidence_rate = simulation.values.get_rate('incidence_rate.'+risk.effected_causes[0].name)
+    incidence_rate.source = simulation.tables.build_table(build_table(0.01))
+    paf = simulation.values.get_rate('paf.'+risk.effected_causes[-1].name)
+
+    for category in ['cat1', 'cat2', 'cat3', 'cat4']:
+        assert np.isclose((simulation.population.population[risk.name+'_exposure'] == category).sum()
+                          / len(simulation.population.population), 0.25, rtol=0.02)
+
+    expected_exposed_value = 0.01 * np.array([1.02, 1.03, 1.01])
+
+    for cat, expected in zip(['cat1','cat2','cat3','cat4'], expected_exposed_value):
+        exposed_index = simulation.population.population.index[simulation.population.population[risk.name+'_exposure'] == cat]
+        assert np.allclose(incidence_rate(exposed_index), from_yearly(expected, time_step), rtol=0.01)
 
 
 @patch('ceam_public_health.components.risks.base_risk.inputs')
@@ -228,6 +266,24 @@ def test_correlated_propensity(inputs_mock):
     matrix = np.corrcoef(np.array(propensities))
     assert np.allclose(correlation_matrix[['systolic_blood_pressure', 'body_mass_index', 'cholesterol',
                                            'smoking', 'fasting_plasma_glucose']].values, matrix, rtol=0.15)
+
+
+def test_uncorrelated_propensity():
+    pop = pd.DataFrame({'age': [30]*1000000, 'sex': ['Male']*1000000})
+    propensities = []
+    for risk in [
+            risk_factors.systolic_blood_pressure,
+            risk_factors.body_mass_index,
+            risk_factors.cholesterol,
+            risk_factors.smoking,
+            risk_factors.fasting_plasma_glucose]:
+        propensities.append(uncorrelated_propensity(pop, risk))
+
+    propensities = np.array(propensities)
+    assert propensities.min() >= 0
+    assert propensities.max() <= 1
+    hist, _ = np.histogram(propensities, 100, density=True)
+    assert np.all(np.abs(hist - 1) < 0.01)
 
 
 def mock_get_exposures(risk_id):

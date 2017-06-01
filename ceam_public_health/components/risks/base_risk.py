@@ -15,45 +15,6 @@ from ceam_inputs.gbd_mapping import risk_factors
 import ceam_inputs as inputs
 
 
-def assign_exposure_categories(df, susceptibility_column, categories):
-    """Creates an 'exposure_category' column that assigns simulant's exposure based on their susceptibility draw.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-    susceptibility_column : pd.Series
-    categories : list
-        list of all of the category columns in df 
-    """
-
-    bool_list = [c + '_bool' for c in categories]
-    for col in categories:
-        df['{}_bool'.format(col)] = df['{}'.format(col)] < df[susceptibility_column]
-
-    df['exposure_category'] = df[bool_list].sum(axis=1)
-
-    # seems weird, but we need to add 1 to exposure category. e.g. if all values for a row
-    # in bool_list are false that simulant will be in exposure cat1, not cat0
-    df['exposure_category'] = df['exposure_category'] + 1
-    df['exposure_category'] = 'cat' + df['exposure_category'].astype(str)
-
-    return df[['exposure_category']]
-
-
-def assign_relative_risk_value(df, categories):
-    """Creates an 'relative_risk_value' column that assigns simulant's relative risk based on their exposure.
-
-    Parameters
-    ----------
-    df : pd.DataFrame    
-    categories : list
-        list of all of the category columns in df
-    """
-    for col in categories:
-        df.loc[(df['exposure_category'] == col, 'relative_risk_value')] = df[col]
-    return df
-
-
 def continuous_exposure_effect(risk):
     """Factory that makes functions which can be used as the exposure_effect for standard continuous risks.
 
@@ -85,11 +46,9 @@ def categorical_exposure_effect(risk):
 
     @uses_columns([exposure_column])
     def inner(rates, rr, population_view):
-        exposed = population_view.get(rr.index)[exposure_column]
-        return rates * (rr.cat1.values**exposed)
-
+        exposure_ = population_view.get(rr.index)[exposure_column]
+        return rates * (rr.lookup(exposure_.index, exposure_))
     return inner
-
 
 class RiskEffect:
     """RiskEffect objects bundle all the effects that a given risk has on a cause.
@@ -127,8 +86,8 @@ class RiskEffect:
                 + "cause= {},\nexposure_effect= {})".format(self.cause, self.exposure_effect))
 
 
-def uncorrelated_propensity(population):
-    return random('initial_propensity', population.index)
+def uncorrelated_propensity(population, risk_factor):
+    return random('initial_propensity_{}'.format(risk_factor.name), population.index)
 
 
 def correlated_propensity(population, risk_factor):
@@ -159,7 +118,7 @@ def correlated_propensity(population, risk_factor):
         ['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
     if risk_factor.name not in correlation_matrices.risk_factor.unique():
         # There's no correlation data for this risk, just pick a uniform random propensity
-        return uncorrelated_propensity(population)
+        return uncorrelated_propensity(population, risk_factor)
 
     risk_factor_idx = sorted(correlation_matrices.risk_factor.unique()).index(risk_factor.name)
     ages = sorted(correlation_matrices.age.unique())
@@ -250,7 +209,7 @@ class ContinuousRiskComponent:
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': uncorrelated_propensity(event.population),
+            self._risk.name+'_propensity': uncorrelated_propensity(event.population, self._risk),
             self._risk.name+'_exposure': np.full(len(event.index), float(self._risk.tmrl)),
         }))
 
@@ -307,15 +266,28 @@ class CategoricalRiskComponent:
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': uncorrelated_propensity(event.population),
-            self._risk.name+'_exposure': np.full(len(event.index), False),
+            self._risk.name+'_propensity': uncorrelated_propensity(event.population, self._risk),
+            self._risk.name+'_exposure': np.full(len(event.index), ''),
         }))
 
     @listens_for('time_step__prepare', priority=8)
     def update_exposure(self, event):
         pop = self.population_view.get(event.index)
-        exposed = pop[self._risk.name+'_propensity'] < self.exposure(event.index).cat1
-        self.population_view.update(pd.Series(exposed, name=self._risk.name+'_exposure'))
+
+        exposure = self.exposure(event.index)
+        propensity = pop[self._risk.name+'_propensity']
+
+        # Get a list of sorted category names (e.g. ['cat1', 'cat2', ..., 'cat9', 'cat10', ...])
+        categories = sorted([column for column in exposure if 'cat' in column])
+        sorted_exposures = exposure[categories]
+        exposure_sum = sorted_exposures.cumsum(axis='columns')
+        # Sometimes all data is 0 for the category exposures.  Set the "no exposure" category to catch this case.
+        exposure_sum[categories[-1]] = 1  # TODO: Something better than this.
+
+        category_index = (exposure_sum.T < propensity).T.sum('columns')
+
+        categories = pd.Series(np.array(categories)[category_index], name=self._risk.name+'_exposure')
+        self.population_view.update(categories)
 
     def __repr__(self):
         return "CategoricalRiskComponent(_risk= {}, exposure= {})".format(self._risk.name, self.exposure.source)
