@@ -87,9 +87,10 @@ def test_categorical_exposure_effect():
 @patch('ceam_public_health.components.risks.base_risk.inputs')
 def test_CategoricalRiskComponent(inputs_mock):
     time_step = timedelta(days=30.5)
+    config.simulation_parameters.time_step = 30.5
     risk = risk_factors.smoking
     inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5, ['age', 'year', 'sex', 'cat1', 'cat2'])
-    inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table([1.01, 0], ['age', 'year', 'sex', 'cat1', 'cat2'])
+    inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table([1.01, 1], ['age', 'year', 'sex', 'cat1', 'cat2'])
     inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
 
     component = CategoricalRiskComponent(risk)
@@ -101,12 +102,12 @@ def test_CategoricalRiskComponent(inputs_mock):
     incidence_rate.source = simulation.tables.build_table(build_table(0.01))
     paf = simulation.values.get_rate('paf.'+risk.effected_causes[-1].name)
 
-    assert np.isclose(simulation.population.population[risk.name+'_exposure'].sum() / len(simulation.population.population), 0.5, rtol=0.01)
+    assert np.isclose((simulation.population.population[risk.name+'_exposure'] == 'cat1').sum() / len(simulation.population.population), 0.5, rtol=0.01)
     expected_exposed_value = 0.01 * 1.01
     expected_unexposed_value = 0.01
 
-    exposed_index = simulation.population.population.index[simulation.population.population[risk.name+'_exposure']]
-    unexposed_index = simulation.population.population.index[~simulation.population.population[risk.name+'_exposure']]
+    exposed_index = simulation.population.population.index[simulation.population.population[risk.name+'_exposure'] == 'cat1']
+    unexposed_index = simulation.population.population.index[simulation.population.population[risk.name+'_exposure'] == 'cat2']
 
     assert np.allclose(incidence_rate(exposed_index), from_yearly(expected_exposed_value, time_step))
     assert np.allclose(incidence_rate(unexposed_index), from_yearly(expected_unexposed_value, time_step))
