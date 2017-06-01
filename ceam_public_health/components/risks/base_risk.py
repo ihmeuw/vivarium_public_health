@@ -165,7 +165,7 @@ def correlated_propensity(population, risk_factor):
     initialization.
     """
 
-    correlation_matrices = load_matrices().set_index(['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
+    correlation_matrices = inputs.load_risk_correlation_matrices().set_index(['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
     if risk_factor.name not in correlation_matrices.risk_factor.unique():
         # There's no correlation data for this risk, just pick a uniform random propensity
         return uncorrelated_propensity(population)
@@ -261,7 +261,7 @@ class ContinuousRiskComponent:
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': correlated_propensity(event.population, self._risk),
+            self._risk.name+'_propensity': uncorrelated_propensity(event.population, self._risk),
             self._risk.name+'_exposure': np.full(len(event.index), float(self._risk.tmrl)),
         }))
 
@@ -318,7 +318,7 @@ class CategoricalRiskComponent:
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': correlated_propensity(event.population, self._risk),
+            self._risk.name+'_propensity': uncorrelated_propensity(event.population, self._risk),
             self._risk.name+'_exposure': np.full(len(event.index), False),
         }))
 
