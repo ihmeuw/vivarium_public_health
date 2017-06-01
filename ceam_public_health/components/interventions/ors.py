@@ -17,7 +17,7 @@ from ceam_public_health.util.risk import (natural_key, naturally_sort_df,
 class Ors:
     """
     The Ors class accomplishes several things
-    1) Reads in all Ors risk data (pafs, relative risks, and exposures) and
+    1) Reads in all ors risk data (pafs, relative risks, and exposures) and
         outpatient visit costs (we are setting the unit cost of ors to be the
         cost of an outpatient visit)
         #FIXME: Should was also include unit cost estimate for ors? Certainly
