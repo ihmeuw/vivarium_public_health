@@ -67,7 +67,6 @@ def make_cols_demographically_specific(col_prefix, age_group_id_min,
     age_bins = make_age_bins_column(age_group_id_min, age_group_id_max)
 
     cols = []
-
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
 

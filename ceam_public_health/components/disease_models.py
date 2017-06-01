@@ -116,4 +116,3 @@ def stroke_factory():
 
     return DiseaseModel('all_stroke',
                         states=[healthy, hemorrhagic_stroke, ischemic_stroke, chronic_stroke])
-

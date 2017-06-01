@@ -216,4 +216,3 @@ class FertilityAgeSpecificRates:
             idx = creator(num_babies, population_configuration={'initial_age': 0})
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
             event.population_view.update(parents)
-
