@@ -14,23 +14,23 @@ from ceam_public_health.util.risk import (natural_key, naturally_sort_df,
                                           assign_relative_risk_value)
 
 
-class ORS:
+class Ors:
     """
-    The ORS class accomplishes several things
-    1) Reads in all ORS risk data (pafs, relative risks, and exposures) and
+    The Ors class accomplishes several things
+    1) Reads in all Ors risk data (pafs, relative risks, and exposures) and
         outpatient visit costs (we are setting the unit cost of ors to be the
         cost of an outpatient visit)
-        #FIXME: Should was also include unit cost estimate for ORS? Certainly
-        some locations wouldn't have the ORS cost baked into the visit cost
-    2) If config.ORS.run_intervention is set to True, the exposure will be
+        #FIXME: Should was also include unit cost estimate for ors? Certainly
+        some locations wouldn't have the ors cost baked into the visit cost
+    2) If config.ors.run_intervention is set to True, the exposure will be
         updated based on the value in
-        config.ORS.ors_exposure_increase_above_baseline
+        config.ors.ors_exposure_increase_above_baseline
     3) Creates the columns necessary to the component
-    4) Determines which simulants are currently receiving ORS
-    5) Sets the ORS-Deleted excess mortality rate for all simulants. For
-        simulants that do not receive ORS, we multiply the ORS-included
+    4) Determines which simulants are currently receiving ors
+    5) Sets the lack of ors-deleted excess mortality rate for all simulants. For
+        simulants that do not receive ors, we multiply the lack of ors-deleted
         mortality rate by the relative risk
-    6) Outputs metrics for ORS costs and counts
+    6) Outputs metrics for ors costs and counts
     """
     def setup(self, builder):
         # FIXME: We could update the paf and relative risk pipelines to be able
@@ -46,9 +46,9 @@ class ORS:
         # pull exposure and include any interventions that change exposure
         ors_exposure = get_ors_exposures()
 
-        if config.ORS.run_intervention:
+        if config.ors.run_intervention:
             # add exposure above baseline increase in intervention scenario
-            exposure_increase = config.ORS.ors_exposure_increase_above_baseline
+            exposure_increase = config.ors.ors_exposure_increase_above_baseline
             ors_exposure['cat1'] -= exposure_increase
             ors_exposure['cat2'] += exposure_increase
 
@@ -90,15 +90,15 @@ class ORS:
                    'ors_count', 'ors_outpatient_visit_cost'], 'alive')
     def determine_who_gets_ors(self, event):
         """
-        This method determines who should be seeing the benefit of ORS
+        This method determines who should be seeing the benefit of ors
         """
         pop = event.population
 
-        # if the simulant should no longer be receiving ORS, then set the
+        # if the simulant should no longer be receiving ors, then set the
         #    working column to false
         pop.loc[pop['ors_end_time'] <= event.time, 'ors_working'] = 0
 
-        # now we want to determine who should start receiving ORS this time
+        # now we want to determine who should start receiving ors this time
         # step filter down to only people that got diarrhea this time step
         # start by filtering out people that have never had diarrhea (the next
         # line will give us people that have never had a case if we don't
@@ -144,17 +144,17 @@ class ORS:
     @uses_columns(['ors_working'])
     def mortality_rates(self, index, rates, population_view):
         """
-        Set the lack of ORS-deleted mortality rate for all simulants. For those
-        exposed to the risk (the risk is the ABSENCE of ORS), multiply the
-        lack of ORS-deleted excess mortality rate by the relative risk
+        Set the lack of ors-deleted mortality rate for all simulants. For those
+        exposed to the risk (the risk is the ABSENCE of ors), multiply the
+        lack of ors-deleted excess mortality rate by the relative risk
         """
         pop = population_view.get(index)
 
-        # manually set the ORS-deleted mortality rate
+        # manually set the lack of ors-deleted mortality rate
         rates *= 1 - self.paf(index)
 
         # manually increase the diarrhea excess mortality rate for people that
-        #     do not get ORS (i.e. those exposed to the lack of ORS risk)
+        #     do not get ors (i.e. those exposed to the lack of ors risk)
         ors_not_working_index = pop.query("ors_working == 0").index
 
         if not ors_not_working_index.empty:
@@ -189,6 +189,6 @@ class ORS:
 
         metrics['ors_outpatient_visit_cost'] = population['ors_outpatient_visit_cost'].sum()
         metrics['ors_count'] = population['ors_count'].sum()
-        metrics['ors_facility_cost'] = population['ors_count'].sum() * config.ORS.facility_cost
+        metrics['ors_facility_cost'] = population['ors_count'].sum() * config.ors.facility_cost
 
         return metrics

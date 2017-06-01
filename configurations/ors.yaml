@@ -5,7 +5,7 @@ components:
         - base_population.Mortality()
         - diarrhea_disease_model.diarrhea_factory()
         - metrics.Metrics()
-        - interventions.ors.ORS()
+        - interventions.ors.Ors()
 
 configuration:
     simulation_parameters:
@@ -17,7 +17,7 @@ configuration:
         pop_age_end:
         initial_age: 0.0
         population_size: 20000
-    ORS:
+    ors:
         facility_cost: 0
         ors_exposure_increase_above_baseline: .25
         run_intervention: True
