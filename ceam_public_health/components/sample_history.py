@@ -1,5 +1,3 @@
-# ~/ceam/ceam/modules/sample_history.py
-
 import pandas as pd
 
 from ceam import config
@@ -49,6 +47,3 @@ class SampleHistory:
         warnings.filterwarnings('ignore', category=PerformanceWarning)
         warnings.filterwarnings('ignore', category=tables.NaturalNameWarning)
         pd.Panel(self.sample_frames).to_hdf(self.output_path, key='/{}'.format(config['run_configuration']['configuration_name']))
-
-
-# End.

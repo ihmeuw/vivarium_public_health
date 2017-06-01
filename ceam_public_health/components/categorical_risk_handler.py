@@ -1,5 +1,3 @@
-# ~/ceam_public_health/components/risks/categorical_risk_handler.py
-
 import os.path
 from functools import partial
 
@@ -54,6 +52,3 @@ class CategoricalRiskHandler:
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         self.population_view.update(pd.Series(self.randomness.get_draw(event.index), name='{}_susceptibility'.format(self.risk_name)))
-
-# End.
-

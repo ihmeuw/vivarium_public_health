@@ -1,5 +1,3 @@
-# ~/ceam/ceam_tests/test_modules/test_smoking.py
-
 import pytest
 
 from ceam_tests.util import setup_simulation, pump_simulation
@@ -25,6 +23,3 @@ from ceam_tests.util import setup_simulation, pump_simulation
 #
 #    # Smoking should increase rates
 #    assert base_incidence.mean() < smoking_incidence.mean()
-
-
-# End.

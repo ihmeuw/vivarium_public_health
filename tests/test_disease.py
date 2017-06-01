@@ -159,6 +159,3 @@ def test_load_population_custom_columns(get_disease_states_mock):
     assert np.all(simulation.population.population.special_test_count == 0)
 
     assert np.all(simulation.population.population.special_test_time.isnull())
-
-
-# End.

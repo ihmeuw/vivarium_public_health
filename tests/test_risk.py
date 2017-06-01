@@ -42,5 +42,3 @@ def test_assign_relative_risk_value():
     num_cat2 = len(df.loc[df.relative_risk_value == 2])
     assert num_cat1 == 5, "assign_relative_risk value should assign rr based on simulant's exposure"
     assert num_cat2 == 5, "assign_relative_risk value should assign rr based on simulant's exposure"
-
-# End.

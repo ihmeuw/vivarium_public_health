@@ -1,5 +1,3 @@
-# ~/ceam/ceam/modules/healthcare_access.py
-
 from collections import defaultdict
 from datetime import timedelta
 
@@ -157,6 +155,3 @@ class HealthcareAccess:
         else:
             metrics['cost'] = metrics['healthcare_access_cost']
         return metrics
-
-
-# End.
