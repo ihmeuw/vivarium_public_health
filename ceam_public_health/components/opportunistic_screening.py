@@ -10,7 +10,7 @@ from ceam.framework.values import modifies_value
 
 import ceam_public_health.components.healthcare_access
 
-from ceam_inputs.auxiliary_files import auxiliary_file_path
+from ceam_inputs import get_hypertension_drug_costs
 
 # TODO: This feels like configuration but is difficult to express in ini type files.
 MEDICATIONS = [
@@ -84,24 +84,25 @@ class OpportunisticScreening:
         self.cost_by_year = defaultdict(int)
 
     def setup(self, builder):
-        self.randomness = builder.randomness('opportunistic_screening')
-        r = np.random.RandomState(self.randomness.get_seed())
-        self.semi_adherent_efficacy = r.normal(0.4, 0.0485)
+        self.cost_by_year = defaultdict(int)
 
-        cost_df = pd.read_csv(auxiliary_file_path('Hypertension Drug Costs'), index_col='name')
+        # draw random costs and effects for medications
+        draw = config.run_configuration.draw_number
+        r = np.random.RandomState(12345+draw)
+        cost_df = get_hypertension_drug_costs()
+
         for med in MEDICATIONS:
             med['efficacy'] = r.normal(loc=med['efficacy_mean'], scale=med['efficacy_sd'])
-            med['daily_cost'] = cost_df.loc[med['name'], 'draw_{}'.format(config.run_configuration.draw_number)]
+            med['daily_cost'] = cost_df.loc[med['name'], 'draw_{}'.format(draw)]
 
-        if config.opportunistic_screening.max_medications > len(MEDICATIONS):
-            raise ValueError('cannot model more medications than we have data for')
+        self.semi_adherent_efficacy = r.normal(0.4, 0.0485)
 
-        columns = ['medication_count', 'adherence_category',
-                   'systolic_blood_pressure_exposure', 'age',
-                   'healthcare_followup_date', 'healthcare_last_visit_date',
-                   'last_screening_date']
-        columns.extend([medication['name']+'_supplied_until' for medication in MEDICATIONS])
+        assert config.opportunistic_screening.max_medications <= len(MEDICATIONS), 'cannot model more medications than we have data for'
 
+        columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure_exposure', 'age', 'healthcare_followup_date', 'healthcare_last_visit_date', 'last_screening_date']
+
+        for medication in MEDICATIONS:
+            columns.append(medication['name']+'_supplied_until')
         self.population_view = builder.population_view(columns, query='alive')
 
     @listens_for('initialize_simulants')
