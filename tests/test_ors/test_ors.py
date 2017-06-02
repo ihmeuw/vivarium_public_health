@@ -1,8 +1,6 @@
-import pandas as pd
-import numpy as np
-import pytest
 import os
-from datetime import timedelta, datetime
+
+import numpy as np
 
 from ceam import config
 from ceam_tests.util import (build_table, setup_simulation,
@@ -12,10 +10,9 @@ from ceam_inputs import (get_ors_exposures, get_ors_pafs,
                          get_ors_relative_risks,
                          get_severe_diarrhea_excess_mortality)
 
-from ceam_public_health.components.base_population import Mortality
 from ceam_public_health.components.diarrhea_disease_model import diarrhea_factory
 
-from ceam_public_health.components.interventions.ors import ORS
+from ceam_public_health.components.interventions.ors import Ors
 
 
 def setup():
@@ -48,7 +45,7 @@ def test_determine_who_gets_ors():
 
     population_size = 200000
 
-    simulation = setup_simulation([generate_test_population, ORS()] + factory,
+    simulation = setup_simulation([generate_test_population, Ors()] + factory,
                                   population_size=population_size)
 
     # make it so that all men will get diarrhea
@@ -99,7 +96,7 @@ def test_ors_working_column():
     """
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population, ORS()] + factory)
+    simulation = setup_simulation([generate_test_population, Ors()] + factory)
 
     pump_simulation(simulation, iterations=1)
 
@@ -118,7 +115,7 @@ def test_mortality_rates():
     """
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population, ORS()] + factory)
+    simulation = setup_simulation([generate_test_population, Ors()] + factory)
 
     # make it so that all men will get diarrhea
     inc = build_table(0)

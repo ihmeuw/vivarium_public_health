@@ -29,10 +29,12 @@ def setup():
     config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
                                                    source=os.path.realpath(__file__))
 
+
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_dwell_time(get_disease_states_mock):
     config.simulation_parameters.set_with_metadata('time_step', 10, layer='override', source=os.path.realpath(__file__))
-    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'}, index=population.index)
+    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame(
+        {'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('state')
     healthy_state = State('healthy')
     event_state = DiseaseState('event', 0.0, dwell_time=timedelta(days=28))
@@ -47,7 +49,6 @@ def test_dwell_time(get_disease_states_mock):
     # Move everyone into the event state
     event_time = simulation.current_time
     pump_simulation(simulation, iterations=1)
-
 
     assert np.all(simulation.population.population.state == 'event')
 
@@ -70,7 +71,11 @@ def test_mortality_rate():
 
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
-    mortality_state = ExcessMortalityState('sick', excess_mortality_data=build_table(0.7), disability_weight=0.1, prevalence_data=build_table(0.0000001, ['age', 'year', 'sex', 'prevalence']), csmr_data=build_table(0.0))
+    mortality_state = ExcessMortalityState('sick',
+                                           excess_mortality_data=build_table(0.7),
+                                           disability_weight=0.1,
+                                           prevalence_data=build_table(0.0000001, ['age', 'year', 'sex', 'prevalence']),
+                                           csmr_data=build_table(0.0))
 
     healthy.transition_set.append(Transition(mortality_state))
 
@@ -92,7 +97,8 @@ def test_incidence(get_disease_states_mock):
     time_step = config.simulation_parameters.time_step
     time_step = timedelta(days=time_step)
 
-    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'}, index=population.index)
+    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame(
+        {'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
     sick = State('sick')
@@ -111,6 +117,7 @@ def test_incidence(get_disease_states_mock):
     pump_simulation(simulation, iterations=1)
 
     assert np.allclose(from_yearly(0.7, time_step), incidence_rate(simulation.population.population.index), atol=0.00001)
+
 
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_risk_deletion(get_disease_states_mock):
@@ -144,11 +151,14 @@ def test_risk_deletion(get_disease_states_mock):
     assert np.allclose(from_yearly(expected_rate, time_step),
                        incidence_rate(simulation.population.population.index), atol=0.00001)
 
+
 @patch('ceam_public_health.components.disease.get_disease_states')
 def test_load_population_custom_columns(get_disease_states_mock):
-    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'}, index=population.index)
+    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame(
+        {'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('test_disease')
-    dwell_test = DiseaseState('dwell_test', disability_weight=0.0, dwell_time=10, event_time_column='special_test_time', event_count_column='special_test_count')
+    dwell_test = DiseaseState('dwell_test', disability_weight=0.0, dwell_time=10,
+                              event_time_column='special_test_time', event_count_column='special_test_count')
 
     model.states.append(dwell_test)
 
@@ -159,6 +169,3 @@ def test_load_population_custom_columns(get_disease_states_mock):
     assert np.all(simulation.population.population.special_test_count == 0)
 
     assert np.all(simulation.population.population.special_test_time.isnull())
-
-
-# End.

@@ -9,10 +9,6 @@ from ceam.framework.values import modifies_value
 from ceam_inputs import (get_outpatient_visit_costs, get_ors_exposures,
                          get_ors_relative_risks, get_ors_pafs)
 
-from ceam_public_health.util.risk import (natural_key, naturally_sort_df,
-                                          assign_exposure_categories,
-                                          assign_relative_risk_value)
-
 
 class Ors:
     """
@@ -67,21 +63,12 @@ class Ors:
         Creates count, propensity, working, and cost columns
         """
         length = len(event.index)
-
-        df = pd.DataFrame({'ors_count': [0]*length}, index=event.index)
-
-        df['ors_propensity'] = pd.Series(self.randomness.get_draw(event.index),
-                                         index=event.index)
-
-        df['ors_end_time'] = pd.Series([pd.NaT]*length, index=event.index)
-
-        df['ors_working'] = pd.Series([0]*length, index=event.index)
-
-        df['ors_outpatient_visit_cost'] = pd.Series([0.0]*length,
-                                                    index=event.index)
-
-        df['ors_facility_cost'] = pd.Series([0.0]*length, index=event.index)
-
+        df = pd.DataFrame({'ors_count': [0]*length,
+                           'ors_propensity': self.randomness.get_draw(event.index),
+                           'ors_end_time': [pd.NaT]*length,
+                           'ors_working': [0]*length,
+                           'ors_outpatient_visit_cost': [0.0]*length,
+                           'ors_facility_cost': [0.0]*length}, index=event.index)
         event.population_view.update(df)
 
     @listens_for('time_step', priority=7)
@@ -95,7 +82,7 @@ class Ors:
         pop = event.population
 
         # if the simulant should no longer be receiving ors, then set the
-        #    working column to false
+        # working column to false
         pop.loc[pop['ors_end_time'] <= event.time, 'ors_working'] = 0
 
         # now we want to determine who should start receiving ors this time
@@ -107,19 +94,17 @@ class Ors:
 
         # FIXME: people don't necessarily get diarrhea on the first day in
         # which they get diarrhea. might want to inject some uncertainty here
-        pop.loc[pop['diarrhea_event_time'] == pd.Timestamp(event.time)]
+        # pop.loc[pop['diarrhea_event_time'] == pd.Timestamp(event.time)]
 
         exp = self.exposure(pop.index)
 
-        exp, categories = naturally_sort_df(exp)
-
+        categories = sorted([c for c in exp.columns if 'cat' in c],
+                            key=lambda c: int(c.split('cat')[1]))
+        exp = exp[categories]
         # cumulatively sum over exposures
         exp = np.cumsum(exp, axis=1)
-
         exp = pop.join(exp)
-
-        exp = assign_exposure_categories(exp, 'ors_propensity',
-                                         categories)
+        exp = assign_exposure_categories(exp, 'ors_propensity', categories)
 
         pop = pop.join(exp)
 
@@ -192,3 +177,53 @@ class Ors:
         metrics['ors_facility_cost'] = population['ors_count'].sum() * config.ors.facility_cost
 
         return metrics
+
+
+def assign_exposure_categories(df, susceptibility_column, categories):
+    """Creates an 'exposure_category' column that assigns 
+    simulant's exposure based on their susceptibility draw
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+    susceptibility_column : str
+    categories : list
+        list of all of the category columns in df 
+    """
+
+    bool_list = [c + '_bool' for c in categories]
+
+    # TODO: Confirm whether or not we want < or <=
+    for col in categories:
+        df['{}_bool'.format(col)] = df['{}'.format(col)] < df[susceptibility_column]
+
+    df['exposure_category'] = df[bool_list].sum(axis=1)
+
+    # seems weird, but we need to add 1 to exposure category. e.g. if all values for a row in bool_list are false
+    # that simulant will be in exposure cat1, not cat0
+    df['exposure_category'] = df['exposure_category'] + 1
+
+    df['exposure_category'] = 'cat' + df['exposure_category'].astype(str)
+
+    return df[['exposure_category']]
+
+
+def assign_relative_risk_value(df, categories):
+    """
+    creates an 'relative_risk_value' column that assigns simulant's relative risk based on their exposure
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+
+    susceptibility_column : pd.Series
+
+    categories : list
+        list of all of the category columns in df
+
+    """
+
+    for col in categories:
+        df.loc[(df['exposure_category'] == col, 'relative_risk_value')] = df[col]
+
+    return df

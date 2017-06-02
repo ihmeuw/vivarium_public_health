@@ -1,5 +1,3 @@
-# ~/ceam/ceam/modules/sample_history.py
-
 import pandas as pd
 
 from ceam import config
@@ -7,10 +5,11 @@ from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 
+
 class SampleHistory:
-    """
-    Collect a detailed record of events that happen to a sampled sub-population for use with visualization
-    or analysis. The records are written to an HDF file.
+    """Collect a detailed record of events that happen to a sampled sub-population 
+    
+    For use with visualization or analysis. The records are written to an HDF file.
     """
 
     def __init__(self):
@@ -24,7 +23,6 @@ class SampleHistory:
 
     def setup(self, builder):
         self.randomness = builder.randomness('sample_history')
-
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
@@ -44,11 +42,10 @@ class SampleHistory:
     @listens_for('simulation_end')
     def dump(self, event):
         # NOTE: I'm suppressing two very noisy warnings about HDF writing that I don't think are relevant to us
-        import warnings, tables
+        import warnings
+        import tables
         from pandas.core.common import PerformanceWarning
         warnings.filterwarnings('ignore', category=PerformanceWarning)
         warnings.filterwarnings('ignore', category=tables.NaturalNameWarning)
-        pd.Panel(self.sample_frames).to_hdf(self.output_path, key='/{}'.format(config['run_configuration']['configuration_name']))
-
-
-# End.
+        pd.Panel(self.sample_frames).to_hdf(self.output_path,
+                                            key='/{}'.format(config['run_configuration']['configuration_name']))

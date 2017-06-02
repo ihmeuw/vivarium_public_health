@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-import ceam_inputs as ci
+from ceam_inputs import (get_etiology_specific_incidence, get_severe_diarrhea_excess_mortality,
+                         get_cause_specific_mortality, get_disability_weight, get_severity_splits)
 
 from ceam import config
 from ceam.framework.event import listens_for
@@ -357,7 +358,7 @@ def diarrhea_factory():
         etiology_state = DiarrheaEtiologyState(pathogen,
                                                key=pathogen)
 
-        etiology_specific_incidence = ci.get_etiology_specific_incidence(
+        etiology_specific_incidence = get_etiology_specific_incidence(
             eti_risk_id=risk_id, cause_id=302, me_id=1181)
 
         transition = RateTransition(etiology_state,
@@ -370,18 +371,18 @@ def diarrhea_factory():
 
         list_of_modules.append(module)
 
-    excess_mortality = ci.get_severe_diarrhea_excess_mortality()
+    excess_mortality = get_severe_diarrhea_excess_mortality()
 
     time_step = config.simulation_parameters.time_step
 
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
-                                     csmr_data=ci.get_cause_specific_mortality(1181),
-                                     mild_disability_weight=ci.get_disability_weight(healthstate_id=355),
-                                     moderate_disability_weight=ci.get_disability_weight(healthstate_id=356),
-                                     severe_disability_weight=ci.get_disability_weight(healthstate_id=357),
-                                     mild_severity_split=ci.get_severity_splits(1181, 2608),
-                                     moderate_severity_split=ci.get_severity_splits(1181, 2609),
-                                     severe_severity_split=ci.get_severity_splits(1181, 2610),
+                                     csmr_data=get_cause_specific_mortality(1181),
+                                     mild_disability_weight=get_disability_weight(healthstate_id=355),
+                                     moderate_disability_weight=get_disability_weight(healthstate_id=356),
+                                     severe_disability_weight=get_disability_weight(healthstate_id=357),
+                                     mild_severity_split=get_severity_splits(1181, 2608),
+                                     moderate_severity_split=get_severity_splits(1181, 2609),
+                                     severe_severity_split=get_severity_splits(1181, 2610),
                                      duration_data=get_duration_in_days(1181))
 
     return list_of_modules + [diarrhea_burden]
