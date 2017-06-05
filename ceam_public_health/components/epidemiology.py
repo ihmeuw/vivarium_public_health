@@ -1,9 +1,11 @@
+import os
 from datetime import timedelta, datetime
 
 import pandas as pd
 
 from ceam.framework.values import produces_value
 from ceam.framework.event import listens_for, emits
+from ceam.framework.util import collapse_nested_dict
 
 from ceam import config
 
@@ -21,9 +23,19 @@ class EpidemiologicalMeasures:
         self.point_measures = builder.value('epidemiological_point_measures')
         self.span_measures = builder.value('epidemiological_span_measures')
 
-        if 'epidemiology' not in config:
-            config['epidemiology'] = {}
-        self.output_path = config['epidemiology'].get('path', '/tmp/measures.hdf')
+        if 'results_directory' in config.run_configuration:
+            results_directory = config.run_configuration.results_directory
+        else:
+            results_directory = '/tmp'
+
+        if 'run_key' in config.run_configuration:
+            self.run_key = config.run_configuration.run_key
+        else:
+            self.run_key = None
+
+        results_directory = os.path.join(results_directory, 'epidemiological_measures')
+        os.makedirs(results_directory, exist_ok=True)
+        self.output_path = os.path.join(results_directory, 'measure_{}.hdf'.format(config.run_configuration.run_id))
         self.collecting = False
         self.last_collected_year = -1
 
@@ -79,4 +91,8 @@ class EpidemiologicalMeasures:
         df['draw'] = config.run_configuration.draw_number
         existing_df = pd.read_hdf(self.output_path)
         df = existing_df.append(df)
+
+        if self.run_key:
+            for k,v in collapse_nested_dict(self.run_key.to_dict()):
+                df[k] = v
         df.to_hdf(self.output_path, 'data')
