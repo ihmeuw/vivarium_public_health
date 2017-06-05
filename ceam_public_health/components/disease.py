@@ -405,8 +405,8 @@ class RateTransition(Transition):
 
     def __str__(self):
         return 'RateTransition({0}, {1})'.format(
-            self.output.state_id if hasattr(self.output, 'state_id')
-            else [str(x) for x in self.output], self.rate_label)
+            self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output],
+            self.rate_label)
 
 
 class ProportionTransition(Transition):
@@ -437,8 +437,10 @@ class ProportionTransition(Transition):
     def label(self):
         if self.modelable_entity_id:
             return str(self.modelable_entity_id)
+        elif isinstance(self.proportion, numbers.Number):
+            return '{:.3f}'.format(self.proportion)
         else:
-            return str(self.proportion)
+            return super().label()
 
     def __str__(self):
         return 'ProportionTransition({}, {}, {})'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.modelable_entity_id, self.proportion)
@@ -519,6 +521,50 @@ class DiseaseModel(Machine):
                                                             index=[0]).set_index(
                                 ['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
         return cube
+
+    def to_dot(self):
+        """Produces a ball and stick graph of this state machine.
+
+        Returns
+        -------
+        `graphviz.Digraph`
+            A ball and stick visualization of this state machine.
+        """
+        from graphviz import Digraph
+        dot = Digraph(format='png')
+        for state in self.states:
+            if isinstance(state, ExcessMortalityState):
+                dot.node(state.name(), color='red')
+            elif isinstance(state, TransientDiseaseState):
+                dot.node(state.name(), style='dashed', color='orange')
+            elif state.name() == 'healthy':
+                dot.node(state.name(), color='green')
+            else:
+                dot.node(state.name(), color='orange')
+            for transition in state.transition_set:
+                if transition._active is not None:  # Transition is a triggered transition
+                    dot.attr('edge', style='bold')
+                else:
+                    dot.attr('edge', style='plain')
+
+                if isinstance(transition, RateTransition):
+                    dot.edge(state.name(), transition.output.name(), transition.label(), color='blue')
+                elif isinstance(transition, ProportionTransition):
+                    dot.edge(state.name(), transition.output.name(), transition.label(), color='purple')
+                else:
+                    dot.edge(state.name(), transition.output.name(), transition.label(), color='black')
+
+            if state.transition_set.allow_null_transition:
+                if hasattr(state, '_dwell_time'):
+                    if isinstance(state._dwell_time, numbers.Number):
+                        if state._dwell_time != 0:
+                            label = "dwell_time: {}".format(state._dwell_time)
+                            dot.edge(state.name(), state.name(), label, style='dotted')
+                        else:
+                            dot.edge(state.name(), state.name(), style='plain')
+                    else:
+                        dot.edge(state.name(), state.name(), style='dotted')
+        return dot
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
