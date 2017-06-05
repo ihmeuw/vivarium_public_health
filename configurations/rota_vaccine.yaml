@@ -1,10 +1,14 @@
 components:
     - ceam_public_health.components:
+        - diarrhea_disease_model.diarrhea_factory()
+        - risks:
+            - CategoricalRiskComponent("wash_hygiene")
+        # General population components
         - base_population.generate_base_population
         - base_population.age_simulants
         - base_population.Mortality()
-        - diarrhea_disease_model.diarrhea_factory()
         - metrics.Metrics()
+        # Intervention components
         - interventions.rota_vaccine.RotaVaccine(True)
 
 configuration:
