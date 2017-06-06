@@ -246,13 +246,10 @@ def test_medication_cost():
 @pytest.fixture(scope="module")
 def screening_setup():
     module_ = OpportunisticScreening()
-    simulation = setup_simulation([
-        generate_test_population,
-        _population_setup,
-        adherence,
-        HealthcareAccess(),
-        ContinuousRiskComponent('systolic_blood_pressure', distribution_loader, exposure_function),
-        module_], population_size=10)
+    simulation = setup_simulation(
+        [generate_test_population, _population_setup, adherence, HealthcareAccess(),
+        ContinuousRiskComponent('systolic_blood_pressure', distribution_loader, exposure_function), module_],
+        population_size=10)
 
     start_time = datetime(1990, 1, 1)
     simulation.current_time = start_time

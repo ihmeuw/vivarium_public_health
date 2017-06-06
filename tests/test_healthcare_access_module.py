@@ -43,7 +43,7 @@ class Metrics:
 
 
 @pytest.mark.slow
-@patch('ceam_public_health.components.healthcare_access.get_utilization_proportion')
+@patch('ceam_public_health.components.healthcare_access.get_proportion')
 def test_general_access(utilization_rate_mock):
     utilization_rate_mock.side_effect = lambda *args, **kwargs: build_table(0.1, ['age', 'year', 'sex', 'utilization_proportion'])
     metrics = Metrics()

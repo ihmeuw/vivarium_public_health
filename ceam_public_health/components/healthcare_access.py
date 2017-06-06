@@ -11,7 +11,9 @@ from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 from ceam.framework.randomness import filter_for_probability
 
-from ceam_inputs import get_utilization_proportion, get_doctor_visit_costs, get_inpatient_visit_costs
+from ceam_inputs import get_proportion, get_doctor_visit_costs, get_inpatient_visit_costs
+
+outpatient_visits_meid = 9458
 
 # draw random costs for doctor visit (time-specific)
 draw = config.run_configuration.draw_number
@@ -81,7 +83,7 @@ class HealthcareAccess:
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
 
-        self.utilization_proportion = builder.lookup(get_utilization_proportion())
+        self.utilization_proportion = builder.lookup(get_proportion(outpatient_visits_meid))
 
     @listens_for('initialize_simulants')
     @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date'])
