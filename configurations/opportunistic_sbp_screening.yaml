@@ -5,21 +5,21 @@ components:
                      - stroke.factory()
              - risks:
                      - ContinuousRiskComponent(
-                       "systolic_blood_pressure",
+                       "high_systolic_blood_pressure",
                        "ceam_public_health.components.risks.blood_pressure.distribution_loader",
                        "ceam_public_health.components.risks.blood_pressure.exposure_function")
                      - ContinuousRiskComponent(
-                       "fasting_plasma_glucose",
+                       "high_fasting_plasma_glucose_continuous",
                        "ceam_public_health.components.risks.fasting_plasma_glucose.distribution_loader")
                      - ContinuousRiskComponent(
-                       "cholesterol",
+                       "high_total_cholesterol",
                        "ceam_public_health.components.risks.cholesterol.distribution_loader")
                      - ContinuousRiskComponent(
-                       "body_mass_index",
+                       "high_body_mass_index",
                        "ceam_public_health.components.risks.body_mass_index.distribution_loader")
-                     - CategoricalRiskComponent("smoking")
+                     - CategoricalRiskComponent("smoking_prevalence_approach")
                      - CategoricalRiskComponent("secondhand_smoke")
-                     - CategoricalRiskComponent("household_air_polution")
+                     - CategoricalRiskComponent("household_air_pollution_from_solid_fuels")
              # Intervention components
              - base_population.adherence
              - opportunistic_screening.OpportunisticScreening(False)
