@@ -59,7 +59,7 @@ def make_dummy_column(name, initial_value):
 
 
 def test_continuous_exposure_effect():
-    risk = risk_factors.systolic_blood_pressure
+    risk = risk_factors.high_systolic_blood_pressure
     exposure_function = continuous_exposure_effect(risk)
 
     simulation = setup_simulation([generate_test_population,
@@ -79,7 +79,7 @@ def test_continuous_exposure_effect():
 
 
 def test_categorical_exposure_effect():
-    risk = risk_factors.systolic_blood_pressure
+    risk = risk_factors.high_systolic_blood_pressure
     exposure_function = categorical_exposure_effect(risk)
 
     simulation = setup_simulation([generate_test_population,
@@ -100,7 +100,7 @@ def test_categorical_exposure_effect():
 def test_CategoricalRiskComponent_dichotomous_case(inputs_mock):
     time_step = timedelta(days=30.5)
     config.simulation_parameters.time_step = 30.5
-    risk = risk_factors.smoking
+    risk = risk_factors.smoking_prevalence_approach
 
     inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(
         0.5, ['age', 'year', 'sex', 'cat1', 'cat2'])
@@ -137,7 +137,7 @@ def test_CategoricalRiskComponent_dichotomous_case(inputs_mock):
 def test_CategoricalRiskComponent_polydomous_case(inputs_mock):
     time_step = timedelta(days=30.5)
     config.simulation_parameters.time_step = 30.5
-    risk = risk_factors.smoking
+    risk = risk_factors.smoking_prevalence_approach
     inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(
         0.25, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
     inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(
@@ -167,7 +167,7 @@ def test_CategoricalRiskComponent_polydomous_case(inputs_mock):
 @patch('ceam_public_health.components.risks.base_risk.inputs')
 def test_ContinuousRiskComponent(inputs_mock):
     time_step = timedelta(days=30.5)
-    risk = risk_factors.systolic_blood_pressure
+    risk = risk_factors.high_systolic_blood_pressure
     inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
     inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(1.01)
     inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
@@ -200,7 +200,7 @@ def test_ContinuousRiskComponent(inputs_mock):
 @patch('ceam_public_health.components.risks.base_risk.inputs')
 def test_propensity_effect(inputs_mock):
     time_step = timedelta(days=30.5)
-    risk = risk_factors.systolic_blood_pressure
+    risk = risk_factors.high_systolic_blood_pressure
     inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
     inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(1.01)
     inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
@@ -240,13 +240,14 @@ def test_propensity_effect(inputs_mock):
 @patch('ceam_public_health.components.risks.base_risk.inputs')
 def test_correlated_propensity(inputs_mock):
     correlation_matrix = pd.DataFrame({
-        'systolic_blood_pressure':    [1, 0.282213017344475, 0.110525231808424, 0.130475437755401, 0.237914389663941],
-        'body_mass_index':            [0.282213017344475, 1, 0.0928986519575119, -0.119147761153339, 0.212531763837137],
-        'cholesterol':                [0.110525231808424, 0.0928986519575119, 1, 0.175454370605231, 0.0476387962101613],
-        'smoking':                    [0.130475437755401, -0.119147761153339, 0.175454370605231, 1, 0.0770317213079334],
-        'fasting_plasma_glucose':     [0.237914389663941, 0.212531763837137, 0.0476387962101613, 0.0770317213079334, 1],
-        'risk_factor':                ['systolic_blood_pressure', 'body_mass_index',
-                                       'cholesterol', 'smoking', 'fasting_plasma_glucose'],
+        'high_systolic_blood_pressure':           [1, 0.282213017344475, 0.110525231808424, 0.130475437755401, 0.237914389663941],
+        'high_body_mass_index':                   [0.282213017344475, 1, 0.0928986519575119, -0.119147761153339, 0.212531763837137],
+        'high_total_cholesterol':                 [0.110525231808424, 0.0928986519575119, 1, 0.175454370605231, 0.0476387962101613],
+        'smoking_prevalence_approach':            [0.130475437755401, -0.119147761153339, 0.175454370605231, 1, 0.0770317213079334],
+        'high_fasting_plasma_glucose_continuous': [0.237914389663941, 0.212531763837137, 0.0476387962101613, 0.0770317213079334, 1],
+        'risk_factor':                ['high_systolic_blood_pressure', 'high_body_mass_index',
+                                       'high_total_cholesterol', 'smoking_prevalence_approach',
+                                       'high_fasting_plasma_glucose_continuous'],
         })
     correlation_matrix['age'] = 30
     correlation_matrix['sex'] = 'Male'
@@ -256,27 +257,28 @@ def test_correlated_propensity(inputs_mock):
 
     propensities = []
     for risk in [
-            risk_factors.systolic_blood_pressure,
-            risk_factors.body_mass_index,
-            risk_factors.cholesterol,
-            risk_factors.smoking,
-            risk_factors.fasting_plasma_glucose]:
+            risk_factors.high_systolic_blood_pressure,
+            risk_factors.high_body_mass_index,
+            risk_factors.high_total_cholesterol,
+            risk_factors.smoking_prevalence_approach,
+            risk_factors.high_fasting_plasma_glucose_continuous]:
         propensities.append(correlated_propensity(pop, risk))
 
     matrix = np.corrcoef(np.array(propensities))
-    assert np.allclose(correlation_matrix[['systolic_blood_pressure', 'body_mass_index', 'cholesterol',
-                                           'smoking', 'fasting_plasma_glucose']].values, matrix, rtol=0.15)
+    assert np.allclose(correlation_matrix[['high_systolic_blood_pressure', 'high_body_mass_index',
+                                           'high_total_cholesterol', 'smoking_prevalence_approach',
+                                           'high_fasting_plasma_glucose_continuous']].values, matrix, rtol=0.15)
 
 
 def test_uncorrelated_propensity():
     pop = pd.DataFrame({'age': [30]*1000000, 'sex': ['Male']*1000000})
     propensities = []
     for risk in [
-            risk_factors.systolic_blood_pressure,
-            risk_factors.body_mass_index,
-            risk_factors.cholesterol,
-            risk_factors.smoking,
-            risk_factors.fasting_plasma_glucose]:
+            risk_factors.high_systolic_blood_pressure,
+            risk_factors.high_body_mass_index,
+            risk_factors.high_total_cholesterol,
+            risk_factors.smoking_prevalence_approach,
+            risk_factors.high_fasting_plasma_glucose_continuous]:
         propensities.append(uncorrelated_propensity(pop, risk))
 
     propensities = np.array(propensities)

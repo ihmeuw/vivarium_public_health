@@ -34,7 +34,7 @@ def setup():
 
 
 @listens_for('initialize_simulants', priority=9)
-@uses_columns(['systolic_blood_pressure_exposure', 'age', 'fractional_age'])
+@uses_columns(['high_systolic_blood_pressure_exposure', 'age', 'fractional_age'])
 def _population_setup(event):
     age_sbps = []
     age_sbps.append((40, 130.0))  # Normotensive, below 60
@@ -53,7 +53,7 @@ def _population_setup(event):
     ages, sbps = zip(*age_sbps)
     population = pd.DataFrame(index=event.index)
     population['age'] = ages
-    population['systolic_blood_pressure_exposure'] = sbps
+    population['high_systolic_blood_pressure_exposure'] = sbps
 
     population['fractional_age'] = population['age']
 
@@ -73,18 +73,18 @@ def test_hypertensive_categories():
 
 def test_drug_effects():
     simulation, module_ = screening_setup()
-    columns = (['medication_count', 'systolic_blood_pressure_exposure']
+    columns = (['medication_count', 'high_systolic_blood_pressure_exposure']
                + [m['name']+'_supplied_until' for m in MEDICATIONS])
     population_view = simulation.population.get_view(columns)
 
-    starting_sbp = simulation.population.population.systolic_blood_pressure_exposure
+    starting_sbp = simulation.population.population.high_systolic_blood_pressure_exposure
 
     event = Event(simulation.population.population.index)
     event.time = datetime(1990, 1, 1)
 
     # No one is taking any drugs yet so there should be no effect on SBP
     module_.adjust_blood_pressure(event)
-    assert (starting_sbp == simulation.population.population.systolic_blood_pressure_exposure).all()
+    assert (starting_sbp == simulation.population.population.high_systolic_blood_pressure_exposure).all()
 
     # Now everyone is on the first drug
     population_view.update(pd.Series(1, index=simulation.population.population.index, name='medication_count'))
@@ -95,22 +95,22 @@ def test_drug_effects():
     event.index = simulation.population.population.index
     module_.adjust_blood_pressure(event)
     assert (starting_sbp[simulation.population.population.adherence_category == 'adherent']
-            > simulation.population.population.systolic_blood_pressure_exposure[
+            > simulation.population.population.high_systolic_blood_pressure_exposure[
                 simulation.population.population.adherence_category == 'adherent']).all()
 
     efficacy = MEDICATIONS[0]['efficacy']
     adherent_population = simulation.population.population[
         simulation.population.population.adherence_category == 'adherent']
     assert (starting_sbp[adherent_population.index]
-            == (adherent_population.systolic_blood_pressure_exposure + efficacy)).all()
+            == (adherent_population.high_systolic_blood_pressure_exposure + efficacy)).all()
     non_adherent_population = simulation.population.population[
         simulation.population.population.adherence_category == 'non-adherent']
     assert (starting_sbp[non_adherent_population.index]
-            == non_adherent_population.systolic_blood_pressure_exposure).all()
+            == non_adherent_population.high_systolic_blood_pressure_exposure).all()
     semi_adherent_population = simulation.population.population[
         simulation.population.population.adherence_category == 'semi-adherent']
     assert np.allclose(starting_sbp[semi_adherent_population.index],
-                       (semi_adherent_population.systolic_blood_pressure_exposure
+                       (semi_adherent_population.high_systolic_blood_pressure_exposure
                         + efficacy*module_.semi_adherent_efficacy))
 
     # Now everyone is on the first three drugs
@@ -122,15 +122,15 @@ def test_drug_effects():
     adherent_population = simulation.population.population[
         simulation.population.population.adherence_category == 'adherent']
     assert (starting_sbp[adherent_population.index].round()
-            == (adherent_population.systolic_blood_pressure_exposure + efficacy).round()).all()
+            == (adherent_population.high_systolic_blood_pressure_exposure + efficacy).round()).all()
     non_adherent_population = simulation.population.population[
         simulation.population.population.adherence_category == 'non-adherent']
     assert (starting_sbp[non_adherent_population.index]
-            == non_adherent_population.systolic_blood_pressure_exposure).all()
+            == non_adherent_population.high_systolic_blood_pressure_exposure).all()
     semi_adherent_population = simulation.population.population[
         simulation.population.population.adherence_category == 'semi-adherent']
     assert np.allclose(starting_sbp[semi_adherent_population.index],
-                       (semi_adherent_population.systolic_blood_pressure_exposure
+                       (semi_adherent_population.high_systolic_blood_pressure_exposure
                         + efficacy*module_.semi_adherent_efficacy))
 
 
@@ -227,7 +227,7 @@ def test_medication_cost():
 #
 #    # For the sake of this test, everyone is healthy so we don't have to worry about them getting prescribed drugs
 #    # which will change our costs.
-#    simulation.population.population['systolic_blood_pressure_exposure'] = 112
+#    simulation.population.population['high_systolic_blood_pressure_exposure'] = 112
 #
 #    # Everybody goes to the hospital
 #    simulation.emit_event(PopulationEvent('general_healthcare_access', simulation.population.population))
@@ -248,7 +248,7 @@ def screening_setup():
     module_ = OpportunisticScreening()
     simulation = setup_simulation(
         [generate_test_population, _population_setup, adherence, HealthcareAccess(),
-        ContinuousRiskComponent('systolic_blood_pressure', distribution_loader, exposure_function), module_],
+         ContinuousRiskComponent('high_systolic_blood_pressure', distribution_loader, exposure_function), module_],
         population_size=10)
 
     start_time = datetime(1990, 1, 1)
