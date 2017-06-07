@@ -3,7 +3,7 @@ ORS Intervention
 - The ORS supplementation component handles everything with regards to ORS that we care about
 - How is ORS modeled in GBD?
     - The ABSENCE of ORS is a risk. Like all other risks in GBD, there is a PAF, relative risk, and exposure associated with the lack of ORS.
-    - The PAF and relative risk affect the diarrhea excess mortality rate. We first calculate an ORS-deleted diarrhea mortality rate (diarrhea excess mortality rate * (1 - PAF)). For those that are exposed to the risk (i.e. people that get diarrhea but not ORS), we multipy the ORS-deleted excess mortality rate by the relative risk (diarrhea excess mortality rate * (1 - PAF) * rr).
+    - The PAF and relative risk affect the diarrhea excess mortality rate. We first calculate the lack-of-ORS-deleted diarrhea mortality rate (diarrhea excess mortality rate * (1 - PAF)). For those that are exposed to the risk (i.e. people that get diarrhea but not ORS), we multipy the lack-of-ORS-deleted excess mortality rate by the relative risk (diarrhea excess mortality rate * (1 - PAF) * rr).
 - How is ORS handled in CEAM?
     - The ORS component is structured as follows
         - We gather all relevant data (lack of ORS exposure, PAF, rr, and outpatient visit cost*)
