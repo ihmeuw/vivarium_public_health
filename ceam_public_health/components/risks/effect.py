@@ -58,7 +58,7 @@ class RiskEffect:
     def __init__(self, rr_data, paf_data, mediation_factor, cause, exposure_effect):
         self._rr_data = rr_data
         self._paf_data = paf_data
-        self._mediation_factor = mediation_factor if mediation_factor else 0
+        self._mediation_factor = mediation_factor
         self.cause = cause
         self.exposure_effect = exposure_effect
 

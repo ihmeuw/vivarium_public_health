@@ -122,8 +122,8 @@ class ContinuousRiskComponent:
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
         propensities = pd.Series(uncorrelated_propensity(event.population, self._risk),
-                                              name=self._risk.name+'_propensity',
-                                              index=event.index)
+                                 name=self._risk.name+'_propensity',
+                                 index=event.index)
         self.population_view.update(propensities)
         self.population_view.update(pd.Series(self.exposure_function(propensities, self.distribution(event.index)),
                                               name=self._risk.name+'_exposure',
@@ -153,10 +153,8 @@ class CategoricalRiskComponent:
 
     def setup(self, builder):
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
-
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
         self.exposure.source = builder.lookup(inputs.get_exposures(risk_id=self._risk.gbd_risk))
-
         self.randomness = builder.randomness(self._risk.name)
 
         effect_function = categorical_exposure_effect(self._risk)

@@ -82,9 +82,8 @@ def cholesterol(builder):
 
 
 def bmi(builder):
-    distibution = Interpolation(get_bmi_distribution_parameters(),
-                                categorical_parameters=('sex',),
-                                continuous_parameters=('age', 'year'),
-                                func=_bmi_ppf)
-    return builder.lookup(distibution)
-
+    distribution = Interpolation(get_bmi_distribution_parameters(),
+                                 categorical_parameters=('sex',),
+                                 continuous_parameters=('age', 'year'),
+                                 func=_bmi_ppf)
+    return builder.lookup(distribution)
