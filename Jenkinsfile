@@ -17,7 +17,7 @@ EOF
        '''
        stage 'Tests'
        sh '''
-           source /ihme/costeffectiveness/conda_env/bin/activate /ihme/costeffectiveness/conda_env
+           source /ihme/scratch/users/svcceci/.conda/bin/activate /ihme/scratch/users/svcceci/.conda/
            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH://ihme/costeffectiveness/conda_env/lib
            tox --recreate -e py35
        '''
