@@ -1,24 +1,26 @@
 from datetime import timedelta
 from unittest.mock import patch
+from importlib import import_module
 
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
 from ceam import config
 from ceam.interpolation import Interpolation
 from ceam.framework.util import from_yearly
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.config_tree import ConfigTree
+from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
 
 from ceam_inputs import risk_factors, causes
-
 from ceam_public_health.components.risks.base_risk import (RiskEffect, continuous_exposure_effect,
                                                            categorical_exposure_effect, CategoricalRiskComponent,
                                                            ContinuousRiskComponent, correlated_propensity,
-                                                           uncorrelated_propensity)
+                                                           uncorrelated_propensity, basic_exposure_function)
+from ceam_public_health.components.risks import body_mass_index, blood_pressure
+from ceam_public_health.components.causes import heart_disease, stroke
 
 
 def test_RiskEffect():
@@ -29,7 +31,7 @@ def test_RiskEffect():
     def test_function(rates_, rr):
         return rates_ * (rr.values**test_exposure[0])
 
-    effect = RiskEffect(build_table(1.01), build_table(0.01), causes.heart_attack, test_function)
+    effect = RiskEffect(build_table(1.01), build_table(0.01), build_table(0), causes.heart_attack, test_function)
 
     simulation = setup_simulation([generate_test_population, effect])
 
@@ -108,6 +110,7 @@ def test_CategoricalRiskComponent_dichotomous_case(inputs_mock):
         [1.01, 1], ['age', 'year', 'sex', 'cat1', 'cat2'])
 
     inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
+    inputs_mock.get_mediation_factors = lambda *args, **kwargs: build_table(0)
 
     component = CategoricalRiskComponent(risk)
 
@@ -143,6 +146,7 @@ def test_CategoricalRiskComponent_polydomous_case(inputs_mock):
     inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(
         [1.03, 1.02, 1.01, 1], ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
     inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
+    inputs_mock.get_mediation_factors = lambda *args, **kwargs: build_table(0)
 
     component = CategoricalRiskComponent(risk)
 
@@ -171,6 +175,7 @@ def test_ContinuousRiskComponent(inputs_mock):
     inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
     inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(1.01)
     inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
+    inputs_mock.get_mediation_factors = lambda *args, **kwargs: build_table(0)
 
     def loader(builder):
         dist = Interpolation(
@@ -204,6 +209,7 @@ def test_propensity_effect(inputs_mock):
     inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
     inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(1.01)
     inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
+    inputs_mock.get_mediation_factors = lambda *args, **kwargs: build_table(0)
 
     def loader(builder):
         dist = Interpolation(
@@ -306,6 +312,7 @@ def test_correlated_exposures(inputs_mock):
     inputs_mock.get_exposures = mock_get_exposures
     inputs_mock.get_relative_risk = mock_get_relative_risk
     inputs_mock.get_pafs = mock_get_pafs
+    inputs_mock.get_mediation_factors = lambda *args, **kwargs: build_table(0)
 
     continuous_1 = ConfigTree({'name': 'continuous_1', 'gbd_risk': 1,
                                'effected_causes': [], 'tmrl': 112.5, 'scale': 10})
@@ -328,3 +335,118 @@ def test_correlated_exposures(inputs_mock):
     categorical_2_component = CategoricalRiskComponent(categorical_2)
     simulation = setup_simulation([generate_test_population, continuous_1_component,
                                    continuous_2_component, categorical_1_component, categorical_2_component], 100)
+
+
+class RiskMock:
+    def __init__(self, risk, risk_effect, distribution_loader, exposure_function=basic_exposure_function):
+        if isinstance(distribution_loader, str):
+            module_path, _, name = distribution_loader.rpartition('.')
+            distribution_loader = getattr(import_module(module_path), name)
+
+        if isinstance(exposure_function, str):
+            module_path, _, name = exposure_function.rpartition('.')
+            exposure_function = getattr(import_module(module_path), name)
+
+        self._risk = risk_factors[risk] if isinstance(risk, str) else risk
+        self.risk_effect = risk_effect
+        self._distribution_loader = distribution_loader
+        self.exposure_function = exposure_function
+
+    def setup(self, builder):
+        self.distribution = self._distribution_loader(builder)
+        self.randomness = builder.randomness(self._risk.name)
+        self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
+
+        return [self.risk_effect]
+
+    @listens_for('initialize_simulants')
+    @uses_columns(['age', 'sex'])
+    def load_population_columns(self, event):
+        propensities = pd.Series(uncorrelated_propensity(event.population, self._risk),
+                                 name=self._risk.name + '_propensity',
+                                 index=event.index)
+        self.population_view.update(propensities)
+        self.population_view.update(pd.Series(self.exposure_function(propensities, self.distribution(event.index)),
+                                              name=self._risk.name + '_exposure',
+                                              index=event.index))
+
+    @listens_for('time_step__prepare', priority=8)
+    def update_exposure(self, event):
+        population = self.population_view.get(event.index)
+        distribution = self.distribution(event.index)
+        new_exposure = self.exposure_function(population[self._risk.name + '_propensity'], distribution)
+        self.population_view.update(pd.Series(new_exposure, name=self._risk.name + '_exposure', index=event.index))
+
+
+
+def test_make_gbd_risk_effects():
+    time_step = config.simulation_parameters.time_step
+    # adjusted pafs
+    paf = 0.01
+    mediation_factor = 0.6
+    effect_function = continuous_exposure_effect(risk_factors.high_systolic_blood_pressure)
+    risk_effect = RiskEffect(rr_data=build_table(0),
+                             paf_data=build_table(paf),
+                             mediation_factor=build_table(mediation_factor),
+                             cause=causes.heart_attack,
+                             exposure_effect=effect_function)
+    sbp = RiskMock(risk_factors.high_systolic_blood_pressure, risk_effect,
+                   blood_pressure.distribution_loader, blood_pressure.exposure_function)
+    simulation = setup_simulation([generate_test_population, heart_disease.factory(), sbp])
+    pafs = simulation.values.get_value('paf.heart_attack')
+    assert np.allclose(pafs(simulation.population.population.index), paf * (1 - mediation_factor))
+
+    paf = 0.25
+    mediation_factor = 0.4
+    effect_function = continuous_exposure_effect(risk_factors.high_systolic_blood_pressure)
+    risk_effect = RiskEffect(rr_data=build_table(0),
+                             paf_data=build_table(paf),
+                             mediation_factor=build_table(mediation_factor),
+                             cause=causes.ischemic_stroke,
+                             exposure_effect=effect_function)
+    sbp = RiskMock(risk_factors.high_systolic_blood_pressure, risk_effect,
+                   blood_pressure.distribution_loader, blood_pressure.exposure_function)
+    simulation = setup_simulation([generate_test_population, stroke.factory(), sbp])
+    pafs = simulation.values.get_value('paf.ischemic_stroke')
+    assert np.allclose(pafs(simulation.population.population.index), paf * (1 - mediation_factor))
+
+    paf = 0.9
+    mediation_factor = 0.02
+    effect_function = continuous_exposure_effect(risk_factors.high_body_mass_index)
+    risk_effect = RiskEffect(rr_data=build_table(0),
+                             paf_data=build_table(paf),
+                             mediation_factor=build_table(mediation_factor),
+                             cause=causes.hemorrhagic_stroke,
+                             exposure_effect=effect_function)
+    bmi = RiskMock(risk_factors.high_body_mass_index, risk_effect,
+                   body_mass_index.distribution_loader)
+    simulation = setup_simulation([generate_test_population, stroke.factory(), bmi])
+    pafs = simulation.values.get_value('paf.hemorrhagic_stroke')
+    # import pdb;pdb.set_trace()
+    assert np.allclose(pafs(simulation.population.population.index), paf * (1 - mediation_factor))
+
+    # adjusted rrs
+    rr = 1.26
+    mediation_factor = 0.5
+    adjrr = rr ** (1 - mediation_factor)
+    tmrl = 21
+    scale=5
+    exposure = 30
+    # I think this will fail because exposure is set in effect_function to something other than 30...
+    # make sure (RR^1-mf)^(exposure-tmrl) >= 1
+
+    effect_function = continuous_exposure_effect(risk_factors.high_body_mass_index)
+    risk_effect = RiskEffect(rr_data=build_table(rr),
+                             paf_data=build_table(0),
+                             mediation_factor=build_table(mediation_factor),
+                             cause=causes.heart_attack,
+                             exposure_effect=effect_function)
+    bmi = RiskMock(risk_factors.high_body_mass_index, risk_effect,
+                   body_mass_index.distribution_loader,
+                   exposure_function=lambda propensity, distribution: pd.Series(exposure, index=propensity.index))
+    simulation = setup_simulation([generate_test_population, heart_disease.factory(), bmi])
+    irs = simulation.values.get_value('incidence_rate.heart_attack')
+    base_ir = irs.source(simulation.population.population.index)
+
+    assert np.allclose(irs(simulation.population.population.index),
+                       base_ir * max(adjrr**((exposure-tmrl)/scale), 1) * time_step/365, rtol=0.05)
