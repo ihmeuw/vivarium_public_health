@@ -6,17 +6,17 @@ components:
              - risks:
                      - ContinuousRiskComponent(
                        "high_systolic_blood_pressure",
-                       "ceam_public_health.components.risks.blood_pressure.distribution_loader",
-                       "ceam_public_health.components.risks.blood_pressure.exposure_function")
+                       "ceam_public_health.components.risks.distributions.sbp",
+                       "ceam_public_health.components.risks.exposures.sbp")
                      - ContinuousRiskComponent(
                        "high_fasting_plasma_glucose_continuous",
-                       "ceam_public_health.components.risks.fasting_plasma_glucose.distribution_loader")
+                       "ceam_public_health.components.risks.distributions.fpg")
                      - ContinuousRiskComponent(
                        "high_total_cholesterol",
-                       "ceam_public_health.components.risks.cholesterol.distribution_loader")
+                       "ceam_public_health.components.risks.distributions.cholesterol")
                      - ContinuousRiskComponent(
                        "high_body_mass_index",
-                       "ceam_public_health.components.risks.body_mass_index.distribution_loader")
+                       "ceam_public_health.components.risks.distributions.bmi")
                      - CategoricalRiskComponent("smoking_prevalence_approach")
                      - CategoricalRiskComponent("secondhand_smoke")
                      - CategoricalRiskComponent("household_air_pollution_from_solid_fuels")
