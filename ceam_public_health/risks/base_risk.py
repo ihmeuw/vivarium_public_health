@@ -1,18 +1,16 @@
-from importlib import import_module
-
 import numpy as np
 import pandas as pd
-from ceam_public_health.risks.exposures import basic_exposure_function
 from scipy.stats import multivariate_normal, norm
 
 import ceam_inputs as inputs
+from ceam_inputs.gbd_mapping import risk_factors
+
 from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.randomness import random
-from ceam_inputs.gbd_mapping import risk_factors
-from risks.effect import (continuous_exposure_effect, categorical_exposure_effect,
-                          make_gbd_risk_effects)
+
+from ceam_public_health.risks import get_exposure_function, get_distribution, make_gbd_risk_effects
 
 
 def uncorrelated_propensity(population, risk_factor):
@@ -94,27 +92,17 @@ class ContinuousRiskComponent:
         by distribution_loader and a propensity value for each simulant
         and returns the current exposure to this risk factor.
     """
-    def __init__(self, risk, distribution_loader, exposure_function=basic_exposure_function):
-        if isinstance(distribution_loader, str):
-            module_path, _, name = distribution_loader.rpartition('.')
-            distribution_loader = getattr(import_module(module_path), name)
-
-        if isinstance(exposure_function, str):
-            module_path, _, name = exposure_function.rpartition('.')
-            exposure_function = getattr(import_module(module_path), name)
-
+    def __init__(self, risk):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
-        self._distribution_loader = distribution_loader
-        self.exposure_function = exposure_function
+        self._distribution_loader = get_distribution(self._risk.name)
+        self.exposure_function = get_exposure_function(self._risk.name)
 
     def setup(self, builder):
         self.distribution = self._distribution_loader(builder)
         self.randomness = builder.randomness(self._risk.name)
-        effect_function = continuous_exposure_effect(self._risk)
-        risk_effects = make_gbd_risk_effects(self._risk, effect_function)
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
 
-        return risk_effects
+        return make_gbd_risk_effects(self._risk)
 
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex'])
@@ -155,10 +143,7 @@ class CategoricalRiskComponent:
         self.exposure.source = builder.lookup(inputs.get_exposures(risk_id=self._risk.gbd_risk))
         self.randomness = builder.randomness(self._risk.name)
 
-        effect_function = categorical_exposure_effect(self._risk)
-        risk_effects = make_gbd_risk_effects(self._risk, effect_function)
-
-        return risk_effects
+        return make_gbd_risk_effects(self._risk)
 
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex'])

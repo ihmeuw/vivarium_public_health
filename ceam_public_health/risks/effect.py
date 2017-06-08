@@ -83,7 +83,8 @@ class RiskEffect:
                 + "mediation_factor= {})".format(self._mediation_factor))
 
 
-def make_gbd_risk_effects(risk, effect_function):
+def make_gbd_risk_effects(risk):
+    effect_function = continuous_exposure_effect(risk) if risk.risk_type == 'continuous' else categorical_exposure_effect(risk)
     return [RiskEffect(rr_data=inputs.get_relative_risks(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
                        paf_data=inputs.get_pafs(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
                        mediation_factor=inputs.get_mediation_factors(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),

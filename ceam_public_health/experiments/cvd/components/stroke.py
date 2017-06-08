@@ -1,7 +1,7 @@
 from ceam_inputs import get_incidence, causes
 
-from ceam_public_health.components.disease import DiseaseModel, DiseaseState, make_disease_state
-from ceam_public_health.components.healthcare_access import hospitalization_side_effect_factory
+from ceam_public_health.disease import DiseaseState, make_disease_state, DiseaseModel
+from ceam_public_health.treatment import hospitalization_side_effect_factory
 
 
 def factory():
