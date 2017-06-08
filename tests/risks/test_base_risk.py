@@ -191,6 +191,7 @@ def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock):
         return builder.lookup(dist)
 
     component = ContinuousRiskComponent(risk)
+    component._distribution_loader = loader
 
     simulation = setup_simulation([generate_test_population, component], 100000)
     pump_simulation(simulation, iterations=1)
@@ -225,7 +226,8 @@ def test_propensity_effect(br_inputs_mock, effect_inputs_mock):
                 func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
         return builder.lookup(dist)
 
-    component = ContinuousRiskComponent(risk, loader)
+    component = ContinuousRiskComponent(risk)
+    component._distribution_loader = loader
 
     simulation = setup_simulation([generate_test_population, component], 100000)
     pop_view = simulation.population.get_view([risk.name+'_propensity'])
