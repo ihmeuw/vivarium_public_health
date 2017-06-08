@@ -67,8 +67,8 @@ def build_diarrhea_model():
             healthy.next_state(index, population_view)
             diarrhea_transition.set_inactive(index)
 
-    etiology_names = ['{}'.format(name) for name, etiology in risk_factors.items()
-                      if causes.diarrhea in etiology.effected_causes]
+    etiology_names = ['{}'.format(name) for name, etiology in causes.items() if 'gbd_parent_cause' in etiology and
+                      etiology.gbd_parent_cause == causes.diarrhea.gbd_cause]
     etiologies = [build_etiology_model(name, cause_diarrhea) for name in etiology_names]
     etiologies.append(build_etiology_model('unattributed', cause_diarrhea))
 

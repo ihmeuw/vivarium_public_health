@@ -46,9 +46,9 @@ def _hypertensive_categories(population):
     severe_hypertensive_threshold = config.opportunistic_screening.severe_hypertensive_threshold
     under_60 = population.age < 60
     over_60 = population.age >= 60
-    under_hypertensive = population.systolic_blood_pressure_exposure < hypertensive_threshold
-    under_hypertensive_older = population.systolic_blood_pressure_exposure < hypertensive_threshold+10
-    under_severe_hypertensive = population.systolic_blood_pressure_exposure < severe_hypertensive_threshold
+    under_hypertensive = population.high_systolic_blood_pressure_exposure < hypertensive_threshold
+    under_hypertensive_older = population.high_systolic_blood_pressure_exposure < hypertensive_threshold+10
+    under_severe_hypertensive = population.high_systolic_blood_pressure_exposure < severe_hypertensive_threshold
 
     normotensive = (under_60 & under_hypertensive) | (over_60 & under_hypertensive_older)
     severe_hypertension = (~under_severe_hypertensive)
@@ -99,7 +99,7 @@ class OpportunisticScreening:
 
         assert config.opportunistic_screening.max_medications <= len(MEDICATIONS), 'cannot model more medications than we have data for'
 
-        columns = ['medication_count', 'adherence_category', 'systolic_blood_pressure_exposure', 'age', 'healthcare_followup_date', 'healthcare_last_visit_date', 'last_screening_date']
+        columns = ['medication_count', 'adherence_category', 'high_systolic_blood_pressure_exposure', 'age', 'healthcare_followup_date', 'healthcare_last_visit_date', 'last_screening_date']
 
         for medication in MEDICATIONS:
             columns.append(medication['name']+'_supplied_until')
@@ -232,8 +232,8 @@ class OpportunisticScreening:
 
                 medication_efficacy = medication['efficacy'] * adherence
                 affected_population = affected_population.copy()
-                affected_population['systolic_blood_pressure_exposure'] -= medication_efficacy
-                self.population_view.update(affected_population['systolic_blood_pressure_exposure'])
+                affected_population['high_systolic_blood_pressure_exposure'] -= medication_efficacy
+                self.population_view.update(affected_population['high_systolic_blood_pressure_exposure'])
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):

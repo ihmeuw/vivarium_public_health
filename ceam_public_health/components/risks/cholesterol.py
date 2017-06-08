@@ -9,7 +9,7 @@ from ceam_inputs import get_exposures, risk_factors
 
 
 def distribution_loader(builder):
-    df = get_exposures(risk_factors.cholesterol.gbd_risk)
+    df = get_exposures(risk_factors.high_total_cholesterol.gbd_risk)
     # NOTE: Cholesterol is not modeled for younger ages so set them equal to the TMRL
     df.loc[df.age < 27.5, 'continuous'] = 3.08
     df = df.set_index(['age', 'sex', 'year'])
