@@ -1,0 +1,43 @@
+components:
+        - ceam_public_health.components:
+             - causes:
+                     - heart_disease.factory()
+                     - stroke.factory()
+             - risks:
+                     - ContinuousRiskComponent(
+                       "high_systolic_blood_pressure",
+                       "ceam_public_health.components.risks.distributions.sbp",
+                       "ceam_public_health.components.risks.exposures.sbp")
+                     - ContinuousRiskComponent(
+                       "high_fasting_plasma_glucose_continuous",
+                       "ceam_public_health.components.risks.distributions.fpg")
+                     - ContinuousRiskComponent(
+                       "high_total_cholesterol",
+                       "ceam_public_health.components.risks.distributions.cholesterol")
+                     - ContinuousRiskComponent(
+                       "high_body_mass_index",
+                       "ceam_public_health.components.risks.distributions.bmi")
+                     - CategoricalRiskComponent("smoking_prevalence_approach")
+                     - CategoricalRiskComponent("secondhand_smoke")
+                     - CategoricalRiskComponent("household_air_pollution_from_solid_fuels")
+             # Intervention components
+             - base_population.adherence
+             - opportunistic_screening.OpportunisticScreening(False)
+             - healthcare_access.HealthcareAccess()
+             # General population components
+             - base_population.generate_base_population
+             - base_population.age_simulants
+             - base_population.Mortality()
+             - base_population.assign_location
+             # utilities
+             - metrics.Metrics()
+
+configuration:
+        simulation_parameters:
+                location_id: 180
+                year_start: 2005
+                year_end: 2010
+                time_step: 30.5 #Days
+                pop_age_start: 0
+                pop_age_end: 125
+                population_size: 10000

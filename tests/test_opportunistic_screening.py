@@ -9,13 +9,14 @@ import pandas as pd
 from ceam import config
 from ceam.framework.event import Event, listens_for
 from ceam.framework.population import uses_columns
+
 from ceam_tests.util import setup_simulation, generate_test_population
 
-from ceam_public_health.components.risks import ContinuousRiskComponent, distributions, exposures
+from ceam_public_health.risks import ContinuousRiskComponent, distributions, exposures
+from ceam_public_health.components.base_population import adherence
+from ceam_public_health.components.healthcare_access import HealthcareAccess
 from ceam_public_health.components.opportunistic_screening import (_hypertensive_categories,
                                                                    OpportunisticScreening, MEDICATIONS)
-from ceam_public_health.components.healthcare_access import HealthcareAccess
-from ceam_public_health.components.base_population import adherence
 
 
 def setup():

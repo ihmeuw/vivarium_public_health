@@ -2,19 +2,17 @@ from importlib import import_module
 
 import numpy as np
 import pandas as pd
+from ceam_public_health.risks.exposures import basic_exposure_function
 from scipy.stats import multivariate_normal, norm
 
 import ceam_inputs as inputs
-
 from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.randomness import random
 from ceam_inputs.gbd_mapping import risk_factors
-
-from ceam_public_health.components.risks.effect import (continuous_exposure_effect, categorical_exposure_effect,
-                                                        make_gbd_risk_effects)
-from ceam_public_health.components.risks.exposures import basic_exposure_function
+from risks.effect import (continuous_exposure_effect, categorical_exposure_effect,
+                          make_gbd_risk_effects)
 
 
 def uncorrelated_propensity(population, risk_factor):

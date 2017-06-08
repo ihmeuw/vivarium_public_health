@@ -19,3 +19,13 @@ def basic_exposure_function(propensity, distribution):
 
 def sbp(propensity, distribution):
     return np.exp(norm.ppf(propensity, loc=distribution['log_mean'], scale=distribution['log_sd']))
+
+
+exposure_map = {'high_systolic_blood_pressure': sbp}
+
+
+def get_exposure_function(risk_name):
+    if risk_name in exposure_map:
+        return exposure_map[risk_name]
+    else:
+        return basic_exposure_function

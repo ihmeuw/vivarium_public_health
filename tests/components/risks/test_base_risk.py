@@ -1,27 +1,28 @@
 from datetime import timedelta
-from unittest.mock import patch
 from importlib import import_module
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
+
 from ceam import config
-from ceam.interpolation import Interpolation
-from ceam.framework.util import from_yearly
+from ceam.config_tree import ConfigTree
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
-from ceam.config_tree import ConfigTree
+from ceam.framework.util import from_yearly
+from ceam.interpolation import Interpolation
+
 from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
 
 from ceam_inputs import risk_factors, causes
-from ceam_public_health.components.risks.base_risk import (CategoricalRiskComponent,
-                                                           ContinuousRiskComponent, correlated_propensity,
-                                                           uncorrelated_propensity, basic_exposure_function)
-from ceam_public_health.components.risks.effect import (continuous_exposure_effect,
-                                                        categorical_exposure_effect, RiskEffect)
-from ceam_public_health.components.risks import distributions, exposures
-from ceam_public_health.components.causes import heart_disease, stroke
+
+from ceam_public_health.experiments.cvd.components import heart_disease, stroke
+from ceam_public_health.risks import distributions, exposures
+from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
+from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
+                                                correlated_propensity, uncorrelated_propensity, basic_exposure_function)
 
 
 def test_RiskEffect():

@@ -1,6 +1,6 @@
 import numpy as np
 
-from ceam_public_health.components.risks.distributions import _sll_ppf as sll_ppf
+from ceam_public_health.risks.distributions import _sll_ppf as sll_ppf
 
 
 def test_sll_ppf():

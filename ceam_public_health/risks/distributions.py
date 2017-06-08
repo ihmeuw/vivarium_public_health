@@ -87,3 +87,16 @@ def bmi(builder):
                                  continuous_parameters=('age', 'year'),
                                  func=_bmi_ppf)
     return builder.lookup(distribution)
+
+
+distribution_map = {'high_systolic_blood_pressure': sbp,
+                    'high_fasting_plasma_glucose_continuous': fpg,
+                    'high_body_mass_index': bmi,
+                    'high_total_cholesterol': cholesterol}
+
+
+def get_distribution(risk_name):
+    if risk_name in distribution_map:
+        return distribution_map[risk_name]
+    else:
+        raise NotImplementedError('There is no distribution associated with the risk {}'.format(risk_name))

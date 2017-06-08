@@ -1,15 +1,15 @@
 import os
 from datetime import timedelta
-
-import numpy as np
 import pytest
 
+import numpy as np
+
 from ceam import config
+
 from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
 
-from ceam_public_health.components.risks import distributions, exposures
-from ceam_public_health.components.risks import ContinuousRiskComponent
 from ceam_public_health.components.base_population import age_simulants
+from ceam_public_health.risks import ContinuousRiskComponent, distributions, exposures
 
 np.random.seed(100)
 
