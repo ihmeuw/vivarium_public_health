@@ -50,6 +50,7 @@ def categorical_exposure_effect(risk):
         return rates * (rr.lookup(exposure_.index, exposure_))
     return inner
 
+
 class RiskEffect:
     """RiskEffect objects bundle all the effects that a given risk has on a cause.
     
@@ -65,25 +66,32 @@ class RiskEffect:
         A function which takes a series of incidence rates and a series of
         relative risks and returns rates modified as appropriate for this risk
     """
-    def __init__(self, rr_data, paf_data, cause, exposure_effect):
-        self.rr_data = rr_data
-        self.paf_data = paf_data
+    def __init__(self, rr_data, paf_data, mediation_factor, cause, exposure_effect):
+        self._rr_data = rr_data
+        self._paf_data = paf_data
+        self._mediation_factor = mediation_factor if mediation_factor else 0
         self.cause = cause
         self.exposure_effect = exposure_effect
 
     def setup(self, builder):
-        self.rr_lookup = builder.lookup(self.rr_data)
+        self.relative_risk = builder.lookup(self._rr_data)
+        self.population_attributable_fraction = builder.lookup(self._paf_data)
+        self.mediation_factor = builder.lookup(self._mediation_factor)
         builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause.name))
-        builder.modifies_value(builder.lookup(self.paf_data), 'paf.{}'.format(self.cause.name))
+        builder.modifies_value(self.paf_mf_adjustment, 'paf.{}'.format(self.cause.name))
 
         return [self.exposure_effect]
 
+    def paf_mf_adjustment(self, index):
+        return self.population_attributable_fraction(index) * (1 - self.mediation_factor(index))
+
     def incidence_rates(self, index, rates):
-        return self.exposure_effect(rates, self.rr_lookup(index))
+        return self.exposure_effect(rates, self.relative_risk(index).pow(1 - self.mediation_factor(index), axis=0))
 
     def __repr__(self):
-        return ("RiskEffect(rr_data= {},\npaf_data= {},\n".format(self.rr_data, self.paf_data)
-                + "cause= {},\nexposure_effect= {})".format(self.cause, self.exposure_effect))
+        return ("RiskEffect(rr_data= {},\npaf_data= {},\n".format(self._rr_data, self._paf_data)
+                + "cause= {},\nexposure_effect= {},\n".format(self.cause.name, self.exposure_effect)
+                + "mediation_factor= {})".format(self._mediation_factor))
 
 
 def uncorrelated_propensity(population, risk_factor):
@@ -196,11 +204,8 @@ class ContinuousRiskComponent:
     def setup(self, builder):
         self.distribution = self._distribution_loader(builder)
         self.randomness = builder.randomness(self._risk.name)
-
         effect_function = continuous_exposure_effect(self._risk)
-
         risk_effects = make_gbd_risk_effects(self._risk, effect_function)
-
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
 
         return risk_effects
@@ -208,10 +213,13 @@ class ContinuousRiskComponent:
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
-        self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': uncorrelated_propensity(event.population, self._risk),
-            self._risk.name+'_exposure': np.full(len(event.index), float(self._risk.tmrl)),
-        }))
+        propensities = pd.Series(uncorrelated_propensity(event.population, self._risk),
+                                              name=self._risk.name+'_propensity',
+                                              index=event.index)
+        self.population_view.update(propensities)
+        self.population_view.update(pd.Series(self.exposure_function(propensities, self.distribution(event.index)),
+                                              name=self._risk.name+'_exposure',
+                                              index=event.index))
 
     @listens_for('time_step__prepare', priority=8)
     def update_exposure(self, event):
@@ -225,17 +233,11 @@ class ContinuousRiskComponent:
 
 
 def make_gbd_risk_effects(risk, effect_function):
-    # This is here to avoid a cyclic dependency with ceam_inputs.
-    # Rather than significantly reorganizing the code to fix this now I'm
-    # going to wait until we fully decouple this code from GBD access by
-    # switching to bundled input data at which point this will just
-    # vanish. -Alec 04/2017
-    return [RiskEffect(
-        inputs.get_relative_risks(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
-        inputs.get_pafs(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
-        cause,
-        effect_function)
-        for cause in risk.effected_causes]
+    return [RiskEffect(rr_data=inputs.get_relative_risks(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
+                       paf_data=inputs.get_pafs(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
+                       mediation_factor=inputs.get_mediation_factors(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
+                       cause=cause,
+                       exposure_effect=effect_function) for cause in risk.effected_causes]
 
 
 class CategoricalRiskComponent:
