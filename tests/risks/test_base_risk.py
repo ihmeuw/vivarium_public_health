@@ -172,9 +172,11 @@ def test_CategoricalRiskComponent_polydomous_case(br_inputs_mock, effect_inputs_
         assert np.allclose(incidence_rate(exposed_index), from_yearly(expected, time_step), rtol=0.01)
 
 
+@patch('ceam_public_health.risks.base_risk.get_exposure_function')
+@patch('ceam_public_health.risks.base_risk.get_distribution')
 @patch('ceam_public_health.risks.effect.inputs')
 @patch('ceam_public_health.risks.base_risk.inputs')
-def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock):
+def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock, get_distribution_mock, get_exposure_function_mock):
     time_step = timedelta(days=30.5)
     risk = risk_factors.high_systolic_blood_pressure
     br_inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
@@ -190,8 +192,10 @@ def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock):
                 func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
         return builder.lookup(dist)
 
+    get_distribution_mock.side_effect = lambda *args, **kwargs: loader
+    get_exposure_function_mock.side_effect = lambda *args, **kwargs: basic_exposure_function
+
     component = ContinuousRiskComponent(risk)
-    component._distribution_loader = loader
 
     simulation = setup_simulation([generate_test_population, component], 100000)
     pump_simulation(simulation, iterations=1)
@@ -208,9 +212,11 @@ def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock):
                        from_yearly(expected_value, time_step), rtol=0.001)
 
 
+@patch('ceam_public_health.risks.base_risk.get_exposure_function')
+@patch('ceam_public_health.risks.base_risk.get_distribution')
 @patch('ceam_public_health.risks.effect.inputs')
 @patch('ceam_public_health.risks.base_risk.inputs')
-def test_propensity_effect(br_inputs_mock, effect_inputs_mock):
+def test_propensity_effect(br_inputs_mock, effect_inputs_mock, get_distribution_mock, get_exposure_function_mock):
     time_step = timedelta(days=30.5)
     risk = risk_factors.high_systolic_blood_pressure
     br_inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
@@ -226,8 +232,11 @@ def test_propensity_effect(br_inputs_mock, effect_inputs_mock):
                 func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
         return builder.lookup(dist)
 
+    get_distribution_mock.side_effect = lambda *args, **kwargs: loader
+    get_exposure_function_mock.side_effect = lambda *args, **kwargs: basic_exposure_function
+
     component = ContinuousRiskComponent(risk)
-    component._distribution_loader = loader
+
 
     simulation = setup_simulation([generate_test_population, component], 100000)
     pop_view = simulation.population.get_view([risk.name+'_propensity'])
@@ -315,9 +324,11 @@ def mock_get_pafs(risk_id, cause_id):
     return build_table(0)
 
 
+@patch('ceam_public_health.risks.base_risk.get_exposure_function')
+@patch('ceam_public_health.risks.base_risk.get_distribution')
 @patch('ceam_public_health.risks.effect.inputs')
 @patch('ceam_public_health.risks.base_risk.inputs')
-def test_correlated_exposures(br_inputs_mock, effect_inputs_mock):
+def test_correlated_exposures(br_inputs_mock, effect_inputs_mock, get_distribution_mock, get_exposure_function_mock):
     br_inputs_mock.get_exposures = mock_get_exposures
     effect_inputs_mock.get_relative_risk = mock_get_relative_risk
     effect_inputs_mock.get_pafs = mock_get_pafs
@@ -338,8 +349,11 @@ def test_correlated_exposures(br_inputs_mock, effect_inputs_mock):
                 func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
         return builder.lookup(dist)
 
-    continuous_1_component = ContinuousRiskComponent(continuous_1, loader)
-    continuous_2_component = ContinuousRiskComponent(continuous_2, loader)
+    get_distribution_mock.side_effect = lambda *args, **kwargs: loader
+    get_exposure_function_mock.side_effect = lambda *args, **kwargs: basic_exposure_function
+
+    continuous_1_component = ContinuousRiskComponent(continuous_1)
+    continuous_2_component = ContinuousRiskComponent(continuous_2)
     categorical_1_component = CategoricalRiskComponent(categorical_1)
     categorical_2_component = CategoricalRiskComponent(categorical_2)
     simulation = setup_simulation([generate_test_population, continuous_1_component,
