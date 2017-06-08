@@ -19,7 +19,7 @@ EOF
        sh '''
            source /ihme/scratch/users/svcceci/.conda/bin/activate /ihme/scratch/users/svcceci/.conda/
            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH://ihme/scratch/users/svcceci/.conda/lib/
-           tox --recreate -e py35
+           tox --recreate -e py36
        '''
 
        stage 'Notify'
