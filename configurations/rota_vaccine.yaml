@@ -5,8 +5,9 @@ components:
         - base_population.Mortality()
         - diarrhea_disease_model.diarrhea_factory()
         - metrics.Metrics()
-        - interventions.rota_vaccine.RotaVaccine(True)
-        - calculate_incidence.CalculateIncidence("diarrhea", "diarrhea", "healthy", 2, 5) 
+        - interventions.rota_vaccine.RotaVaccine(False)
+        - calculate_incidence.CalculateIncidence("diarrhea", "diarrhea", "healthy", 2, 5)
+        - epidemiology.EpidemiologicalMeasures()
 
 configuration:
     simulation_parameters:
