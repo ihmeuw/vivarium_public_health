@@ -95,4 +95,11 @@ class EpidemiologicalMeasures:
         if self.run_key:
             for k,v in collapse_nested_dict(self.run_key.to_dict()):
                 df[k] = v
+
+        # Enforce some types that occasionally get mis-set
+        df['sample_size'] = df.sample_size.astype(int)
+        df['sex'] = df.sex.astype(str)
+        df['age_low'] = df.age_low.astype(float)
+        df['age_high'] = df.age_high.astype(float)
+
         df.to_hdf(self.output_path, 'data')
