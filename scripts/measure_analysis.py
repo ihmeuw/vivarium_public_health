@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 
-from ceam_public_health.components.cube import make_measure_cube_from_gbd
+from cube import make_measure_cube_from_gbd
 
 def graph_measure(data, measure, output_directory):
     """ Save the convergence graph for a particular measure
