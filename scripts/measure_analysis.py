@@ -15,7 +15,7 @@ from matplotlib.lines import Line2D
 sns.set_context('paper')
 sns.set_style('darkgrid')
 
-from ceam_public_health.components.cube import make_measure_cube_from_gbd
+from cube import make_measure_cube_from_gbd
 
 def graph_measure(data, measure, output_directory):
     """ Save the convergence graph for a particular measure
@@ -112,7 +112,8 @@ def prepare_comparison(data):
     measure_cube = measure_cube.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean()
     del measure_cube['draw']
 
-    data = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location', 'sample_size']).mean().reset_index()
+    data['sample_size'] = data.sample_size.astype(int)
+    data = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean().reset_index()
     del data['draw']
 
     # Calculate RGB triples for each cause for use in coloring marks on the graphs
@@ -141,13 +142,16 @@ def graph_comparison(data, output_directory):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('measure_data_path', type=str)
+    parser.add_argument('measure_data_path', type=str, nargs='+')
     parser.add_argument('output_directory', type=str)
     parser.add_argument('--year', '-y', default='last', type=str)
     parser.add_argument('--draw', '-d', default='all', type=str)
     args = parser.parse_args()
 
-    data = pd.read_hdf(args.measure_data_path, format='t')
+    data = pd.DataFrame()
+
+    for path in args.measure_data_path:
+        data = data.append(pd.read_hdf(path, format='t'))
 
     # TODO: right now this can only do one year per run.
     # If we want to do multiple years, that's certainly possible

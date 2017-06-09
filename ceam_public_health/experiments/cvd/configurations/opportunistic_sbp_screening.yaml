@@ -1,0 +1,34 @@
+components:
+        - ceam_public_health:
+                - population:
+                        - generate_base_population
+                        - adherence
+                        - age_simulants
+                        - Mortality()
+                        - assign_location
+                - experiments.cvd.components:
+                        - heart_disease.factory()
+                        - stroke.factory()
+                        - opportunistic_screening.OpportunisticScreening(False)
+                - risks:
+                        - ContinuousRiskComponent("high_systolic_blood_pressure")
+                        - ContinuousRiskComponent("high_fasting_plasma_glucose_continuous")
+                        - ContinuousRiskComponent("high_total_cholesterol")
+                        - ContinuousRiskComponent("high_body_mass_index")
+                        - CategoricalRiskComponent("smoking_prevalence_approach")
+                        - CategoricalRiskComponent("secondhand_smoke")
+                        - CategoricalRiskComponent("household_air_pollution_from_solid_fuels")
+                - treatment:
+                        - HealthcareAccess()
+                - metrics:
+                        - Metrics()
+
+configuration:
+        simulation_parameters:
+                location_id: 180
+                year_start: 2005
+                year_end: 2010
+                time_step: 30.5 #Days
+                pop_age_start: 0
+                pop_age_end: 125
+                population_size: 10000
