@@ -7,10 +7,13 @@ import math
 
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
+sns.set_context('paper')
+sns.set_style('darkgrid')
 
 from ceam_public_health.components.cube import make_measure_cube_from_gbd
 
@@ -108,7 +111,8 @@ def prepare_comparison(data):
     # NOTE: This averages the draws without capturing uncertainty. May want to improve at some point.
     measure_cube = measure_cube.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean()
     del measure_cube['draw']
-    data = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean().reset_index()
+
+    data = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location', 'sample_size']).mean().reset_index()
     del data['draw']
 
     # Calculate RGB triples for each cause for use in coloring marks on the graphs
