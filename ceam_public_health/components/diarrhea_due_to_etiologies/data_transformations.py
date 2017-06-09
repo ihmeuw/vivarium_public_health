@@ -1,7 +1,7 @@
 import pandas as pd
 
 from ceam_inputs import (get_excess_mortality, get_severity_splits,
-                         get_remission, get_incidence, get_pafs, causes, risk_factors)
+                         get_remission, get_incidence, get_pafs, causes)
 
 
 def get_severe_diarrhea_excess_mortality():
@@ -29,8 +29,8 @@ def get_duration_in_days(modelable_entity_id):
 
 def get_etiology_paf(etiology_name):
     if etiology_name == 'unattributed':
-        attributable_etiologies = [name for name, etiology in risk_factors.items()
-                                   if causes.diarrhea in etiology.effected_causes]
+        attributable_etiologies = [name for name, etiology in causes.items() if 'gbd_parent_cause' in etiology and
+                                   etiology.gbd_parent_cause == causes.diarrhea.gbd_cause]
 
         all_etiology_paf = pd.concat([get_etiology_paf(name) for name in attributable_etiologies])
 
@@ -41,7 +41,7 @@ def get_etiology_paf(etiology_name):
                             columns=['PAF'],
                             index=grouped.index).reset_index()
     else:
-        pafs = get_pafs(risk_id=risk_factors[etiology_name].gbd_risk, cause_id=causes.diarrhea.gbd_cause)
+        pafs = get_pafs(risk_id=causes[etiology_name].gbd_cause, cause_id=causes[etiology_name].gbd_parent_cause)
 
     draws = pafs._get_numeric_data()
     draws[draws < 0] = 0

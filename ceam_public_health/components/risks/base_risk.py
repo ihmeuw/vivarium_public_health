@@ -2,88 +2,19 @@ from importlib import import_module
 
 import numpy as np
 import pandas as pd
-
 from scipy.stats import multivariate_normal, norm
 
-from ceam import config
-
-from ceam.framework.population import uses_columns
-from ceam.framework.event import listens_for
-from ceam.framework.randomness import random
-
-from ceam_inputs.gbd_mapping import risk_factors
 import ceam_inputs as inputs
 
+from ceam import config
+from ceam.framework.event import listens_for
+from ceam.framework.population import uses_columns
+from ceam.framework.randomness import random
+from ceam_inputs.gbd_mapping import risk_factors
 
-def continuous_exposure_effect(risk):
-    """Factory that makes functions which can be used as the exposure_effect for standard continuous risks.
-
-    Parameters
-    ----------
-    risk : `ceam.config_tree.ConfigTree`
-        The gbd data mapping for the risk.
-    """
-    exposure_column = risk.name+'_exposure'
-
-    # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
-    @uses_columns([exposure_column])
-    def inner(rates, rr, population_view):
-        return rates * np.maximum(
-            rr.values**((population_view.get(rr.index)[exposure_column] - risk.tmrl) / risk.scale).values, 1)
-
-    return inner
-
-
-def categorical_exposure_effect(risk):
-    """Factory that makes functions which can be used as the exposure_effect for binary categorical risks
-
-    Parameters
-    ----------
-    risk : `ceam.config_tree.ConfigTree`
-        The gbd data mapping for the risk.
-    """
-    exposure_column = risk.name+'_exposure'
-
-    @uses_columns([exposure_column])
-    def inner(rates, rr, population_view):
-        exposure_ = population_view.get(rr.index)[exposure_column]
-        return rates * (rr.lookup(exposure_.index, exposure_))
-    return inner
-
-class RiskEffect:
-    """RiskEffect objects bundle all the effects that a given risk has on a cause.
-    
-    Parameters
-    ----------
-    rr_data : pandas.DataFrame
-        A dataframe of relative risk data with age, sex, year, and rr columns
-    paf_data : pandas.DataFrame
-        A dataframe of population attributable fraction data with age, sex, year, and paf columns
-    cause : `ceam.config_tree.ConfigTree`
-        The gbd data mapping for the cause.
-    exposure_effect : callable
-        A function which takes a series of incidence rates and a series of
-        relative risks and returns rates modified as appropriate for this risk
-    """
-    def __init__(self, rr_data, paf_data, cause, exposure_effect):
-        self.rr_data = rr_data
-        self.paf_data = paf_data
-        self.cause = cause
-        self.exposure_effect = exposure_effect
-
-    def setup(self, builder):
-        self.rr_lookup = builder.lookup(self.rr_data)
-        builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause.name))
-        builder.modifies_value(builder.lookup(self.paf_data), 'paf.{}'.format(self.cause.name))
-
-        return [self.exposure_effect]
-
-    def incidence_rates(self, index, rates):
-        return self.exposure_effect(rates, self.rr_lookup(index))
-
-    def __repr__(self):
-        return ("RiskEffect(rr_data= {},\npaf_data= {},\n".format(self.rr_data, self.paf_data)
-                + "cause= {},\nexposure_effect= {})".format(self.cause, self.exposure_effect))
+from ceam_public_health.components.risks.effect import (continuous_exposure_effect, categorical_exposure_effect,
+                                                        make_gbd_risk_effects)
+from ceam_public_health.components.risks.exposures import basic_exposure_function
 
 
 def uncorrelated_propensity(population, risk_factor):
@@ -148,21 +79,6 @@ def correlated_propensity(population, risk_factor):
     return pd.Series(quantiles, index=population.index)
 
 
-def basic_exposure_function(propensity, distribution):
-    """This function handles the simple common case for getting a simulant's
-    based on their propensity for the risk. Some risks will require a more
-    complex version of this.
-
-    Parameters
-    ----------
-    propensity : pandas.Series
-        The propensity for each simulant
-    distribution : callable
-        A function with maps propensities to values from the distribution
-    """
-    return distribution(propensity)
-
-
 class ContinuousRiskComponent:
     """A model for a risk factor defined by a continuous value. For example
     high systolic blood pressure as a risk where the SBP is not dichotomized
@@ -196,11 +112,8 @@ class ContinuousRiskComponent:
     def setup(self, builder):
         self.distribution = self._distribution_loader(builder)
         self.randomness = builder.randomness(self._risk.name)
-
         effect_function = continuous_exposure_effect(self._risk)
-
         risk_effects = make_gbd_risk_effects(self._risk, effect_function)
-
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
 
         return risk_effects
@@ -208,10 +121,13 @@ class ContinuousRiskComponent:
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
-        self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': uncorrelated_propensity(event.population, self._risk),
-            self._risk.name+'_exposure': np.full(len(event.index), float(self._risk.tmrl)),
-        }))
+        propensities = pd.Series(uncorrelated_propensity(event.population, self._risk),
+                                 name=self._risk.name+'_propensity',
+                                 index=event.index)
+        self.population_view.update(propensities)
+        self.population_view.update(pd.Series(self.exposure_function(propensities, self.distribution(event.index)),
+                                              name=self._risk.name+'_exposure',
+                                              index=event.index))
 
     @listens_for('time_step__prepare', priority=8)
     def update_exposure(self, event):
@@ -222,20 +138,6 @@ class ContinuousRiskComponent:
 
     def __repr__(self):
         return "ContinuousRiskComponent(_risk= {}, distribution= {})".format(self._risk.name, self.distribution)
-
-
-def make_gbd_risk_effects(risk, effect_function):
-    # This is here to avoid a cyclic dependency with ceam_inputs.
-    # Rather than significantly reorganizing the code to fix this now I'm
-    # going to wait until we fully decouple this code from GBD access by
-    # switching to bundled input data at which point this will just
-    # vanish. -Alec 04/2017
-    return [RiskEffect(
-        inputs.get_relative_risks(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
-        inputs.get_pafs(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
-        cause,
-        effect_function)
-        for cause in risk.effected_causes]
 
 
 class CategoricalRiskComponent:
@@ -251,10 +153,8 @@ class CategoricalRiskComponent:
 
     def setup(self, builder):
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
-
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
         self.exposure.source = builder.lookup(inputs.get_exposures(risk_id=self._risk.gbd_risk))
-
         self.randomness = builder.randomness(self._risk.name)
 
         effect_function = categorical_exposure_effect(self._risk)

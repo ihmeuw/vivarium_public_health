@@ -5,21 +5,21 @@ components:
                      - stroke.factory()
              - risks:
                      - ContinuousRiskComponent(
-                       "systolic_blood_pressure",
-                       "ceam_public_health.components.risks.blood_pressure.distribution_loader",
-                       "ceam_public_health.components.risks.blood_pressure.exposure_function")
+                       "high_systolic_blood_pressure",
+                       "ceam_public_health.components.risks.distributions.sbp",
+                       "ceam_public_health.components.risks.exposures.sbp")
                      - ContinuousRiskComponent(
-                       "fasting_plasma_glucose",
-                       "ceam_public_health.components.risks.fasting_plasma_glucose.distribution_loader")
+                       "high_fasting_plasma_glucose_continuous",
+                       "ceam_public_health.components.risks.distributions.fpg")
                      - ContinuousRiskComponent(
-                       "cholesterol",
-                       "ceam_public_health.components.risks.cholesterol.distribution_loader")
+                       "high_total_cholesterol",
+                       "ceam_public_health.components.risks.distributions.cholesterol")
                      - ContinuousRiskComponent(
-                       "body_mass_index",
-                       "ceam_public_health.components.risks.body_mass_index.distribution_loader")
-                     - CategoricalRiskComponent("smoking")
+                       "high_body_mass_index",
+                       "ceam_public_health.components.risks.distributions.bmi")
+                     - CategoricalRiskComponent("smoking_prevalence_approach")
                      - CategoricalRiskComponent("secondhand_smoke")
-                     - CategoricalRiskComponent("household_air_polution")
+                     - CategoricalRiskComponent("household_air_pollution_from_solid_fuels")
              # Intervention components
              - base_population.adherence
              - opportunistic_screening.OpportunisticScreening(False)

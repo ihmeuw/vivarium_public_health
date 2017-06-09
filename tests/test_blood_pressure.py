@@ -7,8 +7,8 @@ import pytest
 from ceam import config
 from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
 
+from ceam_public_health.components.risks import distributions, exposures
 from ceam_public_health.components.risks import ContinuousRiskComponent
-from ceam_public_health.components.risks.blood_pressure import distribution_loader, exposure_function
 from ceam_public_health.components.base_population import age_simulants
 
 np.random.seed(100)
@@ -33,29 +33,29 @@ def test_basic_SBP_bounds():
     simulation = setup_simulation([
         generate_test_population,
         age_simulants,
-        ContinuousRiskComponent('systolic_blood_pressure', distribution_loader, exposure_function)], 1000)
+        ContinuousRiskComponent('high_systolic_blood_pressure', distributions.sbp, exposures.sbp)], 1000)
 
-    sbp_mean = 138 # Mean across all demographics
-    sbp_std = 15 # Standard deviation across all demographics
+    sbp_mean = 138  # Mean across all demographics
+    sbp_std = 15  # Standard deviation across all demographics
     interval = sbp_std * 4
-    pump_simulation(simulation, iterations=1) # Get blood pressure stabilized
+    pump_simulation(simulation, iterations=1)  # Get blood pressure stabilized
 
     # We don't model SBP for simulants 27 and under, so exclude those from some of our tests
     idx = simulation.population.population.age > 27
 
     # Check that no one is wildly out of range
-    assert ((simulation.population.population[idx].systolic_blood_pressure_exposure > sbp_mean + 2*interval)
-            | (simulation.population.population[idx].systolic_blood_pressure_exposure < sbp_mean-interval)).sum() == 0
+    assert ((simulation.population.population[idx].high_systolic_blood_pressure_exposure > sbp_mean + 2*interval)
+            | (simulation.population.population[idx].high_systolic_blood_pressure_exposure < sbp_mean-interval)).sum() == 0
 
-    initial_mean_sbp = simulation.population.population[idx].systolic_blood_pressure_exposure.mean()
+    initial_mean_sbp = simulation.population.population[idx].high_systolic_blood_pressure_exposure.mean()
 
     pump_simulation(simulation, duration=timedelta(days=5*365))
 
     # Check that blood pressure goes up over time as our cohort ages
-    assert simulation.population.population[idx].systolic_blood_pressure_exposure.mean() > initial_mean_sbp
+    assert simulation.population.population[idx].high_systolic_blood_pressure_exposure.mean() > initial_mean_sbp
     # And that there's still no one wildly out of bounds
-    assert ((simulation.population.population[idx].systolic_blood_pressure_exposure > sbp_mean + 2*interval)
-            | (simulation.population.population[idx].systolic_blood_pressure_exposure < sbp_mean - interval)).sum() == 0
+    assert ((simulation.population.population[idx].high_systolic_blood_pressure_exposure > sbp_mean + 2*interval)
+            | (simulation.population.population[idx].high_systolic_blood_pressure_exposure < sbp_mean - interval)).sum() == 0
 
 
 # TODO: The change to risk deleted incidence rates breaks these tests. We need a new way of checking face validity
