@@ -29,12 +29,8 @@ def make_age_bins_column(age_group_id_min, age_group_id_max):
     age_bins = get_age_bins()
     age_bins = age_bins[(age_bins.age_group_id >= age_group_id_min) &
                         (age_bins.age_group_id <= age_group_id_max)]
-    age_bins['lower_bound'] = age_bins.age_group_years_start.apply(lambda x:
-                                                                   str(np.round(x, 2)))
-    age_bins['upper_bound'] = age_bins.age_group_years_end.apply(lambda x:
-                                                                 str(np.round(x, 2)))
 
-    age_bins['age_bin'] = age_bins['lower_bound'] + "_to_" + age_bins['upper_bound']
+    age_bins['age_bin'] = age_bins['age_group_name'].str.replace(" ", "_")
 
     return age_bins
 
