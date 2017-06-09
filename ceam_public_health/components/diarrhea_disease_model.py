@@ -167,8 +167,7 @@ class DiarrheaBurden:
 
         df = pd.DataFrame({'diarrhea':['healthy']*length}, index=event.index)
 
-        for col in DIARRHEA_EVENT_COUNT_COLS:
-            df[col] = pd.Series([0]*length, index=df.index)
+        df['diarrhea_event_count'] = pd.Series([0]*length, index=df.index)
 
         df['diarrhea_event_time'] = pd.Series([pd.NaT]*length, index=df.index)
 
@@ -251,21 +250,6 @@ class DiarrheaBurden:
                                                                      age_group_id_max=5)
 
         current_year = pd.Timestamp(event.time).year
-
-        for sex in ["Male", "Female"]:
-            last_age_group_max = 0
-            for age_bin, upr_bound in age_bin_age_group_max_dict:
-                # We use GTE age group lower bound and LT age group upper bound
-                #     because of how GBD age groups are set up. For example, a
-                #     A simulant can be 1 or 4.999 years old and be considered
-                #     part of the 1-5 year old group, but once they turn 5 they
-                #     are part of the 5-10 age group
-                affected_pop.loc[(affected_pop['age'] < upr_bound) &
-                                 (affected_pop['age'] >= last_age_group_max) &
-                                 (affected_pop['sex'] == sex),
-                                 'diarrhea_event_count_{a}_in_year_{c}_among_{s}s'.format(
-                                 a=age_bin, c=current_year, s=sex)] += 1
-                last_age_group_max = upr_bound
 
         # also track the overall count among all simulants in the simulation
         affected_pop['diarrhea_event_count'] += 1
