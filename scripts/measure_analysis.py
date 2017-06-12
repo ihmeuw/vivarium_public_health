@@ -15,7 +15,7 @@ from matplotlib.lines import Line2D
 sns.set_context('paper')
 sns.set_style('darkgrid')
 
-from cube import make_measure_cube_from_gbd
+from ceam_public_health.cube import make_measure_cube_from_gbd
 
 def graph_measure(data, measure, output_directory):
     """ Save the convergence graph for a particular measure
@@ -95,6 +95,7 @@ def prepare_comparison(data):
     sample so they can be graphed together.
     """
     measures = data[['cause','measure']].drop_duplicates().values.tolist()
+
     year_min = data.year.min()
     year_max = data.year.max()
 
