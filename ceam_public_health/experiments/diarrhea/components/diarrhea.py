@@ -358,7 +358,7 @@ def diarrhea_factory():
     time_step = config.simulation_parameters.time_step
 
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
-                                     csmr_data=get_cause_specific_mortality(1181),
+                                     csmr_data=get_cause_specific_mortality(302),
                                      mild_disability_weight=get_disability_weight(healthstate_id=355),
                                      moderate_disability_weight=get_disability_weight(healthstate_id=356),
                                      severe_disability_weight=get_disability_weight(healthstate_id=357),
