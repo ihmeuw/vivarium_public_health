@@ -13,7 +13,7 @@ from ceam_public_health.util import make_cols_demographically_specific, make_age
 
 
 class CalculateIncidence:
-    def __init__(self, disease_col, disease, susceptible_state, age_group_id_min, age_group_id_max):
+    def __init__(self, disease_col, disease, susceptible_state):
         """
         disease_col: str
             name of the column name that contains the disease state of interest
@@ -23,23 +23,17 @@ class CalculateIncidence:
 
         susceptible_state: str
             state that defines when a simulant is susceptible
-
-        age_group_id_min: int
-            minimum age group in the simulation
-
-        age_group_id_max: int
-            maximum age group in the simulation
         """
         self.disease_col = disease_col
         self.disease = disease
+        # FIXME: Get rid of susceptible state. Instead want to have a list of diseased states
         self.susceptible_state = susceptible_state
-        # FIXME: Get rid of the age_group_id_min and max arguments. They're not needed
-        self.age_group_id_min = age_group_id_min
-        self.age_group_id_max = age_group_id_max
+        self.age_group_id_min = 2
+        self.age_group_id_max = 21
         self.collecting = False
 
-        self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", age_group_id_min, age_group_id_max)
-        self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease), age_group_id_min, age_group_id_max)
+        self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", self.age_group_id_min, self.age_group_id_max)
+        self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease), self.age_group_id_min, self.age_group_id_max)
 
     def setup(self, builder):
         self.clock = builder.clock()
@@ -48,9 +42,9 @@ class CalculateIncidence:
         self.population_view = builder.population_view(columns)
 
     @listens_for('initialize_simulants')
-    def create_person_year_columns(self, event):
+    def create_columns(self, event):
         """
-        Initialize the susceptible_person_time_columns
+        Initialize the susceptible person time and event count columns
         """
         length = len(event.index)
 
@@ -65,6 +59,7 @@ class CalculateIncidence:
         """
         Set the collecting flag to True during GBD years
         """
+        # FIXME: Figure out how to turn off the self.collecting flag
         self.collecting = True
 
     @listens_for('time_step', priority=7)
@@ -74,7 +69,6 @@ class CalculateIncidence:
         """
         if self.collecting:
             # NOTE: THE POPULATION IN get_counts_and_susceptible_person_time REFERS TO SELF.POPULATION_VIEW AND NOT EVENT.POPULATION
-            # FIXME: Figure out how to turn off the self.collecting flag
             pop = self.population_view.get(event.index)
 
             self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=self.age_group_id_min,
