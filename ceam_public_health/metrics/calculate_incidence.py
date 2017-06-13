@@ -31,10 +31,11 @@ class CalculateIncidence:
             maximum age group in the simulation
         """
         self.disease_col = disease_col
+        self.disease = disease
         self.susceptible_state = susceptible_state
+        # FIXME: Get rid of the age_group_id_min and max arguments. They're not needed
         self.age_group_id_min = age_group_id_min
         self.age_group_id_max = age_group_id_max
-        self.disease = disease
         self.collecting = False
 
         self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", age_group_id_min, age_group_id_max)
@@ -80,6 +81,8 @@ class CalculateIncidence:
                                                                               age_group_id_max=self.age_group_id_max)
 
             current_year = event.time.year
+
+            # FIXME: Move away from collecting incidence rate data in the state table
 
             for sex in ["Male", "Female"]:
                 last_age_group_max = 0

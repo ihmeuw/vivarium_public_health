@@ -12,7 +12,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
-sns.set_context('paper')
 sns.set_style('darkgrid')
 
 from ceam_public_health.cube import make_measure_cube_from_gbd
@@ -95,7 +94,6 @@ def prepare_comparison(data):
     sample so they can be graphed together.
     """
     measures = data[['cause','measure']].drop_duplicates().values.tolist()
-
     year_min = data.year.min()
     year_max = data.year.max()
 
@@ -112,7 +110,6 @@ def prepare_comparison(data):
     # NOTE: This averages the draws without capturing uncertainty. May want to improve at some point.
     measure_cube = measure_cube.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean()
     del measure_cube['draw']
-
     data['sample_size'] = data.sample_size.astype(int)
     data = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean().reset_index()
     del data['draw']
