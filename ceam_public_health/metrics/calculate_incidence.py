@@ -72,8 +72,8 @@ class CalculateIncidence:
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)
         """
         if self.collecting:
-            import pdb; pdb.set_trace()
             # NOTE: THE POPULATION IN get_counts_and_susceptible_person_time REFERS TO SELF.POPULATION_VIEW AND NOT EVENT.POPULATION
+            # FIXME: Figure out how to turn off the self.collecting flag
             pop = self.population_view.get(event.index)
 
             self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=self.age_group_id_min,
