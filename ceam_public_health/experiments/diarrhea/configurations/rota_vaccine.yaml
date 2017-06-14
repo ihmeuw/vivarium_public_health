@@ -6,7 +6,7 @@ components:
                 - Mortality()
             - experiments.diarrhea.components:
                 - diarrhea.diarrhea_factory()
-                - rota_vaccine.RotaVaccine(False)
+                - rota_vaccine.RotaVaccine()
             - metrics:
                 - Metrics()
                 - calculate_incidence.CalculateIncidence("diarrhea", "diarrhea", ["severe_diarrhea", "moderate_diarrhea", "mild_diarrhea"])

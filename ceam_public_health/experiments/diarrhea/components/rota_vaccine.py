@@ -159,7 +159,7 @@ class RotaVaccine():
             'age_at_third_dose': 183,
             'second_dose_retention': 1,
             'third_dose_retention': 1,
-            'vaccination_proportion_increase': .5,
+            'vaccination_proportion_increase': 0,
             'time_after_dose_at_which_immunity_is_conferred': 14,
         }
     }
