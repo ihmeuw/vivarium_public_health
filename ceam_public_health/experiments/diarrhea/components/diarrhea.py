@@ -28,10 +28,6 @@ ETIOLOGIES = ['shigellosis',
               'unattributed_diarrhea']
 
 
-DIARRHEA_EVENT_COUNT_COLS = make_cols_demographically_specific('diarrhea_event_count', 2, 5)
-DIARRHEA_EVENT_COUNT_COLS.append('diarrhea_event_count')
-
-
 class DiarrheaEtiologyState(State):
     """
     Sets up a diarrhea etiology state (e.g. a column that states that simulant

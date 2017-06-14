@@ -164,8 +164,7 @@ class RotaVaccine():
         }
     }
 
-    def __init__(self, active):
-        self.active = active
+    def __init__(self):
         self.etiology = 'rotaviral_entiritis'
 
         self.vaccine_column = self.etiology + "_vaccine"
@@ -322,10 +321,7 @@ class RotaVaccine():
             dose_age = config.rota_vaccine.age_at_first_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age").copy()
-            if self.active:
-                true_weight = vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
-            else:
-                true_weight = vaccine_coverage
+            true_weight = vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
 
         elif dose_number == 2:
             dose_age = config.rota_vaccine.age_at_second_dose

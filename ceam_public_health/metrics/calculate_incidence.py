@@ -36,6 +36,9 @@ class CalculateIncidence:
         self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", self.age_group_id_min, self.age_group_id_max)
         self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease), self.age_group_id_min, self.age_group_id_max)
 
+        self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=self.age_group_id_min,
+                                                                          age_group_id_max=self.age_group_id_max)
+
     def setup(self, builder):
         self.clock = builder.clock()
 
@@ -69,11 +72,7 @@ class CalculateIncidence:
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)
         """
         if self.collecting:
-            # NOTE: THE POPULATION IN get_counts_and_susceptible_person_time REFERS TO SELF.POPULATION_VIEW AND NOT EVENT.POPULATION
             pop = self.population_view.get(event.index)
-
-            self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=self.age_group_id_min,
-                                                                              age_group_id_max=self.age_group_id_max)
 
             current_year = event.time.year
 
@@ -137,5 +136,7 @@ class CalculateIncidence:
                         cube = cube.append(pd.DataFrame({'measure': 'incidence', 'age_low': last_age_group_max, 'age_high': upr_bound, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'diarrhea', 'value': num_diarrhea_cases/susceptible_person_time, 'sample_size': susceptible_person_time}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
 
                     last_age_group_max = upr_bound
+
+        self.collecting = False
 
         return cube
