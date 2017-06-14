@@ -13,7 +13,7 @@ from ceam_public_health.util import make_cols_demographically_specific, make_age
 
 
 class CalculateIncidence:
-    def __init__(self, disease_col, disease, susceptible_state):
+    def __init__(self, disease_col, disease, disease_states):
         """
         disease_col: str
             name of the column name that contains the disease state of interest
@@ -21,15 +21,16 @@ class CalculateIncidence:
         disease: str
             name of the disease of interest
 
-        susceptible_state: str
-            state that defines when a simulant is susceptible
+        disease_states: list
+            list of states that denote a simulant as having the disease (e.g. ['severe_diarrhea', 'moderate_diarrhea', 'mild_diarrhea']). If a simulant does not have the disease of interest, we say that they are in the susceptible state
         """
         self.disease_col = disease_col
         self.disease = disease
         # FIXME: Get rid of susceptible state. Instead want to have a list of diseased states
-        self.susceptible_state = susceptible_state
+        self.disease_states = disease_states
+        # FIXME: Update so all age groups are included. Do this after updating code to not affect state table
         self.age_group_id_min = 2
-        self.age_group_id_max = 21
+        self.age_group_id_max = 6
         self.collecting = False
 
         self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", self.age_group_id_min, self.age_group_id_max)
@@ -89,14 +90,11 @@ class CalculateIncidence:
                     pop.loc[(pop['age'] < upr_bound)
                             & (pop['age'] >= last_age_group_max)
                             & (pop['sex'] == sex)
-                            & (pop[self.disease_col] != self.susceptible_state)
+                            & (pop[self.disease_col].isin(self.disease_states))
                             & (pop['alive'] == True),
                             '{d}_event_count_{a}_in_year_{c}_among_{s}s'.format(
                             d=self.disease, a=age_bin, c=current_year, s=sex)] += 1
-                    # FIXME: Set up line below so that it uses isin. We want to
-                    # check that self.disease_col is not in some range of diseased
-                    # values (e.g. severe diarrhea, moderate diarrhea, etc)
-                    pop.loc[(pop[self.disease_col] == self.susceptible_state)
+                    pop.loc[~(pop[self.disease_col].isin(self.disease_states))
                             & (pop['age'] < upr_bound)
                             & (pop['age'] >= last_age_group_max)
                             & (pop['sex'] == sex)
