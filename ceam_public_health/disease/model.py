@@ -74,7 +74,7 @@ class DiseaseModel(Machine):
             for sex in sexes:
                 for cause in causes:
                     for location in locations:
-                        sub_pop = pop.query('age > @low and age <= @high and sex == @sex')
+                        sub_pop = pop.query('age >= @low and age < @high and sex == @sex')
                         if location >= 0:
                             sub_pop = sub_pop.query('location == @location')
                         if not sub_pop.empty:

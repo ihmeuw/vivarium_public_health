@@ -108,7 +108,7 @@ class Mortality:
         for low, high in age_groups:
             for sex in sexes:
                 for location in locations:
-                    sub_pop = pop.query('age > @low and age <= @high and sex == @sex and (alive or death_day > @window_start)')
+                    sub_pop = pop.query('age >= @low and age < @high and sex == @sex and (alive or death_day > @window_start)')
                     if location >= 0:
                         sub_pop = sub_pop.query('location == @location')
 

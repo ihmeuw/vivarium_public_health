@@ -125,7 +125,6 @@ class CalculateIncidence:
             for location in locations:
                 last_age_group_max = 0
                 for age_bin, upr_bound in self.age_bin_age_group_max_dict:
-                    # FIXME: We want to make sure our mortality rates and prevalences and incidence rates are all using >= lower and < upper. Don't delete this FIXME until prevalence and mortality are made to be similar
                     if location >= 0:
                         pop = pop.query('location == @location')
 
