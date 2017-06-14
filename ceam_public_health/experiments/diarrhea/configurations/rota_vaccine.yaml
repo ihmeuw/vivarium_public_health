@@ -9,7 +9,7 @@ components:
                 - rota_vaccine.RotaVaccine(False)
             - metrics:
                 - Metrics()
-                - calculate_incidence.CalculateIncidence("diarrhea", "diarrhea", "healthy", 2, 5)
+                - calculate_incidence.CalculateIncidence("diarrhea", "diarrhea", ["severe_diarrhea", "moderate_diarrhea", "mild_diarrhea"])
                 - epidemiology.EpidemiologicalMeasures()
 
 configuration:
