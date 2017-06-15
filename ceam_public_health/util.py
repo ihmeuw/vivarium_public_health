@@ -38,8 +38,8 @@ def make_age_bins_column(age_group_id_min, age_group_id_max):
 def make_cols_demographically_specific(col_prefix, age_group_id_min,
                                        age_group_id_max):
     """
-    Returns a list of demographically specific (specific to an age group, sex,
-    and year) column names
+    Returns a list of demographically specific (specific to an age group and sex)
+    column names
 
     Parameters
     ----------
@@ -58,21 +58,17 @@ def make_cols_demographically_specific(col_prefix, age_group_id_min,
     --------
     make_cols_demographically_specific('diarrhea_event_count', 2, 5) returns a
     list of strings such as 'diarrhea_event_count_1_to_5_in_year_2010_among_Females'
-    for each age, year, and sex combination
+    for each age and sex combination
     """
     age_bins = make_age_bins_column(age_group_id_min, age_group_id_max)
 
     cols = []
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
 
     for age_bin in pd.unique(age_bins.age_bin.values):
-        for year in range(year_start, year_end+1):
-            for sex in ['Male', 'Female']:
-                cols.append('{c}_{a}_in_year_{y}_among_{s}s'.format(c=col_prefix,
-                                                                    a=age_bin,
-                                                                    y=year,
-                                                                    s=sex))
+        for sex in ['Male', 'Female']:
+            cols.append('{c}_{a}_among_{s}s'.format(c=col_prefix,
+                                                    a=age_bin,
+                                                    s=sex))
 
     return cols
 
