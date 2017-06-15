@@ -24,10 +24,13 @@ def setup():
     return config
     
 def test_calculate_incidence():
-    simulation = setup_simulation([generate_test_population, CalculateIncidence])
+    simulation = setup_simulation([generate_test_population, CalculateIncidence(disease_col='diarrhea', disease='diarrhea', disease_states='mild_diarrhea')])
 
     pop = simulation.population.population
 
-    pop['diarrhea'] = ['healthy'] * 500 + ['diarrhea'] * 500
+    pop['diarrhea'] = ['healthy'] * 500 + ['mild_diarrhea'] * 500
+
+    pump_simulation(simulation, duration=timedelta(days=1))
+
 
     # get_value 'epidemiological_span_measures'
