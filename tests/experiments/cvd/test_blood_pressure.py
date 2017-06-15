@@ -19,6 +19,12 @@ def setup():
                                                       'input_data.auxiliary_data_folder'])
     except KeyError:
         pass
+
+    config.simulation_parameters.set_with_metadata('pop_age_start', 0, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('pop_age_end', 100, layer='override',
+                                                   source=os.path.realpath(__file__))
+
     config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
                                                    source=os.path.realpath(__file__))
     config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
