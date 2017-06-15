@@ -262,7 +262,7 @@ def test_cause_deletion():
                                   factory)
 
     # determine what the cause-deleted mortality rate should be
-    cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(1181)])
+    cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(493)])
 
     # get the mortality rate from the simulation
     simulation_mortality_rate = simulation.values.get_rate('mortality_rate')
