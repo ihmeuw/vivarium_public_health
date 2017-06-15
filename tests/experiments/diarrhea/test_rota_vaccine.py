@@ -73,7 +73,7 @@ def test_determine_who_should_receive_dose():
 
     pop['rotaviral_entiritis_vaccine_first_dose'] = 0
 
-    pop['fractional_age'] = config.rota_vaccine.age_at_first_dose / 365
+    pop['age'] = config.rota_vaccine.age_at_first_dose / 365
 
     first_dose_pop = rv_instance.determine_who_should_receive_dose(pop,
                                                                    'rotaviral_entiritis_vaccine',
@@ -88,7 +88,7 @@ def test_determine_who_should_receive_dose():
 
     first_dose_pop['rotaviral_entiritis_vaccine_second_dose'] = 0
 
-    first_dose_pop['fractional_age'] = config.rota_vaccine.age_at_second_dose / 365
+    first_dose_pop['age'] = config.rota_vaccine.age_at_second_dose / 365
 
     second_dose_pop = rv_instance.determine_who_should_receive_dose(first_dose_pop,
                                                                     'rotaviral_entiritis_vaccine',
@@ -103,7 +103,7 @@ def test_determine_who_should_receive_dose():
 
     second_dose_pop['rotaviral_entiritis_vaccine_third_dose'] = 0
 
-    second_dose_pop['fractional_age'] = config.rota_vaccine.age_at_third_dose / 365
+    second_dose_pop['age'] = config.rota_vaccine.age_at_third_dose / 365
 
     third_dose_pop = rv_instance.determine_who_should_receive_dose(second_dose_pop,
                                                                    'rotaviral_entiritis_vaccine',

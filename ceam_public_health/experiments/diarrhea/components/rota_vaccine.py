@@ -306,7 +306,7 @@ class RotaVaccine():
         -------
         determine_who_should_receive_dose
         """
-        population['age_in_days'] = population['fractional_age'] * 365
+        population['age_in_days'] = population['age'] * 365
 
         population['age_in_days'] = population['age_in_days'].round()
 
@@ -357,7 +357,7 @@ class RotaVaccine():
         return children_who_will_receive_dose
 
     @listens_for('time_step')
-    @uses_columns(['fractional_age', 'rotaviral_entiritis_vaccine',
+    @uses_columns(['age', 'rotaviral_entiritis_vaccine',
                    'rotaviral_entiritis_vaccine_first_dose_event_time',
                    'rotaviral_entiritis_vaccine_second_dose_event_time',
                    'rotaviral_entiritis_vaccine_third_dose_event_time',

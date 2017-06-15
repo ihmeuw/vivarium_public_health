@@ -34,7 +34,7 @@ def setup():
 
 
 @listens_for('initialize_simulants', priority=9)
-@uses_columns(['high_systolic_blood_pressure_exposure', 'age', 'fractional_age'])
+@uses_columns(['high_systolic_blood_pressure_exposure', 'age'])
 def _population_setup(event):
     age_sbps = []
     age_sbps.append((40, 130.0))  # Normotensive, below 60
@@ -55,7 +55,7 @@ def _population_setup(event):
     population['age'] = ages
     population['high_systolic_blood_pressure_exposure'] = sbps
 
-    population['fractional_age'] = population['age']
+    population['age'] = population['age']
 
     event.population_view.update(population)
 
