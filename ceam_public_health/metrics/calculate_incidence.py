@@ -73,16 +73,16 @@ class CalculateIncidence:
                     #     A simulant can be 1 or 4.999 years old and be considered
                     #     part of the 1-5 year old group, but once they turn 5 they
                     #     are part of the 5-10 age group
-                    cases_index = pop.loc[(pop['age'] < upr_bound)
-                                & (pop['age'] >= last_age_group_max)
+                    cases_index = pop.loc[(pop['fractional_age'] < upr_bound)
+                                & (pop['fractional_age'] >= last_age_group_max)
                                 & (pop['sex'] == sex)
                                 & (pop[self.disease_col].isin(self.disease_states))
                                 & (pop['alive'] == True)].index
                     self.incidence_rate_df['{d}_event_count_{a}_among_{s}s'.format(
                             d=self.disease, a=age_bin, s=sex)].loc[cases_index] += 1
                     susceptible_index = pop.loc[~(pop[self.disease_col].isin(self.disease_states))
-                                              & (pop['age'] < upr_bound)
-                                              & (pop['age'] >= last_age_group_max)
+                                              & (pop['fractional_age'] < upr_bound)
+                                              & (pop['fractional_age'] >= last_age_group_max)
                                               & (pop['sex'] == sex)
                                               & (pop['alive'] == True)].index
                     self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[susceptible_index] += config.simulation_parameters.time_step
