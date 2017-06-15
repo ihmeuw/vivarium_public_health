@@ -141,7 +141,7 @@ def test_set_vaccine_duration():
 @pytest.fixture
 def get_indexes():
     simulation = setup_simulation([generate_test_population, age_simulants,
-                                   RotaVaccine(True)])
+                                   RotaVaccine()])
 
     pump_simulation(simulation, iterations=8)
 
@@ -190,7 +190,7 @@ def test_set_working_column2(get_indexes):
 
     # pump the simulation far enough ahead that simulants can get second dose
     simulation = setup_simulation([generate_test_population, age_simulants,
-                                   RotaVaccine(True)] + diarrhea_factory())
+                                   RotaVaccine()] + diarrhea_factory())
 
     pump_simulation(simulation, iterations=14)
 
@@ -228,7 +228,7 @@ def test_set_working_column3(get_indexes):
     # 19 days in, we should see that the third vaccine is working and the first
     #     and second are not
     simulation = setup_simulation([generate_test_population, age_simulants,
-                                   RotaVaccine(True)] + diarrhea_factory())
+                                   RotaVaccine()] + diarrhea_factory())
 
     pump_simulation(simulation, iterations=20)
 
@@ -256,7 +256,7 @@ def test_set_working_column3(get_indexes):
 def test_set_working_column4():
     # 39 days in, we should see that none of the vaccines are working
     simulation = setup_simulation([generate_test_population, age_simulants,
-                                   RotaVaccine(True)] + diarrhea_factory())
+                                   RotaVaccine()] + diarrhea_factory())
 
     pump_simulation(simulation, iterations=61)
 
@@ -275,7 +275,7 @@ def test_incidence_rates():
                                           source=os.path.realpath(__file__))
 
     simulation = setup_simulation([generate_test_population, age_simulants,
-                                   RotaVaccine(True)] + diarrhea_factory())
+                                   RotaVaccine()] + diarrhea_factory())
 
     rota_table = build_table(7000)
     rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
@@ -301,7 +301,7 @@ def test_incidence_rates():
 
     # now try with two doses
     simulation = setup_simulation([generate_test_population, age_simulants,
-                                   RotaVaccine(True)] + diarrhea_factory())
+                                   RotaVaccine()] + diarrhea_factory())
 
     rota_table = build_table(1000)
 
@@ -329,7 +329,7 @@ def test_incidence_rates():
 
     # now try with three doses
     simulation = setup_simulation([generate_test_population, age_simulants,
-                                   RotaVaccine(True)] + diarrhea_factory())
+                                   RotaVaccine()] + diarrhea_factory())
 
     rota_table = build_table(1000)
 
@@ -358,7 +358,7 @@ def test_incidence_rates():
 
 # 5. determine_vaccine_protection
 def test_determine_vaccine_protection():
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine(True)])
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()])
 
     # pump the simulation forward
     pump_simulation(simulation, duration=timedelta(days=8))
@@ -398,9 +398,11 @@ def test_rota_vaccine_coverage():
     config.simulation_parameters.set_with_metadata('year_start', 2014, layer='override',
                                                    source=os.path.realpath(__file__))
 
+    config.rota_vaccine.set_with_metadata('vaccination_proportion_increase', 0, layer='override',
+                                                      source=os.path.realpath(__file__))
 
     simulation = setup_simulation([generate_test_population, age_simulants,
-                                   RotaVaccine(False)], population_size=10000)
+                                   RotaVaccine()], population_size=10000)
 
     # pump the simulation forward
     pump_simulation(simulation, duration=timedelta(days=8))
@@ -408,9 +410,12 @@ def test_rota_vaccine_coverage():
     assert len(simulation.population.population.rotaviral_entiritis_vaccine_first_dose_is_working) > 0, \
         "ensure that, even when there is no intervention, there is still some baseline coverage that exists"
 
+    config.rota_vaccine.set_with_metadata('vaccination_proportion_increase', .2, layer='override',
+                                                      source=os.path.realpath(__file__))
+
     # now create a simulation where we are including an intevention
     simulation2 = setup_simulation([generate_test_population, age_simulants,
-                                    RotaVaccine(True)], population_size=10000)
+                                    RotaVaccine()], population_size=10000)
 
     # pump the simulation forward
     pump_simulation(simulation2, duration=timedelta(days=8))
