@@ -69,7 +69,7 @@ class DiarrheaEtiologyState(State):
     # Output metrics counting the number of cases of diarrhea and number of
     #     cases overall of diarrhea due to each pathogen
     @modifies_value('metrics')
-    @uses_columns(DIARRHEA_EVENT_COUNT_COLS + [eti + '_event_count' for eti in ETIOLOGIES])
+    @uses_columns([eti + '_event_count' for eti in ETIOLOGIES])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
 
@@ -154,7 +154,7 @@ class DiarrheaBurden:
         self.randomness = builder.randomness('determine_diarrhea_severity')
 
     @listens_for('initialize_simulants')
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + DIARRHEA_EVENT_COUNT_COLS)
+    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time', 'diarrhea_event_count'])
     def create_columns(self, event):
 
         length = len(event.index)
@@ -210,10 +210,10 @@ class DiarrheaBurden:
     # TODO: This method needs some more tests. Open to suggestions on how to
     #    best test this method
     @listens_for('time_step', priority=6)
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'age', 'sex'] +
+    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_count', 'age', 'sex'] +
                   ETIOLOGIES +
-                  [eti + '_event_count' for eti in ETIOLOGIES] +
-                  DIARRHEA_EVENT_COUNT_COLS, 'alive and diarrhea == "healthy"')
+                  [eti + '_event_count' for eti in ETIOLOGIES],
+                  'alive and diarrhea == "healthy"')
     def move_people_into_diarrhea_state(self, event):
         """
         Determines who should move from the healthy state to the diarrhea state
