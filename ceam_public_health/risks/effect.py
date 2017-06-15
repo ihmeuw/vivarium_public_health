@@ -1,5 +1,7 @@
 import numpy as np
 
+from ceam import config
+
 import ceam_inputs as inputs
 from ceam.framework.population import uses_columns
 
@@ -55,6 +57,13 @@ class RiskEffect:
         A function which takes a series of incidence rates and a series of
         relative risks and returns rates modified as appropriate for this risk
     """
+
+    configuration_defaults = {
+        'risks': {
+            'apply_mediation': True,
+        },
+    }
+
     def __init__(self, rr_data, paf_data, mediation_factor, cause, exposure_effect):
         self._rr_data = rr_data
         self._paf_data = paf_data
@@ -65,9 +74,11 @@ class RiskEffect:
     def setup(self, builder):
         self.relative_risk = builder.lookup(self._rr_data)
         self.population_attributable_fraction = builder.lookup(self._paf_data)
-        self.mediation_factor = builder.lookup(self._mediation_factor)
-        builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause.name))
-        builder.modifies_value(self.paf_mf_adjustment, 'paf.{}'.format(self.cause.name))
+
+        if config.risks.apply_mediation:
+            self.mediation_factor = builder.lookup(self._mediation_factor)
+            builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause.name))
+            builder.modifies_value(self.paf_mf_adjustment, 'paf.{}'.format(self.cause.name))
 
         return [self.exposure_effect]
 
