@@ -60,7 +60,7 @@ class EpidemiologicalMeasures:
                 self.dump_measures(event.index)
                 self.collecting = False
 
-        if event.time.year % 5 == 0:
+        if event.time.year % 5 == 0: # FIXME: If year in list of GBD years
             if mid_year > event.time - time_step and mid_year <= event.time:
                 # Collect point measures at the midpoint of every gbd year
                 self.dump_measures(event.index, point=True)
