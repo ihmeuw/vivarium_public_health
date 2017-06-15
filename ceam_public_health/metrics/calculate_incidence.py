@@ -38,7 +38,7 @@ class CalculateIncidence:
     def setup(self, builder):
         self.clock = builder.clock()
 
-        columns = [self.disease_col, "age", "sex", "alive"]
+        columns = [self.disease_col, "fractional_age", "sex", "alive"]
         self.population_view = builder.population_view(columns)
 
     @listens_for('begin_epidemiological_measure_collection')

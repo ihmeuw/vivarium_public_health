@@ -90,7 +90,7 @@ class Mortality:
         return metrics
 
     @modifies_value('epidemiological_span_measures')
-    @uses_columns(['age', 'death_day', 'cause_of_death', 'alive', 'sex'])
+    @uses_columns(['fractional_age', 'death_day', 'cause_of_death', 'alive', 'sex'])
     def calculate_mortality_measure(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
         root_location = config.simulation_parameters.location_id
         pop = population_view.get(index)
