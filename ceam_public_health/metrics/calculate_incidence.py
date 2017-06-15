@@ -26,37 +26,20 @@ class CalculateIncidence:
         """
         self.disease_col = disease_col
         self.disease = disease
-        # FIXME: Get rid of susceptible state. Instead want to have a list of diseased states
         self.disease_states = disease_states
-        # FIXME: Update so all age groups are included. Do this after updating code to not affect state table
-        self.age_group_id_min = 2
-        self.age_group_id_max = 6
         self.collecting = False
 
-        self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", self.age_group_id_min, self.age_group_id_max)
-        self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease), self.age_group_id_min, self.age_group_id_max)
+        self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", age_group_id_min=2, age_group_id_max=21)
+        self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease), age_group_id_min=2, age_group_id_max=21)
 
-        self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=self.age_group_id_min,
-                                                                          age_group_id_max=self.age_group_id_max)
+        self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
+                                                                          age_group_id_max=21)
 
     def setup(self, builder):
         self.clock = builder.clock()
 
-        columns = [self.disease_col, "age", "sex", "alive"] + self.susceptible_person_time_cols + self.event_count_cols
+        columns = [self.disease_col, "age", "sex", "alive"]
         self.population_view = builder.population_view(columns)
-
-    @listens_for('initialize_simulants')
-    def create_columns(self, event):
-        """
-        Initialize the susceptible person time and event count columns
-        """
-        length = len(event.index)
-
-        for col in self.susceptible_person_time_cols:
-            self.population_view.update(pd.DataFrame({col: np.zeros(length)}, index=event.index))
-
-        for col in self.event_count_cols:
-            self.population_view.update(pd.DataFrame({col: np.zeros(length)}, index=event.index))
 
     @listens_for('begin_epidemiological_measure_collection')
     def set_flag(self, event):
@@ -66,6 +49,14 @@ class CalculateIncidence:
         # FIXME: Figure out how to turn off the self.collecting flag
         self.collecting = True
 
+        self.incidence_rate_df = pd.DataFrame({})
+
+        for col in self.susceptible_person_time_cols:
+            self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
+
+        for col in self.event_count_cols:
+            self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
+           
     @listens_for('time_step', priority=7)
     def get_counts_and_susceptible_person_time(self, event):
         """
@@ -73,10 +64,6 @@ class CalculateIncidence:
         """
         if self.collecting:
             pop = self.population_view.get(event.index)
-
-            current_year = event.time.year
-
-            # FIXME: Move away from collecting incidence rate data in the state table
 
             for sex in ["Male", "Female"]:
                 last_age_group_max = 0
@@ -86,22 +73,20 @@ class CalculateIncidence:
                     #     A simulant can be 1 or 4.999 years old and be considered
                     #     part of the 1-5 year old group, but once they turn 5 they
                     #     are part of the 5-10 age group
-                    pop.loc[(pop['age'] < upr_bound)
-                            & (pop['age'] >= last_age_group_max)
-                            & (pop['sex'] == sex)
-                            & (pop[self.disease_col].isin(self.disease_states))
-                            & (pop['alive'] == True),
-                            '{d}_event_count_{a}_in_year_{c}_among_{s}s'.format(
-                            d=self.disease, a=age_bin, c=current_year, s=sex)] += 1
-                    pop.loc[~(pop[self.disease_col].isin(self.disease_states))
-                            & (pop['age'] < upr_bound)
-                            & (pop['age'] >= last_age_group_max)
-                            & (pop['sex'] == sex)
-                            & (pop['alive'] == True),
-                            'susceptible_person_time_{a}_in_year_{c}_among_{s}s'.format(a=age_bin, c=current_year, s=sex)] += config.simulation_parameters.time_step
+                    cases_index = pop.loc[(pop['age'] < upr_bound)
+                                & (pop['age'] >= last_age_group_max)
+                                & (pop['sex'] == sex)
+                                & (pop[self.disease_col].isin(self.disease_states))
+                                & (pop['alive'] == True)].index
+                    self.incidence_rate_df['{d}_event_count_{a}_among_{s}s'.format(
+                            d=self.disease, a=age_bin, s=sex)].loc[cases_index] += 1
+                    susceptible_index = pop.loc[~(pop[self.disease_col].isin(self.disease_states))
+                                              & (pop['age'] < upr_bound)
+                                              & (pop['age'] >= last_age_group_max)
+                                              & (pop['sex'] == sex)
+                                              & (pop['alive'] == True)].index
+                    self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[susceptible_index] += config.simulation_parameters.time_step
                     last_age_group_max = upr_bound
-
-            self.population_view.update(pop)
 
     # TODO: Would be nice to use age_group_name instead of age_group_high and age_group_low. Using age_group_name is more specific, will make the graphs cleaner, and is more interpretable for the under 1 (neonatal) age groups.
     @modifies_value('epidemiological_span_measures')
@@ -117,19 +102,17 @@ class CalculateIncidence:
         else:
             locations = {-1}
 
-        now = self.clock()
-        window_start = now - duration
-        current_year = window_start.year
-
         for sex in sexes:
             for location in locations:
                 last_age_group_max = 0
                 for age_bin, upr_bound in self.age_bin_age_group_max_dict:
+                    location_index = pd.Index([])
                     if location >= 0:
-                        pop = pop.query('location == @location')
-
-                    susceptible_person_time = pop["susceptible_person_time_{a}_in_year_{y}_among_{s}s".format(a=age_bin, y=current_year, s=sex)].sum()
-                    num_diarrhea_cases = pop['{d}_event_count_{a}_in_year_{y}_among_{s}s'.format(d=self.disease, a=age_bin, y=current_year, s=sex)].sum()
+                        location_index = pop.query('location == @location').index
+                    if location_index.empty:
+                        location_index = pop.index
+                    susceptible_person_time = self.incidence_rate_df.loc[location_index]["susceptible_person_time_{a}_among_{s}s".format(a=age_bin, s=sex)].sum()
+                    num_diarrhea_cases = self.incidence_rate_df.loc[location_index]['{d}_event_count_{a}_among_{s}s'.format(d=self.disease, a=age_bin, s=sex)].sum()
 
                     if susceptible_person_time != 0:
                         cube = cube.append(pd.DataFrame({'measure': 'incidence', 'age_low': last_age_group_max, 'age_high': upr_bound, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'diarrhea', 'value': num_diarrhea_cases/susceptible_person_time, 'sample_size': susceptible_person_time}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
@@ -138,4 +121,10 @@ class CalculateIncidence:
 
         self.collecting = False
 
+        for col in self.susceptible_person_time_cols:
+            self.incidence_rate_df[col] = 0
+
+        for col in self.event_count_cols:
+            self.incidence_rate_df[col] = 0
+           
         return cube
