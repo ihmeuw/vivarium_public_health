@@ -64,7 +64,7 @@ def test_determine_who_should_receive_dose():
 
     factory = diarrhea_factory()
 
-    rv_instance = RotaVaccine(True)
+    rv_instance = RotaVaccine()
 
     simulation = setup_simulation([generate_test_population, rv_instance] + \
                                   factory, population_size=10000)
