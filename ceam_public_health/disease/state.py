@@ -271,7 +271,7 @@ class TransientDiseaseState(TransientState):
         """
         if self.track_events:
             pop = self.population_view.get(index)
-            pop[self.event_time_column] = pd.Timestamp(self.clock().timestamp())
+            pop[self.event_time_column] = pd.Timestamp(self.clock())
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
         if self.side_effect_function is not None:
