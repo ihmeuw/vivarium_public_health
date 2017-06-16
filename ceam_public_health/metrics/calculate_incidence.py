@@ -58,7 +58,7 @@ class CalculateIncidence:
         for col in self.event_count_cols:
             self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
 
-    @listens_for('time_step', priority=7)
+    @listens_for('time_step', priority=9)
     def get_counts_and_susceptible_person_time(self, event):
         """
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)
