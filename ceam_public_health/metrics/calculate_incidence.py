@@ -26,6 +26,7 @@ class CalculateIncidence:
         """
         self.disease_col = disease_col
         self.disease = disease
+        self.disease_time_col = disease + "_event_time"
         self.disease_states = disease_states
         self.collecting = False
 
@@ -38,7 +39,7 @@ class CalculateIncidence:
     def setup(self, builder):
         self.clock = builder.clock()
 
-        columns = [self.disease_col, "age", "sex", "alive"]
+        columns = [self.disease_col, self.disease_time_col, "age", "sex", "alive"]
         self.population_view = builder.population_view(columns)
 
     @listens_for('begin_epidemiological_measure_collection')
@@ -56,7 +57,7 @@ class CalculateIncidence:
 
         for col in self.event_count_cols:
             self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
-           
+
     @listens_for('time_step', priority=7)
     def get_counts_and_susceptible_person_time(self, event):
         """
@@ -77,7 +78,8 @@ class CalculateIncidence:
                                 & (pop['age'] >= last_age_group_max)
                                 & (pop['sex'] == sex)
                                 & (pop[self.disease_col].isin(self.disease_states))
-                                & (pop['alive'] == True)].index
+                                & (pop['alive'] == True)
+                                & (pop[self.disease_time_col] == event.time)].index
                     self.incidence_rate_df['{d}_event_count_{a}_among_{s}s'.format(
                             d=self.disease, a=age_bin, s=sex)].loc[cases_index] += 1
                     susceptible_index = pop.loc[~(pop[self.disease_col].isin(self.disease_states))
