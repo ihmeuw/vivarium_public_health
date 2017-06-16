@@ -94,7 +94,7 @@ class Ors:
 
         # FIXME: people don't necessarily get diarrhea on the first day in
         # which they get diarrhea. might want to inject some uncertainty here
-        # pop.loc[pop['diarrhea_event_time'] == pd.Timestamp(event.time)]
+        pop = pop.loc[pop['diarrhea_event_time'] == pd.Timestamp(event.time)]
 
         exp = self.exposure(pop.index)
 
