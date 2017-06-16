@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from ceam import config
 
@@ -13,9 +14,9 @@ def setup():
                                                       'input_data.auxiliary_data_folder'])
     except KeyError:
         pass
-    config.simulation_parameters.set_with_metadata('year_start', 2005, layer='override',
+    config.simulation_parameters.set_with_metadata('year_start', 2009, layer='override',
                                                    source=os.path.realpath(__file__))
-    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+    config.simulation_parameters.set_with_metadata('year_end', 2011, layer='override',
                                                    source=os.path.realpath(__file__))
     config.simulation_parameters.set_with_metadata('time_step', 365, layer='override',
                                                    source=os.path.realpath(__file__))
@@ -28,9 +29,12 @@ def test_calculate_incidence():
 
     pop = simulation.population.population
 
-    pop['diarrhea'] = ['healthy'] * 500 + ['mild_diarrhea'] * 500
+    pop['diarrhea'] = ['healthy'] * 50 + ['mild_diarrhea'] * 50
 
-    pump_simulation(simulation, duration=timedelta(days=1))
+    pump_simulation(simulation, duration=timedelta(days=730))
 
+    inc = simulation.values.get_value('epidemiological_span_measures')
 
-    # get_value 'epidemiological_span_measures'
+    import pdb; pdb.set_trace()
+
+    # assert inc = .5
