@@ -14,6 +14,8 @@ import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 sns.set_style('darkgrid')
 
+from ceam_inputs import get_age_bins
+
 from ceam_public_health.cube import make_measure_cube_from_gbd
 
 def graph_measure(data, measure, output_directory):
@@ -65,7 +67,18 @@ def graph_measure(data, measure, output_directory):
             ax.set_xlim([0, max(filtered.gbd.max(), filtered.simulation.max())])
             ax.set_ylim([0, max(filtered.gbd.max(), filtered.simulation.max())])
 
-            title = '{:.1f} ({})'.format(age, int(mean_sample_size))
+            bins = get_age_bins()
+
+            bins['age'] = bins[['age_group_years_start', 'age_group_years_end']].mean(axis=1)
+
+            filtered = filtered.merge(bins, on=['age'])
+
+            age_group_name = filtered.query("age == @age").age_group_name.values[0]
+
+            if measure == "incidence":
+                title = '{} Age Group ({} person-years)'.format(age_group_name, int(mean_sample_size))
+            else:
+                title = '{} Age Group ({})'.format(age_group_name, int(mean_sample_size))
             ax.set_title(title)
 
             # Draw the equivalence line
