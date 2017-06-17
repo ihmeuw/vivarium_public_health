@@ -87,7 +87,8 @@ class CalculateIncidence:
                                               & (pop['age'] >= last_age_group_max)
                                               & (pop['sex'] == sex)
                                               & (pop['alive'] == True)].index
-                    self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[susceptible_index] += config.simulation_parameters.time_step
+                    # calculate susceptible person-time per year
+                    self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[susceptible_index] += config.simulation_parameters.time_step / 365
                     last_age_group_max = upr_bound
 
     # TODO: Would be nice to use age_group_name instead of age_group_high and age_group_low. Using age_group_name is more specific, will make the graphs cleaner, and is more interpretable for the under 1 (neonatal) age groups.
