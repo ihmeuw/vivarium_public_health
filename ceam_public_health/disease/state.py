@@ -365,10 +365,6 @@ class ExcessMortalityState(DiseaseState):
             rates_df[self.state_id] = rate
         return rates_df
 
-    @modifies_value('csmr_data')
-    def get_csmr(self):
-        return self.csmr_data
-
     def name(self):
         return '{}'.format(self.state_id)
 
@@ -377,10 +373,6 @@ class ExcessMortalityState(DiseaseState):
 
 
 def make_disease_state(cause, dwell_time=0, side_effect_function=None):
-    if 'mortality' in cause:
-        csmr = get_cause_specific_mortality(cause.mortality) if isinstance(cause.mortality, meid) else cause.mortality
-    else:
-        csmr = pd.DataFrame()
     if 'disability_weight' in cause:
         if isinstance(cause.disability_weight, meid):
             disability_weight = get_disability_weight(dis_weight_modelable_entity_id=cause.disability_weight)
@@ -408,7 +400,6 @@ def make_disease_state(cause, dwell_time=0, side_effect_function=None):
                                     disability_weight=disability_weight,
                                     excess_mortality_data=excess_mortality,
                                     prevalence_data=prevalence,
-                                    csmr_data=csmr,
                                     side_effect_function=side_effect_function)
     else:
         return DiseaseState(cause.name,

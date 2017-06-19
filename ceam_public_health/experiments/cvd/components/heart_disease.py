@@ -1,9 +1,9 @@
 from ceam_inputs import (get_incidence, get_post_mi_heart_failure_proportion_draws,
-                         get_angina_proportions, get_asympt_ihd_proportions, causes)
+                         get_angina_proportions, get_asympt_ihd_proportions, causes,
+                         get_codcorrect_csmr)
 
 from ceam_public_health.disease import DiseaseState, TransientDiseaseState, make_disease_state, DiseaseModel
 from ceam_public_health.treatment import hospitalization_side_effect_factory
-
 
 def factory():
     healthy = DiseaseState('healthy', track_events=False, key='ihd')
