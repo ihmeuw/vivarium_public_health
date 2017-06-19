@@ -48,7 +48,7 @@ class EpidemiologicalMeasures:
     @emits('begin_epidemiological_measure_collection')
     def time_step(self, event, event_emitter):
         time_step = timedelta(days=config.simulation_parameters.time_step)
-        mid_year = datetime(year=event.time.year, month=7, day=2) # FIXME: Need to also set the simulation start time to July 2nd of year_start
+        mid_year = datetime(year=event.time.year, month=7, day=2)
         year_start = datetime(year=event.time.year, month=1, day=1)
 
 
