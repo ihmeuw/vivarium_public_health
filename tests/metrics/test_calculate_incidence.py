@@ -25,7 +25,9 @@ def setup():
     config.simulation_parameters.set_with_metadata('num_simulants', 1000, layer='override',
                                                    source=os.path.realpath(__file__))
     return config
-    
+
+# FIXME: test_calculate_incidence isn't testing anything right now. need to figure out how to access the incidence rate value in epidemiological_span_measures
+@pytest.mark.xfail
 def test_calculate_incidence():
     factory = diarrhea_factory()
 
@@ -36,7 +38,5 @@ def test_calculate_incidence():
     pump_simulation(simulation, duration=timedelta(days=730))
 
     inc = simulation.values.get_value('epidemiological_span_measures')
-
-    import pdb; pdb.set_trace()
 
     # assert inc = .5
