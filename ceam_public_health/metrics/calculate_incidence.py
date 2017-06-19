@@ -91,7 +91,6 @@ class CalculateIncidence:
                     self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[susceptible_index] += config.simulation_parameters.time_step / 365
                     last_age_group_max = upr_bound
 
-    # TODO: Would be nice to use age_group_name instead of age_group_high and age_group_low. Using age_group_name is more specific, will make the graphs cleaner, and is more interpretable for the under 1 (neonatal) age groups.
     @modifies_value('epidemiological_span_measures')
     def calculate_incidence_measure(self, index, age_groups, sexes, all_locations, duration, cube):
         """
