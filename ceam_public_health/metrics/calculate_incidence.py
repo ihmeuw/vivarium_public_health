@@ -72,7 +72,7 @@ class CalculateIncidence:
                     # We use GTE age group lower bound and LT age group upper bound
                     #     because of how GBD age groups are set up. For example, a
                     #     A simulant can be 1 or 4.999 years old and be considered
-                    #     part of the 1-5 year old group, but once they turn 5 they
+                    #     part of the 1-4 year old group, but once they turn 5 they
                     #     are part of the 5-10 age group
                     cases_index = pop.loc[(pop['age'] < upr_bound)
                                 & (pop['age'] >= last_age_group_max)
