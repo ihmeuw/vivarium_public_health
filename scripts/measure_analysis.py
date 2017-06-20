@@ -12,7 +12,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
-sns.set_style('darkgrid')
+sns.set_style('whitegrid')
 
 from ceam_inputs import get_age_bins
 
@@ -82,12 +82,12 @@ def graph_measure(data, measure, output_directory):
             ax.set_title(title)
 
             # Draw the equivalence line
-            ax.plot(ax.get_xlim(), ax.get_ylim(),'w-', zorder=1, lw=1)
+            ax.plot(ax.get_xlim(), ax.get_ylim(),'k-', zorder=1, lw=1)
 
             for sex, shape in shapes.items():
                 # Draw the actual points with different shapes for each sex
-                gbd, simulation, color = zip(*filtered.query('sex==@sex')[['gbd', 'simulation', 'color']].values.tolist())
-                ax.scatter(gbd, simulation, color=color, zorder=2, marker=shape)
+                gbd, simulation, gbd_lower, gbd_upper, simulation_lower, simulation_upper, color = zip(*filtered.query('sex==@sex')[['gbd', 'simulation', 'gbd_lower', 'gbd_upper', 'simulation_lower', 'simulation_upper', 'color']].values.tolist())
+                ax.errorbar(gbd, simulation, xerr=[np.subtract(gbd_lower, gbd), np.subtract(gbd_upper, gbd)], yerr=[np.subtract(simulation_lower, simulation), np.subtract(simulation_upper, simulation)], zorder=2, marker=shape)
 
             # The graphs tend to be pretty tight so rotate the x axis labels to make better use of space
             for tick in ax.get_xticklabels():
@@ -121,10 +121,20 @@ def prepare_comparison(data):
     del data['age_high']
 
     # NOTE: This averages the draws without capturing uncertainty. May want to improve at some point.
-    measure_cube = measure_cube.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean()
+    gr1 = measure_cube.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location'])
+    measure_cube['gbd'] = gr1.mean()[['value']].values
+    measure_cube['gbd_upper'] = gr1.quantile(.975)[['value']].values
+    measure_cube['gbd_lower'] = gr1.quantile(.025)[['value']].values
+    measure_cube.reset_index(inplace=True)
+    del measure_cube['value']
     del measure_cube['draw']
     data['sample_size'] = data.sample_size.astype(int)
-    data = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean().reset_index()
+    gr2 = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location'])
+    data['simulation'] = gr2.mean().reset_index()[['value']].values
+    data['simulation_upper'] = gr2.quantile(.975)[['value']].values
+    data['simulation_lower'] = gr2.quantile(.025)[['value']].values
+    data.reset_index(inplace=True)
+    del data['value']
     del data['draw']
 
     # Calculate RGB triples for each cause for use in coloring marks on the graphs
@@ -139,9 +149,8 @@ def prepare_comparison(data):
 
     data = data.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'])
 
-    # Give our value columns descriptive names so we know which is which
-    data = data.rename(columns={'value': 'simulation'})
-    measure_cube = measure_cube.rename(columns={'value': 'gbd'})
+    measure_cube = measure_cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'])
+
     return data.merge(measure_cube, left_index=True, right_index=True)
 
 def graph_comparison(data, output_directory):

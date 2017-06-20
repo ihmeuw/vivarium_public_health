@@ -57,13 +57,13 @@ class EpidemiologicalMeasures:
             year_end = datetime(year=self.last_collected_year, month=12, day=31)
             if year_end > event.time - time_step and year_end <= event.time and self.collecting:
                 _log.debug('end collection')
-                self.dump_measures(event.index)
+                self.dump_measures(event.index, self.last_collected_year)
                 self.collecting = False
 
         if event.time.year % 5 == 0: # FIXME: If year in list of GBD years
             if mid_year > event.time - time_step and mid_year <= event.time:
                 # Collect point measures at the midpoint of every gbd year
-                self.dump_measures(event.index, point=True)
+                self.dump_measures(event.index, event.time.year, point=True)
 
             if year_start > event.time - time_step and year_start <= event.time and \
                event.time.year > self.last_collected_year and not self.collecting:
@@ -77,7 +77,7 @@ class EpidemiologicalMeasures:
     def prepare_output_file(self, event):
         pd.DataFrame().to_hdf(self.output_path, 'data')
 
-    def dump_measures(self, index, point=False):
+    def dump_measures(self, index, current_year, point=False):
         age_group_ids = list(range(2,22))
         age_groups = get_age_bins().query('age_group_id in @age_group_ids')
         age_groups = age_groups[['age_group_years_start', 'age_group_years_end']].values
@@ -87,7 +87,7 @@ class EpidemiologicalMeasures:
         else:
             measures = self.span_measures
         df = measures(index, age_groups, ['Male', 'Female'], False, timedelta(days=365)).reset_index()
-        df['year'] = self.last_collected_year
+        df['year'] = current_year
         df['draw'] = config.run_configuration.draw_number
         existing_df = pd.read_hdf(self.output_path)
         df = existing_df.append(df)

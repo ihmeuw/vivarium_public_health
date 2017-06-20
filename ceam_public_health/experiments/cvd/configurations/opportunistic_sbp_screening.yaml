@@ -22,13 +22,18 @@ components:
                         - HealthcareAccess()
                 - metrics:
                         - Metrics()
-
+                        - calculate_incidence.CalculateIncidence("ihd", "heart_attack", ["heart_attack"])
+                        - epidemiology.EpidemiologicalMeasures()
+                        - calculate_incidence.CalculateIncidence("ihd", "ischemic_stroke", ["ischemic_stroke"])
+                        - calculate_incidence.CalculateIncidence("ihd", "hemorrhagic_stroke", ["hemorrhagic_stroke"])
 configuration:
         simulation_parameters:
                 location_id: 180
                 year_start: 2005
-                year_end: 2010
+                year_end: 2011
                 time_step: 30.5 #Days
                 pop_age_start: 0
                 pop_age_end: 125
-                population_size: 10000
+                population_size: 100000
+        run_configuration:
+                results_directory: "/share/scratch/users/emumford"
