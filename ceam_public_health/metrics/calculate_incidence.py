@@ -58,6 +58,7 @@ class CalculateIncidence:
         for col in self.event_count_cols:
             self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
 
+    # FIXME: We should make the incidence rate calculation function happen after diseases are assigned, but before people die in a given time_step. If we count after we determine who dies, we'll undercount (larger bias for more deadly causes)
     @listens_for('time_step', priority=9)
     def get_counts_and_susceptible_person_time(self, event):
         """
