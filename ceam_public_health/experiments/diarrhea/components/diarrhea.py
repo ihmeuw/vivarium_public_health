@@ -7,7 +7,7 @@ from ceam.framework.population import uses_columns
 from ceam.framework.state_machine import State
 from ceam.framework.values import modifies_value
 from ceam_inputs import (get_etiology_specific_incidence, get_severe_diarrhea_excess_mortality,
-                         get_cause_specific_mortality, get_disability_weight, get_severity_splits)
+                         get_cause_specific_mortality, get_disability_weight, get_severity_splits, causes)
 
 from ceam_public_health.disease import RateTransition, DiseaseModel
 from ceam_public_health.experiments.diarrhea.components.diarrhea2 import get_duration_in_days
@@ -96,9 +96,6 @@ class DiarrheaBurden:
     excess_mortality_data: df
         df with excess mortality rate for each age, sex, year, loc
 
-    csmr_data: df
-        df with csmr for each age, sex, year, loc
-
     mild_disability_weight: float
         disability weight associated with mild diarrhea
 
@@ -170,11 +167,6 @@ class DiarrheaBurden:
 
         event.population_view.update(df)
 
-    # delete the diarrhea csmr from the background mortality rate
-    @modifies_value('csmr_data')
-    def csmr(self):
-        return self.csmr_data
-
     @modifies_value('mortality_rate')
     @uses_columns(['diarrhea'], 'alive')
     def mortality_rates(self, index, rates_df, population_view):
@@ -189,6 +181,10 @@ class DiarrheaBurden:
             * (population['diarrhea'] == 'severe_diarrhea'))
 
         return rates_df
+
+    @modifies_value('csmr_data')
+    def get_csmr(self):
+        return self.csmr_data
 
     @modifies_value('disability_weight')
     def disability_weight(self, index):
@@ -271,7 +267,7 @@ class DiarrheaBurden:
     #     severity levels
     # TODO: Per conversation with Abie on 2.22, we would like to have a
     #     distribution surrounding duration
-    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + \
+    @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] +
                   ETIOLOGIES, 'alive and diarrhea != "healthy"')
     @listens_for('time_step', priority=8)
     def apply_remission(self, event):
@@ -283,11 +279,10 @@ class DiarrheaBurden:
         #     affected_population.index was being passed in). Alec/James:
         #     any suggestions for another test for apply_remission?
         if not affected_population.empty:
-            duration_series = pd.to_timedelta(self.duration(affected_population.index),
-                                                            unit='D')
+            duration_series = pd.to_timedelta(self.duration(affected_population.index), unit='D')
 
-            affected_population['diarrhea_event_end_time'] = duration_series + \
-                                                             affected_population['diarrhea_event_time']
+            affected_population['diarrhea_event_end_time'] = (duration_series
+                                                              + affected_population['diarrhea_event_time'])
 
             # manually set diarrhea to healthy and set all etiology columns to
             #     healthy as well
@@ -313,17 +308,9 @@ def diarrhea_factory():
     #    getting the risk id data would be to run a get_ids query and have that
     #    return the ids we want (that statement could apply to anywhere we use
     #    a gbd id of some sort)
-    dict_of_etiologies_and_eti_risks = {'cholera': 173,
-                                        'other_salmonella': 174,
-                                        'shigellosis': 175, 'EPEC': 176,
-                                        'ETEC': 177, 'campylobacter': 178,
-                                        'amoebiasis': 179,
-                                        'cryptosporidiosis': 180,
-                                        'rotaviral_entiritis': 181,
-                                        'aeromonas': 182,
-                                        'clostridium_difficile': 183,
-                                        'norovirus': 184, 'adenovirus': 185,
-                                        'unattributed_diarrhea': 'unattributed'}
+    dict_of_etiologies_and_eti_risks = {name: causes[name].gbd_cause
+                                        for name in ETIOLOGIES if name != 'unattributed_diarrhea'}
+    dict_of_etiologies_and_eti_risks['unattributed_diarrhea'] = 'unattributed'
 
     for pathogen, risk_id in dict_of_etiologies_and_eti_risks.items():
 
@@ -331,17 +318,10 @@ def diarrhea_factory():
 
         healthy = State('healthy', key=pathogen)
 
-        # @Alecwd does it make sense to have the state_id and key be the same
-        #    string?
-        etiology_state = DiarrheaEtiologyState(pathogen,
-                                               key=pathogen)
-
-        etiology_specific_incidence = get_etiology_specific_incidence(
-            eti_risk_id=risk_id, cause_id=302, me_id=1181)
-
-        transition = RateTransition(etiology_state,
-                                    pathogen,
-                                    etiology_specific_incidence)
+        # @Alecwd does it make sense to have the state_id and key be the same string?
+        etiology_state = DiarrheaEtiologyState(pathogen, key=pathogen)
+        etiology_specific_incidence = get_etiology_specific_incidence(eti_risk_id=risk_id, cause_id=302, me_id=1181)
+        transition = RateTransition(etiology_state, pathogen, etiology_specific_incidence)
 
         healthy.transition_set.append(transition)
         healthy.allow_self_transitions()
@@ -354,7 +334,7 @@ def diarrhea_factory():
     time_step = config.simulation_parameters.time_step
 
     diarrhea_burden = DiarrheaBurden(excess_mortality_data=excess_mortality,
-                                     csmr_data=get_cause_specific_mortality(302),
+                                     csmr_data=get_cause_specific_mortality(causes.diarrhea.gbd_cause),
                                      mild_disability_weight=get_disability_weight(healthstate_id=355),
                                      moderate_disability_weight=get_disability_weight(healthstate_id=356),
                                      severe_disability_weight=get_disability_weight(healthstate_id=357),

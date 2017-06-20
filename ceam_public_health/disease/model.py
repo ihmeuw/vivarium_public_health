@@ -15,7 +15,7 @@ from ceam_public_health.disease import ExcessMortalityState, TransientDiseaseSta
 
 
 class DiseaseModel(Machine):
-    def __init__(self, condition, csmr_data, **kwargs):
+    def __init__(self, condition, csmr_data=None, **kwargs):
         super().__init__(condition, **kwargs)
         self.csmr_data = csmr_data
 

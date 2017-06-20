@@ -345,6 +345,7 @@ def _fill_in_correlation_matrix(risk_order):
 
     return matrix_base, correlation_matrix
 
+
 @pytest.mark.skip
 @pytest.mark.slow
 @patch('ceam_public_health.risks.base_risk.inputs.load_risk_correlation_matrices')
@@ -415,6 +416,7 @@ def _mock_get_pafs(risk_id, cause_id):
         return build_table([e, e], columns=['age', 'year', 'sex', 'cat1', 'cat2'])
     else:
         return build_table(e)
+
 
 @pytest.mark.skip
 @patch('ceam_public_health.risks.base_risk.inputs')

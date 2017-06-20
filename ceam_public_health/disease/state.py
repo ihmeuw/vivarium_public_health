@@ -185,7 +185,6 @@ class DiseaseState(State):
         self.transition_set.append(t)
         return t
 
-
     @modifies_value('metrics')
     def metrics(self, index, metrics):
         """Records data for simulation post-processing.
@@ -319,15 +318,12 @@ class ExcessMortalityState(DiseaseState):
     state_id : str
         The name of this state.
     excess_mortality_data : `pandas.DataFrame`
-        A table of excess mortality data associated with this state.
-    csmr_data : `pandas.DataFrame`
-        A table of excess mortality data associated with this state.
+        A table of excess mortality data associated with this state.    
     """
-    def __init__(self, state_id, excess_mortality_data, csmr_data, **kwargs):
+    def __init__(self, state_id, excess_mortality_data, **kwargs):
         super().__init__(state_id, **kwargs)
 
         self.excess_mortality_data = excess_mortality_data
-        self.csmr_data = csmr_data
 
     def setup(self, builder):
         """Performs this component's simulation setup and return sub-components.
