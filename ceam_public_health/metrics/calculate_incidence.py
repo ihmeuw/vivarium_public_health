@@ -65,7 +65,7 @@ class CalculateIncidence:
         """
         if self.collecting:
             population = self.population_view.get(event.index)
-            pop = population.loc[(pop['alive'] == True) | (pop['death_day'] == event.time)]
+            pop = population.loc[(population['alive'] == True) | (population['death_day'] == event.time)]
 
             for sex in ["Male", "Female"]:
                 last_age_group_max = 0
