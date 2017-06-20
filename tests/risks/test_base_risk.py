@@ -9,10 +9,6 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from rpy2.robjects import r, pandas2ri, numpy2ri
-pandas2ri.activate()
-numpy2ri.activate()
-
 from ceam import config
 from ceam.config_tree import ConfigTree
 from ceam.framework.event import listens_for
@@ -349,10 +345,14 @@ def _fill_in_correlation_matrix(risk_order):
 
     return matrix_base, correlation_matrix
 
-@pytest.mark.xfail(strict=True)
+
+@pytest.mark.skip
 @pytest.mark.slow
 @patch('ceam_public_health.risks.base_risk.inputs.load_risk_correlation_matrices')
 def test_correlated_exposures(correlation_mock):
+    from rpy2.robjects import r, pandas2ri, numpy2ri
+    pandas2ri.activate()
+    numpy2ri.activate()
     #config.simulation_parameters.pop_age_start = 30
     #config.simulation_parameters.pop_age_end = 100
     config.simulation_parameters.initial_age = 50
@@ -417,9 +417,13 @@ def _mock_get_pafs(risk_id, cause_id):
     else:
         return build_table(e)
 
-@pytest.mark.xfail(strict=True)
+
+@pytest.mark.skip
 @patch('ceam_public_health.risks.base_risk.inputs')
 def test_correlated_exposures_synthetic_risks(inputs_mock):
+    from rpy2.robjects import r, pandas2ri, numpy2ri
+    pandas2ri.activate()
+    numpy2ri.activate()
     inputs_mock.load_risk_correlation_matrices.return_value = _fill_in_correlation_matrix()
 
     inputs_mock.get_exposures = _mock_get_exposures
