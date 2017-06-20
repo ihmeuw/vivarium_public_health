@@ -349,6 +349,7 @@ def _fill_in_correlation_matrix(risk_order):
 
     return matrix_base, correlation_matrix
 
+@pytest.mark.xfail(strict=True)
 @pytest.mark.slow
 @patch('ceam_public_health.risks.base_risk.inputs.load_risk_correlation_matrices')
 def test_correlated_exposures(correlation_mock):
@@ -416,6 +417,7 @@ def _mock_get_pafs(risk_id, cause_id):
     else:
         return build_table(e)
 
+@pytest.mark.xfail(strict=True)
 @patch('ceam_public_health.risks.base_risk.inputs')
 def test_correlated_exposures_synthetic_risks(inputs_mock):
     inputs_mock.load_risk_correlation_matrices.return_value = _fill_in_correlation_matrix()

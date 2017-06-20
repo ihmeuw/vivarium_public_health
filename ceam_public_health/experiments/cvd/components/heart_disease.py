@@ -1,5 +1,5 @@
 from ceam_inputs import (get_incidence, get_post_mi_heart_failure_proportion_draws,
-                         get_angina_proportions, get_asympt_ihd_proportions, causes)
+                         get_angina_proportions, get_asympt_ihd_proportions, causes, get_cause_specific_mortality)
 
 from ceam_public_health.disease import DiseaseState, TransientDiseaseState, make_disease_state, DiseaseModel
 from ceam_public_health.treatment import hospitalization_side_effect_factory
@@ -52,18 +52,15 @@ def factory():
     heart_attack.add_transition(angina, proportion=angina_prop_df)
     heart_attack.add_transition(asymptomatic_ihd, proportion=asympt_prop_df)
 
-    mild_heart_failure.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
-    moderate_heart_failure.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
-    severe_heart_failure.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
-    asymptomatic_angina.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
-    mild_angina.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
-    moderate_angina.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
-    severe_angina.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
-    asymptomatic_ihd.add_transition(heart_attack, rates=get_incidence(causes.heart_attack.incidence))
+    heart_attack_incidence = get_incidence(causes.heart_attack.incidence)
+    for sequela in [mild_heart_failure, moderate_heart_failure, severe_heart_failure, asymptomatic_angina,
+                    mild_angina, moderate_angina, severe_angina, asymptomatic_ihd]:
+        sequela.add_transition(heart_attack, rates=heart_attack_incidence)
 
     return DiseaseModel('ihd',
                         states=[healthy,
                                 heart_attack,
                                 asymptomatic_ihd,
                                 heart_failure, mild_heart_failure, moderate_heart_failure, severe_heart_failure,
-                                angina, asymptomatic_angina, mild_angina, moderate_angina, severe_angina])
+                                angina, asymptomatic_angina, mild_angina, moderate_angina, severe_angina],
+                        csmr_data=get_cause_specific_mortality(causes.heart_attack.gbd_cause))
