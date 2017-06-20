@@ -37,7 +37,7 @@ def test_dwell_time(get_disease_states_mock):
         {'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('state')
     healthy_state = State('healthy')
-    event_state = DiseaseState('event', 0.0, dwell_time=timedelta(days=28))
+    event_state = DiseaseState('event', dwell_time=timedelta(days=28))
     healthy_state.transition_set.append(Transition(event_state))
 
     done_state = State('sick')
@@ -69,13 +69,12 @@ def test_mortality_rate():
     time_step = config.simulation_parameters.time_step
     time_step = timedelta(days=time_step)
 
-    model = DiseaseModel('test_disease')
+    model = DiseaseModel('test_disease', csmr_data=build_table(0))
     healthy = State('healthy')
     mortality_state = ExcessMortalityState('sick',
                                            excess_mortality_data=build_table(0.7),
                                            disability_weight=0.1,
-                                           prevalence_data=build_table(0.0000001, ['age', 'year', 'sex', 'prevalence']),
-                                           csmr_data=build_table(0.0))
+                                           prevalence_data=build_table(0.0000001, ['age', 'year', 'sex', 'prevalence']))
 
     healthy.transition_set.append(Transition(mortality_state))
 
@@ -124,7 +123,8 @@ def test_risk_deletion(get_disease_states_mock):
     time_step = config.simulation_parameters.time_step
     time_step = timedelta(days=time_step)
 
-    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'}, index=population.index)
+    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'},
+                                                                                     index=population.index)
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
     sick = State('sick')
