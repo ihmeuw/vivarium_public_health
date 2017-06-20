@@ -90,7 +90,7 @@ class CalculateIncidence:
                     self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[susceptible_index] += config.simulation_parameters.time_step / 365
 
                     # if a simulant died this timestep, give them half of a timestep worth of susceptible person time
-                    dead_index = pop.loc[pop['death_day'] == event.time]
+                    dead_index = pop.loc[pop['death_day'] == event.time].index
                     self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[dead_index] += (config.simulation_parameters.time_step / 2) / 365
 
                     last_age_group_max = upr_bound
