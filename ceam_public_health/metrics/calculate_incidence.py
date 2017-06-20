@@ -64,8 +64,8 @@ class CalculateIncidence:
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)
         """
         if self.collecting:
-            pop = self.population_view.get(event.index)
-
+            population = self.population_view.get(event.index)
+            pop = population.loc[(pop['alive'] == True) | (pop['death_day'] == event.time)]
 
             for sex in ["Male", "Female"]:
                 last_age_group_max = 0
@@ -79,15 +79,13 @@ class CalculateIncidence:
                                 & (pop['age'] >= last_age_group_max)
                                 & (pop['sex'] == sex)
                                 & (pop[self.disease_col].isin(self.disease_states))
-                                & ((pop['alive'] == True) | pop['death_day'] == event.time)) #TODO: Ensure the logic in this line is correct
                                 & (pop[self.disease_time_col] == event.time)].index
                     self.incidence_rate_df['{d}_event_count_{a}_among_{s}s'.format(
                             d=self.disease, a=age_bin, s=sex)].loc[cases_index] += 1
                     susceptible_index = pop.loc[~(pop[self.disease_col].isin(self.disease_states))
                                               & (pop['age'] < upr_bound)
                                               & (pop['age'] >= last_age_group_max)
-                                              & (pop['sex'] == sex)
-                                              & (pop['alive'] == True)].index
+                                              & (pop['sex'] == sex)].index
                     # calculate susceptible person-time per year
                     self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[susceptible_index] += config.simulation_parameters.time_step / 365
 
