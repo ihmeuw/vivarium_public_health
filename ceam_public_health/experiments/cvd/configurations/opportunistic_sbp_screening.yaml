@@ -34,6 +34,6 @@ configuration:
                 time_step: 30.5 #Days
                 pop_age_start: 0
                 pop_age_end: 125
-                population_size: 10000
+                population_size: 200000
         run_configuration:
                 results_directory: "/share/scratch/users/emumford"
