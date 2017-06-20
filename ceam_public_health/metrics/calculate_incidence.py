@@ -114,11 +114,10 @@ class CalculateIncidence:
                     if location_index.empty:
                         location_index = pop.index
                     susceptible_person_time = self.incidence_rate_df.loc[location_index]["susceptible_person_time_{a}_among_{s}s".format(a=age_bin, s=sex)].sum()
-                    num_diarrhea_cases = self.incidence_rate_df.loc[location_index]['{d}_event_count_{a}_among_{s}s'.format(d=self.disease, a=age_bin, s=sex)].sum()
+                    num_cases = self.incidence_rate_df.loc[location_index]['{d}_event_count_{a}_among_{s}s'.format(d=self.disease, a=age_bin, s=sex)].sum()
 
                     if susceptible_person_time != 0:
-                        cube = cube.append(pd.DataFrame({'measure': 'incidence', 'age_low': last_age_group_max, 'age_high': upr_bound, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': 'diarrhea', 'value': num_diarrhea_cases/susceptible_person_time, 'sample_size': susceptible_person_time}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
-
+                        cube = cube.append(pd.DataFrame({'measure': 'incidence', 'age_low': last_age_group_max, 'age_high': upr_bound, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': self.disease, 'value': num_cases/susceptible_person_time, 'sample_size': susceptible_person_time}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
                     last_age_group_max = upr_bound
 
         self.collecting = False
