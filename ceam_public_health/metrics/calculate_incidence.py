@@ -39,7 +39,7 @@ class CalculateIncidence:
     def setup(self, builder):
         self.clock = builder.clock()
 
-        columns = [self.disease_col, self.disease_time_col, "age", "sex", "alive"]
+        columns = [self.disease_col, self.disease_time_col, "death_day", "age", "sex", "alive"]
         self.population_view = builder.population_view(columns)
 
     @listens_for('begin_epidemiological_measure_collection')
@@ -58,7 +58,6 @@ class CalculateIncidence:
         for col in self.event_count_cols:
             self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
 
-    # FIXME: We should make the incidence rate calculation function happen after diseases are assigned, but before people die in a given time_step. If we count after we determine who dies, we'll undercount (larger bias for more deadly causes)
     @listens_for('time_step', priority=9)
     def get_counts_and_susceptible_person_time(self, event):
         """
@@ -66,6 +65,7 @@ class CalculateIncidence:
         """
         if self.collecting:
             pop = self.population_view.get(event.index)
+
 
             for sex in ["Male", "Female"]:
                 last_age_group_max = 0
@@ -79,7 +79,7 @@ class CalculateIncidence:
                                 & (pop['age'] >= last_age_group_max)
                                 & (pop['sex'] == sex)
                                 & (pop[self.disease_col].isin(self.disease_states))
-                                & (pop['alive'] == True)
+                                & ((pop['alive'] == True) | pop['death_day'] == event.time)) #TODO: Ensure the logic in this line is correct
                                 & (pop[self.disease_time_col] == event.time)].index
                     self.incidence_rate_df['{d}_event_count_{a}_among_{s}s'.format(
                             d=self.disease, a=age_bin, s=sex)].loc[cases_index] += 1
@@ -90,6 +90,11 @@ class CalculateIncidence:
                                               & (pop['alive'] == True)].index
                     # calculate susceptible person-time per year
                     self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[susceptible_index] += config.simulation_parameters.time_step / 365
+
+                    # if a simulant died this timestep, give them half of a timestep worth of susceptible person time
+                    dead_index = pop.loc[pop['death_day'] == event.time]
+                    self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[dead_index] += (config.simulation_parameters.time_step / 2) / 365
+
                     last_age_group_max = upr_bound
 
     @modifies_value('epidemiological_span_measures')
