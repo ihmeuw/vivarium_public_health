@@ -16,6 +16,7 @@ sns.set_style('darkgrid')
 
 from ceam_inputs import get_age_bins
 
+from ceam import config
 from ceam_public_health.cube import make_measure_cube_from_gbd
 
 def graph_measure(data, measure, output_directory):
@@ -141,6 +142,9 @@ def prepare_comparison(data):
 
     # Give our value columns descriptive names so we know which is which
     data = data.rename(columns={'value': 'simulation'})
+    measure_cube.reset_index(inplace=True)
+    measure_cube.loc[measure_cube.age == 82.5, 'age'] = 102.5
+    measure_cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'], inplace=True)
     measure_cube = measure_cube.rename(columns={'value': 'gbd'})
     return data.merge(measure_cube, left_index=True, right_index=True)
 
@@ -161,8 +165,14 @@ def main():
 
     data = pd.DataFrame()
 
+
     for path in args.measure_data_path:
         data = data.append(pd.read_hdf(path, format='t'))
+
+    # FIXME: Getting ihd mortality should be handled in a more flexible way. Very much a duck tape solution
+    ihd_mortality = data.query("measure == 'mortality' and cause!= 'death_due_to_other_causes' and cause!='all'").groupby(['measure', 'age_low', 'age_high', 'sex', 'location', 'year', 'draw']).sum().reset_index()
+    ihd_mortality['cause'] = 'ischemic_heart_disease'
+    data = data.append(ihd_mortality[data.columns])
 
     # TODO: right now this can only do one year per run.
     # If we want to do multiple years, that's certainly possible
@@ -174,6 +184,8 @@ def main():
         year = int(args.year)
 
     data = data.query('year == @year')
+    # FIXME: There is an error here. Data should only have one location, but it does not presently
+    data = data.query('location == {}'.format(config.simulation_parameters.location_id))
 
     if args.draw != 'all':
         draw = int(args.draw)
