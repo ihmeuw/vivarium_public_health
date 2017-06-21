@@ -24,8 +24,8 @@ components:
                         - Metrics()
                         - calculate_incidence.CalculateIncidence("ihd", "heart_attack", ["heart_attack"])
                         - epidemiology.EpidemiologicalMeasures()
-                        - calculate_incidence.CalculateIncidence("ihd", "ischemic_stroke", ["ischemic_stroke"])
-                        - calculate_incidence.CalculateIncidence("ihd", "hemorrhagic_stroke", ["hemorrhagic_stroke"])
+                        - calculate_incidence.CalculateIncidence("all_stroke", "ischemic_stroke", ["ischemic_stroke"])
+                        - calculate_incidence.CalculateIncidence("all_stroke", "hemorrhagic_stroke", ["hemorrhagic_stroke"])
 configuration:
         simulation_parameters:
                 location_id: 180
