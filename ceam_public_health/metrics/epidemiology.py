@@ -12,7 +12,10 @@ from ceam import config
 from ceam_inputs import get_age_bins
 
 import logging
+
 _log = logging.getLogger(__name__)
+run_config = config.run_configuration
+
 
 class EpidemiologicalMeasures:
     """ Gathers measures (prevalence, incidence rates, mortality rates, etc)
@@ -23,26 +26,22 @@ class EpidemiologicalMeasures:
         self.point_measures = builder.value('epidemiological_point_measures')
         self.span_measures = builder.value('epidemiological_span_measures')
 
-        if 'results_directory' in config.run_configuration:
-            results_directory = config.run_configuration.results_directory
-        else:
-            results_directory = '/tmp'
+        self.run_key = run_config.run_key if 'run_key' in run_config else None
 
-        if 'run_key' in config.run_configuration:
-            self.run_key = config.run_configuration.run_key
-        else:
-            self.run_key = None
-
+        results_directory = run_config.results_directory if 'results_directory' in run_config else '/tmp'
         results_directory = os.path.join(results_directory, 'epidemiological_measures')
         os.makedirs(results_directory, exist_ok=True)
         self.output_path = os.path.join(results_directory, 'measure_{}.hdf'.format(config.run_configuration.run_id))
+
         self.collecting = False
         self.last_collected_year = -1
 
     @produces_value('epidemiological_point_measures')
     @produces_value('epidemiological_span_measures')
     def base_cube(self, index, age_groups, sexes, all_locations, duration):
-        return pd.DataFrame(columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'sample_size']).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])
+        return pd.DataFrame(
+            columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'sample_size']
+        ).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])
 
     @listens_for('time_step')
     @emits('begin_epidemiological_measure_collection')
@@ -51,21 +50,20 @@ class EpidemiologicalMeasures:
         mid_year = datetime(year=event.time.year, month=7, day=2)
         year_start = datetime(year=event.time.year, month=1, day=1)
 
-
         if self.collecting:
             # On the year following a GBD year, reel the data in
             year_end = datetime(year=self.last_collected_year, month=12, day=31)
-            if year_end > event.time - time_step and year_end <= event.time and self.collecting:
+            if event.time - time_step < year_end <= event.time:
                 _log.debug('end collection')
                 self.dump_measures(event.index, self.last_collected_year)
                 self.collecting = False
 
-        if event.time.year % 5 == 0: # FIXME: If year in list of GBD years
-            if mid_year > event.time - time_step and mid_year <= event.time:
+        if event.time.year % 5 == 0:  # FIXME: If year in list of GBD years
+            if event.time - time_step < mid_year <= event.time:
                 # Collect point measures at the midpoint of every gbd year
                 self.dump_measures(event.index, event.time.year, point=True)
 
-            if year_start > event.time - time_step and year_start <= event.time and \
+            if event.time - time_step < year_start <= event.time and \
                event.time.year > self.last_collected_year and not self.collecting:
                 # Emit the begin collection event every gbd year
                 event_emitter(event.split(event.index))
@@ -78,7 +76,7 @@ class EpidemiologicalMeasures:
         pd.DataFrame().to_hdf(self.output_path, 'data')
 
     def dump_measures(self, index, current_year, point=False):
-        age_group_ids = list(range(2,22))
+        age_group_ids = list(range(2, 22))
         age_groups = get_age_bins().query('age_group_id in @age_group_ids')
         age_groups = age_groups[['age_group_years_start', 'age_group_years_end']].values
         if point:
@@ -93,7 +91,7 @@ class EpidemiologicalMeasures:
         df = existing_df.append(df)
 
         if self.run_key:
-            for k,v in collapse_nested_dict(self.run_key.to_dict()):
+            for k, v in collapse_nested_dict(self.run_key.to_dict()):
                 df[k] = v
 
         # Enforce some types that occasionally get mis-set

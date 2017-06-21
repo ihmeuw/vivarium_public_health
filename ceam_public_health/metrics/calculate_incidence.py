@@ -1,15 +1,11 @@
-import operator
-
-import pandas as pd, numpy as np
+import pandas as pd
+import numpy as np
 
 from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 from ceam import config
 
-from ceam_inputs import get_age_bins
-
-from ceam_public_health.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict, make_age_bin_age_group_max_dict
+from ceam_public_health.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
 
 
 class CalculateIncidence:
@@ -17,28 +13,31 @@ class CalculateIncidence:
         """
         disease_col: str
             name of the column name that contains the disease state of interest
-
         disease: str
             name of the disease of interest
-
         disease_states: list
-            list of states that denote a simulant as having the disease (e.g. ['severe_diarrhea', 'moderate_diarrhea', 'mild_diarrhea']). If a simulant does not have the disease of interest, we say that they are in the susceptible state
+            list of states that denote a simulant as having the disease (e.g. 
+            ['severe_diarrhea', 'moderate_diarrhea', 'mild_diarrhea']). 
+            If a simulant does not have the disease of interest, we say that they are in the susceptible state
         """
         self.disease_col = disease_col
         self.disease = disease
         self.disease_time_col = disease + "_event_time"
         self.disease_states = disease_states
         self.collecting = False
+        self.incidence_rate_df = pd.DataFrame({})
 
-        self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", age_group_id_min=2, age_group_id_max=21)
-        self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease), age_group_id_min=2, age_group_id_max=21)
-
+        self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time",
+                                                                               age_group_id_min=2,
+                                                                               age_group_id_max=21)
+        self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease),
+                                                                   age_group_id_min=2,
+                                                                   age_group_id_max=21)
         self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
                                                                           age_group_id_max=21)
 
     def setup(self, builder):
         self.clock = builder.clock()
-
         columns = [self.disease_col, self.disease_time_col, "death_day", "age", "sex", "alive"]
         self.population_view = builder.population_view(columns)
 
@@ -47,14 +46,9 @@ class CalculateIncidence:
         """
         Set the collecting flag to True during GBD years
         """
-        # FIXME: Figure out how to turn off the self.collecting flag
         self.collecting = True
-
-        self.incidence_rate_df = pd.DataFrame({})
-
         for col in self.susceptible_person_time_cols:
             self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
-
         for col in self.event_count_cols:
             self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
 
@@ -65,37 +59,29 @@ class CalculateIncidence:
         """
         if self.collecting:
             population = self.population_view.get(event.index)
-            pop = population.loc[(population['alive'] == True) | (population['death_day'] == event.time)]
+            pop = population[(population['alive']) | (population['death_day'] == event.time)]
+            succeptible_time = config.simulation_parameters.time_step / 365
+
+            sick = pop[self.disease_col].isin(self.disease_states)
+            got_sick_this_time_step = pop[self.disease_time_col] == event.time
 
             for sex in ["Male", "Female"]:
                 last_age_group_max = 0
                 for age_bin, upr_bound in self.age_bin_age_group_max_dict:
-                    # We use GTE age group lower bound and LT age group upper bound
-                    #     because of how GBD age groups are set up. For example, a
-                    #     A simulant can be 1 or 4.999 years old and be considered
-                    #     part of the 1-4 year old group, but once they turn 5 they
-                    #     are part of the 5-10 age group
-                    cases_index = pop.loc[(pop['age'] < upr_bound)
-                                & (pop['age'] >= last_age_group_max)
-                                & (pop['sex'] == sex)
-                                & (pop[self.disease_col].isin(self.disease_states))
-                                & (pop[self.disease_time_col] == event.time)].index
-                    self.incidence_rate_df['{d}_event_count_{a}_among_{s}s'.format(
-                            d=self.disease, a=age_bin, s=sex)].loc[cases_index] += 1
-                    susceptible_index = pop.loc[~(pop[self.disease_col].isin(self.disease_states))
-                                              & (pop['age'] < upr_bound)
-                                              & (pop['age'] >= last_age_group_max)
-                                              & (pop['sex'] == sex)].index
-                    # calculate susceptible person-time per year
-                    self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[susceptible_index] += config.simulation_parameters.time_step / 365
+                    appropriate_age_and_sex = ((pop['age'] < upr_bound)
+                                               & (pop['age'] >= last_age_group_max)
+                                               & (pop['sex'] == sex))
 
-                    # if a simulant died this timestep, give them half of a timestep worth of susceptible person time
-                    dead_index = pop.loc[~(pop[self.disease_col].isin(self.disease_states))
-                                          & (pop['age'] < upr_bound)
-                                          & (pop['age'] >= last_age_group_max)
-                                          & (pop['sex'] == sex)
-                                          & pop['death_day'] == event.time].index
-                    self.incidence_rate_df['susceptible_person_time_{a}_among_{s}s'.format(a=age_bin, s=sex)].loc[dead_index] += (config.simulation_parameters.time_step / 2) / 365
+                    event_count_column = '{}_event_count_{}_among_{}s'.format(self.disease, age_bin, sex)
+                    succeptible_time_column = 'susceptible_person_time_{}_among_{}s'.format(age_bin, sex)
+
+                    cases_index = pop[appropriate_age_and_sex & sick & got_sick_this_time_step].index
+                    susceptible_index = pop[~sick & appropriate_age_and_sex].index
+                    just_died_index = pop[~sick & appropriate_age_and_sex & got_sick_this_time_step].index
+
+                    self.incidence_rate_df[event_count_column].loc[cases_index] += 1
+                    self.incidence_rate_df[succeptible_time_column].loc[susceptible_index] += succeptible_time
+                    self.incidence_rate_df[succeptible_time_column].loc[just_died_index] += succeptible_time / 2
 
                     last_age_group_max = upr_bound
 
@@ -114,26 +100,34 @@ class CalculateIncidence:
 
         for sex in sexes:
             for location in locations:
+                location_index = pop.query('location == @location').index if location >= 0 else pd.Index([])
+                location_index = pop.index if location_index.empty else location_index
+                incidence_rates = self.incidence_rate_df[location_index]
+
                 last_age_group_max = 0
                 for age_bin, upr_bound in self.age_bin_age_group_max_dict:
-                    location_index = pd.Index([])
-                    if location >= 0:
-                        location_index = pop.query('location == @location').index
-                    if location_index.empty:
-                        location_index = pop.index
-                    susceptible_person_time = self.incidence_rate_df.loc[location_index]["susceptible_person_time_{a}_among_{s}s".format(a=age_bin, s=sex)].sum()
-                    num_cases = self.incidence_rate_df.loc[location_index]['{d}_event_count_{a}_among_{s}s'.format(d=self.disease, a=age_bin, s=sex)].sum()
 
-                    if susceptible_person_time != 0:
-                        cube = cube.append(pd.DataFrame({'measure': 'incidence', 'age_low': last_age_group_max, 'age_high': upr_bound, 'sex': sex, 'location': location if location >= 0 else root_location, 'cause': self.disease, 'value': num_cases/susceptible_person_time, 'sample_size': susceptible_person_time}, index=[0]).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
+                    event_count_column = '{}_event_count_{}_among_{}s'.format(self.disease, age_bin, sex)
+                    succeptible_time_column = 'susceptible_person_time_{}_among_{}s'.format(age_bin, sex)
+
+                    susceptible_person_time = incidence_rates[succeptible_time_column].sum()
+                    num_cases = incidence_rates[event_count_column].sum()
+
+                    if susceptible_person_time >= 0:
+                        cube = cube.append(pd.DataFrame({'measure': 'incidence',
+                                                         'age_low': last_age_group_max,
+                                                         'age_high': upr_bound,
+                                                         'sex': sex,
+                                                         'location': location if location >= 0 else root_location,
+                                                         'cause': self.disease,
+                                                         'value': num_cases/susceptible_person_time,
+                                                         'sample_size': susceptible_person_time}, index=[0]).set_index(
+                            ['measure', 'age_low', 'age_high', 'sex', 'location', 'cause']))
                     last_age_group_max = upr_bound
 
         self.collecting = False
 
-        for col in self.susceptible_person_time_cols:
+        for col in self.susceptible_person_time_cols + self.event_count_cols:
             self.incidence_rate_df[col] = 0
 
-        for col in self.event_count_cols:
-            self.incidence_rate_df[col] = 0
-           
         return cube
