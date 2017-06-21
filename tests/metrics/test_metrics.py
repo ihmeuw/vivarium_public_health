@@ -38,14 +38,12 @@ def set_up_test_parameters(flu=False, mumps=False):
     """
     # first start with an asymptomatic disease state. asymptomatic
     #     diseases have 0 disability weight in GBD.
-    asymptomatic_disease_model = DiseaseModel('asymptomatic')
+    asymptomatic_disease_model = DiseaseModel('asymptomatic', csmr_data=build_table(0))
     asymptomatic_disease_state = ExcessMortalityState('asymptomatic',
                                                       disability_weight=0.0,
                                                       excess_mortality_data=build_table(0),
                                                       prevalence_data=build_table(1.0,
-                                                        ['age', 'year', 'sex',
-                                                         'prevalence']),
-                                                      csmr_data=build_table(0))
+                                                                                  ['age', 'year', 'sex', 'prevalence']))
 
     asymptomatic_disease_model.states.extend([asymptomatic_disease_state])
 
@@ -57,12 +55,11 @@ def set_up_test_parameters(flu=False, mumps=False):
     # Now let's set up a disease model for a disease that does have
     #     a disability weight
     if flu:
-        flu_model = DiseaseModel('flu')
+        flu_model = DiseaseModel('flu', csmr_data=build_table(0))
         flu = ExcessMortalityState('flu', disability_weight=0.2,
                                    excess_mortality_data=build_table(0),
                                    prevalence_data=build_table(1.0,
-                                       ['age', 'year', 'sex', 'prevalence']),
-                                   csmr_data=build_table(0))
+                                                               ['age', 'year', 'sex', 'prevalence']))
 
         flu_model.states.extend([flu])
 
@@ -74,18 +71,16 @@ def set_up_test_parameters(flu=False, mumps=False):
     # Now let's set up another disease model so we can test that
     #     CEAM is calculating joint disability weights correctly
     if mumps:
-        mumps_model = DiseaseModel('mumps')
+        mumps_model = DiseaseModel('mumps', csmr_data=build_table(0))
         mumps = ExcessMortalityState('mumps', disability_weight=0.4,
                                      excess_mortality_data=build_table(0),
                                      prevalence_data=build_table(1.0,
-                                         ['age', 'year', 'sex', 'prevalence']),
-                                     csmr_data=build_table(0))
+                                                                 ['age', 'year', 'sex', 'prevalence']))
 
         mumps_model.states.extend([mumps])
 
-        simulation = setup_simulation([generate_test_population,
-                                       asymptomatic_disease_model, flu_model,
-                                      mumps_model, Metrics()],
+        simulation = setup_simulation([generate_test_population, asymptomatic_disease_model, flu_model,
+                                       mumps_model, Metrics()],
                                       population_size=1000)
 
     metrics = simulation.values.get_value('metrics')

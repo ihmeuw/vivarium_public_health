@@ -185,7 +185,6 @@ class DiseaseState(State):
         self.transition_set.append(t)
         return t
 
-
     @modifies_value('metrics')
     def metrics(self, index, metrics):
         """Records data for simulation post-processing.
@@ -271,7 +270,7 @@ class TransientDiseaseState(TransientState):
         """
         if self.track_events:
             pop = self.population_view.get(index)
-            pop[self.event_time_column] = pd.Timestamp(self.clock().timestamp())
+            pop[self.event_time_column] = pd.Timestamp(self.clock())
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
         if self.side_effect_function is not None:
@@ -319,15 +318,12 @@ class ExcessMortalityState(DiseaseState):
     state_id : str
         The name of this state.
     excess_mortality_data : `pandas.DataFrame`
-        A table of excess mortality data associated with this state.
-    csmr_data : `pandas.DataFrame`
-        A table of excess mortality data associated with this state.
+        A table of excess mortality data associated with this state.    
     """
-    def __init__(self, state_id, excess_mortality_data, csmr_data, **kwargs):
+    def __init__(self, state_id, excess_mortality_data, **kwargs):
         super().__init__(state_id, **kwargs)
 
         self.excess_mortality_data = excess_mortality_data
-        self.csmr_data = csmr_data
 
     def setup(self, builder):
         """Performs this component's simulation setup and return sub-components.
@@ -365,10 +361,6 @@ class ExcessMortalityState(DiseaseState):
             rates_df[self.state_id] = rate
         return rates_df
 
-    @modifies_value('csmr_data')
-    def get_csmr(self):
-        return self.csmr_data
-
     def name(self):
         return '{}'.format(self.state_id)
 
@@ -377,10 +369,6 @@ class ExcessMortalityState(DiseaseState):
 
 
 def make_disease_state(cause, dwell_time=0, side_effect_function=None):
-    if 'mortality' in cause:
-        csmr = get_cause_specific_mortality(cause.mortality) if isinstance(cause.mortality, meid) else cause.mortality
-    else:
-        csmr = pd.DataFrame()
     if 'disability_weight' in cause:
         if isinstance(cause.disability_weight, meid):
             disability_weight = get_disability_weight(dis_weight_modelable_entity_id=cause.disability_weight)
@@ -408,7 +396,6 @@ def make_disease_state(cause, dwell_time=0, side_effect_function=None):
                                     disability_weight=disability_weight,
                                     excess_mortality_data=excess_mortality,
                                     prevalence_data=prevalence,
-                                    csmr_data=csmr,
                                     side_effect_function=side_effect_function)
     else:
         return DiseaseState(cause.name,

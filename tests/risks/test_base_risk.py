@@ -1,3 +1,6 @@
+import pytest
+
+import os
 from datetime import timedelta
 from importlib import import_module
 from unittest.mock import patch
@@ -21,9 +24,22 @@ from ceam_public_health.experiments.cvd.components import heart_disease, stroke
 from ceam_public_health.risks import distributions, exposures
 from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
 from ceam_public_health.risks.exposures import basic_exposure_function
+from ceam_public_health.risks.distributions import distribution_map
 from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
                                                 correlated_propensity, uncorrelated_propensity)
 
+def setup():
+    try:
+        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                      'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
+                                                   source=os.path.realpath(__file__))
+    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
+                                                   source=os.path.realpath(__file__))
 
 def test_RiskEffect():
     config.simulation_parameters.time_step = 30.5
@@ -310,36 +326,110 @@ def test_uncorrelated_propensity():
     hist, _ = np.histogram(propensities, 100, density=True)
     assert np.all(np.abs(hist - 1) < 0.01)
 
+def _fill_in_correlation_matrix(risk_order):
+    matrix_base = pd.DataFrame({
+        risk_order[0]: [1, 0.282213017344475, 0.110525231808424, 0.130475437755401],
+        risk_order[1]: [0.282213017344475, 1, 0.0928986519575119, -0.119147761153339],
+        risk_order[2]: [0.110525231808424, 0.0928986519575119, 1, 0.175454370605231],
+        risk_order[3]: [0.130475437755401, -0.119147761153339, 0.175454370605231, 1],
+        'risk_factor': risk_order,
+        })
+    correlation_matrix = pd.DataFrame()
 
-def mock_get_exposures(risk_id):
-    e = {1: 0.5, 2: 0.25, 3: 0.001, 4: 0.02}[risk_id]
-    return build_table(e)
+    for age in range(0,120, 5):
+        for sex in ['Male', 'Female']:
+            m = matrix_base.copy()
+            m['age'] = age
+            m['sex'] = sex
+            correlation_matrix = correlation_matrix.append(m)
+
+    return matrix_base, correlation_matrix
 
 
-def mock_get_relative_risk(risk_id, cause_id):
-    return build_table(0)
+@pytest.mark.skip
+@pytest.mark.slow
+@patch('ceam_public_health.risks.base_risk.inputs.load_risk_correlation_matrices')
+def test_correlated_exposures(correlation_mock):
+    from rpy2.robjects import r, pandas2ri, numpy2ri
+    pandas2ri.activate()
+    numpy2ri.activate()
+    #config.simulation_parameters.pop_age_start = 30
+    #config.simulation_parameters.pop_age_end = 100
+    config.simulation_parameters.initial_age = 50
+    categorical_risks = [risk_factors.no_access_to_handwashing_facility, risk_factors.smoking_prevalence_approach]
+    continuous_risks = [risk_factors.high_systolic_blood_pressure, risk_factors.high_total_cholesterol]
+
+    categorical_risk_order = [r.name for r in categorical_risks]
+    continuous_risk_order = [r.name for r in continuous_risks]
+    risk_order = categorical_risk_order + continuous_risk_order
 
 
-def mock_get_pafs(risk_id, cause_id):
-    return build_table(0)
+    matrix_base, correlation_mock.return_value = _fill_in_correlation_matrix(risk_order)
+
+    observations = []
+    for i in range(100):
+        print('running {}'.format(i))
+        config.run_configuration.draw_number = i
+        simulation = setup_simulation([generate_test_population] +
+                                      [CategoricalRiskComponent(r, correlated_propensity) for r in categorical_risks] +
+                                      [ContinuousRiskComponent(r, correlated_propensity) for r in continuous_risks],
+                                     100000)
+
+        pump_simulation(simulation, iterations=1)
+        print('simulation done')
+
+        r.source('/home/alecwd/Code/cost_effectiveness_misc/03_get_corr_matrix_function.R')
+        pop = simulation.population.population[[c for c in simulation.population.population.columns if 'exposure' in c]]
+        pop.columns = [c if 'exposure' not in c else c.rpartition('_')[0] for c in pop.columns]
+
+        for risk in categorical_risks:
+            pop[risk.name] = pop[risk.name].astype('category')
+
+        pop = pop[risk_order]
 
 
-@patch('ceam_public_health.risks.base_risk.get_exposure_function')
-@patch('ceam_public_health.risks.base_risk.get_distribution')
-@patch('ceam_public_health.risks.effect.inputs')
+        observations.append(pandas2ri.ri2py(r.get_corr_matrix(dat=pop, all_risks=r.c(*risk_order), dichotomous_risks=r.c(*categorical_risk_order))))
+    assert np.all(np.abs(matrix_base[risk_order].values-np.array(observations).mean(axis=0)) <= np.array(observations).std(axis=0)*3)
+
+def _mock_get_exposures(risk_id):
+    e = {1: 0.5, 2: 0.25, 3: 0.1, 4: 0.8}[risk_id]
+    if risk_id in [3, 4]:
+        # Categorical risks
+        return build_table([e, 1-e], columns=['age', 'year', 'sex', 'cat1', 'cat2'])
+    else:
+        return build_table(e)
+
+
+def _mock_get_relative_risk(risk_id, cause_id):
+    e = {1: 0, 2: 0, 3: 0, 4: 0}[risk_id]
+    if risk_id in [3, 4]:
+        # Categorical risks
+        return build_table([e, e], columns=['age', 'year', 'sex', 'cat1', 'cat2'])
+    else:
+        return build_table(e)
+
+
+def _mock_get_pafs(risk_id, cause_id):
+    e = {1: 0, 2: 0, 3: 0, 4: 0}[risk_id]
+    if risk_id in [3, 4]:
+        # Categorical risks
+        return build_table([e, e], columns=['age', 'year', 'sex', 'cat1', 'cat2'])
+    else:
+        return build_table(e)
+
+
+@pytest.mark.skip
 @patch('ceam_public_health.risks.base_risk.inputs')
-def test_correlated_exposures(br_inputs_mock, effect_inputs_mock, get_distribution_mock, get_exposure_function_mock):
-    br_inputs_mock.get_exposures = mock_get_exposures
-    effect_inputs_mock.get_relative_risk = mock_get_relative_risk
-    effect_inputs_mock.get_pafs = mock_get_pafs
-    effect_inputs_mock.get_mediation_factors = lambda *args, **kwargs: 0
+def test_correlated_exposures_synthetic_risks(inputs_mock):
+    from rpy2.robjects import r, pandas2ri, numpy2ri
+    pandas2ri.activate()
+    numpy2ri.activate()
+    inputs_mock.load_risk_correlation_matrices.return_value = _fill_in_correlation_matrix()
 
-    continuous_1 = ConfigTree({'name': 'continuous_1', 'gbd_risk': 1,
-                               'effected_causes': [], 'tmrl': 112.5, 'scale': 10})
-    continuous_2 = ConfigTree({'name': 'continuous_2', 'gbd_risk': 2,
-                               'effected_causes': [], 'tmrl': 3.08, 'scale': 1})
-    categorical_1 = ConfigTree({'name': 'categorical_1', 'gbd_risk': 3, 'effected_causes': []})
-    categorical_2 = ConfigTree({'name': 'categorical_2', 'gbd_risk': 4, 'effected_causes': []})
+    inputs_mock.get_exposures = _mock_get_exposures
+    inputs_mock.get_relative_risk = _mock_get_relative_risk
+    inputs_mock.get_pafs = _mock_get_pafs
+
 
     def loader(builder):
         dist = Interpolation(
@@ -349,15 +439,42 @@ def test_correlated_exposures(br_inputs_mock, effect_inputs_mock, get_distributi
                 func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
         return builder.lookup(dist)
 
-    get_distribution_mock.side_effect = lambda *args, **kwargs: loader
-    get_exposure_function_mock.side_effect = lambda *args, **kwargs: basic_exposure_function
+    continuous_1 = ConfigTree({'name': 'continuous_1', 'gbd_risk': 1, 'risk_type': 'continuous',
+                               'effected_causes': [], 'tmrl': 112.5, 'scale': 10})
+    continuous_2 = ConfigTree({'name': 'continuous_2', 'gbd_risk': 2, 'risk_type': 'continuous',
+                               'effected_causes': [], 'tmrl': 3.08, 'scale': 1})
+    categorical_1 = ConfigTree({'name': 'categorical_1', 'gbd_risk': 3, 'effected_causes': [], 'risk_type': 'categorical'})
+    categorical_2 = ConfigTree({'name': 'categorical_2', 'gbd_risk': 4, 'effected_causes': [], 'risk_type': 'categorical'})
 
-    continuous_1_component = ContinuousRiskComponent(continuous_1)
-    continuous_2_component = ContinuousRiskComponent(continuous_2)
-    categorical_1_component = CategoricalRiskComponent(categorical_1)
-    categorical_2_component = CategoricalRiskComponent(categorical_2)
+    distribution_map[continuous_1.name] = loader
+    distribution_map[continuous_2.name] = loader
+    distribution_map[continuous_1.name] = loader
+    distribution_map[continuous_2.name] = loader
+
+    continuous_1_component = ContinuousRiskComponent(continuous_1, correlated_propensity)
+    continuous_2_component = ContinuousRiskComponent(continuous_2, correlated_propensity)
+    categorical_1_component = CategoricalRiskComponent(categorical_1, correlated_propensity)
+    categorical_2_component = CategoricalRiskComponent(categorical_2, correlated_propensity)
     simulation = setup_simulation([generate_test_population, continuous_1_component,
-                                   continuous_2_component, categorical_1_component, categorical_2_component], 100)
+                                   continuous_2_component, categorical_1_component, categorical_2_component], 10000)
+
+    pump_simulation(simulation, iterations=1)
+
+    r.source('/home/alecwd/Code/cost_effectiveness_misc/03_get_corr_matrix_function.R')
+    pop = simulation.population.population[[c for c in simulation.population.population.columns if 'exposure' in c]]
+    pop.columns = [c if 'exposure' not in c else c.rpartition('_')[0] for c in pop.columns]
+    pop['categorical_1'] = pop.categorical_1.astype('category')
+    pop['categorical_2'] = pop.categorical_2.astype('category')
+    from rpy2.rinterface import RRuntimeError
+    failure = None
+
+    try:
+        observed_correlation = pandas2ri.ri2py(r.get_corr_matrix(dat=pop, all_risks=r.c("continuous_1","continuous_2", "categorical_1","categorical_2"), dichotomous_risks=r.c('categorical_1','categorical_2')))
+    except Exception as e:
+        print('test')
+        print(e)
+        print('\n'.join(r('unlist(traceback())')))
+    assert np.allclose(matrix_base[["continuous_1","continuous_2", "categorical_1","categorical_2"]].values, observed_correlation, rtol=0.25)
 
 
 class RiskMock:
@@ -444,7 +561,6 @@ def test_make_gbd_risk_effects():
                    distributions.bmi)
     simulation = setup_simulation([generate_test_population, stroke.factory(), bmi])
     pafs = simulation.values.get_value('paf.hemorrhagic_stroke')
-    # import pdb;pdb.set_trace()
     assert np.allclose(pafs(simulation.population.population.index), paf * (1 - mediation_factor))
 
     # adjusted rrs

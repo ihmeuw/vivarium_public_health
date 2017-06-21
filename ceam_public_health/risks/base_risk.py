@@ -92,10 +92,24 @@ class ContinuousRiskComponent:
         by distribution_loader and a propensity value for each simulant
         and returns the current exposure to this risk factor.
     """
-    def __init__(self, risk):
+
+    configuration_defaults = {
+        'risks': {
+            'apply_correlation': True,
+        },
+    }
+
+    def __init__(self, risk, propensity_function=None):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
         self._distribution_loader = get_distribution(self._risk.name)
         self.exposure_function = get_exposure_function(self._risk.name)
+        if propensity_function is not None:
+            self.propensity_function = propensity_function
+        elif config.risks.apply_correlation:
+            self.propensity_function = correlated_propensity
+        else:
+            self.propensity_function = uncorrelated_propensity
+
 
     def setup(self, builder):
         self.distribution = self._distribution_loader(builder)
@@ -107,7 +121,7 @@ class ContinuousRiskComponent:
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
-        propensities = pd.Series(uncorrelated_propensity(event.population, self._risk),
+        propensities = pd.Series(self.propensity_function(event.population, self._risk),
                                  name=self._risk.name+'_propensity',
                                  index=event.index)
         self.population_view.update(propensities)
@@ -134,8 +148,22 @@ class CategoricalRiskComponent:
     risk : ceam_inputs.gbd_mapping.risk_factors element
         The configuration data for the risk
     """
-    def __init__(self, risk):
+
+    configuration_defaults = {
+        'risks': {
+            'apply_correlation': True,
+        },
+    }
+
+    def __init__(self, risk, propensity_function=None):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
+
+        if propensity_function is not None:
+            self.propensity_function = propensity_function
+        elif config.risks.apply_correlation:
+            self.propensity_function = correlated_propensity
+        else:
+            self.propensity_function = uncorrelated_propensity
 
     def setup(self, builder):
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
@@ -149,7 +177,7 @@ class CategoricalRiskComponent:
     @uses_columns(['age', 'sex'])
     def load_population_columns(self, event):
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': uncorrelated_propensity(event.population, self._risk),
+            self._risk.name+'_propensity': self.propensity_function(event.population, self._risk),
             self._risk.name+'_exposure': np.full(len(event.index), ''),
         }))
 
