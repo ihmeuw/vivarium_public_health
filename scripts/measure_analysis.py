@@ -82,12 +82,22 @@ def graph_measure(data, measure, output_directory):
             ax.set_title(title)
 
             # Draw the equivalence line
-            ax.plot(ax.get_xlim(), ax.get_ylim(),'k-', zorder=1, lw=1)
+            ax.plot(ax.get_xlim(), ax.get_ylim(), 'k-', zorder=1, lw=1)
 
             for sex, shape in shapes.items():
                 # Draw the actual points with different shapes for each sex
-                gbd, simulation, gbd_lower, gbd_upper, simulation_lower, simulation_upper, color = zip(*filtered.query('sex==@sex')[['gbd', 'simulation', 'gbd_lower', 'gbd_upper', 'simulation_lower', 'simulation_upper', 'color']].values.tolist())
-                ax.errorbar(gbd, simulation, xerr=[np.subtract(gbd_lower, gbd), np.subtract(gbd_upper, gbd)], yerr=[np.subtract(simulation_lower, simulation), np.subtract(simulation_upper, simulation)], zorder=2, marker=shape)
+                gbd, simulation, gbd_lower, gbd_upper, simulation_lower, simulation_upper, color = zip(
+                    *filtered.query('sex==@sex')[['gbd', 'simulation', 'gbd_lower', 'gbd_upper',
+                                                  'simulation_lower', 'simulation_upper', 'color']].values.tolist())
+
+                gbd = np.array(gbd)
+                simulation = np.array(simulation)
+                xerr = np.array([np.abs(gbd - gbd_lower), np.abs(gbd - gbd_upper)])
+                yerr = np.array([np.abs(simulation - simulation_lower), np.abs(simulation - simulation_upper)])
+                # Fake error bars for testing plots
+                # xerr = np.array([0.5 * gbd, 0.5 * gbd])
+                # yerr = np.array([0.5 * simulation, 0.5 * simulation])
+                ax.errorbar(gbd, simulation, xerr=xerr, yerr=yerr, fmt=shape)
 
             # The graphs tend to be pretty tight so rotate the x axis labels to make better use of space
             for tick in ax.get_xticklabels():

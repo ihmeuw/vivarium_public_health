@@ -26,30 +26,24 @@ def set_vaccine_duration(population, etiology, dose):
     dose: str
         can be "first", "second", or "third"
     """
-    assert dose in ["first", "second", "third"], "dose can be one of first" + \
-                                                 "second, or third"
+    if dose not in ["first", "second", "third"]:
+        raise ValueError("dose can be one of first, second, or third")
 
-    # determine when effect of the vaccine should start
-    time_after_dose_at_which_immunity_is_conferred = config.rota_vaccine.time_after_dose_at_which_immunity_is_conferred
+    dose_delay = pd.to_timedelta(config.rota_vaccine.time_after_dose_at_which_immunity_is_conferred, unit='D')
+    full_immunity_duration = pd.to_timedelta(config.rota_vaccine.vaccine_full_immunity_duration, unit='D')
+    waning_immunity_time = pd.to_timedelta(config.rota_vaccine.waning_immunity_time, unit='D')
 
-    population["{e}_vaccine_{d}_dose_immunity_start_time".format(e=etiology, d=dose)] = \
-        population["{e}_vaccine_{d}_dose_event_time".format(e=etiology, d=dose)] + \
-        pd.to_timedelta(time_after_dose_at_which_immunity_is_conferred, unit='D')
+    immunity_start = "{}_vaccine_{}_dose_immunity_start_time".format(etiology, dose)
+    dose_time = "{}_vaccine_{}_dose_event_time".format(etiology, dose)
+    immunity_end = "{}_vaccine_{}_dose_immunity_end_time".format(etiology, dose)
 
-    # determine when the effect of the vaccine should end
-    vaccine_full_immunity_duration = config.rota_vaccine.vaccine_full_immunity_duration
-    waning_immunity_time = config.rota_vaccine.waning_immunity_time
-
-    population["{e}_vaccine_{d}_dose_immunity_end_time".format(e=etiology, d=dose)] = \
-        population["{e}_vaccine_{d}_dose_immunity_start_time".format(e=etiology, d=dose)] + \
-        pd.to_timedelta(vaccine_full_immunity_duration, unit='D') + \
-        pd.to_timedelta(waning_immunity_time, unit='D')
+    population[immunity_start] = population[dose_time] + dose_delay
+    population[immunity_end] = population[immunity_start] + full_immunity_duration + waning_immunity_time
 
     return population
 
 
-def wane_immunity(days, full_immunity_duration, vaccine_waning_time,
-                  vaccine_protection):
+def wane_immunity(days, full_immunity_duration, vaccine_waning_time, vaccine_protection):
     """
     Create waning immunity function. This function returns a univariate spline
     that can be called to get a protection estimate when supplied a certain
@@ -71,16 +65,12 @@ def wane_immunity(days, full_immunity_duration, vaccine_waning_time,
     """
     x = [0, full_immunity_duration, full_immunity_duration + vaccine_waning_time + .00001]
     y = [vaccine_protection, vaccine_protection, 0]
-
-    # set the order to 1 (linear), s to 0 (sum of least squares=0), ext to 1
-    # (all extrapolated values are 0)
     spl = UnivariateSpline(x, y, k=1, s=0, ext=1)
     return spl(days)
 
 
-def determine_vaccine_protection(pop, dose_working_index,
-                                 waning_immunity_function, current_time, dose,
-                                 vaccine_protection):
+def determine_vaccine_protection(pop, dose_working_index, waning_immunity_function,
+                                 current_time, dose, vaccine_protection):
     """
     Determine the protection of a vaccine based on how many days its been since
     the simulant received the vaccine
@@ -107,11 +97,8 @@ def determine_vaccine_protection(pop, dose_working_index,
     vaccine_protection: float
         protection of the current dose of the vaccine
     """
-    pop['days_since_vaccine_started_conferring_immunity'] = (current_time -
-                                                             pop[
-                                                                 'rotaviral_entiritis_vaccine_{'
-                                                                 '}_dose_immunity_start_time'.format(
-                                                                     dose)])
+    pop['days_since_vaccine_started_conferring_immunity'] = (
+        current_time - pop['rotaviral_entiritis_vaccine_{}_dose_immunity_start_time'.format(dose)])
 
     pop = pop[pop.days_since_vaccine_started_conferring_immunity.notnull()]
 
@@ -128,7 +115,7 @@ def determine_vaccine_protection(pop, dose_working_index,
     return pop.loc[dose_working_index]['vaccine_protection']
 
 
-class RotaVaccine():
+class RotaVaccine:
     """
     RotaVaccine accomplishes several tasks
         1) We administer the vaccine. We use determine which simulants should
@@ -166,37 +153,22 @@ class RotaVaccine():
 
     def __init__(self):
         self.etiology = 'rotaviral_entiritis'
-
         self.vaccine_column = self.etiology + "_vaccine"
 
-        self.vaccine_first_dose_time_column = self.etiology + \
-                                              "_vaccine_first_dose_event_time"
-        self.vaccine_second_dose_time_column = self.etiology + \
-                                               "_vaccine_second_dose_event_time"
-        self.vaccine_third_dose_time_column = self.etiology + \
-                                              "_vaccine_third_dose_event_time"
+        self.vaccine_first_dose_time_column = self.etiology + "_vaccine_first_dose_event_time"
+        self.vaccine_second_dose_time_column = self.etiology + "_vaccine_second_dose_event_time"
+        self.vaccine_third_dose_time_column = self.etiology + "_vaccine_third_dose_event_time"
 
-        self.vaccine_first_dose_immunity_start_time = self.etiology + \
-                                                      "_vaccine_first_dose_immunity_start_time"
-        self.vaccine_first_dose_immunity_end_time = self.etiology + \
-                                                    "_vaccine_first_dose_immunity_end_time"
+        self.vaccine_first_dose_immunity_start_time = self.etiology + "_vaccine_first_dose_immunity_start_time"
+        self.vaccine_first_dose_immunity_end_time = self.etiology + "_vaccine_first_dose_immunity_end_time"
+        self.vaccine_second_dose_immunity_start_time = self.etiology + "_vaccine_second_dose_immunity_start_time"
+        self.vaccine_second_dose_immunity_end_time = self.etiology + "_vaccine_second_dose_immunity_end_time"
+        self.vaccine_third_dose_immunity_start_time = self.etiology + "_vaccine_third_dose_immunity_start_time"
+        self.vaccine_third_dose_immunity_end_time = self.etiology + "_vaccine_third_dose_immunity_end_time"
 
-        self.vaccine_second_dose_immunity_start_time = self.etiology + \
-                                                       "_vaccine_second_dose_immunity_start_time"
-        self.vaccine_second_dose_immunity_end_time = self.etiology + \
-                                                     "_vaccine_second_dose_immunity_end_time"
-
-        self.vaccine_third_dose_immunity_start_time = self.etiology + \
-                                                      "_vaccine_third_dose_immunity_start_time"
-        self.vaccine_third_dose_immunity_end_time = self.etiology + \
-                                                    "_vaccine_third_dose_immunity_end_time"
-
-        self.vaccine_first_dose_working_column = self.etiology + \
-                                                 "_vaccine_first_dose_is_working"
-        self.vaccine_second_dose_working_column = self.etiology + \
-                                                  "_vaccine_second_dose_is_working"
-        self.vaccine_third_dose_working_column = self.etiology + \
-                                                 "_vaccine_third_dose_is_working"
+        self.vaccine_first_dose_working_column = self.etiology + "_vaccine_first_dose_is_working"
+        self.vaccine_second_dose_working_column = self.etiology + "_vaccine_second_dose_is_working"
+        self.vaccine_third_dose_working_column = self.etiology + "_vaccine_third_dose_is_working"
 
     def setup(self, builder):
 
