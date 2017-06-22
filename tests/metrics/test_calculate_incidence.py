@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+import pytest
 
 from ceam import config
 
@@ -30,6 +31,7 @@ def setup():
 
 # FIXME: test_calculate_incidence isn't testing anything right now. need to
 # figure out how to access the incidence rate value in epidemiological_span_measures
+@pytest.mark.xfail(strict=True)
 def test_calculate_incidence():
     factory = diarrhea_factory()
     simulation = setup_simulation([generate_test_population, CalculateIncidence(disease_col='diarrhea',

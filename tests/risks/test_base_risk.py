@@ -61,13 +61,13 @@ def test_RiskEffect():
     other_rates = simulation.values.get_rate('incidence_rate.some_other_cause')
     other_rates.source = simulation.tables.build_table(build_table(0.01))
 
-    assert np.all(rates(simulation.population.population.index) == from_yearly(0.01, time_step))
-    assert np.all(other_rates(simulation.population.population.index) == from_yearly(0.01, time_step))
+    assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step))
+    assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
 
     test_exposure[0] = 1
 
-    assert np.all(rates(simulation.population.population.index) == from_yearly(0.0101, time_step))
-    assert np.all(other_rates(simulation.population.population.index) == from_yearly(0.01, time_step))
+    assert np.allclose(rates(simulation.population.population.index), from_yearly(0.0101, time_step))
+    assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
 
 
 def make_dummy_column(name, initial_value):

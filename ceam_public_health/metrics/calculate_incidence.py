@@ -16,8 +16,8 @@ class CalculateIncidence:
         disease: str
             name of the disease of interest
         disease_states: list
-            list of states that denote a simulant as having the disease (e.g. 
-            ['severe_diarrhea', 'moderate_diarrhea', 'mild_diarrhea']). 
+            list of states that denote a simulant as having the disease (e.g.
+            ['severe_diarrhea', 'moderate_diarrhea', 'mild_diarrhea']).
             If a simulant does not have the disease of interest, we say that they are in the susceptible state
         """
         self.disease_col = disease_col
@@ -88,7 +88,7 @@ class CalculateIncidence:
     @modifies_value('epidemiological_span_measures')
     def calculate_incidence_measure(self, index, age_groups, sexes, all_locations, duration, cube):
         """
-        Calculate the incidence rate measure and prepare the data for graphing 
+        Calculate the incidence rate measure and prepare the data for graphing
         """
         root_location = config.simulation_parameters.location_id
         pop = self.population_view.get(index)
@@ -102,7 +102,7 @@ class CalculateIncidence:
             for location in locations:
                 location_index = pop.query('location == @location').index if location >= 0 else pd.Index([])
                 location_index = pop.index if location_index.empty else location_index
-                incidence_rates = self.incidence_rate_df[location_index]
+                incidence_rates = self.incidence_rate_df.loc[location_index]
 
                 last_age_group_max = 0
                 for age_bin, upr_bound in self.age_bin_age_group_max_dict:
@@ -113,7 +113,7 @@ class CalculateIncidence:
                     susceptible_person_time = incidence_rates[succeptible_time_column].sum()
                     num_cases = incidence_rates[event_count_column].sum()
 
-                    if susceptible_person_time >= 0:
+                    if susceptible_person_time != 0:
                         cube = cube.append(pd.DataFrame({'measure': 'incidence',
                                                          'age_low': last_age_group_max,
                                                          'age_high': upr_bound,
