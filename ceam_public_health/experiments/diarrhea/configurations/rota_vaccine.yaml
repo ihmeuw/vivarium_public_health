@@ -5,10 +5,22 @@ components:
                         - age_simulants
                         - Mortality()
                 - experiments.diarrhea.components:
-                        - diarrhea.diarrhea_factory()
+                        - diarrhea2.build_diarrhea_model()
                         - rota_vaccine.RotaVaccine(True)
                 - metrics:
                         - Metrics()
+                - risks:
+                        - CategoricalRiskComponent("no_access_to_handwashing_facility")
+                        - CategoricalRiskComponent("child_wasting")
+                        - CategoricalRiskComponent("child_stunting")
+                        - CategoricalRiskComponent("unsafe_water_source")
+                        - CategoricalRiskComponent("unsafe_sanitation")
+                        - CategoricalRiskComponent("vitamin_a_deficiency")
+                        - CategoricalRiskComponent("zinc_deficiency")
+                        - CategoricalRiskComponent("non_exclusive_breastfeeding")
+                        - CategoricalRiskComponent("discontinued_breastfeeding")
+                        - CategoricalRiskComponent("low_measles_vaccine_coverage_1st_dose")
+
 configuration:
         simulation_parameters:
                 location_id: 179
