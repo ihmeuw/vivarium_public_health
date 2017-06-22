@@ -1,21 +1,26 @@
 components:
         - ceam_public_health:
-                - population:
-                        - generate_base_population
-                        - age_simulants
-                        - Mortality()
-                - experiments.diarrhea.components:
-                        - diarrhea.diarrhea_factory()
-                        - rota_vaccine.RotaVaccine(True)
-                - metrics:
-                        - Metrics()
+            - population:
+                - generate_base_population
+                - age_simulants
+                - Mortality()
+            - experiments.diarrhea.components:
+                - diarrhea2.build_diarrhea_model()
+                - rota_vaccine.RotaVaccine()
+            - metrics:
+                - Metrics()
+                - calculate_incidence.CalculateIncidence("diarrhea", "diarrhea", ["severe_diarrhea", "moderate_diarrhea", "mild_diarrhea"])
+                - epidemiology.EpidemiologicalMeasures()
+
 configuration:
-        simulation_parameters:
-                location_id: 179
-                year_start: 2010
-                year_end: 2015
-                time_step: 100
-                pop_age_start:
-                pop_age_end:
-                initial_age: 0.0
-                population_size: 100000
+    simulation_parameters:
+        location_id: 179
+        year_start: 2009
+        year_end: 2015
+        time_step: 1
+        pop_age_start:
+        pop_age_end:
+        initial_age: 0.0
+        population_size: 100000
+    run_configuration:
+        results_directory: "/share/scratch/users/emumford"

@@ -29,39 +29,26 @@ class Ors:
     6) Outputs metrics for ors costs and counts
     """
     def setup(self, builder):
-        # FIXME: We could update the paf and relative risk pipelines to be able
-        #   to handle pafs that affect mortality (giving the self.paf variable
-        #   a long name below to ensure it doesn't get put into the current paf
-        #   pipeline)
         self.paf = builder.value('ors_population_attributable_fraction')
         self.paf.source = builder.lookup(get_ors_pafs())
-
         self.rr = builder.value('ors_relative_risk')
         self.rr.source = builder.lookup(get_ors_relative_risks())
+        self.cost = get_outpatient_visit_costs()
 
-        # pull exposure and include any interventions that change exposure
         ors_exposure = get_ors_exposures()
-
         if config.ors.run_intervention:
-            # add exposure above baseline increase in intervention scenario
             exposure_increase = config.ors.ors_exposure_increase_above_baseline
             ors_exposure['cat1'] -= exposure_increase
             ors_exposure['cat2'] += exposure_increase
-
         self.exposure = builder.value('exposure.ors')
         self.exposure.source = builder.lookup(ors_exposure)
-        self.randomness = builder.randomness('ors_susceptibility')
 
-        self.cost = get_outpatient_visit_costs()
+        self.randomness = builder.randomness('ors_susceptibility')
 
     @listens_for('initialize_simulants')
     @uses_columns(['ors_count', 'ors_propensity', 'ors_outpatient_visit_cost',
-                   'ors_working', 'ors_end_time', 'ors_outpatient_visit_cost',
-                   'ors_facility_cost'])
+                   'ors_working', 'ors_end_time', 'ors_facility_cost'])
     def load_columns(self, event):
-        """
-        Creates count, propensity, working, and cost columns
-        """
         length = len(event.index)
         df = pd.DataFrame({'ors_count': [0]*length,
                            'ors_propensity': self.randomness.get_draw(event.index),
@@ -72,59 +59,36 @@ class Ors:
         event.population_view.update(df)
 
     @listens_for('time_step', priority=7)
-    @uses_columns(['ors_propensity', 'diarrhea_event_time',
-                   'diarrhea_event_end_time', 'ors_working', 'ors_end_time',
-                   'ors_count', 'ors_outpatient_visit_cost'], 'alive')
+    @uses_columns(['ors_propensity', 'diarrhea_event_time', 'diarrhea_event_end_time',
+                   'ors_working', 'ors_end_time', 'ors_count', 'ors_outpatient_visit_cost'], 'alive')
     def determine_who_gets_ors(self, event):
         """
         This method determines who should be seeing the benefit of ors
         """
         pop = event.population
-
-        # if the simulant should no longer be receiving ors, then set the
-        # working column to false
         pop.loc[pop['ors_end_time'] <= event.time, 'ors_working'] = 0
-
-        # now we want to determine who should start receiving ors this time
-        # step filter down to only people that got diarrhea this time step
-        # start by filtering out people that have never had diarrhea (the next
-        # line will give us people that have never had a case if we don't
-        # filter out people that have never had diarrhea first)
         pop = pop.loc[pop['diarrhea_event_time'].notnull()]
-
-        # FIXME: people don't necessarily get diarrhea on the first day in
-        # which they get diarrhea. might want to inject some uncertainty here
-        # pop.loc[pop['diarrhea_event_time'] == pd.Timestamp(event.time)]
+        pop = pop.loc[pop['diarrhea_event_time'] == pd.Timestamp(event.time)]
 
         exp = self.exposure(pop.index)
-
-        categories = sorted([c for c in exp.columns if 'cat' in c],
-                            key=lambda c: int(c.split('cat')[1]))
+        categories = sorted([c for c in exp.columns if 'cat' in c], key=lambda c: int(c.split('cat')[1]))
         exp = exp[categories]
-        # cumulatively sum over exposures
         exp = np.cumsum(exp, axis=1)
         exp = pop.join(exp)
         exp = assign_exposure_categories(exp, 'ors_propensity', categories)
-
         pop = pop.join(exp)
 
         pop.loc[pop['exposure_category'] == 'cat2', 'ors_working'] = 1
-
         pop.loc[pop['ors_working'] == 1, 'ors_end_time'] = pop['diarrhea_event_end_time']
         pop.loc[pop['ors_working'] == 1, 'ors_count'] += 1
 
-        # outpatient visit costs vary by year within a location. get the cost
-        # for the current year
         current_year = pd.Timestamp(event.time).year
-        current_cost = self.cost.query("year_id == {}".format(
-            current_year)).set_index(['year_id']).loc[current_year]['cost']
-        pop.loc[pop['ors_working'] == 1, 'ors_outpatient_visit_cost'] += \
-            current_cost
-
+        current_cost = self.cost.query(
+            "year_id == {}".format(current_year)).set_index(['year_id']).loc[current_year]['cost']
+        pop.loc[pop['ors_working'] == 1, 'ors_outpatient_visit_cost'] += current_cost
         event.population_view.update(pop)
 
-    # FIXME: Need to ensure the mortality rates calculation happens after
-    #     determine_who_gets_ors
+    # FIXME: Need to ensure the mortality rates calculation happens after determine_who_gets_ors
     @modifies_value('excess_mortality.diarrhea')
     @uses_columns(['ors_working'])
     def mortality_rates(self, index, rates, population_view):
@@ -134,24 +98,16 @@ class Ors:
         lack of ors-deleted excess mortality rate by the relative risk
         """
         pop = population_view.get(index)
-
-        # manually set the lack of ors-deleted mortality rate
         rates *= 1 - self.paf(index)
-
-        # manually increase the diarrhea excess mortality rate for people that
-        #     do not get ors (i.e. those exposed to the lack of ors risk)
         ors_not_working_index = pop.query("ors_working == 0").index
 
         if not ors_not_working_index.empty:
-            # FIXME: Not sure if this is the best way to do things.
-            #     Do I need the flatten here?
             rates.loc[ors_not_working_index] *= self.rr(ors_not_working_index)[['cat1']].values.flatten()
 
         return rates
 
     @modifies_value('metrics')
-    @uses_columns(['ors_count', 'ors_outpatient_visit_cost',
-                   'ors_facility_cost'])
+    @uses_columns(['ors_count', 'ors_outpatient_visit_cost', 'ors_facility_cost'])
     def metrics(self, index, metrics, population_view):
         """
         Update the output metrics with information regarding the vaccine
@@ -190,20 +146,10 @@ def assign_exposure_categories(df, susceptibility_column, categories):
     categories : list
         list of all of the category columns in df 
     """
-
     bool_list = [c + '_bool' for c in categories]
-
-    # TODO: Confirm whether or not we want < or <=
     for col in categories:
         df['{}_bool'.format(col)] = df['{}'.format(col)] < df[susceptibility_column]
-
-    df['exposure_category'] = df[bool_list].sum(axis=1)
-
-    # seems weird, but we need to add 1 to exposure category. e.g. if all values for a row in bool_list are false
-    # that simulant will be in exposure cat1, not cat0
-    df['exposure_category'] = df['exposure_category'] + 1
-
-    df['exposure_category'] = 'cat' + df['exposure_category'].astype(str)
+    df['exposure_category'] = 'cat' + (df[bool_list].sum(axis=1) + 1).astype(str)
 
     return df[['exposure_category']]
 
@@ -222,8 +168,6 @@ def assign_relative_risk_value(df, categories):
         list of all of the category columns in df
 
     """
-
     for col in categories:
         df.loc[(df['exposure_category'] == col, 'relative_risk_value')] = df[col]
-
     return df

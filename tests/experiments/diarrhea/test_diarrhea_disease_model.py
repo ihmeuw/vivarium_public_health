@@ -117,7 +117,7 @@ def test_disability_weights():
 def test_remission():
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population] + factory)
+    simulation = setup_simulation([generate_test_population] + factory, population_size=1000)
     emitter = simulation.events.get_emitter('time_step')
 
     # make it so that duration of diarrhea is 1 day among all men except for
