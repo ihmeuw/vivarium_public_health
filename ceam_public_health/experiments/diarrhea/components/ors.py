@@ -6,7 +6,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import (get_outpatient_visit_costs, get_ors_exposures,
+from ceam_inputs import (get_diarrhea_visit_costs, get_ors_exposures,
                          get_ors_relative_risks, get_ors_pafs)
 
 
@@ -33,7 +33,7 @@ class Ors:
         self.paf.source = builder.lookup(get_ors_pafs())
         self.rr = builder.value('ors_relative_risk')
         self.rr.source = builder.lookup(get_ors_relative_risks())
-        self.cost = get_outpatient_visit_costs()
+        self.cost = get_diarrhea_visit_costs()
 
         ors_exposure = get_ors_exposures()
         if config.ors.run_intervention:
@@ -42,25 +42,27 @@ class Ors:
             ors_exposure['cat2'] += exposure_increase
         self.exposure = builder.value('exposure.ors')
         self.exposure.source = builder.lookup(ors_exposure)
-
         self.randomness = builder.randomness('ors_susceptibility')
+        self.ha_randomness = builder.randomness('diarrhea_healthcare_access')
+
+        self.cost = get_diarrhea_visit_costs()
 
     @listens_for('initialize_simulants')
-    @uses_columns(['ors_count', 'ors_propensity', 'ors_outpatient_visit_cost',
-                   'ors_working', 'ors_end_time', 'ors_facility_cost'])
+    @uses_columns(['ors_count', 'ors_propensity', 'ors_visit_cost',
+                   'ors_working', 'ors_end_time'])
     def load_columns(self, event):
         length = len(event.index)
         df = pd.DataFrame({'ors_count': [0]*length,
                            'ors_propensity': self.randomness.get_draw(event.index),
                            'ors_end_time': [pd.NaT]*length,
                            'ors_working': [0]*length,
-                           'ors_outpatient_visit_cost': [0.0]*length,
-                           'ors_facility_cost': [0.0]*length}, index=event.index)
+                           'ors_visit_cost': [0.0]*length}, index=event.index)
         event.population_view.update(df)
 
     @listens_for('time_step', priority=7)
-    @uses_columns(['ors_propensity', 'diarrhea_event_time', 'diarrhea_event_end_time',
-                   'ors_working', 'ors_end_time', 'ors_count', 'ors_outpatient_visit_cost'], 'alive')
+    @uses_columns(['ors_propensity', 'diarrhea_event_time',
+                   'diarrhea_event_end_time', 'ors_working', 'ors_end_time',
+                   'ors_count', 'ors_visit_cost'], 'alive')
     def determine_who_gets_ors(self, event):
         """
         This method determines who should be seeing the benefit of ors
@@ -78,14 +80,25 @@ class Ors:
         exp = assign_exposure_categories(exp, 'ors_propensity', categories)
         pop = pop.join(exp)
 
-        pop.loc[pop['exposure_category'] == 'cat2', 'ors_working'] = 1
-        pop.loc[pop['ors_working'] == 1, 'ors_end_time'] = pop['diarrhea_event_end_time']
-        pop.loc[pop['ors_working'] == 1, 'ors_count'] += 1
+        recieved_ors = pop.query('exposure_category == "cat2"').index
+        pop.loc[recieved_ors, 'ors_working'] = 1
+
+        ha_given_ors_p = 0.514
+        ha_given_no_ors_p = 0.189
+
+        access_with_ors = self.ha_randomness.filter_for_probability(recieved_ors, ha_given_ors_p)
+        access_without_ors = self.ha_randomness.filter_for_probability(pop.index.difference(recieved_ors), ha_given_no_ors_p)
 
         current_year = pd.Timestamp(event.time).year
         current_cost = self.cost.query(
             "year_id == {}".format(current_year)).set_index(['year_id']).loc[current_year]['cost']
-        pop.loc[pop['ors_working'] == 1, 'ors_outpatient_visit_cost'] += current_cost
+
+        pop.loc[access_with_ors.union(access_without_ors), 'ors_visit_cost'] += current_cost
+
+        pop.loc[recieved_ors, 'ors_end_time'] = pop['diarrhea_event_end_time']
+        pop.loc[recieved_ors, 'ors_count'] += 1
+
+
         event.population_view.update(pop)
 
     # FIXME: Need to ensure the mortality rates calculation happens after determine_who_gets_ors
@@ -107,7 +120,7 @@ class Ors:
         return rates
 
     @modifies_value('metrics')
-    @uses_columns(['ors_count', 'ors_outpatient_visit_cost', 'ors_facility_cost'])
+    @uses_columns(['ors_count', 'ors_visit_cost', 'ors_facility_cost'])
     def metrics(self, index, metrics, population_view):
         """
         Update the output metrics with information regarding the vaccine
@@ -124,13 +137,12 @@ class Ors:
 
         population_view: pd.DataFrame
             df of all simulants, alive or dead with columns
-            'ors_count', 'ors_outpatient_visit_cost', and 'ors_facility_cost'
+            'ors_count', 'ors_visit_cost', and 'ors_facility_cost'
         """
         population = population_view.get(index)
 
-        metrics['ors_outpatient_visit_cost'] = population['ors_outpatient_visit_cost'].sum()
+        metrics['ors_visit_cost'] = population['ors_visit_cost'].sum()
         metrics['ors_count'] = population['ors_count'].sum()
-        metrics['ors_facility_cost'] = population['ors_count'].sum() * config.ors.facility_cost
 
         return metrics
 
@@ -152,22 +164,3 @@ def assign_exposure_categories(df, susceptibility_column, categories):
     df['exposure_category'] = 'cat' + (df[bool_list].sum(axis=1) + 1).astype(str)
 
     return df[['exposure_category']]
-
-
-def assign_relative_risk_value(df, categories):
-    """
-    creates an 'relative_risk_value' column that assigns simulant's relative risk based on their exposure
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-
-    susceptibility_column : pd.Series
-
-    categories : list
-        list of all of the category columns in df
-
-    """
-    for col in categories:
-        df.loc[(df['exposure_category'] == col, 'relative_risk_value')] = df[col]
-    return df
