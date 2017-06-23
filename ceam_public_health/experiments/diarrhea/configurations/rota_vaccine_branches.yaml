@@ -2,7 +2,7 @@ draw_count: 1000
 
 branches:
     - simulation_parameters:
-        dtp3_coverage: True
+        dtp3_coverage: true
 
     - simulation_parameters:
-        dtp3_coverage: False
+        dtp3_coverage: false
