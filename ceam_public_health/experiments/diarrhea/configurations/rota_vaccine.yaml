@@ -1,6 +1,5 @@
 components:
         - ceam_public_health:
-<<<<<<< HEAD
                 - population:
                         - generate_base_population
                         - age_simulants
