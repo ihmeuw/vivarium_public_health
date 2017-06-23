@@ -58,9 +58,9 @@ def _hypertensive_categories(population):
 
 
 class OpportunisticScreening:
-    """Model an intervention where simulants have their blood pressure tested every time they 
-    access health care and are prescribed blood pressure reducing medication if they are found 
-    to be hypertensive. Each simulant can be prescribed up to `config.opportunistic_screening.max_medications` 
+    """Model an intervention where simulants have their blood pressure tested every time they
+    access health care and are prescribed blood pressure reducing medication if they are found
+    to be hypertensive. Each simulant can be prescribed up to `config.opportunistic_screening.max_medications`
     drugs. If they are still hypertensive while taking all the drugs then there is no further treatment.
 
     Population Columns
@@ -85,8 +85,6 @@ class OpportunisticScreening:
         self.cost_by_year = defaultdict(int)
 
     def setup(self, builder):
-        self.cost_by_year = defaultdict(int)
-
         # draw random costs and effects for medications
         draw = config.run_configuration.draw_number
         r = np.random.RandomState(12345+draw)

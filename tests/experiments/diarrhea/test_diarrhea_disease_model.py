@@ -10,7 +10,7 @@ from ceam_tests.util import (build_table, setup_simulation,
                              generate_test_population, pump_simulation)
 
 from ceam_inputs import (get_severity_splits, get_cause_specific_mortality,
-                         get_cause_deleted_mortality_rate, get_disability_weight)
+                         get_cause_deleted_mortality_rate, get_disability_weight, causes)
 
 from ceam_public_health.metrics import Metrics  # Source of disability weight
 from ceam_public_health.population import Mortality
@@ -117,7 +117,7 @@ def test_disability_weights():
 def test_remission():
     factory = diarrhea_factory()
 
-    simulation = setup_simulation([generate_test_population] + factory)
+    simulation = setup_simulation([generate_test_population] + factory, population_size=1000)
     emitter = simulation.events.get_emitter('time_step')
 
     # make it so that duration of diarrhea is 1 day among all men except for
@@ -262,7 +262,7 @@ def test_cause_deletion():
                                   factory)
 
     # determine what the cause-deleted mortality rate should be
-    cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(1181)])
+    cause_deleted_mr = get_cause_deleted_mortality_rate([get_cause_specific_mortality(causes.diarrhea.gbd_cause)])
 
     # get the mortality rate from the simulation
     simulation_mortality_rate = simulation.values.get_rate('mortality_rate')

@@ -40,7 +40,6 @@ def build_diarrhea_model():
                                      dwell_time=get_duration_in_days(causes.moderate_diarrhea.duration))
     severe_diarrhea = ExcessMortalityState('severe_diarrhea',
                                            excess_mortality_data=get_severe_diarrhea_excess_mortality(),
-                                           csmr_data=get_cause_specific_mortality(causes.severe_diarrhea.mortality),
                                            disability_weight=get_disability_weight(
                                                healthstate_id=causes.severe_diarrhea.disability_weight),
                                            dwell_time=get_duration_in_days(causes.severe_diarrhea.duration))
@@ -88,4 +87,5 @@ def build_diarrhea_model():
     healthy.side_effect_function = reset_etiologies
 
     return [etiology.model for etiology in etiologies] + [DiseaseModel(
-        'diarrhea', states=[healthy, diarrhea, mild_diarrhea, moderate_diarrhea, severe_diarrhea])]
+        'diarrhea', states=[healthy, diarrhea, mild_diarrhea, moderate_diarrhea, severe_diarrhea],
+        csmr_data=get_cause_specific_mortality(causes.diarrhea.mortality))]

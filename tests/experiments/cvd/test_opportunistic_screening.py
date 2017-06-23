@@ -34,7 +34,7 @@ def setup():
 
 
 @listens_for('initialize_simulants', priority=9)
-@uses_columns(['high_systolic_blood_pressure_exposure', 'age', 'fractional_age'])
+@uses_columns(['high_systolic_blood_pressure_exposure', 'age'])
 def _population_setup(event):
     age_sbps = []
     age_sbps.append((40, 130.0))  # Normotensive, below 60
@@ -55,13 +55,26 @@ def _population_setup(event):
     population['age'] = ages
     population['high_systolic_blood_pressure_exposure'] = sbps
 
-    population['fractional_age'] = population['age']
+    population['age'] = population['age']
 
     event.population_view.update(population)
 
 
-def test_hypertensive_categories():
-    simulation, module_ = screening_setup()
+@pytest.fixture
+def screening_setup():
+    module_ = OpportunisticScreening()
+    simulation = setup_simulation(
+        [generate_test_population, _population_setup, adherence, HealthcareAccess(),
+         ContinuousRiskComponent('high_systolic_blood_pressure'), module_],
+        population_size=10)
+
+    start_time = datetime(1990, 1, 1)
+    simulation.current_time = start_time
+    return simulation, module_
+
+
+def test_hypertensive_categories(screening_setup):
+    simulation, module_ = screening_setup
     population = simulation.population.population
 
     normotensive, hypertensive, severe_hypertension = _hypertensive_categories(population)
@@ -71,8 +84,8 @@ def test_hypertensive_categories():
     assert len(severe_hypertension) == 2
 
 
-def test_drug_effects():
-    simulation, module_ = screening_setup()
+def test_drug_effects(screening_setup):
+    simulation, module_ = screening_setup
     columns = (['medication_count', 'high_systolic_blood_pressure_exposure']
                + [m['name']+'_supplied_until' for m in MEDICATIONS])
     population_view = simulation.population.get_view(columns)
@@ -134,8 +147,8 @@ def test_drug_effects():
                         + efficacy*module_.semi_adherent_efficacy))
 
 
-def test_medication_cost():
-    simulation, module_ = screening_setup()
+def test_medication_cost(screening_setup):
+    simulation, module_ = screening_setup
     module_.cost_by_year = defaultdict(int)
 
     population_view = simulation.population.get_view(
@@ -243,17 +256,7 @@ def test_medication_cost():
 #            == cost_of_a_followup * len(simulation.population.population))
 
 
-@pytest.fixture(scope="module")
-def screening_setup():
-    module_ = OpportunisticScreening()
-    simulation = setup_simulation(
-        [generate_test_population, _population_setup, adherence, HealthcareAccess(),
-         ContinuousRiskComponent('high_systolic_blood_pressure'), module_],
-        population_size=10)
 
-    start_time = datetime(1990, 1, 1)
-    simulation.current_time = start_time
-    return simulation, module_
 
 
 # NOTE: If these tests start breaking mysteriously, it's likely because
@@ -272,9 +275,6 @@ def test_general_blood_pressure_test(screening_setup):
     assert (severe_hypertension.medication_count == 2).all()
     assert (severe_hypertension.healthcare_followup_date == simulation.current_time + timedelta(days=30.5*6)).all()
 
-
-def test_first_followup_blood_pressure_test(screening_setup):
-    simulation, module_ = screening_setup
     simulation.current_time += timedelta(days=30) # Tick forward without triggering any actual events
     event = Event(simulation.population.population.index)
     simulation.events.get_emitter('followup_healthcare_access')(event)
@@ -286,9 +286,6 @@ def test_first_followup_blood_pressure_test(screening_setup):
     assert (severe_hypertension.medication_count == 3).all()
     assert (severe_hypertension.healthcare_followup_date == simulation.current_time + timedelta(days=30.5*6)).all()
 
-
-def test_second_followup_blood_pressure_test(screening_setup):
-    simulation, module_ = screening_setup
     simulation.current_time += timedelta(days=30) # Tick forward without triggering any actual events
     event = Event(simulation.population.population.index)
     simulation.events.get_emitter('followup_healthcare_access')(event)
@@ -300,9 +297,6 @@ def test_second_followup_blood_pressure_test(screening_setup):
     assert (severe_hypertension.medication_count == 4).all()
     assert (severe_hypertension.healthcare_followup_date == simulation.current_time + timedelta(days=30.5*6)).all()
 
-
-def test_nth_followup_blood_pressure_test(screening_setup):
-    simulation, module_ = screening_setup
     for _ in range(10):
         simulation.current_time += timedelta(days=30) # Tick forward without triggering any actual events
         event = Event(simulation.population.population.index)

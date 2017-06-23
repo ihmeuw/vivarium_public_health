@@ -15,8 +15,9 @@ from ceam_public_health.disease import ExcessMortalityState, TransientDiseaseSta
 
 
 class DiseaseModel(Machine):
-    def __init__(self, condition, **kwargs):
+    def __init__(self, condition, csmr_data=None, **kwargs):
         super().__init__(condition, **kwargs)
+        self.csmr_data = csmr_data
 
     def module_id(self):
         return str((self.__class__, self.state_column))
@@ -43,6 +44,9 @@ class DiseaseModel(Machine):
     def time_step_handler(self, event):
         self.transition(event.index)
 
+    @modifies_value('csmr_data')
+    def get_csmr(self):
+        return self.csmr_data
 
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex', condition])
@@ -74,7 +78,7 @@ class DiseaseModel(Machine):
             for sex in sexes:
                 for cause in causes:
                     for location in locations:
-                        sub_pop = pop.query('age > @low and age <= @high and sex == @sex')
+                        sub_pop = pop.query('age >= @low and age < @high and sex == @sex')
                         if location >= 0:
                             sub_pop = sub_pop.query('location == @location')
                         if not sub_pop.empty:
