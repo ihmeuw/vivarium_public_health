@@ -1,5 +1,29 @@
 Diarrhea Disease Model Documentation
 ====================================
+Purpose
+*******
+The purpose of the CEAM diarrhea model is to determine the cost-effectiveness of interventions aimed at reducing the burden of diarrheal diseases. The results from the model can be used to influence policy.
+
+The purpose of the diarrhea component specifically is to accurately simulate the burden of diarrhea in a population of simulants by applying GBD measures of incidence, prevalence, mortality, severity, disability, and remission.
+
+Entities, state variables, and scales
+*************************************
+Entities are individual simulants. Though diarrhea can be spread between people in truth, there are no infectious disease dynamics or interactions between simulants in CEAM. 
+
+All models in CEAM define simulants by demographic characteristics (e.g. age and sex). In addition to the general states associated with any given CEAM model, the diarrhea model includes a diarrhea state and states that define exposure to the 10 risk factors associated with diarrhea in GBD. The diarrhea state defines whether or not a simulant is susceptible or infected. A simulant can be susceptible (currently free of diarrhea) or have mild, moderate, or severe diarrhea. Simulants are also be exposed or unexposed to the 10 categorical risk factors associated with diarrhea in GBD at a given time.
+
+Process overview and scheduling
+*******************************
+
+
+
+
+
+
+
+
+
+
 - We start with a population of healthy people
 - We set up a state for each diarrhea pathogen as well as a state for "unattributed" diarrhea (i.e. diarrhea that is not associated with any of the 13 pathogens in GBD). Simulants can remain healthy or get diarrhea (due to one or multiple pathogens) each time step.
     - The incidence rate for diarrhea due to each pathogen is the diarrhea envelope incidence x etiology PAF. 
