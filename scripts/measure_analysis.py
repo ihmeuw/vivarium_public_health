@@ -113,6 +113,21 @@ def graph_measure(data, measure, output_directory):
     plt.subplots_adjust(top=0.94)
     fig.savefig(os.path.join(output_directory, '{}.png'.format(measure)), dpi=100, bbox_extra_artists=[lgd]+labels, bbox_inches='tight')
 
+def _mean_and_bounds(data, value_name):
+    columns = data.columns.difference(['year', 'age', 'sex', 'measure', 'cause', 'location', 'value', 'draw'])
+
+    group = data.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location'])
+
+    mean = group.mean()
+    column_data = [mean['value'], group.quantile(.975)['value'], group.quantile(.025)['value']]
+    for c in columns:
+        column_data.append(mean[c])
+
+    data = pd.concat(column_data, axis=1)
+    data.columns = [value_name, value_name+'_upper', value_name+'_lower']+list(columns)
+    data = data.reset_index()
+    return data
+
 def prepare_comparison(data):
     """Combines the simulation output with the corresponding GBD estimate for each
     sample so they can be graphed together.
@@ -131,22 +146,10 @@ def prepare_comparison(data):
     del data['age_low']
     del data['age_high']
 
-    # NOTE: This averages the draws without capturing uncertainty. May want to improve at some point.
-    gr1 = measure_cube.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location'])
-    measure_cube['gbd'] = gr1.mean()[['value']].values
-    measure_cube['gbd_upper'] = gr1.quantile(.975)[['value']].values
-    measure_cube['gbd_lower'] = gr1.quantile(.025)[['value']].values
-    measure_cube.reset_index(inplace=True)
-    del measure_cube['value']
-    del measure_cube['draw']
+    measure_cube = _mean_and_bounds(measure_cube, 'gbd')
+
     data['sample_size'] = data.sample_size.astype(int)
-    gr2 = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location'])
-    data['simulation'] = gr2.mean().reset_index()[['value']].values
-    data['simulation_upper'] = gr2.quantile(.975)[['value']].values
-    data['simulation_lower'] = gr2.quantile(.025)[['value']].values
-    data.reset_index(inplace=True)
-    del data['value']
-    del data['draw']
+    data = _mean_and_bounds(data, 'simulation')
 
     # Calculate RGB triples for each cause for use in coloring marks on the graphs
     cmap = plt.get_cmap('jet')
@@ -160,15 +163,11 @@ def prepare_comparison(data):
 
     data = data.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'])
 
-    # Give our value columns descriptive names so we know which is which
-    data = data.rename(columns={'value': 'simulation'})
-
     # Set age midpoints for 80 plus age group to be equal
     # FIXME: Probably should handle this in the make_measure_cube function
     measure_cube.reset_index(inplace=True)
     measure_cube.loc[measure_cube.age == 82.5, 'age'] = 102.5
     measure_cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'], inplace=True)
-    measure_cube = measure_cube.rename(columns={'value': 'gbd'})
 
     return data.merge(measure_cube, left_index=True, right_index=True)
 
@@ -194,9 +193,9 @@ def main():
         data = data.append(pd.read_hdf(path, format='t'))
 
     # FIXME: Getting ihd mortality should be handled in a more flexible way. Very much a duck tape solution
-    ihd_mortality = data.query("measure == 'mortality' and cause!= 'death_due_to_other_causes' and cause!='all'").groupby(['measure', 'age_low', 'age_high', 'sex', 'location', 'year', 'draw']).sum().reset_index()
-    ihd_mortality['cause'] = 'ischemic_heart_disease'
-    data = data.append(ihd_mortality[data.columns])
+    #ihd_mortality = data.query("measure == 'mortality' and cause!= 'death_due_to_other_causes' and cause!='all'").groupby(['measure', 'age_low', 'age_high', 'sex', 'location', 'year', 'draw']).sum().reset_index()
+    #ihd_mortality['cause'] = 'ischemic_heart_disease'
+    #data = data.append(ihd_mortality[data.columns])
 
     # TODO: right now this can only do one year per run.
     # If we want to do multiple years, that's certainly possible
@@ -208,8 +207,6 @@ def main():
         year = int(args.year)
 
     data = data.query('year == @year')
-    # FIXME: There is an error here. Data should only have one location, but it does not presently
-    data = data.query('location == {}'.format(config.simulation_parameters.location_id))
 
     if args.draw != 'all':
         draw = int(args.draw)
