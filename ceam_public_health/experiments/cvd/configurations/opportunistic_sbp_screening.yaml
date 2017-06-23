@@ -9,7 +9,7 @@ components:
                 - experiments.cvd.components:
                         - heart_disease.factory()
                         - stroke.factory()
-                        - opportunistic_screening.OpportunisticScreening(False)
+                        - opportunistic_screening.OpportunisticScreening()
                 - risks:
                         - ContinuousRiskComponent("high_systolic_blood_pressure")
                         - ContinuousRiskComponent("high_fasting_plasma_glucose_continuous")
