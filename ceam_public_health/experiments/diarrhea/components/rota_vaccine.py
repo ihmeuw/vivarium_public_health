@@ -7,7 +7,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import get_rota_vaccine_coverage
+from ceam_inputs import get_rota_vaccine_coverage, get_dtp3_coverage
 
 
 def set_vaccine_duration(population, etiology, dose):
@@ -223,8 +223,13 @@ class RotaVaccine():
         self.randomness['dose_2'] = builder.randomness('second_dose_randomness')
         self.randomness['dose_3'] = builder.randomness('third_dose_randomness')
 
-        self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
-        self.vaccine_coverage.source = builder.lookup(get_rota_vaccine_coverage())
+        if config.simulation_parameters.dtp3_coverage:
+            self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
+            self.vaccine_coverage.source = builder.lookup(get_dtp3_coverage())
+
+        else:
+            self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
+            self.vaccine_coverage.source = builder.lookup(get_rota_vaccine_coverage())
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
