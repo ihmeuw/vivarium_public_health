@@ -7,12 +7,17 @@ import math
 
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
+sns.set_style('whitegrid')
 
-from cube import make_measure_cube_from_gbd
+from ceam_inputs import get_age_bins
+
+from ceam import config
+from ceam_public_health.cube import make_measure_cube_from_gbd
 
 def graph_measure(data, measure, output_directory):
     """ Save the convergence graph for a particular measure
@@ -63,16 +68,37 @@ def graph_measure(data, measure, output_directory):
             ax.set_xlim([0, max(filtered.gbd.max(), filtered.simulation.max())])
             ax.set_ylim([0, max(filtered.gbd.max(), filtered.simulation.max())])
 
-            title = '{:.1f} ({})'.format(age, int(mean_sample_size))
+            bins = get_age_bins()
+
+            bins['age'] = bins[['age_group_years_start', 'age_group_years_end']].mean(axis=1)
+
+            filtered = filtered.merge(bins, on=['age'])
+
+            age_group_name = filtered.query("age == @age").age_group_name.values[0]
+
+            if measure == "incidence":
+                title = '{} Age Group ({} person-years)'.format(age_group_name, int(mean_sample_size))
+            else:
+                title = '{} Age Group ({})'.format(age_group_name, int(mean_sample_size))
             ax.set_title(title)
 
             # Draw the equivalence line
-            ax.plot(ax.get_xlim(), ax.get_ylim(),'w-', zorder=1, lw=1)
+            ax.plot(ax.get_xlim(), ax.get_ylim(), 'k-', zorder=1, lw=1)
 
             for sex, shape in shapes.items():
                 # Draw the actual points with different shapes for each sex
-                gbd, simulation, color = zip(*filtered.query('sex==@sex')[['gbd', 'simulation', 'color']].values.tolist())
-                ax.scatter(gbd, simulation, color=color, zorder=2, marker=shape)
+                gbd, simulation, gbd_lower, gbd_upper, simulation_lower, simulation_upper, color = zip(
+                    *filtered.query('sex==@sex')[['gbd', 'simulation', 'gbd_lower', 'gbd_upper',
+                                                  'simulation_lower', 'simulation_upper', 'color']].values.tolist())
+
+                gbd = np.array(gbd)
+                simulation = np.array(simulation)
+                xerr = np.array([np.abs(gbd - gbd_lower), np.abs(gbd - gbd_upper)])
+                yerr = np.array([np.abs(simulation - simulation_lower), np.abs(simulation - simulation_upper)])
+                # Fake error bars for testing plots
+                # xerr = np.array([0.5 * gbd, 0.5 * gbd])
+                # yerr = np.array([0.5 * simulation, 0.5 * simulation])
+                ax.errorbar(gbd, simulation, xerr=xerr, yerr=yerr, fmt=shape)
 
             # The graphs tend to be pretty tight so rotate the x axis labels to make better use of space
             for tick in ax.get_xticklabels():
@@ -106,10 +132,20 @@ def prepare_comparison(data):
     del data['age_high']
 
     # NOTE: This averages the draws without capturing uncertainty. May want to improve at some point.
-    measure_cube = measure_cube.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean()
+    gr1 = measure_cube.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location'])
+    measure_cube['gbd'] = gr1.mean()[['value']].values
+    measure_cube['gbd_upper'] = gr1.quantile(.975)[['value']].values
+    measure_cube['gbd_lower'] = gr1.quantile(.025)[['value']].values
+    measure_cube.reset_index(inplace=True)
+    del measure_cube['value']
     del measure_cube['draw']
     data['sample_size'] = data.sample_size.astype(int)
-    data = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location']).mean().reset_index()
+    gr2 = data.groupby(['year', 'age', 'sex', 'measure', 'cause', 'location'])
+    data['simulation'] = gr2.mean().reset_index()[['value']].values
+    data['simulation_upper'] = gr2.quantile(.975)[['value']].values
+    data['simulation_lower'] = gr2.quantile(.025)[['value']].values
+    data.reset_index(inplace=True)
+    del data['value']
     del data['draw']
 
     # Calculate RGB triples for each cause for use in coloring marks on the graphs
@@ -126,7 +162,14 @@ def prepare_comparison(data):
 
     # Give our value columns descriptive names so we know which is which
     data = data.rename(columns={'value': 'simulation'})
+
+    # Set age midpoints for 80 plus age group to be equal
+    # FIXME: Probably should handle this in the make_measure_cube function
+    measure_cube.reset_index(inplace=True)
+    measure_cube.loc[measure_cube.age == 82.5, 'age'] = 102.5
+    measure_cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'], inplace=True)
     measure_cube = measure_cube.rename(columns={'value': 'gbd'})
+
     return data.merge(measure_cube, left_index=True, right_index=True)
 
 def graph_comparison(data, output_directory):
@@ -146,8 +189,14 @@ def main():
 
     data = pd.DataFrame()
 
+
     for path in args.measure_data_path:
         data = data.append(pd.read_hdf(path, format='t'))
+
+    # FIXME: Getting ihd mortality should be handled in a more flexible way. Very much a duck tape solution
+    ihd_mortality = data.query("measure == 'mortality' and cause!= 'death_due_to_other_causes' and cause!='all'").groupby(['measure', 'age_low', 'age_high', 'sex', 'location', 'year', 'draw']).sum().reset_index()
+    ihd_mortality['cause'] = 'ischemic_heart_disease'
+    data = data.append(ihd_mortality[data.columns])
 
     # TODO: right now this can only do one year per run.
     # If we want to do multiple years, that's certainly possible
@@ -159,6 +208,8 @@ def main():
         year = int(args.year)
 
     data = data.query('year == @year')
+    # FIXME: There is an error here. Data should only have one location, but it does not presently
+    data = data.query('location == {}'.format(config.simulation_parameters.location_id))
 
     if args.draw != 'all':
         draw = int(args.draw)

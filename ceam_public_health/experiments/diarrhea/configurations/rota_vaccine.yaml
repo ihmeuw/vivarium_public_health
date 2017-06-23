@@ -1,12 +1,13 @@
 components:
         - ceam_public_health:
+<<<<<<< HEAD
                 - population:
                         - generate_base_population
                         - age_simulants
                         - Mortality()
                 - experiments.diarrhea.components:
                         - diarrhea2.build_diarrhea_model()
-                        - rota_vaccine.RotaVaccine(True)
+                        - rota_vaccine.RotaVaccine()
                 - metrics:
                         - Metrics()
                 #- risks:
@@ -21,13 +22,15 @@ components:
                           #- CategoricalRiskComponent("discontinued_breastfeeding")
 
 configuration:
-        simulation_parameters:
-                location_id: 179
-                year_start: 2010
-                year_end: 2015
-                time_step: 1
-                pop_age_start:
-                pop_age_end:
-                initial_age: 0.0
-                population_size: 100000
-                dtp3_coverage: True
+    simulation_parameters:
+        location_id: 179
+        year_start: 2010
+        year_end: 2015
+        time_step: 1
+        pop_age_start:
+        pop_age_end:
+        initial_age: 0.0
+        population_size: 100000
+        dtp3_coverage: True
+    run_configuration:
+        results_directory: "/share/scratch/users/emumford"
