@@ -1,5 +1,8 @@
-draw_count: 20
+draw_count: 1000
 
 branches:
     - simulation_parameters:
-        location_id: 179
+        dtp3_coverage: True
+
+    - simulation_parameters:
+        dtp3_coverage: False
