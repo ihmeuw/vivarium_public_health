@@ -76,11 +76,12 @@ class OpportunisticScreening:
                 'hypertensive_threshold': 140,
                 'severe_hypertensive_threshold': 180,
                 'minimum_age_to_screen': 0,
+                'active': True,
             }
     }
 
-    def __init__(self, active=True):
-        self.active = active
+    def __init__(self):
+        self.active = config.opportunistic_screening.active
         self.cost_by_year = defaultdict(int)
 
     def setup(self, builder):
