@@ -98,7 +98,6 @@ class Ors:
         pop.loc[recieved_ors, 'ors_end_time'] = pop['diarrhea_event_end_time']
         pop.loc[recieved_ors, 'ors_count'] += 1
 
-
         event.population_view.update(pop)
 
     # FIXME: Need to ensure the mortality rates calculation happens after determine_who_gets_ors
@@ -120,7 +119,7 @@ class Ors:
         return rates
 
     @modifies_value('metrics')
-    @uses_columns(['ors_count', 'ors_visit_cost', 'ors_facility_cost'])
+    @uses_columns(['ors_count', 'ors_visit_cost'])
     def metrics(self, index, metrics, population_view):
         """
         Update the output metrics with information regarding the vaccine
@@ -137,7 +136,7 @@ class Ors:
 
         population_view: pd.DataFrame
             df of all simulants, alive or dead with columns
-            'ors_count', 'ors_visit_cost', and 'ors_facility_cost'
+            'ors_count' and 'ors_visit_cost'
         """
         population = population_view.get(index)
 
@@ -148,7 +147,7 @@ class Ors:
 
 
 def assign_exposure_categories(df, susceptibility_column, categories):
-    """Creates an 'exposure_category' column that assigns 
+    """Creates an 'exposure_category' column that assigns
     simulant's exposure based on their susceptibility draw
 
     Parameters
@@ -156,7 +155,7 @@ def assign_exposure_categories(df, susceptibility_column, categories):
     df : pd.DataFrame
     susceptibility_column : str
     categories : list
-        list of all of the category columns in df 
+        list of all of the category columns in df
     """
     bool_list = [c + '_bool' for c in categories]
     for col in categories:
