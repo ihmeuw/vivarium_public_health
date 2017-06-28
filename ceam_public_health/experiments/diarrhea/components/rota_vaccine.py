@@ -194,6 +194,7 @@ class RotaVaccine:
         self.randomness['dose_2'] = builder.randomness('second_dose_randomness')
         self.randomness['dose_3'] = builder.randomness('third_dose_randomness')
 
+        # TODO: Determine if there is a cleaner way to incorporate DTP3 coverage
         if config.simulation_parameters.dtp3_coverage:
             self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
             self.vaccine_coverage.source = builder.lookup(get_dtp3_coverage())
