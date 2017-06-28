@@ -3,10 +3,11 @@
 from collections import namedtuple
 
 from ceam.framework.population import uses_columns
+from ceam.framework.state_machine import Trigger
 from ceam_inputs import (get_severity_splits, get_disability_weight,
                          get_cause_specific_mortality, causes)
 
-from ceam_public_health.disease import DiseaseState, TransientDiseaseState, ExcessMortalityState, DiseaseModel, make_disease_state
+from ceam_public_health.disease import DiseaseState, TransientDiseaseState, ExcessMortalityState, DiseaseModel
 
 from .data_transformations import get_etiology_incidence, get_duration_in_days, get_severe_diarrhea_excess_mortality
 
@@ -50,9 +51,9 @@ def build_etiology_model(etiology_name, infection_side_effect=None):
                         side_effect_function=infection_side_effect)
 
     sick_transition = healthy.add_transition(sick, rates=get_etiology_incidence(etiology_name),
-                                             triggered=True, start_active=True)
+                                             triggered=Trigger.START_ACTIVE)
     healthy.allow_self_transitions()
-    recovery_transition = sick.add_transition(healthy, triggered=True)
+    recovery_transition = sick.add_transition(healthy, triggered=Trigger.START_INACTIVE)
 
     return Etiology(name=etiology_name,
                     model=DiseaseModel(etiology_name, states=[healthy, sick]),
@@ -89,7 +90,7 @@ def build_diarrhea_model():
 
     # Allow healthy to transition into the transient state diarrhea when triggered,
     # otherwise allow it to transition back to itself each time step.
-    diarrhea_transition = healthy.add_transition(diarrhea, triggered=True)
+    diarrhea_transition = healthy.add_transition(diarrhea, triggered=Trigger.START_INACTIVE)
     healthy.allow_self_transitions()
 
     # As diarrhea is a transient state, it immediately moves into one of its sequela
