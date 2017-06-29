@@ -1,17 +1,5 @@
-draw_count: 1000
+draw_count: 20
 
 branches:
     - simulation_parameters:
         dtp3_coverage: false
-      rota_vaccine:
-        vaccination_proportion_increase: .25
-
-    - simulation_parameters:
-        dtp3_coverage: false
-      rota_vaccine:
-        vaccination_proportion_increase: .5
-
-    - simulation_parameters:
-        dtp3_coverage: false
-      rota_vaccine:
-        vaccination_proportion_increase: .75
