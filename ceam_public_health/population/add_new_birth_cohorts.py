@@ -15,17 +15,17 @@ PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
 
 class FertilityDeterministic:
     """Deterministic model of births.
-    
-    This model of fertility expects that 
+
+    This model of fertility expects that
     `config.simulation_parameters.number_of_new_simulants_each_year` is
     set in some configuration file.  It adds simulants every time-step
-    by scaling this parameter by the time-step size.    
-    
+    by scaling this parameter by the time-step size.
+
     Attributes
     ----------
     fractional_new_births : float
-        A rolling record of the fractional part of new births generated 
-        each time-step that allows us to 
+        A rolling record of the fractional part of new births generated
+        each time-step that allows us to
     """
     def __init__(self):
         self.fractional_new_births = 0
@@ -38,7 +38,7 @@ class FertilityDeterministic:
     def add_new_birth_cohort(self, event, creator):
         """Deterministically adds a new set of simulants at every timestep
         based on a parameter in the configuration.
- 
+
         Parameters
         ----------
         event : ceam.population.PopulationEvent
@@ -60,20 +60,20 @@ class FertilityDeterministic:
 
 class FertilityCrudeBirthRate:
     """Population-level model of births using Crude Birth Rate.
-    
+
     Attributes
     ----------
     randomness : `randomness.RandomStream`
         A named stream of random numbers bound to CEAM's common
         random number framework.
-        
+
     Notes
     -----
-    The OECD definition of Crude Birthrate can be found on their 
+    The OECD definition of Crude Birthrate can be found on their
     website_, while a more thorough discussion of fertility and
     birth rate models can be found on Wikipedia_ or in demography
-    textbooks. 
-    
+    textbooks.
+
     .. _website: https://stats.oecd.org/glossary/detail.asp?ID=490
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
@@ -86,19 +86,19 @@ class FertilityCrudeBirthRate:
     def add_new_birth_cohort(self, event, creator):
         """Adds new simulants every time step based on the Crude Birth Rate
         and an assumption that birth is a Poisson process
-    
+
         Parameters
         ----------
         event : ceam.population.PopulationEvent
             The event that triggered the function call.
         creator : method
-            A function or method for creating a population. 
-            
+            A function or method for creating a population.
+
         Notes
         -----
-        The method for computing the Crude Birth Rate employed here is 
-        approximate. 
-          
+        The method for computing the Crude Birth Rate employed here is
+        approximate.
+
         """
         birth_rate = self._get_birth_rate(event.time.year)
         population_size = len(event.index)
@@ -118,16 +118,16 @@ class FertilityCrudeBirthRate:
     @staticmethod
     def _get_birth_rate(year):
         """Computes a crude birth rate from demographic data in a given year.
-    
+
         Parameters
         ----------
         year : int
             The year we want the birth rate for.
-    
+
         Returns
         -------
         float
-            The crude birth rate of the population in the given year in 
+            The crude birth rate of the population in the given year in
             births per person per year.
         """
 
@@ -148,14 +148,14 @@ class FertilityAgeSpecificRates:
     """
 
     def setup(self, builder):
-        """ Setup the common randomness stream and 
+        """ Setup the common randomness stream and
         age-specific fertility lookup tables.
-        
+
         Parameters
         ----------
         builder : ceam.engine.Builder
-            Framework coordination object.    
-         
+            Framework coordination object.
+
         """
 
         self.randomness = builder.randomness('fertility')
@@ -167,7 +167,7 @@ class FertilityAgeSpecificRates:
     @uses_columns(['last_birth_time', 'sex', 'parent_id'])
     def update_state_table(self, event):
         """ Adds 'last_birth_time' and 'parent' columns to the state table.
-        
+
         Parameters
         ----------
         event : ceam.population.PopulationEvent
@@ -189,13 +189,13 @@ class FertilityAgeSpecificRates:
     @creates_simulants
     def step(self, event, creator):
         """Produces new children and updates parent status on time steps.
-        
+
         Parameters
         ----------
         event : ceam.population.PopulationEvent
             The event that triggered the function call.
         creator : method
-            A function or method for creating a population. 
+            A function or method for creating a population.
         """
         # Get a view on all living women who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
@@ -204,7 +204,7 @@ class FertilityAgeSpecificRates:
         rate_series = self.asfr(can_have_children.index)
         had_children = self.randomness.filter_for_rate(can_have_children, rate_series)
 
-        had_children['last_birth_time'] = event.time
+        had_children.loc[:, 'last_birth_time'] = event.time
         event.population_view.update(had_children['last_birth_time'])
 
         # If children were born, add them to the state table and record

@@ -44,6 +44,10 @@ class DiseaseModel(Machine):
     def time_step_handler(self, event):
         self.transition(event.index)
 
+    @listens_for('time_step__cleanup')
+    def time_step__cleanup_handler(self, event):
+        self.cleanup(event.index)
+
     @modifies_value('csmr_data')
     def get_csmr(self):
         return self.csmr_data
@@ -114,7 +118,7 @@ class DiseaseModel(Machine):
             else:
                 dot.node(state.name(), color='orange')
             for transition in state.transition_set:
-                if transition._active is not None:  # Transition is a triggered transition
+                if transition._active_index is not None:  # Transition is a triggered transition
                     dot.attr('edge', style='bold')
                 else:
                     dot.attr('edge', style='plain')

@@ -56,7 +56,7 @@ class DiarrheaEtiologyState(State):
     @modifies_value('metrics')
     @uses_columns(event_count_columns)
     def metrics(self, index, metrics, population_view):
-        """Output metrics counting the number of cases of diarrhea 
+        """Output metrics counting the number of cases of diarrhea
         and number of cases overall of diarrhea due to each pathogen
         """
         metrics[self.event_count_column] = population_view.get(index)[self.event_count_column].sum()
@@ -156,7 +156,7 @@ class DiarrheaBurden:
         Determines who should move from the healthy state to the diarrhea state
         and counts both cases of diarrhea and cases of diarrhea due to specific
         etiologies
-        
+
         Assumes only healthy people can get diarrhea.
         """
         pop = event.population
@@ -165,10 +165,10 @@ class DiarrheaBurden:
             pop.loc[pop['{}'.format(etiology)] == etiology, '{}_event_count'.format(etiology)] += 1
 
         affected_pop = pop.query("diarrhea == 'diarrhea'")
-        affected_pop['diarrhea_event_count'] += 1
-        affected_pop['diarrhea_event_time'] = pd.Timestamp(event.time)
+        affected_pop.loc[:, 'diarrhea_event_count'] += 1
+        affected_pop.loc[:, 'diarrhea_event_time'] = pd.Timestamp(event.time)
         choices, weights = zip(*self.proportions.items())
-        affected_pop['diarrhea'] = self.randomness.choice(affected_pop.index, choices, weights)
+        affected_pop.loc[:, 'diarrhea'] = self.randomness.choice(affected_pop.index, choices, weights)
 
         event.population_view.update(affected_pop)
 

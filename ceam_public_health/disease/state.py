@@ -9,8 +9,7 @@ from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.state_machine import State, TransientState
 from ceam.framework.values import modifies_value
-from ceam_inputs import (get_cause_specific_mortality,
-                         get_disability_weight, get_prevalence, get_excess_mortality, meid, hid)
+from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, meid, hid
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
@@ -59,7 +58,7 @@ class DiseaseState(State):
     """
     def __init__(self, state_id, disability_weight=None, prevalence_data=None,
                  dwell_time=0, event_time_column=None, event_count_column=None,
-                 side_effect_function=None, track_events=True, key='state'):
+                 side_effect_function=None, cleanup_function=None, track_events=True, key='state'):
         super().__init__(state_id, key=key)
         self._disability_weight_data = disability_weight
         self.prevalence_data = prevalence_data
@@ -69,6 +68,7 @@ class DiseaseState(State):
         self.event_time_column = event_time_column if event_time_column else self.state_id + '_event_time'
         self.event_count_column = event_count_column if event_count_column else self.state_id + '_event_count'
         self.side_effect_function = side_effect_function
+        self.cleanup_function = cleanup_function
         self.track_events = track_events or isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time > 0
         # Condition is set when the state is added to a disease model
         self.condition = None
@@ -116,6 +116,9 @@ class DiseaseState(State):
             self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series([pd.NaT]*population_size),
                                                       self.event_count_column: np.zeros(population_size)},
                                                      index=event.index))
+        for transition in self.transition_set:
+            if transition.start_active:
+                transition.set_active(event.index)
 
     def next_state(self, index, population_view):
         """Moves a population among different disease states.
@@ -144,7 +147,8 @@ class DiseaseState(State):
             A filtered index of the simulants.
         """
         population = self.population_view.get(index)
-        if self.track_events:  # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
+        # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
+        if self.track_events:
             return population.loc[population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
                                   < pd.Timestamp(self.clock())
                                   + pd.Timedelta(config.simulation_parameters.time_step, unit='D')].index
@@ -167,20 +171,24 @@ class DiseaseState(State):
         if self.side_effect_function is not None:
             self.side_effect_function(index)
 
-    def add_transition(self, output, proportion=None, rates=None, triggered=False):
+    def _cleanup_effect(self, index):
+        if self.cleanup_function is not None:
+            self.cleanup_function(index, pd.Timestamp(self.clock()))
+
+    def add_transition(self, output, proportion=None, rates=None, **kwargs):
         if proportion is not None and rates is not None:
             raise ValueError("Both proportion and rate data provided.")
         if proportion is not None:
             t = ProportionTransition(output=output,
                                      proportion=proportion,
-                                     triggered=triggered)
+                                     **kwargs)
         elif rates is not None:
             t = RateTransition(output=output,
                                rate_label=output.name(),
                                rate_data=rates,
-                               triggered=triggered)
+                               **kwargs)
         else:
-            return super().add_transition(output, triggered=triggered)
+            return super().add_transition(output, **kwargs)
 
         self.transition_set.append(t)
         return t
@@ -290,22 +298,25 @@ class TransientDiseaseState(TransientState):
             self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series([pd.NaT]*population_size),
                                                       self.event_count_column: np.zeros(population_size)},
                                                      index=event.index))
+        for transition in self.transition_set:
+            if transition.start_active:
+                transition.set_active(event.index)
 
-    def add_transition(self, output, proportion=None, rates=None, triggered=False):
-
+    def add_transition(self, output, proportion=None, rates=None, **kwargs):
         if proportion is not None and rates is not None:
             raise ValueError("Both proportion and rate data provided.")
         if proportion is not None:
             t = ProportionTransition(output=output,
                                      proportion=proportion,
-                                     triggered=triggered)
+                                     **kwargs)
         elif rates is not None:
             t = RateTransition(output=output,
                                rate_label=output.name(),
                                rate_data=rates,
-                               triggered=triggered)
+                               **kwargs)
         else:
-            t = super().add_transition(output, triggered=triggered)
+            return super().add_transition(output, **kwargs)
+
         self.transition_set.append(t)
         return t
 
@@ -318,7 +329,7 @@ class ExcessMortalityState(DiseaseState):
     state_id : str
         The name of this state.
     excess_mortality_data : `pandas.DataFrame`
-        A table of excess mortality data associated with this state.    
+        A table of excess mortality data associated with this state.
     """
     def __init__(self, state_id, excess_mortality_data, **kwargs):
         super().__init__(state_id, **kwargs)

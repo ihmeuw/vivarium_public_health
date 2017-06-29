@@ -22,6 +22,7 @@ class RateTransition(Transition):
         self.joint_paf = builder.value('paf.{}'.format(self.rate_label), list_combiner, joint_value_post_processor)
         self.joint_paf.source = lambda index: [pd.Series(0, index=index)]
         self.base_incidence = builder.lookup(self.rate_data)
+        return super().setup(builder)
 
     def _probability(self, index):
         return rate_to_probability(self.effective_incidence(index))
@@ -56,6 +57,7 @@ class ProportionTransition(Transition):
             self.proportion = builder.lookup(get_proportion(self.modelable_entity_id))
         elif not isinstance(self.proportion, numbers.Number):
             self.proportion = builder.lookup(self.proportion)
+        return super().setup(builder)
 
     def _probability(self, index):
         if callable(self.proportion):
