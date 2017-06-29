@@ -102,14 +102,14 @@ def determine_vaccine_protection(pop, dose_working_index, waning_immunity_functi
 
     pop = pop[pop.days_since_vaccine_started_conferring_immunity.notnull()]
 
-    pop['days_since_vaccine_started_conferring_immunity'] = (
+    pop.loc[:, 'days_since_vaccine_started_conferring_immunity'] = (
         pop['days_since_vaccine_started_conferring_immunity'] / np.timedelta64(1, 'D')).astype(int)
 
     full_immunity_duration = config.rota_vaccine.vaccine_full_immunity_duration
 
     waning_immunity_time = config.rota_vaccine.waning_immunity_time
 
-    pop['vaccine_protection'] = pop['days_since_vaccine_started_conferring_immunity'].apply(
+    pop.loc[:, 'vaccine_protection'] = pop['days_since_vaccine_started_conferring_immunity'].apply(
         lambda days: waning_immunity_function(days, full_immunity_duration, waning_immunity_time, vaccine_protection))
 
     return pop.loc[dose_working_index]['vaccine_protection']

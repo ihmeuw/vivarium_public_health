@@ -77,16 +77,25 @@ class RiskEffect:
 
         if config.risks.apply_mediation:
             self.mediation_factor = builder.lookup(self._mediation_factor)
-            builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause.name))
-            builder.modifies_value(self.paf_mf_adjustment, 'paf.{}'.format(self.cause.name))
+        else:
+            self.mediation_factor = None
+        builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause.name))
+        builder.modifies_value(self.paf_mf_adjustment, 'paf.{}'.format(self.cause.name))
 
         return [self.exposure_effect]
 
     def paf_mf_adjustment(self, index):
-        return self.population_attributable_fraction(index) * (1 - self.mediation_factor(index))
+        if self.mediation_factor:
+            return self.population_attributable_fraction(index) * (1 - self.mediation_factor(index))
+        else:
+            return self.population_attributable_fraction(index)
 
     def incidence_rates(self, index, rates):
-        return self.exposure_effect(rates, self.relative_risk(index).pow(1 - self.mediation_factor(index), axis=0))
+        if self.mediation_factor:
+            return self.exposure_effect(rates, self.relative_risk(index).pow(1 - self.mediation_factor(index), axis=0))
+        else:
+            return self.exposure_effect(rates, self.relative_risk(index))
+
 
     def __repr__(self):
         return ("RiskEffect(rr_data= {},\npaf_data= {},\n".format(self._rr_data, self._paf_data)
