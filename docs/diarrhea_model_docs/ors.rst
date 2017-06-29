@@ -18,8 +18,8 @@ At the beginning of the simulation:
 Each time step:
         1) We filter down our population to people that got severe diarrhea in the CURRENT time step
         2) We then assign ORS based on the simulant's propensity score and the ORS exposure estimates from GBD. Each simulant that gets ORS receives the benefit for the entire duration of the bout of diarrhea***
-        4) Each time step, we risk-delete the severe diarrhea excess mortality rate for all simulants that currently have diarrhea. For those that are not exposed to the risk (i.e. the simulants that are receiving ORS) we multiply the risk-deleted severe diarrhea excess mortality rate by the relative risk.
-        5) Then we accrue costs and counts.
+        3) Each time step, we risk-delete the severe diarrhea excess mortality rate for all simulants that currently have diarrhea. For those that are not exposed to the risk (i.e. the simulants that are receiving ORS) we multiply the risk-deleted severe diarrhea excess mortality rate by the relative risk.
+        4) Then we accrue costs and counts.
 At the end of the simulation:
         1) We sum up and output costs and counts.
 
