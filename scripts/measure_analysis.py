@@ -65,8 +65,6 @@ def graph_measure(data, measure, output_directory):
             # TODO: This may be better represented as mark size
             mean_sample_size = filtered.sample_size.mean()
 
-            ax.set_xlim([0, max(filtered.gbd.max(), filtered.simulation.max())])
-            ax.set_ylim([0, max(filtered.gbd.max(), filtered.simulation.max())])
 
             bins = get_age_bins()
 
@@ -81,6 +79,9 @@ def graph_measure(data, measure, output_directory):
             else:
                 title = '{} Age Group ({})'.format(age_group_name, int(mean_sample_size))
             ax.set_title(title)
+
+            ax.set_xlim([0, max(filtered.gbd.max()*1.2, filtered.simulation.max()*1.2)])
+            ax.set_ylim([0, max(filtered.gbd.max()*1.2, filtered.simulation.max()*1.2)])
 
             # Draw the equivalence line
             ax.plot(ax.get_xlim(), ax.get_ylim(), 'k-', zorder=1, lw=1)
@@ -98,7 +99,8 @@ def graph_measure(data, measure, output_directory):
                 # Fake error bars for testing plots
                 # xerr = np.array([0.5 * gbd, 0.5 * gbd])
                 # yerr = np.array([0.5 * simulation, 0.5 * simulation])
-                ax.errorbar(gbd, simulation, xerr=xerr, yerr=yerr, fmt=shape)
+                for g, s, xe, ye, c in zip(gbd, simulation, xerr.T, yerr.T, color):
+                    ax.errorbar(g, s, xerr=xe[np.newaxis], yerr=ye[np.newaxis], fmt=shape, color=c)
 
             # The graphs tend to be pretty tight so rotate the x axis labels to make better use of space
             for tick in ax.get_xticklabels():
@@ -151,15 +153,6 @@ def prepare_comparison(data):
     data['sample_size'] = data.sample_size.astype(int)
     data = _mean_and_bounds(data, 'simulation')
 
-    # Calculate RGB triples for each cause for use in coloring marks on the graphs
-    cmap = plt.get_cmap('jet')
-    # This sort and shuffle looks a bit odd but what it accomplishes is to deterministically
-    # spread the causes out across the color space which makes it easier to assign visually
-    # distinct colors to them that don't change from run to run
-    causes = sorted(data.cause.unique())
-    np.random.RandomState(1001).shuffle(causes)
-    color_map = {cause:tuple(color) for cause, color in zip(causes, cmap(np.linspace(0, 1, len(causes))))}
-    data['color'] = data.cause.apply(color_map.get)
 
     data = data.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'])
 
@@ -169,7 +162,21 @@ def prepare_comparison(data):
     measure_cube.loc[measure_cube.age == 82.5, 'age'] = 102.5
     measure_cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'], inplace=True)
 
-    return data.merge(measure_cube, left_index=True, right_index=True)
+    data = data.merge(measure_cube, left_index=True, right_index=True)
+
+    # Calculate RGB triples for each cause for use in coloring marks on the graphs
+    cmap = plt.get_cmap('jet')
+    # This sort and shuffle looks a bit odd but what it accomplishes is to deterministically
+    # spread the causes out across the color space which makes it easier to assign visually
+    # distinct colors to them that don't change from run to run
+    data.reset_index(inplace=True)
+    causes = sorted(data.cause.unique())
+    np.random.RandomState(1001).shuffle(causes)
+    color_map = {cause:tuple(color) for cause, color in zip(causes, cmap(np.linspace(0, 1, len(causes))))}
+    data['color'] = data.cause.apply(color_map.get)
+    data.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'], inplace=True)
+
+    return data
 
 def graph_comparison(data, output_directory):
     data = prepare_comparison(data)
