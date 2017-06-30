@@ -31,7 +31,7 @@ configuration:
                 location_id: 180
                 year_start: 2005
                 year_end: 2011
-                time_step: 300.5 #Days
+                time_step: 30.5 #Days
                 pop_age_start: 0
                 pop_age_end: 125
                 population_size: 100000
