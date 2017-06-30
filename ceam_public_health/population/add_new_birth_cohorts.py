@@ -158,7 +158,7 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness('fertility')
-        self.asfr = builder.lookup(get_age_specific_fertility_rates()[['year', 'age', 'mean_value']],
+        self.asfr = builder.lookup(get_age_specific_fertility_rates()[['year', 'age', 'rate']],
                                    key_columns=(),
                                    parameter_columns=('year', 'age',))
 

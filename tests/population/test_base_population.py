@@ -32,8 +32,8 @@ def test_generate_ceam_population():
                                    number_of_simulants=1000000,
                                    randomness_stream=randomness)
 
-    num_7_and_half_yr_old_males = pop.query("age == 7.5 and sex_id == 1").copy()
-    num_7_and_half_yr_old_males['count'] = 1
+    num_7_and_half_yr_old_males = pop.query("age == 7.5 and sex == 'Male'").copy()
+    num_7_and_half_yr_old_males.loc[:, 'count'] = 1
     val = num_7_and_half_yr_old_males.groupby('age')[['count']].sum()
     val = val.get_value(7.5, 'count')
     val = val / 1000000

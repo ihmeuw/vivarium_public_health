@@ -4,7 +4,6 @@ import pandas as pd
 from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
-from ceam.framework.randomness import RandomnessStream
 from ceam_inputs import assign_subregions, get_populations
 
 
@@ -88,6 +87,7 @@ def generate_ceam_population(population_data, number_of_simulants, year, randomn
         simulants['sex'] = choices.loc[decisions, 'sex'].values
 
     simulants['location'] = pop_data['location_id']
+    simulants['alive'] = True
     return simulants
 
 
