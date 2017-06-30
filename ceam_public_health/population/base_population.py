@@ -4,22 +4,91 @@ import pandas as pd
 from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
-from ceam_inputs import (generate_ceam_population, assign_subregions)
+from ceam.framework.randomness import RandomnessStream
+from ceam_inputs import assign_subregions, get_populations
 
 
-@listens_for('initialize_simulants', priority=0)
-@uses_columns(['age', 'sex', 'alive', 'location'])
-def generate_base_population(event):
-    population_size = len(event.index)
+class BasePopulation:
 
-    # TODO: FIGURE OUT HOW TO SET INITIAL AGE OUTSIDE OF MANUALLY SETTING BELOW
-    initial_age = event.user_data.get('initial_age', None)
+    def setup(self, builder):
+        self._population_data = _add_proportions(
+            get_populations(location_id=config.simulation_parameters.location_id))
+        self.randomness = builder.randomness('population_generation')
 
-    population = generate_ceam_population(time=event.time, number_of_simulants=population_size, initial_age=initial_age)
+    @listens_for('initialize_simulants', priority=0)
+    @uses_columns(['age', 'sex', 'alive', 'location'])
+    def generate_base_population(self, event):
+        population_size = len(event.index)
+        initial_age = event.user_data.get('initial_age', None)
 
-    population.index = event.index
+        population = generate_ceam_population(self._population_data, population_size, event.time.year,
+                                              self.randomness, initial_age=initial_age)
+        population.index = event.index
+        event.population_view.update(population)
 
-    event.population_view.update(population)
+
+def _add_proportions(population_data):
+    def normalize(sub_pop):
+        return sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum()
+    population_data['annual_proportion'] = population_data.groupby(
+        'year', as_index=False).apply(normalize).reset_index(level=0).pop_scaled
+    population_data['annual_proportion_by_age'] = population_data.groupby(
+        ['age', 'year'], as_index=False).apply(normalize).reset_index(level=0).pop_scaled
+    return population_data
+
+
+def generate_ceam_population(population_data, number_of_simulants, year, randomness_stream, initial_age=None):
+    """Returns a population of simulants to be fed into CEAM
+
+    Parameters
+    ----------
+    population_data: `DataFrame`
+        A table describing the demographic structure of the population to generate.
+    number_of_simulants: int
+        The size of the population to generate.
+    year: int
+        Specific year to generate the population for.  Should be the current year in the simulation.
+    randomness_stream: `RandomnessStream`
+        A randomness source tied to the CRN framework.
+    initial_age : int
+        If not None simulants will all be set to this age otherwise their
+        ages will come from the population distribution
+
+    Returns
+    -------
+    `DataFrame` :
+        Table with columns simulant_id, age, sex, and location.
+    """
+
+    pop_data = population_data[population_data.year == year]
+
+    simulants = pd.DataFrame({'simulant_id': np.arange(number_of_simulants, dtype=int)})
+
+    if initial_age is not None:
+        simulants['age'] = initial_age
+        pop_data = pop_data[(pop_data.age_group_start <= initial_age) & (pop_data.age_group_end >= initial_age)]
+        # Assign a demographically accurate sex distribution.
+        simulants['sex'] = randomness_stream.choice(simulants.index,
+                                                    choices=['Male', 'Female'],
+                                                    p=[float(pop_data[pop_data.sex == sex].annual_proportion_by_age)
+                                                       for sex in ['Male', 'Female']])
+    else:
+        pop_age_start = config.simulation_parameters.pop_age_start
+        pop_age_end = config.simulation_parameters.pop_age_end
+        if pop_age_start is None or pop_age_end is None:
+            raise ValueError("Must provide initial_age if pop_age_start and/or pop_age_end are not set.")
+
+        pop_data = pop_data[(pop_data.age <= float(pop_age_end)) & (pop_data.age >= float(pop_age_start))]
+        pop_data = pop_data[pop_data.sex != 'Both']
+        choices = pop_data.set_index(['age', 'sex']).annual_proportion.reset_index()
+        decisions = randomness_stream.choice(simulants.index,
+                                             choices=choices.index,
+                                             p=choices.annual_proportion)
+        simulants['age'] = choices.loc[decisions, 'age'].values
+        simulants['sex'] = choices.loc[decisions, 'sex'].values
+
+    simulants['location'] = pop_data['location_id']
+    return simulants
 
 
 @listens_for('initialize_simulants', priority=1)
