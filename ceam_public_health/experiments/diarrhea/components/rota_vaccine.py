@@ -7,7 +7,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import get_rota_vaccine_coverage, get_dtp3_coverage
+from ceam_inputs import get_rota_vaccine_coverage, get_dtp3_coverage, get_rota_vaccine_protection
 
 
 def set_vaccine_duration(population, etiology, dose):
@@ -138,7 +138,6 @@ class RotaVaccine:
             'cost_to_administer_each_dose': 0,
             'first_dose_protection': 0,
             'second_dose_protection': 0,
-            'third_dose_protection': .39,
             'vaccine_full_immunity_duration': 730,
             'waning_immunity_time': 0,
             'age_at_first_dose': 61,
@@ -202,6 +201,8 @@ class RotaVaccine:
         else:
             self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
             self.vaccine_coverage.source = builder.lookup(get_rota_vaccine_coverage())
+
+        self.third_dose_protection = get_rota_vaccine_protection()
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
@@ -491,7 +492,7 @@ class RotaVaccine:
             if dose == "second":
                 protection = config.rota_vaccine.second_dose_protection
             if dose == "third":
-                protection = config.rota_vaccine.third_dose_protection
+                protection = self.third_dose_protection
 
             if len(dose_working_index) > 0:
                 vaccine_protection = determine_vaccine_protection(population,
