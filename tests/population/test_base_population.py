@@ -27,8 +27,8 @@ def setup():
 def test_generate_ceam_population():
     randomness = RandomnessStream('population_generation_test', clock=lambda: datetime(1990, 1, 1), seed=12345)
     pop = _add_proportions(get_populations(KENYA))
+    pop = pop[pop.year == 1990]
     pop = generate_ceam_population(pop,
-                                   year=1990,
                                    number_of_simulants=1000000,
                                    randomness_stream=randomness)
 

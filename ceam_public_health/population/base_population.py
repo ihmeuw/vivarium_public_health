@@ -41,7 +41,7 @@ def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, i
 
     Parameters
     ----------
-    population_data: `DataFrame`
+    pop_data: `DataFrame`
         A table describing the demographic structure of the population to generate.
     number_of_simulants: int
         The size of the population to generate.
@@ -92,14 +92,17 @@ def _rescale_binned_proportions(pop_data):
     pop_data = pop_data[(pop_data.age_group_start < pop_age_end)
                         & (pop_data.age_group_end > pop_age_start)]
 
-    max_bin = pop_data[pop_data.age_group_end >= pop_age_end]
-    min_bin = pop_data[pop_data.age_group_start <= pop_age_start]
+    # TODO: Replace your laziness with a groupby
+    for sex in ['Male', 'Female']:
+        max_bin = pop_data[(pop_data.age_group_end >= pop_age_end) & (pop_data.sex == sex)]
+        min_bin = pop_data[(pop_data.age_group_start <= pop_age_start) & (pop_data.sex == sex)]
 
-    max_scale = float(max_bin.age_group_end)-pop_age_end / float(max_bin.age_group_end - max_bin.age_group_start)
-    min_scale = pop_age_start - float(min_bin.age_group_start) / float(min_bin.age_group_end - min_bin.age_group_start)
+        max_scale = float(max_bin.age_group_end)-pop_age_end / float(max_bin.age_group_end - max_bin.age_group_start)
+        min_scale = (pop_age_start - float(min_bin.age_group_start)
+                     / float(min_bin.age_group_end - min_bin.age_group_start))
 
-    pop_data.loc[max_bin.index, 'annual_proportion'] *= max_scale
-    pop_data.loc[min_bin.index, 'annual_proportion'] *= min_scale
+        pop_data[pop_data.sex == sex].loc[max_bin.index, 'annual_proportion'] *= max_scale
+        pop_data[pop_data.sex == sex].loc[min_bin.index, 'annual_proportion'] *= min_scale
 
     return pop_data
 
