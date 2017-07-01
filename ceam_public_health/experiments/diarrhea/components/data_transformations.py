@@ -1,8 +1,23 @@
 import pandas as pd
 
 from ceam_inputs import (get_excess_mortality, get_severity_splits,
-                         get_remission, get_incidence, get_pafs, causes)
+                         get_remission, get_incidence, get_pafs, causes,
+                         get_disability_weight)
 from experiments.diarrhea.components.diarrhea_ihea import CARE_PROPORTION
+
+
+def get_care_sought_disability_weight():
+    severe_diarrhea_proportion = get_severity_splits(causes.diarrhea.incidence,
+                                                     causes.severe_diarrhea.incidence)
+    moderate_diarrhea_proportion = get_severity_splits(causes.diarrhea.incidence,
+                                                       causes.moderate_diarrhea.incidence)
+    scaled_severe = severe_diarrhea_proportion / (severe_diarrhea_proportion + moderate_diarrhea_proportion)
+    scaled_moderate = moderate_diarrhea_proportion / (severe_diarrhea_proportion + moderate_diarrhea_proportion)
+
+    severe_disability = get_disability_weight(healthstate_id=causes.severe_diarrhea.disability_weight)
+    moderate_disability = get_disability_weight(healthstate_id=causes.moderate_diarrhea.disability_weight)
+
+    return scaled_severe*severe_disability + scaled_moderate*moderate_disability
 
 
 def get_severe_diarrhea_excess_mortality():
