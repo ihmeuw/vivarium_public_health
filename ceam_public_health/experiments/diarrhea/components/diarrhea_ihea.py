@@ -8,8 +8,9 @@ from ceam_inputs import get_disability_weight, get_cause_specific_mortality, cau
 
 from ceam_public_health.disease import DiseaseState, TransientDiseaseState, ExcessMortalityState, DiseaseModel
 
-from experiments.diarrhea.components.data_transformations import get_etiology_incidence, get_duration_in_days, get_care_sought_excess_mortality, get_care_sought_disability_weight
+from ceam_public_health.experiments.diarrhea.components.data_transformations import get_etiology_incidence, get_duration_in_days, get_care_sought_excess_mortality, get_care_sought_disability_weight
 
+CARE_PROPORTION = 0.31
 
 Etiology = namedtuple('Etiology', ['name', 'model', 'sick_transition', 'recovery_transition', 'pre_trigger_state'])
 Etiology.__doc__ = """A container for information about a diarrhea etiology.
@@ -28,8 +29,6 @@ pre_trigger_state : `ceam_public_health.disease.DiseaseState`
     This etiology's sick state.
 """
 
-
-CARE_PROPORTION = 0.3
 
 
 def build_etiology_model(etiology_name, infection_side_effect=None):

@@ -3,7 +3,7 @@ import pandas as pd
 from ceam_inputs import (get_excess_mortality, get_severity_splits,
                          get_remission, get_incidence, get_pafs, causes,
                          get_disability_weight)
-from experiments.diarrhea.components.diarrhea_ihea import CARE_PROPORTION
+from ceam_public_health.experiments.diarrhea.components.diarrhea_ihea import CARE_PROPORTION
 
 
 def get_care_sought_disability_weight():
