@@ -1,3 +1,5 @@
+from enum import Enum
+
 import numpy as np
 import pandas as pd
 
@@ -23,6 +25,8 @@ class BasePopulation:
 
         population = generate_ceam_population(sub_pop_data, population_size, self.randomness, initial_age=initial_age)
         population.index = event.index
+        population['entrance_time'] = pd.Timestamp(event.time)
+        population['exit_time'] = pd.NaT
         event.population_view.update(population)
 
 
@@ -34,6 +38,15 @@ def _add_proportions(population_data):
     population_data['annual_proportion_by_age'] = population_data.groupby(
         ['age', 'year'], as_index=False).apply(normalize).reset_index(level=0).pop_scaled
     return population_data
+
+
+class Alive(Enum):
+    ALIVE = True
+    DEAD = False
+    UNTRACKED = False
+
+    def __bool__(self):
+        return bool(self.value)
 
 
 def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, initial_age=None):
@@ -79,7 +92,7 @@ def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, i
         simulants['sex'] = choices.loc[decisions, 'sex'].values
 
     simulants['location'] = pop_data['location_id']
-    simulants['alive'] = True
+    simulants['alive'] = Alive.ALIVE
     return simulants
 
 
@@ -107,13 +120,12 @@ def _rescale_binned_proportions(pop_data):
     return pop_data
 
 
-
-
 @listens_for('initialize_simulants', priority=1)
 @uses_columns(['location'])
 def assign_location(event):
     main_location = config.simulation_parameters.location_id
     event.population_view.update(assign_subregions(event.index, main_location, event.time.year))
+
 
 @listens_for('initialize_simulants')
 @uses_columns(['adherence_category'])
@@ -128,7 +140,9 @@ def adherence(event):
     p = r.dirichlet(alpha)
     # then use these probabilities to generate adherence
     # categories for all simulants
-    event.population_view.update(pd.Series(r.choice(['adherent', 'semi-adherent', 'non-adherent'], p=p, size=population_size), dtype='category'))
+    event.population_view.update(pd.Series(r.choice(['adherent', 'semi-adherent', 'non-adherent'],
+                                                    p=p, size=population_size), dtype='category'))
+
 
 @listens_for('time_step')
 @uses_columns(['age'], 'alive')
@@ -136,5 +150,17 @@ def age_simulants(event):
     time_step = config.simulation_parameters.time_step
     event.population['age'] += time_step/365.0
     event.population_view.update(event.population)
+
+
+@listens_for('time_step', priority=1)  # Set slightly after mortality.
+@uses_columns(['alive', 'age', 'exit_time', 'cause_of_death'], 'alive')
+def age_out_simulants(event):
+    max_age = float(config.simulation_parameters.maximum_age)
+    pop = event.population[event.population['age'] >= max_age].copy()
+    pop['alive'] = Alive.UNTRACKED
+    pop['age'] = max_age
+    pop['exit_time'] = pd.Timestamp(event.time)
+    pop['cause_of_death'] = 'not tracked'
+    event.population_view.update(pop)
 
 

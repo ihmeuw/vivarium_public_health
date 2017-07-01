@@ -11,10 +11,7 @@ from ceam.framework.population import uses_columns
 from ceam.framework.util import rate_to_probability
 from ceam.framework.values import list_combiner, produces_value, modifies_value
 
-from ceam_public_health.util import make_cols_demographically_specific
-
-susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time", 2, 5)
-diarrhea_event_count_cols = make_cols_demographically_specific("diarrhea_event_count", 2, 5)
+from . import Alive
 
 
 class Mortality:
@@ -44,17 +41,11 @@ class Mortality:
         event.population_view.update(pd.Series(pd.NaT, name='death_day', index=event.index))
         event.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
 
-    # FIXME: Set the time of death to be the midpoint between the current and next time step. this is important for the mortality rate calculations
     @listens_for('time_step', priority=0)
     @uses_columns(['alive', 'death_day', 'cause_of_death'], 'alive')
     def mortality_handler(self, event):
-        rate_df = self.mortality_rate(event.index)
+        prob_df = rate_to_probability(self.mortality_rate(event.index))
 
-        # make sure to turn the rates into probabilities, do a cumulative sum to make sure that people can only die from one cause
-        # first convert to probabilities
-        prob_df = rate_to_probability(rate_df)
-
-        # determine if simulant has died, assign cause of death
         prob_df['no_death'] = 1-prob_df.sum(axis=1)
 
         prob_df['cause_of_death'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
