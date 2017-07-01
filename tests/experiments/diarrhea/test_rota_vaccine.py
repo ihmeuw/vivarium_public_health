@@ -33,6 +33,7 @@ def setup():
     config.simulation_parameters.set_with_metadata('time_step', 1, layer='override', source=os.path.realpath(__file__))
     config.simulation_parameters.set_with_metadata('initial_age', 0, layer='override',
                                                    source=os.path.realpath(__file__))
+    config.rota_vaccine.set_with_metadata('location_id', 179, layer='override', source=os.path.realpath(__file__))
 
     config.rota_vaccine.set_with_metadata('age_at_first_dose', 6, layer='override', source=os.path.realpath(__file__))
     config.rota_vaccine.set_with_metadata('age_at_second_dose', 12, layer='override', source=os.path.realpath(__file__))
