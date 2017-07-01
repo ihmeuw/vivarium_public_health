@@ -1,7 +1,7 @@
 components:
         - ceam_public_health:
                 - population:
-                        - generate_base_population
+                        - BasePopulation()
                         - adherence
                         - age_simulants
                         - Mortality()
