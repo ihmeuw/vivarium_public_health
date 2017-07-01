@@ -56,8 +56,6 @@ class Ors:
         self.exposure = builder.value('exposure.ors')
         self.exposure.source = builder.lookup(self._exposure_data, parameter_columns=('year',))
 
-        self.cost = get_diarrhea_visit_costs()
-
         self.randomness = builder.randomness('ors_susceptibility')
         self.ha_randomness = builder.randomness('diarrhea_healthcare_access')
 
