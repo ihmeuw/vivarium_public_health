@@ -16,7 +16,10 @@ ha_given_no_ors_p = 0.189
 def make_ors_components():
     paf = get_ors_pafs()
     rr = get_ors_relative_risks()
-    cost = get_diarrhea_visit_costs()
+    if config.ors.run_intervention:
+        cost = get_ors_costs()
+    elif not config.ors.run_intervention:
+        cost = get_diarrhea_costs()
     exposure = get_ors_exposures()
     components = [Ors(paf, rr, exposure, cost)]
     if config.ors.run_intervention:
