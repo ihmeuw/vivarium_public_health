@@ -28,6 +28,7 @@ pre_trigger_state : `ceam_public_health.disease.DiseaseState`
     This etiology's sick state.
 """
 
+# TODO: Add disability weights based on severity splits.
 
 CARE_PROPORTION = 0.3
 
