@@ -134,8 +134,7 @@ class FertilityCrudeBirthRate:
         location_id = config.simulation_parameters.location_id
         simulation_max_age = int(config.simulation_parameters.pop_age_end)
 
-        # 3 is the sex_id to pull both males and females
-        population_table = get_populations(location_id, year, 3)
+        population_table = get_populations(location_id, year, sex='Both')
         population = population_table.pop_scaled[population_table.age < simulation_max_age].sum()
         births = float(get_annual_live_births(location_id, year))
 
@@ -159,7 +158,7 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness('fertility')
-        self.asfr = builder.lookup(get_age_specific_fertility_rates()[['year', 'age', 'mean_value']],
+        self.asfr = builder.lookup(get_age_specific_fertility_rates()[['year', 'age', 'rate']],
                                    key_columns=(),
                                    parameter_columns=('year', 'age',))
 

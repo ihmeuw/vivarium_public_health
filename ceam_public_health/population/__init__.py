@@ -1,3 +1,3 @@
 from .add_new_birth_cohorts import FertilityAgeSpecificRates, FertilityCrudeBirthRate, FertilityDeterministic
-from .base_population import generate_base_population, adherence, age_simulants, assign_location
+from .base_population import adherence, age_simulants, assign_location, BasePopulation
 from .mortality import Mortality
