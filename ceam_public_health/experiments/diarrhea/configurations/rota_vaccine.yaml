@@ -30,6 +30,5 @@ configuration:
         pop_age_end:
         initial_age: 0.0
         population_size: 100000
-        dtp3_coverage: True
     run_configuration:
         results_directory: "/share/scratch/users/emumford"
