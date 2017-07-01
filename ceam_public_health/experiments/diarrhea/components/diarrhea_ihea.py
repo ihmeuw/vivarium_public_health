@@ -29,6 +29,7 @@ pre_trigger_state : `ceam_public_health.disease.DiseaseState`
     This etiology's sick state.
 """
 
+# TODO: Add disability weights based on severity splits.
 
 
 def build_etiology_model(etiology_name, infection_side_effect=None):
