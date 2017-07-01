@@ -5,7 +5,7 @@ components:
                 - age_simulants
                 - Mortality()
             - experiments.diarrhea.components:
-                - diarrhea2.build_diarrhea_model()
+                - diarrhea_ihea.build_diarrhea_model()
                 - rota_vaccine.RotaVaccine()
             - metrics:
                 - Metrics()
