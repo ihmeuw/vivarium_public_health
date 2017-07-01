@@ -8,7 +8,7 @@ from ceam_inputs import get_disability_weight, get_cause_specific_mortality, cau
 
 from ceam_public_health.disease import DiseaseState, TransientDiseaseState, ExcessMortalityState, DiseaseModel
 
-from experiments.diarrhea.components.data_transformations import get_etiology_incidence, get_duration_in_days, get_care_sought_excess_mortality
+from experiments.diarrhea.components.data_transformations import get_etiology_incidence, get_duration_in_days, get_care_sought_excess_mortality, get_care_sought_disability_weight
 
 
 Etiology = namedtuple('Etiology', ['name', 'model', 'sick_transition', 'recovery_transition', 'pre_trigger_state'])
@@ -82,8 +82,7 @@ def build_diarrhea_model():
                                   dwell_time=get_duration_in_days(causes.mild_diarrhea.duration))
     care_sought = ExcessMortalityState('care_sought',
                                        excess_mortality_data=get_care_sought_excess_mortality(),
-                                       disability_weight=get_disability_weight(
-                                           healthstate_id=causes.severe_diarrhea.disability_weight),
+                                       disability_weight=get_care_sought_disability_weight(),
                                        dwell_time=get_duration_in_days(causes.severe_diarrhea.duration))
 
     # Allow healthy to transition into the transient state diarrhea when triggered,
