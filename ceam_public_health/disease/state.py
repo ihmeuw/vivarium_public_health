@@ -227,7 +227,7 @@ class DiseaseState(State):
         `pandas.Series`
             An iterable of disability weights indexed by the provided `index`."""
         population = self.population_view.get(index)
-        return self._disability_weight(index) * (population[self.condition] == self.state_id)
+        return self._disability_weight(index)[population[self.condition] == self.state_id]
 
     def name(self):
         return '{}'.format(self.state_id)

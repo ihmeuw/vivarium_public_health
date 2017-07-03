@@ -101,6 +101,6 @@ class Ors:
         population = self.population_view.get(index)
 
         metrics['ors_count'] = population['ors_count'].sum()
-        metrics['ors_visit_cost'] = population['ors_count'].sum() * self.unit_cost
+        metrics['ors_unit_cost'] = population['ors_count'].sum() * self.unit_cost
 
         return metrics

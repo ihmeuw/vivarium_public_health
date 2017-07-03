@@ -146,5 +146,4 @@ class DiseaseModel(Machine):
     def metrics(self, index, metrics):
         population = self.population_view.get(index)
         metrics[self.condition + '_count'] = (population[self.condition] != 'healthy').sum()
-        import pdb; pdb.set_trace()
         return metrics

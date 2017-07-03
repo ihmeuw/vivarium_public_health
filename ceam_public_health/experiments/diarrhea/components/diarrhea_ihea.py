@@ -29,8 +29,6 @@ pre_trigger_state : `ceam_public_health.disease.DiseaseState`
     This etiology's sick state.
 """
 
-# TODO: Add disability weights based on severity splits.
-
 
 def build_etiology_model(etiology_name, infection_side_effect=None):
     """Builds a diarrhea etiology model.
@@ -84,7 +82,6 @@ def build_diarrhea_model():
                                        excess_mortality_data=get_care_sought_excess_mortality(),
                                        disability_weight=get_care_sought_disability_weight(),
                                        dwell_time=get_duration_in_days(causes.severe_diarrhea.duration))
-    import pdb; pdb.set_trace()
     # Allow healthy to transition into the transient state diarrhea when triggered,
     # otherwise allow it to transition back to itself each time step.
     diarrhea_transition = healthy.add_transition(diarrhea, triggered=Trigger.START_INACTIVE)

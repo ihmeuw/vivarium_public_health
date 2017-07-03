@@ -5,8 +5,8 @@ components:
                         - age_simulants
                         - Mortality()
                 - experiments.diarrhea.components:
-                        - diarrhea_ihea.build_diarrhea_model()
-                        - ors_ihea.Ors()
+                        - diarrhea2.build_diarrhea_model()
+                        - ors.Ors()
                 - metrics:
                         - Metrics()
                         - Disability()
