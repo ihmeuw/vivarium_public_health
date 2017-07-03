@@ -12,8 +12,7 @@ from ceam_inputs import get_ors_exposures, get_ors_relative_risks, get_ors_pafs
 ha_given_ors_p = 0.514
 ha_given_no_ors_p = 0.189
 
-ors_prevalence = 0.58
-ors_exposure = 1 - ors_prevalence
+ors_exposure = .58
 ors_unit_cost = 0.50
 
 
@@ -40,15 +39,14 @@ class IncreaseOrsExposure:
 
     @modifies_value('exposure.ors')
     def increase_exposure(self, index, exposure):
-        exposure.loc[index, 'cat1'] -= self.exposure_increase
-        exposure.loc[index, 'cat2'] += self.exposure_increase
+        exposure += 1 - exposure
 
 
 class Ors:
     def __init__(self, paf_data, rr_data, exposure_data, unit_cost):
         self._paf_data = paf_data
         self._rr_data = rr_data
-        self._exposure_data = exposure_data
+        self._exposure = exposure
         self.unit_cost = unit_cost
 
     def setup(self, builder):
@@ -77,26 +75,10 @@ class Ors:
         """
         This method determines who should be seeing the benefit of ors
         """
-        healthy = event.population['diarrhea']
-        pop.loc[pop['ors_end_time'] <= event.time, 'ors_working'] = 0
+        healthy = event.population['diarrhea'] #  FIXME: Not doing anything with 'healthy' currently
+        pop.loc[pop['ors_end_time'] <= event.time, 'ors_working'] = 0 #  FIXME: Do we need a ors_working (or ors_receiving) category anymore?
         pop = pop.loc[pop['diarrhea_event_time'] == pd.Timestamp(event.time)]
 
-        exp = self.exposure(pop.index)
-        categories = sorted([c for c in exp.columns if 'cat' in c])
-        exp = exp[categories]
-        exp = np.cumsum(exp, axis=1)
-        exp = pop.join(exp)
-
-        bool_list = [c + '_bool' for c in categories]
-        for col in categories:
-            exp['{}_bool'.format(col)] = exp['{}'.format(col)] < exp['ors_propensity']
-        exp['exposure_category'] = 'cat' + (exp[bool_list].sum(axis=1) + 1).astype(str)
-        exp = exp[['exposure_category']]
-
-        pop = pop.join(exp)
-
-        recieved_ors = pop.query('exposure_category == "cat2"').index
-        pop.loc[recieved_ors, 'ors_working'] = 1
         event.population_view.update(pop)
 
     @modifies_value('excess_mortality.diarrhea')
