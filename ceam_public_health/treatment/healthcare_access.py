@@ -13,6 +13,7 @@ from ceam.framework.randomness import filter_for_probability
 
 from ceam_inputs import get_proportion, get_doctor_visit_costs, get_inpatient_visit_costs
 
+
 outpatient_visits_meid = 9458
 
 # draw random costs for doctor visit (time-specific)
@@ -44,10 +45,10 @@ def hospitalization_side_effect_factory(male_probability, female_probability, ho
 
 
 class HealthcareAccess:
-    """Model health care utilization. 
-    
+    """Model health care utilization.
+
     This includes access events due to chance (broken arms, flu, etc.) and those due to follow up
-    appointments, which are affected by adherence rate. This module does not schedule 
+    appointments, which are affected by adherence rate. This module does not schedule
     follow-up visits.  But it implements the response to follow-ups added to the `healthcare_followup_date`
     column by other modules (for example opportunistic_screening.OpportunisticScreeningModule).
 
@@ -93,7 +94,7 @@ class HealthcareAccess:
                                                    'healthcare_last_visit_date': [pd.NaT]*population_size}))
 
     @listens_for('time_step')
-    @uses_columns(['healthcare_last_visit_date'], 'alive')
+    @uses_columns(['healthcare_last_visit_date'], "alive == 'alive'")
     def general_access(self, event):
         # determine population who accesses care
         t = self.utilization_proportion(event.index)
@@ -110,7 +111,8 @@ class HealthcareAccess:
         self.outpatient_cost[year] += len(index) * appointment_cost[year]
 
     @listens_for('time_step')
-    @uses_columns(['healthcare_last_visit_date', 'healthcare_followup_date', 'adherence_category'], 'alive')
+    @uses_columns(['healthcare_last_visit_date', 'healthcare_followup_date', 'adherence_category'],
+                  "alive == 'alive'")
     def followup_access(self, event):
         time_step = timedelta(days=config.simulation_parameters.time_step)
         # determine population due for a follow-up appointment

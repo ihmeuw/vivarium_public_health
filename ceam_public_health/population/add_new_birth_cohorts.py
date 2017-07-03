@@ -81,7 +81,7 @@ class FertilityCrudeBirthRate:
         self.randomness = builder.randomness('crude_birth_rate')
 
     @listens_for('time_step')
-    @uses_columns([], 'alive == True and age <= {}'.format(config.simulation_parameters.pop_age_end))
+    @uses_columns([], "alive == 'alive'")
     @creates_simulants
     def add_new_birth_cohort(self, event, creator):
         """Adds new simulants every time step based on the Crude Birth Rate
@@ -132,12 +132,15 @@ class FertilityCrudeBirthRate:
         """
 
         location_id = config.simulation_parameters.location_id
-        simulation_max_age = int(config.simulation_parameters.pop_age_end)
-
         population_table = get_populations(location_id, year, sex='Both')
-        population = population_table.pop_scaled[population_table.age < simulation_max_age].sum()
-        births = float(get_annual_live_births(location_id, year))
 
+        if 'maximum_age' in config.simulation_parameters:
+            population = population_table.pop_scaled[
+                population_table.age < config.simulation_parameters.maximum_age].sum()
+        else:
+            population = population_table.pop_scaled.sum()
+
+        births = float(get_annual_live_births(location_id, year))
         return births / population
 
 
@@ -184,7 +187,7 @@ class FertilityAgeSpecificRates:
         event.population_view.update(pd.Series(-1, name='parent_id', index=event.index, dtype=np.int64))
 
     @listens_for('time_step')
-    @uses_columns(['last_birth_time', 'parent_id'], 'alive == True and sex =="Female"')
+    @uses_columns(['last_birth_time', 'parent_id'], 'alive == "alive" and sex =="Female"')
     @creates_simulants
     def step(self, event, creator):
         """Produces new children and updates parent status on time steps.

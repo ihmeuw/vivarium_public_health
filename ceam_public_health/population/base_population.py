@@ -1,5 +1,3 @@
-from enum import Enum
-
 import numpy as np
 import pandas as pd
 
@@ -17,7 +15,7 @@ class BasePopulation:
         self.randomness = builder.randomness('population_generation')
 
     @listens_for('initialize_simulants', priority=0)
-    @uses_columns(['age', 'sex', 'alive', 'location'])
+    @uses_columns(['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time'])
     def generate_base_population(self, event):
         population_size = len(event.index)
         initial_age = event.user_data.get('initial_age', None)
@@ -38,15 +36,6 @@ def _add_proportions(population_data):
     population_data['annual_proportion_by_age'] = population_data.groupby(
         ['age', 'year'], as_index=False).apply(normalize).reset_index(level=0).pop_scaled
     return population_data
-
-
-class Alive(Enum):
-    ALIVE = True
-    DEAD = False
-    UNTRACKED = False
-
-    def __bool__(self):
-        return bool(self.value)
 
 
 def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, initial_age=None):
@@ -73,7 +62,7 @@ def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, i
     """
     simulants = pd.DataFrame({'simulant_id': np.arange(number_of_simulants, dtype=int)})
     if initial_age is not None:
-        simulants['age'] = initial_age
+        simulants['age'] = float(initial_age)
         pop_data = pop_data[(pop_data.age_group_start <= initial_age) & (pop_data.age_group_end >= initial_age)]
         # Assign a demographically accurate sex distribution.
         simulants['sex'] = randomness_stream.choice(simulants.index,
@@ -92,7 +81,7 @@ def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, i
         simulants['sex'] = choices.loc[decisions, 'sex'].values
 
     simulants['location'] = pop_data['location_id']
-    simulants['alive'] = Alive.ALIVE
+    simulants['alive'] = 'alive'
     return simulants
 
 
@@ -145,7 +134,7 @@ def adherence(event):
 
 
 @listens_for('time_step')
-@uses_columns(['age'], 'alive')
+@uses_columns(['age'], "alive == 'alive'")
 def age_simulants(event):
     time_step = config.simulation_parameters.time_step
     event.population['age'] += time_step/365.0
@@ -153,14 +142,15 @@ def age_simulants(event):
 
 
 @listens_for('time_step', priority=1)  # Set slightly after mortality.
-@uses_columns(['alive', 'age', 'exit_time', 'cause_of_death'], 'alive')
+@uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
 def age_out_simulants(event):
+    if 'maximum_age' not in config.simulation_parameters:
+        raise ValueError('Must specify a maximum age in the config in order to use this component.')
     max_age = float(config.simulation_parameters.maximum_age)
     pop = event.population[event.population['age'] >= max_age].copy()
-    pop['alive'] = Alive.UNTRACKED
+    pop['alive'] = 'untracked'
     pop['age'] = max_age
     pop['exit_time'] = pd.Timestamp(event.time)
-    pop['cause_of_death'] = 'not tracked'
     event.population_view.update(pop)
 
 
