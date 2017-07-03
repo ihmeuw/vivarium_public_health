@@ -7,7 +7,7 @@ from ceam import config
 from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
 
 from ceam_public_health.disease import ExcessMortalityState, DiseaseModel
-from ceam_public_health.metrics import Metrics
+from ceam_public_health.metrics import Metrics, Disability
 
 
 def setup():
@@ -49,7 +49,7 @@ def set_up_test_parameters(flu=False, mumps=False):
 
     if not mumps and not flu:
         simulation = setup_simulation([generate_test_population,
-                                       asymptomatic_disease_model, Metrics()],
+                                       asymptomatic_disease_model, Metrics(), Disability()],
                                       population_size=1000)
 
     # Now let's set up a disease model for a disease that does have
@@ -66,7 +66,7 @@ def set_up_test_parameters(flu=False, mumps=False):
         if not mumps:
             simulation = setup_simulation([generate_test_population,
                                            asymptomatic_disease_model, flu_model,
-                                          Metrics()], population_size=1000)
+                                          Metrics(), Disability()], population_size=1000)
 
     # Now let's set up another disease model so we can test that
     #     CEAM is calculating joint disability weights correctly
@@ -80,7 +80,7 @@ def set_up_test_parameters(flu=False, mumps=False):
         mumps_model.states.extend([mumps])
 
         simulation = setup_simulation([generate_test_population, asymptomatic_disease_model, flu_model,
-                                       mumps_model, Metrics()],
+                                       mumps_model, Metrics(), Disability()],
                                       population_size=1000)
 
     metrics = simulation.values.get_value('metrics')

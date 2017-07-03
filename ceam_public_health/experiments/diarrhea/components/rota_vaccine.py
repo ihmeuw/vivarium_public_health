@@ -187,7 +187,7 @@ class RotaVaccine:
                    self.vaccine_third_dose_working_column]
 
         self.clock = builder.clock()
-        self.population_view = builder.population_view(columns, query='alive')
+        self.population_view = builder.population_view(columns, query="alive == 'alive'")
 
         self.randomness = {}
         self.randomness['dose_1'] = builder.randomness('first_dose_randomness')
@@ -341,7 +341,7 @@ class RotaVaccine:
                    'rotaviral_entiritis_vaccine_third_dose_immunity_end_time',
                    'rotaviral_entiritis_vaccine_first_dose_is_working',
                    'rotaviral_entiritis_vaccine_second_dose_is_working',
-                   'rotaviral_entiritis_vaccine_third_dose_is_working'], 'alive')
+                   'rotaviral_entiritis_vaccine_third_dose_is_working'], "alive == 'alive'")
     def administer_vaccine(self, event):
         """
         Each time step, call the determine_who_should_receive_dose function to
@@ -400,7 +400,7 @@ class RotaVaccine:
                    'rotaviral_entiritis_vaccine_third_dose_immunity_end_time',
                    'rotaviral_entiritis_vaccine_first_dose_is_working',
                    'rotaviral_entiritis_vaccine_second_dose_is_working',
-                   'rotaviral_entiritis_vaccine_third_dose_is_working'], 'alive')
+                   'rotaviral_entiritis_vaccine_third_dose_is_working'], "alive == 'alive'")
     def set_working_column(self, event):
         """
         Function that sets the "working column", a binary column that indicates
@@ -449,7 +449,7 @@ class RotaVaccine:
                    'rotaviral_entiritis_vaccine_third_dose_is_working',
                    'rotaviral_entiritis_vaccine_first_dose_immunity_start_time',
                    'rotaviral_entiritis_vaccine_second_dose_immunity_start_time',
-                   'rotaviral_entiritis_vaccine_third_dose_immunity_start_time'], 'alive')
+                   'rotaviral_entiritis_vaccine_third_dose_immunity_start_time'], "alive == 'alive'")
     def incidence_rates(self, index, rates, population_view):
         """
         If the intervention is running, determine who is currently receiving

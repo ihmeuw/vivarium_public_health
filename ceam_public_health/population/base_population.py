@@ -15,7 +15,7 @@ class BasePopulation:
         self.randomness = builder.randomness('population_generation')
 
     @listens_for('initialize_simulants', priority=0)
-    @uses_columns(['age', 'sex', 'alive', 'location'])
+    @uses_columns(['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time'])
     def generate_base_population(self, event):
         population_size = len(event.index)
         initial_age = event.user_data.get('initial_age', None)
@@ -23,6 +23,8 @@ class BasePopulation:
 
         population = generate_ceam_population(sub_pop_data, population_size, self.randomness, initial_age=initial_age)
         population.index = event.index
+        population['entrance_time'] = pd.Timestamp(event.time)
+        population['exit_time'] = pd.NaT
         event.population_view.update(population)
 
 
@@ -60,7 +62,7 @@ def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, i
     """
     simulants = pd.DataFrame({'simulant_id': np.arange(number_of_simulants, dtype=int)})
     if initial_age is not None:
-        simulants['age'] = initial_age
+        simulants['age'] = float(initial_age)
         pop_data = pop_data[(pop_data.age_group_start <= initial_age) & (pop_data.age_group_end >= initial_age)]
         # Assign a demographically accurate sex distribution.
         simulants['sex'] = randomness_stream.choice(simulants.index,
@@ -79,7 +81,7 @@ def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, i
         simulants['sex'] = choices.loc[decisions, 'sex'].values
 
     simulants['location'] = pop_data['location_id']
-    simulants['alive'] = True
+    simulants['alive'] = 'alive'
     return simulants
 
 
@@ -107,13 +109,12 @@ def _rescale_binned_proportions(pop_data):
     return pop_data
 
 
-
-
 @listens_for('initialize_simulants', priority=1)
 @uses_columns(['location'])
 def assign_location(event):
     main_location = config.simulation_parameters.location_id
     event.population_view.update(assign_subregions(event.index, main_location, event.time.year))
+
 
 @listens_for('initialize_simulants')
 @uses_columns(['adherence_category'])
@@ -128,13 +129,28 @@ def adherence(event):
     p = r.dirichlet(alpha)
     # then use these probabilities to generate adherence
     # categories for all simulants
-    event.population_view.update(pd.Series(r.choice(['adherent', 'semi-adherent', 'non-adherent'], p=p, size=population_size), dtype='category'))
+    event.population_view.update(pd.Series(r.choice(['adherent', 'semi-adherent', 'non-adherent'],
+                                                    p=p, size=population_size), dtype='category'))
+
 
 @listens_for('time_step')
-@uses_columns(['age'], 'alive')
+@uses_columns(['age'], "alive == 'alive'")
 def age_simulants(event):
     time_step = config.simulation_parameters.time_step
     event.population['age'] += time_step/365.0
     event.population_view.update(event.population)
+
+
+@listens_for('time_step', priority=1)  # Set slightly after mortality.
+@uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
+def age_out_simulants(event):
+    if 'maximum_age' not in config.simulation_parameters:
+        raise ValueError('Must specify a maximum age in the config in order to use this component.')
+    max_age = float(config.simulation_parameters.maximum_age)
+    pop = event.population[event.population['age'] >= max_age].copy()
+    pop['alive'] = 'untracked'
+    pop['age'] = max_age
+    pop['exit_time'] = pd.Timestamp(event.time)
+    event.population_view.update(pop)
 
 

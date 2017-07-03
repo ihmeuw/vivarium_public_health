@@ -9,7 +9,9 @@ from ceam_inputs import (get_etiology_specific_incidence, get_severe_diarrhea_ex
                          get_cause_specific_mortality, get_disability_weight, get_severity_splits, causes)
 
 from ceam_public_health.disease import RateTransition, DiseaseModel
-from ceam_public_health.experiments.diarrhea.components.data_transformations import get_duration_in_days
+
+from .data_transformations import get_duration_in_days
+
 
 ETIOLOGIES = ['shigellosis',
               'cholera',
@@ -46,7 +48,7 @@ class DiarrheaEtiologyState(State):
 
     def setup(self, builder):
         columns = [self.event_count_column]
-        self.population_view = builder.population_view(columns, 'alive')
+        self.population_view = builder.population_view(columns, "alive == 'alive'")
         return super().setup(builder)
 
     @listens_for('initialize_simulants')
@@ -111,7 +113,7 @@ class DiarrheaBurden:
         self.duration_data = duration_data
 
     def setup(self, builder):
-        self.population_view = builder.population_view(['diarrhea'], 'alive')
+        self.population_view = builder.population_view(['diarrhea'], "alive == 'alive'")
         self.diarrhea_excess_mortality = builder.rate('excess_mortality.diarrhea')
         self.diarrhea_excess_mortality.source = builder.lookup(self.excess_mortality_data)
         self.duration = builder.value('duration.diarrhea')
@@ -127,7 +129,7 @@ class DiarrheaBurden:
                                                    'diarrhea_event_end_time': pd.Series(pd.NaT, index=event.index)}))
 
     @modifies_value('mortality_rate')
-    @uses_columns(['diarrhea'], 'alive')
+    @uses_columns(['diarrhea'], "alive == 'alive'")
     def mortality_rates(self, index, rates_df, population_view):
         population = population_view.get(index)
         rates_df['death_due_to_severe_diarrhea'] = (
@@ -150,7 +152,7 @@ class DiarrheaBurden:
 
     @listens_for('time_step', priority=6)
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_count', 'age', 'sex']
-                  + ETIOLOGIES + event_count_columns, 'alive and diarrhea == "healthy"')
+                  + ETIOLOGIES + event_count_columns, 'alive == "alive" and diarrhea == "healthy"')
     def move_people_into_diarrhea_state(self, event):
         """
         Determines who should move from the healthy state to the diarrhea state
@@ -173,7 +175,7 @@ class DiarrheaBurden:
         event.population_view.update(affected_pop)
 
     @uses_columns(['diarrhea', 'diarrhea_event_time', 'diarrhea_event_end_time'] + ETIOLOGIES,
-                  'alive and diarrhea != "healthy"')
+                  'alive == "alive" and diarrhea != "healthy"')
     @listens_for('time_step', priority=8)
     def apply_remission(self, event):
         affected_population = event.population
