@@ -9,7 +9,7 @@ from ceam_tests.util import build_table, setup_simulation, generate_test_populat
 from ceam_inputs import (get_severity_splits, get_cause_specific_mortality,
                          get_cause_deleted_mortality_rate, get_disability_weight, causes)
 
-from ceam_public_health.metrics import Metrics
+from ceam_public_health.metrics import Disability
 from ceam_public_health.population import Mortality
 
 from ceam_public_health.experiments.diarrhea.components.diarrhea2 import build_diarrhea_model
@@ -35,7 +35,7 @@ def setup():
 
 def make_simulation_object():
     diarrhea_and_etiology_models = build_diarrhea_model()
-    simulation = setup_simulation([generate_test_population, Metrics()] + diarrhea_and_etiology_models)
+    simulation = setup_simulation([generate_test_population, Disability()] + diarrhea_and_etiology_models)
 
     # make it so that all men will get incidence due to rotaviral entiritis
     incidence = build_table(0)
