@@ -1,7 +1,5 @@
-draw_count: 10
+draw_count: 20
 
 branches:
     - simulation_parameters:
-        location_id: 179
-      rota_vaccine:
-        vaccination_proportion_increase: 0
+        dtp3_coverage: false
