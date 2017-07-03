@@ -1,0 +1,30 @@
+components:
+        - ceam_public_health:
+                - population:
+                        - BasePopulation()
+                        - age_simulants
+                        - age_out_simulants
+                        - FertilityCrudeBirthRate()
+                        - Mortality()
+                - experiments.diarrhea.components:
+                        - diarrhea_ihea.build_diarrhea_model()
+                        - ors_ihea.make_ors_components()
+                        - healthcare_ihea.HealthcareAccess()
+                - metrics:
+                        - Metrics()
+                        - Disability()
+
+configuration:
+        simulation_parameters:
+                location_id: 179
+                year_start: 2010
+                year_end: 2015
+                time_step: 365
+                pop_age_start: 0
+                pop_age_end: 5
+                maximum_age: 5
+                initial_age: 0.0
+                population_size: 20000
+        ors:
+                additional_coverage: 0.42
+                run_intervention: True

@@ -112,8 +112,7 @@ def test_mortality_rates():
     pafs = get_ors_pafs()
     GBD_paf = pafs.query("sex == 'Male' and age <.01").set_index(['year']).get_value(2010, 'paf')
 
-    rrs = get_ors_relative_risks()
-    GBD_rr = rrs.query("sex == 'Male' and age <.01").set_index(['year']).get_value(2010, 'cat1')
+    GBD_rr = get_ors_relative_risks()
 
     mr = get_severe_diarrhea_excess_mortality()
     GBD_mr = mr.query("sex == 'Male' and age <.01").set_index(['year']).get_value(2010, 'rate')

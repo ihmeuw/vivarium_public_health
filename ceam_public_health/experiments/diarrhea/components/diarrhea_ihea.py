@@ -84,7 +84,7 @@ def build_diarrhea_model():
                                        excess_mortality_data=get_care_sought_excess_mortality(),
                                        disability_weight=get_care_sought_disability_weight(),
                                        dwell_time=get_duration_in_days(causes.severe_diarrhea.duration))
-
+    import pdb; pdb.set_trace()
     # Allow healthy to transition into the transient state diarrhea when triggered,
     # otherwise allow it to transition back to itself each time step.
     diarrhea_transition = healthy.add_transition(diarrhea, triggered=Trigger.START_INACTIVE)

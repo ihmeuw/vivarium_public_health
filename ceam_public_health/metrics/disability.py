@@ -24,6 +24,6 @@ class Disability:
         self.years_lived_with_disability[event.index] += self.disability_weight(event.index)
 
     @modifies_value('metrics')
-    def metrics(self, _, metrics):
-        metrics['years_lived_with_disability'] = self.years_lived_with_disability.sum()
+    def metrics(self, index, metrics):
+        metrics['years_lived_with_disability'] = self.years_lived_with_disability[index].sum()
         return metrics
