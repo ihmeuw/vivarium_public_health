@@ -12,6 +12,16 @@ components:
                 - Disability()
                 - CalculateIncidence("diarrhea", "diarrhea", ["severe_diarrhea", "moderate_diarrhea", "mild_diarrhea"])
                 - EpidemiologicalMeasures()
+            # - risks:
+                # - CategoricalRiskComponent("no_access_to_handwashing_facility")
+                # - CategoricalRiskComponent("child_wasting")
+                # - CategoricalRiskComponent("child_stunting")
+                # - CategoricalRiskComponent("unsafe_water_source")
+                # - CategoricalRiskComponent("unsafe_sanitation")
+                # - CategoricalRiskComponent("vitamin_a_deficiency")
+                # - CategoricalRiskComponent("zinc_deficiency")
+                # - CategoricalRiskComponent("non_exclusive_breastfeeding")
+                # - CategoricalRiskComponent("discontinued_breastfeeding")
 
 configuration:
     simulation_parameters:
