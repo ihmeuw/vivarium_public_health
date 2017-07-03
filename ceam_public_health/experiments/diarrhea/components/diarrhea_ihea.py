@@ -8,8 +8,8 @@ from ceam_inputs import get_disability_weight, get_cause_specific_mortality, cau
 
 from ceam_public_health.disease import DiseaseState, TransientDiseaseState, ExcessMortalityState, DiseaseModel
 
-from .data_transformations import get_etiology_incidence, get_duration_in_days, get_care_sought_excess_mortality, get_care_sought_disability_weight, CARE_PROPORTION
-
+from .data_transformations import (get_etiology_incidence, get_duration_in_days, get_care_sought_excess_mortality,
+                                   get_care_sought_disability_weight, CARE_PROPORTION)
 
 
 Etiology = namedtuple('Etiology', ['name', 'model', 'sick_transition', 'recovery_transition', 'pre_trigger_state'])
@@ -101,7 +101,7 @@ def build_diarrhea_model():
     care_sought.add_transition(healthy)
 
     # As a side effect of getting an etiology, a simulant acquires diarrhea as a symptom
-    @uses_columns(['diarrhea'], 'alive')
+    @uses_columns(['diarrhea'], "alive == 'alive'")
     def cause_diarrhea(index, population_view):
         """Causes a population to move into the diarrheal state.
 
@@ -142,7 +142,7 @@ def build_diarrhea_model():
             A function that will cause all simulants in the etiology's sick state to remit
             to the etiology's susceptible state.
         """
-        @uses_columns([etiology.name], 'alive')
+        @uses_columns([etiology.name], "alive == 'alive'")
         def reset_etiology(index, population_view):
             """Cause all simulants in the etiology's sick state to remit to the etiology's susceptible state.
 
@@ -187,7 +187,7 @@ def build_diarrhea_model():
         callable :
             A function that will cause all simulants in the etiology's healthy state to become immune to the etiology.
         """
-        @uses_columns(['diarrhea_event_time', etiology.name], 'alive')
+        @uses_columns(['diarrhea_event_time', etiology.name], "alive == 'alive'")
         def make_immune(index, current_time, population_view):
             """Cause all simulants in the etiology's healthy state to become immune to the etiology.
 
