@@ -27,7 +27,7 @@ class DiseaseModel(Machine):
         return self.state_column
 
     def setup(self, builder):
-        self.population_view = builder.population_view([self.condition], 'alive')
+        self.population_view = builder.population_view([self.condition], "alive == 'alive'")
 
         sub_components = set()
         for state in self.states:
@@ -62,7 +62,7 @@ class DiseaseModel(Machine):
 
         if state_map:
             # only do this if there are states in the model that supply prevalence data
-            population['sex_id'] = population.sex.apply({'Male':1, 'Female':2}.get)
+            population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
             condition_column = get_disease_states(population, state_map)
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
         else:
@@ -72,7 +72,7 @@ class DiseaseModel(Machine):
     @modifies_value('epidemiological_point_measures')
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
         root_location = config.simulation_parameters.location_id
-        pop = self.population_view.manager.population.ix[index].query('alive')
+        pop = self.population_view.manager.population.ix[index].query("alive == 'alive'")
         causes = set(pop[self.condition]) - {'healthy'}
         if all_locations:
             locations = set(pop.location) | {-1}

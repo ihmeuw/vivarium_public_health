@@ -41,7 +41,7 @@ def test_FertilityDeterministic():
     pop = simulation.population.population
 
     # No death in this model.
-    assert np.all(simulation.population.population.alive), 'expect all simulants to be alive'
+    assert np.all(simulation.population.population.alive == 'alive'), 'expect all simulants to be alive'
     assert (int(num_days * annual_new_simulants / 365)
             == len(pop.age) - start_population_size), 'expect new simulants'
 
@@ -59,7 +59,7 @@ def test_FertilityCrudeBirthRate():
     pop = simulation.population.population
 
     # No death in this model.
-    assert np.all(simulation.population.population.alive), 'expect all simulants to be alive'
+    assert np.all(simulation.population.population.alive == 'alive'), 'expect all simulants to be alive'
 
     # TODO: Write a more rigorous test.
     assert len(pop.age) > start_population_size, 'expect new simulants'
@@ -84,7 +84,7 @@ def test_fertility_module():
     pop = simulation.population.population
 
     # No death in this model.
-    assert np.all(simulation.population.population.alive), 'expect all simulants to be alive'
+    assert np.all(simulation.population.population.alive == 'alive'), 'expect all simulants to be alive'
 
     # TODO: Write a more rigorous test.
     assert len(pop.age) > start_population_size, 'expect new simulants'

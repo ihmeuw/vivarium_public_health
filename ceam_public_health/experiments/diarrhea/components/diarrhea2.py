@@ -109,7 +109,7 @@ def build_diarrhea_model():
     severe_diarrhea.add_transition(healthy)
 
     # As a side effect of getting an etiology, a simulant acquires diarrhea as a symptom
-    @uses_columns(['diarrhea'], 'alive')
+    @uses_columns(['diarrhea'], "alive == 'alive'")
     def cause_diarrhea(index, population_view):
         """Causes a population to move into the diarrheal state.
 
@@ -150,7 +150,7 @@ def build_diarrhea_model():
             A function that will cause all simulants in the etiology's sick state to remit
             to the etiology's susceptible state.
         """
-        @uses_columns([etiology.name], 'alive')
+        @uses_columns([etiology.name], "alive == 'alive'")
         def reset_etiology(index, population_view):
             """Cause all simulants in the etiology's sick state to remit to the etiology's susceptible state.
 
@@ -195,7 +195,7 @@ def build_diarrhea_model():
         callable :
             A function that will cause all simulants in the etiology's healthy state to become immune to the etiology.
         """
-        @uses_columns(['diarrhea_event_time', etiology.name], 'alive')
+        @uses_columns(['diarrhea_event_time', etiology.name], "alive == 'alive'")
         def make_immune(index, current_time, population_view):
             """Cause all simulants in the etiology's healthy state to become immune to the etiology.
 
