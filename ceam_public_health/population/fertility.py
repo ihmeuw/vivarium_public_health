@@ -13,6 +13,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.values import produces_value
 from ceam.framework.population import uses_columns, creates_simulants
 
+
 class Fertility:
     def setup(self, builder):
         time_step = config.simulation_parameters.time_step
@@ -50,7 +51,7 @@ class Fertility:
         return [self.transitions]
 
     @listens_for('time_step')
-    @uses_columns(['pregnancy'], 'alive == True and sex == "Female"')
+    @uses_columns(['pregnancy'], 'alive == "alive" and sex == "Female"')
     def step(self, event):
         self.transitions.transition(event.population.pregnancy)
 

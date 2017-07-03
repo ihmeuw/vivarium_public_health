@@ -62,7 +62,7 @@ class Ors:
     @listens_for('time_step', priority=7)
     @uses_columns(['ors_propensity', 'diarrhea_event_time',
                    'diarrhea_event_end_time', 'ors_working', 'ors_end_time',
-                   'ors_count', 'ors_visit_cost'], 'alive')
+                   'ors_count', 'ors_visit_cost'], "alive == 'alive'")
     def determine_who_gets_ors(self, event):
         """
         This method determines who should be seeing the benefit of ors

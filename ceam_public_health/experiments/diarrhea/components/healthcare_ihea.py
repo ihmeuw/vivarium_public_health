@@ -21,8 +21,8 @@ class HealthcareAccess:
         event.population_view.update(pd.Series(0., index=event.index, name='healthcare_access_cost'))
 
     @listens_for('time_step', priority=6)
-    @uses_columns(['care_sought_event_time', 'healthcare_access_cost'], 'alive')
+    @uses_columns(['care_sought_event_time', 'healthcare_access_cost'], "alive == 'alive")
     def time_step(self, event):
         patients = event.population[event.population['care_sought_event_time'] == event.time]
-        patients['healtcare_access_cost'] += float(self.costs[self.costs.year == event.time.year])
+        patients['healthcare_access_cost'] += float(self.costs[self.costs.year == event.time.year])
         event.population_view.update(patients)

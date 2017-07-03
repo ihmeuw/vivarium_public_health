@@ -38,7 +38,7 @@ class CalculateIncidence:
 
     def setup(self, builder):
         self.clock = builder.clock()
-        columns = [self.disease_col, self.disease_time_col, "death_day", "age", "sex", "alive"]
+        columns = [self.disease_col, self.disease_time_col, "exit_time", "age", "sex", "alive"]
         self.population_view = builder.population_view(columns)
 
     @listens_for('begin_epidemiological_measure_collection')
@@ -58,10 +58,12 @@ class CalculateIncidence:
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)
         """
         if self.collecting:
-            population = self.population_view.get(event.index)
-            pop = population[(population['alive']) | (population['death_day'] == event.time)]
             succeptible_time = config.simulation_parameters.time_step / 365
 
+            population = self.population_view.get(event.index)
+            pop = population[(population['alive'] == 'alive') | (population['exit_time'] == event.time)]
+
+            just_exited = pop['exit_time'] == event.time
             sick = pop[self.disease_col].isin(self.disease_states)
             got_sick_this_time_step = pop[self.disease_time_col] == event.time
 
@@ -77,11 +79,11 @@ class CalculateIncidence:
 
                     cases_index = pop[appropriate_age_and_sex & sick & got_sick_this_time_step].index
                     susceptible_index = pop[~sick & appropriate_age_and_sex].index
-                    just_died_index = pop[~sick & appropriate_age_and_sex & got_sick_this_time_step].index
+                    just_exited_index = pop[~sick & appropriate_age_and_sex & just_exited].index
 
                     self.incidence_rate_df[event_count_column].loc[cases_index] += 1
                     self.incidence_rate_df[succeptible_time_column].loc[susceptible_index] += succeptible_time
-                    self.incidence_rate_df[succeptible_time_column].loc[just_died_index] += succeptible_time / 2
+                    self.incidence_rate_df[succeptible_time_column].loc[just_exited_index] += succeptible_time / 2
 
                     last_age_group_max = upr_bound
 

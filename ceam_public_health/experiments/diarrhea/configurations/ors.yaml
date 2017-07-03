@@ -9,6 +9,7 @@ components:
                         - ors.Ors()
                 - metrics:
                         - Metrics()
+                        - Disability()
 
 configuration:
         simulation_parameters:

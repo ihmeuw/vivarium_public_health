@@ -6,6 +6,7 @@ components:
         - ceam_public_health:
                 - population:
                         - age_simulants
+                        - age_out_simulants
                 - experiments.hello_world.components.hello_world:
                         - SimpleMortality()
                         - SimpleIntervention()
@@ -19,4 +20,5 @@ configuration:
                 time_step: 30.5 #Days
                 pop_age_start: 0
                 pop_age_end: 125
+                maximum_age: 5
                 population_size: 10000
