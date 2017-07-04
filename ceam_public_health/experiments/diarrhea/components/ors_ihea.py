@@ -7,30 +7,32 @@ from ceam.framework.values import modifies_value
 
 from ceam_inputs import get_ors_relative_risks, get_ors_pafs
 
-ors_coverage = .58
 ors_unit_cost = 0.50
 
 
 def make_ors_components():
     paf = get_ors_pafs()  # Dataframe
     rr = get_ors_relative_risks()  # Scalar
+
+    ors_coverage = .58
+
+    if config.ors.run_intervention:
+        ors_coverage += config.ors.additional_coverage
+
     exposure = 1 - ors_coverage  # Scalar
 
     components = [Ors(paf, rr, exposure, ors_unit_cost)]
 
-    if config.ors.run_intervention:
-        components += [IncreaseOrsCoverage(config.ors.additional_coverage)]
-
     return components
 
 
-class IncreaseOrsCoverage:
-    def __init__(self, coverage_increase):
-        self.coverage_increase = coverage_increase
+# class IncreaseOrsCoverage:
+#    def __init__(self, coverage_increase):
+#        self.coverage_increase = coverage_increase
 
-    @modifies_value('exposure.ors')
-    def increase_exposure(self, _, exposure):
-        return exposure - self.coverage_increase
+#    @modifies_value('exposure.ors')
+#    def increase_exposure(self, _, exposure):
+#        return exposure - self.coverage_increase
 
 
 class Ors:
