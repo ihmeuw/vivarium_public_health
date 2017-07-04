@@ -17,8 +17,8 @@ components:
 configuration:
         simulation_parameters:
                 location_id: 179
-                year_start: 2010
-                year_end: 2011
+                year_start: 2005
+                year_end: 2015
                 time_step: 1
                 pop_age_start:
                 pop_age_end:
@@ -26,6 +26,8 @@ configuration:
                 initial_age: 0.0
                 population_size: 20000
                 number_of_new_simulants_each_year: 20000
+        run_configuration:
+                results_directory: "/share/scratch/users/emumford"
         ors:
                 additional_coverage: 0.42
                 run_intervention: True
