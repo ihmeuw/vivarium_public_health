@@ -31,8 +31,8 @@ class Ors:
     def setup(self, builder):
         self.paf = builder.value('ors_population_attributable_fraction')
         self.paf.source = builder.lookup(get_ors_pafs())
-        self.rr = builder.value('ors_relative_risk')
-        self.rr.source = builder.lookup(get_ors_relative_risks())
+
+        self.rr = get_ors_relative_risks()
         self.cost = get_diarrhea_visit_costs()
 
         ors_exposure = get_ors_exposures()
@@ -114,7 +114,7 @@ class Ors:
         ors_not_working_index = pop.query("ors_working == 0").index
 
         if not ors_not_working_index.empty:
-            rates.loc[ors_not_working_index] *= self.rr(ors_not_working_index)[['cat1']].values.flatten()
+            rates.loc[ors_not_working_index] *= self.rr
 
         return rates
 

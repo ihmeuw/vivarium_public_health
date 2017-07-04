@@ -17,7 +17,7 @@ class Disability:
     @listens_for('initialize_simulants')
     def initialize_disability(self, event):
         self.years_lived_with_disability = self.years_lived_with_disability.append(
-            pd.Series(0, index=event.index), verify_integrity=True)
+            pd.Series(0, index=event.index))
 
     @listens_for('time_step__cleanup')
     def calculate_ylds(self, event):

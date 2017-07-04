@@ -4,7 +4,7 @@ components:
                         - BasePopulation()
                         - age_simulants
                         - age_out_simulants
-                        - FertilityCrudeBirthRate()
+                        - FertilityDeterministic()
                         - Mortality()
                 - experiments.diarrhea.components:
                         - diarrhea_ihea.build_diarrhea_model()
@@ -18,13 +18,14 @@ configuration:
         simulation_parameters:
                 location_id: 179
                 year_start: 2010
-                year_end: 2015
-                time_step: 365
-                pop_age_start: 0
-                pop_age_end: 5
+                year_end: 2011
+                time_step: 1
+                pop_age_start:
+                pop_age_end:
                 maximum_age: 5
                 initial_age: 0.0
                 population_size: 20000
+                number_of_new_simulants_each_year: 20000
         ors:
                 additional_coverage: 0.42
                 run_intervention: True
