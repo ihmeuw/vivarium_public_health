@@ -70,7 +70,7 @@ class Ors:
 
         event.population_view.update(pop)
 
-    @modifies_value('excess_mortality.care_sought')
+    @modifies_value('care_sought.excess_mortality')
     @uses_columns(['receiving_ors'])
     def mortality_rates(self, index, rates, population_view):
         """
