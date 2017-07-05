@@ -483,10 +483,6 @@ class RotaVaccine:
             dose_working_index = population.query(
                 "rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
 
-            # FIXME: I feel like there should be a better way to get
-            # protection using the new config, but I don't know how. Using
-            # the old config, I could say
-            # config.getfloat('rota_vaccine', '{}_dose_protection'.format(dose))
             if dose == "first":
                 protection = config.rota_vaccine.first_dose_protection
             if dose == "second":
@@ -529,9 +525,7 @@ class RotaVaccine:
             df of all simulants, alive or dead with columns
             rotaviral_entiritis_vaccine
         """
-
         population = population_view.get(index)
-
         count_vacs = population.groupby('rotaviral_entiritis_vaccine').size()
 
         if 1 in count_vacs.keys():
@@ -549,8 +543,7 @@ class RotaVaccine:
         else:
             third_dose_count = 0
 
-        metrics[
-            'rotaviral_entiritis_vaccine_first_dose_count'] = first_dose_count + second_dose_count + third_dose_count
+        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = first_dose_count + second_dose_count + third_dose_count
         metrics['rotaviral_entiritis_vaccine_second_dose_count'] = second_dose_count + third_dose_count
         metrics['rotaviral_entiritis_vaccine_third_dose_count'] = third_dose_count
 
@@ -558,9 +551,8 @@ class RotaVaccine:
                                                 metrics['rotaviral_entiritis_vaccine_second_dose_count'] + \
                                                 metrics['rotaviral_entiritis_vaccine_third_dose_count']
 
-        metrics['vaccine_unit_cost_column'] = (total_number_of_administered_vaccines) * \
-                                              config.rota_vaccine.RV5_dose_cost
-        metrics['vaccine_cost_to_administer_column'] = (total_number_of_administered_vaccines) * \
-                                                       config.rota_vaccine.cost_to_administer_each_dose
+        metrics['vaccine_unit_cost_column'] = total_number_of_administered_vaccines * config.rota_vaccine.RV5_dose_cost
+        metrics['vaccine_cost_to_administer_column'] = (total_number_of_administered_vaccines
+                                                        * config.rota_vaccine.cost_to_administer_each_dose)
 
         return metrics
