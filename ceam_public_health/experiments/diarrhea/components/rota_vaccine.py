@@ -1,13 +1,14 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import UnivariateSpline
+import datetime
 
 from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import get_rota_vaccine_coverage, get_dtp3_coverage, get_rota_vaccine_protection
+from ceam_inputs import get_rota_vaccine_coverage, get_dtp3_coverage, get_rota_vaccine_rrs
 
 
 def set_vaccine_duration(population, etiology, dose):
@@ -202,7 +203,10 @@ class RotaVaccine:
             self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
             self.vaccine_coverage.source = builder.lookup(get_rota_vaccine_coverage())
 
-        self.third_dose_protection = get_rota_vaccine_protection()
+        self.true_coverage = builder.value('true_{}_vaccine_coverage'.format(self.etiology))
+        self.true_coverage.source = builder.lookup(get_rota_vaccine_coverage())
+
+        self.vaccine_rr = get_rota_vaccine_rrs()
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
@@ -252,7 +256,7 @@ class RotaVaccine:
                                                              dtype=int)}, index=event.index))
 
     def determine_who_should_receive_dose(self, population, vaccine_col,
-                                          dose_number):
+                                          dose_number, time):
         """
         Uses choice to determine if each simulant should receive a dose.
             Returns a population of simulants that should receive a dose of a
@@ -289,7 +293,6 @@ class RotaVaccine:
 
         population['age_in_days'] = population['age_in_days'].round()
 
-        vaccine_coverage = self.vaccine_coverage(population.index)
 
         previous_dose = dose_number - 1
 
@@ -300,23 +303,27 @@ class RotaVaccine:
             dose_age = config.rota_vaccine.age_at_first_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age").copy()
-            true_weight = vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
+            # vaccine was approved on February 3, 2006.
+            # need lines below to account for dtp3. want to say our intervention starts first day it's theoretically possible
+            if time >= datetime.datetime(2006, 2, 4, 0, 0):
+                vaccine_coverage = self.vaccine_coverage(children_at_dose_age.index)
+                true_weight = vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
+            else:
+                true_weight = 0
 
         elif dose_number == 2:
             dose_age = config.rota_vaccine.age_at_second_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age and" +
                 " rotaviral_entiritis_vaccine == {pd}".format(pd=previous_dose)).copy()
-            true_weight = pd.Series(config.rota_vaccine.second_dose_retention,
-                                    index=children_at_dose_age.index)
+            true_weight = config.rota_vaccine.second_dose_retention
 
         elif dose_number == 3:
             dose_age = config.rota_vaccine.age_at_third_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age and" +
                 " rotaviral_entiritis_vaccine == {pd}".format(pd=previous_dose)).copy()
-            true_weight = pd.Series(config.rota_vaccine.third_dose_retention,
-                                    index=children_at_dose_age.index)
+            true_weight = config.rota_vaccine.third_dose_retention
 
         else:
             raise (ValueError, "dose_number cannot be any value other than" +
@@ -360,8 +367,9 @@ class RotaVaccine:
         """
         population = event.population
 
+        # First dose
         children_who_will_receive_first_dose = self.determine_who_should_receive_dose(
-            population, self.vaccine_column, 1)
+            population, self.vaccine_column, 1, event.time)
 
         if not children_who_will_receive_first_dose.empty:
             children_who_will_receive_first_dose[self.vaccine_first_dose_time_column] = event.time
@@ -374,7 +382,7 @@ class RotaVaccine:
 
         # Second dose
         children_who_will_receive_second_dose = self.determine_who_should_receive_dose(
-            population, self.vaccine_column, 2)
+            population, self.vaccine_column, 2, event.time)
 
         if not children_who_will_receive_second_dose.empty:
             children_who_will_receive_second_dose[self.vaccine_second_dose_time_column] = event.time
@@ -387,7 +395,7 @@ class RotaVaccine:
 
         # Third dose
         children_who_will_receive_third_dose = self.determine_who_should_receive_dose(
-            population, self.vaccine_column, 3)
+            population, self.vaccine_column, 3, event.time)
 
         if not children_who_will_receive_third_dose.empty:
             children_who_will_receive_third_dose[self.vaccine_third_dose_time_column] = event.time
@@ -479,33 +487,39 @@ class RotaVaccine:
         """
         population = population_view.get(index)
 
-        for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
-            dose_working_index = population.query(
-                "rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
+        # if the vaccine has been introduced to the country, start getting the risk-deleted incidence
+        # use the true coverage here. only want to risk-delete where it's necessary
+        if np.any(self.vaccine_coverage(index)):
+            pafs = ((1 - self.true_coverage(index)) * (self.vaccine_rr - 1)) / ((1 - self.true_coverage(index)) * (self.vaccine_rr - 1) + 1)
+            rates *= (1 - pafs)
+    
+            dose_not_working_index = population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 0").index
 
-            # FIXME: I feel like there should be a better way to get
-            # protection using the new config, but I don't know how. Using
-            # the old config, I could say
-            # config.getfloat('rota_vaccine', '{}_dose_protection'.format(dose))
-            if dose == "first":
-                protection = config.rota_vaccine.first_dose_protection
-            if dose == "second":
-                protection = config.rota_vaccine.second_dose_protection
-            if dose == "third":
-                protection = self.third_dose_protection
+            # for those for whom the third dose is not working, add back in the relative risk
+            rates.loc[dose_not_working_index] *= self.vaccine_rr
 
-            if len(dose_working_index) > 0:
-                vaccine_protection = determine_vaccine_protection(population,
-                                                                  dose_working_index,
-                                                                  wane_immunity,
-                                                                  self.clock(),
-                                                                  dose,
-                                                                  protection)
-            else:
-                vaccine_protection = 0
+        # for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
+        #    dose_working_index = population.query(
+        #        "rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
 
+        #    if dose == "first":
+        #        protection = config.rota_vaccine.first_dose_protection
+        #    if dose == "second":
+        #        protection = config.rota_vaccine.second_dose_protection
+        #    if dose == "third":
+        #        protection = self.third_dose_protection
+
+        #   if len(dose_working_index) > 0:
+        #        vaccine_protection = determine_vaccine_protection(population,
+        #                                                          dose_working_index,
+        #                                                          wane_immunity,
+        #                                                          self.clock(),
+        #                                                          dose,
+        #                                                          protection)
+        #    else:
+        #        vaccine_protection = 0
             # TODO: Confirm whether this affects rates or probabilities
-            rates.loc[dose_working_index] *= (1 - vaccine_protection)
+        #    rates.loc[dose_working_index] *= (1 - vaccine_protection)
 
         return rates
 
@@ -529,9 +543,7 @@ class RotaVaccine:
             df of all simulants, alive or dead with columns
             rotaviral_entiritis_vaccine
         """
-
         population = population_view.get(index)
-
         count_vacs = population.groupby('rotaviral_entiritis_vaccine').size()
 
         if 1 in count_vacs.keys():
@@ -549,8 +561,7 @@ class RotaVaccine:
         else:
             third_dose_count = 0
 
-        metrics[
-            'rotaviral_entiritis_vaccine_first_dose_count'] = first_dose_count + second_dose_count + third_dose_count
+        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = first_dose_count + second_dose_count + third_dose_count
         metrics['rotaviral_entiritis_vaccine_second_dose_count'] = second_dose_count + third_dose_count
         metrics['rotaviral_entiritis_vaccine_third_dose_count'] = third_dose_count
 
@@ -558,9 +569,8 @@ class RotaVaccine:
                                                 metrics['rotaviral_entiritis_vaccine_second_dose_count'] + \
                                                 metrics['rotaviral_entiritis_vaccine_third_dose_count']
 
-        metrics['vaccine_unit_cost_column'] = (total_number_of_administered_vaccines) * \
-                                              config.rota_vaccine.RV5_dose_cost
-        metrics['vaccine_cost_to_administer_column'] = (total_number_of_administered_vaccines) * \
-                                                       config.rota_vaccine.cost_to_administer_each_dose
+        metrics['vaccine_unit_cost_column'] = total_number_of_administered_vaccines * config.rota_vaccine.RV5_dose_cost
+        metrics['vaccine_cost_to_administer_column'] = (total_number_of_administered_vaccines
+                                                        * config.rota_vaccine.cost_to_administer_each_dose)
 
         return metrics

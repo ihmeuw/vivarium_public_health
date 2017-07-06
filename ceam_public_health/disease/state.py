@@ -320,6 +320,26 @@ class TransientDiseaseState(TransientState):
         self.transition_set.append(t)
         return t
 
+    @modifies_value('metrics')
+    def metrics(self, index, metrics):
+        """Records data for simulation post-processing.
+
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.
+        metrics : `pandas.DataFrame`
+            A table for recording simulation events of interest in post-processing.
+
+        Returns
+        -------
+        `pandas.DataFrame`
+            The metrics table updated to reflect new simulation state."""
+        if self.track_events:
+            population = self.population_view.get(index)
+            metrics[self.event_count_column] = population[self.event_count_column].sum()
+        return metrics
+
 
 class ExcessMortalityState(DiseaseState):
     """State representing a disease with excess mortality in a state machine model.
@@ -371,9 +391,6 @@ class ExcessMortalityState(DiseaseState):
         else:
             rates_df[self.state_id] = rate
         return rates_df
-
-    def name(self):
-        return '{}'.format(self.state_id)
 
     def __str__(self):
         return 'ExcessMortalityState({})'.format(self.state_id)
