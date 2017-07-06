@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import UnivariateSpline
+import datetime
 
 from ceam import config
 from ceam.framework.event import listens_for
@@ -252,7 +253,7 @@ class RotaVaccine:
                                                              dtype=int)}, index=event.index))
 
     def determine_who_should_receive_dose(self, population, vaccine_col,
-                                          dose_number):
+                                          dose_number, time):
         """
         Uses choice to determine if each simulant should receive a dose.
             Returns a population of simulants that should receive a dose of a
@@ -299,8 +300,13 @@ class RotaVaccine:
             dose_age = config.rota_vaccine.age_at_first_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age").copy()
-            vaccine_coverage = self.vaccine_coverage(children_at_dose_age.index)
-            true_weight = vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
+            # vaccine was approved on February 3, 2006.
+            # need lines below to account for dtp3. want to say our intervention starts first day it's theoretically possible
+            if time >= datetime.datetime(2006, 2, 4, 0, 0):
+                vaccine_coverage = self.vaccine_coverage(children_at_dose_age.index)
+                true_weight = vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
+            else:
+                true_weight = 0
 
         elif dose_number == 2:
             dose_age = config.rota_vaccine.age_at_second_dose
@@ -358,8 +364,9 @@ class RotaVaccine:
         """
         population = event.population
 
+        # First dose
         children_who_will_receive_first_dose = self.determine_who_should_receive_dose(
-            population, self.vaccine_column, 1)
+            population, self.vaccine_column, 1, event.time)
 
         if not children_who_will_receive_first_dose.empty:
             children_who_will_receive_first_dose[self.vaccine_first_dose_time_column] = event.time
@@ -372,7 +379,7 @@ class RotaVaccine:
 
         # Second dose
         children_who_will_receive_second_dose = self.determine_who_should_receive_dose(
-            population, self.vaccine_column, 2)
+            population, self.vaccine_column, 2, event.time)
 
         if not children_who_will_receive_second_dose.empty:
             children_who_will_receive_second_dose[self.vaccine_second_dose_time_column] = event.time
@@ -385,7 +392,7 @@ class RotaVaccine:
 
         # Third dose
         children_who_will_receive_third_dose = self.determine_who_should_receive_dose(
-            population, self.vaccine_column, 3)
+            population, self.vaccine_column, 3, event.time)
 
         if not children_who_will_receive_third_dose.empty:
             children_who_will_receive_third_dose[self.vaccine_third_dose_time_column] = event.time
