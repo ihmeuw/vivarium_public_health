@@ -148,7 +148,7 @@ class RotaVaccine:
             'third_dose_retention': 1,
             'vaccination_proportion_increase': 0,
             'time_after_dose_at_which_immunity_is_conferred': 14,
-            'dtp3_coverage': 1,
+            'dtp3_coverage': 0,
         }
     }
 
@@ -202,6 +202,9 @@ class RotaVaccine:
         else:
             self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
             self.vaccine_coverage.source = builder.lookup(get_rota_vaccine_coverage())
+
+        self.true_coverage = builder.value('true_{}_vaccine_coverage'.format(self.etiology))
+        self.true_coverage.source = builder.lookup(get_rota_vaccine_coverage())
 
         self.vaccine_rr = get_rota_vaccine_rrs()
 
@@ -485,8 +488,9 @@ class RotaVaccine:
         population = population_view.get(index)
 
         # if the vaccine has been introduced to the country, start getting the risk-deleted incidence
+        # use the true coverage here. only want to risk-delete where it's necessary
         if not np.all(self.vaccine_coverage(index) == 0):
-            pafs = (1 - self.vaccine_coverage(index) * (self.vaccine_rr - 1)) / (1 - self.vaccine_coverage(index) * (self.vaccine_rr - 1) + 1)
+            pafs = (1 - self.true_coverage(index) * (self.vaccine_rr - 1)) / (1 - self.true_coverage(index) * (self.vaccine_rr - 1) + 1)
             rates *= pafs
     
             dose_not_working_index = population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 0").index
