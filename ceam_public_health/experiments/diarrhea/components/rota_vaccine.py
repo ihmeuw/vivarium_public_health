@@ -289,7 +289,6 @@ class RotaVaccine:
 
         population['age_in_days'] = population['age_in_days'].round()
 
-        vaccine_coverage = self.vaccine_coverage(population.index)
 
         previous_dose = dose_number - 1
 
@@ -300,6 +299,7 @@ class RotaVaccine:
             dose_age = config.rota_vaccine.age_at_first_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age").copy()
+            vaccine_coverage = self.vaccine_coverage(children_at_dose_age.index)
             true_weight = vaccine_coverage + config.rota_vaccine.vaccination_proportion_increase
 
         elif dose_number == 2:
@@ -307,16 +307,14 @@ class RotaVaccine:
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age and" +
                 " rotaviral_entiritis_vaccine == {pd}".format(pd=previous_dose)).copy()
-            true_weight = pd.Series(config.rota_vaccine.second_dose_retention,
-                                    index=children_at_dose_age.index)
+            true_weight = config.rota_vaccine.second_dose_retention
 
         elif dose_number == 3:
             dose_age = config.rota_vaccine.age_at_third_dose
             children_at_dose_age = population.query(
                 "age_in_days == @dose_age and" +
                 " rotaviral_entiritis_vaccine == {pd}".format(pd=previous_dose)).copy()
-            true_weight = pd.Series(config.rota_vaccine.third_dose_retention,
-                                    index=children_at_dose_age.index)
+            true_weight = config.rota_vaccine.third_dose_retention
 
         else:
             raise (ValueError, "dose_number cannot be any value other than" +
