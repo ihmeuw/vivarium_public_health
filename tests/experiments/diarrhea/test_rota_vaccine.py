@@ -217,12 +217,6 @@ def test_set_working_column4():
 
 
 def test_incidence_rates():
-    config.rota_vaccine.set_with_metadata('first_dose_protection', .1,
-                                          layer='override', source=os.path.realpath(__file__))
-    config.rota_vaccine.set_with_metadata('second_dose_protection', .2, layer='override',
-                                          source=os.path.realpath(__file__))
-    config.rota_vaccine.set_with_metadata('third_dose_protection', .3, layer='override',
-                                          source=os.path.realpath(__file__))
     config.simulation_parameters.set_with_metadata('year_start', 2014, layer='override',
                                                    source=os.path.realpath(__file__))
     config.rota_vaccine.set_with_metadata('vaccination_proportion_increase', .4, layer='override',
@@ -237,10 +231,10 @@ def test_incidence_rates():
     vaccine_protection = config.rota_vaccine.first_dose_protection
 
     # pump the simulation far enough ahead that simulants can get first dose
-    pump_simulation(simulation, duration=timedelta(days=8))
+    pump_simulation(simulation, duration=timedelta(days=20))
 
-    not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 0")
-    vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_first_dose_is_working == 1")
+    not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 0")
+    vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 1")
 
     # find an example of simulants of the same age and sex, but not vaccination
     # status, and then compare their incidence rates
@@ -251,30 +245,8 @@ def test_incidence_rates():
     cov = simulation.values.get_value('rotaviral_entiritis_vaccine_coverage')
     cov = pd.unique(cov(vaccinated.index))
     paf = ((1 - cov) * (rr - 1)) / ((1 - cov) * (rr - 1) + 1)
-    assert np.allclose(pd.unique(rota_inc(vaccinated.index) * paf),
-                       pd.unique(rota_inc(not_vaccinated.index) * paf * rr)), err_msg
-
-    # now try with two doses
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()] + diarrhea_factory())
-
-    rota_table = build_table(1000)
-    rota_inc = simulation.values.get_rate('incidence_rate.rotaviral_entiritis')
-    rota_inc.source = simulation.tables.build_table(rota_table)
-
-    vaccine_protection = config.rota_vaccine.second_dose_protection
-
-    # pump the simulation far enough ahead that simulants can get second dose
-    pump_simulation(simulation, duration=timedelta(days=14))
-
-    not_vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_second_dose_is_working == 0")
-    vaccinated = simulation.population.population.query("rotaviral_entiritis_vaccine_second_dose_is_working == 1")
-
-    # find an example of simulants of the same age and sex, but not vaccination
-    # status, and then compare their incidence rates
-    a.append(pd.unique(rota_inc(vaccinated.index)))
-    a.append(pd.unique(rota_inc(not_vaccinated.index) * (1 - vaccine_protection)))
-    assert np.allclose(pd.unique(rota_inc(vaccinated.index)),
-                       pd.unique(rota_inc(not_vaccinated.index)*(1-vaccine_protection))), err_msg
+    assert np.allclose(pd.unique(rota_inc(vaccinated.index) * rr),
+                       pd.unique(rota_inc(not_vaccinated.index))), err_msg
 
 
 def test_determine_vaccine_protection():
