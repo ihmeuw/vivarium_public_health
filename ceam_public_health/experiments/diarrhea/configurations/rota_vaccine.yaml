@@ -3,37 +3,34 @@ components:
             - population:
                 - BasePopulation()
                 - age_simulants
+                - age_out_simulants
+                - FertilityDeterministic()
                 - Mortality()
             - experiments.diarrhea.components:
-                - diarrhea2.build_diarrhea_model()
+                - diarrhea_ihea.build_diarrhea_model()
+                - ors_ihea.make_ors_components()
+                - healthcare_ihea.HealthcareAccess()
                 - rota_vaccine.RotaVaccine()
             - risks:
                 - CategoricalRiskComponent("unsafe_sanitation")
             - metrics:
                 - Metrics()
                 - Disability()
-                - CalculateIncidence("diarrhea", "diarrhea", ["severe_diarrhea", "moderate_diarrhea", "mild_diarrhea"])
-                - EpidemiologicalMeasures()
-            # - risks:
-                # - CategoricalRiskComponent("no_access_to_handwashing_facility")
-                # - CategoricalRiskComponent("child_wasting")
-                # - CategoricalRiskComponent("child_stunting")
-                # - CategoricalRiskComponent("unsafe_water_source")
-                # - CategoricalRiskComponent("unsafe_sanitation")
-                # - CategoricalRiskComponent("vitamin_a_deficiency")
-                # - CategoricalRiskComponent("zinc_deficiency")
-                # - CategoricalRiskComponent("non_exclusive_breastfeeding")
-                # - CategoricalRiskComponent("discontinued_breastfeeding")
 
 configuration:
     simulation_parameters:
         location_id: 179
-        year_start: 2010
-        year_end: 2015
-        time_step: 30.5
+        year_start: 2007
+        year_end: 2008
+        time_step: 1
         pop_age_start:
         pop_age_end:
+        maximum_age: 5
         initial_age: 0.0
-        population_size: 100000
+        population_size: 20000
+        number_of_new_simulants_each_year: 20000
     run_configuration:
         results_directory: "/share/scratch/users/emumford"
+    ors:
+        additional_coverage: 0.42
+        run_intervention: True

@@ -3,10 +3,14 @@ components:
                 - population:
                         - BasePopulation()
                         - age_simulants
+                        - age_out_simulants
+                        - FertilityDeterministic()
                         - Mortality()
                 - experiments.diarrhea.components:
-                        - diarrhea.diarrhea_factory()
-                        - ors.Ors()
+                        - diarrhea_ihea.build_diarrhea_model()
+                        - ors_ihea.make_ors_components()
+                        - healthcare_ihea.HealthcareAccess()
+                        - rota_vaccine.RotaVaccine()
                 - metrics:
                         - Metrics()
                         - Disability()
@@ -14,15 +18,17 @@ components:
 configuration:
         simulation_parameters:
                 location_id: 179
-                year_start: 2010
+                year_start: 2005
                 year_end: 2015
                 time_step: 1
                 pop_age_start:
                 pop_age_end:
+                maximum_age: 5
                 initial_age: 0.0
                 population_size: 20000
+                number_of_new_simulants_each_year: 20000
+        run_configuration:
+                results_directory: "/share/scratch/users/emumford"
         ors:
-                facility_cost: 0
-                ors_exposure_increase_above_baseline: .25
+                additional_coverage: 0.42
                 run_intervention: True
-
