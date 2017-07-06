@@ -489,9 +489,9 @@ class RotaVaccine:
 
         # if the vaccine has been introduced to the country, start getting the risk-deleted incidence
         # use the true coverage here. only want to risk-delete where it's necessary
-        if not np.all(self.vaccine_coverage(index) == 0):
+        if np.any(self.vaccine_coverage(index)):
             pafs = ((1 - self.true_coverage(index)) * (self.vaccine_rr - 1)) / ((1 - self.true_coverage(index)) * (self.vaccine_rr - 1) + 1)
-            rates *= pafs
+            rates *= (1 - pafs)
     
             dose_not_working_index = population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 0").index
 
