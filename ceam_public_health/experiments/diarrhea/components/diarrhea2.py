@@ -128,7 +128,7 @@ def build_diarrhea_model():
 
     # Get a list of the names of all etiologies that cause diarrhea.  See gbd_mapping for more information.
     etiology_names = ['{}'.format(name) for name, etiology in causes.items() if 'gbd_parent_cause' in etiology and
-                      etiology.gbd_parent_cause == causes.diarrhea.gbd_cause] + ['unattributed']
+                      etiology.gbd_parent_cause == causes.diarrhea.gbd_cause] + ['unattributed_diarrhea']
 
     # Build an `Etiology` container for each etiology we're modelling.
     etiologies = [build_etiology_model(name, cause_diarrhea) for name in etiology_names]

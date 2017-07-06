@@ -28,9 +28,9 @@ def get_duration_in_days(modelable_entity_id):
 
 
 def get_etiology_paf(etiology_name):
-    if etiology_name == 'unattributed':
+    if etiology_name == 'unattributed_diarrhea':
         attributable_etiologies = [name for name, etiology in causes.items() if 'gbd_parent_cause' in etiology and
-                                   etiology.gbd_parent_cause == causes.diarrhea.gbd_cause]
+                                   etiology.gbd_parent_cause == causes.diarrhea.gbd_cause and name != 'unattributed_diarrhea']
 
         all_etiology_paf = pd.concat([get_etiology_paf(name) for name in attributable_etiologies])
 

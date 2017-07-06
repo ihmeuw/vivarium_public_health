@@ -3,6 +3,7 @@ import numpy as np
 from ceam import config
 
 import ceam_inputs as inputs
+from ceam_inputs.gbd_mapping import rid
 from ceam.framework.population import uses_columns
 
 
@@ -105,8 +106,18 @@ class RiskEffect:
 
 def make_gbd_risk_effects(risk):
     effect_function = continuous_exposure_effect(risk) if risk.risk_type == 'continuous' else categorical_exposure_effect(risk)
-    return [RiskEffect(rr_data=inputs.get_relative_risks(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
-                       paf_data=inputs.get_pafs(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
-                       mediation_factor=inputs.get_mediation_factors(risk_id=risk.gbd_risk, cause_id=cause.gbd_cause),
+
+    effects = []
+    for cause in risk.effected_causes:
+        if isinstance(cause.gbd_cause, rid):
+            # These are risks being used as causes, as is the case with diarrhea etiologies.
+            cause_id = cause.gbd_parent_cause
+        else:
+            cause_id = cause.gbd_cause
+
+        effects.append(RiskEffect(rr_data=inputs.get_relative_risks(risk_id=risk.gbd_risk, cause_id=cause_id),
+                       paf_data=inputs.get_pafs(risk_id=risk.gbd_risk, cause_id=cause_id),
+                       mediation_factor=inputs.get_mediation_factors(risk_id=risk.gbd_risk, cause_id=cause_id),
                        cause=cause,
-                       exposure_effect=effect_function) for cause in risk.effected_causes]
+                       exposure_effect=effect_function))
+        return effects

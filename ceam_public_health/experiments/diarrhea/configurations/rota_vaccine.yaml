@@ -7,6 +7,8 @@ components:
             - experiments.diarrhea.components:
                 - diarrhea2.build_diarrhea_model()
                 - rota_vaccine.RotaVaccine()
+            - risks:
+                - CategoricalRiskComponent("unsafe_sanitation")
             - metrics:
                 - Metrics()
                 - Disability()
@@ -28,7 +30,7 @@ configuration:
         location_id: 179
         year_start: 2010
         year_end: 2015
-        time_step: 1
+        time_step: 30.5
         pop_age_start:
         pop_age_end:
         initial_age: 0.0

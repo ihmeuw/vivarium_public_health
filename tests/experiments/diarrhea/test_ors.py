@@ -7,7 +7,7 @@ from ceam_tests.util import build_table, setup_simulation, generate_test_populat
 
 from ceam_inputs import get_ors_exposures, get_ors_pafs, get_ors_relative_risks, get_severe_diarrhea_excess_mortality
 
-from ceam_public_health.experiments.diarrhea.components.diarrhea import diarrhea_factory
+from ceam_public_health.experiments.diarrhea.components.diarrhea2 import build_diarrhea_model as diarrhea_factory
 from ceam_public_health.experiments.diarrhea.components.ors import Ors
 
 
