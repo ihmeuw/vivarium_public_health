@@ -4,21 +4,6 @@ branches:
     - simulation_parameters:
         location_id: 179
       rota_vaccine:
-        dtp3_coverage: false
-
-    - simulation_parameters:
-        location_id: 214
-      rota_vaccine:
-        dtp3_coverage: false
-
-    - simulation_parameters:
-        location_id: 161
-      rota_vaccine:
-        dtp3_coverage: false
-
-    - simulation_parameters:
-        location_id: 179
-      rota_vaccine:
         dtp3_coverage: true
 
     - simulation_parameters:
