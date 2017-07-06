@@ -486,7 +486,6 @@ class RotaVaccine:
 
         # if the vaccine has been introduced to the country, start getting the risk-deleted incidence
         if not np.all(self.vaccine_coverage(index) == 0):
-            import pdb; pdb.set_trace()
             pafs = (1 - self.vaccine_coverage(index) * (self.vaccine_rr - 1)) / (1 - self.vaccine_coverage(index) * (self.vaccine_rr - 1) + 1)
             rates *= pafs
     
@@ -515,10 +514,7 @@ class RotaVaccine:
         #                                                          protection)
         #    else:
         #        vaccine_protection = 0
-
-        #    import pdb; pdb.set_trace()
             # TODO: Confirm whether this affects rates or probabilities
-            # those that do not receive the vaccine get the risk deleted incidence * rr
         #    rates.loc[dose_working_index] *= (1 - vaccine_protection)
 
         return rates
