@@ -7,7 +7,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import get_rota_vaccine_coverage, get_dtp3_coverage, get_rota_vaccine_protection
+from ceam_inputs import get_rota_vaccine_coverage, get_dtp3_coverage, get_rota_vaccine_rrs
 
 
 def set_vaccine_duration(population, etiology, dose):
@@ -147,7 +147,7 @@ class RotaVaccine:
             'third_dose_retention': 1,
             'vaccination_proportion_increase': 0,
             'time_after_dose_at_which_immunity_is_conferred': 14,
-            'dtp3_coverage': 0,
+            'dtp3_coverage': 1,
         }
     }
 
@@ -202,7 +202,7 @@ class RotaVaccine:
             self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
             self.vaccine_coverage.source = builder.lookup(get_rota_vaccine_coverage())
 
-        self.third_dose_protection = get_rota_vaccine_protection()
+        self.vaccine_rr = get_rota_vaccine_rrs()
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
@@ -477,29 +477,42 @@ class RotaVaccine:
         """
         population = population_view.get(index)
 
-        for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
-            dose_working_index = population.query(
-                "rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
+        # if the vaccine has been introduced to the country, start getting the risk-deleted incidence
+        if not np.all(self.vaccine_coverage(index) == 0):
+            import pdb; pdb.set_trace()
+            pafs = (1 - self.vaccine_coverage(index) * (self.vaccine_rr - 1)) / (1 - self.vaccine_coverage(index) * (self.vaccine_rr - 1) + 1)
+            rates *= pafs
+    
+            dose_not_working_index = population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 0").index
 
-            if dose == "first":
-                protection = config.rota_vaccine.first_dose_protection
-            if dose == "second":
-                protection = config.rota_vaccine.second_dose_protection
-            if dose == "third":
-                protection = self.third_dose_protection
+            # for those for whom the third dose is not working, add back in the relative risk
+            rates.loc[dose_not_working_index] *= self.vaccine_rr
 
-            if len(dose_working_index) > 0:
-                vaccine_protection = determine_vaccine_protection(population,
-                                                                  dose_working_index,
-                                                                  wane_immunity,
-                                                                  self.clock(),
-                                                                  dose,
-                                                                  protection)
-            else:
-                vaccine_protection = 0
+        # for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
+        #    dose_working_index = population.query(
+        #        "rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
 
+        #    if dose == "first":
+        #        protection = config.rota_vaccine.first_dose_protection
+        #    if dose == "second":
+        #        protection = config.rota_vaccine.second_dose_protection
+        #    if dose == "third":
+        #        protection = self.third_dose_protection
+
+        #   if len(dose_working_index) > 0:
+        #        vaccine_protection = determine_vaccine_protection(population,
+        #                                                          dose_working_index,
+        #                                                          wane_immunity,
+        #                                                          self.clock(),
+        #                                                          dose,
+        #                                                          protection)
+        #    else:
+        #        vaccine_protection = 0
+
+        #    import pdb; pdb.set_trace()
             # TODO: Confirm whether this affects rates or probabilities
-            rates.loc[dose_working_index] *= (1 - vaccine_protection)
+            # those that do not receive the vaccine get the risk deleted incidence * rr
+        #    rates.loc[dose_working_index] *= (1 - vaccine_protection)
 
         return rates
 
