@@ -5,7 +5,7 @@ components:
                         - age_simulants
                         - Mortality()
                 - experiments.diarrhea.components:
-                        - diarrhea2.build_diarrhea_model()
+                        - diarrhea.diarrhea_factory()
                         - ors.Ors()
                 - metrics:
                         - Metrics()
@@ -16,7 +16,7 @@ configuration:
                 location_id: 179
                 year_start: 2010
                 year_end: 2015
-                time_step: 365
+                time_step: 1
                 pop_age_start:
                 pop_age_end:
                 initial_age: 0.0
