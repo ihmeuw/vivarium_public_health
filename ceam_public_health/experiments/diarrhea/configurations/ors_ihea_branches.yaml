@@ -1,6 +1,24 @@
-draw_count: 100
+draw_count: 25
 
 branches:
+    - simulation_parameters:
+        location_id: 179
+      ors:
+        additional_coverage: 0
+        run_intervention: false
+
+    - simulation_parameters:
+        location_id: 214
+      ors:
+        additional_coverage: 0
+        run_intervention: false
+
+    - simulation_parameters:
+        location_id: 161
+      ors:
+        additional_coverage: 0
+        run_intervention: false
+
     - simulation_parameters:
         location_id: 179
       ors:

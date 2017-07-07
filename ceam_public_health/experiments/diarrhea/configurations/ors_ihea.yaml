@@ -10,7 +10,6 @@ components:
                         - diarrhea_ihea.build_diarrhea_model()
                         - ors_ihea.make_ors_components()
                         - healthcare_ihea.HealthcareAccess()
-                        - rota_vaccine.RotaVaccine()
                 - metrics:
                         - Metrics()
                         - Disability()
