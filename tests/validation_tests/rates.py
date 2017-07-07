@@ -7,7 +7,7 @@ import pandas as pd
 from ceam import config
 from ceam.framework.engine import _step
 from ceam.framework.state_machine import State
-from ceam_tests.util import setup_simulation, build_table, generate_test_population
+from ceam.test_util import setup_simulation, build_table, generate_test_population
 
 from ceam_public_health.disease import RateTransition, DiseaseModel
 

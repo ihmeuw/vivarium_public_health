@@ -7,7 +7,7 @@ import pandas as pd
 from ceam import config
 from ceam.framework.randomness import RandomnessStream
 
-from ceam_tests.util import setup_simulation, pump_simulation
+from ceam.test_util import setup_simulation, pump_simulation
 
 from ceam_public_health.population.base_population import (generate_ceam_population, _add_proportions,
                                                            age_out_simulants, BasePopulation, age_simulants)

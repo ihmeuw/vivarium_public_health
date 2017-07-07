@@ -4,7 +4,7 @@ import pytest
 
 from ceam import config
 
-from ceam_tests.util import setup_simulation, generate_test_population, pump_simulation
+from ceam.test_util import setup_simulation, generate_test_population, pump_simulation
 
 from ceam_public_health.metrics.calculate_incidence import CalculateIncidence
 from ceam_public_health.metrics.epidemiology import EpidemiologicalMeasures

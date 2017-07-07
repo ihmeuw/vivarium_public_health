@@ -6,7 +6,7 @@ import pytest
 
 from ceam import config
 from ceam.framework.event import listens_for
-from ceam_tests.util import setup_simulation, assert_rate, build_table, generate_test_population
+from ceam.test_util import setup_simulation, assert_rate, build_table, generate_test_population
 
 from ceam_public_health.population import adherence
 from ceam_public_health.treatment import HealthcareAccess

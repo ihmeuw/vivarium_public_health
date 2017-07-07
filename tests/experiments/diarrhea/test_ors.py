@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from ceam import config
-from ceam_tests.util import build_table, setup_simulation, generate_test_population, pump_simulation
+from ceam.test_util import build_table, setup_simulation, generate_test_population, pump_simulation
 
 from ceam_inputs import get_ors_exposures, get_ors_pafs, get_ors_relative_risks, get_severe_diarrhea_excess_mortality
 

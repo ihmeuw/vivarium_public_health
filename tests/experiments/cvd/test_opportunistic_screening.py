@@ -9,7 +9,7 @@ import pytest
 from ceam import config
 from ceam.framework.event import Event, listens_for
 from ceam.framework.population import uses_columns
-from ceam_tests.util import setup_simulation, generate_test_population
+from ceam.test_util import setup_simulation, generate_test_population
 
 from ceam_public_health.risks import ContinuousRiskComponent, distributions, exposures
 from ceam_public_health.population import adherence

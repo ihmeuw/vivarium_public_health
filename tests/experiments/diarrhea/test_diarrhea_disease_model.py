@@ -6,7 +6,7 @@ import pandas as pd
 
 from ceam import config
 from ceam.framework.event import Event
-from ceam_tests.util import (build_table, setup_simulation,
+from ceam.test_util import (build_table, setup_simulation,
                              generate_test_population, pump_simulation)
 
 from ceam_inputs import (get_severity_splits, get_cause_specific_mortality,

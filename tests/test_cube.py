@@ -3,7 +3,7 @@ from unittest.mock import patch
 import numpy as np
 
 from ceam_inputs import causes
-from ceam_tests.util import build_table
+from ceam.test_util import build_table
 from ceam_public_health.cube import make_measure_cube_from_gbd
 
 

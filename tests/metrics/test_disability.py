@@ -4,7 +4,7 @@ from datetime import timedelta
 import numpy as np
 
 from ceam import config
-from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
+from ceam.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
 
 from ceam_public_health.disease import ExcessMortalityState, DiseaseModel
 from ceam_public_health.metrics import Metrics, Disability

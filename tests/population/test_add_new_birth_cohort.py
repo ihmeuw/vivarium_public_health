@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ceam import config
-from ceam_tests.util import setup_simulation, pump_simulation, generate_test_population
+from ceam.test_util import setup_simulation, pump_simulation, generate_test_population
 
 from ceam_public_health.population import FertilityDeterministic, FertilityCrudeBirthRate, FertilityAgeSpecificRates
 

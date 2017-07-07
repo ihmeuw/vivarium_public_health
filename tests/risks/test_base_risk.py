@@ -15,7 +15,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.util import from_yearly
 from ceam.interpolation import Interpolation
-from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
+from ceam.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
 
 from ceam_inputs import risk_factors, causes
 

@@ -8,7 +8,7 @@ import pandas as pd
 from ceam import config
 from ceam.framework.state_machine import Transition, State
 from ceam.framework.util import from_yearly
-from ceam_tests.util import setup_simulation, pump_simulation, build_table, generate_test_population
+from ceam.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
 
 from ceam_inputs import get_incidence
 
