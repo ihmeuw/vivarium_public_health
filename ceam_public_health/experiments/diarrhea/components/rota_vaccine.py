@@ -8,7 +8,7 @@ from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
 from ceam.framework.values import modifies_value
 
-from ceam_inputs import get_rota_vaccine_coverage, get_dtp3_coverage, get_rota_vaccine_rrs
+from ceam_inputs import get_rota_vaccine_coverage, get_dtp3_coverage, get_rota_vaccine_rrs, get_rota_vaccine_protection
 
 
 def set_vaccine_duration(population, etiology, dose):
@@ -203,6 +203,7 @@ class RotaVaccine:
             self.vaccine_coverage = builder.value('{}_vaccine_coverage'.format(self.etiology))
             self.vaccine_coverage.source = builder.lookup(get_rota_vaccine_coverage())
 
+        self.third_dose_protection = get_rota_vaccine_protection()
         self.true_coverage = builder.value('true_{}_vaccine_coverage'.format(self.etiology))
         self.true_coverage.source = builder.lookup(get_rota_vaccine_coverage())
 
@@ -487,39 +488,32 @@ class RotaVaccine:
         """
         population = population_view.get(index)
 
-        # if the vaccine has been introduced to the country, start getting the risk-deleted incidence
-        # use the true coverage here. only want to risk-delete where it's necessary
-        if np.any(self.vaccine_coverage(index)):
-            pafs = ((1 - self.true_coverage(index)) * (self.vaccine_rr - 1)) / ((1 - self.true_coverage(index)) * (self.vaccine_rr - 1) + 1)
-            rates *= (1 - pafs)
-    
-            dose_not_working_index = population.query("rotaviral_entiritis_vaccine_third_dose_is_working == 0").index
+        for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
+            dose_working_index = population.query(
+                "rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
 
-            # for those for whom the third dose is not working, add back in the relative risk
-            rates.loc[dose_not_working_index] *= self.vaccine_rr
+            # FIXME: I feel like there should be a better way to get
+            # protection using the new config, but I don't know how. Using
+            # the old config, I could say
+            # config.getfloat('rota_vaccine', '{}_dose_protection'.format(dose))
+            if dose == "first":
+                protection = config.rota_vaccine.first_dose_protection
+            if dose == "second":
+                protection = config.rota_vaccine.second_dose_protection
+            if dose == "third":
+                protection = self.third_dose_protection
 
-        # for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
-        #    dose_working_index = population.query(
-        #        "rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
+            if len(dose_working_index) > 0:
+                vaccine_protection = determine_vaccine_protection(population,
+                                                                  dose_working_index,
+                                                                  wane_immunity,
+                                                                  self.clock(),
+                                                                  dose,
+                                                                  protection)
+            else:
+                vaccine_protection = 0
 
-        #    if dose == "first":
-        #        protection = config.rota_vaccine.first_dose_protection
-        #    if dose == "second":
-        #        protection = config.rota_vaccine.second_dose_protection
-        #    if dose == "third":
-        #        protection = self.third_dose_protection
-
-        #   if len(dose_working_index) > 0:
-        #        vaccine_protection = determine_vaccine_protection(population,
-        #                                                          dose_working_index,
-        #                                                          wane_immunity,
-        #                                                          self.clock(),
-        #                                                          dose,
-        #                                                          protection)
-        #    else:
-        #        vaccine_protection = 0
-            # TODO: Confirm whether this affects rates or probabilities
-        #    rates.loc[dose_working_index] *= (1 - vaccine_protection)
+            rates.loc[dose_working_index] *= (1 - vaccine_protection)
 
         return rates
 
