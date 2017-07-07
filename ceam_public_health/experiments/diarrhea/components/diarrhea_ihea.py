@@ -120,7 +120,7 @@ def build_diarrhea_model():
                       etiology.gbd_parent_cause == causes.diarrhea.gbd_cause] + ['unattributed_diarrhea']
 
     # Build an `Etiology` container for each etiology we're modelling.
-    etiologies = [build_etiology_model(name, cause_diarrhea) for name in etiology_names]
+    etiologies = [build_etiology_model(name, cause_diarrhea) for name in sorted(etiology_names)]
 
     # Our model has simulants recover from their etiologies when they recover from their bout
     # of diarrhea.  Here we set up a factory to generate the functions that will cause each

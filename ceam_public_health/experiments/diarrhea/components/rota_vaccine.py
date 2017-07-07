@@ -488,7 +488,7 @@ class RotaVaccine:
         """
         population = population_view.get(index)
 
-        for dose, dose_number in {"first": 1, "second": 2, "third": 3}.items():
+        for dose in ["first", "second", "third"]:
             dose_working_index = population.query(
                 "rotaviral_entiritis_vaccine_{d}_dose_is_working == 1".format(d=dose)).index
 
