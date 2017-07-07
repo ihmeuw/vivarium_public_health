@@ -1,4 +1,4 @@
-draw_count: 100
+draw_count: 25
 
 branches:
     - simulation_parameters:
