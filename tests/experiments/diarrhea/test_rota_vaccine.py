@@ -122,7 +122,7 @@ def test_set_vaccine_duration():
 
 @pytest.fixture
 def get_indexes():
-    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], population_size=1000)
+    simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], population_size=10000)
     
     config.rota_vaccine.set_with_metadata('dtp3_coverage', 0, layer='override',
                                           source=os.path.realpath(__file__))
@@ -141,7 +141,7 @@ def test_set_working_column1(get_indexes):
 
     err_msg = ("Working column should ensure that the correct "
                "number of simulants are receiving the benefits of the vaccine.")
-    assert np.allclose(len(vaccinated)/1000, config.rota_vaccine.vaccination_proportion_increase, rtol=.1), err_msg
+    assert np.allclose(len(vaccinated)/(len(vaccinated)+len(not_vaccinated)), config.rota_vaccine.vaccination_proportion_increase, rtol=.1), err_msg
 
     err_msg = ("set_working_column needs to correctly identify who has "
                "been vaccinated and whether the vaccine should be conferring any benefit.")

@@ -199,7 +199,7 @@ def diarrhea_factory():
         uses functions above to apply excess mortality and remission
     """
     list_of_modules = []
-    dict_of_etiologies_and_eti_risks = {name: causes[name].gbd_cause if 'gbd_cause' in causes[name] else causes[name].gbd_parent_cause
+    dict_of_etiologies_and_eti_risks = {name: causes[name].gbd_cause if name != 'unattributed_diarrhea' else 'unattributed_diarrhea'
                                         for name in ETIOLOGIES}
 
     for pathogen, risk_id in dict_of_etiologies_and_eti_risks.items():
