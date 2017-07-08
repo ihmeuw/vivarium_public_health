@@ -1,6 +1,5 @@
 components:
-        - ceam_tests:
-                - util:
+        - ceam.test_util:
                         - generate_test_population
 
         - ceam_public_health:
