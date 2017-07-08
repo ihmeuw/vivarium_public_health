@@ -21,6 +21,8 @@ class RotaVaccine:
             'age_at_first_dose': 61,
             'age_at_second_dose': 122,
             'age_at_third_dose': 183,
+            'first_dose_protection': 0,
+            'second_dose_protection': 0,
             'second_dose_retention': 1,
             'third_dose_retention': 1,
             'vaccination_proportion_increase': 0,
@@ -44,6 +46,8 @@ class RotaVaccine:
                           'second': config.rota_vaccine.second_dose_retention,
                           'third': config.rota_vaccine.third_dose_retention}
         self._coverage_data = get_dtp3_coverage() if config.rota_vaccine.dtp3_coverage else get_rota_vaccine_coverage()
+        self.unit_cost = config.rota_vaccine.RV5_dose_cost
+        self.administration_cost = config.rota_vaccine.cost_to_administer_each_dose
 
     def setup(self, builder):
         self.clock = builder.clock()
@@ -52,7 +56,7 @@ class RotaVaccine:
         self.randomness = {dose: builder.randomness('{}_dose_randomness'.format(dose)) for dose in self.doses}
 
         self.coverage = builder.value('{}_coverage'.format(self.name))
-        self.coverage.source = self._coverage_data
+        self.coverage.source = builder.lookup(self._coverage_data)
         self.protection = {'none': 0,
                            'first': config.rota_vaccine.first_dose_protection,
                            'second': config.rota_vaccine.second_dose_protection,
@@ -115,10 +119,15 @@ class RotaVaccine:
 
         protection = pd.Series(0, index=pop.index)
         for n, dose in enumerate(self.doses):
-            protection[full_immunity & (pop[self.name] == dose)] = self.protection[dose]
+            got_this_dose = pop[self.name] == n+1
+            protection[full_immunity & got_this_dose] = self.protection[dose]
+
+            if self.waning_time == pd.Timedelta(0):
+                continue
+
             protection_slope = self.protection[dose]/self.waning_time
-            protection[waning_immunity & (pop[self.name] == dose)] = (self.protection[dose]
-                                                                      - protection_slope*time_in_waning_protection)
+            protection[waning_immunity & got_this_dose] = (self.protection[dose]
+                                                           - protection_slope*time_in_waning_protection)
 
         return protection
 
@@ -127,16 +136,13 @@ class RotaVaccine:
         population = self.population_view.get(index)
         count_vacs = population.groupby(self.name).size()
 
-        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = count_vacs[-3:].sum()
-        metrics['rotaviral_entiritis_vaccine_second_dose_count'] = count_vacs[-2:].sum()
-        metrics['rotaviral_entiritis_vaccine_third_dose_count'] = count_vacs[-1:].sum()
+        metrics['{}_first_dose_count'.format(self.name)] = count_vacs[-3:].sum()
+        metrics['{}_second_dose_count'.format(self.name)] = count_vacs[-2:].sum()
+        metrics['{}_third_dose_count'.format(self.name)] = count_vacs[-1:].sum()
 
-        total_number_of_administered_vaccines = metrics['rotaviral_entiritis_vaccine_first_dose_count'] + \
-                                                metrics['rotaviral_entiritis_vaccine_second_dose_count'] + \
-                                                metrics['rotaviral_entiritis_vaccine_third_dose_count']
+        total_vaccines = sum([metrics['{n}_{d}_dose_count'.format(n=self.name, d=dose)] for dose in self.doses])
 
-        metrics['vaccine_unit_cost_column'] = total_number_of_administered_vaccines * config.rota_vaccine.RV5_dose_cost
-        metrics['vaccine_cost_to_administer_column'] = (total_number_of_administered_vaccines
-                                                        * config.rota_vaccine.cost_to_administer_each_dose)
+        metrics['{}_unit_cost'.format(self.name)] = total_vaccines * self.unit_cost
+        metrics['{}_cost_to_administer'.format(self.name)] = (total_vaccines * self.administration_cost)
 
         return metrics
