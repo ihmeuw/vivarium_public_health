@@ -47,7 +47,8 @@ class RotaVaccine:
 
     def setup(self, builder):
         self.clock = builder.clock()
-        self.population_view = builder.population_view(self._columns + ['age'], query="alive == 'alive'")
+        self.population_view = builder.population_view([self.name, self.event_time_column, 'age'],
+                                                       query="alive == 'alive'")
         self.randomness = {dose: builder.randomness('{}_dose_randomness'.format(dose)) for dose in self.doses}
 
         self.coverage = builder.value('{}_coverage'.format(self.name))
@@ -69,13 +70,16 @@ class RotaVaccine:
         population = self.population_view.get(event.index)
         for n, dose in enumerate(self.doses):
             dosed_population = population.iloc[self.determine_who_should_receive_dose(population, n)]
-            event.population_view.update(dosed_population)
+            dosed_population[self.name] += 1
+            dosed_population[self.event_time_column] = self.clock()
+            self.population_view.update(dosed_population)
 
     def determine_who_should_receive_dose(self, population, dose_number):
-        dose = self.doses[dose_number - 1]
+        dose = self.doses[dose_number]
         previous_dose = dose_number - 1
 
-        correct_age = np.abs(population.age - self.dose_ages[dose]) < 1/365
+        dt = config.simulation_parameters.time_step
+        correct_age = np.abs(population.age - self.dose_ages[dose]) < dt/365
         got_previous_dose = population[self.name] == previous_dose
         eligible_children_index = population[correct_age & got_previous_dose].index
 
@@ -121,11 +125,11 @@ class RotaVaccine:
     @modifies_value('metrics')
     def metrics(self, index, metrics):
         population = self.population_view.get(index)
-        count_vacs = population.groupby('rotaviral_entiritis_vaccine').size()
+        count_vacs = population.groupby(self.name).size()
 
-        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = count_vacs.sum()
-        metrics['rotaviral_entiritis_vaccine_second_dose_count'] = count_vacs[1:].sum()
-        metrics['rotaviral_entiritis_vaccine_third_dose_count'] = count_vacs[2:].sum()
+        metrics['rotaviral_entiritis_vaccine_first_dose_count'] = count_vacs[-3:].sum()
+        metrics['rotaviral_entiritis_vaccine_second_dose_count'] = count_vacs[-2:].sum()
+        metrics['rotaviral_entiritis_vaccine_third_dose_count'] = count_vacs[-1:].sum()
 
         total_number_of_administered_vaccines = metrics['rotaviral_entiritis_vaccine_first_dose_count'] + \
                                                 metrics['rotaviral_entiritis_vaccine_second_dose_count'] + \
