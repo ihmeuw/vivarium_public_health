@@ -8,12 +8,14 @@ import pandas as pd
 from ceam import config
 from ceam.framework.randomness import RandomnessStream
 
+from ceam_inputs import get_populations
+
 from ceam.test_util import setup_simulation, pump_simulation, build_table
 
-from ceam_public_health.population.base_population import age_out_simulants, BasePopulation
-from ceam_public_health.population.data_transformations import (add_proportions, generate_ceam_population,
-                                                                assign_subregions)
-from ceam_inputs import get_populations
+from ceam_public_health.population.base_population import (age_out_simulants, BasePopulation, generate_ceam_population,
+                                                           assign_subregions)
+from ceam_public_health.population.data_transformations import add_proportions
+
 
 KENYA = 180
 
