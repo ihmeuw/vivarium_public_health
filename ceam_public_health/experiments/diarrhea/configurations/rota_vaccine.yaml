@@ -10,8 +10,6 @@ components:
                 - diarrhea_ihea.build_diarrhea_model()
                 - healthcare_ihea.HealthcareAccess()
                 - rota_vaccine.RotaVaccine()
-            - risks:
-                - CategoricalRiskComponent("unsafe_sanitation")
             - metrics:
                 - Metrics()
                 - Disability()
