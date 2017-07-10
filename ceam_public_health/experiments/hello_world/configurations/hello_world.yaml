@@ -1,11 +1,9 @@
 components:
         - ceam.test_util:
                         - generate_test_population
+                        - age_simulants
 
         - ceam_public_health:
-                - population:
-                        - age_simulants
-                        - age_out_simulants
                 - experiments.hello_world.components.hello_world:
                         - SimpleMortality()
                         - SimpleIntervention()

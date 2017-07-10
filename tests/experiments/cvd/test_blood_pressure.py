@@ -5,10 +5,9 @@ import numpy as np
 import pytest
 
 from ceam import config
-from ceam.test_util import setup_simulation, pump_simulation, generate_test_population
+from ceam.test_util import setup_simulation, pump_simulation, generate_test_population, age_simulants
 
 from ceam_public_health.risks import ContinuousRiskComponent
-from ceam_public_health.population import age_simulants
 
 np.random.seed(100)
 

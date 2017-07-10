@@ -10,7 +10,7 @@ from ceam.framework.randomness import RandomnessStream
 
 from ceam.test_util import setup_simulation, pump_simulation, build_table
 
-from ceam_public_health.population.base_population import age_out_simulants, BasePopulation, age_simulants
+from ceam_public_health.population.base_population import age_out_simulants, BasePopulation
 from ceam_public_health.population.data_transformations import (add_proportions, generate_ceam_population,
                                                                 assign_subregions)
 from ceam_inputs import get_populations
@@ -57,7 +57,7 @@ def test_age_out_simulants():
                                                 'maximum_age': 5,
                                                 'time_step': time_step}},
                      layer='override')
-    components = [BasePopulation(), age_out_simulants, age_simulants]
+    components = [BasePopulation(), age_out_simulants]
     simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     assert np.all(simulation.population.population.alive == 'untracked')

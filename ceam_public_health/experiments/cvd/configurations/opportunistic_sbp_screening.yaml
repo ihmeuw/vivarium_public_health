@@ -3,7 +3,6 @@ components:
                 - population:
                         - BasePopulation()
                         - adherence
-                        - age_simulants
                         - Mortality()
                 - experiments.cvd.components:
                         - heart_disease.factory()

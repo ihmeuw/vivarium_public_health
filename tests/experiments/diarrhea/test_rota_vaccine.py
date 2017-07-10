@@ -6,10 +6,7 @@ import pandas as pd
 import pytest
 
 from ceam import config
-from ceam.test_util import (pump_simulation, generate_test_population,
-                             setup_simulation, build_table)
-
-from ceam_public_health.population import age_simulants
+from ceam.test_util import pump_simulation, generate_test_population, age_simulants, setup_simulation, build_table
 
 from ceam_public_health.experiments.diarrhea.components.diarrhea import diarrhea_factory
 from ceam_public_health.experiments.diarrhea.components.rota_vaccine import RotaVaccine
@@ -123,7 +120,7 @@ def test_set_vaccine_duration():
 @pytest.fixture
 def get_indexes():
     simulation = setup_simulation([generate_test_population, age_simulants, RotaVaccine()], population_size=10000)
-    
+
     config.rota_vaccine.set_with_metadata('dtp3_coverage', 0, layer='override',
                                           source=os.path.realpath(__file__))
 

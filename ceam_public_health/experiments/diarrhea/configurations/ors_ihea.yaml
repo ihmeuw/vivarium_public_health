@@ -2,7 +2,6 @@ components:
         - ceam_public_health:
                 - population:
                         - BasePopulation()
-                        - age_simulants
                         - age_out_simulants
                         - FertilityDeterministic()
                         - Mortality()

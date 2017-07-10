@@ -38,6 +38,13 @@ class BasePopulation:
         else:
             event.population_view.update(pd.Series(main_location, index=event.index))
 
+    @listens_for('time_step')
+    @uses_columns(['age'], "alive == 'alive'")
+    def age_simulants(self, event):
+        time_step = config.simulation_parameters.time_step
+        event.population['age'] += time_step / 365.0
+        event.population_view.update(event.population)
+
 
 @listens_for('initialize_simulants')
 @uses_columns(['adherence_category'])
@@ -56,12 +63,7 @@ def adherence(event):
                                                     p=p, size=population_size), dtype='category'))
 
 
-@listens_for('time_step')
-@uses_columns(['age'], "alive == 'alive'")
-def age_simulants(event):
-    time_step = config.simulation_parameters.time_step
-    event.population['age'] += time_step/365.0
-    event.population_view.update(event.population)
+
 
 
 @listens_for('time_step', priority=1)  # Set slightly after mortality.
