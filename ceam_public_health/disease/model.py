@@ -2,8 +2,6 @@ import numbers
 
 import pandas as pd
 
-from ceam_inputs import get_disease_states
-
 from ceam import config
 
 from ceam.framework.event import listens_for
@@ -12,6 +10,8 @@ from ceam.framework.state_machine import Machine, TransitionSet
 from ceam.framework.values import modifies_value
 
 from ceam_public_health.disease import ExcessMortalityState, TransientDiseaseState, RateTransition, ProportionTransition
+
+from .data_transformations import assign_cause_at_beginning_of_simulation
 
 
 class DiseaseModel(Machine):
@@ -28,6 +28,7 @@ class DiseaseModel(Machine):
 
     def setup(self, builder):
         self.population_view = builder.population_view([self.condition], "alive == 'alive'")
+        self.randomness = builder.randomness('{}_initial_states'.format(self.condition))
 
         sub_components = set()
         for state in self.states:
@@ -63,7 +64,8 @@ class DiseaseModel(Machine):
         if state_map:
             # only do this if there are states in the model that supply prevalence data
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
-            condition_column = get_disease_states(population, state_map)
+            condition_column = assign_cause_at_beginning_of_simulation(population, event.time.year,
+                                                                       state_map, self.randomness)
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
         else:
             condition_column = pd.Series('healthy', index=population.index, name=self.condition)
