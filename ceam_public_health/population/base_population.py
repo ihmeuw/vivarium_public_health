@@ -4,7 +4,7 @@ import pandas as pd
 from ceam import config
 from ceam.framework.event import listens_for
 from ceam.framework.population import uses_columns
-from ceam_inputs import assign_subregions, get_populations
+from ceam_inputs import get_populations, get_subregions
 
 
 class BasePopulation:
@@ -27,6 +27,16 @@ class BasePopulation:
         population['exit_time'] = pd.NaT
         event.population_view.update(population)
 
+    @listens_for('initialize_simulants', priority=1)
+    @uses_columns(['location'])
+    def assign_location(self, event):
+        main_location = config.simulation_parameters.location_id
+        if 'use_subregions' in config.simulation_parameters and config.simulation_parameters.use_subregions:
+            event.population_view.update(_assign_subregions(index=event.index, location=main_location,
+                                                            year=event.time.year, randomness=self.randomness))
+        else:
+            event.population_view.update(pd.Series(main_location, index=event.index))
+
 
 def _add_proportions(population_data):
     def normalize(sub_pop):
@@ -39,27 +49,6 @@ def _add_proportions(population_data):
 
 
 def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, initial_age=None):
-    """Returns a population of simulants to be fed into CEAM
-
-    Parameters
-    ----------
-    pop_data: `DataFrame`
-        A table describing the demographic structure of the population to generate.
-    number_of_simulants: int
-        The size of the population to generate.
-    year: int
-        Specific year to generate the population for.  Should be the current year in the simulation.
-    randomness_stream: `RandomnessStream`
-        A randomness source tied to the CRN framework.
-    initial_age : int
-        If not None simulants will all be set to this age otherwise their
-        ages will come from the population distribution
-
-    Returns
-    -------
-    `DataFrame` :
-        Table with columns simulant_id, age, sex, and location.
-    """
     simulants = pd.DataFrame({'simulant_id': np.arange(number_of_simulants, dtype=int)})
     if initial_age is not None:
         simulants['age'] = float(initial_age)
@@ -77,10 +66,10 @@ def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, i
         decisions = randomness_stream.choice(simulants.index,
                                              choices=choices.index,
                                              p=choices.annual_proportion)
+        # TODO: Smooth out ages.
         simulants['age'] = choices.loc[decisions, 'age'].values
         simulants['sex'] = choices.loc[decisions, 'sex'].values
 
-    simulants['location'] = pop_data['location_id']
     simulants['alive'] = 'alive'
     return simulants
 
@@ -94,7 +83,6 @@ def _rescale_binned_proportions(pop_data):
     pop_data = pop_data[(pop_data.age_group_start < pop_age_end)
                         & (pop_data.age_group_end > pop_age_start)]
 
-    # TODO: Replace your laziness with a groupby
     for sex in ['Male', 'Female']:
         max_bin = pop_data[(pop_data.age_group_end >= pop_age_end) & (pop_data.sex == sex)]
         min_bin = pop_data[(pop_data.age_group_start <= pop_age_start) & (pop_data.sex == sex)]
@@ -109,11 +97,17 @@ def _rescale_binned_proportions(pop_data):
     return pop_data
 
 
-@listens_for('initialize_simulants', priority=1)
-@uses_columns(['location'])
-def assign_location(event):
-    main_location = config.simulation_parameters.location_id
-    event.population_view.update(assign_subregions(event.index, main_location, event.time.year))
+def _assign_subregions(index, location, year, randomness):
+    sub_regions = get_subregions(location)
+
+    # TODO: Use demography in a smart way here.
+    if sub_regions:
+        sub_pops = np.array([get_populations(sub_region, year=year, sex='Both').pop_scaled.sum()
+                             for sub_region in sub_regions])
+        proportions = sub_pops / sub_pops.sum()
+        return randomness.choice(index=index, choices=sub_regions, p=proportions)
+    else:
+        return pd.Series(location, index=index)
 
 
 @listens_for('initialize_simulants')
