@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -7,10 +8,11 @@ import pandas as pd
 from ceam import config
 from ceam.framework.randomness import RandomnessStream
 
-from ceam.test_util import setup_simulation, pump_simulation
+from ceam.test_util import setup_simulation, pump_simulation, build_table
 
 from ceam_public_health.population.base_population import (generate_ceam_population, _add_proportions,
-                                                           age_out_simulants, BasePopulation, age_simulants)
+                                                           age_out_simulants, BasePopulation, age_simulants,
+                                                           _assign_subregions)
 from ceam_inputs import get_populations
 
 KENYA = 180
@@ -59,6 +61,39 @@ def test_age_out_simulants():
     simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     assert np.all(simulation.population.population.alive == 'untracked')
+
+
+@patch('ceam_inputs.gbd_ms_functions.get_populations')
+@patch('ceam_inputs.gbd_ms_functions.gbd')
+def test_assign_subregions_with_subregions(gbd_mock, get_populations_mock):
+    gbd_mock.get_subregions.side_effect = lambda location_id: [10, 11, 12]
+    test_populations = {
+            10: build_table(20, ['age', 'year', 'sex', 'pop_scaled']),
+            11: build_table(30, ['age', 'year', 'sex', 'pop_scaled']),
+            12: build_table(50, ['age', 'year', 'sex', 'pop_scaled']),
+    }
+    get_populations_mock.side_effect = lambda location_id, year, sex, gbd_round_id: test_populations[location_id]
+    r = RandomnessStream('assign_sub_region_test', clock=lambda: datetime(1990, 1, 1), seed=12345)
+    locations = _assign_subregions(pd.Index(range(100000)), location=180, year=2005, randomness=r)
+
+    counts = locations.value_counts()
+    counts = np.array([counts[lid] for lid in [10, 11, 12]])
+    counts = counts / counts.sum()
+    assert np.allclose(counts, [.2, .3, .5], rtol=0.01)
+
+
+@patch('ceam_inputs.gbd_ms_functions.get_populations')
+@patch('ceam_inputs.gbd_ms_functions.gbd')
+def test_assign_subregions_without_subregions(gbd_mock, get_populations_mock):
+    gbd_mock.get_subregions.side_effect = lambda location_id: []
+    test_populations = {
+            190: build_table(100, ['age', 'year', 'sex', 'pop_scaled']),
+    }
+    get_populations_mock.side_effect = lambda location_id, year, sex: test_populations[location_id]
+    r = RandomnessStream('assign_sub_region_test', clock=lambda: datetime(1990, 1, 1), seed=12345)
+    locations = _assign_subregions(pd.Index(range(100000)), location=190, year=2005, randomness=r)
+
+    assert np.all(locations == 190)
 
 
 
