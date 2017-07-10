@@ -9,7 +9,7 @@ components:
             - experiments.diarrhea.components:
                 - diarrhea_ihea.build_diarrhea_model()
                 - healthcare_ihea.HealthcareAccess()
-                - rota_vaccine_ihea.RotaVaccine()
+                - rota_vaccine.RotaVaccine()
             - metrics:
                 - Metrics()
                 - Disability()
@@ -19,7 +19,7 @@ configuration:
         location_id: 179
         year_start: 2007
         year_end: 2008
-        time_step: 100
+        time_step: 1
         pop_age_start:
         pop_age_end:
         maximum_age: 5
