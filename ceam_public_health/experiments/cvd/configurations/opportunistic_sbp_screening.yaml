@@ -5,7 +5,6 @@ components:
                         - adherence
                         - age_simulants
                         - Mortality()
-                        - assign_location
                 - experiments.cvd.components:
                         - heart_disease.factory()
                         - stroke.factory()
@@ -36,5 +35,6 @@ configuration:
                 pop_age_start: 0
                 pop_age_end: 125
                 population_size: 100000
+                use_subregions: True
         run_configuration:
                 results_directory: "/share/scratch/users/emumford"

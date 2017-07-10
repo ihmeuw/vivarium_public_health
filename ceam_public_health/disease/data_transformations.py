@@ -119,7 +119,8 @@ def assign_cause_at_beginning_of_simulation(simulants_df, year_start, states, ra
     post_cause_assignment_population = determine_if_sim_has_cause(simulants_df, cause_level_prevalence, randomness)
     sequela_proportions = get_sequela_proportions(cause_level_prevalence, states)
     post_sequela_assignmnet_population = determine_which_seq_diseased_sim_has(sequela_proportions,
-                                                                              post_cause_assignment_population)
+                                                                              post_cause_assignment_population,
+                                                                              randomness)
     post_sequela_assignmnet_population.condition_state = post_sequela_assignmnet_population.condition_state.fillna(
         'healthy')
 

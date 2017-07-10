@@ -63,16 +63,16 @@ def test_age_out_simulants():
     assert np.all(simulation.population.population.alive == 'untracked')
 
 
-@patch('ceam_inputs.gbd_ms_functions.get_populations')
-@patch('ceam_inputs.gbd_ms_functions.gbd')
-def test_assign_subregions_with_subregions(gbd_mock, get_populations_mock):
-    gbd_mock.get_subregions.side_effect = lambda location_id: [10, 11, 12]
+@patch('ceam_public_health.population.base_population.get_populations')
+@patch('ceam_public_health.population.base_population.get_subregions')
+def test_assign_subregions_with_subregions(get_subregions_mock, get_populations_mock):
+    get_subregions_mock.side_effect = lambda location_id: [10, 11, 12]
     test_populations = {
             10: build_table(20, ['age', 'year', 'sex', 'pop_scaled']),
             11: build_table(30, ['age', 'year', 'sex', 'pop_scaled']),
             12: build_table(50, ['age', 'year', 'sex', 'pop_scaled']),
     }
-    get_populations_mock.side_effect = lambda location_id, year, sex, gbd_round_id: test_populations[location_id]
+    get_populations_mock.side_effect = lambda location_id, year, sex: test_populations[location_id]
     r = RandomnessStream('assign_sub_region_test', clock=lambda: datetime(1990, 1, 1), seed=12345)
     locations = _assign_subregions(pd.Index(range(100000)), location=180, year=2005, randomness=r)
 
@@ -82,10 +82,10 @@ def test_assign_subregions_with_subregions(gbd_mock, get_populations_mock):
     assert np.allclose(counts, [.2, .3, .5], rtol=0.01)
 
 
-@patch('ceam_inputs.gbd_ms_functions.get_populations')
-@patch('ceam_inputs.gbd_ms_functions.gbd')
-def test_assign_subregions_without_subregions(gbd_mock, get_populations_mock):
-    gbd_mock.get_subregions.side_effect = lambda location_id: []
+@patch('ceam_public_health.population.base_population.get_populations')
+@patch('ceam_public_health.population.base_population.get_subregions')
+def test_assign_subregions_without_subregions(get_subregions_mock, get_populations_mock):
+    get_subregions_mock.side_effect = lambda location_id: []
     test_populations = {
             190: build_table(100, ['age', 'year', 'sex', 'pop_scaled']),
     }
@@ -94,6 +94,3 @@ def test_assign_subregions_without_subregions(gbd_mock, get_populations_mock):
     locations = _assign_subregions(pd.Index(range(100000)), location=190, year=2005, randomness=r)
 
     assert np.all(locations == 190)
-
-
-

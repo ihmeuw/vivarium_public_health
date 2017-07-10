@@ -31,8 +31,11 @@ class BasePopulation:
     @uses_columns(['location'])
     def assign_location(self, event):
         main_location = config.simulation_parameters.location_id
-        event.population_view.update(_assign_subregions(index=event.index, location=main_location,
-                                                        year=event.time.year, randomness=self.randomness))
+        if 'use_subregions' in config.simulation_parameters and config.simulation_parameters.use_subregions:
+            event.population_view.update(_assign_subregions(index=event.index, location=main_location,
+                                                            year=event.time.year, randomness=self.randomness))
+        else:
+            event.population_view.update(pd.Series(main_location, index=event.index))
 
 
 def _add_proportions(population_data):
@@ -99,7 +102,8 @@ def _assign_subregions(index, location, year, randomness):
 
     # TODO: Use demography in a smart way here.
     if sub_regions:
-        sub_pops = np.array([get_populations(sub_region, year=year, sex='Both') for sub_region in sub_regions])
+        sub_pops = np.array([get_populations(sub_region, year=year, sex='Both').pop_scaled.sum()
+                             for sub_region in sub_regions])
         proportions = sub_pops / sub_pops.sum()
         return randomness.choice(index=index, choices=sub_regions, p=proportions)
     else:

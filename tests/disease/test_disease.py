@@ -30,10 +30,10 @@ def setup():
                                                    source=os.path.realpath(__file__))
 
 
-@patch('ceam_public_health.disease.model.get_disease_states')
-def test_dwell_time(get_disease_states_mock):
+@patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
+def test_dwell_time(assign_cause_mock):
     config.simulation_parameters.set_with_metadata('time_step', 10, layer='override', source=os.path.realpath(__file__))
-    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame(
+    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('state')
     healthy_state = State('healthy')
@@ -91,12 +91,12 @@ def test_mortality_rate():
     assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['sick'])
 
 
-@patch('ceam_public_health.disease.model.get_disease_states')
-def test_incidence(get_disease_states_mock):
+@patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
+def test_incidence(assign_cause_mock):
     time_step = config.simulation_parameters.time_step
     time_step = timedelta(days=time_step)
 
-    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame(
+    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
@@ -118,13 +118,13 @@ def test_incidence(get_disease_states_mock):
     assert np.allclose(from_yearly(0.7, time_step), incidence_rate(simulation.population.population.index), atol=0.00001)
 
 
-@patch('ceam_public_health.disease.model.get_disease_states')
-def test_risk_deletion(get_disease_states_mock):
+@patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
+def test_risk_deletion(assign_cause_mock):
     time_step = config.simulation_parameters.time_step
     time_step = timedelta(days=time_step)
 
-    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'},
-                                                                                     index=population.index)
+    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'},
+                                                                               index=population.index)
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
     sick = State('sick')
@@ -152,9 +152,9 @@ def test_risk_deletion(get_disease_states_mock):
                        incidence_rate(simulation.population.population.index), atol=0.00001)
 
 
-@patch('ceam_public_health.disease.model.get_disease_states')
-def test_load_population_custom_columns(get_disease_states_mock):
-    get_disease_states_mock.side_effect = lambda population, state_map: pd.DataFrame(
+@patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
+def test_load_population_custom_columns(assign_cause_mock):
+    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('test_disease')
     dwell_test = DiseaseState('dwell_test', disability_weight=0.0, dwell_time=10,

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from ceam.test_util import build_table
+from ceam.test_util import build_table, get_randomness
 
 from ceam_public_health.disease.data_transformations import (get_cause_level_prevalence, determine_if_sim_has_cause,
                                                              get_sequela_proportions,
@@ -46,7 +46,7 @@ def test_determine_if_sim_has_cause():
     simulants_df = pd.DataFrame({'simulant_id': range(0, 500000),
                                  'sex': ['Male']*500000,
                                  'age': [0, 5, 10, 15]*125000})
-    results = determine_if_sim_has_cause(simulants_df, prevalence_df)
+    results = determine_if_sim_has_cause(simulants_df, prevalence_df, get_randomness())
     grouped_results = results.groupby('age')[['condition_envelope']].sum()
 
     err_msg = "determine if sim has cause needs to appropriately assign causes based on prevalence"
@@ -73,6 +73,7 @@ def test_get_sequela_proportions():
     assert list(df['sequela 1'].scaled_prevalence.values) == [.75]*4, "get_sequela_proportions"
     assert list(df['sequela 2'].scaled_prevalence.values) == [.25]*4, "get_sequela_proportions"
 
+
 def test_determine_which_seq_diseased_sim_has():
     simulants_df = pd.DataFrame({'age': [0]*200000,
                                  'sex': ['Male']*200000,
@@ -87,7 +88,7 @@ def test_determine_which_seq_diseased_sim_has():
                         'scaled_prevalence': [.25, 0, .25, 0]})
     sequela_proportion_dict = dict({'sequela 1': df1, 'sequela 2': df2})
 
-    results = determine_which_seq_diseased_sim_has(sequela_proportion_dict, simulants_df)
+    results = determine_which_seq_diseased_sim_has(sequela_proportion_dict, simulants_df, get_randomness())
     results['count'] = 1
 
     seq1 = results.query("condition_state == 'sequela 1'")
