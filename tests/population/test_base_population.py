@@ -10,9 +10,9 @@ from ceam.framework.randomness import RandomnessStream
 
 from ceam.test_util import setup_simulation, pump_simulation, build_table
 
-from ceam_public_health.population.base_population import (generate_ceam_population, _add_proportions,
-                                                           age_out_simulants, BasePopulation, age_simulants,
-                                                           _assign_subregions)
+from ceam_public_health.population.base_population import age_out_simulants, BasePopulation, age_simulants
+from ceam_public_health.population.data_transformations import (add_proportions, generate_ceam_population,
+                                                                assign_subregions)
 from ceam_inputs import get_populations
 
 KENYA = 180
@@ -32,7 +32,7 @@ def setup():
 
 def test_generate_ceam_population():
     randomness = RandomnessStream('population_generation_test', clock=lambda: datetime(1990, 1, 1), seed=12345)
-    pop = _add_proportions(get_populations(KENYA))
+    pop = add_proportions(get_populations(KENYA))
     pop = pop[pop.year == 1990]
     pop = generate_ceam_population(pop,
                                    number_of_simulants=1000000,
@@ -74,7 +74,7 @@ def test_assign_subregions_with_subregions(get_subregions_mock, get_populations_
     }
     get_populations_mock.side_effect = lambda location_id, year, sex: test_populations[location_id]
     r = RandomnessStream('assign_sub_region_test', clock=lambda: datetime(1990, 1, 1), seed=12345)
-    locations = _assign_subregions(pd.Index(range(100000)), location=180, year=2005, randomness=r)
+    locations = assign_subregions(pd.Index(range(100000)), location=180, year=2005, randomness=r)
 
     counts = locations.value_counts()
     counts = np.array([counts[lid] for lid in [10, 11, 12]])
@@ -91,6 +91,6 @@ def test_assign_subregions_without_subregions(get_subregions_mock, get_populatio
     }
     get_populations_mock.side_effect = lambda location_id, year, sex: test_populations[location_id]
     r = RandomnessStream('assign_sub_region_test', clock=lambda: datetime(1990, 1, 1), seed=12345)
-    locations = _assign_subregions(pd.Index(range(100000)), location=190, year=2005, randomness=r)
+    locations = assign_subregions(pd.Index(range(100000)), location=190, year=2005, randomness=r)
 
     assert np.all(locations == 190)
