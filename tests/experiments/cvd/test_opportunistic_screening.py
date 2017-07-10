@@ -12,7 +12,6 @@ from ceam.framework.population import uses_columns
 from ceam.test_util import setup_simulation, generate_test_population
 
 from ceam_public_health.risks import ContinuousRiskComponent, distributions, exposures
-from ceam_public_health.population import adherence
 from ceam_public_health.treatment import HealthcareAccess
 
 from ceam_public_health.experiments.cvd.components.opportunistic_screening import (_hypertensive_categories,
@@ -64,7 +63,7 @@ def _population_setup(event):
 def screening_setup():
     module_ = OpportunisticScreening()
     simulation = setup_simulation(
-        [generate_test_population, _population_setup, adherence, HealthcareAccess(),
+        [generate_test_population, _population_setup, HealthcareAccess(),
          ContinuousRiskComponent('high_systolic_blood_pressure'), module_],
         population_size=10)
 

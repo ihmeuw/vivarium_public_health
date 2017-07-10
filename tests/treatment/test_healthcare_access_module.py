@@ -8,7 +8,6 @@ from ceam import config
 from ceam.framework.event import listens_for
 from ceam.test_util import setup_simulation, assert_rate, build_table, generate_test_population
 
-from ceam_public_health.population import adherence
 from ceam_public_health.treatment import HealthcareAccess
 
 np.random.seed(100)
@@ -45,7 +44,7 @@ class Metrics:
 def test_general_access(utilization_rate_mock):
     utilization_rate_mock.side_effect = lambda *args, **kwargs: build_table(0.1, ['age', 'year', 'sex', 'utilization_proportion'])
     metrics = Metrics()
-    simulation = setup_simulation([generate_test_population, adherence, metrics, HealthcareAccess()])
+    simulation = setup_simulation([generate_test_population, metrics, HealthcareAccess()])
 
     # 1.2608717447575932 == a monthly probability 0.1 as a yearly rate
     assert_rate(simulation, 1.2608717447575932, lambda s: metrics.access_count)

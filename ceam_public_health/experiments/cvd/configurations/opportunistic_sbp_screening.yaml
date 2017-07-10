@@ -2,7 +2,6 @@ components:
         - ceam_public_health:
                 - population:
                         - BasePopulation()
-                        - adherence
                         - Mortality()
                 - experiments.cvd.components:
                         - heart_disease.factory()

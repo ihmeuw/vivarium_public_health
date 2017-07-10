@@ -87,24 +87,6 @@ def assign_subregions(index, location, year, randomness):
     else:
         return pd.Series(location, index=index)
 
-
-@listens_for('initialize_simulants')
-@uses_columns(['adherence_category'])
-def adherence(event):
-    population_size = len(event.index)
-    # use a dirichlet distribution with means matching Marcia's
-    # paper and sum chosen to provide standard deviation on first
-    # term also matching paper
-    draw_number = config.run_configuration.draw_number
-    r = np.random.RandomState(1234567+draw_number)
-    alpha = np.array([0.6, 0.25, 0.15]) * 100
-    p = r.dirichlet(alpha)
-    # then use these probabilities to generate adherence
-    # categories for all simulants
-    event.population_view.update(pd.Series(r.choice(['adherent', 'semi-adherent', 'non-adherent'],
-                                                    p=p, size=population_size), dtype='category'))
-
-
 @listens_for('time_step', priority=1)  # Set slightly after mortality.
 @uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
 def age_out_simulants(event):
