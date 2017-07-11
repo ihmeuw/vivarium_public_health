@@ -1,11 +1,12 @@
 import numpy as np
 import pandas as pd
 
-from ceam import config
-from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
-from ceam_inputs import get_populations
 from .data_transformations import add_proportions, generate_ceam_population, assign_subregions
+
+from vivarium import config
+from vivarium.framework.event import listens_for
+from vivarium.framework.population import uses_columns
+from ceam_inputs import get_populations
 
 
 class BasePopulation:

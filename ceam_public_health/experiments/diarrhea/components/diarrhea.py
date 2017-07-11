@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 
-from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
-from ceam.framework.state_machine import State
-from ceam.framework.values import modifies_value
+from vivarium.framework.event import listens_for
+from vivarium.framework.population import uses_columns
+from vivarium.framework.state_machine import State
+from vivarium.framework.values import modifies_value
 from ceam_inputs import (get_etiology_specific_incidence, get_severe_diarrhea_excess_mortality,
                          get_cause_specific_mortality, get_disability_weight, get_severity_splits, causes)
 

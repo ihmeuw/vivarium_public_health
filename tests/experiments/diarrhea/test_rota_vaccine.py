@@ -5,8 +5,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ceam import config
-from ceam.test_util import (pump_simulation, generate_test_population,
+from vivarium import config
+from vivarium.test_util import (pump_simulation, generate_test_population,
                              setup_simulation, build_table)
 
 from ceam_public_health.population import age_simulants

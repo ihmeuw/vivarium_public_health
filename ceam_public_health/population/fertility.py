@@ -2,16 +2,16 @@ from datetime import timedelta
 
 import pandas as pd
 
-from ceam import config
+from vivarium import config
 
-from ceam.framework.util import rate_to_probability
+from vivarium.framework.util import rate_to_probability
 
 from ceam_inputs import get_age_specific_fertility_rates
 
-from ceam.framework.state_machine2 import Transition, TransitionSet, record_event_time, active_after_delay, new_state_side_effect
-from ceam.framework.event import listens_for
-from ceam.framework.values import produces_value
-from ceam.framework.population import uses_columns, creates_simulants
+from vivarium.framework.state_machine2 import Transition, TransitionSet, record_event_time, active_after_delay, new_state_side_effect
+from vivarium.framework.event import listens_for
+from vivarium.framework.values import produces_value
+from vivarium.framework.population import uses_columns, creates_simulants
 
 
 class Fertility:

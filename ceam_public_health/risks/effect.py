@@ -1,10 +1,10 @@
 import numpy as np
 
-from ceam import config
+from vivarium import config
 
 import ceam_inputs as inputs
 from ceam_inputs.gbd_mapping import rid
-from ceam.framework.population import uses_columns
+from vivarium.framework.population import uses_columns
 
 
 def continuous_exposure_effect(risk):
@@ -12,7 +12,7 @@ def continuous_exposure_effect(risk):
 
     Parameters
     ----------
-    risk : `ceam.config_tree.ConfigTree`
+    risk : `vivarium.config_tree.ConfigTree`
         The gbd data mapping for the risk.
     """
     exposure_column = risk.name+'_exposure'
@@ -31,7 +31,7 @@ def categorical_exposure_effect(risk):
 
     Parameters
     ----------
-    risk : `ceam.config_tree.ConfigTree`
+    risk : `vivarium.config_tree.ConfigTree`
         The gbd data mapping for the risk.
     """
     exposure_column = risk.name+'_exposure'
@@ -52,7 +52,7 @@ class RiskEffect:
         A dataframe of relative risk data with age, sex, year, and rr columns
     paf_data : pandas.DataFrame
         A dataframe of population attributable fraction data with age, sex, year, and paf columns
-    cause : `ceam.config_tree.ConfigTree`
+    cause : `vivarium.config_tree.ConfigTree`
         The gbd data mapping for the cause.
     exposure_effect : callable
         A function which takes a series of incidence rates and a series of

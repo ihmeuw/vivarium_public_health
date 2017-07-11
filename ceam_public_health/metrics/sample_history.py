@@ -1,9 +1,9 @@
 import pandas as pd
 
-from ceam import config
+from vivarium import config
 
-from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
+from vivarium.framework.event import listens_for
+from vivarium.framework.population import uses_columns
 
 
 class SampleHistory:

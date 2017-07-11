@@ -5,11 +5,11 @@ import pandas as pd
 
 from ceam_inputs import get_life_table, get_cause_deleted_mortality_rate
 
-from ceam import config
-from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
-from ceam.framework.util import rate_to_probability
-from ceam.framework.values import list_combiner, produces_value, modifies_value
+from vivarium import config
+from vivarium.framework.event import listens_for
+from vivarium.framework.population import uses_columns
+from vivarium.framework.util import rate_to_probability
+from vivarium.framework.values import list_combiner, produces_value, modifies_value
 
 
 class Mortality:

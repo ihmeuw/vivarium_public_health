@@ -2,9 +2,9 @@
 import pandas as pd
 import numpy as np
 
-from ceam import config
-from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns, creates_simulants
+from vivarium import config
+from vivarium.framework.event import listens_for
+from vivarium.framework.population import uses_columns, creates_simulants
 
 from ceam_inputs import get_age_specific_fertility_rates, get_annual_live_births, get_populations
 
@@ -41,7 +41,7 @@ class FertilityDeterministic:
 
         Parameters
         ----------
-        event : ceam.population.PopulationEvent
+        event : vivarium.population.PopulationEvent
             The event that triggered the function call.
         creator : method
             A function or method for creating a population.
@@ -89,7 +89,7 @@ class FertilityCrudeBirthRate:
 
         Parameters
         ----------
-        event : ceam.population.PopulationEvent
+        event : vivarium.population.PopulationEvent
             The event that triggered the function call.
         creator : method
             A function or method for creating a population.
@@ -155,7 +155,7 @@ class FertilityAgeSpecificRates:
 
         Parameters
         ----------
-        builder : ceam.engine.Builder
+        builder : vivarium.engine.Builder
             Framework coordination object.
 
         """
@@ -172,7 +172,7 @@ class FertilityAgeSpecificRates:
 
         Parameters
         ----------
-        event : ceam.population.PopulationEvent
+        event : vivarium.population.PopulationEvent
             Event that triggered this method call.
         """
 
@@ -194,7 +194,7 @@ class FertilityAgeSpecificRates:
 
         Parameters
         ----------
-        event : ceam.population.PopulationEvent
+        event : vivarium.population.PopulationEvent
             The event that triggered the function call.
         creator : method
             A function or method for creating a population.
