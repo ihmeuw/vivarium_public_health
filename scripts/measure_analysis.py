@@ -16,7 +16,7 @@ sns.set_style('whitegrid')
 
 from ceam_inputs import get_age_bins
 
-from ceam import config
+from vivarium import config
 from ceam_public_health.cube import make_measure_cube_from_gbd
 
 def graph_measure(data, measure, output_directory):

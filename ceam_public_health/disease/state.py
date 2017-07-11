@@ -5,10 +5,10 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 
-from ceam import config
-from ceam.framework.event import listens_for
-from ceam.framework.state_machine import State, TransientState
-from ceam.framework.values import modifies_value
+from vivarium import config
+from vivarium.framework.event import listens_for
+from vivarium.framework.state_machine import State, TransientState
+from vivarium.framework.values import modifies_value
 from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, meid, hid
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
@@ -108,7 +108,7 @@ class DiseaseState(State):
 
         Parameters
         ----------
-        event : `ceam.framework.population.PopulationEvent`
+        event : `vivarium.framework.population.PopulationEvent`
             An event signaling the creation of new simulants.
         """
         if self.track_events:
@@ -290,7 +290,7 @@ class TransientDiseaseState(TransientState):
 
         Parameters
         ----------
-        event : `ceam.framework.population.PopulationEvent`
+        event : `vivarium.framework.population.PopulationEvent`
             An event signaling the creation of new simulants.
         """
         if self.track_events:

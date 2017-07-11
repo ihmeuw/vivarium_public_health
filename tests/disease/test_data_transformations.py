@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from ceam.test_util import build_table, get_randomness
+from vivarium.test_util import build_table, get_randomness
 
 from ceam_public_health.disease.data_transformations import (get_cause_level_prevalence, determine_if_sim_has_cause,
                                                              get_sequela_proportions,

@@ -17,7 +17,7 @@ import pandas as pd
 from celery import Celery, states
 import drmaa
 
-from ceam.framework.util import collapse_nested_dict, expand_branch_templates
+from vivarium.framework.util import collapse_nested_dict, expand_branch_templates
 
 import logging
 _log = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def uge_specification(peak_memory, job_name='ceam'):
 def init_job_template(jt, peak_memory, broker_url, config_file):
     jt.workingDirectory = os.getcwd()
     jt.remoteCommand = shutil.which('celery')
-    jt.args = ['-A', 'ceam.framework.celery_tasks', 'worker', '--without-gossip', '--without-mingle', '--concurrency=1', '--config', config_file]
+    jt.args = ['-A', 'vivarium.framework.celery_tasks', 'worker', '--without-gossip', '--without-mingle', '--concurrency=1', '--config', config_file]
     print('celery '+' '.join(jt.args))
     sge_cluster = os.environ['SGE_CLUSTER_NAME']
     jt.jobEnvironment = {
@@ -77,7 +77,7 @@ def launch_redis(port):
     return redis_process
 
 def launch_celery_flower(port, config):
-    args = ['celery', 'flower', '-A', 'ceam.framework.celery_tasks', '--config={}'.format(config), '--port={}'.format(port)]
+    args = ['celery', 'flower', '-A', 'vivarium.framework.celery_tasks', '--config={}'.format(config), '--port={}'.format(port)]
     print('celery '+' '.join(args))
     flower_process = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     atexit.register(flower_process.kill)
@@ -245,7 +245,7 @@ def main():
 
     futures = {}
     for job in jobs:
-        futures[celery_app.send_task('ceam.framework.celery_tasks.worker', job, acks_late=True)] = job
+        futures[celery_app.send_task('vivarium.framework.celery_tasks.worker', job, acks_late=True)] = job
 
     results = pd.DataFrame()
     results_dirty = False

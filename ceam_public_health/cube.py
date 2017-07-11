@@ -2,7 +2,7 @@ from warnings import warn
 
 import pandas as pd
 
-from ceam import config
+from vivarium import config
 
 from ceam_inputs import (get_excess_mortality, get_prevalence, get_cause_specific_mortality,
                          get_incidence, get_cause_deleted_mortality_rate, get_disability_weight, causes)
