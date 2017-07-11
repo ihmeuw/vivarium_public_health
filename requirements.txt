@@ -1,3 +1,3 @@
 pytest
 -e git+ssh://git@stash.ihme.washington.edu:7999/cste/ceam-inputs.git#egg=ceam_inputs
--e git+ssh://git@stash.ihme.washington.edu:7999/cste/ceam.git#egg=ceam
+-e git+git://github.com/ihmeuw/vivarium.git#egg=vivarium
