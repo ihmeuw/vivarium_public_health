@@ -6,10 +6,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ceam import config
-from ceam.framework.event import Event, listens_for
-from ceam.framework.population import uses_columns
-from ceam.test_util import setup_simulation, generate_test_population
+from vivarium import config
+from vivarium.framework.event import Event, listens_for
+from vivarium.framework.population import uses_columns
+from vivarium.test_util import setup_simulation, generate_test_population
 
 from ceam_public_health.risks import ContinuousRiskComponent, distributions, exposures
 from ceam_public_health.treatment import HealthcareAccess

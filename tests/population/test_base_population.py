@@ -5,12 +5,13 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from ceam import config
-from ceam.framework.randomness import RandomnessStream
+from vivarium import config
+from vivarium.framework.randomness import RandomnessStream
+
 
 from ceam_inputs import get_populations
 
-from ceam.test_util import setup_simulation, pump_simulation, build_table
+from vivarium.test_util import setup_simulation, pump_simulation, build_table
 
 from ceam_public_health.population.base_population import (age_out_simulants, BasePopulation, generate_ceam_population,
                                                            assign_subregions)

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm, beta
 
-from ceam.interpolation import Interpolation
+from vivarium.interpolation import Interpolation
 
 from ceam_inputs import (get_fpg_distribution_parameters, get_bmi_distribution_parameters,
                          get_sbp_distribution, get_exposures, risk_factors)

@@ -5,10 +5,10 @@ from scipy.stats import multivariate_normal, norm
 import ceam_inputs as inputs
 from ceam_inputs.gbd_mapping import risk_factors
 
-from ceam import config
-from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
-from ceam.framework.randomness import random
+from vivarium import config
+from vivarium.framework.event import listens_for
+from vivarium.framework.population import uses_columns
+from vivarium.framework.randomness import random
 
 from ceam_public_health.risks import get_exposure_function, get_distribution, make_gbd_risk_effects
 
@@ -27,7 +27,7 @@ def correlated_propensity(population, risk_factor):
     ----------
     population: pd.DataFrame
         The population to get propensities for. Must include 'sex' and 'age' columns.
-    risk_factor: `ceam.config_tree.ConfigTree`
+    risk_factor: `vivarium.config_tree.ConfigTree`
         The gbd data mapping for the risk.
 
     Notes

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import operator
 
-from ceam import config
+from vivarium import config
 
 from ceam_inputs import get_age_bins
 

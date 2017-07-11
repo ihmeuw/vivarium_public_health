@@ -1,5 +1,5 @@
 components:
-        - ceam.test_util:
+        - vivarium.test_util:
                         - generate_test_population
                         - age_simulants
 

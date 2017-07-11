@@ -3,9 +3,9 @@ import numbers
 import pandas as pd
 
 from ceam_inputs import get_proportion
-from ceam.framework.state_machine import Transition
-from ceam.framework.util import rate_to_probability
-from ceam.framework.values import list_combiner, joint_value_post_processor
+from vivarium.framework.state_machine import Transition
+from vivarium.framework.util import rate_to_probability
+from vivarium.framework.values import list_combiner, joint_value_post_processor
 
 
 class RateTransition(Transition):

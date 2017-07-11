@@ -9,13 +9,13 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from ceam import config
-from ceam.config_tree import ConfigTree
-from ceam.framework.event import listens_for
-from ceam.framework.population import uses_columns
-from ceam.framework.util import from_yearly
-from ceam.interpolation import Interpolation
-from ceam.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
+from vivarium import config
+from vivarium.config_tree import ConfigTree
+from vivarium.framework.event import listens_for
+from vivarium.framework.population import uses_columns
+from vivarium.framework.util import from_yearly
+from vivarium.interpolation import Interpolation
+from vivarium.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
 
 from ceam_inputs import risk_factors, causes
 

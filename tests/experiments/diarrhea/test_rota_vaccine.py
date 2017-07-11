@@ -5,8 +5,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ceam import config
-from ceam.test_util import pump_simulation, generate_test_population, age_simulants, setup_simulation, build_table
+from vivarium import config
+from vivarium.test_util import (pump_simulation, generate_test_population, setup_simulation, build_table, age_simulants)
 
 from ceam_public_health.experiments.diarrhea.components.diarrhea import diarrhea_factory
 from ceam_public_health.experiments.diarrhea.components.rota_vaccine import RotaVaccine

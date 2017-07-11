@@ -4,12 +4,12 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 
-from ceam import config
+from vivarium import config
 
-from ceam.framework.event import listens_for, emits, Event
-from ceam.framework.population import uses_columns
-from ceam.framework.values import modifies_value
-from ceam.framework.randomness import filter_for_probability
+from vivarium.framework.event import listens_for, emits, Event
+from vivarium.framework.population import uses_columns
+from vivarium.framework.values import modifies_value
+from vivarium.framework.randomness import filter_for_probability
 
 from ceam_inputs import get_proportion, get_doctor_visit_costs, get_inpatient_visit_costs
 

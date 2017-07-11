@@ -3,11 +3,11 @@ from datetime import timedelta, datetime
 
 import pandas as pd
 
-from ceam.framework.values import produces_value
-from ceam.framework.event import listens_for, emits
-from ceam.framework.util import collapse_nested_dict
+from vivarium.framework.values import produces_value
+from vivarium.framework.event import listens_for, emits
+from vivarium.framework.util import collapse_nested_dict
 
-from ceam import config
+from vivarium import config
 
 from ceam_inputs import get_age_bins
 

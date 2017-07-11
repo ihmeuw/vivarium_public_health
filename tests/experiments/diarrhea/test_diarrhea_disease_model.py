@@ -4,9 +4,9 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 
-from ceam import config
-from ceam.framework.event import Event
-from ceam.test_util import (build_table, setup_simulation,
+from vivarium import config
+from vivarium.framework.event import Event
+from vivarium.test_util import (build_table, setup_simulation,
                              generate_test_population, pump_simulation)
 
 from ceam_inputs import (get_severity_splits, get_cause_specific_mortality,

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from ceam.interpolation import Interpolation
+from vivarium.interpolation import Interpolation
 
 
 def get_cause_level_prevalence(states, year_start):

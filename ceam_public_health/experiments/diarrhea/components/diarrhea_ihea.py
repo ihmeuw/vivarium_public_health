@@ -2,8 +2,8 @@
 
 from collections import namedtuple
 
-from ceam.framework.population import uses_columns
-from ceam.framework.state_machine import Trigger
+from vivarium.framework.population import uses_columns
+from vivarium.framework.state_machine import Trigger
 from ceam_inputs import get_disability_weight, get_cause_specific_mortality, causes
 
 from ceam_public_health.disease import DiseaseState, TransientDiseaseState, ExcessMortalityState, DiseaseModel
@@ -21,9 +21,9 @@ name : str
     The name of the etiology.
 model : `ceam_public_health.disease.DiseaseModel`
     The state-machine model of the etiology.
-sick_transition : `ceam.framework.state_machine.Transition`
+sick_transition : `vivarium.framework.state_machine.Transition`
     A handle to the transition from this etiology's susceptible state to this etiology's sick state.
-recovery_transition : `ceam.framework.state_machine.Transition`
+recovery_transition : `vivarium.framework.state_machine.Transition`
     A handle to the transition from this etiology's sick state to this etiology's susceptible state.
 pre_trigger_state : `ceam_public_health.disease.DiseaseState`
     This etiology's sick state.
