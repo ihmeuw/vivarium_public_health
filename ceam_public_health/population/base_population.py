@@ -46,6 +46,19 @@ class BasePopulation:
         event.population_view.update(event.population)
 
 
+@listens_for('time_step', priority=1)  # Set slightly after mortality.
+@uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
+def age_out_simulants(event):
+    if 'maximum_age' not in config.simulation_parameters:
+        raise ValueError('Must specify a maximum age in the config in order to use this component.')
+    max_age = float(config.simulation_parameters.maximum_age)
+    pop = event.population[event.population['age'] >= max_age].copy()
+    pop['alive'] = 'untracked'
+    pop['age'] = max_age
+    pop['exit_time'] = pd.Timestamp(event.time)
+    event.population_view.update(pop)
+
+
 def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, initial_age=None):
     simulants = pd.DataFrame({'simulant_id': np.arange(number_of_simulants, dtype=int),
                               'alive': ['alive']*number_of_simulants})
@@ -87,16 +100,7 @@ def assign_subregions(index, location, year, randomness):
     else:
         return pd.Series(location, index=index)
 
-@listens_for('time_step', priority=1)  # Set slightly after mortality.
-@uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
-def age_out_simulants(event):
-    if 'maximum_age' not in config.simulation_parameters:
-        raise ValueError('Must specify a maximum age in the config in order to use this component.')
-    max_age = float(config.simulation_parameters.maximum_age)
-    pop = event.population[event.population['age'] >= max_age].copy()
-    pop['alive'] = 'untracked'
-    pop['age'] = max_age
-    pop['exit_time'] = pd.Timestamp(event.time)
-    event.population_view.update(pop)
+
+
 
 
