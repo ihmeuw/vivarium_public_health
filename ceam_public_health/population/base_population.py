@@ -21,8 +21,13 @@ class BasePopulation:
         population_size = len(event.index)
         initial_age = event.user_data.get('initial_age', None)
         sub_pop_data = self._population_data[self._population_data.year == event.time.year]
-
-        population = generate_ceam_population(sub_pop_data, population_size, self.randomness, initial_age=initial_age)
+        if initial_age:
+            population = generate_ceam_population(sub_pop_data, population_size, self.randomness,
+                                                  initial_age=initial_age)
+        else:
+            population = generate_ceam_population(sub_pop_data, population_size, self.randomness,
+                                                  pop_age_start=float(config.simulation_parameters.pop_age_start),
+                                                  pop_age_end=float(config.simulation_parameters.pop_age_end))
         population.index = event.index
         population['entrance_time'] = pd.Timestamp(event.time)
         population['exit_time'] = pd.NaT
@@ -59,7 +64,8 @@ def age_out_simulants(event):
     event.population_view.update(pop)
 
 
-def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, initial_age=None):
+def generate_ceam_population(pop_data, number_of_simulants, randomness_stream,
+                             initial_age=None, pop_age_start=None, pop_age_end=None):
     simulants = pd.DataFrame({'simulant_id': np.arange(number_of_simulants, dtype=int),
                               'alive': ['alive']*number_of_simulants})
     if initial_age is not None:
@@ -72,8 +78,6 @@ def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, i
                                                        for sex in ['Male', 'Female']])
     else:
         pop_data = pop_data[pop_data.sex != 'Both']
-        pop_age_start = float(config.simulation_parameters.pop_age_start)
-        pop_age_end = float(config.simulation_parameters.pop_age_end)
         pop_data = rescale_binned_proportions(pop_data, pop_age_start, pop_age_end)
 
         choices = pop_data.set_index(['age', 'sex']).annual_proportion.reset_index()
@@ -83,7 +87,7 @@ def generate_ceam_population(pop_data, number_of_simulants, randomness_stream, i
         # TODO: Smooth out ages.
         simulants['age'] = choices.loc[decisions, 'age'].values
         simulants['sex'] = choices.loc[decisions, 'sex'].values
-        simulants = smooth_ages(simulants, pop_data)
+        #simulants['age'] = smooth_ages(simulants, pop_data, randomness_stream)
 
     return simulants
 
