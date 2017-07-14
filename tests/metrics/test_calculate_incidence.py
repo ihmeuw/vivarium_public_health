@@ -8,7 +8,6 @@ from vivarium.test_util import setup_simulation, generate_test_population, pump_
 
 from ceam_public_health.metrics.calculate_incidence import CalculateIncidence
 from ceam_public_health.metrics.epidemiology import EpidemiologicalMeasures
-from ceam_public_health.experiments.diarrhea.components.diarrhea import diarrhea_factory
 
 
 def setup():
