@@ -14,7 +14,7 @@ class BasePopulation:
         main_location = config.simulation_parameters.location_id
         use_subregions = ('use_subregions' in config.simulation_parameters
                           and config.simulation_parameters.use_subregions)
-        self._population_data = build_population_data_table(main_location, use_subregions)
+        self._population_data = _build_population_data_table(main_location, use_subregions)
 
     def setup(self, builder):
         """
@@ -139,7 +139,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     return simulants
 
 
-def build_population_data_table(main_location, use_subregions):
+def _build_population_data_table(main_location, use_subregions):
     """Constructs a population data table for use as a population distribution over demographic characteristics.
 
     Parameters
@@ -152,8 +152,16 @@ def build_population_data_table(main_location, use_subregions):
     Returns
     -------
     pandas.DataFrame
-        Table with columns `age`, `sex`, `location_id`, `year`, `pop_scaled`,
-        `P(sex, location_id | age, year)`, and `P(sex, location_id, age | year)`
+        Table with columns
+            `age` : Midpoint of the age group,
+            `age_group_start` : Lower bound of the age group,
+            `age_group_end` : Upper bound of the age group,
+            `sex` : 'Male' or 'Female',
+            `location_id` : GBD location id,
+            `year` : Year,
+            `pop_scaled` : Total population estimate,
+            `P(sex, location_id | age, year)` : Conditional probability of sex and location_id given age and year,
+            `P(sex, location_id, age | year)` : Conditional probability of sex, location_id, and age given year.
     """
     return assign_demographic_proportions(_get_population_data(main_location, use_subregions))
 
