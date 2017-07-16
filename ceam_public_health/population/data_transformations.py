@@ -4,7 +4,16 @@ import numpy as np
 
 
 def assign_demographic_proportions(population_data):
+    """Calculates conditional probabilities on the provided population data for use in sampling.
 
+    Parameters
+    ----------
+    population_data : pandas.DataFrame
+
+    Returns
+    -------
+    pandas.DataFrame
+    """
     def normalize(sub_pop):
         return sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum()
 
@@ -16,6 +25,18 @@ def assign_demographic_proportions(population_data):
 
 
 def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
+    """Clips the edge population data bins and rescales the proportions associated with those bins.
+
+    Parameters
+    ----------
+    pop_data : pandas.DataFrame
+    pop_age_start : float
+    pop_age_end : float
+
+    Returns
+    -------
+    pandas.DataFrame
+    """
     if pop_age_start is None or pop_age_end is None:
         raise ValueError("Must provide initial_age if pop_age_start and/or pop_age_end are not set.")
 
@@ -41,6 +62,18 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
 
 
 def smooth_ages(simulants, population_data, randomness):
+    """Distributes simulants among ages within their assigned age bins.
+
+    Parameters
+    ----------
+    simulants : pandas.DataFrame
+    population_data : pandas.DataFrame
+    randomness : vivarium.framework.randomness.RandomnessStream
+
+    Returns
+    -------
+    pandas.DataFrame
+    """
     for sex, location_id in product(['Male', 'Female'], population_data.location_id.unique()):
         pop_data = population_data[(population_data.sex == sex) & (population_data.location_id == location_id)]
 
