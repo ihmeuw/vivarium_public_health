@@ -1,14 +1,18 @@
+from itertools import product
+
 import numpy as np
 
 
-def add_proportions(population_data):
+def assign_demographic_proportions(population_data):
+
     def normalize(sub_pop):
         return sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum()
-    population_data['annual_proportion'] = population_data.groupby(
+
+    population_data['P(sex, location_id, age| year)'] = population_data.groupby(
         'year', as_index=False).apply(normalize).reset_index(level=0).pop_scaled
-    population_data['annual_proportion_by_age'] = population_data.groupby(
+    population_data['P(sex, location_id | age, year)'] = population_data.groupby(
         ['age', 'year'], as_index=False).apply(normalize).reset_index(level=0).pop_scaled
-    return population_data
+    return population_data[population_data.sex != 'Both']
 
 
 def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
@@ -20,38 +24,42 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
     if pop_age_end != pop_data.age_group_end.max():
         pop_data = pop_data[pop_data.age_group_start < pop_age_end]
 
-    for sex in ['Male', 'Female']:
-        max_bin = pop_data[(pop_data.age_group_end >= pop_age_end) & (pop_data.sex == sex)]
-        min_bin = pop_data[(pop_data.age_group_start <= pop_age_start) & (pop_data.sex == sex)]
+    for sex, location_id in product(['Male', 'Female'], pop_data.location_id.unique()):
+        in_location_and_sex_group = (pop_data.sex == sex) & (pop_data.location_id == location_id)
+        max_bin = pop_data[(pop_data.age_group_end >= pop_age_end) & in_location_and_sex_group]
+        min_bin = pop_data[(pop_data.age_group_start <= pop_age_start) & in_location_and_sex_group]
 
-        max_scale = float(max_bin.age_group_end)-pop_age_end / float(max_bin.age_group_end - max_bin.age_group_start)
-        min_scale = (pop_age_start - float(min_bin.age_group_start)
-                     / float(min_bin.age_group_end - min_bin.age_group_start))
+        max_scale = (float(max_bin.age_group_end)
+                     - pop_age_end/float(max_bin.age_group_end - max_bin.age_group_start))
+        min_scale = (pop_age_start
+                     - float(min_bin.age_group_start)/float(min_bin.age_group_end - min_bin.age_group_start))
 
-        pop_data[pop_data.sex == sex].loc[max_bin.index, 'annual_proportion'] *= max_scale
-        pop_data[pop_data.sex == sex].loc[min_bin.index, 'annual_proportion'] *= min_scale
+        pop_data[pop_data.sex == sex].loc[max_bin.index, 'P(sex, location_id, age| year)'] *= max_scale
+        pop_data[pop_data.sex == sex].loc[min_bin.index, 'P(sex, location_id, age| year)'] *= min_scale
 
     return pop_data
 
 
 def smooth_ages(simulants, population_data, randomness):
-    for sex in ['Male', 'Female']:
-        pop_data = population_data[population_data.sex == sex]
+    for sex, location_id in product(['Male', 'Female'], population_data.location_id.unique()):
+        pop_data = population_data[(population_data.sex == sex) & (population_data.location_id == location_id)]
 
         ages = sorted(pop_data.age.unique())
         younger = [0] + ages[:-1]
         older = ages[1:] + [float(pop_data.loc[pop_data.age == ages[-1], 'age_group_end'])]
         uniform_all = randomness.get_draw(simulants.index, additional_key='smooth_ages')
+
         for age, young, old in zip(ages, younger, older):
-            affected = simulants[(simulants.age == age) & (simulants.sex == sex)]
+            affected = simulants[(simulants.age == age) & (simulants.sex == sex) & (simulants.location == location_id)]
             # bin endpoints
             left = float(pop_data.loc[pop_data.age == age, 'age_group_start'])
             right = float(pop_data.loc[pop_data.age == age, 'age_group_end'])
 
             # proportion in this bin and the neighboring bins
-            p_age = float(pop_data.loc[pop_data.age == age, 'annual_proportion'])
-            p_young = float(pop_data.loc[pop_data.age == young, 'annual_proportion']) if young != left else p_age
-            p_old = float(pop_data.loc[pop_data.age == old, 'annual_proportion']) if old != right else 0
+            proportion_column = 'P(sex, location_id, age| year)'
+            p_age = float(pop_data.loc[pop_data.age == age, proportion_column])
+            p_young = float(pop_data.loc[pop_data.age == young, proportion_column]) if young != left else p_age
+            p_old = float(pop_data.loc[pop_data.age == old, proportion_column]) if old != right else 0
 
             # pdf value at bin endpoints
             f_left = (p_age - p_young)/(age - young)*(left - young) + p_young
