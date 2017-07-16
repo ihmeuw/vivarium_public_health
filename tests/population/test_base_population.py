@@ -1,19 +1,16 @@
 import os
 from datetime import datetime
-
+from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
 from vivarium import config
 from vivarium.framework.randomness import RandomnessStream
-
+from vivarium.test_util import setup_simulation, pump_simulation
 
 from ceam_inputs import get_populations
 
-from vivarium.test_util import setup_simulation, pump_simulation
-
 from ceam_public_health.population.base_population import age_out_simulants, BasePopulation, generate_ceam_population
-
 from ceam_public_health.population.data_transformations import assign_demographic_proportions
 
 
@@ -32,6 +29,53 @@ def setup():
                                                    source=os.path.realpath(__file__))
 
 
+@patch('ceam_public_health.population.base_population.generate_ceam_population')
+@patch('ceam_public_health.population.base_population._build_population_data_table')
+def test_BasePopulation(build_pop_data_table_mock, generate_ceam_population_mock):
+    start_population_size = 1000
+    num_days = 600
+    time_step = 100  # Days
+    time_start = pd.Timestamp('1990-01-01')
+
+    build_pop_data_table_mock.return_value = pd.DataFrame(
+        {'age': [5, 15, 25]*4,
+         'age_group_start': [0, 10, 20]*4,
+         'age_group_end': [10, 20, 30]*4,
+         'sex': ['Male']*3*2 + ['Female']*3*2,
+         'location_id': [1]*3 + [2]*3 + [1]*3 + [2]*3,
+         'year': [2000]*12,  # TODO : Finish building the mock from here
+         'pop_scaled': [100]*12,
+         'P(sex, location_id | age, year)': [1/4]*12,
+         'P(sex, location_id, age | year)': [1/12]*12}
+    )
+    generate_ceam_population_mock.return_value = None  # Some dead, some alive
+
+    components = [BasePopulation()]
+    simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
+    # assert build_pop_table called with 180 and false  (Do some config setup)
+    # assert generate_ceam_population called with correct arguments
+    # assert simulation population exists and is correct
+
+    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    # tests for aging simulants
+
+
+def test_age_out_simulants():
+    start_population_size = 1000
+    num_days = 600
+    time_step = 100  # Days
+    time_start = pd.Timestamp('1990-01-01')
+    config.read_dict({'simulation_parameters': {'initial_age': 4,
+                                                'maximum_age': 5,
+                                                'time_step': time_step}},
+                     layer='override')
+    components = [BasePopulation(), age_out_simulants]
+    simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
+    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    assert np.all(simulation.population.population.alive == 'untracked')
+
+
+# Split into test with initial age and test without, make sure appropriate functions get called with appropriate args.
 def test_generate_ceam_population():
     randomness = RandomnessStream('population_generation_test', clock=lambda: datetime(1990, 1, 1), seed=12345)
     pop = assign_demographic_proportions(get_populations(KENYA))
@@ -50,19 +94,18 @@ def test_generate_ceam_population():
                                                            "Kenya in 1990, based on data uploaded by em 1/5/2017")
 
 
-def test_age_out_simulants():
-    start_population_size = 1000
-    num_days = 600
-    time_step = 100  # Days
-    time_start = pd.Timestamp('1990-01-01')
-    config.read_dict({'simulation_parameters': {'initial_age': 4,
-                                                'maximum_age': 5,
-                                                'time_step': time_step}},
-                     layer='override')
-    components = [BasePopulation(), age_out_simulants]
-    simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
-    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
-    assert np.all(simulation.population.population.alive == 'untracked')
+def test__assign_demography_with_initial_age():
+    pass
+
+
+def test__assign_demography_with_age_bounds():
+    pass
+
+def test__build_population_data_table():
+    pass
+
+def test__get_population_data():
+    pass
 
 # TODO: Adapt these tests for updated base population component.
 """
