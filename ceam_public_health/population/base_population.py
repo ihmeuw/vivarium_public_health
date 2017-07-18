@@ -29,6 +29,7 @@ class BasePopulation:
         """
         self.randomness = builder.randomness('population_generation')
 
+    # TODO: Move most of this docstring to an rst file.
     @listens_for('initialize_simulants', priority=0)
     @uses_columns(['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time'])
     def generate_base_population(self, event):
@@ -112,12 +113,25 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
             pop_age_end : End of an age range
         The latter two keys can have values specified to generate simulants over an age range.
     population_data : pandas.DataFrame
-
+        Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
+        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     randomness_stream : vivarium.framework.randomness.RandomnessStream
+        Source of random number generation within the vivarium common random number framework.
 
     Returns
     -------
     simulants : pandas.DataFrame
+        Table with columns
+            'simulant_id' : The unique identifier for the simulant
+            'entrance_time' : The `pandas.Timestamp` describing when the simulant entered
+                the simulation. Set to `creation_time` for all simulants.
+            'exit_time' : The `pandas.Timestamp` describing when the simulant exited
+                the simulation. Set initially to `pandas.NaT`.
+            'alive' : One of 'alive', 'dead', or 'untracked' indicating how the simulation
+                interacts with the simulant.
+            'age' : The age of the simulant at the current time step.
+            'location' : The GBD location_id indicating where the simulant resides.
+            'sex' : Either 'Male' or 'Female'.  The sex of the simulant.
     """
     # TODO: Figure out if we actually use simulant_id anywhere and remove that dependency. It's a copy of the index.
     simulants = pd.DataFrame({'simulant_id': simulant_ids,
@@ -141,15 +155,24 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, random
     Parameters
     ----------
     simulants : pandas.DataFrame
+        Table that represents the new cohort of agents being added to the simulation.
     pop_data : pandas.DataFrame
+        Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
+        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     initial_age : float
+        The age to assign the new simulants.
     randomness_stream : vivarium.framework.randomness.RandomnessStream
+        Source of random number generation within the vivarium common random number framework.
 
     Returns
     -------
     pandas.DataFrame
+        Table with same columns as `simulants` and with the additional columns 'age', 'sex',  and 'location'.
     """
     pop_data = pop_data[(pop_data.age_group_start <= initial_age) & (pop_data.age_group_end >= initial_age)]
+
+    if pop_data.empty:
+        raise ValueError('The age {} is not represented by the population data structure'.format(initial_age))
 
     # Assign a demographically accurate location and sex distribution.
     choices = pop_data.set_index(['sex', 'location_id'])['P(sex, location_id | age, year)'].reset_index()
@@ -170,15 +193,25 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     Parameters
     ----------
     simulants : pandas.DataFrame
+        Table that represents the new cohort of agents being added to the simulation.
     pop_data : pandas.DataFrame
+        Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
+        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     age_start, age_end : float
+        The start and end of the age range of interest, respectively.
     randomness_stream : vivarium.framework.randomness.RandomnessStream
+        Source of random number generation within the vivarium common random number framework.
 
     Returns
     -------
     pandas.DataFrame
+        Table with same columns as `simulants` and with the additional columns 'age', 'sex',  and 'location'.
     """
     pop_data = rescale_binned_proportions(pop_data, age_start, age_end)
+
+    if pop_data.empty:
+        raise ValueError(
+            'The age range ({}, {}) is not represented by the population data structure'.format(age_start, age_end))
 
     # Assign a demographically accurate age, location, and sex distribution.
     choices = pop_data.set_index(['age', 'sex', 'location_id']).annual_proportion.reset_index()
@@ -207,15 +240,15 @@ def _build_population_data_table(main_location, use_subregions):
     -------
     pandas.DataFrame
         Table with columns
-            `age` : Midpoint of the age group,
-            `age_group_start` : Lower bound of the age group,
-            `age_group_end` : Upper bound of the age group,
-            `sex` : 'Male' or 'Female',
-            `location_id` : GBD location id,
-            `year` : Year,
-            `pop_scaled` : Total population estimate,
-            `P(sex, location_id | age, year)` : Conditional probability of sex and location_id given age and year,
-            `P(sex, location_id, age | year)` : Conditional probability of sex, location_id, and age given year.
+            'age' : Midpoint of the age group,
+            'age_group_start' : Lower bound of the age group,
+            'age_group_end' : Upper bound of the age group,
+            'sex' : 'Male' or 'Female',
+            'location_id' : GBD location id,
+            'year' : Year,
+            'pop_scaled' : Total population estimate,
+            'P(sex, location_id | age, year)' : Conditional probability of sex and location_id given age and year,
+            'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year.
     """
     return assign_demographic_proportions(_get_population_data(main_location, use_subregions))
 
@@ -226,12 +259,24 @@ def _get_population_data(main_location, use_subregions):
     Parameters
     ----------
     main_location : int
+        The GBD location_id associated with the region being modeled.
     use_subregions : bool
+        Whether the GBD subregion demography should be used in place of the main_location demography.
 
     Returns
     -------
     pandas.DataFrame
+        Table with columns
+            `age` : Midpoint of the age group,
+            `age_group_start` : Lower bound of the age group,
+            `age_group_end` : Upper bound of the age group,
+            `sex` : 'Male' or 'Female',
+            `location_id` : GBD location id,
+            `year` : Year,
+            `pop_scaled` : Total population estimate,
     """
-    locations = get_subregions(main_location) if use_subregions else [main_location]
+    locations = [main_location]
+    if use_subregions:
+        sub_regions = get_subregions(main_location)
+        locations = sub_regions if sub_regions else locations
     return pd.concat([get_populations(location_id=location) for location in locations], ignore_index=True)
-

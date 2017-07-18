@@ -68,8 +68,7 @@ def test_rescale_binned_proportions_age_bin_edges():
     pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=5, pop_age_end=10)
     assert len(pop_data_scaled.age.unique()) == 1
     assert 7.5 in pop_data_scaled.age.unique()
-    assert np.allclose(pop_data_scaled['P(sex, location_id, age| year)'], base_p)
-
+    assert np.allclose(pop_data_scaled['P(sex, location_id, age| year)'], 1/len(pop_data))
 
 
 def test_smooth_ages():
