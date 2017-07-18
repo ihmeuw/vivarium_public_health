@@ -54,6 +54,13 @@ def test_rescale_binned_proportions():
         sub_pop_scaled = pop_data_scaled[(pop_data_scaled.sex == sex) & (pop_data_scaled.location_id == location_id)]
         assert np.allclose(sub_pop_scaled['P(sex, location_id, age| year)'], p_scaled)
 
+    # Test edge case where pop_age_start/pop_age_end fall on age bin boundaries.
+    pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=5, pop_age_end=10)
+    assert len(pop_data_scaled.age.unique()) == 1
+    assert 7.5 in pop_data_scaled.age.unique()
+    assert np.allclose(pop_data_scaled['P(sex, location_id, age| year)'], base_p)
+
+
 
 def test_smooth_ages():
     pop_data = make_uniform_pop_data()
