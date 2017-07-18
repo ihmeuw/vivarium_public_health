@@ -38,13 +38,18 @@ def test_assign_demographic_proportions():
     assert np.allclose(pop_data['P(sex, location_id | age, year)'], 1/2)
 
 
-def test_rescale_binned_proportions():
+def test_rescale_binned_proportions_full_range():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     pop_data = pop_data[pop_data.year == 1990]
 
     pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=0, pop_age_end=100)
     # Should be a no-op
     assert np.allclose(pop_data['P(sex, location_id, age| year)'], pop_data_scaled['P(sex, location_id, age| year)'])
+
+
+def test_rescale_binned_proportions_clipped_ends():
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = pop_data[pop_data.year == 1990]
 
     pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=2.5, pop_age_end=7.5)
     base_p = 1/len(pop_data)
@@ -53,6 +58,11 @@ def test_rescale_binned_proportions():
     for sex, location_id in product(['Male', 'Female'], pop_data_scaled.location_id.unique()):
         sub_pop_scaled = pop_data_scaled[(pop_data_scaled.sex == sex) & (pop_data_scaled.location_id == location_id)]
         assert np.allclose(sub_pop_scaled['P(sex, location_id, age| year)'], p_scaled)
+
+
+def test_rescale_binned_proportions_age_bin_edges():
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = pop_data[pop_data.year == 1990]
 
     # Test edge case where pop_age_start/pop_age_end fall on age bin boundaries.
     pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=5, pop_age_end=10)
@@ -75,7 +85,7 @@ def test_smooth_ages():
     assert math.isclose(smoothed_simulants.ages.mean(), 42.5, abs_tol=3*math.sqrt(13.149778198**2/2000))
 
 
-def test__get_bins_and_proportions():
+def test__get_bins_and_proportions_with_youngest_bin():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     pop_data = pop_data[(pop_data.year == 1990) & (pop_data.location_id == 1) & (pop_data.sex == 'Male')]
     age = dt.AgeValues(current=2.5, young=0, old=7.5)
@@ -86,6 +96,10 @@ def test__get_bins_and_proportions():
     assert proportions.left == 1 / len(pop_data)
     assert proportions.right == 1 / len(pop_data)
 
+
+def test__get_bins_and_proportions_with_oldest_bin():
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = pop_data[(pop_data.year == 1990) & (pop_data.location_id == 1) & (pop_data.sex == 'Male')]
     age = dt.AgeValues(current=97.5, young=92.5, old=100)
     endpoints, proportions = dt._get_bins_and_proportions(pop_data, age)
     assert endpoints.left == 95
@@ -94,6 +108,10 @@ def test__get_bins_and_proportions():
     assert proportions.left == 1 / len(pop_data)
     assert proportions.right == 0
 
+
+def test__get_bins_and_proportions_with_middle_bin():
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = pop_data[(pop_data.year == 1990) & (pop_data.location_id == 1) & (pop_data.sex == 'Male')]
     age = dt.AgeValues(current=22.5, young=17.5, old=27.5)
     endpoints, proportions = dt._get_bins_and_proportions(pop_data, age)
     assert endpoints.left == 20
