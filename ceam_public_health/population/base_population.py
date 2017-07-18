@@ -66,7 +66,12 @@ class BasePopulation:
     @listens_for('time_step')
     @uses_columns(['age'], "alive == 'alive'")
     def age_simulants(self, event):
-        """Ages simulants each time step"""
+        """Ages simulants each time step.
+
+        Parameters
+        ----------
+        event : vivarium.framework.population.PopulationEvent
+        """
         time_step = config.simulation_parameters.time_step
         event.population['age'] += time_step / 365.0
         event.population_view.update(event.population)
@@ -94,14 +99,20 @@ def age_out_simulants(event):
 def generate_ceam_population(simulant_ids, creation_time, age_params, population_data, randomness_stream):
     """Produces a randomly generated set of simulants sampled from the provided `population_data`.
 
-    TODO : Write a detailed description!
-
     Parameters
     ----------
     simulant_ids : iterable of ints
+        Values to serve as the index in the newly generated simulant DataFrame.
     creation_time : datetime.datetime
+        The simulation time when the simulants are created.
     age_params : dict
+        Dictionary with keys
+            initial_age : Fixed age to generate all simulants with (useful for, e.g., fertility)
+            pop_age_start : Start of an age range
+            pop_age_end : End of an age range
+        The latter two keys can have values specified to generate simulants over an age range.
     population_data : pandas.DataFrame
+
     randomness_stream : vivarium.framework.randomness.RandomnessStream
 
     Returns

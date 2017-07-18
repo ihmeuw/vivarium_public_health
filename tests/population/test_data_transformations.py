@@ -66,7 +66,7 @@ def test_smooth_ages():
     assert math.isclose(len(smoothed_simulants.ages.unique()), len(smoothed_simulants.index), abs_tol=1)
     # Tolerance is 3*std_dev of the sample mean
     assert math.isclose(smoothed_simulants.ages.mean(), 42.5, abs_tol=3*math.sqrt(13.149778198**2/2000))
-    
+
 
 def test__get_bins_and_proportions():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
