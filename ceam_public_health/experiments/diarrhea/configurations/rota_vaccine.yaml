@@ -4,7 +4,6 @@ components:
                 - BasePopulation()
                 - age_simulants
                 - age_out_simulants
-                - FertilityDeterministic()
                 - Mortality()
             - experiments.diarrhea.components:
                 - diarrhea_ihea.build_diarrhea_model()
@@ -13,6 +12,7 @@ components:
             - metrics:
                 - Metrics()
                 - Disability()
+                - calculate_incidence.CalculateIncidence("diarrhea", "diarrhea", ["care_sought", "no_care_sought"])
 
 configuration:
     simulation_parameters:
@@ -25,6 +25,5 @@ configuration:
         maximum_age: 5
         initial_age: 0.0
         population_size: 20000
-        number_of_new_simulants_each_year: 20000
     run_configuration:
-        results_directory: "/share/scratch/users/emumford"
+        results_directory: "/share/scratch/users/krosett"
