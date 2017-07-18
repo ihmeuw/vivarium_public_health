@@ -1,4 +1,3 @@
-from itertools import product
 from collections import namedtuple
 
 import numpy as np
@@ -59,20 +58,19 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
     if pop_age_end != pop_data.age_group_end.max():
         pop_data = pop_data[pop_data.age_group_start < pop_age_end]
 
-    for sex, location_id in product(['Male', 'Female'], pop_data.location_id.unique()):
-        in_location_and_sex_group = (pop_data.sex == sex) & (pop_data.location_id == location_id)
-        max_bin = pop_data[(pop_data.age_group_end >= pop_age_end) & in_location_and_sex_group]
-        min_bin = pop_data[(pop_data.age_group_start <= pop_age_start) & in_location_and_sex_group]
+    for _, sub_pop in pop_data.groupby(['sex', 'location_id']):
+        max_bin = sub_pop[sub_pop.age_group_end >= pop_age_end]
+        min_bin = sub_pop[sub_pop.age_group_start <= pop_age_start]
 
         max_scale = (float(max_bin.age_group_end)
                      - pop_age_end/float(max_bin.age_group_end - max_bin.age_group_start))
         min_scale = (pop_age_start
                      - float(min_bin.age_group_start)/float(min_bin.age_group_end - min_bin.age_group_start))
 
-        pop_data[pop_data.sex == sex].loc[max_bin.index, 'P(sex, location_id, age| year)'] *= max_scale
-        pop_data[pop_data.sex == sex].loc[max_bin.index, 'pop_scaled'] *= max_scale
-        pop_data[pop_data.sex == sex].loc[min_bin.index, 'P(sex, location_id, age| year)'] *= min_scale
-        pop_data[pop_data.sex == sex].loc[min_bin.index, 'pop_scaled'] *= min_scale
+        pop_data.loc[max_bin.index, 'P(sex, location_id, age| year)'] *= max_scale
+        pop_data.loc[max_bin.index, 'pop_scaled'] *= max_scale
+        pop_data.loc[min_bin.index, 'P(sex, location_id, age| year)'] *= min_scale
+        pop_data.loc[min_bin.index, 'pop_scaled'] *= min_scale
 
     return pop_data
 
@@ -99,12 +97,11 @@ def smooth_ages(simulants, population_data, randomness):
     pandas.DataFrame
         Table with same columns as `simulants` with ages smoothed out within the age bins.
     """
-    for sex, location_id in product(['Male', 'Female'], population_data.location_id.unique()):
-        pop_data = population_data[(population_data.sex == sex) & (population_data.location_id == location_id)]
+    for (sex, location_id), sub_pop in population_data.groupby(['sex', 'location_id']):
 
-        ages = sorted(pop_data.age.unique())
+        ages = sorted(sub_pop.age.unique())
         younger = [0] + ages[:-1]
-        older = ages[1:] + [float(pop_data.loc[pop_data.age == ages[-1], 'age_group_end'])]
+        older = ages[1:] + [float(sub_pop.loc[sub_pop.age == ages[-1], 'age_group_end'])]
         uniform_all = randomness.get_draw(simulants.index, additional_key='smooth_ages')
 
         for age_set in zip(ages, younger, older):
@@ -113,7 +110,7 @@ def smooth_ages(simulants, population_data, randomness):
                                  & (simulants.sex == sex)
                                  & (simulants.location == location_id)]
             # bin endpoints
-            endpoints, proportions = _get_bins_and_proportions(pop_data, age)
+            endpoints, proportions = _get_bins_and_proportions(sub_pop, age)
             pdf, slope, area, cdf_inflection_point = _construct_sampling_parameters(age, endpoints, proportions)
 
             # Make a draw from a uniform distribution
