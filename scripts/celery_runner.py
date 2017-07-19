@@ -22,6 +22,12 @@ from vivarium.framework.util import collapse_nested_dict, expand_branch_template
 import logging
 _log = logging.getLogger(__name__)
 
+from celery import signals
+
+@signals.setup_logging.connect
+def setup_celery_logging(**kwargs):
+        pass
+
 def uge_specification(peak_memory, job_name='ceam'):
     #Are we on dev or prod?
     result = str(subprocess.check_output(['qconf', '-ss']))
@@ -44,11 +50,17 @@ def uge_specification(peak_memory, job_name='ceam'):
     return preamble
 
 
-def init_job_template(jt, peak_memory, broker_url, config_file):
+def init_job_template(jt, peak_memory, broker_url, config_file, worker_log_directory):
+    launcher = tempfile.NamedTemporaryFile(mode='w', dir='.', prefix='celery_worker_launcher_', suffix='.sh', delete=False)
+    atexit.register(lambda: os.remove(launcher.name))
+    launcher.write('''
+    {} -A vivarium.framework.celery_tasks worker --without-gossip -Ofair --without-mingle --concurrency=1 -f {} --config {} -n ${{JOB_ID}}.${{SGE_TASK_ID}}
+    '''.format(shutil.which('celery'), os.path.join(worker_log_directory, 'worker-${JOB_ID}.${SGE_TASK_ID}.log'), config_file))
+    launcher.close()
+
     jt.workingDirectory = os.getcwd()
-    jt.remoteCommand = shutil.which('celery')
-    jt.args = ['-A', 'vivarium.framework.celery_tasks', 'worker', '--without-gossip', '--without-mingle', '--concurrency=1', '--config', config_file]
-    print('celery '+' '.join(jt.args))
+    jt.remoteCommand = shutil.which('sh')
+    jt.args = [launcher.name]
     sge_cluster = os.environ['SGE_CLUSTER_NAME']
     jt.jobEnvironment = {
                 'LC_ALL': 'en_US.UTF-8',
@@ -61,7 +73,7 @@ def init_job_template(jt, peak_memory, broker_url, config_file):
     return jt
 
 def get_random_free_port():
-    # NOTE: this implementation is vulnerable to rare race conditions where some other process get's the same
+    # NOTE: this implementation is vulnerable to rare race conditions where some other process gets the same
     # port after we free our socket but before we use the port number we got. Should be so rare in practice
     # that it doesn't matter.
     s = socket.socket()
@@ -83,7 +95,7 @@ def launch_celery_flower(port, config):
     atexit.register(flower_process.kill)
     return flower_process
 
-def start_cluster(num_workers, peak_memory):
+def start_cluster(num_workers, peak_memory, worker_log_directory):
     hostname = socket.gethostname()
     port = get_random_free_port()
     _log.info('Starting Redis Broker at %s:%s', hostname, port)
@@ -102,6 +114,8 @@ def start_cluster(num_workers, peak_memory):
         'broker_url': broker_url,
         'result_backend': backend_url,
         'worker_prefetch_multiplier': 1,
+        'worker_concurrency': 1,
+        'task_acks_late': True,
         'redis_max_connections': 1,
         'redis_socket_connect_timeout': 10,
         'broker_connection_max_retries': 10,
@@ -109,6 +123,7 @@ def start_cluster(num_workers, peak_memory):
     }
     celery_config.write('\n'.join(['{} = {}'.format(k,repr(v)) for k,v in config.items()]))
     celery_config.flush()
+    celery_config.close()
     config_module = os.path.splitext(os.path.basename(celery_config.name))[0]
 
     port = get_random_free_port()
@@ -117,7 +132,7 @@ def start_cluster(num_workers, peak_memory):
 
     s=drmaa.Session()
     s.initialize()
-    jt=init_job_template(s.createJobTemplate(), peak_memory, broker_url, config_module)
+    jt=init_job_template(s.createJobTemplate(), peak_memory, broker_url, config_module, worker_log_directory)
     if num_workers:
         job_ids = s.runBulkJobs(jt, 1, num_workers, 1)
         array_job_id = job_ids[0].split('.')[0]
@@ -241,7 +256,7 @@ def main():
     else:
         num_workers = len(jobs)
 
-    celery_app = start_cluster(num_workers, args.peak_memory)
+    celery_app = start_cluster(num_workers, args.peak_memory, worker_log_directory)
 
     futures = {}
     for job in jobs:
@@ -251,7 +266,13 @@ def main():
     results_dirty = False
     while futures:
         sleep(3)
-        print('Pending: {}'.format(len(futures)))
+        celery_stats = celery_app.control.inspect().stats()
+        if celery_stats:
+            workers = len(celery_stats)
+        else:
+            workers = 0
+        _log.info('Pending: {} (active workers: {})'.format(len(futures), workers))
+
         new_futures = {}
         for future, args in futures.items():
             if future.state == states.SUCCESS:
