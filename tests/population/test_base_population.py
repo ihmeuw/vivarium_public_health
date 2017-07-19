@@ -70,12 +70,12 @@ def make_uniform_pop_data():
 @patch('ceam_public_health.population.base_population.generate_ceam_population')
 @patch('ceam_public_health.population.base_population._build_population_data_table')
 def test_BasePopulation(build_pop_data_table_mock, generate_ceam_population_mock):
-    start_population_size = 1000
     num_days = 600
     time_step = 100  # Days
     time_start = pd.Timestamp('1990-01-01')
     uniform_pop = dt.assign_demographic_proportions(make_uniform_pop_data())
     sims = make_full_simulants()
+    start_population_size = len(sims)
 
     build_pop_data_table_mock.return_value = uniform_pop
     generate_ceam_population_mock.return_value = sims
