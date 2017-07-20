@@ -247,7 +247,8 @@ def _build_population_data_table(main_location, use_subregions):
             'year' : Year,
             'pop_scaled' : Total population estimate,
             'P(sex, location_id | age, year)' : Conditional probability of sex and location_id given age and year,
-            'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year.
+            'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year,
+            'P(age | year, sex, location_id)' : Conditional probability of age given year, sex, and location_id.
     """
     return assign_demographic_proportions(_get_population_data(main_location, use_subregions))
 
