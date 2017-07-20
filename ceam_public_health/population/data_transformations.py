@@ -15,16 +15,29 @@ def assign_demographic_proportions(population_data):
     -------
     pandas.DataFrame
         Table with the same columns as `population_data` and additionally with columns
-        'P(sex, location_id, age| year)' and 'P(sex, location_id | age, year)'
-        with values calculated from the various population levels.
+        'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)', and
+        'P(age | year, sex, location_id)' with values calculated from the
+        various population levels.
     """
-    def normalize(sub_pop):
-        return sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum()
 
     population_data['P(sex, location_id, age| year)'] = population_data.groupby(
-        'year', as_index=False).apply(normalize).reset_index(level=0).pop_scaled
+        'year', as_index=False
+    ).apply(
+        lambda sub_pop: sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum()
+    ).reset_index(level=0).pop_scaled
+
     population_data['P(sex, location_id | age, year)'] = population_data.groupby(
-        ['age', 'year'], as_index=False).apply(normalize).reset_index(level=0).pop_scaled
+        ['age', 'year'], as_index=False
+    ).apply(
+        lambda sub_pop: sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum()
+    ).reset_index(level=0).pop_scaled
+
+    population_data['P(age | year, sex, location_id)'] = population_data.groupby(
+        ['year', 'sex', 'location_id'], as_index=False
+    ).apply(
+        lambda sub_pop: sub_pop.pop_scaled / sub_pop.pop_scaled.sum()
+    ).reset_index(level=0).pop_scaled
+
     return population_data[population_data.sex != 'Both']
 
 
@@ -37,7 +50,8 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
     ----------
     pop_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
+        'P(age | year, sex, location_id)'
     pop_age_start : float
         The starting age for the rescaled bins.
     pop_age_end : float
@@ -49,8 +63,8 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
         Table with the same columns as `pop_data` where all bins outside the range
         (pop_age_start, pop_age_end) have been discarded.  If pop_age_start and pop_age_end
         don't fall cleanly on age boundaries, the bins in which they lie are clipped and
-        the 'pop_scaled' and 'P(sex, location_id, age| year)' values are rescaled to reflect
-        their smaller representation.
+        the 'pop_scaled', 'P(sex, location_id, age| year)', and 'P(age | year, sex, location_id)'
+        values are rescaled to reflect their smaller representation.
     """
 
     if pop_age_start != pop_data.age_group_start.min():
@@ -62,15 +76,18 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
         max_bin = sub_pop[sub_pop.age_group_end >= pop_age_end]
         min_bin = sub_pop[sub_pop.age_group_start <= pop_age_start]
 
-        max_scale = (float(max_bin.age_group_end)
-                     - pop_age_end/float(max_bin.age_group_end - max_bin.age_group_start))
-        min_scale = (pop_age_start
-                     - float(min_bin.age_group_start)/float(min_bin.age_group_end - min_bin.age_group_start))
-
+        max_scale = ((pop_age_end - float(max_bin.age_group_start))
+                     / float(max_bin.age_group_end - max_bin.age_group_start))
+        min_scale = ((float(min_bin.age_group_end) - pop_age_start)
+                     / float(min_bin.age_group_end - min_bin.age_group_start))
         pop_data.loc[max_bin.index, 'P(sex, location_id, age| year)'] *= max_scale
+        pop_data.loc[max_bin.index, 'P(age | year, sex, location_id)'] *= max_scale
         pop_data.loc[max_bin.index, 'pop_scaled'] *= max_scale
+        pop_data.loc[max_bin.index, 'age_group_end'] = pop_age_end
         pop_data.loc[min_bin.index, 'P(sex, location_id, age| year)'] *= min_scale
+        pop_data.loc[min_bin.index, 'P(age | year, sex, location_id)'] *= min_scale
         pop_data.loc[min_bin.index, 'pop_scaled'] *= min_scale
+        pop_data.loc[min_bin.index, 'age_group_start'] = pop_age_start
 
     return pop_data
 
@@ -88,7 +105,8 @@ def smooth_ages(simulants, population_data, randomness):
         Table with columns 'age', 'sex', and 'location'
     population_data : pandas.DataFrame
         Table with columns 'age', 'sex', 'year', 'location_id', 'pop_scaled',
-        'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
+        'P(age | year, sex, location_id)'
     randomness : vivarium.framework.randomness.RandomnessStream
         Source of random number generation within the vivarium common random number framework.
 
@@ -109,6 +127,8 @@ def smooth_ages(simulants, population_data, randomness):
             affected = simulants[(simulants.age == age.current)
                                  & (simulants.sex == sex)
                                  & (simulants.location == location_id)]
+            if affected.empty:
+                continue
             # bin endpoints
             endpoints, proportions = _get_bins_and_proportions(sub_pop, age)
             pdf, slope, area, cdf_inflection_point = _construct_sampling_parameters(age, endpoints, proportions)
@@ -121,8 +141,8 @@ def smooth_ages(simulants, population_data, randomness):
 
             simulants.loc[left_sims.index, 'age'] = _compute_ages(uniform_rv[left_sims.index],
                                                                   endpoints.left, pdf.left, slope.left, area)
-            simulants.loc[right_sims.index, 'age'] = _compute_ages(uniform_rv[right_sims.index],
-                                                                   endpoints.right, pdf.right, slope.right, area)
+            simulants.loc[right_sims.index, 'age'] = _compute_ages(uniform_rv[right_sims.index] - cdf_inflection_point,
+                                                                   age.current, proportions.current, slope.right, area)
 
     return simulants
 
@@ -134,7 +154,8 @@ def _get_bins_and_proportions(pop_data, age):
     ----------
     pop_data : pandas.DataFrame
         Table with columns 'age', 'sex', 'year', 'location_id', 'pop_scaled',
-        'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
+        'P(age | year, sex, location_id)'
     age : AgeValues
         Tuple with values
             (midpoint of current age bin, midpoint of previous age bin, midpoint of next age bin)
@@ -151,7 +172,7 @@ def _get_bins_and_proportions(pop_data, age):
     right = float(pop_data.loc[pop_data.age == age.current, 'age_group_end'])
 
     # proportion in this bin and the neighboring bins
-    proportion_column = 'P(sex, location_id, age| year)'
+    proportion_column = 'P(age | year, sex, location_id)'
     p_age = float(pop_data.loc[pop_data.age == age.current, proportion_column])
     p_young = float(pop_data.loc[pop_data.age == age.young, proportion_column]) if age.young != left else p_age
     p_old = float(pop_data.loc[pop_data.age == age.old, proportion_column]) if age.old != right else 0
@@ -201,7 +222,7 @@ def _construct_sampling_parameters(age, endpoint, proportion):
     slope = EndpointValues(m_left, m_right)
 
     # The decision bound on the uniform rv.
-    cdf_inflection_point = 1 / (2 * area) * (proportion.age + pdf.left) * (age.current - endpoint.left)
+    cdf_inflection_point = 1 / (2 * area) * (proportion.current + pdf.left) * (age.current - endpoint.left)
 
     return pdf, slope, area, cdf_inflection_point
 

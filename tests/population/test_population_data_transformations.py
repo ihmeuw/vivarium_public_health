@@ -31,11 +31,15 @@ def make_uniform_pop_data():
 def test_assign_demographic_proportions():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
 
-    assert not pop_data[pop_data.sex == 'Both'].any()
-    # The make_uniform_pop_data has four years by default, so we should have four uniform conditional pdfs
-    assert np.allclose(pop_data['P(sex, location_id, age| year)'], 4 / len(pop_data))
-    # There is a single location and the sexes are uniformly distributed.
-    assert np.allclose(pop_data['P(sex, location_id | age, year)'], 1/2)
+    assert pop_data[pop_data.sex == 'Both'].empty
+
+    assert np.allclose(pop_data['P(sex, location_id, age| year)'], len(pop_data.year.unique()) / len(pop_data))
+    assert np.allclose(
+        pop_data['P(sex, location_id | age, year)'], (len(pop_data.year.unique())
+                                                      * len(pop_data.age.unique()) / len(pop_data)))
+    assert np.allclose(
+        pop_data['P(age | year, sex, location_id)'], (len(pop_data.year.unique()) * len(pop_data.sex.unique())
+                                                      * len(pop_data.location_id.unique()) / len(pop_data)))
 
 
 def test_rescale_binned_proportions_full_range():
@@ -51,12 +55,11 @@ def test_rescale_binned_proportions_clipped_ends():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     pop_data = pop_data[pop_data.year == 1990]
 
-    pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=2.5, pop_age_end=7.5)
+    pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=2, pop_age_end=7)
     base_p = 1/len(pop_data)
-    p_scaled = [base_p/2, base_p, base_p/2]
+    p_scaled = [base_p*3/5, base_p*2/5]
 
-    for sex, location_id in product(['Male', 'Female'], pop_data_scaled.location_id.unique()):
-        sub_pop_scaled = pop_data_scaled[(pop_data_scaled.sex == sex) & (pop_data_scaled.location_id == location_id)]
+    for group, sub_pop_scaled in pop_data_scaled.groupby(['sex', 'location_id']):
         assert np.allclose(sub_pop_scaled['P(sex, location_id, age| year)'], p_scaled)
 
 
@@ -72,16 +75,17 @@ def test_rescale_binned_proportions_age_bin_edges():
 
 
 def test_smooth_ages():
-    pop_data = make_uniform_pop_data()
-    simulants = pd.DataFrame({'age': [22.5]*1000 + [52.5]*1000,
-                              'sex': ['Male', 'Female']*1000,
-                              'location': [1, 2]*1000})
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = pop_data[pop_data.year == 1990]
+    simulants = pd.DataFrame({'age': [22.5]*10000 + [52.5]*10000,
+                              'sex': ['Male', 'Female']*10000,
+                              'location': [1, 2]*10000})
     randomness = get_randomness()
     smoothed_simulants = dt.smooth_ages(simulants, pop_data, randomness)
 
-    assert math.isclose(len(smoothed_simulants.ages.unique()), len(smoothed_simulants.index), abs_tol=1)
+    assert math.isclose(len(smoothed_simulants.age.unique()), len(smoothed_simulants.index), abs_tol=1)
     # Tolerance is 3*std_dev of the sample mean
-    assert math.isclose(smoothed_simulants.ages.mean(), 42.5, abs_tol=3*math.sqrt(13.149778198**2/2000))
+    assert math.isclose(smoothed_simulants.age.mean(), 37.5, abs_tol=3*math.sqrt(13.149778198**2/2000))
 
 
 def test__get_bins_and_proportions_with_youngest_bin():
@@ -92,8 +96,8 @@ def test__get_bins_and_proportions_with_youngest_bin():
     assert endpoints.left == 0
     assert endpoints.right == 5
     assert proportions.current == 1 / len(pop_data)
-    assert proportions.left == 1 / len(pop_data)
-    assert proportions.right == 1 / len(pop_data)
+    assert proportions.young == 1 / len(pop_data)
+    assert proportions.old == 1 / len(pop_data)
 
 
 def test__get_bins_and_proportions_with_oldest_bin():
@@ -104,8 +108,8 @@ def test__get_bins_and_proportions_with_oldest_bin():
     assert endpoints.left == 95
     assert endpoints.right == 100
     assert proportions.current == 1 / len(pop_data)
-    assert proportions.left == 1 / len(pop_data)
-    assert proportions.right == 0
+    assert proportions.young == 1 / len(pop_data)
+    assert proportions.old == 0
 
 
 def test__get_bins_and_proportions_with_middle_bin():
@@ -116,8 +120,8 @@ def test__get_bins_and_proportions_with_middle_bin():
     assert endpoints.left == 20
     assert endpoints.right == 25
     assert proportions.current == 1 / len(pop_data)
-    assert proportions.left == 1 / len(pop_data)
-    assert proportions.right == 1 / len(pop_data)
+    assert proportions.young == 1 / len(pop_data)
+    assert proportions.old == 1 / len(pop_data)
 
 
 def test__construct_sampling_parameters():
@@ -135,9 +139,10 @@ def test__construct_sampling_parameters():
                           + (pdf.right + proportion.current)*(endpoint.right - age.current))
     assert slope.left == (proportion.current - pdf.left) / (age.current - endpoint.left)
     assert slope.right == (pdf.right - proportion.current) / (endpoint.right - age.current)
-    assert cdf_inflection_point == 1 / (2 * area) * (proportion.age + pdf.left) * (age.current - endpoint.left)
+    assert cdf_inflection_point == 1 / (2 * area) * (proportion.current + pdf.left) * (age.current - endpoint.left)
 
 
 def test__compute_ages():
     assert dt._compute_ages(1, 10, 12, 0, 33) == 10 + 33/12*1
     assert dt._compute_ages(1, 10, 12, 5, 33) == 10 + 12/5*(np.sqrt(1+2*33*5/12**2*1) - 1)
+

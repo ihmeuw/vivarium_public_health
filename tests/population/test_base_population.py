@@ -30,8 +30,7 @@ def setup():
 def make_base_simulants():
     simulant_ids = range(10000)
     creation_time = datetime(1990, 7, 2)
-    return pd.DataFrame({'simulant_id': simulant_ids,
-                         'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
+    return pd.DataFrame({'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
                          'exit_time': pd.Series(pd.NaT, index=simulant_ids),
                          'alive': pd.Series('alive', index=simulant_ids).astype(
                              'category', categories=['alive', 'dead', 'untracked'], ordered=False)},
@@ -99,12 +98,15 @@ def test_BasePopulation(build_pop_data_table_mock, generate_ceam_population_mock
                   'pop_age_end': config.simulation_parameters.pop_age_start}
     sub_pop = uniform_pop[uniform_pop.year == time_start.year]
 
-    generate_ceam_population_mock.assert_called_once_with({'simulant_ids': pd.RangeIndex(0, start_population_size),
-                                                           'creation_time': time_start,
-                                                           'age_params': age_params,
-                                                           'population_data': sub_pop,
-                                                           'randomness_stream': base_pop.randomness})
-    assert simulation.population.population.equals(sims)
+    generate_ceam_population_mock.assert_called_once()
+    # Get a dictionary of the arguments used in the call
+    mock_args = generate_ceam_population_mock.call_args[1]
+    assert mock_args['creation_time'] == time_start
+    assert mock_args['age_params'] == age_params
+    assert mock_args['population_data'].equals(sub_pop)
+    assert mock_args['randomness_stream'] == base_pop.randomness
+    for column in simulation.population.population:
+        assert simulation.population.population[column].equals(sims[column])
 
     final_ages = simulation.population.population.age + num_days/365
 

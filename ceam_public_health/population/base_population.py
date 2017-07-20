@@ -91,7 +91,9 @@ def age_out_simulants(event):
         raise ValueError('Must specify a maximum age in the config in order to use this component.')
     max_age = float(config.simulation_parameters.maximum_age)
     pop = event.population[event.population['age'] >= max_age].copy()
-    pop['alive'] = 'untracked'
+    # TODO : Figure out why `pop['alive'] = 'untracked'` changes the column type from categorical to object.
+    pop['alive'] = pd.Series('untracked', index=event.index).astype(
+        'category', categories=['alive', 'dead', 'untracked'], ordered=False)
     pop['age'] = max_age
     pop['exit_time'] = pd.Timestamp(event.time)
     event.population_view.update(pop)
@@ -122,7 +124,6 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
     -------
     simulants : pandas.DataFrame
         Table with columns
-            'simulant_id' : The unique identifier for the simulant
             'entrance_time' : The `pandas.Timestamp` describing when the simulant entered
                 the simulation. Set to `creation_time` for all simulants.
             'exit_time' : The `pandas.Timestamp` describing when the simulant exited
@@ -214,7 +215,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
             'The age range ({}, {}) is not represented by the population data structure'.format(age_start, age_end))
 
     # Assign a demographically accurate age, location, and sex distribution.
-    choices = pop_data.set_index(['age', 'sex', 'location_id']).annual_proportion.reset_index()
+    choices = pop_data.set_index(['age', 'sex', 'location_id'])['P(sex, location_id, age| year)'].reset_index()
     decisions = randomness_stream.choice(simulants.index,
                                          choices=choices.index,
                                          p=choices.annual_proportion)
@@ -267,13 +268,13 @@ def _get_population_data(main_location, use_subregions):
     -------
     pandas.DataFrame
         Table with columns
-            `age` : Midpoint of the age group,
-            `age_group_start` : Lower bound of the age group,
-            `age_group_end` : Upper bound of the age group,
-            `sex` : 'Male' or 'Female',
-            `location_id` : GBD location id,
-            `year` : Year,
-            `pop_scaled` : Total population estimate,
+            'age' : Midpoint of the age group,
+            'age_group_start' : Lower bound of the age group,
+            'age_group_end' : Upper bound of the age group,
+            'sex' : 'Male' or 'Female',
+            'location_id' : GBD location id,
+            'year' : Year,
+            'pop_scaled' : Total population estimate
     """
     locations = [main_location]
     if use_subregions:
