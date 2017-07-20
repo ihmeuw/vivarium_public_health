@@ -28,9 +28,10 @@ def setup():
 
 
 def make_base_simulants():
-    simulant_ids = range(10000)
+    simulant_ids = range(100000)
     creation_time = datetime(1990, 7, 2)
-    return pd.DataFrame({'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
+    return pd.DataFrame({'simulant_id': simulant_ids,
+                         'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
                          'exit_time': pd.Series(pd.NaT, index=simulant_ids),
                          'alive': pd.Series('alive', index=simulant_ids).astype(
                              'category', categories=['alive', 'dead', 'untracked'], ordered=False)},
@@ -116,7 +117,7 @@ def test_BasePopulation(build_pop_data_table_mock, generate_ceam_population_mock
 
 
 def test_age_out_simulants():
-    start_population_size = 1000
+    start_population_size = 10000
     num_days = 600
     time_step = 100  # Days
     time_start = pd.Timestamp('1990-01-01')
@@ -135,72 +136,86 @@ def test_age_out_simulants():
 
 @patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
 @patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
-def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock):
-    simulant_ids = range(10000)
+def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     creation_time = datetime(1990, 7, 2)
     age_params = {'initial_age': None,
                   'pop_age_start': 0,
                   'pop_age_end': 120}
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     r = get_randomness()
+    sims = make_base_simulants()
+    simulant_ids = sims.index
 
     bp.generate_ceam_population(simulant_ids, creation_time, age_params, pop_data, r)
 
-    age_bounds_mock.assert_called_once_with(simulant_ids, pop_data, float(age_params['pop_age_start']),
-                                            float(age_params['pop_age_end']), r)
+    age_bounds_mock.assert_called_once()
+    mock_args = age_bounds_mock.call_args[0]
+    assert mock_args[0].equals(sims)
+    assert mock_args[1].equals(pop_data)
+    assert mock_args[2] == float(age_params['pop_age_start'])
+    assert mock_args[3] == float(age_params['pop_age_end'])
+    assert mock_args[4] == r
     initial_age_mock.assert_not_called()
 
 
 @patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
 @patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
 def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock):
-    simulant_ids = range(10000)
     creation_time = datetime(1990, 7, 2)
     age_params = {'initial_age': 0,
                   'pop_age_start': 0,
                   'pop_age_end': 120}
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     r = get_randomness()
+    sims = make_base_simulants()
+    simulant_ids = sims.index
 
     bp.generate_ceam_population(simulant_ids, creation_time, age_params, pop_data, r)
 
-    initial_age_mock.assert_called_once_with(simulant_ids, pop_data, float(age_params['initial_age']), r)
+    initial_age_mock.assert_called_once()
+    mock_args = initial_age_mock.call_args[0]
+    assert mock_args[0].equals(sims)
+    assert mock_args[1].equals(pop_data)
+    assert mock_args[2] == float(age_params['initial_age'])
+    assert mock_args[3] == r
     age_bounds_mock.assert_not_called()
 
 
 def test__assign_demography_with_initial_age():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = pop_data[pop_data.year == 1990]
     simulants = make_base_simulants()
     initial_age = 20
     r = get_randomness()
 
     simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age, r)
 
-    assert simulants.age.values == initial_age*np.ones(len(simulants))
-    assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, rel_tol=1e-3)
+    assert np.all(simulants.age == initial_age)
+    assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, abs_tol=0.01)
     for location in simulants.location.unique():
         assert math.isclose(len(simulants[simulants.location == location]) / len(simulants),
-                            1 / len(simulants.location.unique()), rel_tol=1e-3)
+                            1 / len(simulants.location.unique()), abs_tol=0.01)
 
 
 def test__assign_demography_with_initial_age_zero():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = pop_data[pop_data.year == 1990]
     simulants = make_base_simulants()
     initial_age = 0
     r = get_randomness()
 
     simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age, r)
 
-    assert simulants.age.values == np.zeros(len(simulants))
-    assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, rel_tol=1e-3)
+    assert not simulants.age.values.any()
+    assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, abs_tol=0.01)
     for location in simulants.location.unique():
         assert math.isclose(len(simulants[simulants.location == location]) / len(simulants),
-                            1 / len(simulants.location.unique()), rel_tol=1e-3)
-
+                            1 / len(simulants.location.unique()), abs_tol=0.01)
 
 
 def test__assign_demography_with_initial_age_error():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = pop_data[pop_data.year == 1990]
     simulants = make_base_simulants()
     initial_age = 200
     r = get_randomness()
@@ -211,24 +226,26 @@ def test__assign_demography_with_initial_age_error():
 
 def test__assign_demography_with_age_bounds():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = pop_data[pop_data.year == 1990]
     simulants = make_base_simulants()
-    age_start, age_end = 0, 120
+    age_start, age_end = 0, 180
     r = get_randomness()
 
     simulants = bp._assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, r)
 
-    assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, rel_tol=1e-3)
+    assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, abs_tol=0.01)
 
     for location in simulants.location.unique():
         assert math.isclose(len(simulants[simulants.location == location]) / len(simulants),
-                            1 / len(simulants.location.unique()), rel_tol=1e-3)
+                            1 / len(simulants.location.unique()), abs_tol=0.01)
     ages = np.sort(simulants.age.values)
     age_deltas = ages[1:] - ages[:-1]
 
     age_bin_width = 5  # See `make_uniform_pop_data`
-    num_bins = len(pop_data.ages.unique())
+    num_bins = len(pop_data.age.unique())
     n = len(simulants)
-    assert age_deltas.max() < 3 * age_bin_width * num_bins / n  # Make sure there are no big age gaps.
+    assert math.isclose(age_deltas.mean(), age_bin_width * num_bins / n, rel_tol=1e-3)
+    assert age_deltas.max() < 100 * age_bin_width * num_bins / n  # Make sure there are no big age gaps.
 
 
 def test__assign_demography_with_age_bounds_error():
@@ -268,22 +285,22 @@ def test__get_population_data(get_subregions_mock, get_populations_mock):
         12: build_table(50, ['age', 'year', 'sex', 'pop_scaled']),
         20: build_table(70, ['age', 'year', 'sex', 'pop_scaled']),
     }
-    get_populations_mock.side_effect = lambda location_id, year, sex: test_populations[location_id]
+    get_populations_mock.side_effect = lambda location_id: test_populations[location_id]
 
-    data = bp._get_population_data(main_id, True)
+    bp._get_population_data(main_id, True)
     get_subregions_mock.assert_called_once_with(main_id)
-    assert get_populations_mock.call_args_list == [({'location_id': loc}) for loc in subregion_ids]
+    assert get_populations_mock.call_args_list == [({'location_id': loc},) for loc in subregion_ids]
 
     get_subregions_mock.reset_mock()
     get_populations_mock.reset_mock()
 
     bp._get_population_data(main_id, False)
-    get_subregions_mock.assert_called_once_with(main_id)
-    get_populations_mock.assert_called_once_with({'location_id': main_id})
+    get_subregions_mock.assert_not_called()
+    get_populations_mock.assert_called_once_with(location_id=main_id)
 
     get_subregions_mock.reset_mock()
     get_populations_mock.reset_mock()
 
     bp._get_population_data(main_id_no_subregions, True)
     get_subregions_mock.assert_called_once_with(main_id_no_subregions)
-    get_populations_mock.assert_called_once_with({'location_id': main_id_no_subregions})
+    get_populations_mock.assert_called_once_with(location_id=main_id_no_subregions)

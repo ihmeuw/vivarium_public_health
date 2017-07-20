@@ -66,28 +66,27 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
         the 'pop_scaled', 'P(sex, location_id, age| year)', and 'P(age | year, sex, location_id)'
         values are rescaled to reflect their smaller representation.
     """
+    age_start = max(pop_data.age_group_start.min(), pop_age_start)
+    age_end = min(pop_data.age_group_end.max(), pop_age_end)
 
-    if pop_age_start != pop_data.age_group_start.min():
-        pop_data = pop_data[pop_data.age_group_end > pop_age_start]
-    if pop_age_end != pop_data.age_group_end.max():
-        pop_data = pop_data[pop_data.age_group_start < pop_age_end]
+    pop_data = pop_data[(pop_data.age_group_end > age_start) & (pop_data.age_group_start < age_end)]
 
     for _, sub_pop in pop_data.groupby(['sex', 'location_id']):
-        max_bin = sub_pop[sub_pop.age_group_end >= pop_age_end]
-        min_bin = sub_pop[sub_pop.age_group_start <= pop_age_start]
+        max_bin = sub_pop[sub_pop.age_group_end >= age_end]
+        min_bin = sub_pop[sub_pop.age_group_start <= age_start]
 
-        max_scale = ((pop_age_end - float(max_bin.age_group_start))
+        max_scale = ((age_end - float(max_bin.age_group_start))
                      / float(max_bin.age_group_end - max_bin.age_group_start))
-        min_scale = ((float(min_bin.age_group_end) - pop_age_start)
+        min_scale = ((float(min_bin.age_group_end) - age_start)
                      / float(min_bin.age_group_end - min_bin.age_group_start))
         pop_data.loc[max_bin.index, 'P(sex, location_id, age| year)'] *= max_scale
         pop_data.loc[max_bin.index, 'P(age | year, sex, location_id)'] *= max_scale
         pop_data.loc[max_bin.index, 'pop_scaled'] *= max_scale
-        pop_data.loc[max_bin.index, 'age_group_end'] = pop_age_end
+        pop_data.loc[max_bin.index, 'age_group_end'] = age_end
         pop_data.loc[min_bin.index, 'P(sex, location_id, age| year)'] *= min_scale
         pop_data.loc[min_bin.index, 'P(age | year, sex, location_id)'] *= min_scale
         pop_data.loc[min_bin.index, 'pop_scaled'] *= min_scale
-        pop_data.loc[min_bin.index, 'age_group_start'] = pop_age_start
+        pop_data.loc[min_bin.index, 'age_group_start'] = age_start
 
     return pop_data
 
