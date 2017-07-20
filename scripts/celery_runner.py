@@ -277,9 +277,9 @@ def main():
             last_busy = time()
 
         if time() - last_busy > 60:
-            idle_workers = {k for k,v in celery_app.control.inspect().active().items() if not v}
+            idle_workers = [k for k,v in celery_app.control.inspect().active().items() if not v]
             _log.info('System has excess capacity. Shedding {} idle workers'.format(len(idle_workers)))
-            celery_app.control.broadcast('shutdown', destination=list(idle_workers))
+            celery_app.control.broadcast('shutdown', destination=idle_workers)
             last_busy = time()
 
 
