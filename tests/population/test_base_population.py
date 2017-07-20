@@ -30,8 +30,7 @@ def setup():
 def make_base_simulants():
     simulant_ids = range(100000)
     creation_time = datetime(1990, 7, 2)
-    return pd.DataFrame({'simulant_id': simulant_ids,
-                         'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
+    return pd.DataFrame({'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
                          'exit_time': pd.Series(pd.NaT, index=simulant_ids),
                          'alive': pd.Series('alive', index=simulant_ids).astype(
                              'category', categories=['alive', 'dead', 'untracked'], ordered=False)},

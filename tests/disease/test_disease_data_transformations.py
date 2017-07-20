@@ -43,9 +43,8 @@ def test_determine_if_sim_has_cause():
                                   "sex": ['Male']*4,
                                   "prevalence": [.25, .5, .75, 1],
                                   "year": [1990]*4})
-    simulants_df = pd.DataFrame({'simulant_id': range(0, 500000),
-                                 'sex': ['Male']*500000,
-                                 'age': [0, 5, 10, 15]*125000})
+    simulants_df = pd.DataFrame({'sex': ['Male']*500000,
+                                 'age': [0, 5, 10, 15]*125000}, index=range(500000))
     results = determine_if_sim_has_cause(simulants_df, prevalence_df, get_randomness())
     grouped_results = results.groupby('age')[['condition_envelope']].sum()
 
@@ -77,8 +76,7 @@ def test_get_sequela_proportions():
 def test_determine_which_seq_diseased_sim_has():
     simulants_df = pd.DataFrame({'age': [0]*200000,
                                  'sex': ['Male']*200000,
-                                 'simulant_id': range(200000),
-                                 'condition_envelope': [False, True]*100000})
+                                 'condition_envelope': [False, True]*100000}, index=range(200000))
 
     df1 = pd.DataFrame({'age': [0, 10, 0, 10],
                         'sex': ['Male']*2 + ['Female']*2,

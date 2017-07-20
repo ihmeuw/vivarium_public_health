@@ -134,9 +134,7 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
             'location' : The GBD location_id indicating where the simulant resides.
             'sex' : Either 'Male' or 'Female'.  The sex of the simulant.
     """
-    # TODO: Figure out if we actually use simulant_id anywhere and remove that dependency. It's a copy of the index.
-    simulants = pd.DataFrame({'simulant_id': simulant_ids,
-                              'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
+    simulants = pd.DataFrame({'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
                               'exit_time': pd.Series(pd.NaT, index=simulant_ids),
                               'alive': pd.Series('alive', index=simulant_ids).astype(
                                   'category', categories=['alive', 'dead', 'untracked'], ordered=False)},
