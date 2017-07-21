@@ -70,6 +70,7 @@ class HealthcareAccess:
     def setup(self, builder):
         self.general_random = builder.randomness('healthcare_general_access')
         self.followup_random = builder.randomness('healthcare_followup_access')
+        self.adherence_random = builder.randomness('healthcare_adherence')
         r = np.random.RandomState(self.general_random.get_seed())
 
         self.semi_adherent_pr = r.normal(0.4, 0.0485)
@@ -87,11 +88,23 @@ class HealthcareAccess:
         self.utilization_proportion = builder.lookup(get_proportion(outpatient_visits_meid))
 
     @listens_for('initialize_simulants')
-    @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date'])
+    @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'adherence_category'])
     def load_population_columns(self, event):
         population_size = len(event.index)
+        adherence = self.get_adherence(population_size)
         event.population_view.update(pd.DataFrame({'healthcare_followup_date': [pd.NaT]*population_size,
-                                                   'healthcare_last_visit_date': [pd.NaT]*population_size}))
+                                                   'healthcare_last_visit_date': [pd.NaT]*population_size,
+                                                   'adherence_category': adherence}))
+
+    def get_adherence(self, population_size):
+        # use a dirichlet distribution with means matching Marcia's
+        # paper and sum chosen to provide standard deviation on first
+        # term also matching paper
+        r = np.random.RandomState(self.adherence_random.get_seed())
+        alpha = np.array([0.6, 0.25, 0.15]) * 100
+        p = r.dirichlet(alpha)
+        return pd.Series(r.choice(['adherent', 'semi-adherent', 'non-adherent'], p=p, size=population_size),
+                         dtype='category')
 
     @listens_for('time_step')
     @uses_columns(['healthcare_last_visit_date'], "alive == 'alive'")

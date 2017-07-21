@@ -1,3 +1,3 @@
-from .base_population import adherence, age_simulants, BasePopulation, age_out_simulants
+from .base_population import BasePopulation, age_out_simulants, generate_ceam_population
 from .add_new_birth_cohorts import FertilityAgeSpecificRates, FertilityCrudeBirthRate, FertilityDeterministic
 from .mortality import Mortality
