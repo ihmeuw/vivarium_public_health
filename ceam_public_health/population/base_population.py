@@ -56,7 +56,7 @@ class BasePopulation:
         """
         age_params = {'initial_age': event.user_data.get('initial_age', None),
                       'pop_age_start': config.simulation_parameters.pop_age_start,
-                      'pop_age_end': config.simulation_parameters.pop_age_start}
+                      'pop_age_end': config.simulation_parameters.pop_age_end}
         sub_pop_data = self._population_data[self._population_data.year == event.time.year]
         event.population_view.update(generate_ceam_population(simulant_ids=event.index,
                                                               creation_time=event.time,
