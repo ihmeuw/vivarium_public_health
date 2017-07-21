@@ -20,23 +20,26 @@ def assign_demographic_proportions(population_data):
         various population levels.
     """
 
-    population_data['P(sex, location_id, age| year)'] = population_data.groupby(
-        'year', as_index=False
-    ).apply(
-        lambda sub_pop: sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum()
-    ).reset_index(level=0).pop_scaled
+    population_data['P(sex, location_id, age| year)'] = (
+        population_data
+            .groupby('year', as_index=False)
+            .apply(lambda sub_pop: sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum())
+            .reset_index(level=0).pop_scaled
+    )
 
-    population_data['P(sex, location_id | age, year)'] = population_data.groupby(
-        ['age', 'year'], as_index=False
-    ).apply(
-        lambda sub_pop: sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum()
-    ).reset_index(level=0).pop_scaled
+    population_data['P(sex, location_id | age, year)'] = (
+        population_data
+            .groupby(['age', 'year'], as_index=False)
+            .apply(lambda sub_pop: sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum())
+            .reset_index(level=0).pop_scaled
+    )
 
-    population_data['P(age | year, sex, location_id)'] = population_data.groupby(
-        ['year', 'sex', 'location_id'], as_index=False
-    ).apply(
-        lambda sub_pop: sub_pop.pop_scaled / sub_pop.pop_scaled.sum()
-    ).reset_index(level=0).pop_scaled
+    population_data['P(age | year, sex, location_id)'] = (
+        population_data
+            .groupby(['year', 'sex', 'location_id'], as_index=False)
+            .apply(lambda sub_pop: sub_pop.pop_scaled / sub_pop.pop_scaled.sum())
+            .reset_index(level=0).pop_scaled
+    )
 
     return population_data[population_data.sex != 'Both']
 
@@ -69,7 +72,8 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
     age_start = max(pop_data.age_group_start.min(), pop_age_start)
     age_end = min(pop_data.age_group_end.max(), pop_age_end)
 
-    pop_data = pop_data[(pop_data.age_group_end > age_start) & (pop_data.age_group_start < age_end)]
+    relevant_age_groups = (pop_data.age_group_end > age_start) & (pop_data.age_group_start < age_end)
+    pop_data = pop_data[relevant_age_groups]
 
     for _, sub_pop in pop_data.groupby(['sex', 'location_id']):
         max_bin = sub_pop[sub_pop.age_group_end >= age_end]
@@ -79,13 +83,13 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
                      / float(max_bin.age_group_end - max_bin.age_group_start))
         min_scale = ((float(min_bin.age_group_end) - age_start)
                      / float(min_bin.age_group_end - min_bin.age_group_start))
-        pop_data.loc[max_bin.index, 'P(sex, location_id, age| year)'] *= max_scale
-        pop_data.loc[max_bin.index, 'P(age | year, sex, location_id)'] *= max_scale
-        pop_data.loc[max_bin.index, 'pop_scaled'] *= max_scale
+
+        columns_to_scale = ['P(sex, location_id, age| year)', 'P(age | year, sex, location_id)', 'pop_scaled']
+
+        pop_data.loc[max_bin.index, columns_to_scale] *= max_scale
         pop_data.loc[max_bin.index, 'age_group_end'] = age_end
-        pop_data.loc[min_bin.index, 'P(sex, location_id, age| year)'] *= min_scale
-        pop_data.loc[min_bin.index, 'P(age | year, sex, location_id)'] *= min_scale
-        pop_data.loc[min_bin.index, 'pop_scaled'] *= min_scale
+
+        pop_data.loc[min_bin.index, columns_to_scale] *= min_scale
         pop_data.loc[min_bin.index, 'age_group_start'] = age_start
 
     return pop_data
@@ -117,17 +121,21 @@ def smooth_ages(simulants, population_data, randomness):
     for (sex, location_id), sub_pop in population_data.groupby(['sex', 'location_id']):
 
         ages = sorted(sub_pop.age.unique())
-        younger = [0] + ages[:-1]
+        younger = [float(sub_pop.loc[sub_pop.age == ages[0], 'age_group_start'])] + ages[:-1]
         older = ages[1:] + [float(sub_pop.loc[sub_pop.age == ages[-1], 'age_group_end'])]
+
         uniform_all = randomness.get_draw(simulants.index, additional_key='smooth_ages')
 
         for age_set in zip(ages, younger, older):
             age = AgeValues(*age_set)
-            affected = simulants[(simulants.age == age.current)
-                                 & (simulants.sex == sex)
-                                 & (simulants.location == location_id)]
+
+            has_correct_demography = ((simulants.age == age.current)
+                                      & (simulants.sex == sex) & (simulants.location == location_id))
+            affected = simulants[has_correct_demography]
+
             if affected.empty:
                 continue
+
             # bin endpoints
             endpoints, proportions = _get_bins_and_proportions(sub_pop, age)
             pdf, slope, area, cdf_inflection_point = _construct_sampling_parameters(age, endpoints, proportions)
@@ -205,15 +213,15 @@ def _construct_sampling_parameters(age, endpoint, proportion):
         cdf_inflection_point is the value of the cdf at the midpoint of the age bin.
     """
     # pdf value at bin endpoints
-    pdf_left = ((proportion.current - proportion.young)/(age.current - age.young)
+    pdf_left = ((proportion.current - proportion.young) / (age.current - age.young)
                 * (endpoint.left - age.young) + proportion.young)
     pdf_right = ((proportion.old - proportion.current) / (age.old - age.current)
                  * (endpoint.right - age.current) + proportion.current)
     pdf = EndpointValues(pdf_left, pdf_right)
 
     # normalization constant.  Total area under pdf.
-    area = 0.5 * ((proportion.current + pdf.left)*(age.current - endpoint.left)
-                  + (pdf.right + proportion.current)*(endpoint.right - age.current))
+    area = 0.5 * ((proportion.current + pdf.left) * (age.current - endpoint.left)
+                  + (pdf.right + proportion.current) * (endpoint.right - age.current))
 
     # pdf slopes.
     m_left = (proportion.current - pdf.left) / (age.current - endpoint.left)
@@ -252,6 +260,6 @@ def _compute_ages(uniform_rv, start, height, slope, normalization):
         Smoothed ages from one half of the age bin distribution.
     """
     if slope == 0:
-        return start + normalization/height*uniform_rv
+        return start + normalization / height * uniform_rv
     else:
-        return start + height/slope*(np.sqrt(1 + 2*normalization*slope / height**2 * uniform_rv) - 1)
+        return start + height / slope * (np.sqrt(1 + 2 * normalization * slope / height ** 2 * uniform_rv) - 1)

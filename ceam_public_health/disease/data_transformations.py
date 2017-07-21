@@ -31,7 +31,6 @@ def determine_if_sim_has_cause(simulants_df, cause_level_prevalence, randomness)
     probability_of_not_having_disease = 1 - probability_of_disease
     weights = np.array([probability_of_not_having_disease, probability_of_disease]).T
     results = simulants_df.copy()
-    results = results.set_index('simulant_id')
     # Need to sort results so that the simulants are in the same order as the weights
     results['condition_envelope'] = randomness.choice(results.index, [False, True], weights)
     return results
@@ -61,9 +60,7 @@ def determine_which_seq_diseased_sim_has(sequela_proportions, new_sim_file, rand
 
 
 def assign_cause_at_beginning_of_simulation(simulants_df, year_start, states, randomness):
-    simulants_df = simulants_df.reset_index()
-    simulants_df['simulant_id'] = simulants_df['index']
-    simulants_df = simulants_df[['simulant_id', 'age', 'sex']]
+    simulants_df = simulants_df[['age', 'sex']]
 
     cause_level_prevalence, prevalence_draws_dictionary = get_cause_level_prevalence(states, year_start)
     # TODO: Should we be using groupby for these loops to ensure that
