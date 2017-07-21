@@ -129,8 +129,7 @@ def test_age_out_simulants():
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
     assert len(pop) == len(pop[pop.alive == 'untracked'])
-    assert len(pop) == len(pop[pop.age == 5])
-    assert len(pop) == len(pop[pop.exit_time == time_start + pd.Timedelta(400, unit='D')])
+    assert len(pop) == len(pop[pop.exit_time == time_start + pd.Timedelta(300, unit='D')])
 
 
 @patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
