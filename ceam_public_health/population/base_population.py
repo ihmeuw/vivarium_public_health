@@ -78,7 +78,7 @@ class BasePopulation:
         event.population_view.update(event.population)
 
 
-@listens_for('time_step', priority=1)  # Set slightly after mortality.
+@listens_for('time_step', priority=9)
 @uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
 def age_out_simulants(event):
     """Component that allows simulants to move to the untracked status if they're above a certain age.
@@ -90,11 +90,11 @@ def age_out_simulants(event):
     if 'maximum_age' not in config.simulation_parameters:
         raise ValueError('Must specify a maximum age in the config in order to use this component.')
     max_age = float(config.simulation_parameters.maximum_age)
-    pop = event.population[event.population['age'] >= max_age].copy()
+    time_step = float(config.simulation_parameters.time_step)/365
+    pop = event.population[event.population['age'] + time_step >= max_age].copy()
     # TODO : Figure out why `pop['alive'] = 'untracked'` changes the column type from categorical to object.
     pop['alive'] = pd.Series('untracked', index=pop.index).astype(
         'category', categories=['alive', 'dead', 'untracked'], ordered=False)
-    pop['age'] = max_age
     pop['exit_time'] = pd.Timestamp(event.time)
     event.population_view.update(pop)
 
