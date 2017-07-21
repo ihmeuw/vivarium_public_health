@@ -95,7 +95,7 @@ def test_BasePopulation(build_pop_data_table_mock, generate_ceam_population_mock
     initial_age = config.simulation_parameters.initial_age if with_initial_age else None
     age_params = {'initial_age': initial_age,
                   'pop_age_start': config.simulation_parameters.pop_age_start,
-                  'pop_age_end': config.simulation_parameters.pop_age_start}
+                  'pop_age_end': config.simulation_parameters.pop_age_end}
     sub_pop = uniform_pop[uniform_pop.year == time_start.year]
 
     generate_ceam_population_mock.assert_called_once()

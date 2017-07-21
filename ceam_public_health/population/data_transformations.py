@@ -141,7 +141,7 @@ def smooth_ages(simulants, population_data, randomness):
             pdf, slope, area, cdf_inflection_point = _construct_sampling_parameters(age, endpoints, proportions)
 
             # Make a draw from a uniform distribution
-            uniform_rv = uniform_all.iloc[affected.index]
+            uniform_rv = uniform_all.loc[affected.index]
 
             left_sims = affected[uniform_rv <= cdf_inflection_point]
             right_sims = affected[uniform_rv > cdf_inflection_point]
