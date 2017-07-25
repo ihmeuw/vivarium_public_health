@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.values import modifies_value
@@ -48,17 +47,17 @@ class CalculateIncidence:
         """
         self.collecting = True
         for col in self.susceptible_person_time_cols:
-            self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
+            self.incidence_rate_df[col] = pd.Series(0, index=event.index)
         for col in self.event_count_cols:
-            self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
+            self.incidence_rate_df[col] = pd.Series(0, index=event.index)
 
-    @listens_for('time_step', priority=9)
+    @listens_for('collect_metrics')
     def get_counts_and_susceptible_person_time(self, event):
         """
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)
         """
         if self.collecting:
-            succeptible_time = config.simulation_parameters.time_step / 365
+            succeptible_time = event.step_size / 365
 
             population = self.population_view.get(event.index)
             pop = population[(population['alive'] == 'alive') | (population['exit_time'] == event.time)]
@@ -83,7 +82,7 @@ class CalculateIncidence:
 
                     self.incidence_rate_df[event_count_column].loc[cases_index] += 1
                     self.incidence_rate_df[succeptible_time_column].loc[susceptible_index] += succeptible_time
-                    self.incidence_rate_df[succeptible_time_column].loc[just_exited_index] += succeptible_time / 2
+                    self.incidence_rate_df[succeptible_time_column].loc[just_exited_index] += succeptible_time
 
                     last_age_group_max = upr_bound
 

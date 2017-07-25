@@ -19,7 +19,7 @@ class Disability:
         self.years_lived_with_disability = self.years_lived_with_disability.append(
             pd.Series(0, index=event.index))
 
-    @listens_for('time_step__cleanup')
+    @listens_for('collect_metrics')
     def calculate_ylds(self, event):
         self.years_lived_with_disability[event.index] += self.disability_weight(event.index)
 

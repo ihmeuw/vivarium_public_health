@@ -3,7 +3,9 @@ import pandas as pd
 from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
+
 from ceam_inputs import get_populations, get_subregions
+
 from .data_transformations import assign_demographic_proportions, rescale_binned_proportions, smooth_ages
 
 
@@ -64,7 +66,7 @@ class BasePopulation:
                                                               population_data=sub_pop_data,
                                                               randomness_stream=self.randomness))
 
-    @listens_for('time_step')
+    @listens_for('time_step', priority=8)
     @uses_columns(['age'], "alive == 'alive'")
     def age_simulants(self, event):
         """Ages simulants each time step.
@@ -73,8 +75,7 @@ class BasePopulation:
         ----------
         event : vivarium.framework.population.PopulationEvent
         """
-        time_step = config.simulation_parameters.time_step
-        event.population['age'] += time_step / 365.0
+        event.population['age'] += event.step_size / 365.0
         event.population_view.update(event.population)
 
 
@@ -89,8 +90,11 @@ def age_out_simulants(event):
     """
     if 'maximum_age' not in config.simulation_parameters:
         raise ValueError('Must specify a maximum age in the config in order to use this component.')
+
     max_age = float(config.simulation_parameters.maximum_age)
+
     pop = event.population[event.population['age'] >= max_age].copy()
+
     # TODO : Figure out why `pop['alive'] = 'untracked'` changes the column type from categorical to object.
     pop['alive'] = pd.Series('untracked', index=pop.index).astype(
         'category', categories=['alive', 'dead', 'untracked'], ordered=False)
@@ -105,7 +109,7 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
     ----------
     simulant_ids : iterable of ints
         Values to serve as the index in the newly generated simulant DataFrame.
-    creation_time : datetime.datetime
+    creation_time : pandas.Timestamp
         The simulation time when the simulants are created.
     age_params : dict
         Dictionary with keys
@@ -133,7 +137,7 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
             'location' : The GBD location_id indicating where the simulant resides.
             'sex' : Either 'Male' or 'Female'.  The sex of the simulant.
     """
-    simulants = pd.DataFrame({'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
+    simulants = pd.DataFrame({'entrance_time': pd.Series(creation_time, index=simulant_ids),
                               'exit_time': pd.Series(pd.NaT, index=simulant_ids),
                               'alive': pd.Series('alive', index=simulant_ids).astype(
                                   'category', categories=['alive', 'dead', 'untracked'], ordered=False)},

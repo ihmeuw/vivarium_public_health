@@ -1,5 +1,4 @@
 from collections import defaultdict
-from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -71,6 +70,7 @@ class HealthcareAccess:
         self.general_random = builder.randomness('healthcare_general_access')
         self.followup_random = builder.randomness('healthcare_followup_access')
         self.adherence_random = builder.randomness('healthcare_adherence')
+        self.clock = builder.clock()
         r = np.random.RandomState(self.general_random.get_seed())
 
         self.semi_adherent_pr = r.normal(0.4, 0.0485)
@@ -127,10 +127,9 @@ class HealthcareAccess:
     @uses_columns(['healthcare_last_visit_date', 'healthcare_followup_date', 'adherence_category'],
                   "alive == 'alive'")
     def followup_access(self, event):
-        time_step = timedelta(days=config.simulation_parameters.time_step)
         # determine population due for a follow-up appointment
-        rows = (event.population.healthcare_followup_date > event.time-time_step) \
-               & (event.population.healthcare_followup_date <= event.time)
+        rows = ((event.population.healthcare_followup_date > self.clock())
+                & (event.population.healthcare_followup_date <= event.time))
         affected_population = event.population[rows]
 
         # of them, determine who shows up for their follow-up appointment
@@ -141,7 +140,8 @@ class HealthcareAccess:
         affected_population = self.followup_random.filter_for_probability(affected_population, adherence)
 
         # for those who show up, emit_event that the visit has happened, and tally the cost
-        event.population_view.update(pd.Series(event.time, index=affected_population.index, name='healthcare_last_visit_date'))
+        event.population_view.update(pd.Series(event.time, index=affected_population.index,
+                                               name='healthcare_last_visit_date'))
         self.followup_healthcare_access_emitter(event.split(affected_population.index))
         self.followup_access_count += len(affected_population)
 

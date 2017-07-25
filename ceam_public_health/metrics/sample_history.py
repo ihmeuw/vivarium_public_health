@@ -7,8 +7,8 @@ from vivarium.framework.population import uses_columns
 
 
 class SampleHistory:
-    """Collect a detailed record of events that happen to a sampled sub-population 
-    
+    """Collect a detailed record of events that happen to a sampled sub-population
+
     For use with visualization or analysis. The records are written to an HDF file.
     """
 
@@ -32,7 +32,7 @@ class SampleHistory:
         priority_index = [i for d,i in sorted(zip(draw,event.index), key=lambda x:x[0])]
         self.sample_index = priority_index[:self.sample_size]
 
-    @listens_for('time_step__cleanup')
+    @listens_for('collect_metrics')
     @uses_columns(None)
     def record(self, event):
         sample = event.population.loc[self.sample_index]

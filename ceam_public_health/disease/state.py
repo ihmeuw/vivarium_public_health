@@ -1,11 +1,7 @@
 """A toolbox for modeling diseases as state machines."""
-
-from datetime import timedelta
-
 import numpy as np
 import pandas as pd
 
-from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.state_machine import State, TransientState
 from vivarium.framework.values import modifies_value
@@ -96,7 +92,7 @@ class DiseaseState(State):
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
         self.dwell_time = builder.value('dwell_time.{}'.format(self.state_id))
-        if isinstance(self._dwell_time, timedelta):
+        if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
 
         self.dwell_time.source = builder.lookup(self._dwell_time)
@@ -120,20 +116,22 @@ class DiseaseState(State):
             if transition.start_active:
                 transition.set_active(event.index)
 
-    def next_state(self, index, population_view):
+    def next_state(self, index, event_time, population_view):
         """Moves a population among different disease states.
 
         Parameters
         ----------
         index : iterable of ints
             An iterable of integer labels for the simulants.
-        population_view : `pandas.DataFrame`
+        event_time : pandas.Timestamp
+            The time at which this transition occurs.
+        population_view : vivarium.framework.population.PopulationView
             A view of the internal state of the simulation.
         """
-        eligible_index = self._filter_for_transition_eligibility(index)
-        return super().next_state(eligible_index, population_view)
+        eligible_index = self._filter_for_transition_eligibility(index, event_time)
+        return super().next_state(eligible_index, event_time, population_view)
 
-    def _filter_for_transition_eligibility(self, index):
+    def _filter_for_transition_eligibility(self, index, event_time):
         """Filter out all simulants who haven't been in the state for the prescribed dwell time.
 
         Parameters
@@ -150,30 +148,31 @@ class DiseaseState(State):
         # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
         if self.track_events:
             return population.loc[population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
-                                  < pd.Timestamp(self.clock())
-                                  + pd.Timedelta(config.simulation_parameters.time_step, unit='D')].index
+                                  < event_time].index
         else:
             return index
 
-    def _transition_side_effect(self, index):
+    def _transition_side_effect(self, index, event_time):
         """Updates the simulation state and triggers any side-effects associated with this state.
 
         Parameters
         ----------
         index : iterable of ints
             An iterable of integer labels for the simulants.
+        event_time : pandas.Timestamp
+            The time at which this transition occurs.
         """
         if self.track_events:
             pop = self.population_view.get(index)
-            pop[self.event_time_column] = pd.Timestamp(self.clock())
+            pop[self.event_time_column] = event_time
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
         if self.side_effect_function is not None:
             self.side_effect_function(index)
 
-    def _cleanup_effect(self, index):
+    def _cleanup_effect(self, index, event_time):
         if self.cleanup_function is not None:
-            self.cleanup_function(index, pd.Timestamp(self.clock()))
+            self.cleanup_function(index, event_time)
 
     def add_transition(self, output, proportion=None, rates=None, **kwargs):
         if proportion is not None and rates is not None:
@@ -268,17 +267,19 @@ class TransientDiseaseState(TransientState):
         self.clock = builder.clock()
         return super().setup(builder)
 
-    def _transition_side_effect(self, index):
+    def _transition_side_effect(self, index, event_time):
         """Updates the simulation state and triggers any side-effects associated with this state.
 
         Parameters
         ----------
         index : iterable of ints
             An iterable of integer labels for the simulants.
+        event_time : pandas.Timestamp
+            The time at which this transition occurs.
         """
         if self.track_events:
             pop = self.population_view.get(index)
-            pop[self.event_time_column] = pd.Timestamp(self.clock())
+            pop[self.event_time_column] = event_time
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
         if self.side_effect_function is not None:
