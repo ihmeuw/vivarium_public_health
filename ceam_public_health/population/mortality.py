@@ -60,7 +60,7 @@ class Mortality:
         event.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death']])
 
     @listens_for('time_step__cleanup')
-    @uses_columns(['alive', 'exit_time', 'cause_of_death'], "'alive' == 'untracked'")
+    @uses_columns(['alive', 'exit_time', 'cause_of_death'], "alive == 'untracked'")
     def untracked_handler(self, event):
         pop = event.population
         new_untracked = pop.exit_time == event.time
