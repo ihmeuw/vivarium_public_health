@@ -1,7 +1,6 @@
 import os
 import math
 from itertools import product
-from datetime import datetime
 from unittest.mock import patch
 
 import numpy as np
@@ -29,7 +28,7 @@ def setup():
 
 def make_base_simulants():
     simulant_ids = range(100000)
-    creation_time = datetime(1990, 7, 2)
+    creation_time = pd.Timestamp(1990, 7, 2)
     return pd.DataFrame({'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
                          'exit_time': pd.Series(pd.NaT, index=simulant_ids),
                          'alive': pd.Series('alive', index=simulant_ids).astype(
@@ -136,7 +135,7 @@ def test_age_out_simulants():
 @patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
 @patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
 def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
-    creation_time = datetime(1990, 7, 2)
+    creation_time = pd.Timestamp(1990, 7, 2)
     age_params = {'initial_age': None,
                   'pop_age_start': 0,
                   'pop_age_end': 120}
@@ -160,7 +159,7 @@ def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
 @patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
 @patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
 def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock):
-    creation_time = datetime(1990, 7, 2)
+    creation_time = pd.Timestamp(1990, 7, 2)
     age_params = {'initial_age': 0,
                   'pop_age_start': 0,
                   'pop_age_end': 120}

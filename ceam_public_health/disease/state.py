@@ -21,7 +21,7 @@ class DiseaseState(State):
         The amount of disability associated with this state.
     prevalence_data : `pandas.DataFrame`, optional
         The baseline occurrence of this state in a population.
-    dwell_time : `pandas.DataFrame` or float or `datetime.timedelta`, optional
+    dwell_time : `pandas.DataFrame` or float or pandas.Timedelta, optional
         The minimum time a simulant exists in this state.
     event_time_column : str, optional
         The name of a column to track the last time this state was entered.
