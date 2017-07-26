@@ -75,7 +75,7 @@ class BasePopulation:
         ----------
         event : vivarium.framework.population.PopulationEvent
         """
-        event.population['age'] += event.step_size / 365.0
+        event.population['age'] += event.step_size.days / 365.0
         event.population_view.update(event.population)
 
 
@@ -92,13 +92,12 @@ def age_out_simulants(event):
         raise ValueError('Must specify a maximum age in the config in order to use this component.')
 
     max_age = float(config.simulation_parameters.maximum_age)
-
     pop = event.population[event.population['age'] >= max_age].copy()
 
     # TODO : Figure out why `pop['alive'] = 'untracked'` changes the column type from categorical to object.
     pop['alive'] = pd.Series('untracked', index=pop.index).astype(
         'category', categories=['alive', 'dead', 'untracked'], ordered=False)
-    pop['exit_time'] = pd.Timestamp(event.time)
+    pop['exit_time'] = event.time
     event.population_view.update(pop)
 
 

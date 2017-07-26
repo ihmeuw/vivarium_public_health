@@ -47,7 +47,7 @@ class FertilityDeterministic:
         """
 
         # Assume births are uniformly distributed throughout the year.
-        simulants_to_add = self.annual_new_simulants*event.step_size/DAYS_PER_YEAR + self.fractional_new_births
+        simulants_to_add = self.annual_new_simulants*event.step_size.days/DAYS_PER_YEAR + self.fractional_new_births
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
 
@@ -103,7 +103,7 @@ class FertilityCrudeBirthRate:
         birth_rate = self._get_birth_rate(event.time.year)
         population_size = len(event.index)
 
-        mean_births = birth_rate*population_size*event.step_size/DAYS_PER_YEAR
+        mean_births = birth_rate*population_size*event.step_size.days/DAYS_PER_YEAR
 
         # Assume births occur as a Poisson process
         r = np.random.RandomState(seed=self.randomness.get_seed())

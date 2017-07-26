@@ -126,10 +126,11 @@ def test_age_out_simulants():
                      layer='override')
     components = [bp.BasePopulation(), bp.age_out_simulants]
     simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
+    assert float(simulation.population.population.age.unique()) == 4
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
     assert len(pop) == len(pop[pop.alive == 'untracked'])
-    assert len(pop) == len(pop[pop.exit_time == time_start + pd.Timedelta(300, unit='D')])
+    assert len(pop) == len(pop[pop.exit_time == time_start + pd.Timedelta(400, unit='D')])
 
 
 @patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')

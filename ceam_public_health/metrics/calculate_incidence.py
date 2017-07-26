@@ -57,7 +57,7 @@ class CalculateIncidence:
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)
         """
         if self.collecting:
-            succeptible_time = event.step_size / 365
+            succeptible_time = event.step_size.days / 365
 
             population = self.population_view.get(event.index)
             pop = population[(population['alive'] == 'alive') | (population['exit_time'] == event.time)]
