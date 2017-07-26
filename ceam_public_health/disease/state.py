@@ -148,7 +148,7 @@ class DiseaseState(State):
         # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
         if self.track_events:
             return population.loc[population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
-                                  < event_time].index
+                                  <= event_time].index
         else:
             return index
 
@@ -168,7 +168,7 @@ class DiseaseState(State):
             pop[self.event_count_column] += 1
             self.population_view.update(pop)
         if self.side_effect_function is not None:
-            self.side_effect_function(index)
+            self.side_effect_function(index, event_time)
 
     def _cleanup_effect(self, index, event_time):
         if self.cleanup_function is not None:
