@@ -54,7 +54,7 @@ def init_job_template(jt, peak_memory, broker_url, config_file, worker_log_direc
     launcher = tempfile.NamedTemporaryFile(mode='w', dir='.', prefix='celery_worker_launcher_', suffix='.sh', delete=False)
     atexit.register(lambda: os.remove(launcher.name))
     launcher.write('''
-    {} -A vivarium.framework.celery_tasks worker --without-gossip --without-mingle --concurrency=1 -f {} --config {} -n ${{JOB_ID}}.${{SGE_TASK_ID}}
+    {} -A vivarium.framework.celery_tasks worker --without-gossip -Ofair --without-mingle --concurrency=1 -f {} --config {} -n ${{JOB_ID}}.${{SGE_TASK_ID}}
     '''.format(shutil.which('celery'), os.path.join(worker_log_directory, 'worker-${JOB_ID}.${SGE_TASK_ID}.log'), config_file))
     launcher.close()
 
@@ -73,7 +73,7 @@ def init_job_template(jt, peak_memory, broker_url, config_file, worker_log_direc
     return jt
 
 def get_random_free_port():
-    # NOTE: this implementation is vulnerable to rare race conditions where some other process get's the same
+    # NOTE: this implementation is vulnerable to rare race conditions where some other process gets the same
     # port after we free our socket but before we use the port number we got. Should be so rare in practice
     # that it doesn't matter.
     s = socket.socket()
@@ -114,6 +114,8 @@ def start_cluster(num_workers, peak_memory, worker_log_directory):
         'broker_url': broker_url,
         'result_backend': backend_url,
         'worker_prefetch_multiplier': 1,
+        'worker_concurrency': 1,
+        'task_acks_late': True,
         'redis_max_connections': 1,
         'redis_socket_connect_timeout': 10,
         'broker_connection_max_retries': 10,

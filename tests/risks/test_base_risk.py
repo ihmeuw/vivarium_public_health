@@ -13,14 +13,14 @@ from vivarium import config
 from vivarium.config_tree import ConfigTree
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
+from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
 
 from ceam_inputs import risk_factors, causes
 
-from ceam_public_health.experiments.cvd.components import heart_disease, stroke
-
+from ceam_public_health.disease.transition import RateTransition
 from ceam_public_health.risks import distributions, exposures
 from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
 from ceam_public_health.risks.exposures import basic_exposure_function
@@ -521,34 +521,6 @@ class RiskMock:
 def test_make_gbd_risk_effects():
     time_step = config.simulation_parameters.time_step
     # adjusted pafs
-    paf = 0.01
-    mediation_factor = 0.6
-    effect_function = continuous_exposure_effect(risk_factors.high_systolic_blood_pressure)
-    risk_effect = RiskEffect(rr_data=build_table(0),
-                             paf_data=build_table(paf),
-                             mediation_factor=mediation_factor,
-                             cause=causes.heart_attack,
-                             exposure_effect=effect_function)
-    sbp = RiskMock(risk_factors.high_systolic_blood_pressure, risk_effect,
-                   distributions.sbp, exposures.sbp)
-    simulation = setup_simulation([generate_test_population, heart_disease.factory(), sbp])
-    pafs = simulation.values.get_value('paf.heart_attack')
-    assert np.allclose(pafs(simulation.population.population.index), paf * (1 - mediation_factor))
-
-    paf = 0.25
-    mediation_factor = 0.4
-    effect_function = continuous_exposure_effect(risk_factors.high_systolic_blood_pressure)
-    risk_effect = RiskEffect(rr_data=build_table(0),
-                             paf_data=build_table(paf),
-                             mediation_factor=mediation_factor,
-                             cause=causes.ischemic_stroke,
-                             exposure_effect=effect_function)
-    sbp = RiskMock(risk_factors.high_systolic_blood_pressure, risk_effect,
-                   distributions.sbp, exposures.sbp)
-    simulation = setup_simulation([generate_test_population, stroke.factory(), sbp])
-    pafs = simulation.values.get_value('paf.ischemic_stroke')
-    assert np.allclose(pafs(simulation.population.population.index), paf * (1 - mediation_factor))
-
     paf = 0.9
     mediation_factor = 0.02
     effect_function = continuous_exposure_effect(risk_factors.high_body_mass_index)
@@ -559,8 +531,9 @@ def test_make_gbd_risk_effects():
                              exposure_effect=effect_function)
     bmi = RiskMock(risk_factors.high_body_mass_index, risk_effect,
                    distributions.bmi)
-    simulation = setup_simulation([generate_test_population, stroke.factory(), bmi])
-    pafs = simulation.values.get_value('paf.hemorrhagic_stroke')
+    simulation = setup_simulation([generate_test_population, bmi])
+    pafs = simulation.values.get_value('paf.hemorrhagic_stroke', list_combiner, joint_value_post_processor)
+    pafs.source = lambda index: [pd.Series(0, index=index)]
     assert np.allclose(pafs(simulation.population.population.index), paf * (1 - mediation_factor))
 
     # adjusted rrs
@@ -580,8 +553,9 @@ def test_make_gbd_risk_effects():
     bmi = RiskMock(risk_factors.high_body_mass_index, risk_effect,
                    distributions.bmi,
                    exposure_function=lambda propensity, distribution: pd.Series(exposure, index=propensity.index))
-    simulation = setup_simulation([generate_test_population, heart_disease.factory(), bmi])
-    irs = simulation.values.get_value('incidence_rate.heart_attack')
+    heart_attack_transition = RateTransition(None, 'heart_attack', build_table(.001))
+    simulation = setup_simulation([generate_test_population, heart_attack_transition, bmi])
+    irs = simulation.values.get_rate('incidence_rate.heart_attack')
     base_ir = irs.source(simulation.population.population.index)
 
     assert np.allclose(irs(simulation.population.population.index),
