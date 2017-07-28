@@ -264,6 +264,7 @@ def main():
 
     results = pd.DataFrame()
     results_dirty = False
+    last_busy = time()
     while futures:
         sleep(3)
         celery_stats = celery_app.control.inspect().stats()
@@ -271,6 +272,18 @@ def main():
             workers = len(celery_stats)
         else:
             workers = 0
+
+        if workers <= len(futures):
+            last_busy = time()
+
+        if time() - last_busy > 60:
+            idle_workers = [k for k,v in celery_app.control.inspect().active().items() if not v]
+            _log.info('System has excess capacity. Shedding {} idle workers'.format(len(idle_workers)))
+            celery_app.control.broadcast('shutdown', destination=idle_workers)
+            last_busy = time()
+
+
+
         _log.info('Pending: {} (active workers: {})'.format(len(futures), workers))
 
         new_futures = {}

@@ -369,7 +369,11 @@ class ExcessMortalityState(DiseaseState):
              This component's sub-components.
         """
         self._mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
-        self._mortality.source = builder.lookup(self.excess_mortality_data)
+        if 'mortality.interpolate' in config and not config.mortality.interpolate:
+            order = 0
+        else:
+            order = 1
+        self._mortality.source = builder.lookup(self.excess_mortality_data, interpolation_order=order)
         return super().setup(builder)
 
     @modifies_value('mortality_rate')

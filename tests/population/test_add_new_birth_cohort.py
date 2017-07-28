@@ -90,5 +90,5 @@ def test_fertility_module():
     assert len(pop.age) > start_population_size, 'expect new simulants'
 
     for i in range(start_population_size, len(pop)):
-        assert pop.iloc[pop.iloc[i].parent_id].last_birth_time >= time_start, 'expect all children to have mothers who' \
+        assert pop.loc[pop.iloc[i].parent_id].last_birth_time >= time_start, 'expect all children to have mothers who' \
                                                                           ' gave birth after the simulation starts.'
