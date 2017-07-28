@@ -41,6 +41,11 @@ class CalculateIncidence:
         columns = [self.disease_col, self.disease_time_col, "exit_time", "age", "sex", "alive"]
         self.population_view = builder.population_view(columns)
 
+    @listens_for('initialize_simulants')
+    def update_incidence_rate_df(self, event):
+        if self.collecting:
+            self.incidence_rate_df.append(pd.Series(0, index=event.index))
+
     @listens_for('begin_epidemiological_measure_collection')
     def set_flag(self, event):
         """
