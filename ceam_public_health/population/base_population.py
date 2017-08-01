@@ -94,7 +94,6 @@ def age_out_simulants(event):
     max_age = float(config.simulation_parameters.maximum_age)
     pop = event.population[event.population['age'] >= max_age].copy()
 
-    # TODO : Figure out why `pop['alive'] = 'untracked'` changes the column type from categorical to object.
     pop['alive'] = pd.Series('untracked', index=pop.index).astype(
         'category', categories=['alive', 'dead', 'untracked'], ordered=False)
     pop['exit_time'] = event.time

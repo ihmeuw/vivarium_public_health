@@ -57,12 +57,11 @@ class CalculateIncidence:
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)
         """
         if self.collecting:
-            succeptible_time = event.step_size.days / 365
+            susceptible_time = event.step_size.days / 365
 
             population = self.population_view.get(event.index)
             pop = population[(population['alive'] == 'alive') | (population['exit_time'] == event.time)]
 
-            just_exited = pop['exit_time'] == event.time
             sick = pop[self.disease_col].isin(self.disease_states)
             got_sick_this_time_step = pop[self.disease_time_col] == event.time
 
@@ -74,15 +73,13 @@ class CalculateIncidence:
                                                & (pop['sex'] == sex))
 
                     event_count_column = '{}_event_count_{}_among_{}s'.format(self.disease, age_bin, sex)
-                    succeptible_time_column = 'susceptible_person_time_{}_among_{}s'.format(age_bin, sex)
+                    susceptible_time_column = 'susceptible_person_time_{}_among_{}s'.format(age_bin, sex)
 
                     cases_index = pop[appropriate_age_and_sex & sick & got_sick_this_time_step].index
                     susceptible_index = pop[~sick & appropriate_age_and_sex].index
-                    just_exited_index = pop[~sick & appropriate_age_and_sex & just_exited].index
 
                     self.incidence_rate_df[event_count_column].loc[cases_index] += 1
-                    self.incidence_rate_df[succeptible_time_column].loc[susceptible_index] += succeptible_time
-                    self.incidence_rate_df[succeptible_time_column].loc[just_exited_index] += succeptible_time
+                    self.incidence_rate_df.loc[susceptible_index, susceptible_time_column] += susceptible_time
 
                     last_age_group_max = upr_bound
 
