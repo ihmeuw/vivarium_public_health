@@ -87,7 +87,7 @@ class EpidemiologicalMeasures:
         df = measures(index, age_groups, ['Male', 'Female'], False, pd.Timedelta(days=365)).reset_index()
         df['year'] = current_year
         df['input_draw'] = config.run_configuration.draw_number
-        df['model_draw'] = config.run_configuration.madel_draw_number
+        df['model_draw'] = config.run_configuration.model_draw_number
         existing_df = pd.read_hdf(self.output_path)
         df = existing_df.append(df)
 
