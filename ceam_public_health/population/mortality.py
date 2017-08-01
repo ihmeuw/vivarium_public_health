@@ -21,7 +21,7 @@ class Mortality:
 
     def setup(self, builder):
         order = 1 if config.mortality.interpolate else 0
-        self._mortality_rate_builder = lambda: builder.lookup(self.load_all_cause_mortality(), interpolation_order=1)
+        self._mortality_rate_builder = lambda: builder.lookup(self.load_all_cause_mortality(), interpolation_order=order)
         self.mortality_rate = builder.rate('mortality_rate')
         self.death_emitter = builder.emitter('deaths')
         self.life_table = builder.lookup(get_life_table(), key_columns=(), parameter_columns=('age',))
