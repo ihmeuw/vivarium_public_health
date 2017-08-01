@@ -1,5 +1,4 @@
 import os
-from datetime import timedelta, datetime
 
 import pandas as pd
 
@@ -25,6 +24,7 @@ class EpidemiologicalMeasures:
     def setup(self, builder):
         self.point_measures = builder.value('epidemiological_point_measures')
         self.span_measures = builder.value('epidemiological_span_measures')
+        self.clock = builder.clock()
 
         self.run_key = run_config.run_key if 'run_key' in run_config else None
 
@@ -43,28 +43,28 @@ class EpidemiologicalMeasures:
             columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'sample_size']
         ).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])
 
-    @listens_for('time_step')
+    @listens_for('collect_metrics')
     @emits('begin_epidemiological_measure_collection')
     def time_step(self, event, event_emitter):
-        time_step = timedelta(days=config.simulation_parameters.time_step)
-        mid_year = datetime(year=event.time.year, month=7, day=2)
-        year_start = datetime(year=event.time.year, month=1, day=1)
+        mid_year = pd.Timestamp(year=event.time.year, month=7, day=2)
+        year_start = pd.Timestamp(year=event.time.year, month=1, day=1)
+        last_year_end = pd.Timestamp(year=self.last_collected_year, month=12, day=31)
 
         if self.collecting:
             # On the year following a GBD year, reel the data in
-            year_end = datetime(year=self.last_collected_year, month=12, day=31)
-            if event.time - time_step < year_end <= event.time:
+            if self.clock < last_year_end <= event.time:
                 _log.debug('end collection')
                 self.dump_measures(event.index, self.last_collected_year)
                 self.collecting = False
 
         if event.time.year % 5 == 0:  # FIXME: If year in list of GBD years
-            if event.time - time_step < mid_year <= event.time:
+            if self.clock() < mid_year <= event.time:
                 # Collect point measures at the midpoint of every gbd year
                 self.dump_measures(event.index, event.time.year, point=True)
 
-            if event.time - time_step < year_start <= event.time and \
-               event.time.year > self.last_collected_year and not self.collecting:
+            if (self.clock().year < year_start <= event.time
+                    and event.time.year > self.last_collected_year
+                    and not self.collecting):
                 # Emit the begin collection event every gbd year
                 event_emitter(event.split(event.index))
                 _log.debug('begin collection')
@@ -84,7 +84,7 @@ class EpidemiologicalMeasures:
             _log.debug('collecting point measures')
         else:
             measures = self.span_measures
-        df = measures(index, age_groups, ['Male', 'Female'], False, timedelta(days=365)).reset_index()
+        df = measures(index, age_groups, ['Male', 'Female'], False, pd.Timedelta(days=365)).reset_index()
         df['year'] = current_year
         df['input_draw'] = config.run_configuration.draw_number
         df['model_draw'] = config.run_configuration.madel_draw_number

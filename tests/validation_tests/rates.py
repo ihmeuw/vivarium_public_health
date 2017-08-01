@@ -1,5 +1,4 @@
 import os
-from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -50,7 +49,7 @@ def test_incidence_rate_recalculation():
     known_cases = pd.Index([])
 
     for step in range(360):
-        _step(sim, timedelta(days=1))
+        _step(sim, pd.Timedelta(days=1))
         cases = sim.population.population.query('simple_disease == "sick"')
         new_cases.append(len(cases.index.difference(known_cases)))
         known_cases = cases.index
@@ -59,7 +58,7 @@ def test_incidence_rate_recalculation():
     susceptible = susceptible[:-1]
     incidence_rates = np.array(new_cases)/np.array(susceptible)
 
-    #assert np.isclose(np.mean(incidence_rates), from_yearly(0.01, timedelta(days=1)), rtol=0.05)
+    #assert np.isclose(np.mean(incidence_rates), from_yearly(0.01, pd.Timedelta(days=1)), rtol=0.05)
 
     expected_prevalence = incidence_rate * (1/recovery_rate)
     actual_prevalence = (sim.population.population.simple_disease == 'sick').sum() / len(sim.population.population)
