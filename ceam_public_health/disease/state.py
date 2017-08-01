@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 
+from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.state_machine import State, TransientState
 from vivarium.framework.values import modifies_value
