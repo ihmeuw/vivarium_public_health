@@ -3,7 +3,7 @@ from code import interact
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 
-@listens_for('time_step')
+@listens_for('collect_metrics')
 @uses_columns(None)
 def inspect(event):
     interact(banner="""

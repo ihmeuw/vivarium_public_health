@@ -1,5 +1,4 @@
 import os
-from datetime import timedelta
 from unittest.mock import patch
 
 import numpy as np
@@ -32,33 +31,34 @@ def setup():
 
 @patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
 def test_dwell_time(assign_cause_mock):
-    config.simulation_parameters.set_with_metadata('time_step', 10, layer='override', source=os.path.realpath(__file__))
+    time_step = 10
+    config.simulation_parameters.set_with_metadata('time_step', time_step,
+                                                   layer='override', source=os.path.realpath(__file__))
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
-    model = DiseaseModel('state')
-    healthy_state = State('healthy')
-    event_state = DiseaseState('event', dwell_time=timedelta(days=28))
-    healthy_state.transition_set.append(Transition(event_state))
 
+    healthy_state = State('healthy')
+    event_state = DiseaseState('event', dwell_time=pd.Timedelta(days=28))
     done_state = State('sick')
-    event_state.transition_set.append(Transition(done_state))
-    model.states.extend([healthy_state, event_state, done_state])
+
+    healthy_state.add_transition(event_state)
+    event_state.add_transition(done_state)
+
+    model = DiseaseModel('state', states=[healthy_state, event_state, done_state])
 
     simulation = setup_simulation([generate_test_population, model], population_size=10)
 
     # Move everyone into the event state
+
+    pump_simulation(simulation, iterations=1)
     event_time = simulation.current_time
-    pump_simulation(simulation, iterations=1)
-
     assert np.all(simulation.population.population.state == 'event')
 
+    pump_simulation(simulation, iterations=2)
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    pump_simulation(simulation, iterations=1)
-
     assert np.all(simulation.population.population.state == 'event')
 
     pump_simulation(simulation, iterations=1)
-
     # Now enough time has passed so people should transition away
     assert np.all(simulation.population.population.state == 'sick')
     assert np.all(simulation.population.population.event_event_time == pd.to_datetime(event_time))
@@ -66,19 +66,17 @@ def test_dwell_time(assign_cause_mock):
 
 
 def test_mortality_rate():
-    time_step = config.simulation_parameters.time_step
-    time_step = timedelta(days=time_step)
+    time_step = pd.Timedelta(days=config.simulation_parameters.time_step)
 
-    model = DiseaseModel('test_disease', csmr_data=build_table(0))
     healthy = State('healthy')
     mortality_state = ExcessMortalityState('sick',
                                            excess_mortality_data=build_table(0.7),
                                            disability_weight=0.1,
                                            prevalence_data=build_table(0.0000001, ['age', 'year', 'sex', 'prevalence']))
 
-    healthy.transition_set.append(Transition(mortality_state))
+    healthy.add_transition(mortality_state)
 
-    model.states.extend([healthy, mortality_state])
+    model = DiseaseModel('test_disease', states=[healthy, mortality_state], csmr_data=build_table(0))
 
     simulation = setup_simulation([generate_test_population, model])
 
@@ -93,8 +91,7 @@ def test_mortality_rate():
 
 @patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
 def test_incidence(assign_cause_mock):
-    time_step = config.simulation_parameters.time_step
-    time_step = timedelta(days=time_step)
+    time_step = pd.Timedelta(days=config.simulation_parameters.time_step)
 
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
@@ -121,7 +118,7 @@ def test_incidence(assign_cause_mock):
 @patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
 def test_risk_deletion(assign_cause_mock):
     time_step = config.simulation_parameters.time_step
-    time_step = timedelta(days=time_step)
+    time_step = pd.Timedelta(days=time_step)
 
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'},
                                                                                index=population.index)

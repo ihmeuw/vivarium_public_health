@@ -1,7 +1,7 @@
 import os
-from datetime import timedelta
 
 import numpy as np
+import pandas as pd
 
 from vivarium import config
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
@@ -99,7 +99,7 @@ def test_that_healthy_people_dont_accrue_disability_weights():
 
     simulation, metrics = set_up_test_parameters()
 
-    pump_simulation(simulation, duration=timedelta(days=365))
+    pump_simulation(simulation, duration=pd.Timedelta(days=365))
 
     assert np.isclose(metrics(simulation.population.population.index)['years_lived_with_disability'],
                       10000 * 0.0, rtol=0.01), "If no one has a disabling" + \
@@ -110,7 +110,7 @@ def test_single_disability_weight():
     # Flu season
     simulation, metrics = set_up_test_parameters(flu=True)
 
-    pump_simulation(simulation, duration=timedelta(days=365))
+    pump_simulation(simulation, duration=pd.Timedelta(days=365))
 
     # check that disability weight is correctly calculated
     assert np.isclose(metrics(simulation.population.population.index)['years_lived_with_disability'],
@@ -128,7 +128,7 @@ def test_joint_disability_weight():
     # Flu season in conjunction with a mumps outbreak
     simulation, metrics = set_up_test_parameters(flu=True, mumps=True)
 
-    pump_simulation(simulation, duration=timedelta(days=365))
+    pump_simulation(simulation, duration=pd.Timedelta(days=365))
 
     # check that JOINT disability weight is correctly calculated
     assert np.isclose(metrics(simulation.population.population.index)['years_lived_with_disability'],

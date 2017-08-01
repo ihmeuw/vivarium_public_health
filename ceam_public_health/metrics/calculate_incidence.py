@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.values import modifies_value
@@ -58,22 +57,21 @@ class CalculateIncidence:
         """
         self.collecting = True
         for col in self.susceptible_person_time_cols:
-            self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
+            self.incidence_rate_df[col] = pd.Series(0, index=event.index)
         for col in self.event_count_cols:
-            self.incidence_rate_df[col] = pd.Series(np.zeros(len(event.index)), index=event.index)
+            self.incidence_rate_df[col] = pd.Series(0, index=event.index)
 
-    @listens_for('time_step', priority=9)
+    @listens_for('collect_metrics')
     def get_counts_and_susceptible_person_time(self, event):
         """
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)
         """
         if self.collecting:
-            succeptible_time = config.simulation_parameters.time_step / 365
+            susceptible_time = event.step_size.days / 365
 
             population = self.population_view.get(event.index)
             pop = population[(population['alive'] == 'alive') | (population['exit_time'] == event.time)]
 
-            just_exited = pop['exit_time'] == event.time
             sick = pop[self.disease_col].isin(self.disease_states)
             got_sick_this_time_step = pop[self.disease_time_col] == event.time
 
@@ -85,15 +83,13 @@ class CalculateIncidence:
                                                & (pop['sex'] == sex))
 
                     event_count_column = '{}_event_count_{}_among_{}s'.format(self.disease, age_bin, sex)
-                    succeptible_time_column = 'susceptible_person_time_{}_among_{}s'.format(age_bin, sex)
+                    susceptible_time_column = 'susceptible_person_time_{}_among_{}s'.format(age_bin, sex)
 
                     cases_index = pop[appropriate_age_and_sex & sick & got_sick_this_time_step].index
                     susceptible_index = pop[~sick & appropriate_age_and_sex].index
-                    just_exited_index = pop[~sick & appropriate_age_and_sex & just_exited].index
 
                     self.incidence_rate_df[event_count_column].loc[cases_index] += 1
-                    self.incidence_rate_df[succeptible_time_column].loc[susceptible_index] += succeptible_time
-                    self.incidence_rate_df[succeptible_time_column].loc[just_exited_index] += succeptible_time / 2
+                    self.incidence_rate_df.loc[susceptible_index, susceptible_time_column] += susceptible_time
 
                     last_age_group_max = upr_bound
 

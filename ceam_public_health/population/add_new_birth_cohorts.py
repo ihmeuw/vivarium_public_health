@@ -30,7 +30,6 @@ class FertilityDeterministic:
     def __init__(self):
         self.fractional_new_births = 0
         # Assume time step comes to us in days
-        self.time_step_size = config.simulation_parameters.time_step
         self.annual_new_simulants = config.simulation_parameters.number_of_new_simulants_each_year
 
     @listens_for('time_step')
@@ -48,7 +47,7 @@ class FertilityDeterministic:
         """
 
         # Assume births are uniformly distributed throughout the year.
-        simulants_to_add = self.annual_new_simulants*self.time_step_size/DAYS_PER_YEAR + self.fractional_new_births
+        simulants_to_add = self.annual_new_simulants*event.step_size.days/DAYS_PER_YEAR + self.fractional_new_births
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
 
@@ -100,11 +99,11 @@ class FertilityCrudeBirthRate:
         approximate.
 
         """
+        # FIXME: We are pulling data every time here.  Use the value pipeline system.
         birth_rate = self._get_birth_rate(event.time.year)
         population_size = len(event.index)
-        time_step_size = config.simulation_parameters.time_step
 
-        mean_births = birth_rate*population_size*time_step_size/DAYS_PER_YEAR
+        mean_births = birth_rate*population_size*event.step_size.days/DAYS_PER_YEAR
 
         # Assume births occur as a Poisson process
         r = np.random.RandomState(seed=self.randomness.get_seed())
@@ -201,10 +200,12 @@ class FertilityAgeSpecificRates:
         """
         # Get a view on all living women who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
-        can_have_children = event.population.query('last_birth_time < @nine_months_ago')
 
-        rate_series = self.asfr(can_have_children.index)
-        had_children = self.randomness.filter_for_rate(can_have_children, rate_series)
+        can_have_children = event.population.last_birth_time < nine_months_ago
+        eligible_women = event.population[can_have_children]
+
+        rate_series = self.asfr(eligible_women.index)
+        had_children = self.randomness.filter_for_rate(eligible_women, rate_series)
 
         had_children.loc[:, 'last_birth_time'] = event.time
         event.population_view.update(had_children['last_birth_time'])

@@ -43,11 +43,11 @@ class DiseaseModel(Machine):
 
     @listens_for('time_step')
     def time_step_handler(self, event):
-        self.transition(event.index)
+        self.transition(event.index, event.time)
 
     @listens_for('time_step__cleanup')
     def time_step__cleanup_handler(self, event):
-        self.cleanup(event.index)
+        self.cleanup(event.index, event.time)
 
     @modifies_value('csmr_data')
     def get_csmr(self):
