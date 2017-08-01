@@ -1,6 +1,7 @@
 import os
-from datetime import timedelta
+
 import pytest
+import pandas as pd
 
 from vivarium import config
 
@@ -38,7 +39,7 @@ def test_calculate_incidence():
                                                                                 disease_states=['mild_diarrhea']),
                                    EpidemiologicalMeasures()] + factory)
     simulation.population.population['diarrhea'] = ['healthy'] * 50 + ['mild_diarrhea'] * 50
-    pump_simulation(simulation, duration=timedelta(days=730))
+    pump_simulation(simulation, duration=pd.Timedelta(days=730))
 
     inc = simulation.values.get_value('epidemiological_span_measures')
 

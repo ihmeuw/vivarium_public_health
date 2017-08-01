@@ -1,8 +1,6 @@
 import pandas as pd
-import numpy as np
-import operator
 
-from vivarium import config
+import operator
 
 from ceam_inputs import get_age_bins
 

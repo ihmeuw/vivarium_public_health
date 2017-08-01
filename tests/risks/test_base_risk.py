@@ -1,10 +1,8 @@
-import pytest
-
 import os
-from datetime import timedelta
 from importlib import import_module
 from unittest.mock import patch
 
+import pytest
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
@@ -28,6 +26,7 @@ from ceam_public_health.risks.distributions import distribution_map
 from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
                                                 correlated_propensity, uncorrelated_propensity)
 
+
 def setup():
     try:
         config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
@@ -41,9 +40,10 @@ def setup():
     config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
                                                    source=os.path.realpath(__file__))
 
+
 def test_RiskEffect():
     config.simulation_parameters.time_step = 30.5
-    time_step = timedelta(days=30.5)
+    time_step = pd.Timedelta(days=30.5)
     test_exposure = [0]
 
     def test_function(rates_, rr):
@@ -119,7 +119,7 @@ def test_categorical_exposure_effect():
 @patch('ceam_public_health.risks.effect.inputs')
 @patch('ceam_public_health.risks.base_risk.inputs')
 def test_CategoricalRiskComponent_dichotomous_case(br_inputs_mock, effect_inputs_mock):
-    time_step = timedelta(days=30.5)
+    time_step = pd.Timedelta(days=30.5)
     config.simulation_parameters.time_step = 30.5
     risk = risk_factors.smoking_prevalence_approach
 
@@ -158,7 +158,7 @@ def test_CategoricalRiskComponent_dichotomous_case(br_inputs_mock, effect_inputs
 @patch('ceam_public_health.risks.effect.inputs')
 @patch('ceam_public_health.risks.base_risk.inputs')
 def test_CategoricalRiskComponent_polydomous_case(br_inputs_mock, effect_inputs_mock):
-    time_step = timedelta(days=30.5)
+    time_step = pd.Timedelta(days=30.5)
     config.simulation_parameters.time_step = 30.5
     risk = risk_factors.smoking_prevalence_approach
     br_inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(
@@ -193,7 +193,7 @@ def test_CategoricalRiskComponent_polydomous_case(br_inputs_mock, effect_inputs_
 @patch('ceam_public_health.risks.effect.inputs')
 @patch('ceam_public_health.risks.base_risk.inputs')
 def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock, get_distribution_mock, get_exposure_function_mock):
-    time_step = timedelta(days=30.5)
+    time_step = pd.Timedelta(days=30.5)
     risk = risk_factors.high_systolic_blood_pressure
     br_inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
     effect_inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(1.01)
@@ -233,7 +233,7 @@ def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock, get_distrib
 @patch('ceam_public_health.risks.effect.inputs')
 @patch('ceam_public_health.risks.base_risk.inputs')
 def test_propensity_effect(br_inputs_mock, effect_inputs_mock, get_distribution_mock, get_exposure_function_mock):
-    time_step = timedelta(days=30.5)
+    time_step = pd.Timedelta(days=30.5)
     risk = risk_factors.high_systolic_blood_pressure
     br_inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
     effect_inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(1.01)
