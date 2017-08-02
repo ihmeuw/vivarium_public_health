@@ -12,61 +12,42 @@ from ceam_public_health.disease import RateTransition, ProportionTransition
 
 
 class DiseaseState(State):
-    """State representing a disease in a state machine model.
-
-    Parameters
-    ----------
-    state_id : str
-        The name of this state.
-    disability_weight : `pandas.DataFrame`, optional
-        The amount of disability associated with this state.
-    prevalence_data : `pandas.DataFrame`, optional
-        The baseline occurrence of this state in a population.
-    dwell_time : `pandas.DataFrame` or float or pandas.Timedelta, optional
-        The minimum time a simulant exists in this state.
-    event_time_column : str, optional
-        The name of a column to track the last time this state was entered.
-    event_count_column : str, optional
-        The name of a column to track the number of times this state was entered.
-    side_effect_function : callable, optional
-        A function to be called when this state is entered.
-    track_events : bool, optional
-
-    Attributes
-    ----------
-    state_id : str
-        The name of this state.
-    prevalence_data : `pandas.DataFrame`
-        The baseline occurrence of this state in a population.
-    dwell_time : `pandas.DataFrame`
-        The minimum time a simulant exists in this state.
-    event_time_column : str
-        The name of a column to track the last time this state was entered.
-    event_count_column : str
-        The name of a column to track the number of times this state was entered.
-    side_effect_function : callable
-        A function to be called when this state is entered.
-    track_events : bool
-        Flag to indicate whether the last time this state was entered and the number of times
-        it has been entered should be tracked.
-    condition : ?
-    population_view : `pandas.DataFrame`
-        A view into the simulation state table.
-    """
+    """State representing a disease in a state machine model."""
     def __init__(self, state_id, disability_weight=None, prevalence_data=None,
-                 dwell_time=0, event_time_column=None, event_count_column=None,
+                 dwell_time=pd.Timedelta(0, unit='D'), event_time_column=None, event_count_column=None,
                  side_effect_function=None, cleanup_function=None, track_events=True, key='state'):
+        """
+        Parameters
+        ----------
+        state_id : str
+            The name of this state.
+        disability_weight : pandas.DataFrame or float, optional
+            The amount of disability associated with this state.
+        prevalence_data : pandas.DataFrame, optional
+            The baseline occurrence of this state in a population.
+        dwell_time : pandas.DataFrame or pandas.Timedelta, optional
+            The minimum time a simulant exists in this state.
+        event_time_column : str, optional
+            The name of a column to track the last time this state was entered.
+        event_count_column : str, optional
+            The name of a column to track the number of times this state was entered.
+        side_effect_function : callable, optional
+            A function to be called when this state is entered.
+        track_events : bool, optional
+        """
         super().__init__(state_id, key=key)
         self._disability_weight_data = disability_weight
         self.prevalence_data = prevalence_data
         self._dwell_time = dwell_time
-        if self._dwell_time is not None:
+        self.track_events = track_events
+        if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
             self.transition_set.allow_null_transition = True
+            self.track_events = True
         self.event_time_column = event_time_column if event_time_column else self.state_id + '_event_time'
         self.event_count_column = event_count_column if event_count_column else self.state_id + '_event_count'
         self.side_effect_function = side_effect_function
         self.cleanup_function = cleanup_function
-        self.track_events = track_events or isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time > 0
+
         # Condition is set when the state is added to a disease model
         self.condition = None
 
