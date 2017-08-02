@@ -154,7 +154,7 @@ def test_load_population_custom_columns(assign_cause_mock):
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
     model = DiseaseModel('test_disease')
-    dwell_test = DiseaseState('dwell_test', disability_weight=0.0, dwell_time=10,
+    dwell_test = DiseaseState('dwell_test', disability_weight=0.0, dwell_time=pd.Timedelta(days=10),
                               event_time_column='special_test_time', event_count_column='special_test_count')
 
     model.states.append(dwell_test)
