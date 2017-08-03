@@ -11,6 +11,7 @@ import seaborn as sns
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.collections import PatchCollection
 from matplotlib.lines import Line2D
 sns.set_style('whitegrid')
 
@@ -88,19 +89,38 @@ def graph_measure(data, measure, output_directory):
 
             for sex, shape in shapes.items():
                 # Draw the actual points with different shapes for each sex
-                gbd, simulation, gbd_lower, gbd_upper, simulation_lower, simulation_upper, color = zip(
-                    *filtered.query('sex==@sex')[['gbd', 'simulation', 'gbd_lower', 'gbd_upper',
-                                                  'simulation_lower', 'simulation_upper', 'color']].values.tolist())
+                gbd, simulation, gbd_std, simulation_std, color = zip(
+                    *filtered.query('sex==@sex')[['gbd', 'simulation', 'gbd_std',
+                                                  'simulation_std', 'color']].values.tolist())
 
                 gbd = np.array(gbd)
                 simulation = np.array(simulation)
-                xerr = np.array([np.abs(gbd - gbd_lower), np.abs(gbd - gbd_upper)])
-                yerr = np.array([np.abs(simulation - simulation_lower), np.abs(simulation - simulation_upper)])
-                # Fake error bars for testing plots
-                # xerr = np.array([0.5 * gbd, 0.5 * gbd])
-                # yerr = np.array([0.5 * simulation, 0.5 * simulation])
-                for g, s, xe, ye, c in zip(gbd, simulation, xerr.T, yerr.T, color):
-                    ax.errorbar(g, s, xerr=xe[np.newaxis], yerr=ye[np.newaxis], fmt=shape, color=c)
+                ax.scatter(gbd, simulation, color=color, marker=shape)
+                for g, s, xstd, ystd, c in zip(gbd, simulation, gbd_std, simulation_std, color):
+                    # Find the point on the equivalence line closest to the data point
+                    a_to_p = [g, s]
+                    a_to_b = [ax.get_xlim()[1], ax.get_ylim()[1]]
+                    atb2 = a_to_b[0]**2 + a_to_b[1]**2
+                    atp_dot_atb = a_to_p[0]*a_to_b[0] + a_to_p[1]*a_to_b[1]
+                    t = atp_dot_atb / atb2
+                    x = a_to_b[0]*t
+                    y = a_to_b[1]*t
+
+                    # TODO: line width scaled to the size of the plot. There has to be a better way
+                    w = ax.get_xlim()[1]/500
+
+                    dx = x-g
+                    dy = y-s
+                    m = np.sqrt((np.square(dx)+np.square(dy)))
+                    if m != 0:
+                        bound = np.sqrt((np.square(xstd*2)+np.square(ystd*2))/2)
+                        dx /= m
+                        dx *= bound
+                        dy /= m
+                        dy *= bound
+
+                        ax.arrow(g,s,dx/2,dy/2, width=w, color=c, head_width=0, head_length=0)
+                        ax.arrow(g,s,-dx/2,-dy/2, width=w, color=c, head_width=0, head_length=0)
 
             # The graphs tend to be pretty tight so rotate the x axis labels to make better use of space
             for tick in ax.get_xticklabels():
@@ -116,17 +136,18 @@ def graph_measure(data, measure, output_directory):
     fig.savefig(os.path.join(output_directory, '{}.png'.format(measure)), dpi=100, bbox_extra_artists=[lgd]+labels, bbox_inches='tight')
 
 def _mean_and_bounds(data, value_name):
-    columns = data.columns.difference(['year', 'age', 'sex', 'measure', 'cause', 'location', 'value', 'draw'])
+    columns = data.columns.difference(['year', 'age', 'sex', 'measure', 'cause', 'location', 'value', 'input_draw'])
 
     group = data.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location'])
 
     mean = group.mean()
-    column_data = [mean['value'], group.quantile(.975)['value'], group.quantile(.025)['value']]
+    #column_data = [mean['value'], group.quantile(.975)['value'], group.quantile(.025)['value']]
+    column_data = [mean['value'], group.std()['value']]
     for c in columns:
         column_data.append(mean[c])
 
     data = pd.concat(column_data, axis=1)
-    data.columns = [value_name, value_name+'_upper', value_name+'_lower']+list(columns)
+    data.columns = [value_name, value_name+'_std']+list(columns)
     data = data.reset_index()
     return data
 
@@ -138,7 +159,7 @@ def prepare_comparison(data):
     year_min = data.year.min()
     year_max = data.year.max()
 
-    measure_cube = make_measure_cube_from_gbd(int(year_min), int(year_max), [int(data.location.unique())], data.draw.unique(), measures)
+    measure_cube = make_measure_cube_from_gbd(int(year_min), int(year_max), [int(data.location.unique())], data.input_draw.unique(), measures)
 
     # Resolve age ranges down to age group midpoints
     # NOTE: If this midpoint doesn't exactly align with the one from GBD then the comparison
@@ -165,14 +186,16 @@ def prepare_comparison(data):
     data = data.merge(measure_cube, left_index=True, right_index=True)
 
     # Calculate RGB triples for each cause for use in coloring marks on the graphs
-    cmap = plt.get_cmap('jet')
     # This sort and shuffle looks a bit odd but what it accomplishes is to deterministically
     # spread the causes out across the color space which makes it easier to assign visually
     # distinct colors to them that don't change from run to run
     data.reset_index(inplace=True)
     causes = sorted(data.cause.unique())
     np.random.RandomState(1001).shuffle(causes)
-    color_map = {cause:tuple(color) for cause, color in zip(causes, cmap(np.linspace(0, 1, len(causes))))}
+
+    cmap = sns.hls_palette(len(causes), l=.3, s=.8)
+
+    color_map = {cause:tuple(color) for cause, color in zip(causes, list(cmap))}
     data['color'] = data.cause.apply(color_map.get)
     data.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'], inplace=True)
 
@@ -199,8 +222,13 @@ def main():
 
 
     for path in args.measure_data_path:
-        data = data.append(pd.read_hdf(path, format='t'))
+        df = pd.read_hdf(path, format='t')
+        if not df.empty:
+            print(path, df.measure.unique())
+            data = data.append(df)
 
+
+    data = data.query('measure != "mortality" or cause == "all"')
     # FIXME: Getting ihd mortality should be handled in a more flexible way. Very much a duck tape solution
     #ihd_mortality = data.query("measure == 'mortality' and cause!= 'death_due_to_other_causes' and cause!='all'").groupby(['measure', 'age_low', 'age_high', 'sex', 'location', 'year', 'draw']).sum().reset_index()
     #ihd_mortality['cause'] = 'ischemic_heart_disease'
@@ -219,7 +247,7 @@ def main():
 
     if args.draw != 'all':
         draw = int(args.draw)
-        data = data.query('draw == @draw')
+        data = data.query('input_draw == @draw')
 
     graph_comparison(data, args.output_directory)
 
