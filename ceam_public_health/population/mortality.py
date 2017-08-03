@@ -95,6 +95,8 @@ class Mortality:
     @uses_columns(['age', 'exit_time', 'cause_of_death', 'alive', 'sex'])
     def calculate_mortality_measure(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
         pop = population_view.get(index)
+        duration_s = duration.total_seconds()
+        years_per_second = 1/pd.Timedelta(days=365).total_seconds()
 
         root_location = config.simulation_parameters.location_id
         if all_locations:
@@ -116,13 +118,21 @@ class Mortality:
                         sub_pop = sub_pop.query('location == @location')
 
                     if not sub_pop.empty:
+
                         birthday = sub_pop.exit_time.fillna(now) - pd.to_timedelta(sub_pop.age, 'Y')
-                        time_before_birth = (np.maximum(pd.Timedelta(0), birthday - window_start)
-                                             .dt.total_seconds().sum())
-                        time_after_death = (np.minimum(np.maximum(pd.Timedelta(0), now - sub_pop.exit_time.dropna()),
-                                                       pd.Timedelta(duration)).dt.total_seconds().sum())
-                        time_in_sim = duration.total_seconds() * len(sub_pop) - (time_before_birth + time_after_death)
-                        time_in_sim = time_in_sim/(pd.Timedelta(days=365).total_seconds())
+
+                        time_before_birth = (birthday - window_start).dt.total_seconds().copy()
+                        time_before_birth[time_before_birth < 0] = 0
+                        total_time_before_birth = time_before_birth.sum()
+
+                        time_after_death = (now - sub_pop.exit_time.dropna()).dt.total_seconds().copy()
+                        time_after_death[time_after_death < 0] = 0
+                        time_after_death[time_after_death > duration_s] = duration_s
+                        total_time_after_death = time_after_death.sum()
+
+                        time_in_sim = years_per_second * (duration_s * len(sub_pop)
+                                                          - (total_time_before_birth + total_time_after_death))
+                        time_in_sim *= years_per_second
                         for cause in causes_of_death:
                             deaths_in_period = (sub_pop.cause_of_death == cause).sum()
 

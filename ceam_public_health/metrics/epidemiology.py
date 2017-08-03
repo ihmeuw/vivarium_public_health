@@ -48,11 +48,12 @@ class EpidemiologicalMeasures:
     def time_step(self, event, event_emitter):
         mid_year = pd.Timestamp(year=event.time.year, month=7, day=2)
         year_start = pd.Timestamp(year=event.time.year, month=1, day=1)
-        last_year_end = pd.Timestamp(year=self.last_collected_year, month=12, day=31)
+
 
         if self.collecting:
+            year_end = pd.Timestamp(year=self.last_collected_year, month=12, day=31)
             # On the year following a GBD year, reel the data in
-            if self.clock < last_year_end <= event.time:
+            if self.clock() < year_end <= event.time:
                 _log.debug('end collection')
                 self.dump_measures(event.index, self.last_collected_year)
                 self.collecting = False
@@ -62,7 +63,7 @@ class EpidemiologicalMeasures:
                 # Collect point measures at the midpoint of every gbd year
                 self.dump_measures(event.index, event.time.year, point=True)
 
-            if (self.clock().year < year_start <= event.time
+            if (self.clock() < year_start <= event.time
                     and event.time.year > self.last_collected_year
                     and not self.collecting):
                 # Emit the begin collection event every gbd year

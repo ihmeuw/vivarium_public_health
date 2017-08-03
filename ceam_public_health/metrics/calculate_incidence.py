@@ -42,13 +42,13 @@ class CalculateIncidence:
 
     @listens_for('initialize_simulants')
     def update_incidence_rate_df(self, event):
-        if self.collecting:
 
+        if self.collecting:
             new_df = pd.DataFrame({})
             for col in self.susceptible_person_time_cols + self.event_count_cols:
                 new_df[col] = pd.Series(0, index=event.index)
 
-            self.incidence_rate_df.append(new_df)
+            self.incidence_rate_df = self.incidence_rate_df.append(new_df)
 
 
     @listens_for('begin_epidemiological_measure_collection')
