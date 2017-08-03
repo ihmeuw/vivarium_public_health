@@ -2,7 +2,6 @@ import numbers
 
 import pandas as pd
 
-from ceam_inputs import get_proportion
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.util import rate_to_probability
 from vivarium.framework.values import list_combiner, joint_value_post_processor
@@ -40,22 +39,12 @@ class RateTransition(Transition):
 
 
 class ProportionTransition(Transition):
-    def __init__(self, output, modelable_entity_id=None, proportion=None, **kwargs):
+    def __init__(self, output, proportion, **kwargs):
         super().__init__(output, probability_func=self._probability, **kwargs)
-
-        if modelable_entity_id and proportion:
-            raise ValueError("Must supply modelable_entity_id or proportion (proportion can be an int or df) but not both")
-
-        if modelable_entity_id is None and proportion is None:
-            raise ValueError("Must supply either modelable_entity_id or proportion (proportion can be int or df)")
-
-        self.modelable_entity_id = modelable_entity_id
         self.proportion = proportion
 
     def setup(self, builder):
-        if self.modelable_entity_id:
-            self.proportion = builder.lookup(get_proportion(self.modelable_entity_id))
-        elif not isinstance(self.proportion, numbers.Number):
+        if not isinstance(self.proportion, numbers.Number):
             self.proportion = builder.lookup(self.proportion)
         return super().setup(builder)
 
@@ -66,12 +55,11 @@ class ProportionTransition(Transition):
             return pd.Series(self.proportion, index=index)
 
     def label(self):
-        if self.modelable_entity_id:
-            return str(self.modelable_entity_id)
-        elif isinstance(self.proportion, numbers.Number):
+        if isinstance(self.proportion, numbers.Number):
             return '{:.3f}'.format(self.proportion)
         else:
             return super().label()
 
     def __str__(self):
-        return 'ProportionTransition({}, {}, {})'.format(self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output], self.modelable_entity_id, self.proportion)
+        return 'ProportionTransition({}, {})'.format(self.output.state_id if hasattr(self.output, 'state_id')
+                                                     else [str(x) for x in self.output], self.proportion)
