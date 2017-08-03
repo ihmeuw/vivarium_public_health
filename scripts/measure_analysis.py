@@ -185,6 +185,8 @@ def graph_comparison(data, output_directory):
     for measure in data.reset_index().measure.unique():
         graph_measure(data, measure, output_directory)
 
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('measure_data_path', type=str, nargs='+')
