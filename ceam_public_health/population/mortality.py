@@ -130,7 +130,7 @@ class Mortality:
                         time_after_death[time_after_death > duration_s] = duration_s
                         total_time_after_death = time_after_death.sum()
 
-                        time_in_sim = years_per_second * (duration_s * len(sub_pop)
+                        time_in_sim = (duration_s * len(sub_pop)
                                                           - (total_time_before_birth + total_time_after_death))
                         time_in_sim *= years_per_second
                         for cause in causes_of_death:
