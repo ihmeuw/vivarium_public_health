@@ -54,11 +54,11 @@ def test_RiskEffect():
     simulation = setup_simulation([generate_test_population, effect])
 
     # This one should be effected by our RiskEffect
-    rates = simulation.values.get_rate('incidence_rate.'+causes.heart_attack.name)
+    rates = simulation.values.get_rate(causes.heart_attack.name + '.incidence_rate')
     rates.source = simulation.tables.build_table(build_table(0.01))
 
     # This one should not
-    other_rates = simulation.values.get_rate('incidence_rate.some_other_cause')
+    other_rates = simulation.values.get_rate('some_other_cause.incidence_rate')
     other_rates.source = simulation.tables.build_table(build_table(0.01))
 
     assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step))
@@ -136,9 +136,9 @@ def test_CategoricalRiskComponent_dichotomous_case(br_inputs_mock, effect_inputs
     simulation = setup_simulation([generate_test_population, component], 100000)
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.get_rate('incidence_rate.'+risk.effected_causes[0].name)
+    incidence_rate = simulation.values.get_rate(risk.effected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01))
-    paf = simulation.values.get_rate('paf.'+risk.effected_causes[-1].name)
+    paf = simulation.values.get_rate(risk.effected_causes[-1].name+'.paf')
 
     assert np.isclose((simulation.population.population[risk.name+'_exposure'] == 'cat1').sum()
                       / len(simulation.population.population), 0.5, rtol=0.01)
@@ -173,9 +173,9 @@ def test_CategoricalRiskComponent_polydomous_case(br_inputs_mock, effect_inputs_
     simulation = setup_simulation([generate_test_population, component], 100000)
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.get_rate('incidence_rate.'+risk.effected_causes[0].name)
+    incidence_rate = simulation.values.get_rate(risk.effected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01))
-    paf = simulation.values.get_rate('paf.'+risk.effected_causes[-1].name)
+    paf = simulation.values.get_rate(risk.effected_causes[-1].name+'.paf')
 
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
         assert np.isclose((simulation.population.population[risk.name+'_exposure'] == category).sum()
@@ -216,9 +216,9 @@ def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock, get_distrib
     simulation = setup_simulation([generate_test_population, component], 100000)
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.get_rate('incidence_rate.'+risk.effected_causes[0].name)
+    incidence_rate = simulation.values.get_rate(risk.effected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01))
-    paf = simulation.values.get_rate('paf.'+risk.effected_causes[-1].name)
+    paf = simulation.values.get_rate(risk.effected_causes[-1].name+'.paf')
 
     assert np.allclose(simulation.population.population[risk.name+'_exposure'], 130, rtol=0.001)
 
@@ -532,7 +532,7 @@ def test_make_gbd_risk_effects():
     bmi = RiskMock(risk_factors.high_body_mass_index, risk_effect,
                    distributions.bmi)
     simulation = setup_simulation([generate_test_population, bmi])
-    pafs = simulation.values.get_value('paf.hemorrhagic_stroke', list_combiner, joint_value_post_processor)
+    pafs = simulation.values.get_value('hemorrhagic_stroke.paf', list_combiner, joint_value_post_processor)
     pafs.source = lambda index: [pd.Series(0, index=index)]
     assert np.allclose(pafs(simulation.population.population.index), paf * (1 - mediation_factor))
 
@@ -555,7 +555,7 @@ def test_make_gbd_risk_effects():
                    exposure_function=lambda propensity, distribution: pd.Series(exposure, index=propensity.index))
     heart_attack_transition = RateTransition(None, 'heart_attack', build_table(.001))
     simulation = setup_simulation([generate_test_population, heart_attack_transition, bmi])
-    irs = simulation.values.get_rate('incidence_rate.heart_attack')
+    irs = simulation.values.get_rate('heart_attack.incidence_rate')
     base_ir = irs.source(simulation.population.population.index)
 
     assert np.allclose(irs(simulation.population.population.index),
