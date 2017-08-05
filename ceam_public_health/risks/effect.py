@@ -45,7 +45,7 @@ def categorical_exposure_effect(risk):
 
 class RiskEffect:
     """RiskEffect objects bundle all the effects that a given risk has on a cause.
-    
+
     Parameters
     ----------
     rr_data : pandas.DataFrame
@@ -80,8 +80,8 @@ class RiskEffect:
             self.mediation_factor = builder.lookup(self._mediation_factor)
         else:
             self.mediation_factor = None
-        builder.modifies_value(self.incidence_rates, 'incidence_rate.{}'.format(self.cause.name))
-        builder.modifies_value(self.paf_mf_adjustment, 'paf.{}'.format(self.cause.name))
+        builder.modifies_value(self.incidence_rates, '{}.incidence_rate'.format(self.cause.name))
+        builder.modifies_value(self.paf_mf_adjustment, '{}.paf'.format(self.cause.name))
 
         return [self.exposure_effect]
 
