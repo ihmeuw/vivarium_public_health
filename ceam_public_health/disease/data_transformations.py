@@ -44,7 +44,7 @@ def get_sequela_proportions(cause_level_prevalence, states):
                                             on=['age', 'sex', 'year'], suffixes=('_single', '_total'))
         single = sequela_proportions[key]['prevalence_single']
         total = sequela_proportions[key]['prevalence_total']
-        sequela_proportions[key]['scaled_prevalence'] = np.divide(single, total)
+        sequela_proportions[key]['scaled_prevalence'] = np.nan_to_num(np.divide(single, total))
 
     return sequela_proportions
 

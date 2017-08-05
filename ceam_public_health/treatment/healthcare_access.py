@@ -31,7 +31,7 @@ hospitalization_cost = ip_cost_df['draw_{}'.format(draw)]
 def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
     @emits('hospitalization')
     @uses_columns(['sex'])
-    def hospitalization_side_effect(index, emitter, population_view):
+    def hospitalization_side_effect(index, event_time, emitter, population_view):
         pop = population_view.get(index)
         pop['probability'] = 0.0
         pop.loc[pop.sex == 'Male', 'probability'] = male_probability
