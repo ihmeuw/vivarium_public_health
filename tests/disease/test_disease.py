@@ -108,7 +108,7 @@ def test_incidence(assign_cause_mock):
 
     transition.base_incidence = simulation.tables.build_table(build_table(0.7))
 
-    incidence_rate = simulation.values.get_rate('incidence_rate.test_incidence')
+    incidence_rate = simulation.values.get_rate('test_incidence.incidence_rate')
 
     pump_simulation(simulation, iterations=1)
 
@@ -137,9 +137,9 @@ def test_risk_deletion(assign_cause_mock):
     paf = 0.1
     transition.base_incidence = simulation.tables.build_table(build_table(base_rate))
 
-    incidence_rate = simulation.values.get_rate('incidence_rate.test_incidence')
+    incidence_rate = simulation.values.get_rate('test_incidence.incidence_rate')
 
-    simulation.values.mutator(simulation.tables.build_table(build_table(paf)), 'paf.{}'.format('test_incidence'))
+    simulation.values.mutator(simulation.tables.build_table(build_table(paf)), '{}.paf'.format('test_incidence'))
 
     pump_simulation(simulation, iterations=1)
 

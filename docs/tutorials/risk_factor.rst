@@ -175,17 +175,17 @@ Here we do something very similar and build interpolated lookup functions for RR
 
 .. code-block:: python
 
-                builder.modifies_value(self.ihd_paf, 'paf.heart_attack')
-                builder.modifies_value(self.hemorrhagic_stroke_paf, 'paf.hemorrhagic_stroke')
-                builder.modifies_value(self.ischemic_stroke_paf, 'paf.ischemic_stroke')
+                builder.modifies_value(self.ihd_paf, 'heart_attack.paf')
+                builder.modifies_value(self.hemorrhagic_stroke_paf, 'hemorrhagic_stroke.paf')
+                builder.modifies_value(self.ischemic_stroke_paf, 'ischemic_stroke.paf')
 
 We then take PAF lookups and attach them to dynamic values so that they can be used for risk deletion.
 
 .. code-block:: python
 
-                builder.modifies_value(partial(self.incidence_rates, rr_lookup=self.ihd_rr), 'incidence_rate.heart_attack')
-                builder.modifies_value(partial(self.incidence_rates, rr_lookup=self.hemorrhagic_stroke_rr), 'incidence_rate.hemorrhagic_stroke')
-                builder.modifies_value(partial(self.incidence_rates, rr_lookup=self.ischemic_stroke_rr), 'incidence_rate.ischemic_stroke')
+                builder.modifies_value(partial(self.incidence_rates, rr_lookup=self.ihd_rr), 'heart_attack.incidence_rate')
+                builder.modifies_value(partial(self.incidence_rates, rr_lookup=self.hemorrhagic_stroke_rr), 'hemorrhagic_stroke.incidence_rate')
+                builder.modifies_value(partial(self.incidence_rates, rr_lookup=self.ischemic_stroke_rr), 'ischemic_stroke.incidence_rate')
 
 
 

@@ -8,17 +8,16 @@ from vivarium.framework.values import list_combiner, joint_value_post_processor
 
 
 class RateTransition(Transition):
-    def __init__(self, output, rate_label, rate_data, name_prefix='incidence_rate', **kwargs):
+    def __init__(self, output, rate_label, rate_data, **kwargs):
         super().__init__(output, probability_func=self._probability, **kwargs)
 
         self.rate_label = rate_label
         self.rate_data = rate_data
-        self.name_prefix = name_prefix
 
     def setup(self, builder):
-        self.effective_incidence = builder.rate('{}.{}'.format(self.name_prefix, self.rate_label))
+        self.effective_incidence = builder.rate('{}.incidence_rate'.format(self.rate_label))
         self.effective_incidence.source = self.incidence_rates
-        self.joint_paf = builder.value('paf.{}'.format(self.rate_label), list_combiner, joint_value_post_processor)
+        self.joint_paf = builder.value('{}.paf'.format(self.rate_label), list_combiner, joint_value_post_processor)
         self.joint_paf.source = lambda index: [pd.Series(0, index=index)]
         self.base_incidence = builder.lookup(self.rate_data)
         return super().setup(builder)

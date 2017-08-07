@@ -73,7 +73,7 @@ class DiseaseState(State):
             self._disability_weight = builder.lookup(self._disability_weight_data)
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
-        self.dwell_time = builder.value('dwell_time.{}'.format(self.state_id))
+        self.dwell_time = builder.value('{}.dwell_time'.format(self.state_id))
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
 
