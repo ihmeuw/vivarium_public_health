@@ -109,13 +109,13 @@ class DiseaseModel(Machine):
         dot = Digraph(format='png')
         for state in self.states:
             if isinstance(state, ExcessMortalityState):
-                dot.node(state.name(), color='red')
+                dot.node(state.state_id, color='red')
             elif isinstance(state, TransientDiseaseState):
-                dot.node(state.name(), style='dashed', color='orange')
-            elif state.name() == 'healthy':
-                dot.node(state.name(), color='green')
+                dot.node(state.state_id, style='dashed', color='orange')
+            elif state.state_id == 'healthy':
+                dot.node(state.state_id, color='green')
             else:
-                dot.node(state.name(), color='orange')
+                dot.node(state.state_id, color='orange')
             for transition in state.transition_set:
                 if transition._active_index is not None:  # Transition is a triggered transition
                     dot.attr('edge', style='bold')
@@ -123,22 +123,22 @@ class DiseaseModel(Machine):
                     dot.attr('edge', style='plain')
 
                 if isinstance(transition, RateTransition):
-                    dot.edge(state.name(), transition.output.name(), transition.label(), color='blue')
+                    dot.edge(state.state_id, transition.output.state_id, transition.label(), color='blue')
                 elif isinstance(transition, ProportionTransition):
-                    dot.edge(state.name(), transition.output.name(), transition.label(), color='purple')
+                    dot.edge(state.state_id, transition.output.state_id, transition.label(), color='purple')
                 else:
-                    dot.edge(state.name(), transition.output.name(), transition.label(), color='black')
+                    dot.edge(state.state_id, transition.output.state_id, transition.label(), color='black')
 
             if state.transition_set.allow_null_transition:
                 if hasattr(state, '_dwell_time'):
                     if isinstance(state._dwell_time, numbers.Number):
                         if state._dwell_time != 0:
                             label = "dwell_time: {}".format(state._dwell_time)
-                            dot.edge(state.name(), state.name(), label, style='dotted')
+                            dot.edge(state.state_id, state.state_id, label, style='dotted')
                         else:
-                            dot.edge(state.name(), state.name(), style='plain')
+                            dot.edge(state.state_id, state.state_id, style='plain')
                     else:
-                        dot.edge(state.name(), state.name(), style='dotted')
+                        dot.edge(state.state_id, state.state_id, style='dotted')
         return dot
 
     @modifies_value('metrics')

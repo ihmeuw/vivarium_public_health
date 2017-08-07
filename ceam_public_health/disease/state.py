@@ -92,7 +92,7 @@ class BaseDiseaseState(State):
                                      **kwargs)
         elif rates is not None:
             t = RateTransition(output=output,
-                               rate_label=output.name(),
+                               rate_label=output.state_id,
                                rate_data=rates,
                                **kwargs)
         else:
