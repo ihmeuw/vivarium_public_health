@@ -63,7 +63,7 @@ class BaseDiseaseState(State):
             self.population_view.update(pop)
 
         if self.side_effect_function is not None:
-            self.side_effect_function(index)
+            self.side_effect_function(index, event_time)
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
