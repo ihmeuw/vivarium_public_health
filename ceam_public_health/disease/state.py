@@ -13,8 +13,7 @@ from ceam_public_health.disease import RateTransition, ProportionTransition
 
 class DiseaseState(State):
     """State representing a disease in a state machine model."""
-    def __init__(self, state_id, disability_weight=None, prevalence_data=None,
-                 dwell_time=pd.Timedelta(0, unit='D'), event_time_column=None, event_count_column=None,
+    def __init__(self, state_id, disability_weight=None, prevalence_data=None, dwell_time=pd.Timedelta(0, unit='D'),
                  side_effect_function=None, cleanup_function=None, track_events=True, key='state'):
         """
         Parameters
@@ -43,8 +42,8 @@ class DiseaseState(State):
         if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
             self.transition_set.allow_null_transition = True
             self.track_events = True
-        self.event_time_column = event_time_column if event_time_column else self.state_id + '_event_time'
-        self.event_count_column = event_count_column if event_count_column else self.state_id + '_event_count'
+        self.event_time_column = self.state_id + '_event_time'
+        self.event_count_column = self.state_id + '_event_count'
         self.side_effect_function = side_effect_function
         self.cleanup_function = cleanup_function
 
@@ -218,12 +217,10 @@ class DiseaseState(State):
 
 
 class TransientDiseaseState(TransientState):
-    def __init__(self, state_id, event_time_column=None, event_count_column=None,
-                 side_effect_function=None, track_events=True, key='state'):
+    def __init__(self, state_id, side_effect_function=None, track_events=True, key='state'):
         super().__init__(state_id, key=key)
-        self.event_time_column = event_time_column if event_time_column else self.state_id + '_event_time'
-        self.event_count_column = event_count_column if event_count_column else self.state_id + '_event_count'
-
+        self.event_time_column = self.state_id + '_event_time'
+        self.event_count_column = self.state_id + '_event_count'
         self.side_effect_function = side_effect_function
         self.track_events = track_events
         # Condition is set when the state is added to a disease model
