@@ -4,17 +4,128 @@ import pandas as pd
 
 from vivarium import config
 from vivarium.framework.event import listens_for
-from vivarium.framework.state_machine import State, TransientState
+from vivarium.framework.state_machine import State, Transient
 from vivarium.framework.values import modifies_value
 from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, meid, hid
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
 
-class DiseaseState(State):
+class BaseDiseaseState(State):
+    def __init__(self, state_id, side_effect_function=None, track_events=True, **kwargs):
+        super().__init__(state_id, **kwargs)
+
+        self.side_effect_function = side_effect_function
+
+        self.track_events = track_events
+        self.event_time_column = self.state_id + '_event_time'
+        self.event_count_column = self.state_id + '_event_count'
+
+        # Condition is set when the state is added to a disease model
+        self.condition = None
+
+    def setup(self, builder):
+        """Performs this component's simulation setup and return sub-components.
+
+        Parameters
+        ----------
+        builder : `engine.Builder`
+            Interface to several simulation tools.
+
+        Returns
+        -------
+        iterable
+            This component's sub-components.
+        """
+        self.clock = builder.clock()
+
+        columns = [self.condition]
+        if self.track_events:
+            columns += [self.event_time_column, self.event_count_column]
+        self.population_view = builder.population_view(columns)
+
+        return super().setup(builder)
+
+    def _transition_side_effect(self, index, event_time):
+        """Updates the simulation state and triggers any side-effects associated with this state.
+
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.
+        event_time : pandas.Timestamp
+            The time at which this transition occurs.
+        """
+        if self.track_events:
+            pop = self.population_view.get(index)
+            pop[self.event_time_column] = event_time
+            pop[self.event_count_column] += 1
+            self.population_view.update(pop)
+
+        if self.side_effect_function is not None:
+            self.side_effect_function(index)
+
+    @listens_for('initialize_simulants')
+    def load_population_columns(self, event):
+        """Adds this state's columns to the simulation state table.
+
+        Parameters
+        ----------
+        event : `vivarium.framework.population.PopulationEvent`
+            An event signaling the creation of new simulants.
+        """
+        if self.track_events:
+            self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series(pd.NaT, index=event.index),
+                                                      self.event_count_column: pd.Series(0, index=event.index)},
+                                                     index=event.index))
+
+        for transition in self.transition_set:
+            if transition.start_active:
+                transition.set_active(event.index)
+
+    def add_transition(self, output, proportion=None, rates=None, **kwargs):
+        if proportion is not None and rates is not None:
+            raise ValueError("Both proportion and rate data provided.")
+        if proportion is not None:
+            t = ProportionTransition(output=output,
+                                     proportion=proportion,
+                                     **kwargs)
+        elif rates is not None:
+            t = RateTransition(output=output,
+                               rate_label=output.name(),
+                               rate_data=rates,
+                               **kwargs)
+        else:
+            return super().add_transition(output, **kwargs)
+
+        self.transition_set.append(t)
+        return t
+
+    @modifies_value('metrics')
+    def metrics(self, index, metrics):
+        """Records data for simulation post-processing.
+
+        Parameters
+        ----------
+        index : iterable of ints
+            An iterable of integer labels for the simulants.
+        metrics : `pandas.DataFrame`
+            A table for recording simulation events of interest in post-processing.
+
+        Returns
+        -------
+        `pandas.DataFrame`
+            The metrics table updated to reflect new simulation state."""
+        if self.track_events:
+            population = self.population_view.get(index)
+            metrics[self.event_count_column] = population[self.event_count_column].sum()
+        return metrics
+
+
+class DiseaseState(BaseDiseaseState):
     """State representing a disease in a state machine model."""
-    def __init__(self, state_id, disability_weight=None, prevalence_data=None, dwell_time=pd.Timedelta(0, unit='D'),
-                 side_effect_function=None, cleanup_function=None, track_events=True, key='state'):
+    def __init__(self, state_id, disability_weight=None, prevalence_data=None,
+                 dwell_time=pd.Timedelta(0, unit='D'), cleanup_function=None, **kwargs):
         """
         Parameters
         ----------
@@ -34,21 +145,17 @@ class DiseaseState(State):
             A function to be called when this state is entered.
         track_events : bool, optional
         """
-        super().__init__(state_id, key=key)
+        super().__init__(state_id, **kwargs)
+
         self._disability_weight_data = disability_weight
         self.prevalence_data = prevalence_data
         self._dwell_time = dwell_time
-        self.track_events = track_events
+
         if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
             self.transition_set.allow_null_transition = True
             self.track_events = True
-        self.event_time_column = self.state_id + '_event_time'
-        self.event_count_column = self.state_id + '_event_count'
-        self.side_effect_function = side_effect_function
-        self.cleanup_function = cleanup_function
 
-        # Condition is set when the state is added to a disease model
-        self.condition = None
+        self.cleanup_function = cleanup_function
 
     def setup(self, builder):
         """Performs this component's simulation setup and return sub-components.
@@ -63,39 +170,17 @@ class DiseaseState(State):
         iterable
             This component's sub-components.
         """
-        columns = [self.condition]
-        if self.track_events:
-            columns += [self.event_time_column, self.event_count_column]
-        self.population_view = builder.population_view(columns)
-        self.clock = builder.clock()
         if self._disability_weight_data is not None:
             self._disability_weight = builder.lookup(self._disability_weight_data)
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
+
         self.dwell_time = builder.value('{}.dwell_time'.format(self.state_id))
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
-
         self.dwell_time.source = builder.lookup(self._dwell_time)
+
         return super().setup(builder)
-
-    @listens_for('initialize_simulants')
-    def load_population_columns(self, event):
-        """Adds this state's columns to the simulation state table.
-
-        Parameters
-        ----------
-        event : `vivarium.framework.population.PopulationEvent`
-            An event signaling the creation of new simulants.
-        """
-        if self.track_events:
-            population_size = len(event.index)
-            self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series([pd.NaT]*population_size),
-                                                      self.event_count_column: np.zeros(population_size)},
-                                                     index=event.index))
-        for transition in self.transition_set:
-            if transition.start_active:
-                transition.set_active(event.index)
 
     def next_state(self, index, event_time, population_view):
         """Moves a population among different disease states.
@@ -128,70 +213,14 @@ class DiseaseState(State):
         population = self.population_view.get(index)
         # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
         if self.track_events:
-            return population.loc[population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
-                                  <= event_time].index
+            state_exit_time = population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
+            return population.loc[state_exit_time <= event_time].index
         else:
             return index
-
-    def _transition_side_effect(self, index, event_time):
-        """Updates the simulation state and triggers any side-effects associated with this state.
-
-        Parameters
-        ----------
-        index : iterable of ints
-            An iterable of integer labels for the simulants.
-        event_time : pandas.Timestamp
-            The time at which this transition occurs.
-        """
-        if self.track_events:
-            pop = self.population_view.get(index)
-            pop[self.event_time_column] = event_time
-            pop[self.event_count_column] += 1
-            self.population_view.update(pop)
-        if self.side_effect_function is not None:
-            self.side_effect_function(index, event_time)
 
     def _cleanup_effect(self, index, event_time):
         if self.cleanup_function is not None:
             self.cleanup_function(index, event_time)
-
-    def add_transition(self, output, proportion=None, rates=None, **kwargs):
-        if proportion is not None and rates is not None:
-            raise ValueError("Both proportion and rate data provided.")
-        if proportion is not None:
-            t = ProportionTransition(output=output,
-                                     proportion=proportion,
-                                     **kwargs)
-        elif rates is not None:
-            t = RateTransition(output=output,
-                               rate_label=output.name(),
-                               rate_data=rates,
-                               **kwargs)
-        else:
-            return super().add_transition(output, **kwargs)
-
-        self.transition_set.append(t)
-        return t
-
-    @modifies_value('metrics')
-    def metrics(self, index, metrics):
-        """Records data for simulation post-processing.
-
-        Parameters
-        ----------
-        index : iterable of ints
-            An iterable of integer labels for the simulants.
-        metrics : `pandas.DataFrame`
-            A table for recording simulation events of interest in post-processing.
-
-        Returns
-        -------
-        `pandas.DataFrame`
-            The metrics table updated to reflect new simulation state."""
-        if self.track_events:
-            population = self.population_view.get(index)
-            metrics[self.event_count_column] = population[self.event_count_column].sum()
-        return metrics
 
     @modifies_value('disability_weight')
     def disability_weight(self, index):
@@ -212,113 +241,14 @@ class DiseaseState(State):
     def name(self):
         return '{}'.format(self.state_id)
 
-    def __str__(self):
+    def __repr__(self):
         return 'DiseaseState({})'.format(self.state_id)
 
 
-class TransientDiseaseState(TransientState):
-    def __init__(self, state_id, side_effect_function=None, track_events=True, key='state'):
-        super().__init__(state_id, key=key)
-        self.event_time_column = self.state_id + '_event_time'
-        self.event_count_column = self.state_id + '_event_count'
-        self.side_effect_function = side_effect_function
-        self.track_events = track_events
-        # Condition is set when the state is added to a disease model
-        self.condition = None
+class TransientDiseaseState(BaseDiseaseState, Transient):
 
-    def setup(self, builder):
-        """Performs this component's simulation setup and return sub-components.
-
-        Parameters
-        ----------
-        builder : `engine.Builder`
-            Interface to several simulation tools.
-
-        Returns
-        -------
-        iterable
-            This component's sub-components.
-        """
-        columns = [self.condition]
-        if self.track_events:
-            columns += [self.event_time_column, self.event_count_column]
-        self.population_view = builder.population_view(columns)
-        self.clock = builder.clock()
-        return super().setup(builder)
-
-    def _transition_side_effect(self, index, event_time):
-        """Updates the simulation state and triggers any side-effects associated with this state.
-
-        Parameters
-        ----------
-        index : iterable of ints
-            An iterable of integer labels for the simulants.
-        event_time : pandas.Timestamp
-            The time at which this transition occurs.
-        """
-        if self.track_events:
-            pop = self.population_view.get(index)
-            pop[self.event_time_column] = event_time
-            pop[self.event_count_column] += 1
-            self.population_view.update(pop)
-        if self.side_effect_function is not None:
-            self.side_effect_function(index)
-
-    @listens_for('initialize_simulants')
-    def load_population_columns(self, event):
-        """Adds this state's columns to the simulation state table.
-
-        Parameters
-        ----------
-        event : `vivarium.framework.population.PopulationEvent`
-            An event signaling the creation of new simulants.
-        """
-        if self.track_events:
-            population_size = len(event.index)
-            self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series([pd.NaT]*population_size),
-                                                      self.event_count_column: np.zeros(population_size)},
-                                                     index=event.index))
-        for transition in self.transition_set:
-            if transition.start_active:
-                transition.set_active(event.index)
-
-    def add_transition(self, output, proportion=None, rates=None, **kwargs):
-        if proportion is not None and rates is not None:
-            raise ValueError("Both proportion and rate data provided.")
-        if proportion is not None:
-            t = ProportionTransition(output=output,
-                                     proportion=proportion,
-                                     **kwargs)
-        elif rates is not None:
-            t = RateTransition(output=output,
-                               rate_label=output.name(),
-                               rate_data=rates,
-                               **kwargs)
-        else:
-            return super().add_transition(output, **kwargs)
-
-        self.transition_set.append(t)
-        return t
-
-    @modifies_value('metrics')
-    def metrics(self, index, metrics):
-        """Records data for simulation post-processing.
-
-        Parameters
-        ----------
-        index : iterable of ints
-            An iterable of integer labels for the simulants.
-        metrics : `pandas.DataFrame`
-            A table for recording simulation events of interest in post-processing.
-
-        Returns
-        -------
-        `pandas.DataFrame`
-            The metrics table updated to reflect new simulation state."""
-        if self.track_events:
-            population = self.population_view.get(index)
-            metrics[self.event_count_column] = population[self.event_count_column].sum()
-        return metrics
+    def __repr__(self):
+        return 'TransientDiseaseState(name={})'.format(self.state_id)
 
 
 class ExcessMortalityState(DiseaseState):
