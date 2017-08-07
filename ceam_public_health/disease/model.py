@@ -19,9 +19,6 @@ class DiseaseModel(Machine):
         super().__init__(condition, **kwargs)
         self.csmr_data = csmr_data
 
-    def module_id(self):
-        return str((self.__class__, self.state_column))
-
     @property
     def condition(self):
         return self.state_column
