@@ -4,7 +4,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from vivarium.test_util import get_randomness
+from vivarium.test_util import get_randomness, build_table
 
 import ceam_public_health.population.data_transformations as dt
 
@@ -145,4 +145,17 @@ def test__construct_sampling_parameters():
 def test__compute_ages():
     assert dt._compute_ages(1, 10, 12, 0, 33) == 10 + 33/12*1
     assert dt._compute_ages(1, 10, 12, 5, 33) == 10 + 12/5*(np.sqrt(1+2*33*5/12**2*1) - 1)
+
+
+def test_get_cause_deleted_mortality():
+    all_cause_rate = 15
+    cause_specific_rate = 1
+    num_csmrs = 5
+
+    all_cause_mr = build_table(all_cause_rate)
+    csmrs = [build_table(cause_specific_rate) for _ in range(num_csmrs)]
+    cause_deleted_mr = dt.get_cause_deleted_mortality(all_cause_mr, csmrs)
+
+    assert np.allclose(cause_deleted_mr.rate, all_cause_rate - num_csmrs*cause_specific_rate)
+
 

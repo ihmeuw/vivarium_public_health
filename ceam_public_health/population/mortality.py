@@ -1,42 +1,45 @@
-import numpy as np
 import pandas as pd
 
-from ceam_inputs import get_life_table, get_cause_deleted_mortality_rate
+from ceam_inputs import get_life_table, causes, get_cause_specific_mortality
 
 from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.util import rate_to_probability
-from vivarium.framework.values import list_combiner, produces_value, modifies_value
+from vivarium.framework.values import list_combiner, modifies_value
+
+from .data_transformations import get_cause_deleted_mortality
 
 
 class Mortality:
+
     configuration_defaults = {
             'mortality': {
                 'interpolate': True
             }
     }
 
+    def __init__(self):
+        self._interpolation_order = 1 if config.mortality.interpolate else 0
+        self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes.gbd_cause)
+        self._life_table_data = get_life_table()
+
     def setup(self, builder):
-        order = 1 if config.mortality.interpolate else 0
-        self._mortality_rate_builder = lambda: builder.lookup(self.load_all_cause_mortality(), interpolation_order=order)
+        # Gather all the csmr data
+        csmr = builder.value('csmr_data', list_combiner)
+        csmr.source = list
+        csmr_data = csmr()
+
+        cause_deleted_mortality_data = get_cause_deleted_mortality(self._all_cause_mortality_data, csmr_data)
+
         self.mortality_rate = builder.rate('mortality_rate')
+        self.mortality_rate.source = builder.lookup(cause_deleted_mortality_data,
+                                                    interpolation_order=self._interpolation_order)
+        self.life_table = builder.lookup(self._life_table_data, key_columns=(), parameter_columns=('age',))
+
         self.death_emitter = builder.emitter('deaths')
-        self.life_table = builder.lookup(get_life_table(), key_columns=(), parameter_columns=('age',))
         self.random = builder.randomness('mortality_handler')
-        self.csmr_data = builder.value('csmr_data', list_combiner)
-        self.csmr_data.source = list
         self.clock = builder.clock()
-
-    @listens_for('post_setup')
-    def post_step(self, event):
-        # This is being loaded after the main setup phase because it needs to happen after all disease models
-        # have completed their setup phase which isn't guaranteed (or even likely) during this component's
-        # normal setup.
-        self.mortality_rate_lookup = self._mortality_rate_builder()
-
-    def load_all_cause_mortality(self):
-        return get_cause_deleted_mortality_rate(self.csmr_data())
 
     @listens_for('initialize_simulants')
     @uses_columns(['cause_of_death'])
@@ -52,7 +55,7 @@ class Mortality:
         dead_pop = prob_df.query('cause_of_death != "no_death"').copy()
 
         dead_pop['alive'] = pd.Series('dead', index=dead_pop.index).astype(
-        'category', categories=['alive', 'dead', 'untracked'], ordered=False)
+            'category', categories=['alive', 'dead', 'untracked'], ordered=False)
         dead_pop['exit_time'] = event.time
 
         self.death_emitter(event.split(dead_pop.index))
@@ -66,10 +69,6 @@ class Mortality:
         new_untracked = pop.exit_time == event.time
         pop.loc[new_untracked, 'cause_of_death'] = 'untracked'
         event.population_view.update(pop)
-
-    @produces_value('mortality_rate')
-    def mortality_rate_source(self, population):
-        return pd.DataFrame({'death_due_to_other_causes': self.mortality_rate_lookup(population)})
 
     @modifies_value('metrics')
     @uses_columns(['alive', 'age', 'cause_of_death'])
