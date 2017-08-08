@@ -6,7 +6,7 @@ from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.util import rate_to_probability
-from vivarium.framework.values import list_combiner, modifies_value
+from vivarium.framework.values import list_combiner, modifies_value, produces_value
 
 from .data_transformations import get_cause_deleted_mortality
 
@@ -23,23 +23,30 @@ class Mortality:
         self._interpolation_order = 1 if config.mortality.interpolate else 0
         self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes.gbd_cause)
         self._life_table_data = get_life_table()
+        self._cause_deleted_mortality_data = None
 
     def setup(self, builder):
-        # Gather all the csmr data
-        csmr = builder.value('csmr_data', list_combiner)
-        csmr.source = list
-        csmr_data = csmr()
+        self._build_lookup_handle = builder.lookup
 
-        cause_deleted_mortality_data = get_cause_deleted_mortality(self._all_cause_mortality_data, csmr_data)
+        self.csmr = builder.value('csmr_data', list_combiner)
+        self.csmr.source = list
 
         self.mortality_rate = builder.rate('mortality_rate')
-        self.mortality_rate.source = builder.lookup(cause_deleted_mortality_data,
-                                                    interpolation_order=self._interpolation_order)
         self.life_table = builder.lookup(self._life_table_data, key_columns=(), parameter_columns=('age',))
 
         self.death_emitter = builder.emitter('deaths')
         self.random = builder.randomness('mortality_handler')
         self.clock = builder.clock()
+
+    @produces_value('mortality_rate')
+    def mortality_rate_source(self, population):
+        if self._cause_deleted_mortality_data is None:
+            csmr_data = self.csmr()
+            cause_deleted_mr = get_cause_deleted_mortality(self._all_cause_mortality_data, csmr_data)
+            self._cause_deleted_mortality_data = self._build_lookup_handle(
+                cause_deleted_mr, interpolation_order=self._interpolation_order)
+
+        return self._cause_deleted_mortality_data(population)
 
     @listens_for('initialize_simulants')
     @uses_columns(['cause_of_death'])

@@ -269,5 +269,7 @@ def get_cause_deleted_mortality(all_cause_mortality, list_of_csmrs):
     index_cols = ['age', 'sex', 'year']
     all_cause_mortality = all_cause_mortality.set_index(index_cols).copy()
     for csmr in list_of_csmrs:
+        if csmr is None:
+            continue
         all_cause_mortality = all_cause_mortality.subtract(csmr.set_index(index_cols))
-    return all_cause_mortality.reset_index()
+    return all_cause_mortality.reset_index().rename(columns={'rate': 'death_due_to_other_causes'})

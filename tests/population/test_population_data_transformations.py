@@ -156,6 +156,6 @@ def test_get_cause_deleted_mortality():
     csmrs = [build_table(cause_specific_rate) for _ in range(num_csmrs)]
     cause_deleted_mr = dt.get_cause_deleted_mortality(all_cause_mr, csmrs)
 
-    assert np.allclose(cause_deleted_mr.rate, all_cause_rate - num_csmrs*cause_specific_rate)
+    assert np.allclose(cause_deleted_mr.death_due_to_other_causes, all_cause_rate - num_csmrs*cause_specific_rate)
 
 
