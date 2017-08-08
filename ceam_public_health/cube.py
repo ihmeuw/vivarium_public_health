@@ -5,7 +5,7 @@ import pandas as pd
 from vivarium import config
 
 from ceam_inputs import (get_excess_mortality, get_prevalence, get_cause_specific_mortality,
-                         get_incidence, get_cause_deleted_mortality_rate, get_disability_weight, causes)
+                         get_incidence, get_disability_weight, causes)
 
 
 def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures):
@@ -41,14 +41,11 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures)
         for draw in draws:
             config.run_configuration.draw_number = draw
             for cause, measure in measures:
-                if cause == 'all' and measure == 'mortality':
-                    data = get_cause_deleted_mortality_rate({})
+                if cause in causes and measure in causes[cause]:
+                    data = function_map[measure](causes[cause][measure])
                 else:
-                    if cause in causes and measure in causes[cause]:
-                        data = function_map[measure](causes[cause][measure])
-                    else:
-                        warn("Trying to load input for {}.{} but no mapping was present".format(cause, measure))
-                        continue
+                    warn("Trying to load input for {}.{} but no mapping was present".format(cause, measure))
+                    continue
 
                 # TODO: This assumes a single value for each point but that won't
                 # be valid for categorical risks data or distribution data.
