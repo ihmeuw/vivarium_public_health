@@ -147,22 +147,3 @@ def test_risk_deletion(assign_cause_mock):
 
     assert np.allclose(from_yearly(expected_rate, time_step),
                        incidence_rate(simulation.population.population.index), atol=0.00001)
-
-
-@patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
-def test_load_population_custom_columns(assign_cause_mock):
-    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
-        {'condition_state': 'healthy'}, index=population.index)
-    model = DiseaseModel('test_disease')
-    dwell_test = DiseaseState('dwell_test', disability_weight=0.0, dwell_time=pd.Timedelta(days=10),
-                              event_time_column='special_test_time', event_count_column='special_test_count')
-
-    model.states.append(dwell_test)
-
-    simulation = setup_simulation([generate_test_population, model])
-
-    assert 'special_test_time' in simulation.population.population
-    assert 'special_test_count' in simulation.population.population
-    assert np.all(simulation.population.population.special_test_count == 0)
-
-    assert np.all(simulation.population.population.special_test_time.isnull())
