@@ -20,7 +20,7 @@ from ceam_inputs import get_age_bins
 from vivarium import config
 from ceam_public_health.cube import make_measure_cube_from_gbd
 
-def graph_measure(data, measure, output_directory):
+def graph_measure(data, measure, output_directory, figure_title=None):
     """ Save the convergence graph for a particular measure
     """
     data = data.reset_index().query('measure == @measure')
@@ -49,7 +49,7 @@ def graph_measure(data, measure, output_directory):
     labels = [
         fig.text(0.5, 0.0, 'GBD', ha='center', va='center'),
         fig.text(0.0, 0.5, 'Simulation', ha='center', va='center', rotation='vertical'),
-        fig.suptitle(measure),
+        fig.suptitle(measure if figure_title is None else figure_title),
     ]
 
     # Walk through the age groups graphing one into each sub-figure until we run out
@@ -133,7 +133,9 @@ def graph_measure(data, measure, output_directory):
     plt.tight_layout()
     # Make room for the main title
     plt.subplots_adjust(top=0.94)
-    fig.savefig(os.path.join(output_directory, '{}.png'.format(measure)), dpi=100, bbox_extra_artists=[lgd]+labels, bbox_inches='tight')
+    file_name = measure if figure_title is None else figure_title
+    file_name = file_name.replace(' ','_')
+    fig.savefig(os.path.join(output_directory, '{}.png'.format(file_name)), dpi=100, bbox_extra_artists=[lgd]+labels, bbox_inches='tight')
 
 def _mean_and_bounds(data, value_name):
     columns = data.columns.difference(['year', 'age', 'sex', 'measure', 'cause', 'location', 'value', 'input_draw'])
@@ -206,7 +208,11 @@ def graph_comparison(data, output_directory):
 
     # Save a graph for each measure
     for measure in data.reset_index().measure.unique():
-        graph_measure(data, measure, output_directory)
+        if measure == 'mortality':
+            graph_measure(data.query('measure != "mortality" or cause == "all"'), measure, output_directory, figure_title='all cause mortality')
+            graph_measure(data.query('measure != "mortality" or cause != "all"'), measure, output_directory, figure_title='cause specific mortality')
+        else:
+            graph_measure(data, measure, output_directory)
 
 
 
@@ -228,7 +234,6 @@ def main():
             data = data.append(df)
 
 
-    data = data.query('measure != "mortality" or cause == "all"')
     # FIXME: Getting ihd mortality should be handled in a more flexible way. Very much a duck tape solution
     #ihd_mortality = data.query("measure == 'mortality' and cause!= 'death_due_to_other_causes' and cause!='all'").groupby(['measure', 'age_low', 'age_high', 'sex', 'location', 'year', 'draw']).sum().reset_index()
     #ihd_mortality['cause'] = 'ischemic_heart_disease'
