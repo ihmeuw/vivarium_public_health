@@ -313,7 +313,7 @@ class ExcessMortalityState(DiseaseState):
 def make_disease_state(cause, dwell_time=pd.Timedelta(0, unit='D'), side_effect_function=None):
     if 'disability_weight' in cause:
         if isinstance(cause.disability_weight, meid):
-            disability_weight = get_disability_weight(dis_weight_modelable_entity_id=cause.disability_weight)
+            disability_weight = get_disability_weight(dis_weight_gbd_id=cause.disability_weight)
         elif isinstance(cause.disability_weight, hid):
             disability_weight = get_disability_weight(healthstate_id=cause.disability_weight)
         else:
