@@ -144,7 +144,7 @@ def _mean_and_bounds(data, value_name):
 
     mean = group.mean()
     #column_data = [mean['value'], group.quantile(.975)['value'], group.quantile(.025)['value']]
-    column_data = [mean['value'], group.std()['value']]
+    column_data = [mean['value'], group.value.std()]
     for c in columns:
         column_data.append(mean[c])
 
