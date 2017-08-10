@@ -120,4 +120,4 @@ def make_gbd_risk_effects(risk):
                        mediation_factor=inputs.get_mediation_factors(risk_id=risk.gbd_risk, cause_id=cause_id),
                        cause=cause,
                        exposure_effect=effect_function))
-        return effects
+    return effects
