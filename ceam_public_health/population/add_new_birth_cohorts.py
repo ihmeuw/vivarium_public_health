@@ -147,6 +147,8 @@ class FertilityAgeSpecificRates:
     """
     A simulant-specific model for fertility and pregnancies.
     """
+    def __init__(self):
+        self._asfr_data = get_age_specific_fertility_rates()[['year', 'age', 'rate']]
 
     def setup(self, builder):
         """ Setup the common randomness stream and
@@ -160,9 +162,8 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness('fertility')
-        self.asfr = builder.lookup(get_age_specific_fertility_rates()[['year', 'age', 'rate']],
-                                   key_columns=(),
-                                   parameter_columns=('year', 'age',))
+        self.asfr = builder.rate('fertility rate')
+        self.asfr.source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))
 
     @listens_for('initialize_simulants')
     @uses_columns(['last_birth_time', 'sex', 'parent_id'])
