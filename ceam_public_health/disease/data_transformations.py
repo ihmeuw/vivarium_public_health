@@ -6,6 +6,7 @@ from vivarium.interpolation import Interpolation
 
 def get_cause_level_prevalence(states, year_start):
     prevalence_df = pd.DataFrame()
+    states = dict(states)
     for key in states.keys():
         assert set(states[key].columns) == {'year', 'age', 'prevalence', 'sex'}, ("The keys in the dict passed to "
                                                                                   "get_cause_level_prevalence need "
@@ -44,7 +45,8 @@ def get_sequela_proportions(cause_level_prevalence, states):
                                             on=['age', 'sex', 'year'], suffixes=('_single', '_total'))
         single = sequela_proportions[key]['prevalence_single']
         total = sequela_proportions[key]['prevalence_total']
-        sequela_proportions[key]['scaled_prevalence'] = np.nan_to_num(np.divide(single, total))
+        with np.errstate(invalid='ignore'):
+            sequela_proportions[key]['scaled_prevalence'] = np.nan_to_num(np.divide(single, total))
 
     return sequela_proportions
 
