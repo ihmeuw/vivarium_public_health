@@ -56,7 +56,7 @@ class Mortality:
     @listens_for('time_step', priority=0)
     @uses_columns(['alive', 'exit_time', 'cause_of_death'], "alive == 'alive'")
     def mortality_handler(self, event):
-        prob_df = rate_to_probability(self.mortality_rate(event.index))
+        prob_df = rate_to_probability(pd.DataFrame(self.mortality_rate(event.index)))
         prob_df['no_death'] = 1-prob_df.sum(axis=1)
         prob_df['cause_of_death'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
         dead_pop = prob_df.query('cause_of_death != "no_death"').copy()
