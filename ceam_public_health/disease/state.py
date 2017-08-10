@@ -301,7 +301,7 @@ class ExcessMortalityState(DiseaseState):
         rate = (self._mortality(population.index, skip_post_processor=True)
                 * (population[self.condition] == self.state_id))
         if isinstance(rates_df, pd.Series):
-            rates_df = pd.DataFrame({'rate': rates_df, self.state_id: rate})
+            rates_df = pd.DataFrame({rates_df.name: rates_df, self.state_id: rate})
         else:
             rates_df[self.state_id] = rate
         return rates_df
