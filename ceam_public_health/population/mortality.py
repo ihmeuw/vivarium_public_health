@@ -39,14 +39,14 @@ class Mortality:
         self.clock = builder.clock()
 
     @produces_value('mortality_rate')
-    def mortality_rate_source(self, population):
+    def mortality_rate_source(self, index):
         if self._cause_deleted_mortality_data is None:
             csmr_data = self.csmr()
             cause_deleted_mr = get_cause_deleted_mortality(self._all_cause_mortality_data, csmr_data)
             self._cause_deleted_mortality_data = self._build_lookup_handle(
                 cause_deleted_mr, interpolation_order=self._interpolation_order)
 
-        return self._cause_deleted_mortality_data(population)
+        return self._cause_deleted_mortality_data(index)
 
     @listens_for('initialize_simulants')
     @uses_columns(['cause_of_death'])
