@@ -6,7 +6,6 @@ from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.state_machine import State, Transient
 from vivarium.framework.values import modifies_value
-from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, meid, hid, cid
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
@@ -310,38 +309,4 @@ class ExcessMortalityState(DiseaseState):
         return 'ExcessMortalityState({})'.format(self.state_id)
 
 
-def make_disease_state(cause, dwell_time=pd.Timedelta(0, unit='D'), side_effect_function=None):
-    if 'disability_weight' in cause:
-        if isinstance(cause.disability_weight, meid):
-            disability_weight = get_disability_weight(dis_weight_gbd_id=cause.disability_weight)
-        elif isinstance(cause.disability_weight, hid):
-            disability_weight = get_disability_weight(healthstate_id=cause.disability_weight)
-        else:
-            disability_weight = cause.disability_weight
-    else:
-        disability_weight = 0.0
-    if 'prevalence' in cause:
-        if isinstance(cause.prevalence, meid) or isinstance(cause.prevalence, cid):
-            prevalence = get_prevalence(cause.prevalence)
-        else:
-            prevalence = cause.prevalence
-    else:
-        prevalence = 0.0
 
-    if 'excess_mortality' in cause:
-        if isinstance(cause.excess_mortality, meid) or isinstance(cause.excess_mortality, cid):
-            excess_mortality = get_excess_mortality(cause.excess_mortality)
-        else:
-            excess_mortality = cause.excess_mortality
-        return ExcessMortalityState(cause.name,
-                                    dwell_time=dwell_time,
-                                    disability_weight=disability_weight,
-                                    excess_mortality_data=excess_mortality,
-                                    prevalence_data=prevalence,
-                                    side_effect_function=side_effect_function)
-    else:
-        return DiseaseState(cause.name,
-                            dwell_time=dwell_time,
-                            disability_weight=disability_weight,
-                            prevalence_data=prevalence,
-                            side_effect_function=side_effect_function)

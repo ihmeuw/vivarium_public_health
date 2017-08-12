@@ -85,7 +85,7 @@ class HealthcareAccess:
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
 
-        self.utilization_proportion = builder.lookup(get_proportion(outpatient_visits_meid))
+        self.utilization_proportion = builder.lookup(get_proportion('outpatient_visits', outpatient_visits_meid))
 
     @listens_for('initialize_simulants')
     @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'adherence_category'])
