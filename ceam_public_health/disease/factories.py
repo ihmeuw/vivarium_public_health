@@ -1,5 +1,3 @@
-import numbers
-
 import pandas as pd
 
 from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, get_duration
