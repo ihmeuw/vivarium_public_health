@@ -5,11 +5,11 @@ import numpy as np
 import pandas as pd
 
 from vivarium import config
-from vivarium.framework.state_machine import Transition, State
+from vivarium.framework.state_machine import State
 from vivarium.framework.util import from_yearly
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
 
-from ceam_inputs import get_incidence
+from ceam_inputs import get_incidence, sequelae
 
 
 from ceam_public_health.disease import DiseaseState, ExcessMortalityState, RateTransition, DiseaseModel
@@ -99,7 +99,7 @@ def test_incidence(assign_cause_mock):
     healthy = State('healthy')
     sick = State('sick')
 
-    transition = RateTransition(sick, 'test_incidence', get_incidence(2412))
+    transition = RateTransition(sick, 'test_incidence', get_incidence(sequelae.heart_attack))
     healthy.transition_set.append(transition)
 
     model.states.extend([healthy, sick])
@@ -126,7 +126,7 @@ def test_risk_deletion(assign_cause_mock):
     healthy = State('healthy')
     sick = State('sick')
 
-    transition = RateTransition(sick, 'test_incidence', get_incidence(2412))
+    transition = RateTransition(sick, 'test_incidence', get_incidence(sequelae.heart_attack))
     healthy.transition_set.append(transition)
 
     model.states.extend([healthy, sick])
