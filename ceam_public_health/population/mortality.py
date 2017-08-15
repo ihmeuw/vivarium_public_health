@@ -21,7 +21,7 @@ class Mortality:
 
     def __init__(self):
         self._interpolation_order = 1 if config.mortality.interpolate else 0
-        self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes.gbd_cause)
+        self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes)
         self._life_table_data = get_life_table()
         self._cause_deleted_mortality_data = None
 
