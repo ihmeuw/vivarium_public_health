@@ -5,7 +5,7 @@ import pandas as pd
 from vivarium import config
 
 from ceam_inputs import (get_excess_mortality, get_prevalence, get_cause_specific_mortality,
-                         get_incidence, get_disability_weight, causes)
+                         get_incidence, get_disability_weight, causes, sequelae, etiologies)
 
 
 def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures):
@@ -13,13 +13,7 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures)
     pairs listed in `measures`.
     """
     # Map from each measure name to the function which gets that measure's data
-    function_map = {
-            'excess_mortality': get_excess_mortality,
-            'prevalence': get_prevalence,
-            'mortality': get_cause_specific_mortality,
-            'disability_weight': get_disability_weight,
-            'incidence': get_incidence,
-    }
+
 
     # TODO: I'm always complaining about how other people don't include
     # metadata with their data. This should afford the attachment of
@@ -41,9 +35,8 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures)
         for draw in draws:
             config.run_configuration.draw_number = draw
             for cause, measure in measures:
-                if cause in causes and measure in causes[cause]:
-                    data = function_map[measure](causes[cause][measure])
-                else:
+                data = _get_data(cause, measure)
+                if data is None:
                     warn("Trying to load input for {}.{} but no mapping was present".format(cause, measure))
                     continue
 
@@ -68,3 +61,35 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures)
     config.run_configuration.draw_number = old_draw
 
     return cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'draw', 'location'])
+
+
+def _get_data(cause_name, measure_name):
+    function_map = {
+        'excess_mortality': get_excess_mortality,
+        'prevalence': get_prevalence,
+        'csmr': get_cause_specific_mortality,
+        'disability_weight': get_disability_weight,
+        'incidence': get_incidence,
+    }
+    cause = _get_cause_from_name(cause_name)
+    if measure_name in cause:
+        return function_map[measure_name](cause)
+    else:
+        raise ValueError("Invalid measure {} for cause {}".format(measure_name, cause_name))
+
+
+def _get_cause_from_name(cause_name):
+    if cause_name in causes:
+        cause = causes[cause_name]
+    elif cause_name in sequelae:
+        cause = sequelae[cause_name]
+    elif cause_name in etiologies:
+        cause = etiologies[cause_name]
+    else:
+        prefix, name = cause_name.split('_', maxsplit=1)
+        if prefix in ['mild', 'moderate', 'severe', 'asymptomatic']:
+            parent_cause = _get_cause_from_name(name)
+            cause = parent_cause.severity_splits[prefix]
+        else:
+            raise ValueError('Invalid cause name {}'.format(cause_name))
+    return cause
