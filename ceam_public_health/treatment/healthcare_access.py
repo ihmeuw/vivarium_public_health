@@ -10,16 +10,15 @@ from vivarium.framework.population import uses_columns
 from vivarium.framework.values import modifies_value
 from vivarium.framework.randomness import filter_for_probability
 
-from ceam_inputs import get_proportion, get_doctor_visit_costs, get_inpatient_visit_costs
+from ceam_inputs import get_proportion, get_inpatient_visit_costs, get_outpatient_visit_costs
 
 
 outpatient_visits_meid = 9458
 
 # draw random costs for doctor visit (time-specific)
 draw = config.run_configuration.draw_number
-assert config.simulation_parameters.location_id == 180, 'FIXME: currently cost data for Kenya only'
 
-cost_df = get_doctor_visit_costs()
+cost_df = get_outpatient_visit_costs()
 cost_df.index = cost_df.year_id
 appointment_cost = cost_df['draw_{}'.format(draw)]
 
