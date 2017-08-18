@@ -17,9 +17,9 @@ outpatient_visits_meid = 9458
 
 # draw random costs for doctor visit (time-specific)
 draw = config.run_configuration.draw_number
+location_id = config.simulation_parameters.location_id
 
-cost_df = get_outpatient_visit_costs()
-cost_df.index = cost_df.year_id
+cost_df = get_outpatient_visit_costs().query('location_id == @location_id').set_index('year_id')
 appointment_cost = cost_df['draw_{}'.format(draw)]
 
 ip_cost_df = get_inpatient_visit_costs()
