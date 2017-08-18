@@ -111,7 +111,7 @@ def test_BasePopulation(build_pop_data_table_mock, generate_ceam_population_mock
 
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
 
-    assert np.allclose(simulation.population.population.age, final_ages)
+    assert np.allclose(simulation.population.population.age, final_ages, atol=0.5/365) # Within a half of a day.
 
 
 def test_age_out_simulants():
