@@ -81,7 +81,7 @@ class ContinuousRiskComponent:
     """A model for a risk factor defined by a continuous value. For example
     high systolic blood pressure as a risk where the SBP is not dichotomized
     into hypotension and normal but is treated as the actual SBP measurement.
-    
+
     Parameters
     ----------
     risk : ceam_inputs.gbd_mapping.risk_factors element
@@ -103,8 +103,8 @@ class ContinuousRiskComponent:
 
     def __init__(self, risk, propensity_function=None):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
-        self._distribution_loader = get_distribution(self._risk.name)
-        self.exposure_function = get_exposure_function(self._risk.name)
+        self._distribution_loader = get_distribution(self._risk)
+        self.exposure_function = get_exposure_function(self._risk)
         if propensity_function is not None:
             self.propensity_function = propensity_function
         elif config.risks.apply_correlation:
@@ -170,7 +170,7 @@ class CategoricalRiskComponent:
     def setup(self, builder):
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
-        self.exposure.source = builder.lookup(inputs.get_exposures(risk_id=self._risk.gbd_risk))
+        self.exposure.source = builder.lookup(inputs.get_exposure_means(risk=self._risk))
         self.randomness = builder.randomness(self._risk.name)
 
         return make_gbd_risk_effects(self._risk)

@@ -16,10 +16,10 @@ from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
 
-from ceam_inputs import risk_factors, causes
+from ceam_inputs import risk_factors, causes, sequelae
 
 from ceam_public_health.disease.transition import RateTransition
-from ceam_public_health.risks import distributions, exposures
+from ceam_public_health.risks import distributions
 from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
 from ceam_public_health.risks.exposures import basic_exposure_function
 from ceam_public_health.risks.distributions import distribution_map
@@ -49,12 +49,12 @@ def test_RiskEffect():
     def test_function(rates_, rr):
         return rates_ * (rr.values**test_exposure[0])
 
-    effect = RiskEffect(build_table(1.01), build_table(0.01), 0, causes.heart_attack, test_function)
+    effect = RiskEffect(build_table(1.01), build_table(0.01), 0, sequelae.heart_attack, test_function)
 
     simulation = setup_simulation([generate_test_population, effect])
 
-    # This one should be effected by our RiskEffect
-    rates = simulation.values.get_rate(causes.heart_attack.name + '.incidence_rate')
+    # This one should be affected by our RiskEffect
+    rates = simulation.values.get_rate(sequelae.heart_attack.name + '.incidence_rate')
     rates.source = simulation.tables.build_table(build_table(0.01))
 
     # This one should not
@@ -81,9 +81,10 @@ def make_dummy_column(name, initial_value):
 def test_continuous_exposure_effect():
     risk = risk_factors.high_systolic_blood_pressure
     exposure_function = continuous_exposure_effect(risk)
+    tmrel = 0.5 * (risk.tmred.max + risk.tmred.min)
 
     simulation = setup_simulation([generate_test_population,
-                                   make_dummy_column(risk.name+'_exposure', risk.tmrl), exposure_function])
+                                   make_dummy_column(risk.name+'_exposure', tmrel), exposure_function])
 
     rates = pd.Series(0.01, index=simulation.population.population.index)
     rr = pd.Series(1.01, index=simulation.population.population.index)
@@ -91,9 +92,9 @@ def test_continuous_exposure_effect():
     assert np.all(exposure_function(rates, rr) == 0.01)
 
     simulation.population.get_view([risk.name+'_exposure']).update(
-        pd.Series(risk.tmrl + 50, index=simulation.population.population.index))
+        pd.Series(tmrel + 50, index=simulation.population.population.index))
 
-    expected_value = 0.01 * (1.01 ** (((risk.tmrl + 50) - risk.tmrl) / risk.scale))
+    expected_value = 0.01 * (1.01 ** (((tmrel + 50) - tmrel) / risk.scale))
 
     assert np.allclose(exposure_function(rates, rr), expected_value)
 
@@ -123,22 +124,22 @@ def test_CategoricalRiskComponent_dichotomous_case(br_inputs_mock, effect_inputs
     config.simulation_parameters.time_step = 30.5
     risk = risk_factors.smoking_prevalence_approach
 
-    br_inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(
+    br_inputs_mock.get_exposure_means.side_effect = lambda *args, **kwargs: build_table(
         0.5, ['age', 'year', 'sex', 'cat1', 'cat2'])
     effect_inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(
         [1.01, 1], ['age', 'year', 'sex', 'cat1', 'cat2'])
 
     effect_inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
-    effect_inputs_mock.get_mediation_factors = lambda *args, **kwargs: 0
+    effect_inputs_mock.get_mediation_factors.side_effect = lambda *args, **kwargs: 0
 
     component = CategoricalRiskComponent(risk)
 
     simulation = setup_simulation([generate_test_population, component], 100000)
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.get_rate(risk.effected_causes[0].name+'.incidence_rate')
+    incidence_rate = simulation.values.get_rate(risk.affected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01))
-    paf = simulation.values.get_rate(risk.effected_causes[-1].name+'.paf')
+    paf = simulation.values.get_rate(risk.affected_causes[-1].name+'.paf')
 
     assert np.isclose((simulation.population.population[risk.name+'_exposure'] == 'cat1').sum()
                       / len(simulation.population.population), 0.5, rtol=0.01)
@@ -161,7 +162,7 @@ def test_CategoricalRiskComponent_polydomous_case(br_inputs_mock, effect_inputs_
     time_step = pd.Timedelta(days=30.5)
     config.simulation_parameters.time_step = 30.5
     risk = risk_factors.smoking_prevalence_approach
-    br_inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(
+    br_inputs_mock.get_exposure_means.side_effect = lambda *args, **kwargs: build_table(
         0.25, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
     effect_inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(
         [1.03, 1.02, 1.01, 1], ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
@@ -173,9 +174,9 @@ def test_CategoricalRiskComponent_polydomous_case(br_inputs_mock, effect_inputs_
     simulation = setup_simulation([generate_test_population, component], 100000)
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.get_rate(risk.effected_causes[0].name+'.incidence_rate')
+    incidence_rate = simulation.values.get_rate(risk.affected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01))
-    paf = simulation.values.get_rate(risk.effected_causes[-1].name+'.paf')
+    paf = simulation.values.get_rate(risk.affected_causes[-1].name+'.paf')
 
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
         assert np.isclose((simulation.population.population[risk.name+'_exposure'] == category).sum()
@@ -195,7 +196,7 @@ def test_CategoricalRiskComponent_polydomous_case(br_inputs_mock, effect_inputs_
 def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock, get_distribution_mock, get_exposure_function_mock):
     time_step = pd.Timedelta(days=30.5)
     risk = risk_factors.high_systolic_blood_pressure
-    br_inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
+    br_inputs_mock.get_exposure_means.side_effect = lambda *args, **kwargs: build_table(0.5)
     effect_inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(1.01)
     effect_inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
     effect_inputs_mock.get_mediation_factors = lambda *args, **kwargs: 0
@@ -216,9 +217,9 @@ def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock, get_distrib
     simulation = setup_simulation([generate_test_population, component], 100000)
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.get_rate(risk.effected_causes[0].name+'.incidence_rate')
+    incidence_rate = simulation.values.get_rate(risk.affected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01))
-    paf = simulation.values.get_rate(risk.effected_causes[-1].name+'.paf')
+    paf = simulation.values.get_rate(risk.affected_causes[-1].name+'.paf')
 
     assert np.allclose(simulation.population.population[risk.name+'_exposure'], 130, rtol=0.001)
 
@@ -235,7 +236,7 @@ def test_ContinuousRiskComponent(br_inputs_mock, effect_inputs_mock, get_distrib
 def test_propensity_effect(br_inputs_mock, effect_inputs_mock, get_distribution_mock, get_exposure_function_mock):
     time_step = pd.Timedelta(days=30.5)
     risk = risk_factors.high_systolic_blood_pressure
-    br_inputs_mock.get_exposures.side_effect = lambda *args, **kwargs: build_table(0.5)
+    br_inputs_mock.get_exposure_means.side_effect = lambda *args, **kwargs: build_table(0.5)
     effect_inputs_mock.get_relative_risks.side_effect = lambda *args, **kwargs: build_table(1.01)
     effect_inputs_mock.get_pafs.side_effect = lambda *args, **kwargs: build_table(1)
     effect_inputs_mock.get_mediation_factors = lambda *args, **kwargs: 0
@@ -391,7 +392,7 @@ def test_correlated_exposures(correlation_mock):
         observations.append(pandas2ri.ri2py(r.get_corr_matrix(dat=pop, all_risks=r.c(*risk_order), dichotomous_risks=r.c(*categorical_risk_order))))
     assert np.all(np.abs(matrix_base[risk_order].values-np.array(observations).mean(axis=0)) <= np.array(observations).std(axis=0)*3)
 
-def _mock_get_exposures(risk_id):
+def _mock_get_exposure_means(risk_id):
     e = {1: 0.5, 2: 0.25, 3: 0.1, 4: 0.8}[risk_id]
     if risk_id in [3, 4]:
         # Categorical risks
@@ -426,7 +427,7 @@ def test_correlated_exposures_synthetic_risks(inputs_mock):
     numpy2ri.activate()
     inputs_mock.load_risk_correlation_matrices.return_value = _fill_in_correlation_matrix()
 
-    inputs_mock.get_exposures = _mock_get_exposures
+    inputs_mock.get_exposure_means = _mock_get_exposure_means
     inputs_mock.get_relative_risk = _mock_get_relative_risk
     inputs_mock.get_pafs = _mock_get_pafs
 
@@ -440,11 +441,11 @@ def test_correlated_exposures_synthetic_risks(inputs_mock):
         return builder.lookup(dist)
 
     continuous_1 = ConfigTree({'name': 'continuous_1', 'gbd_risk': 1, 'risk_type': 'continuous',
-                               'effected_causes': [], 'tmrl': 112.5, 'scale': 10})
+                               'affected_causes': [], 'tmrl': 112.5, 'scale': 10})
     continuous_2 = ConfigTree({'name': 'continuous_2', 'gbd_risk': 2, 'risk_type': 'continuous',
-                               'effected_causes': [], 'tmrl': 3.08, 'scale': 1})
-    categorical_1 = ConfigTree({'name': 'categorical_1', 'gbd_risk': 3, 'effected_causes': [], 'risk_type': 'categorical'})
-    categorical_2 = ConfigTree({'name': 'categorical_2', 'gbd_risk': 4, 'effected_causes': [], 'risk_type': 'categorical'})
+                               'affected_causes': [], 'tmrl': 3.08, 'scale': 1})
+    categorical_1 = ConfigTree({'name': 'categorical_1', 'gbd_risk': 3, 'affected_causes': [], 'risk_type': 'categorical'})
+    categorical_2 = ConfigTree({'name': 'categorical_2', 'gbd_risk': 4, 'affected_causes': [], 'risk_type': 'categorical'})
 
     distribution_map[continuous_1.name] = loader
     distribution_map[continuous_2.name] = loader
@@ -548,7 +549,7 @@ def test_make_gbd_risk_effects():
     risk_effect = RiskEffect(rr_data=build_table(rr),
                              paf_data=build_table(0),
                              mediation_factor=mediation_factor,
-                             cause=causes.heart_attack,
+                             cause=sequelae.heart_attack,
                              exposure_effect=effect_function)
     bmi = RiskMock(risk_factors.high_body_mass_index, risk_effect,
                    distributions.bmi,

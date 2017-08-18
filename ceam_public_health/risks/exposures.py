@@ -24,8 +24,8 @@ def sbp(propensity, distribution):
 exposure_map = {'high_systolic_blood_pressure': sbp}
 
 
-def get_exposure_function(risk_name):
-    if risk_name in exposure_map:
-        return exposure_map[risk_name]
+def get_exposure_function(risk):
+    if risk.name in exposure_map:
+        return exposure_map[risk.name]
     else:
         return basic_exposure_function

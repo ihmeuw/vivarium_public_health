@@ -16,12 +16,13 @@ def continuous_exposure_effect(risk):
         The gbd data mapping for the risk.
     """
     exposure_column = risk.name+'_exposure'
+    tmrel = 0.5 * (risk.tmred.min + risk.tmred.max)
 
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     @uses_columns([exposure_column])
     def inner(rates, rr, population_view):
         return rates * np.maximum(
-            rr.values**((population_view.get(rr.index)[exposure_column] - risk.tmrl) / risk.scale).values, 1)
+            rr.values**((population_view.get(rr.index)[exposure_column] - tmrel) / risk.scale).values, 1)
 
     return inner
 
@@ -97,7 +98,6 @@ class RiskEffect:
         else:
             return self.exposure_effect(rates, self.relative_risk(index))
 
-
     def __repr__(self):
         return ("RiskEffect(rr_data= {},\npaf_data= {},\n".format(self._rr_data, self._paf_data)
                 + "cause= {},\nexposure_effect= {},\n".format(self.cause.name, self.exposure_effect)
@@ -105,19 +105,14 @@ class RiskEffect:
 
 
 def make_gbd_risk_effects(risk):
-    effect_function = continuous_exposure_effect(risk) if risk.risk_type == 'continuous' else categorical_exposure_effect(risk)
+    effect_function = (continuous_exposure_effect(risk) if risk.distribution != 'categorical'
+                       else categorical_exposure_effect(risk))
 
     effects = []
-    for cause in risk.effected_causes:
-        if isinstance(cause.gbd_cause, rid):
-            # These are risks being used as causes, as is the case with diarrhea etiologies.
-            cause_id = cause.gbd_parent_cause
-        else:
-            cause_id = cause.gbd_cause
-
-        effects.append(RiskEffect(rr_data=inputs.get_relative_risks(risk_id=risk.gbd_risk, cause_id=cause_id),
-                       paf_data=inputs.get_pafs(risk_id=risk.gbd_risk, cause_id=cause_id),
-                       mediation_factor=inputs.get_mediation_factors(risk_id=risk.gbd_risk, cause_id=cause_id),
+    for cause in risk.affected_causes:
+        effects.append(RiskEffect(rr_data=inputs.get_relative_risks(risk=risk, cause=cause),
+                       paf_data=inputs.get_pafs(risk=risk, cause=cause),
+                       mediation_factor=inputs.get_mediation_factors(risk=risk, cause=cause),
                        cause=cause,
                        exposure_effect=effect_function))
     return effects

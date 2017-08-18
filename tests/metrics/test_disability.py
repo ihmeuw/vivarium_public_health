@@ -16,7 +16,7 @@ def setup():
                                                       'input_data.auxiliary_data_folder'])
     except KeyError:
         pass
-    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
+    config.simulation_parameters.set_with_metadata('year_start', 1995, layer='override',
                                                    source=os.path.realpath(__file__))
     config.simulation_parameters.set_with_metadata('year_end', 2000, layer='override',
                                                    source=os.path.realpath(__file__))
@@ -36,114 +36,69 @@ def set_up_test_parameters(flu=False, mumps=False):
         If true, include an excess mortality state for mumps
         If false, do not include an excess mortality state for mumps
     """
-    # first start with an asymptomatic disease state. asymptomatic
-    #     diseases have 0 disability weight in GBD.
-    asymptomatic_disease_model = DiseaseModel('asymptomatic', csmr_data=build_table(0))
+    n_simulants = 1000
     asymptomatic_disease_state = ExcessMortalityState('asymptomatic',
                                                       disability_weight=0.0,
                                                       excess_mortality_data=build_table(0),
                                                       prevalence_data=build_table(1.0,
                                                                                   ['age', 'year', 'sex', 'prevalence']))
+    asymptomatic_disease_model = DiseaseModel('asymptomatic',
+                                              states=[asymptomatic_disease_state],
+                                              csmr_data=build_table(0))
+    metrics = Metrics()
+    disability = Disability()
+    components = [generate_test_population, asymptomatic_disease_model, metrics, disability]
 
-    asymptomatic_disease_model.states.extend([asymptomatic_disease_state])
-
-    if not mumps and not flu:
-        simulation = setup_simulation([generate_test_population,
-                                       asymptomatic_disease_model, Metrics(), Disability()],
-                                      population_size=1000)
-
-    # Now let's set up a disease model for a disease that does have
-    #     a disability weight
     if flu:
-        flu_model = DiseaseModel('flu', csmr_data=build_table(0))
         flu = ExcessMortalityState('flu', disability_weight=0.2,
                                    excess_mortality_data=build_table(0),
                                    prevalence_data=build_table(1.0,
                                                                ['age', 'year', 'sex', 'prevalence']))
+        flu_model = DiseaseModel('flu', states=[flu], csmr_data=build_table(0))
+        components.append(flu_model)
 
-        flu_model.states.extend([flu])
-
-        if not mumps:
-            simulation = setup_simulation([generate_test_population,
-                                           asymptomatic_disease_model, flu_model,
-                                          Metrics(), Disability()], population_size=1000)
-
-    # Now let's set up another disease model so we can test that
-    #     CEAM is calculating joint disability weights correctly
     if mumps:
-        mumps_model = DiseaseModel('mumps', csmr_data=build_table(0))
         mumps = ExcessMortalityState('mumps', disability_weight=0.4,
                                      excess_mortality_data=build_table(0),
                                      prevalence_data=build_table(1.0,
                                                                  ['age', 'year', 'sex', 'prevalence']))
+        mumps_model = DiseaseModel('mumps', states=[mumps], csmr_data=build_table(0))
+        components.append(mumps_model)
 
-        mumps_model.states.extend([mumps])
+    simulation = setup_simulation(components=components, population_size=n_simulants)
 
-        simulation = setup_simulation([generate_test_population, asymptomatic_disease_model, flu_model,
-                                       mumps_model, Metrics(), Disability()],
-                                      population_size=1000)
-
-    metrics = simulation.values.get_value('metrics')
-
-    return simulation, metrics
+    return simulation, metrics, disability
 
 
 def test_that_ylds_are_0_at_sim_beginning():
-    simulation, metrics = set_up_test_parameters()
-
-    assert metrics(simulation.population.population.index)['years_lived_with_disability'] == 0, \
-        "at the beginning of the simulation, ylds should = 0"
+    simulation, metrics, disability = set_up_test_parameters()
+    ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
+    assert ylds == 0
 
 
 def test_that_healthy_people_dont_accrue_disability_weights():
-
-    simulation, metrics = set_up_test_parameters()
-
+    simulation, metrics, disability = set_up_test_parameters()
     pump_simulation(simulation, duration=pd.Timedelta(days=365))
-
-    assert np.isclose(metrics(simulation.population.population.index)['years_lived_with_disability'],
-                      10000 * 0.0, rtol=0.01), "If no one has a disabling" + \
-                                               " disease, YLDs should be 0"
+    pop_size = len(simulation.population.population)
+    ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
+    assert np.isclose(ylds, pop_size * 0.0, rtol=0.01)
 
 
 def test_single_disability_weight():
-    # Flu season
-    simulation, metrics = set_up_test_parameters(flu=True)
-
+    simulation, metrics, disability = set_up_test_parameters(flu=True)
+    flu_dw = 0.2
     pump_simulation(simulation, duration=pd.Timedelta(days=365))
-
-    # check that disability weight is correctly calculated
-    assert np.isclose(metrics(simulation.population.population.index)['years_lived_with_disability'],
-                      1000 * 0.2, rtol=0.01), "YLDs metric should accurately" + \
-                                              " sum up YLDs in the sim." + \
-                                              " In this case, all simulants" + \
-                                              " should accrue a disability" + \
-                                              " weight of .2 since all simulants" + \
-                                              " have the flu for the" + \
-                                              " entire year and the disability weight" + \
-                                              " of the flu is .2"
+    pop_size = len(simulation.population.population)
+    ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
+    assert np.isclose(ylds, pop_size * flu_dw, rtol=0.01)
 
 
 def test_joint_disability_weight():
-    # Flu season in conjunction with a mumps outbreak
-    simulation, metrics = set_up_test_parameters(flu=True, mumps=True)
-
+    simulation, metrics, disability = set_up_test_parameters(flu=True, mumps=True)
+    flu_dw = 0.2
+    mumps_dw = 0.4
     pump_simulation(simulation, duration=pd.Timedelta(days=365))
-
+    pop_size = len(simulation.population.population)
+    ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
     # check that JOINT disability weight is correctly calculated
-    assert np.isclose(metrics(simulation.population.population.index)['years_lived_with_disability'],
-                      1000 * (1-(1-.2)*(1-.4)), rtol=0.01), "YLDs metric should accurately" + \
-                                               " sum up YLDs in the sim." + \
-                                               " In this case, all simulants" + \
-                                               " should accrue a disability" + \
-                                               " weight of .52 since all" + \
-                                               " simulants have the flu and mumps" + \
-                                               " for the entire year." + \
-                                               " The disability weight of the flu is .2" + \
-                                               " and the disability weight" +\
-                                               " of mumps is .4. Thus, each" + \
-                                               " simulant should have a" + \
-                                               " disability weight of .52 for" + \
-                                               " this year given that joint disability equals" + \
-                                               " 1 - (1 - dis wt 1) * (1 - dis wt 2)... * (1 - dis wt i)"
-
+    assert np.isclose(ylds, pop_size * (1-(1-flu_dw)*(1-mumps_dw)), rtol=0.01)

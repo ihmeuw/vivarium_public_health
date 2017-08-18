@@ -5,7 +5,7 @@ from scipy.stats import norm, beta
 from vivarium.interpolation import Interpolation
 
 from ceam_inputs import (get_fpg_distribution_parameters, get_bmi_distribution_parameters,
-                         get_sbp_distribution, get_exposures, risk_factors)
+                         get_sbp_distribution, get_exposure_means, risk_factors)
 
 
 def _sll_ppf(percentile, location, scale, shape):
@@ -67,7 +67,7 @@ def sbp(builder):
 
 
 def cholesterol(builder):
-    df = get_exposures(risk_factors.high_total_cholesterol.gbd_risk)
+    df = get_exposure_means(risk_factors.high_total_cholesterol)
     # NOTE: Cholesterol is not modeled for younger ages so set them equal to the TMRL
     df.loc[df.age < 27.5, 'continuous'] = 3.08
     df = df.set_index(['age', 'sex', 'year'])
@@ -95,8 +95,8 @@ distribution_map = {'high_systolic_blood_pressure': sbp,
                     'high_total_cholesterol': cholesterol}
 
 
-def get_distribution(risk_name):
-    if risk_name in distribution_map:
-        return distribution_map[risk_name]
+def get_distribution(risk):
+    if risk.name in distribution_map:
+        return distribution_map[risk.name]
     else:
-        raise NotImplementedError('There is no distribution associated with the risk {}'.format(risk_name))
+        raise NotImplementedError('There is no distribution associated with the risk {}'.format(risk.name))
