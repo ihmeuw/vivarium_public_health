@@ -41,11 +41,13 @@ def correlated_propensity(population, risk_factor):
     initialization.
     """
 
-    correlation_matrices = inputs.load_risk_correlation_matrices().set_index(
-        ['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
-    if risk_factor.name not in correlation_matrices.risk_factor.unique():
+    correlation_matrices = inputs.load_risk_correlation_matrices()
+    if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
         # There's no correlation data for this risk, just pick a uniform random propensity
         return uncorrelated_propensity(population, risk_factor)
+
+    correlation_matrices = correlation_matrices.set_index(
+        ['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
 
     risk_factor_idx = sorted(correlation_matrices.risk_factor.unique()).index(risk_factor.name)
     ages = sorted(correlation_matrices.age.unique())

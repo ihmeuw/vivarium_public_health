@@ -8,7 +8,7 @@ from vivarium.framework.population import uses_columns, creates_simulants
 
 from ceam_inputs import get_age_specific_fertility_rates, get_annual_live_births, get_populations
 
-DAYS_PER_YEAR = 365
+SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate GBD estimates into gestational model (probably as a separate component)
 PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
 
@@ -47,7 +47,9 @@ class FertilityDeterministic:
         """
 
         # Assume births are uniformly distributed throughout the year.
-        simulants_to_add = self.annual_new_simulants*event.step_size.days/DAYS_PER_YEAR + self.fractional_new_births
+        step_size = event.step_size/pd.Timedelta(seconds=1)
+        simulants_to_add = (self.annual_new_simulants*step_size/SECONDS_PER_YEAR
+                            + self.fractional_new_births)
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
 
@@ -102,8 +104,9 @@ class FertilityCrudeBirthRate:
         # FIXME: We are pulling data every time here.  Use the value pipeline system.
         birth_rate = self._get_birth_rate(event.time.year)
         population_size = len(event.index)
+        step_size = event.step_size / pd.Timedelta(seconds=1)
 
-        mean_births = birth_rate*population_size*event.step_size.days/DAYS_PER_YEAR
+        mean_births = birth_rate*population_size*step_size/SECONDS_PER_YEAR
 
         # Assume births occur as a Poisson process
         r = np.random.RandomState(seed=self.randomness.get_seed())
@@ -181,7 +184,7 @@ class FertilityAgeSpecificRates:
 
         # Do the naive thing, set so all women can have children
         # and none of them have had a child in the last year.
-        last_birth_time[women] = event.time - pd.Timedelta(days=DAYS_PER_YEAR)
+        last_birth_time[women] = event.time - pd.Timedelta(seconds=SECONDS_PER_YEAR)
 
         event.population_view.update(last_birth_time)
         event.population_view.update(pd.Series(-1, name='parent_id', index=event.index, dtype=np.int64))
