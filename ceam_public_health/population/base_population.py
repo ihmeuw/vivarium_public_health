@@ -8,6 +8,8 @@ from ceam_inputs import get_populations, get_subregions
 
 from .data_transformations import assign_demographic_proportions, rescale_binned_proportions, smooth_ages
 
+SECONDS_PER_YEAR = 365.25*24*60*60
+
 
 class BasePopulation:
     """Component for producing and aging simulants based on demographic data.
@@ -75,7 +77,8 @@ class BasePopulation:
         ----------
         event : vivarium.framework.population.PopulationEvent
         """
-        event.population['age'] += event.step_size.days / 365.0
+        step_size = event.step_size/pd.Timedelta(seconds=1)
+        event.population['age'] += step_size / SECONDS_PER_YEAR
         event.population_view.update(event.population)
 
 
