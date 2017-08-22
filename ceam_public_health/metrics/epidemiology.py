@@ -5,10 +5,9 @@ import pandas as pd
 from vivarium.framework.values import produces_value
 from vivarium.framework.event import listens_for, emits
 from vivarium.framework.util import collapse_nested_dict
+from vivarium.framework.dataset import Placeholder
 
 from vivarium import config
-
-from ceam_inputs import get_age_bins
 
 import logging
 
@@ -21,6 +20,9 @@ class EpidemiologicalMeasures:
     from other components in the system and saves them to an HDF file which
     can be further analyzed. For example by ceam_public_health/scripts/measure_analysis.py
     """
+
+    age_bins = Placeholder('auxiliary.age_bins')
+
     def setup(self, builder):
         self.point_measures = builder.value('epidemiological_point_measures')
         self.span_measures = builder.value('epidemiological_span_measures')
@@ -78,7 +80,7 @@ class EpidemiologicalMeasures:
 
     def dump_measures(self, index, current_year, point=False):
         age_group_ids = list(range(2, 22))
-        age_groups = get_age_bins().query('age_group_id in @age_group_ids')
+        age_groups = self.age_bins.data().query('age_group_id in @age_group_ids')
         age_groups = age_groups[['age_group_years_start', 'age_group_years_end']].values
         if point:
             measures = self.point_measures

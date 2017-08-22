@@ -3,8 +3,7 @@ import pandas as pd
 from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
-
-from ceam_inputs import get_populations, get_subregions
+from vivarium.framework.dataset import Placeholder
 
 from .data_transformations import assign_demographic_proportions, rescale_binned_proportions, smooth_ages
 
@@ -19,11 +18,14 @@ class BasePopulation:
     randomness : vivarium.framework.randomness.RandomnessStream
     """
 
+    population_data_source = Placeholder('auxiliary.population')
+    subregion_data_source = Placeholder('auxiliary.subregions')
+
     def __init__(self):
         main_location = config.simulation_parameters.location_id
         use_subregions = ('use_subregions' in config.simulation_parameters
                           and config.simulation_parameters.use_subregions)
-        self._population_data = _build_population_data_table(main_location, use_subregions)
+        self._population_data = _build_population_data_table(self.population_data_source, self.subregion_data_source, main_location, use_subregions)
 
     def setup(self, builder):
         """
@@ -227,7 +229,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     return smooth_ages(simulants, pop_data, randomness_stream)
 
 
-def _build_population_data_table(main_location, use_subregions):
+def _build_population_data_table(population_data_source, subregion_data_source, main_location, use_subregions):
     """Constructs a population data table for use as a population distribution over demographic characteristics.
 
     Parameters
@@ -252,10 +254,10 @@ def _build_population_data_table(main_location, use_subregions):
             'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year,
             'P(age | year, sex, location_id)' : Conditional probability of age given year, sex, and location_id.
     """
-    return assign_demographic_proportions(_get_population_data(main_location, use_subregions))
+    return assign_demographic_proportions(_get_population_data(population_data_source, subregion_data_source, main_location, use_subregions))
 
 
-def _get_population_data(main_location, use_subregions):
+def _get_population_data(population_data_source, subregion_data_source, main_location, use_subregions):
     """Grabs all relevant population data from the GBD and returns it as a pandas DataFrame.
 
     Parameters
@@ -279,6 +281,6 @@ def _get_population_data(main_location, use_subregions):
     """
     locations = [main_location]
     if use_subregions:
-        sub_regions = get_subregions(main_location)
+        sub_regions = subregion_data_source(main_location)
         locations = sub_regions if sub_regions else locations
-    return pd.concat([get_populations(location_id=location) for location in locations], ignore_index=True)
+    return pd.concat([population_data_source.data(location_id=location) for location in locations], ignore_index=True)

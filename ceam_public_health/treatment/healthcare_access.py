@@ -9,21 +9,7 @@ from vivarium.framework.event import listens_for, emits, Event
 from vivarium.framework.population import uses_columns
 from vivarium.framework.values import modifies_value
 from vivarium.framework.randomness import filter_for_probability
-
-from ceam_inputs import get_proportion, get_inpatient_visit_costs, get_outpatient_visit_costs, healthcare_entities
-
-
-
-# draw random costs for doctor visit (time-specific)
-draw = config.run_configuration.draw_number
-location_id = config.simulation_parameters.location_id
-
-cost_df = get_outpatient_visit_costs().query('location_id == @location_id').set_index('year_id')
-appointment_cost = cost_df['draw_{}'.format(draw)]
-
-ip_cost_df = get_inpatient_visit_costs()
-ip_cost_df.index = ip_cost_df.year_id
-hospitalization_cost = ip_cost_df['draw_{}'.format(draw)]
+from vivarium.framework.dataset import Placeholder
 
 
 def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
@@ -64,12 +50,22 @@ class HealthcareAccess:
             }
     }
 
+    outpatient_costs = Placeholder('auxiliary.outpatient_costs')
+    inpatient_costs = Placeholder('auxiliary.inpatient_costs')
+    outpatient_visit_proportion = Placeholder('healthcare_entity.outpatient_visits')
+
     def setup(self, builder):
         self.general_random = builder.randomness('healthcare_general_access')
         self.followup_random = builder.randomness('healthcare_followup_access')
         self.adherence_random = builder.randomness('healthcare_adherence')
         self.clock = builder.clock()
         r = np.random.RandomState(self.general_random.get_seed())
+
+        draw = config.run_configuration.draw_number
+        location_id = config.simulation_parameters.location_id
+
+        self.appointment_cost_by_year = self.outpatient_costs.data().query('location_id == @location_id').set_index('year_id')['draw_{}'.format(draw)]
+        self.hospitalization_cost_by_year = self.inpatient_costs.data().set_index('year_id')['draw_{}'.format(draw)]
 
         self.semi_adherent_pr = r.normal(0.4, 0.0485)
 
@@ -83,7 +79,7 @@ class HealthcareAccess:
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
 
-        self.utilization_proportion = builder.lookup(get_proportion(healthcare_entities.outpatient_visits))
+        self.utilization_proportion = builder.lookup(self.outpatient_visit_proportion.data())
 
     @listens_for('initialize_simulants')
     @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'adherence_category'])
@@ -118,8 +114,8 @@ class HealthcareAccess:
         self.general_access_count += len(index)
 
         year = event.time.year
-        self.cost_by_year[year] += len(index) * appointment_cost[year]
-        self.outpatient_cost[year] += len(index) * appointment_cost[year]
+        self.cost_by_year[year] += len(index) * self.appointment_cost_by_year[year]
+        self.outpatient_cost[year] += len(index) * self.appointment_cost_by_year[year]
 
     @listens_for('time_step')
     @uses_columns(['healthcare_last_visit_date', 'healthcare_followup_date', 'adherence_category'],
@@ -144,15 +140,15 @@ class HealthcareAccess:
         self.followup_access_count += len(affected_population)
 
         year = event.time.year
-        self.cost_by_year[year] += len(affected_population) * appointment_cost[year]
-        self.outpatient_cost[year] += len(affected_population) * appointment_cost[year]
+        self.cost_by_year[year] += len(affected_population) * self.appointment_cost_by_year[year]
+        self.outpatient_cost[year] += len(affected_population) * self.appointment_cost_by_year[year]
 
     @listens_for('hospitalization')
     def hospital_access(self, event):
         year = event.time.year
         self.hospitalization_count += len(event.index)
-        self.hospitalization_cost[year] += len(event.index) * hospitalization_cost[year]
-        self.cost_by_year[year] += len(event.index) * hospitalization_cost[year]
+        self.hospitalization_cost[year] += len(event.index) * self.hospitalization_cost_by_year[year]
+        self.cost_by_year[year] += len(event.index) * self.hospitalization_cost_by_year[year]
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
