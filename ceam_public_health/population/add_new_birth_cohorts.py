@@ -5,7 +5,8 @@ import numpy as np
 from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns, creates_simulants
-from vivarium.framework.dataset import Placeholder
+
+from ceam_inputs import get_age_specific_fertility_rates, get_annual_live_births, get_populations
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate GBD estimates into gestational model (probably as a separate component)
@@ -77,10 +78,6 @@ class FertilityCrudeBirthRate:
     .. _website: https://stats.oecd.org/glossary/detail.asp?ID=490
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
-
-    annual_live_births = Placeholder('auxiliary.annual_live_births')
-    population = Placeholder('auxiliary.population')
-    
     def setup(self, builder):
         self.randomness = builder.randomness('crude_birth_rate')
 
@@ -137,7 +134,7 @@ class FertilityCrudeBirthRate:
         """
 
         location_id = config.simulation_parameters.location_id
-        population_table = self.population.data(location_id, year, sex='Both')
+        population_table = get_populations(location_id, year, sex='Both')
 
         if 'maximum_age' in config.simulation_parameters:
             population = population_table.pop_scaled[
@@ -145,7 +142,7 @@ class FertilityCrudeBirthRate:
         else:
             population = population_table.pop_scaled.sum()
 
-        births = float(self.annual_live_births.data(location_id, year))
+        births = float(get_annual_live_births(location_id, year))
         return births / population
 
 
@@ -153,11 +150,8 @@ class FertilityAgeSpecificRates:
     """
     A simulant-specific model for fertility and pregnancies.
     """
-
-    age_specific_fertility_rates = Placeholder('auxiliary.age_specific_fertility_rates')
-
     def __init__(self):
-        self._asfr_data = self.age_specific_fertility_rates.data()[['year', 'age', 'rate']]
+        self._asfr_data = get_age_specific_fertility_rates()[['year', 'age', 'rate']]
 
     def setup(self, builder):
         """ Setup the common randomness stream and

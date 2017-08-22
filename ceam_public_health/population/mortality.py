@@ -1,11 +1,12 @@
 import pandas as pd
 
+from ceam_inputs import get_life_table, causes, get_cause_specific_mortality
+
 from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.util import rate_to_probability
 from vivarium.framework.values import list_combiner, modifies_value, produces_value
-from vivarium.framework.dataset import Placeholder
 
 from .data_transformations import get_cause_deleted_mortality
 
@@ -18,13 +19,10 @@ class Mortality:
             }
     }
 
-    all_causes = Placeholder('cause.all_causes')
-    life_table = Placeholder('auxiliary.life_table')
-
     def __init__(self):
         self._interpolation_order = 1 if config.mortality.interpolate else 0
-        self._all_cause_mortality_data = self.all_causes.cause_specific_mortality()
-        self._life_table_data = self.life_table.data()
+        self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes)
+        self._life_table_data = get_life_table()
         self._cause_deleted_mortality_data = None
 
     def setup(self, builder):

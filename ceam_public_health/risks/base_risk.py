@@ -2,11 +2,13 @@ import numpy as np
 import pandas as pd
 from scipy.stats import multivariate_normal, norm
 
+import ceam_inputs as inputs
+from ceam_inputs.gbd_mapping import risk_factors
+
 from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.randomness import random
-from vivarium.framework.dataset import Placeholder
 
 from ceam_public_health.risks import get_exposure_function, get_distribution, make_gbd_risk_effects
 
@@ -15,12 +17,7 @@ def uncorrelated_propensity(population, risk_factor):
     return random('initial_propensity_{}'.format(risk_factor.name), population.index)
 
 
-def correlated_propensity(data):
-    def inner(population, risk_factor):
-        return _correlated_propensity(population, risk_factor, data)
-    return inner
-
-def _correlated_propensity(population, risk_factor, data):
+def correlated_propensity(population, risk_factor):
     """Choose a propensity to the risk factor for each simulant that respects
     the risk factor's expected correlation with other risk factors unless there
     is no correlation data available in which case a uniformly distributed
@@ -30,8 +27,8 @@ def _correlated_propensity(population, risk_factor, data):
     ----------
     population: pd.DataFrame
         The population to get propensities for. Must include 'sex' and 'age' columns.
-    risk_factor: `vivarium.dataset.DataContainer`
-        Data for the risk
+    risk_factor: `vivarium.config_tree.ConfigTree`
+        The gbd data mapping for the risk.
 
     Notes
     -----
@@ -44,7 +41,7 @@ def _correlated_propensity(population, risk_factor, data):
     initialization.
     """
 
-    correlation_matrices = data.data()
+    correlation_matrices = inputs.load_risk_correlation_matrices()
     if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
         # There's no correlation data for this risk, just pick a uniform random propensity
         return uncorrelated_propensity(population, risk_factor)
@@ -87,8 +84,8 @@ class ContinuousRiskComponent:
 
     Parameters
     ----------
-    risk: `vivarium.dataset.DataContainer`
-        Data for the risk
+    risk : ceam_inputs.gbd_mapping.risk_factors element
+        The configuration data for the risk
     distribution_loader : callable
         A function which take a builder and returns a standard CEAM
         lookup table which returns distribution data.
@@ -104,16 +101,14 @@ class ContinuousRiskComponent:
         },
     }
 
-    risk_correlations = Placeholder('auxiliary.risk_factor_exposure_correlation_matrices')
-
     def __init__(self, risk, propensity_function=None):
-        self._risk = risk
-        self._distribution_loader = self._risk.get_distribution()
+        self._risk = risk_factors[risk] if isinstance(risk, str) else risk
+        self._distribution_loader = get_distribution(self._risk)
         self.exposure_function = get_exposure_function(self._risk)
         if propensity_function is not None:
             self.propensity_function = propensity_function
         elif config.risks.apply_correlation:
-            self.propensity_function = correlated_propensity(self.risk_correlations)
+            self.propensity_function = correlated_propensity
         else:
             self.propensity_function = uncorrelated_propensity
 
@@ -152,8 +147,8 @@ class CategoricalRiskComponent:
     smoking as two categories: current smoker and non-smoker.
     Parameters
     ----------
-    risk: `vivarium.dataset.DataContainer`
-        Data for the risk
+    risk : ceam_inputs.gbd_mapping.risk_factors element
+        The configuration data for the risk
     """
 
     configuration_defaults = {
@@ -162,22 +157,20 @@ class CategoricalRiskComponent:
         },
     }
 
-    risk_correlations = Placeholder('auxiliary.risk_factor_exposure_correlation_matrices')
-
     def __init__(self, risk, propensity_function=None):
-        self._risk = risk
+        self._risk = risk_factors[risk] if isinstance(risk, str) else risk
 
         if propensity_function is not None:
             self.propensity_function = propensity_function
         elif config.risks.apply_correlation:
-            self.propensity_function = correlated_propensity(self.risk_correlations)
+            self.propensity_function = correlated_propensity
         else:
             self.propensity_function = uncorrelated_propensity
 
     def setup(self, builder):
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
-        self.exposure.source = builder.lookup(self._risk.exposure_means())
+        self.exposure.source = builder.lookup(inputs.get_exposure_means(risk=self._risk))
         self.randomness = builder.randomness(self._risk.name)
 
         return make_gbd_risk_effects(self._risk)

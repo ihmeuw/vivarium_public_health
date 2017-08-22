@@ -2,6 +2,8 @@ import numpy as np
 
 from vivarium import config
 
+import ceam_inputs as inputs
+from ceam_inputs.gbd_mapping import rid
 from vivarium.framework.population import uses_columns
 
 
@@ -108,9 +110,9 @@ def make_gbd_risk_effects(risk):
 
     effects = []
     for cause in risk.affected_causes:
-        effects.append(RiskEffect(rr_data=risk.relative_risks(cause=cause),
-                       paf_data=risk.pafs(cause=cause),
-                       mediation_factor=risk.mediation_factors(cause=cause),
+        effects.append(RiskEffect(rr_data=inputs.get_relative_risks(risk=risk, cause=cause),
+                       paf_data=inputs.get_pafs(risk=risk, cause=cause),
+                       mediation_factor=inputs.get_mediation_factors(risk=risk, cause=cause),
                        cause=cause,
                        exposure_effect=effect_function))
     return effects
