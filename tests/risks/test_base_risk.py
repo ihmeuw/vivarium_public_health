@@ -49,7 +49,7 @@ def test_RiskEffect():
     def test_function(rates_, rr):
         return rates_ * (rr.values**test_exposure[0])
 
-    effect = RiskEffect(build_table(1.01), build_table(0.01), 0, sequelae.heart_attack, test_function)
+    effect = RiskEffect(build_table(1.01), build_table(0.01), 0, sequelae.heart_attack.name, test_function)
 
     simulation = setup_simulation([generate_test_population, effect])
 
@@ -528,7 +528,7 @@ def test_make_gbd_risk_effects():
     risk_effect = RiskEffect(rr_data=build_table(0),
                              paf_data=build_table(paf),
                              mediation_factor=mediation_factor,
-                             cause=causes.hemorrhagic_stroke,
+                             cause=causes.hemorrhagic_stroke.name,
                              exposure_effect=effect_function)
     bmi = RiskMock(risk_factors.high_body_mass_index, risk_effect,
                    distributions.bmi)
@@ -549,7 +549,7 @@ def test_make_gbd_risk_effects():
     risk_effect = RiskEffect(rr_data=build_table(rr),
                              paf_data=build_table(0),
                              mediation_factor=mediation_factor,
-                             cause=sequelae.heart_attack,
+                             cause=sequelae.heart_attack.name,
                              exposure_effect=effect_function)
     bmi = RiskMock(risk_factors.high_body_mass_index, risk_effect,
                    distributions.bmi,

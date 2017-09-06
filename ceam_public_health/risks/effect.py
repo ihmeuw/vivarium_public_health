@@ -2,7 +2,7 @@ import numpy as np
 
 from vivarium import config
 
-from ceam_inputs import get_relative_risks, get_pafs, get_mediation_factors, causes
+import ceam_inputs as inputs
 
 from vivarium.framework.population import uses_columns
 
@@ -115,12 +115,12 @@ def make_gbd_risk_effects(risk):
         # FIXME: I'm not taking the time to rewrite the stroke model right now,
         # so unpleasant hack here. -J.C. 09/05/2017
         cause_name = cause.name
-        if cause == causes.ischemic_stroke or cause == causes.hemorrhagic_stroke:
+        if cause == inputs.causes.ischemic_stroke or cause == inputs.causes.hemorrhagic_stroke:
             cause_name = 'acute_' + cause_name
 
-        effects.append(RiskEffect(rr_data=get_relative_risks(risk=risk, cause=cause),
-                                  paf_data=get_pafs(risk=risk, cause=cause),
-                                  mediation_factor=get_mediation_factors(risk=risk, cause=cause),
+        effects.append(RiskEffect(rr_data=inputs.get_relative_risks(risk=risk, cause=cause),
+                                  paf_data=inputs.get_pafs(risk=risk, cause=cause),
+                                  mediation_factor=inputs.get_mediation_factors(risk=risk, cause=cause),
                                   cause=cause_name,
                                   exposure_effect=effect_function))
     return effects
