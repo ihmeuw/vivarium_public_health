@@ -2,8 +2,8 @@ import numpy as np
 
 from vivarium import config
 
-import ceam_inputs as inputs
-from ceam_inputs.gbd_mapping import rid
+from ceam_inputs import get_relative_risks, get_pafs, get_mediation_factors, causes
+
 from vivarium.framework.population import uses_columns
 
 
@@ -17,12 +17,14 @@ def continuous_exposure_effect(risk):
     """
     exposure_column = risk.name+'_exposure'
     tmrel = 0.5 * (risk.tmred.min + risk.tmred.max)
+    max_exposure = risk.max_rr
 
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     @uses_columns([exposure_column])
     def inner(rates, rr, population_view):
-        return rates * np.maximum(
-            rr.values**((population_view.get(rr.index)[exposure_column] - tmrel) / risk.scale).values, 1)
+        exposure = np.minimum(population_view.get(rr.index)[exposure_column].values, max_exposure)
+        relative_risk = np.maximum(rr.values**((exposure - tmrel) / risk.scale), 1)
+        return rates * relative_risk
 
     return inner
 
@@ -81,8 +83,8 @@ class RiskEffect:
             self.mediation_factor = builder.lookup(self._mediation_factor)
         else:
             self.mediation_factor = None
-        builder.modifies_value(self.incidence_rates, '{}.incidence_rate'.format(self.cause.name))
-        builder.modifies_value(self.paf_mf_adjustment, '{}.paf'.format(self.cause.name))
+        builder.modifies_value(self.incidence_rates, '{}.incidence_rate'.format(self.cause))
+        builder.modifies_value(self.paf_mf_adjustment, '{}.paf'.format(self.cause))
 
         return [self.exposure_effect]
 
@@ -100,7 +102,7 @@ class RiskEffect:
 
     def __repr__(self):
         return ("RiskEffect(rr_data= {},\npaf_data= {},\n".format(self._rr_data, self._paf_data)
-                + "cause= {},\nexposure_effect= {},\n".format(self.cause.name, self.exposure_effect)
+                + "cause= {},\nexposure_effect= {},\n".format(self.cause, self.exposure_effect)
                 + "mediation_factor= {})".format(self._mediation_factor))
 
 
@@ -110,9 +112,15 @@ def make_gbd_risk_effects(risk):
 
     effects = []
     for cause in risk.affected_causes:
-        effects.append(RiskEffect(rr_data=inputs.get_relative_risks(risk=risk, cause=cause),
-                       paf_data=inputs.get_pafs(risk=risk, cause=cause),
-                       mediation_factor=inputs.get_mediation_factors(risk=risk, cause=cause),
-                       cause=cause,
-                       exposure_effect=effect_function))
+        # FIXME: I'm not taking the time to rewrite the stroke model right now,
+        # so unpleasant hack here. -J.C. 09/05/2017
+        cause_name = cause.name
+        if cause == causes.ischemic_stroke or cause == causes.hemorrhagic_stroke:
+            cause_name = 'acute_' + cause_name
+
+        effects.append(RiskEffect(rr_data=get_relative_risks(risk=risk, cause=cause),
+                                  paf_data=get_pafs(risk=risk, cause=cause),
+                                  mediation_factor=get_mediation_factors(risk=risk, cause=cause),
+                                  cause=cause_name,
+                                  exposure_effect=effect_function))
     return effects
