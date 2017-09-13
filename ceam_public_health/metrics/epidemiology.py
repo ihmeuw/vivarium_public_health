@@ -26,7 +26,7 @@ class EpidemiologicalMeasures:
         self.span_measures = builder.value('epidemiological_span_measures')
         self.clock = builder.clock()
 
-        self.run_key = run_config.run_key if 'run_key' in run_config else None
+        self.run_key = run_config.run_key.to_dict() if 'run_key' in run_config else None
 
         results_directory = run_config.results_directory if 'results_directory' in run_config else '/tmp'
         results_directory = os.path.join(results_directory, 'epidemiological_measures')
@@ -48,7 +48,6 @@ class EpidemiologicalMeasures:
     def time_step(self, event, event_emitter):
         mid_year = pd.Timestamp(year=event.time.year, month=7, day=2)
         year_start = pd.Timestamp(year=event.time.year, month=1, day=1)
-
 
         if self.collecting:
             year_end = pd.Timestamp(year=self.last_collected_year, month=12, day=31)
@@ -93,7 +92,7 @@ class EpidemiologicalMeasures:
         df = existing_df.append(df)
 
         if self.run_key:
-            for k, v in collapse_nested_dict(self.run_key.to_dict()):
+            for k, v in collapse_nested_dict(self.run_key):
                 df[k] = v
 
         # Enforce some types that occasionally get mis-set
