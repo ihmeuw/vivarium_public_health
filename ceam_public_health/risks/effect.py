@@ -101,9 +101,7 @@ class RiskEffect:
             return self.exposure_effect(rates, self.relative_risk(index))
 
     def __repr__(self):
-        return ("RiskEffect(rr_data= {},\npaf_data= {},\n".format(self._rr_data, self._paf_data)
-                + "cause= {},\nexposure_effect= {},\n".format(self.cause, self.exposure_effect)
-                + "mediation_factor= {})".format(self._mediation_factor))
+        return "RiskEffect(cause= {})".format(self.cause)
 
 
 def make_gbd_risk_effects(risk):
