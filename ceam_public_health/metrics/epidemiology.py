@@ -26,7 +26,7 @@ class EpidemiologicalMeasures:
         self.span_measures = builder.value('epidemiological_span_measures')
         self.clock = builder.clock()
 
-        self.run_key = run_config.run_key if 'run_key' in run_config else None
+        self.run_key = run_config.run_key.to_dict() if 'run_key' in run_config else None
 
         results_directory = run_config.results_directory if 'results_directory' in run_config else '/tmp'
         results_directory = os.path.join(results_directory, 'epidemiological_measures')
@@ -93,7 +93,7 @@ class EpidemiologicalMeasures:
         df = existing_df.append(df)
 
         if self.run_key:
-            for k, v in collapse_nested_dict(self.run_key.to_dict()):
+            for k, v in collapse_nested_dict(self.run_key):
                 df[k] = v
 
         # Enforce some types that occasionally get mis-set
