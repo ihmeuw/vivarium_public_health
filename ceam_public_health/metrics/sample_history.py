@@ -12,12 +12,15 @@ class SampleHistory:
     For use with visualization or analysis. The records are written to an HDF file.
     """
 
-    def __init__(self):
-        if 'sample_history' not in config:
-            config['sample_history'] = {}
+    configuration_defaults = {
+            'sample_histor': {
+                'sample_size': 10000,
+                'path': '/tmp/sample.hdf',
+            }
+    }
 
-        self.sample_size = config['sample_history'].getint('sample_size', 10000)
-        self.output_path = config['sample_history'].get('path', '/tmp/sample.hdf')
+
+    def __init__(self):
         self.sample_frames = {}
         self.sample_index = []
 
@@ -26,11 +29,12 @@ class SampleHistory:
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
-        if self.sample_size is None or self.sample_size > len(event.index):
-            self.sample_size = len(event.index)
+        sample_size = config.sample_history.sample_size
+        if sample_size is None or sample_size > len(event.index):
+            sample_size = len(event.index)
         draw = self.randomness.get_draw(event.index)
         priority_index = [i for d,i in sorted(zip(draw,event.index), key=lambda x:x[0])]
-        self.sample_index = priority_index[:self.sample_size]
+        self.sample_index = priority_index[:sample_size]
 
     @listens_for('collect_metrics')
     @uses_columns(None)
@@ -47,5 +51,5 @@ class SampleHistory:
         from pandas.core.common import PerformanceWarning
         warnings.filterwarnings('ignore', category=PerformanceWarning)
         warnings.filterwarnings('ignore', category=tables.NaturalNameWarning)
-        pd.Panel(self.sample_frames).to_hdf(self.output_path,
+        pd.Panel(self.sample_frames).to_hdf(config.sample_history.path,
                                             key='/{}'.format(config['run_configuration']['configuration_name']))
