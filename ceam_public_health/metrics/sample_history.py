@@ -13,7 +13,7 @@ class SampleHistory:
     """
 
     configuration_defaults = {
-            'sample_histor': {
+            'sample_history': {
                 'sample_size': 10000,
                 'path': '/tmp/sample.hdf',
             }
@@ -51,5 +51,8 @@ class SampleHistory:
         from pandas.core.common import PerformanceWarning
         warnings.filterwarnings('ignore', category=PerformanceWarning)
         warnings.filterwarnings('ignore', category=tables.NaturalNameWarning)
+        key = '/{}'.format(config.run_configuration.run_id)
+        if key == '/':
+            key += 'base'
         pd.Panel(self.sample_frames).to_hdf(config.sample_history.path,
-                                            key='/{}'.format(config['run_configuration']['configuration_name']))
+                                            key=key)
