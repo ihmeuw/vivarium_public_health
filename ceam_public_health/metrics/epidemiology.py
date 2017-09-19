@@ -49,7 +49,6 @@ class EpidemiologicalMeasures:
         mid_year = pd.Timestamp(year=event.time.year, month=7, day=2)
         year_start = pd.Timestamp(year=event.time.year, month=1, day=1)
 
-
         if self.collecting:
             year_end = pd.Timestamp(year=self.last_collected_year, month=12, day=31)
             # On the year following a GBD year, reel the data in

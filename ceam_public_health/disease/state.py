@@ -38,7 +38,7 @@ class BaseDiseaseState(State):
         """
         self.clock = builder.clock()
 
-        columns = [self.condition]
+        columns = [self.condition, 'alive']
         if self.track_events:
             columns += [self.event_time_column, self.event_count_column]
         self.population_view = builder.population_view(columns)
@@ -235,7 +235,9 @@ class DiseaseState(BaseDiseaseState):
         `pandas.Series`
             An iterable of disability weights indexed by the provided `index`."""
         population = self.population_view.get(index)
-        return self._disability_weight(index) * (population[self.condition] == self.state_id)
+
+        return self._disability_weight(population.index) * ((population[self.condition] == self.state_id)
+                                                            & (population.alive == 'alive'))
 
     def name(self):
         return '{}'.format(self.state_id)

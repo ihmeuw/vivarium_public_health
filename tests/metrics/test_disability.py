@@ -6,6 +6,7 @@ import pandas as pd
 from vivarium import config
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
 
+from ceam_public_health.population import Mortality
 from ceam_public_health.disease import ExcessMortalityState, DiseaseModel
 from ceam_public_health.metrics import Metrics, Disability
 
@@ -24,7 +25,7 @@ def setup():
                                                    source=os.path.realpath(__file__))
 
 
-def set_up_test_parameters(flu=False, mumps=False):
+def set_up_test_parameters(flu=False, mumps=False, deadly=False):
     """
     Sets up a simulation with specified disease states
 
@@ -65,6 +66,15 @@ def set_up_test_parameters(flu=False, mumps=False):
         mumps_model = DiseaseModel('mumps', states=[mumps], csmr_data=build_table(0))
         components.append(mumps_model)
 
+    if deadly:
+        deadly = ExcessMortalityState('deadly', disability_weight=0.4,
+                                     excess_mortality_data=build_table(1),
+                                     prevalence_data=build_table(1.0,
+                                                                 ['age', 'year', 'sex', 'prevalence']))
+        deadly_model = DiseaseModel('deadly', states=[deadly], csmr_data=build_table(0.05))
+        components.append(deadly_model)
+        components.append(Mortality())
+
     simulation = setup_simulation(components=components, population_size=n_simulants)
 
     return simulation, metrics, disability
@@ -102,3 +112,13 @@ def test_joint_disability_weight():
     ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
     # check that JOINT disability weight is correctly calculated
     assert np.isclose(ylds, pop_size * (1-(1-flu_dw)*(1-mumps_dw)), rtol=0.01)
+
+
+def test_dead_people_dont_accrue_disability():
+    simulation, metrics, disability = set_up_test_parameters(deadly=True)
+    pump_simulation(simulation, duration=pd.Timedelta(days=365))
+    pop = simulation.population.population
+    dead = pop[pop.alive == 'dead']
+    assert len(dead) > 0
+    assert np.all(disability.disability_weight(dead.index) == 0)
+
