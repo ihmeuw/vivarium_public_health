@@ -2,7 +2,6 @@
 import numpy as np
 import pandas as pd
 
-from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.state_machine import State, Transient
 from vivarium.framework.values import modifies_value
@@ -280,7 +279,7 @@ class ExcessMortalityState(DiseaseState):
              This component's sub-components.
         """
         self._mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
-        if 'mortality.interpolate' in config and not config.mortality.interpolate:
+        if 'mortality.interpolate' in builder.configuration and not builder.configuration.mortality.interpolate:
             order = 0
         else:
             order = 1

@@ -6,14 +6,11 @@ from vivarium.framework.values import produces_value
 from vivarium.framework.event import listens_for, emits
 from vivarium.framework.util import collapse_nested_dict
 
-from vivarium import config
-
 from ceam_inputs import get_age_bins
 
 import logging
 
 _log = logging.getLogger(__name__)
-run_config = config.run_configuration
 
 
 class EpidemiologicalMeasures:
@@ -22,13 +19,14 @@ class EpidemiologicalMeasures:
     can be further analyzed. For example by ceam_public_health/scripts/measure_analysis.py
     """
     def setup(self, builder):
+        self.run_config = builder.configuration.run_configuration
         self.point_measures = builder.value('epidemiological_point_measures')
         self.span_measures = builder.value('epidemiological_span_measures')
         self.clock = builder.clock()
 
-        self.run_key = run_config.run_key.to_dict() if 'run_key' in run_config else None
+        self.run_key = self.run_config.run_key.to_dict() if 'run_key' in self.run_config else None
 
-        results_directory = run_config.results_directory if 'results_directory' in run_config else '/tmp'
+        results_directory = self.run_config.results_directory if 'results_directory' in self.run_config else '/tmp'
         results_directory = os.path.join(results_directory, 'epidemiological_measures')
         os.makedirs(results_directory, exist_ok=True)
         self.output_path = os.path.join(results_directory, 'measure_{}.hdf'.format(config.run_configuration.run_id))

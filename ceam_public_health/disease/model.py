@@ -2,8 +2,6 @@ import numbers
 
 import pandas as pd
 
-from vivarium import config
-
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.state_machine import Machine, TransitionSet
@@ -24,6 +22,7 @@ class DiseaseModel(Machine):
         return self.state_column
 
     def setup(self, builder):
+        self.simulation_configuration = builder.configuration()
         self.population_view = builder.population_view([self.condition], "alive == 'alive'")
         self.randomness = builder.randomness('{}_initial_states'.format(self.condition))
 

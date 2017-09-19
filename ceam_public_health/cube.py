@@ -2,13 +2,11 @@ from warnings import warn
 
 import pandas as pd
 
-from vivarium import config
-
 from ceam_inputs import (get_excess_mortality, get_prevalence, get_cause_specific_mortality,
                          get_incidence, get_disability_weight, causes, sequelae, etiologies)
 
 
-def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures):
+def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures, config):
     """ Build a DataFrame which contains GBD data for each of the measure/cause
     pairs listed in `measures`.
     """
