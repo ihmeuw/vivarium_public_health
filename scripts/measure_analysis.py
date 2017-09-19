@@ -1,0 +1,260 @@
+import matplotlib as mpl
+mpl.use('Agg')
+
+import os.path
+import argparse
+import math
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.collections import PatchCollection
+from matplotlib.lines import Line2D
+sns.set_style('whitegrid')
+
+from ceam_inputs import get_age_bins
+
+from vivarium import config
+from ceam_public_health.cube import make_measure_cube_from_gbd
+
+def graph_measure(data, measure, output_directory, figure_title=None):
+    """ Save the convergence graph for a particular measure
+    """
+    data = data.reset_index().query('measure == @measure')
+    age_groups = sorted(data.age.unique())
+
+    # Setup the legend with color swatches and marker shape examples
+    patches = []
+    for name, color in sorted(data[['cause', 'color']].drop_duplicates().values.tolist()):
+        if name not in patches:
+            patches.append(mpatches.Patch(color=color, label=str(name)))
+    shapes = {'Male': 's', 'Female': '^'}
+    for sex, shape in sorted(shapes.items(), key=lambda x:x[0]):
+        patches.append(Line2D([],[], marker=shape, label=sex, markeredgecolor='k', markeredgewidth=1, fillstyle='none', linestyle='None'))
+
+    # Determine the shape of our sub-figure matrix
+    row_count = max(2, math.sqrt(len(age_groups)))
+    if row_count != int(row_count):
+        row_count = int(row_count)
+        column_count = row_count + 1
+    else:
+        row_count = int(row_count)
+        column_count = row_count
+
+    # Create the sub-figure matrix and labels
+    fig, rows = plt.subplots(row_count, column_count)
+    labels = [
+        fig.text(0.5, 0.0, 'GBD', ha='center', va='center'),
+        fig.text(0.0, 0.5, 'Simulation', ha='center', va='center', rotation='vertical'),
+        fig.suptitle(measure if figure_title is None else figure_title),
+    ]
+
+    # Walk through the age groups graphing one into each sub-figure until we run out
+    # and then hide the remaining figures
+    for row in rows:
+        for ax in row:
+            if not age_groups:
+                ax.axis('off')
+                continue
+
+            age = age_groups.pop(0)
+            filtered = data.query('age == @age')
+
+            # TODO: This may be better represented as mark size
+            mean_sample_size = filtered.sample_size.mean()
+
+
+            bins = get_age_bins()
+
+            bins['age'] = bins[['age_group_years_start', 'age_group_years_end']].mean(axis=1)
+
+            filtered = filtered.merge(bins, on=['age'])
+
+            age_group_name = filtered.query("age == @age").age_group_name.values[0]
+
+            if measure == "incidence":
+                title = '{} Age Group ({} person-years)'.format(age_group_name, int(mean_sample_size))
+            else:
+                title = '{} Age Group ({})'.format(age_group_name, int(mean_sample_size))
+            ax.set_title(title)
+
+            ax.set_xlim([0, max(filtered.gbd.max()*1.2, filtered.simulation.max()*1.2)])
+            ax.set_ylim([0, max(filtered.gbd.max()*1.2, filtered.simulation.max()*1.2)])
+
+            # Draw the equivalence line
+            ax.plot(ax.get_xlim(), ax.get_ylim(), 'k-', zorder=1, lw=1)
+
+            for sex, shape in shapes.items():
+                # Draw the actual points with different shapes for each sex
+                gbd, simulation, gbd_std, simulation_std, color = zip(
+                    *filtered.query('sex==@sex')[['gbd', 'simulation', 'gbd_std',
+                                                  'simulation_std', 'color']].values.tolist())
+
+                gbd = np.array(gbd)
+                simulation = np.array(simulation)
+                ax.scatter(gbd, simulation, color=color, marker=shape)
+                for g, s, xstd, ystd, c in zip(gbd, simulation, gbd_std, simulation_std, color):
+                    # Find the point on the equivalence line closest to the data point
+                    a_to_p = [g, s]
+                    a_to_b = [ax.get_xlim()[1], ax.get_ylim()[1]]
+                    atb2 = a_to_b[0]**2 + a_to_b[1]**2
+                    atp_dot_atb = a_to_p[0]*a_to_b[0] + a_to_p[1]*a_to_b[1]
+                    t = atp_dot_atb / atb2
+                    x = a_to_b[0]*t
+                    y = a_to_b[1]*t
+
+                    # TODO: line width scaled to the size of the plot. There has to be a better way
+                    w = ax.get_xlim()[1]/500
+
+                    dx = x-g
+                    dy = y-s
+                    m = np.sqrt((np.square(dx)+np.square(dy)))
+                    if m != 0:
+                        bound = np.sqrt((np.square(xstd*2)+np.square(ystd*2))/2)
+                        dx /= m
+                        dx *= bound
+                        dy /= m
+                        dy *= bound
+
+                        ax.arrow(g,s,dx/2,dy/2, width=w, color=c, head_width=0, head_length=0)
+                        ax.arrow(g,s,-dx/2,-dy/2, width=w, color=c, head_width=0, head_length=0)
+
+            # The graphs tend to be pretty tight so rotate the x axis labels to make better use of space
+            for tick in ax.get_xticklabels():
+                tick.set_rotation(30)
+
+    # Attach the legend in the upper right corner of the figure
+    lgd = rows[0][-1].legend(handles=patches, bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+
+    fig.set_size_inches(18.5, 10.5)
+    plt.tight_layout()
+    # Make room for the main title
+    plt.subplots_adjust(top=0.94)
+    file_name = measure if figure_title is None else figure_title
+    file_name = file_name.replace(' ','_')
+    fig.savefig(os.path.join(output_directory, '{}.png'.format(file_name)), dpi=100, bbox_extra_artists=[lgd]+labels, bbox_inches='tight')
+
+def _mean_and_bounds(data, value_name):
+    columns = data.columns.difference(['year', 'age', 'sex', 'measure', 'cause', 'location', 'value', 'input_draw'])
+
+    group = data.reset_index().groupby(['year', 'age', 'sex', 'measure', 'cause', 'location'])
+
+    mean = group.mean()
+    #column_data = [mean['value'], group.quantile(.975)['value'], group.quantile(.025)['value']]
+    column_data = [mean['value'], group.value.std()]
+    for c in columns:
+        column_data.append(mean[c])
+
+    data = pd.concat(column_data, axis=1)
+    data.columns = [value_name, value_name+'_std']+list(columns)
+    data = data.reset_index()
+    return data
+
+def prepare_comparison(data):
+    """Combines the simulation output with the corresponding GBD estimate for each
+    sample so they can be graphed together.
+    """
+    measures = data[['cause','measure']].drop_duplicates().values.tolist()
+    year_min = data.year.min()
+    year_max = data.year.max()
+
+    measure_cube = make_measure_cube_from_gbd(int(year_min), int(year_max), [int(data.location.unique())], data.input_draw.unique(), measures)
+
+    # Resolve age ranges down to age group midpoints
+    # NOTE: If this midpoint doesn't exactly align with the one from GBD then the comparison
+    # won't work. It may be worth figuring out a less fragile approach which (ideally) doesn't
+    # involve leaning on age_group_ids
+    data['age'] = (data.age_low + data.age_high) / 2
+    del data['age_low']
+    del data['age_high']
+
+    measure_cube = _mean_and_bounds(measure_cube, 'gbd')
+
+    data['sample_size'] = data.sample_size.astype(int)
+    data = _mean_and_bounds(data, 'simulation')
+
+
+    data = data.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'])
+
+    # Set age midpoints for 80 plus age group to be equal
+    # FIXME: Probably should handle this in the make_measure_cube function
+    measure_cube.reset_index(inplace=True)
+    measure_cube.loc[measure_cube.age == 82.5, 'age'] = 102.5
+    measure_cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'], inplace=True)
+
+    data = data.merge(measure_cube, left_index=True, right_index=True)
+
+    # Calculate RGB triples for each cause for use in coloring marks on the graphs
+    # This sort and shuffle looks a bit odd but what it accomplishes is to deterministically
+    # spread the causes out across the color space which makes it easier to assign visually
+    # distinct colors to them that don't change from run to run
+    data.reset_index(inplace=True)
+    causes = sorted(data.cause.unique())
+    np.random.RandomState(1001).shuffle(causes)
+
+    cmap = sns.hls_palette(len(causes), l=.3, s=.8)
+
+    color_map = {cause:tuple(color) for cause, color in zip(causes, list(cmap))}
+    data['color'] = data.cause.apply(color_map.get)
+    data.set_index(['year', 'age', 'sex', 'measure', 'cause', 'location'], inplace=True)
+
+    return data
+
+def graph_comparison(data, output_directory):
+    data = prepare_comparison(data)
+
+    # Save a graph for each measure
+    for measure in data.reset_index().measure.unique():
+        if measure == 'mortality':
+            graph_measure(data.query('measure != "mortality" or cause == "all"'), measure, output_directory, figure_title='all cause mortality')
+            graph_measure(data.query('measure != "mortality" or cause != "all"'), measure, output_directory, figure_title='cause specific mortality')
+        else:
+            graph_measure(data, measure, output_directory)
+
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('measure_data_path', type=str, nargs='+')
+    parser.add_argument('output_directory', type=str)
+    parser.add_argument('--year', '-y', default='last', type=str)
+    parser.add_argument('--draw', '-d', default='all', type=str)
+    args = parser.parse_args()
+
+    data = pd.DataFrame()
+
+
+    for path in args.measure_data_path:
+        df = pd.read_hdf(path, format='t')
+        if not df.empty:
+            print(path, df.measure.unique())
+            data = data.append(df)
+
+
+    # FIXME: Getting ihd mortality should be handled in a more flexible way. Very much a duck tape solution
+    #ihd_mortality = data.query("measure == 'mortality' and cause!= 'death_due_to_other_causes' and cause!='all'").groupby(['measure', 'age_low', 'age_high', 'sex', 'location', 'year', 'draw']).sum().reset_index()
+    #ihd_mortality['cause'] = 'ischemic_heart_disease'
+    #data = data.append(ihd_mortality[data.columns])
+
+    # TODO: right now this can only do one year per run.
+    # If we want to do multiple years, that's certainly possible
+    # it would just be a matter of deciding how to represent time.
+    # Could be separate graphs or some sort of timeseries thingy
+    if args.year == 'last':
+        year = data.year.max()
+    else:
+        year = int(args.year)
+
+    data = data.query('year == @year')
+
+    if args.draw != 'all':
+        draw = int(args.draw)
+        data = data.query('input_draw == @draw')
+
+    graph_comparison(data, args.output_directory)
+
+if __name__ == '__main__':
+    main()
