@@ -1,6 +1,5 @@
 import pandas as pd
 
-from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 
@@ -19,11 +18,16 @@ class BasePopulation:
     randomness : vivarium.framework.randomness.RandomnessStream
     """
 
-    def __init__(self):
-        main_location = config.simulation_parameters.location_id
-        use_subregions = ('use_subregions' in config.simulation_parameters
-                          and config.simulation_parameters.use_subregions)
-        self._population_data = _build_population_data_table(main_location, use_subregions)
+    configuration_defaults = {
+        'population': {
+            'use_subregions': False,
+            'initial_age': None,
+            'pop_age_start': 0,
+            'pop_age_end': 125,
+            'maximum_age': None,
+            'population_size': 10000,
+        }
+    }
 
     def setup(self, builder):
         """
@@ -32,6 +36,11 @@ class BasePopulation:
         builder : vivarium.framework.engine.Builder
         """
         self.randomness = builder.randomness('population_generation')
+        self.config = builder.configuration.population
+        input_config = builder.configuration.input_data
+
+        self._population_data = _build_population_data_table(input_config.location_id, input_config.use_subregions)
+
 
     # TODO: Move most of this docstring to an rst file.
     @listens_for('initialize_simulants', priority=0)
@@ -59,8 +68,8 @@ class BasePopulation:
         event : vivarium.framework.population.PopulationEvent
         """
         age_params = {'initial_age': event.user_data.get('initial_age', None),
-                      'pop_age_start': config.simulation_parameters.pop_age_start,
-                      'pop_age_end': config.simulation_parameters.pop_age_end}
+                      'pop_age_start': self.config.pop_age_start,
+                      'pop_age_end': self.config.pop_age_end}
         sub_pop_data = self._population_data[self._population_data.year == event.time.year]
         event.population_view.update(generate_ceam_population(simulant_ids=event.index,
                                                               creation_time=event.time,
@@ -69,8 +78,8 @@ class BasePopulation:
                                                               randomness_stream=self.randomness))
 
     @listens_for('time_step', priority=8)
-    @uses_columns(['age'], "alive == 'alive'")
-    def age_simulants(self, event):
+    @uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
+    def on_time_step(self, event):
         """Ages simulants each time step.
 
         Parameters
@@ -81,26 +90,13 @@ class BasePopulation:
         event.population['age'] += step_size / SECONDS_PER_YEAR
         event.population_view.update(event.population)
 
-
-@listens_for('time_step', priority=9)
-@uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
-def age_out_simulants(event):
-    """Component that allows simulants to move to the untracked status if they're above a certain age.
-
-    Parameters
-    ----------
-    event : vivarium.framework.population.PopulationEvent
-    """
-    if 'maximum_age' not in config.simulation_parameters:
-        raise ValueError('Must specify a maximum age in the config in order to use this component.')
-
-    max_age = float(config.simulation_parameters.maximum_age)
-    pop = event.population[event.population['age'] >= max_age].copy()
-
-    pop['alive'] = pd.Series('untracked', index=pop.index).astype(
-        'category', categories=['alive', 'dead', 'untracked'], ordered=False)
-    pop['exit_time'] = event.time
-    event.population_view.update(pop)
+        if self.config.maximum_age is not None:
+            max_age = float(self.config.maximum_age)
+            pop = event.population[event.population['age'] >= max_age].copy()
+            pop['alive'] = pd.Series('untracked', index=pop.index).astype(
+                'category', categories=['alive', 'dead', 'untracked'], ordered=False)
+            pop['exit_time'] = event.time
+            event.population_view.update(pop)
 
 
 def generate_ceam_population(simulant_ids, creation_time, age_params, population_data, randomness_stream):
