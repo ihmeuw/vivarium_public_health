@@ -1,13 +1,12 @@
 import os
-from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+import pytest
 
-from vivarium import config
 from vivarium.framework.state_machine import State
 from vivarium.framework.util import from_yearly
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, generate_test_population
+from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
 
 from ceam_inputs import get_incidence, sequelae
 
@@ -15,27 +14,32 @@ from ceam_inputs import get_incidence, sequelae
 from ceam_public_health.disease import DiseaseState, ExcessMortalityState, RateTransition, DiseaseModel
 
 
-def setup():
+@pytest.fixture(scope='function')
+def config(base_config):
     try:
-        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                      'input_data.auxiliary_data_folder'])
+        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                           'input_data.auxiliary_data_folder'])
     except KeyError:
         pass
-    config.simulation_parameters.set_with_metadata('year_start', 1990, layer='override',
-                                                   source=os.path.realpath(__file__))
-    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
-                                                   source=os.path.realpath(__file__))
-    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
-                                                   source=os.path.realpath(__file__))
+    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
+    base_config.simulation_parameters.set_with_metadata('year_start', 1990, **metadata)
+    base_config.simulation_parameters.set_with_metadata('year_end', 2010, **metadata)
+    base_config.simulation_parameters.set_with_metadata('time_step', 30.5, **metadata)
+    return base_config
 
 
-@patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
-def test_dwell_time(assign_cause_mock):
+@pytest.fixture(scope='function')
+def assign_cause_mock(mocker):
+    return mocker.patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
+
+
+def test_dwell_time(assign_cause_mock, config):
     time_step = 10
-    config.simulation_parameters.set_with_metadata('time_step', time_step,
-                                                   layer='override', source=os.path.realpath(__file__))
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
+
+    config.simulation_parameters.set_with_metadata('time_step', time_step,
+                                                   layer='override', source=os.path.realpath(__file__))
 
     healthy_state = State('healthy')
     event_state = DiseaseState('event', dwell_time=pd.Timedelta(days=28))
@@ -46,7 +50,7 @@ def test_dwell_time(assign_cause_mock):
 
     model = DiseaseModel('state', states=[healthy_state, event_state, done_state])
 
-    simulation = setup_simulation([generate_test_population, model], population_size=10)
+    simulation = setup_simulation([TestPopulation(), model], population_size=10, input_config=config)
 
     # Move everyone into the event state
 
@@ -65,23 +69,28 @@ def test_dwell_time(assign_cause_mock):
     assert np.all(simulation.population.population.event_event_count == 1)
 
 
-def test_mortality_rate():
+def test_mortality_rate(config):
+    year_start = config.simulation_parameters.year_start
+    year_end = config.simulation_parameters.year_end
+
     time_step = pd.Timedelta(days=config.simulation_parameters.time_step)
 
     healthy = State('healthy')
     mortality_state = ExcessMortalityState('sick',
-                                           excess_mortality_data=build_table(0.7),
+                                           excess_mortality_data=build_table(0.7, year_start, year_end),
                                            disability_weight=0.1,
-                                           prevalence_data=build_table(0.0000001, ['age', 'year', 'sex', 'prevalence']))
+                                           prevalence_data=build_table(0.0000001, year_start, year_end,
+                                                                       ['age', 'year', 'sex', 'prevalence']))
 
     healthy.add_transition(mortality_state)
 
-    model = DiseaseModel('test_disease', states=[healthy, mortality_state], csmr_data=build_table(0))
+    model = DiseaseModel('test_disease', states=[healthy, mortality_state],
+                         csmr_data=build_table(0, year_start, year_end))
 
-    simulation = setup_simulation([generate_test_population, model])
+    simulation = setup_simulation([TestPopulation(), model], input_config=config)
 
     mortality_rate = simulation.values.get_rate('mortality_rate')
-    mortality_rate.source = simulation.tables.build_table(build_table(0.0))
+    mortality_rate.source = simulation.tables.build_table(build_table(0.0, year_start, year_end))
 
     pump_simulation(simulation, iterations=1)
 
@@ -89,12 +98,12 @@ def test_mortality_rate():
     assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['sick'])
 
 
-@patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
-def test_incidence(assign_cause_mock):
+def test_incidence(assign_cause_mock, config):
     time_step = pd.Timedelta(days=config.simulation_parameters.time_step)
 
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
+
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
     sick = State('sick')
@@ -104,9 +113,10 @@ def test_incidence(assign_cause_mock):
 
     model.states.extend([healthy, sick])
 
-    simulation = setup_simulation([generate_test_population, model])
-
-    transition.base_incidence = simulation.tables.build_table(build_table(0.7))
+    simulation = setup_simulation([TestPopulation(), model], input_config=config)
+    year_start = config.simulation_parameters.year_start
+    year_end = config.simulation_parameters.year_end
+    transition.base_incidence = simulation.tables.build_table(build_table(0.7, year_start, year_end))
 
     incidence_rate = simulation.values.get_rate('test_incidence.incidence_rate')
 
@@ -115,13 +125,15 @@ def test_incidence(assign_cause_mock):
     assert np.allclose(from_yearly(0.7, time_step), incidence_rate(simulation.population.population.index), atol=0.00001)
 
 
-@patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
-def test_risk_deletion(assign_cause_mock):
+def test_risk_deletion(assign_cause_mock, config):
     time_step = config.simulation_parameters.time_step
     time_step = pd.Timedelta(days=time_step)
+    year_start = config.simulation_parameters.year_start
+    year_end = config.simulation_parameters.year_end
 
-    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame({'condition_state': 'healthy'},
-                                                                               index=population.index)
+    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
+        {'condition_state': 'healthy'}, index=population.index)
+
     model = DiseaseModel('test_disease')
     healthy = State('healthy')
     sick = State('sick')
@@ -131,15 +143,16 @@ def test_risk_deletion(assign_cause_mock):
 
     model.states.extend([healthy, sick])
 
-    simulation = setup_simulation([generate_test_population, model])
+    simulation = setup_simulation([TestPopulation(), model], input_config=config)
 
     base_rate = 0.7
     paf = 0.1
-    transition.base_incidence = simulation.tables.build_table(build_table(base_rate))
+    transition.base_incidence = simulation.tables.build_table(build_table(base_rate, year_start, year_end))
 
     incidence_rate = simulation.values.get_rate('test_incidence.incidence_rate')
 
-    simulation.values.mutator(simulation.tables.build_table(build_table(paf)), '{}.paf'.format('test_incidence'))
+    simulation.values.mutator(simulation.tables.build_table(build_table(paf, year_start, year_end)),
+                              '{}.paf'.format('test_incidence'))
 
     pump_simulation(simulation, iterations=1)
 
