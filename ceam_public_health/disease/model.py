@@ -22,7 +22,7 @@ class DiseaseModel(Machine):
         return self.state_column
 
     def setup(self, builder):
-        self.simulation_configuration = builder.configuration()
+        self.config = builder.configuration
         self.population_view = builder.population_view([self.condition], "alive == 'alive'")
         self.randomness = builder.randomness('{}_initial_states'.format(self.condition))
 
@@ -69,7 +69,7 @@ class DiseaseModel(Machine):
 
     @modifies_value('epidemiological_point_measures')
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
-        root_location = config.simulation_parameters.location_id
+        root_location = self.config.input_data.location_id
         pop = self.population_view.manager.population.ix[index].query("alive == 'alive'")
         causes = set(pop[self.condition]) - {'healthy'}
         if all_locations:
