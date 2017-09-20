@@ -22,8 +22,8 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures,
     # unless we re-architect the existing ceam_input functions.
     old_year_start = config.simulation_parameters.year_start
     old_year_end = config.simulation_parameters.year_end
-    old_location = config.simulation_parameters.location_id
-    old_draw = config.run_configuration.draw_number
+    old_location = config.input_data.location_id
+    old_draw = config.run_configuration.input_draw_number
     config.simulation_parameters.year_start = year_start
     config.simulation_parameters.year_end = year_end
 
@@ -31,7 +31,7 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures,
     for location in locations:
         config.simulation_parameters.location_id = location
         for draw in draws:
-            config.run_configuration.draw_number = draw
+            config.run_configuration.input_draw_number = draw
             for cause, measure in measures:
                 data = _get_data(cause, measure)
                 if data is None:
@@ -56,7 +56,7 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures,
     config.simulation_parameters.year_start = old_year_start
     config.simulation_parameters.year_end = old_year_end
     config.simulation_parameters.location_id = old_location
-    config.run_configuration.draw_number = old_draw
+    config.run_configuration.input_draw_number = old_draw
 
     return cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'draw', 'location'])
 

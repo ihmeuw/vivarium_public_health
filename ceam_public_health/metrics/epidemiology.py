@@ -29,7 +29,7 @@ class EpidemiologicalMeasures:
         results_directory = self.run_config.results_directory if 'results_directory' in self.run_config else '/tmp'
         results_directory = os.path.join(results_directory, 'epidemiological_measures')
         os.makedirs(results_directory, exist_ok=True)
-        self.output_path = os.path.join(results_directory, 'measure_{}.hdf'.format(config.run_configuration.run_id))
+        self.output_path = os.path.join(results_directory, 'measure_{}.hdf'.format(self.run_config.run_id))
 
         self.collecting = False
         self.last_collected_year = -1
@@ -84,8 +84,8 @@ class EpidemiologicalMeasures:
             measures = self.span_measures
         df = measures(index, age_groups, ['Male', 'Female'], False, pd.Timedelta(days=365)).reset_index()
         df['year'] = current_year
-        df['input_draw'] = config.run_configuration.draw_number
-        df['model_draw'] = config.run_configuration.model_draw_number
+        df['input_draw'] = self.run_config.input_draw_number
+        df['model_draw'] = self.run_config.model_draw_number
         existing_df = pd.read_hdf(self.output_path)
         df = existing_df.append(df)
 

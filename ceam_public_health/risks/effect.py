@@ -1,7 +1,5 @@
 import numpy as np
 
-from vivarium import config
-
 import ceam_inputs as inputs
 
 from vivarium.framework.population import uses_columns
@@ -79,7 +77,7 @@ class RiskEffect:
         self.relative_risk = builder.lookup(self._rr_data)
         self.population_attributable_fraction = builder.lookup(self._paf_data)
 
-        if config.risks.apply_mediation:
+        if builder.configuration.risks.apply_mediation:
             self.mediation_factor = builder.lookup(self._mediation_factor)
         else:
             self.mediation_factor = None

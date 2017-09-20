@@ -2,7 +2,6 @@ import pandas as pd
 
 from ceam_inputs import get_life_table, causes, get_cause_specific_mortality
 
-from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.util import rate_to_probability
@@ -20,12 +19,13 @@ class Mortality:
     }
 
     def __init__(self):
-        self._interpolation_order = 1 if config.mortality.interpolate else 0
         self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes)
         self._life_table_data = get_life_table()
         self._cause_deleted_mortality_data = None
 
     def setup(self, builder):
+        self._root_location = builder.configuration.input_data.location_id
+        self._interpolation_order = 1 if builder.configuration.mortality.interpolate else 0
         self._build_lookup_handle = builder.lookup
 
         self.csmr = builder.value('csmr_data', list_combiner)
@@ -104,7 +104,6 @@ class Mortality:
         duration_s = duration.total_seconds()
         years_per_second = 1/pd.Timedelta(days=365).total_seconds()
 
-        root_location = config.simulation_parameters.location_id
         if all_locations:
             locations = set(pop.location) | {-1}
         else:
@@ -145,7 +144,7 @@ class Mortality:
                             cube = cube.append(
                                 pd.DataFrame(
                                     {'measure': 'mortality', 'age_low': low, 'age_high': high, 'sex': sex,
-                                     'location': location if location >= 0 else root_location, 'cause': cause,
+                                     'location': location if location >= 0 else self._root_location, 'cause': cause,
                                      'value': deaths_in_period/time_in_sim, 'sample_size': len(sub_pop)},
                                     index=[0]
                                 ).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])
@@ -156,7 +155,7 @@ class Mortality:
                         cube = cube.append(
                             pd.DataFrame(
                                 {'measure': 'mortality', 'age_low': low, 'age_high': high, 'sex': sex,
-                                 'location': location if location >= 0 else root_location, 'cause': 'all',
+                                 'location': location if location >= 0 else self._root_location, 'cause': 'all',
                                  'value': deaths_in_period/time_in_sim, 'sample_size': len(sub_pop)},
                                 index=[0]
                             ).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])
@@ -166,7 +165,6 @@ class Mortality:
     @modifies_value('epidemiological_span_measures')
     @uses_columns(['exit_time', 'sex', 'age', 'location'], 'alive != "alive"')
     def deaths(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
-        root_location = config.simulation_parameters.location_id
         pop = population_view.get(index)
 
         if all_locations:
@@ -189,7 +187,7 @@ class Mortality:
                     cube = cube.append(
                         pd.DataFrame(
                             {'measure': 'deaths', 'age_low': low, 'age_high': high, 'sex': sex,
-                             'location': location if location >= 0 else root_location, 'cause': 'all',
+                             'location': location if location >= 0 else self._root_location, 'cause': 'all',
                              'value': len(sub_pop), 'sample_size': sample_size},
                             index=[0]
                         ).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])

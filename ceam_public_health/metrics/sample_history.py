@@ -1,7 +1,5 @@
 import pandas as pd
 
-from vivarium import config
-
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 
@@ -19,17 +17,18 @@ class SampleHistory:
             }
     }
 
-
     def __init__(self):
         self.sample_frames = {}
         self.sample_index = []
 
     def setup(self, builder):
+        self.config = builder.configuration.sample_history
+        self.run_id = builder.configuration.run_configuration.run_id
         self.randomness = builder.randomness('sample_history')
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
-        sample_size = config.sample_history.sample_size
+        sample_size = self.config.sample_size
         if sample_size is None or sample_size > len(event.index):
             sample_size = len(event.index)
         draw = self.randomness.get_draw(event.index)
@@ -51,8 +50,7 @@ class SampleHistory:
         from pandas.core.common import PerformanceWarning
         warnings.filterwarnings('ignore', category=PerformanceWarning)
         warnings.filterwarnings('ignore', category=tables.NaturalNameWarning)
-        key = '/{}'.format(config.run_configuration.run_id)
+        key = '/{}'.format(self.run_id)
         if key == '/':
             key += 'base'
-        pd.Panel(self.sample_frames).to_hdf(config.sample_history.path,
-                                            key=key)
+        pd.Panel(self.sample_frames).to_hdf(self.config.path, key=key)
