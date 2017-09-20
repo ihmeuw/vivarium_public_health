@@ -5,7 +5,6 @@ from scipy.stats import multivariate_normal, norm
 import ceam_inputs as inputs
 from ceam_inputs.gbd_mapping import risk_factors
 
-from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.randomness import random
@@ -17,64 +16,65 @@ def uncorrelated_propensity(population, risk_factor):
     return random('initial_propensity_{}'.format(risk_factor.name), population.index)
 
 
-def correlated_propensity(population, risk_factor):
-    """Choose a propensity to the risk factor for each simulant that respects
-    the risk factor's expected correlation with other risk factors unless there
-    is no correlation data available in which case a uniformly distributed
-    random propensity will be chosen.
+def correlated_propensity_factory(random_seed):
 
-    Parameters
-    ----------
-    population: pd.DataFrame
-        The population to get propensities for. Must include 'sex' and 'age' columns.
-    risk_factor: `vivarium.config_tree.ConfigTree`
-        The gbd data mapping for the risk.
+    def correlated_propensity(population, risk_factor):
+        """Choose a propensity to the risk factor for each simulant that respects
+        the risk factor's expected correlation with other risk factors unless there
+        is no correlation data available in which case a uniformly distributed
+        random propensity will be chosen.
 
-    Notes
-    -----
-    This function does some calculation, including loading the correlation
-    matrices, once for each risk where they could be done once for all
-    risks. In practice this doesn't seem to cause meaningful performance
-    problems and it simplifies the code significantly. It's something to be aware
-    of though, especially for a model with high fertility or migration where
-    this code may be run in each time step rather than primarily during
-    initialization.
-    """
+        Parameters
+        ----------
+        population: pd.DataFrame
+            The population to get propensities for. Must include 'sex' and 'age' columns.
+        risk_factor: `vivarium.config_tree.ConfigTree`
+            The gbd data mapping for the risk.
 
-    correlation_matrices = inputs.load_risk_correlation_matrices()
-    if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
-        # There's no correlation data for this risk, just pick a uniform random propensity
-        return uncorrelated_propensity(population, risk_factor)
+        Notes
+        -----
+        This function does some calculation, including loading the correlation
+        matrices, once for each risk where they could be done once for all
+        risks. In practice this doesn't seem to cause meaningful performance
+        problems and it simplifies the code significantly. It's something to be aware
+        of though, especially for a model with high fertility or migration where
+        this code may be run in each time step rather than primarily during
+        initialization.
+        """
 
-    correlation_matrices = correlation_matrices.set_index(
-        ['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
+        correlation_matrices = inputs.load_risk_correlation_matrices()
+        if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
+            # There's no correlation data for this risk, just pick a uniform random propensity
+            return uncorrelated_propensity(population, risk_factor)
 
-    risk_factor_idx = sorted(correlation_matrices.risk_factor.unique()).index(risk_factor.name)
-    ages = sorted(correlation_matrices.age.unique())
-    age_idx = (np.broadcast_to(population.age, (len(ages), len(population))).T
-               >= np.broadcast_to(ages, (len(population), len(ages))))
-    age_idx = np.minimum(len(ages) - 1, np.sum(age_idx, axis=1))
+        correlation_matrices = correlation_matrices.set_index(
+            ['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
 
-    qdist = norm(loc=0, scale=1)
-    quantiles = pd.Series()
+        risk_factor_idx = sorted(correlation_matrices.risk_factor.unique()).index(risk_factor.name)
+        ages = sorted(correlation_matrices.age.unique())
+        age_idx = (np.broadcast_to(population.age, (len(ages), len(population))).T
+                   >= np.broadcast_to(ages, (len(population), len(ages))))
+        age_idx = np.minimum(len(ages) - 1, np.sum(age_idx, axis=1))
 
-    seed = config.run_configuration.draw_number
+        qdist = norm(loc=0, scale=1)
+        quantiles = pd.Series()
 
-    for (sex, age_idx), group in population.groupby((population.sex, age_idx)):
-        matrix = correlation_matrices.query('age == @ages[@age_idx] and sex == @sex')
-        del matrix['age']
-        del matrix['sex']
-        matrix = matrix.set_index(['risk_factor'])
-        matrix = matrix.values
+        for (sex, age_idx), group in population.groupby((population.sex, age_idx)):
+            matrix = correlation_matrices.query('age == @ages[@age_idx] and sex == @sex')
+            del matrix['age']
+            del matrix['sex']
+            matrix = matrix.set_index(['risk_factor'])
+            matrix = matrix.values
 
-        dist = multivariate_normal(mean=np.zeros(len(matrix)), cov=matrix)
-        draw = dist.rvs(group.index.max()+1, random_state=seed)
-        draw = draw[group.index]
-        quantiles = quantiles.append(
+            dist = multivariate_normal(mean=np.zeros(len(matrix)), cov=matrix)
+            draw = dist.rvs(group.index.max()+1, random_state=random_seed)
+            draw = draw[group.index]
+            quantiles = quantiles.append(
                 pd.Series(qdist.cdf(draw).T[risk_factor_idx], index=group.index)
-        )
+            )
 
-    return pd.Series(quantiles, index=population.index)
+        return pd.Series(quantiles, index=population.index)
+    return correlated_propensity
 
 
 class ContinuousRiskComponent:
@@ -105,15 +105,16 @@ class ContinuousRiskComponent:
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
         self._distribution_loader = get_distribution(self._risk)
         self.exposure_function = get_exposure_function(self._risk)
-        if propensity_function is not None:
-            self.propensity_function = propensity_function
-        elif config.risks.apply_correlation:
-            self.propensity_function = correlated_propensity
-        else:
-            self.propensity_function = uncorrelated_propensity
-
+        self.propensity_function = propensity_function
 
     def setup(self, builder):
+        if self.propensity_function is None:
+            if builder.configuration.risks.apply_correlation:
+                seed = builder.configuration.run_configuration.input_draw_number
+                self.propensity_function = correlated_propensity_factory(seed)
+            else:
+                self.propensity_function = uncorrelated_propensity
+
         self.distribution = self._distribution_loader(builder)
         self.randomness = builder.randomness(self._risk.name)
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
@@ -159,15 +160,16 @@ class CategoricalRiskComponent:
 
     def __init__(self, risk, propensity_function=None):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
-
-        if propensity_function is not None:
-            self.propensity_function = propensity_function
-        elif config.risks.apply_correlation:
-            self.propensity_function = correlated_propensity
-        else:
-            self.propensity_function = uncorrelated_propensity
+        self.propensity_function = propensity_function
 
     def setup(self, builder):
+        if self.propensity_function is None:
+            if builder.configuration.risks.apply_correlation:
+                seed = builder.configuration.run_configuration.input_draw_number
+                self.propensity_function = correlated_propensity_factory(seed)
+            else:
+                self.propensity_function = uncorrelated_propensity
+
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
         self.exposure.source = builder.lookup(inputs.get_exposure_means(risk=self._risk))
