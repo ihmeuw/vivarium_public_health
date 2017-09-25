@@ -33,7 +33,7 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures,
         for draw in draws:
             config.run_configuration.input_draw_number = draw
             for cause, measure in measures:
-                data = _get_data(cause, measure)
+                data = _get_data(cause, measure, config)
                 if data is None:
                     warn("Trying to load input for {}.{} but no mapping was present".format(cause, measure))
                     continue
@@ -61,7 +61,7 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures,
     return cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'draw', 'location'])
 
 
-def _get_data(cause_name, measure_name):
+def _get_data(cause_name, measure_name, config):
     function_map = {
         'excess_mortality': get_excess_mortality,
         'prevalence': get_prevalence,
@@ -71,7 +71,7 @@ def _get_data(cause_name, measure_name):
     }
     cause = _get_cause_from_name(cause_name)
     if measure_name in cause:
-        return function_map[measure_name](cause)
+        return function_map[measure_name](cause, config)
     else:
         raise ValueError("Invalid measure {} for cause {}".format(measure_name, cause_name))
 
