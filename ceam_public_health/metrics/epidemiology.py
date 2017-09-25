@@ -20,6 +20,7 @@ class EpidemiologicalMeasures:
     """
     def setup(self, builder):
         self.run_config = builder.configuration.run_configuration
+        self.age_groups = get_age_bins(builder.configuration)
         self.point_measures = builder.value('epidemiological_point_measures')
         self.span_measures = builder.value('epidemiological_span_measures')
         self.clock = builder.clock()
@@ -75,7 +76,7 @@ class EpidemiologicalMeasures:
 
     def dump_measures(self, index, current_year, point=False):
         age_group_ids = list(range(2, 22))
-        age_groups = get_age_bins().query('age_group_id in @age_group_ids')
+        age_groups = self.age_groups.query('age_group_id in @age_group_ids')
         age_groups = age_groups[['age_group_years_start', 'age_group_years_end']].values
         if point:
             measures = self.point_measures

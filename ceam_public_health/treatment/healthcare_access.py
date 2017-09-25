@@ -52,6 +52,9 @@ class HealthcareAccess:
     def setup(self, builder):
         location_id = builder.configuration.input_data.location_id
         draw = builder.configuration.run_configuration.input_draw_number
+
+        utilization_data = get_proportion(healthcare_entities.outpatient_visits, builder.configuration)
+
         self.general_random = builder.randomness('healthcare_general_access')
         self.followup_random = builder.randomness('healthcare_followup_access')
         self.adherence_random = builder.randomness('healthcare_adherence')
@@ -78,7 +81,8 @@ class HealthcareAccess:
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
 
-        self.utilization_proportion = builder.lookup(get_proportion(healthcare_entities.outpatient_visits))
+
+        self.utilization_proportion = builder.lookup()
 
     @listens_for('initialize_simulants')
     @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'adherence_category'])

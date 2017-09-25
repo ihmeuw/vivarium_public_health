@@ -8,11 +8,13 @@ from vivarium.framework.values import modifies_value
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
+from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, get_duration
+
 
 class BaseDiseaseState(State):
-    def __init__(self, state_id, side_effect_function=None, track_events=True, **kwargs):
-        super().__init__(state_id, **kwargs)
-
+    def __init__(self, cause, side_effect_function=None, track_events=True, **kwargs):
+        super().__init__(cause.name, **kwargs)
+        self.cause = cause
         self.side_effect_function = side_effect_function
 
         self.track_events = track_events
@@ -35,6 +37,7 @@ class BaseDiseaseState(State):
         iterable
             This component's sub-components.
         """
+        subcomponents = super().setup(builder)
         self.clock = builder.clock()
 
         columns = [self.condition, 'alive']
@@ -122,8 +125,7 @@ class BaseDiseaseState(State):
 
 class DiseaseState(BaseDiseaseState):
     """State representing a disease in a state machine model."""
-    def __init__(self, state_id, disability_weight=None, prevalence_data=None,
-                 dwell_time=pd.Timedelta(0, unit='D'), cleanup_function=None, **kwargs):
+    def __init__(self, cause, cleanup_function=None, **kwargs):
         """
         Parameters
         ----------
@@ -143,16 +145,7 @@ class DiseaseState(BaseDiseaseState):
             A function to be called when this state is entered.
         track_events : bool, optional
         """
-        super().__init__(state_id, **kwargs)
-
-        self._disability_weight_data = disability_weight
-        self.prevalence_data = prevalence_data
-        self._dwell_time = dwell_time
-
-        if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
-            self.transition_set.allow_null_transition = True
-            self.track_events = True
-
+        super().__init__(cause, **kwargs)
         self.cleanup_function = cleanup_function
 
     def setup(self, builder):
@@ -168,12 +161,21 @@ class DiseaseState(BaseDiseaseState):
         iterable
             This component's sub-components.
         """
-        if self._disability_weight_data is not None:
-            self._disability_weight = builder.lookup(self._disability_weight_data)
+        disability_weight_data = get_disability_weight(self.cause, builder.configuration)
+        prevalence_data = get_prevalence(self.cause, builder.configuration)
+        self._dwell_time = get_duration(self.cause, builder.configuration)
+
+        if disability_weight_data is not None:
+            self._disability_weight = builder.lookup(disability_weight_data)
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
 
         self.dwell_time = builder.value('{}.dwell_time'.format(self.state_id))
+
+        if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
+            self.transition_set.allow_null_transition = True
+            self.track_events = True
+
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
         self.dwell_time.source = builder.lookup(self._dwell_time)

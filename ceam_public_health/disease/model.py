@@ -4,38 +4,34 @@ import pandas as pd
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
-from vivarium.framework.state_machine import Machine, TransitionSet
+from vivarium.framework.state_machine import Machine
 from vivarium.framework.values import modifies_value
 
 from ceam_public_health.disease import ExcessMortalityState, TransientDiseaseState, RateTransition, ProportionTransition
+
+from ceam_inputs import get_cause_specific_mortality
 
 from .data_transformations import assign_cause_at_beginning_of_simulation
 
 
 class DiseaseModel(Machine):
-    def __init__(self, condition, csmr_data=None, **kwargs):
-        super().__init__(condition, **kwargs)
-        self.csmr_data = csmr_data
+    def __init__(self, cause, **kwargs):
+        super().__init__(cause.name, **kwargs)
+        self.cause = cause
 
     @property
     def condition(self):
         return self.state_column
 
-    def setup(self, builder):
+    def setup(self, builder):  # Completely overrides Machine.setup
         self.config = builder.configuration
+
+        self._csmr_data = get_cause_specific_mortality(self.cause, builder.configuration)
+
         self.population_view = builder.population_view([self.condition], "alive == 'alive'")
         self.randomness = builder.randomness('{}_initial_states'.format(self.condition))
 
-        sub_components = set()
-        for state in self.states:
-            state.condition = self.condition
-            sub_components.add(state)
-            sub_components.add(state.transition_set)
-            for transition in state.transition_set:
-                sub_components.add(transition)
-                if isinstance(transition.output, TransitionSet):
-                    sub_components.add(transition.output)
-        return sub_components
+        return self.states
 
     @listens_for('time_step')
     def time_step_handler(self, event):
@@ -47,7 +43,7 @@ class DiseaseModel(Machine):
 
     @modifies_value('csmr_data')
     def get_csmr(self):
-        return self.csmr_data
+        return self._csmr_data
 
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex', condition])

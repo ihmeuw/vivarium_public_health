@@ -16,7 +16,7 @@ def uncorrelated_propensity(population, risk_factor):
     return random('initial_propensity_{}'.format(risk_factor.name), population.index)
 
 
-def correlated_propensity_factory(random_seed):
+def correlated_propensity_factory(config):
 
     def correlated_propensity(population, risk_factor):
         """Choose a propensity to the risk factor for each simulant that respects
@@ -42,7 +42,7 @@ def correlated_propensity_factory(random_seed):
         initialization.
         """
 
-        correlation_matrices = inputs.load_risk_correlation_matrices()
+        correlation_matrices = inputs.load_risk_correlation_matrices(override_config=config)
         if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
             # There's no correlation data for this risk, just pick a uniform random propensity
             return uncorrelated_propensity(population, risk_factor)
@@ -67,7 +67,7 @@ def correlated_propensity_factory(random_seed):
             matrix = matrix.values
 
             dist = multivariate_normal(mean=np.zeros(len(matrix)), cov=matrix)
-            draw = dist.rvs(group.index.max()+1, random_state=random_seed)
+            draw = dist.rvs(group.index.max()+1, random_state=config.run_configuration.draw_number)
             draw = draw[group.index]
             quantiles = quantiles.append(
                 pd.Series(qdist.cdf(draw).T[risk_factor_idx], index=group.index)
@@ -103,6 +103,7 @@ class ContinuousRiskComponent:
 
     def __init__(self, risk, propensity_function=None):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
+        self._effects = make_gbd_risk_effects(self._risk)
         self._distribution_loader = get_distribution(self._risk)
         self.exposure_function = get_exposure_function(self._risk)
         self.propensity_function = propensity_function
@@ -110,8 +111,7 @@ class ContinuousRiskComponent:
     def setup(self, builder):
         if self.propensity_function is None:
             if builder.configuration.risks.apply_correlation:
-                seed = builder.configuration.run_configuration.input_draw_number
-                self.propensity_function = correlated_propensity_factory(seed)
+                self.propensity_function = correlated_propensity_factory(builder.configuration)
             else:
                 self.propensity_function = uncorrelated_propensity
 
@@ -119,7 +119,7 @@ class ContinuousRiskComponent:
         self.randomness = builder.randomness(self._risk.name)
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
 
-        return make_gbd_risk_effects(self._risk)
+        return self._effects
 
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex'])
@@ -160,13 +160,13 @@ class CategoricalRiskComponent:
 
     def __init__(self, risk, propensity_function=None):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
+        self._effects = make_gbd_risk_effects(self._risk)
         self.propensity_function = propensity_function
 
     def setup(self, builder):
         if self.propensity_function is None:
             if builder.configuration.risks.apply_correlation:
-                seed = builder.configuration.run_configuration.input_draw_number
-                self.propensity_function = correlated_propensity_factory(seed)
+                self.propensity_function = correlated_propensity_factory(builder.configuration)
             else:
                 self.propensity_function = uncorrelated_propensity
 
@@ -175,7 +175,7 @@ class CategoricalRiskComponent:
         self.exposure.source = builder.lookup(inputs.get_exposure_means(risk=self._risk))
         self.randomness = builder.randomness(self._risk.name)
 
-        return make_gbd_risk_effects(self._risk)
+        return self._effects
 
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex'])

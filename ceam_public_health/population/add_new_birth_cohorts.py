@@ -81,7 +81,8 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-        self.location_id = builder.configuration.input_data.location_id
+        self._population_data = get_populations(builder.configuration.input_data.location_id, sex='Both')
+        self._birth_data = get_annual_live_births(builder.configuration.input_data.location_id)
         if 'maximum_age' in builder.configuration.population:
             self.maximum_age = builder.configuration.population.maximum_age
         else:
@@ -138,17 +139,14 @@ class FertilityCrudeBirthRate:
             The crude birth rate of the population in the given year in
             births per person per year.
         """
-
-        location_id = self.location_id
-        population_table = get_populations(location_id, year, sex='Both')
+        population_table = self._population_data[self._population_data.year == year]
+        births = float(self._birth_data[self._birth_data.year == year])
 
         if self.maximum_age is not None:
-            population = population_table.pop_scaled[
-                population_table.age < self.maximum_age].sum()
+            population = population_table.pop_scaled[population_table.age < self.maximum_age].sum()
         else:
             population = population_table.pop_scaled.sum()
 
-        births = float(get_annual_live_births(location_id, year))
         return births / population
 
 
@@ -156,8 +154,6 @@ class FertilityAgeSpecificRates:
     """
     A simulant-specific model for fertility and pregnancies.
     """
-    def __init__(self):
-        self._asfr_data = get_age_specific_fertility_rates()[['year', 'age', 'rate']]
 
     def setup(self, builder):
         """ Setup the common randomness stream and
@@ -171,6 +167,7 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness('fertility')
+        self._asfr_data = get_age_specific_fertility_rates(builder.configuration)[['year', 'age', 'rate']]
         self.asfr = builder.rate('fertility rate')
         self.asfr.source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))
 
