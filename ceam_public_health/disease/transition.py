@@ -1,25 +1,27 @@
-import numbers
-
 import pandas as pd
 
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.util import rate_to_probability
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 
+from ceam_inputs import get_incidence, get_proportion
+
 
 class RateTransition(Transition):
-    def __init__(self, output, rate_label, rate_data, **kwargs):
-        super().__init__(output, probability_func=self._probability, **kwargs)
-
-        self.rate_label = rate_label
-        self.rate_data = rate_data
+    def __init__(self, input_state, output_state, **kwargs):
+        super().__init__(input_state, output_state, probability_func=self._probability, **kwargs)
 
     def setup(self, builder):
-        self.effective_incidence = builder.rate('{}.incidence_rate'.format(self.rate_label))
+        self._rate_data = get_incidence(self.output_state.cause, builder.configuration)
+        self.base_incidence = builder.lookup(self._rate_data)
+
+        self.effective_incidence = builder.rate('{}.incidence_rate'.format(self.output_state.state_id))
         self.effective_incidence.source = self.incidence_rates
-        self.joint_paf = builder.value('{}.paf'.format(self.rate_label), list_combiner, joint_value_post_processor)
+
+        self.joint_paf = builder.value('{}.paf'.format(self.output_state.state_id),
+                                       list_combiner, joint_value_post_processor)
         self.joint_paf.source = lambda index: [pd.Series(0, index=index)]
-        self.base_incidence = builder.lookup(self.rate_data)
+
         return super().setup(builder)
 
     def _probability(self, index):
@@ -32,33 +34,23 @@ class RateTransition(Transition):
         return pd.Series(base_rates.values * (1 - joint_mediated_paf.values), index=index)
 
     def __str__(self):
-        return 'RateTransition({0}, {1})'.format(
-            self.output.state_id if hasattr(self.output, 'state_id') else [str(x) for x in self.output],
-            self.rate_label)
+        return f'RateTransition(from={self.input_state.state_id}, to={self.output_state.state_id})'
 
 
 class ProportionTransition(Transition):
-    def __init__(self, output, proportion, **kwargs):
-        super().__init__(output, probability_func=self._probability, **kwargs)
-        self.proportion = proportion
+    def __init__(self, input_state, output_state, **kwargs):
+        super().__init__(input_state, output_state, probability_func=self._probability, **kwargs)
 
     def setup(self, builder):
-        if not isinstance(self.proportion, numbers.Number):
-            self.proportion = builder.lookup(self.proportion)
+        self._proportion_data = get_proportion(self.output_state.cause)
+        self.proportion = builder.lookup(self._proportion_data)
         return super().setup(builder)
 
     def _probability(self, index):
-        if callable(self.proportion):
-            return self.proportion(index)
-        else:
-            return pd.Series(self.proportion, index=index)
+        return self.proportion(index)
 
     def label(self):
-        if isinstance(self.proportion, numbers.Number):
-            return '{:.3f}'.format(self.proportion)
-        else:
-            return super().label()
+        return super().label
 
     def __str__(self):
-        return 'ProportionTransition({}, {})'.format(self.output.state_id if hasattr(self.output, 'state_id')
-                                                     else [str(x) for x in self.output], self.proportion)
+        return f'ProportionTransition(from={self.input_state.state_id}, {self.output_state.state_id})'

@@ -8,7 +8,7 @@ from vivarium.framework.values import modifies_value
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
-from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, get_duration
+from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, get_duration, SeveritySplit
 
 
 class BaseDiseaseState(State):
@@ -84,23 +84,16 @@ class BaseDiseaseState(State):
             if transition.start_active:
                 transition.set_active(event.index)
 
-    def add_transition(self, output, proportion=None, rates=None, **kwargs):
-        if proportion is not None and rates is not None:
-            raise ValueError("Both proportion and rate data provided.")
-        if proportion is not None:
-            t = ProportionTransition(output=output,
-                                     proportion=proportion,
-                                     **kwargs)
-        elif rates is not None:
-            t = RateTransition(output=output,
-                               rate_label=output.state_id,
-                               rate_data=rates,
-                               **kwargs)
-        else:
+    def add_transition(self, output, data_type=None, **kwargs):
+        transition_map = {'rate': RateTransition, 'proportion': ProportionTransition}
+        if not data_type:
             return super().add_transition(output, **kwargs)
-
-        self.transition_set.append(t)
-        return t
+        elif data_type in transition_map:
+            t = transition_map[data_type](self, output, **kwargs)
+            self.transition_set.append(t)
+            return t
+        else:
+            raise ValueError(f"Unrecognized data type {data_type}")
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
@@ -162,7 +155,7 @@ class DiseaseState(BaseDiseaseState):
             This component's sub-components.
         """
         disability_weight_data = get_disability_weight(self.cause, builder.configuration)
-        prevalence_data = get_prevalence(self.cause, builder.configuration)
+        self.prevalence_data = get_prevalence(self.cause, builder.configuration)
         self._dwell_time = get_duration(self.cause, builder.configuration)
 
         if disability_weight_data is not None:
@@ -266,7 +259,7 @@ class ExcessMortalityState(DiseaseState):
     def __init__(self, state_id, excess_mortality_data, **kwargs):
         super().__init__(state_id, **kwargs)
 
-        self.excess_mortality_data = excess_mortality_data
+
 
     def setup(self, builder):
         """Performs this component's simulation setup and return sub-components.
@@ -280,6 +273,7 @@ class ExcessMortalityState(DiseaseState):
         iterable
              This component's sub-components.
         """
+        self.excess_mortality_data = get_excess_mortality(self.cause, builder.configuration)
         self._mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
         if 'mortality.interpolate' in builder.configuration and not builder.configuration.mortality.interpolate:
             order = 0

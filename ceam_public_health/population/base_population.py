@@ -39,7 +39,8 @@ class BasePopulation:
         self.config = builder.configuration.population
         input_config = builder.configuration.input_data
 
-        self._population_data = _build_population_data_table(input_config.location_id, input_config.use_subregions)
+        self._population_data = _build_population_data_table(input_config.location_id, input_config.use_subregions,
+                                                             builder.configuration)
 
 
     # TODO: Move most of this docstring to an rst file.
@@ -223,7 +224,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     return smooth_ages(simulants, pop_data, randomness_stream)
 
 
-def _build_population_data_table(main_location, use_subregions):
+def _build_population_data_table(main_location, use_subregions, override_config=None):
     """Constructs a population data table for use as a population distribution over demographic characteristics.
 
     Parameters
@@ -248,10 +249,10 @@ def _build_population_data_table(main_location, use_subregions):
             'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year,
             'P(age | year, sex, location_id)' : Conditional probability of age given year, sex, and location_id.
     """
-    return assign_demographic_proportions(_get_population_data(main_location, use_subregions))
+    return assign_demographic_proportions(_get_population_data(main_location, use_subregions, override_config))
 
 
-def _get_population_data(main_location, use_subregions):
+def _get_population_data(main_location, use_subregions, override_config=None):
     """Grabs all relevant population data from the GBD and returns it as a pandas DataFrame.
 
     Parameters
@@ -275,6 +276,7 @@ def _get_population_data(main_location, use_subregions):
     """
     locations = [main_location]
     if use_subregions:
-        sub_regions = get_subregions(main_location)
+        sub_regions = get_subregions(main_location, override_config)
         locations = sub_regions if sub_regions else locations
-    return pd.concat([get_populations(location_id=location) for location in locations], ignore_index=True)
+    return pd.concat([get_populations(location_id=location, override_config=override_config)
+                      for location in locations], ignore_index=True)

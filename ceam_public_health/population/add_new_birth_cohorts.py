@@ -81,8 +81,10 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-        self._population_data = get_populations(builder.configuration.input_data.location_id, sex='Both')
-        self._birth_data = get_annual_live_births(builder.configuration.input_data.location_id)
+        self._population_data = get_populations(builder.configuration.input_data.location_id, sex='Both',
+                                                override_config=builder.configuration)
+        self._birth_data = get_annual_live_births(builder.configuration.input_data.location_id,
+                                                  builder.configuration)
         if 'maximum_age' in builder.configuration.population:
             self.maximum_age = builder.configuration.population.maximum_age
         else:

@@ -18,12 +18,11 @@ class Mortality:
             }
     }
 
-    def __init__(self):
-        self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes)
-        self._life_table_data = get_life_table()
+    def setup(self, builder):
+        self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes, builder.configuration)
+        self._life_table_data = get_life_table(builder.configuration)
         self._cause_deleted_mortality_data = None
 
-    def setup(self, builder):
         self._root_location = builder.configuration.input_data.location_id
         self._interpolation_order = 1 if builder.configuration.mortality.interpolate else 0
         self._build_lookup_handle = builder.lookup

@@ -2,8 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import multivariate_normal, norm
 
-import ceam_inputs as inputs
-from ceam_inputs.gbd_mapping import risk_factors
+from ceam_inputs import risk_factors, load_risk_correlation_matrices
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
@@ -42,7 +41,7 @@ def correlated_propensity_factory(config):
         initialization.
         """
 
-        correlation_matrices = inputs.load_risk_correlation_matrices(override_config=config)
+        correlation_matrices = load_risk_correlation_matrices(override_config=config)
         if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
             # There's no correlation data for this risk, just pick a uniform random propensity
             return uncorrelated_propensity(population, risk_factor)
