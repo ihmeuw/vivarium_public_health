@@ -69,11 +69,11 @@ class HealthcareAccess:
         self.hospitalization_count = 0
 
         self.hospitalization_cost = defaultdict(float)
-        ip_cost_df = get_inpatient_visit_costs()
+        ip_cost_df = get_inpatient_visit_costs(builder.configuration)
         ip_cost_df.index = ip_cost_df.year_id
         self._hospitalization_cost_data = ip_cost_df['draw_{}'.format(draw)]
 
-        cost_df = get_outpatient_visit_costs().set_index('year_id')
+        cost_df = get_outpatient_visit_costs(builder.configuration).set_index('year_id')
         self._appointment_cost_data = cost_df.loc[cost_df.location_id == location_id, 'draw_{}'.format(draw)]
 
         self.outpatient_cost = defaultdict(float)
@@ -82,7 +82,7 @@ class HealthcareAccess:
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
 
 
-        self.utilization_proportion = builder.lookup()
+        self.utilization_proportion = builder.lookup(utilization_data)
 
     @listens_for('initialize_simulants')
     @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'adherence_category'])
