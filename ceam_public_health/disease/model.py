@@ -15,9 +15,10 @@ from .data_transformations import assign_cause_at_beginning_of_simulation
 
 
 class DiseaseModel(Machine):
-    def __init__(self, cause, **kwargs):
+    def __init__(self, cause, get_data_functions=None,  **kwargs):
         super().__init__(cause.name, **kwargs)
         self.cause = cause
+        self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     @property
     def condition(self):
@@ -26,7 +27,8 @@ class DiseaseModel(Machine):
     def setup(self, builder):  # Completely overrides Machine.setup
         self.config = builder.configuration
 
-        self._csmr_data = get_cause_specific_mortality(self.cause, builder.configuration)
+        get_csmr_func = self._get_data_functions.get('csmr', get_cause_specific_mortality)
+        self._csmr_data = get_csmr_func(self.cause, builder.configuration)
 
         self.population_view = builder.population_view([self.condition], "alive == 'alive'")
         self.randomness = builder.randomness('{}_initial_states'.format(self.condition))
@@ -118,9 +120,9 @@ class DiseaseModel(Machine):
                     dot.attr('edge', style='plain')
 
                 if isinstance(transition, RateTransition):
-                    dot.edge(state.state_id, transition.output.state_id, transition.label(), color='blue')
+                    dot.edge(state.state_id, transition.output_state.state_id, transition.label(), color='blue')
                 elif isinstance(transition, ProportionTransition):
-                    dot.edge(state.state_id, transition.output.state_id, transition.label(), color='purple')
+                    dot.edge(state.state_id, transition.output_state.state_id, transition.label(), color='purple')
                 else:
                     dot.edge(state.state_id, transition.output.state_id, transition.label(), color='black')
 
