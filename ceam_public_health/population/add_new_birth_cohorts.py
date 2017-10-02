@@ -83,8 +83,7 @@ class FertilityCrudeBirthRate:
     def setup(self, builder):
         self._population_data = get_populations(builder.configuration.input_data.location_id, sex='Both',
                                                 override_config=builder.configuration)
-        self._birth_data = get_annual_live_births(builder.configuration.input_data.location_id,
-                                                  builder.configuration)
+        self._birth_data = get_annual_live_births(builder.configuration).set_index(['year'])
         if 'maximum_age' in builder.configuration.population:
             self.maximum_age = builder.configuration.population.maximum_age
         else:
@@ -142,7 +141,7 @@ class FertilityCrudeBirthRate:
             births per person per year.
         """
         population_table = self._population_data[self._population_data.year == year]
-        births = float(self._birth_data[self._birth_data.year == year])
+        births = float(self._birth_data.loc[year])
 
         if self.maximum_age is not None:
             population = population_table.pop_scaled[population_table.age < self.maximum_age].sum()
