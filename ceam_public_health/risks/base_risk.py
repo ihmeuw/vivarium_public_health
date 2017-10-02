@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import multivariate_normal, norm
 
-from ceam_inputs import risk_factors, load_risk_correlation_matrices
+from ceam_inputs import risk_factors, load_risk_correlation_matrices, get_exposure_means
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
@@ -66,7 +66,7 @@ def correlated_propensity_factory(config):
             matrix = matrix.values
 
             dist = multivariate_normal(mean=np.zeros(len(matrix)), cov=matrix)
-            draw = dist.rvs(group.index.max()+1, random_state=config.run_configuration.draw_number)
+            draw = dist.rvs(group.index.max()+1, random_state=config.run_configuration.input_draw_number)
             draw = draw[group.index]
             quantiles = quantiles.append(
                 pd.Series(qdist.cdf(draw).T[risk_factor_idx], index=group.index)
@@ -171,7 +171,7 @@ class CategoricalRiskComponent:
 
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
-        self.exposure.source = builder.lookup(inputs.get_exposure_means(risk=self._risk))
+        self.exposure.source = builder.lookup(get_exposure_means(risk=self._risk))
         self.randomness = builder.randomness(self._risk.name)
 
         return self._effects

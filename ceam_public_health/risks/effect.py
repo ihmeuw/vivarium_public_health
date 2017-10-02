@@ -1,6 +1,6 @@
 import numpy as np
 
-import ceam_inputs as inputs
+from ceam_inputs import causes, get_relative_risks, get_pafs, get_mediation_factors
 
 from vivarium.framework.population import uses_columns
 
@@ -54,24 +54,28 @@ class RiskEffect:
         },
     }
 
-    def __init__(self, risk, cause):
+    def __init__(self, risk, cause, get_data_functions=None):
         self.risk = risk
         self.cause = cause
+        self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
         # FIXME: I'm not taking the time to rewrite the stroke model right now, so unpleasant hack here.
         # -J.C. 09/05/2017
         self.cause_name = cause.name
-        if cause == inputs.causes.ischemic_stroke or cause == inputs.causes.hemorrhagic_stroke:
+        if cause == causes.ischemic_stroke or cause == causes.hemorrhagic_stroke:
             self.cause_name = 'acute_' + self.cause_name
 
         self.exposure_effect = (continuous_exposure_effect(self.risk) if self.risk.distribution != 'categorical'
                                 else categorical_exposure_effect(self.risk))
 
     def setup(self, builder):
-        self._rr_data = inputs.get_relative_risks(self.risk, self.cause, builder.configuration)
-        self._paf_data = inputs.get_pafs(self.risk, self.cause, builder.configuration)
-        self._mediation_factor = inputs.get_mediation_factors(self.risk, self.cause, builder.configuration)
+        get_rr_func = self._get_data_functions.get('rr', get_relative_risks)
+        get_paf_func = self._get_data_functions.get('paf', get_pafs)
+        get_mf_func = self._get_data_functions.get('mf', get_mediation_factors)
 
+        self._rr_data = get_rr_func(self.risk, self.cause, builder.configuration)
+        self._paf_data = get_paf_func(self.risk, self.cause, builder.configuration)
+        self._mediation_factor = get_mf_func(self.risk, self.cause, builder.configuration)
 
         self.relative_risk = builder.lookup(self._rr_data)
         self.population_attributable_fraction = builder.lookup(self._paf_data)
