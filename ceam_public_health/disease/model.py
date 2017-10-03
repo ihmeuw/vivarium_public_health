@@ -16,9 +16,19 @@ from .data_transformations import assign_cause_at_beginning_of_simulation
 
 class DiseaseModel(Machine):
     def __init__(self, cause, get_data_functions=None,  **kwargs):
-        super().__init__(cause.name, **kwargs)
-        self.cause = cause
+        if isinstance(cause, str):
+            self.cause = None
+            super().__init__(cause, **kwargs)
+        else:
+            self.cause = cause
+            super().__init__(cause.name, **kwargs)
+
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
+
+        if (self.cause is None and
+                not set(self._get_data_functions.keys()).issuperset(['csmr'])):
+            raise ValueError('If you do not provide a GBD cause from the gbd_mapping, you must supply'
+                             'custom data gathering functions for csmr.')
 
     @property
     def condition(self):
