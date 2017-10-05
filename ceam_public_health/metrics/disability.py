@@ -3,6 +3,8 @@ import pandas as pd
 from vivarium.framework.event import listens_for
 from vivarium.framework.values import modifies_value, list_combiner, joint_value_post_processor, rescale_post_processor
 
+def _disability_post_processor(value, step_size):
+    return rescale_post_processor(joint_value_post_processor(value, step_size), step_size)
 
 class Disability:
     """Measures and assigns disability to the simulants."""
@@ -10,8 +12,7 @@ class Disability:
         self.years_lived_with_disability = pd.Series([])
 
     def setup(self, builder):
-        self.disability_weight = builder.value('disability_weight', list_combiner,
-                                               lambda a: rescale_post_processor(joint_value_post_processor(a)))
+        self.disability_weight = builder.value('disability_weight', list_combiner, _disability_post_processor)
         self.disability_weight.source = lambda index: [pd.Series(0.0, index=index)]
 
     @listens_for('initialize_simulants')

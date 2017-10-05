@@ -2,7 +2,6 @@ import pandas as pd
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.values import modifies_value
-from vivarium import config
 
 from ceam_public_health.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
 
@@ -26,16 +25,20 @@ class CalculateIncidence:
         self.collecting = False
         self.incidence_rate_df = pd.DataFrame({})
 
+    def setup(self, builder):
         self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time",
                                                                                age_group_id_min=2,
-                                                                               age_group_id_max=21)
+                                                                               age_group_id_max=21,
+                                                                               config=builder.configuration)
         self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease),
                                                                    age_group_id_min=2,
-                                                                   age_group_id_max=21)
+                                                                   age_group_id_max=21,
+                                                                   config=builder.configuration)
         self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
-                                                                          age_group_id_max=21)
+                                                                          age_group_id_max=21,
+                                                                          config=builder.configuration)
 
-    def setup(self, builder):
+        self.root_location = builder.configuration.input.location_id
         self.clock = builder.clock()
         columns = [self.disease_col, self.disease_time_col, "exit_time", "age", "sex", "alive"]
         self.population_view = builder.population_view(columns)
@@ -49,7 +52,6 @@ class CalculateIncidence:
                 new_df[col] = pd.Series(0, index=event.index)
 
             self.incidence_rate_df = self.incidence_rate_df.append(new_df)
-
 
     @listens_for('begin_epidemiological_measure_collection')
     def set_flag(self, event):
@@ -99,7 +101,6 @@ class CalculateIncidence:
         """
         Calculate the incidence rate measure and prepare the data for graphing
         """
-        root_location = config.simulation_parameters.location_id
         pop = self.population_view.get(index)
 
         if all_locations:
@@ -127,7 +128,7 @@ class CalculateIncidence:
                                                          'age_low': last_age_group_max,
                                                          'age_high': upr_bound,
                                                          'sex': sex,
-                                                         'location': location if location >= 0 else root_location,
+                                                         'location': location if location >= 0 else self.root_location,
                                                          'cause': self.disease,
                                                          'value': num_cases/susceptible_person_time,
                                                          'sample_size': susceptible_person_time}, index=[0]).set_index(

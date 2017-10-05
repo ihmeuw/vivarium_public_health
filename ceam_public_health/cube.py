@@ -2,13 +2,11 @@ from warnings import warn
 
 import pandas as pd
 
-from vivarium import config
-
 from ceam_inputs import (get_excess_mortality, get_prevalence, get_cause_specific_mortality,
                          get_incidence, get_disability_weight, causes, sequelae, etiologies)
 
 
-def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures):
+def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures, config):
     """ Build a DataFrame which contains GBD data for each of the measure/cause
     pairs listed in `measures`.
     """
@@ -24,8 +22,8 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures)
     # unless we re-architect the existing ceam_input functions.
     old_year_start = config.simulation_parameters.year_start
     old_year_end = config.simulation_parameters.year_end
-    old_location = config.simulation_parameters.location_id
-    old_draw = config.run_configuration.draw_number
+    old_location = config.input_data.location_id
+    old_draw = config.run_configuration.input_draw_number
     config.simulation_parameters.year_start = year_start
     config.simulation_parameters.year_end = year_end
 
@@ -33,9 +31,9 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures)
     for location in locations:
         config.simulation_parameters.location_id = location
         for draw in draws:
-            config.run_configuration.draw_number = draw
+            config.run_configuration.input_draw_number = draw
             for cause, measure in measures:
-                data = _get_data(cause, measure)
+                data = _get_data(cause, measure, config)
                 if data is None:
                     warn("Trying to load input for {}.{} but no mapping was present".format(cause, measure))
                     continue
@@ -58,12 +56,12 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures)
     config.simulation_parameters.year_start = old_year_start
     config.simulation_parameters.year_end = old_year_end
     config.simulation_parameters.location_id = old_location
-    config.run_configuration.draw_number = old_draw
+    config.run_configuration.input_draw_number = old_draw
 
     return cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'draw', 'location'])
 
 
-def _get_data(cause_name, measure_name):
+def _get_data(cause_name, measure_name, config):
     function_map = {
         'excess_mortality': get_excess_mortality,
         'prevalence': get_prevalence,
@@ -73,7 +71,7 @@ def _get_data(cause_name, measure_name):
     }
     cause = _get_cause_from_name(cause_name)
     if measure_name in cause:
-        return function_map[measure_name](cause)
+        return function_map[measure_name](cause, config)
     else:
         raise ValueError("Invalid measure {} for cause {}".format(measure_name, cause_name))
 

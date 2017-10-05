@@ -2,41 +2,48 @@ import numbers
 
 import pandas as pd
 
-from vivarium import config
-
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
-from vivarium.framework.state_machine import Machine, TransitionSet
+from vivarium.framework.state_machine import Machine
 from vivarium.framework.values import modifies_value
 
 from ceam_public_health.disease import ExcessMortalityState, TransientDiseaseState, RateTransition, ProportionTransition
+
+from ceam_inputs import get_cause_specific_mortality
 
 from .data_transformations import assign_cause_at_beginning_of_simulation
 
 
 class DiseaseModel(Machine):
-    def __init__(self, condition, csmr_data=None, **kwargs):
-        super().__init__(condition, **kwargs)
-        self.csmr_data = csmr_data
+    def __init__(self, cause, get_data_functions=None,  **kwargs):
+        if isinstance(cause, str):
+            self.cause = None
+            super().__init__(cause, **kwargs)
+        else:
+            self.cause = cause
+            super().__init__(cause.name, **kwargs)
+
+        self._get_data_functions = get_data_functions if get_data_functions is not None else {}
+
+        if (self.cause is None and
+                not set(self._get_data_functions.keys()).issuperset(['csmr'])):
+            raise ValueError('If you do not provide a GBD cause from the gbd_mapping, you must supply'
+                             'custom data gathering functions for csmr.')
 
     @property
     def condition(self):
         return self.state_column
 
-    def setup(self, builder):
+    def setup(self, builder):  # Completely overrides Machine.setup
+        self.config = builder.configuration
+
+        get_csmr_func = self._get_data_functions.get('csmr', get_cause_specific_mortality)
+        self._csmr_data = get_csmr_func(self.cause, builder.configuration)
+
         self.population_view = builder.population_view([self.condition], "alive == 'alive'")
         self.randomness = builder.randomness('{}_initial_states'.format(self.condition))
 
-        sub_components = set()
-        for state in self.states:
-            state.condition = self.condition
-            sub_components.add(state)
-            sub_components.add(state.transition_set)
-            for transition in state.transition_set:
-                sub_components.add(transition)
-                if isinstance(transition.output, TransitionSet):
-                    sub_components.add(transition.output)
-        return sub_components
+        return self.states
 
     @listens_for('time_step')
     def time_step_handler(self, event):
@@ -48,7 +55,7 @@ class DiseaseModel(Machine):
 
     @modifies_value('csmr_data')
     def get_csmr(self):
-        return self.csmr_data
+        return self._csmr_data
 
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex', condition])
@@ -70,7 +77,7 @@ class DiseaseModel(Machine):
 
     @modifies_value('epidemiological_point_measures')
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
-        root_location = config.simulation_parameters.location_id
+        root_location = self.config.input_data.location_id
         pop = self.population_view.manager.population.ix[index].query("alive == 'alive'")
         causes = set(pop[self.condition]) - {'healthy'}
         if all_locations:
@@ -123,9 +130,9 @@ class DiseaseModel(Machine):
                     dot.attr('edge', style='plain')
 
                 if isinstance(transition, RateTransition):
-                    dot.edge(state.state_id, transition.output.state_id, transition.label(), color='blue')
+                    dot.edge(state.state_id, transition.output_state.state_id, transition.label(), color='blue')
                 elif isinstance(transition, ProportionTransition):
-                    dot.edge(state.state_id, transition.output.state_id, transition.label(), color='purple')
+                    dot.edge(state.state_id, transition.output_state.state_id, transition.label(), color='purple')
                 else:
                     dot.edge(state.state_id, transition.output.state_id, transition.label(), color='black')
 

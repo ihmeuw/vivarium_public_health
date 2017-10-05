@@ -6,14 +6,11 @@ from vivarium.framework.values import produces_value
 from vivarium.framework.event import listens_for, emits
 from vivarium.framework.util import collapse_nested_dict
 
-from vivarium import config
-
 from ceam_inputs import get_age_bins
 
 import logging
 
 _log = logging.getLogger(__name__)
-run_config = config.run_configuration
 
 
 class EpidemiologicalMeasures:
@@ -22,16 +19,18 @@ class EpidemiologicalMeasures:
     can be further analyzed. For example by ceam_public_health/scripts/measure_analysis.py
     """
     def setup(self, builder):
+        self.run_config = builder.configuration.run_configuration
+        self.age_groups = get_age_bins(builder.configuration)
         self.point_measures = builder.value('epidemiological_point_measures')
         self.span_measures = builder.value('epidemiological_span_measures')
         self.clock = builder.clock()
 
-        self.run_key = run_config.run_key.to_dict() if 'run_key' in run_config else None
+        self.run_key = self.run_config.run_key.to_dict() if 'run_key' in self.run_config else None
 
-        results_directory = run_config.results_directory if 'results_directory' in run_config else '/tmp'
+        results_directory = self.run_config.results_directory if 'results_directory' in self.run_config else '/tmp'
         results_directory = os.path.join(results_directory, 'epidemiological_measures')
         os.makedirs(results_directory, exist_ok=True)
-        self.output_path = os.path.join(results_directory, 'measure_{}.hdf'.format(config.run_configuration.run_id))
+        self.output_path = os.path.join(results_directory, 'measure_{}.hdf'.format(self.run_config.run_id))
 
         self.collecting = False
         self.last_collected_year = -1
@@ -77,7 +76,7 @@ class EpidemiologicalMeasures:
 
     def dump_measures(self, index, current_year, point=False):
         age_group_ids = list(range(2, 22))
-        age_groups = get_age_bins().query('age_group_id in @age_group_ids')
+        age_groups = self.age_groups.query('age_group_id in @age_group_ids')
         age_groups = age_groups[['age_group_years_start', 'age_group_years_end']].values
         if point:
             measures = self.point_measures
@@ -86,8 +85,8 @@ class EpidemiologicalMeasures:
             measures = self.span_measures
         df = measures(index, age_groups, ['Male', 'Female'], False, pd.Timedelta(days=365)).reset_index()
         df['year'] = current_year
-        df['input_draw'] = config.run_configuration.draw_number
-        df['model_draw'] = config.run_configuration.model_draw_number
+        df['input_draw'] = self.run_config.input_draw_number
+        df['model_draw'] = self.run_config.model_draw_number
         existing_df = pd.read_hdf(self.output_path)
         df = existing_df.append(df)
 
