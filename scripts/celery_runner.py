@@ -234,8 +234,8 @@ def main():
             for input_draw_num in input_draws:
                 parameters = {'components': args.component_configuration_file,
                               'config': branch_config,
-                              'input_draw': input_draw_num,
-                              'model_draw': model_draw_num}
+                              'input_draw': int(input_draw_num),
+                              'model_draw': int(model_draw_num)}
                 jobs.append((parameters, worker_log_directory))
     np.random.shuffle(jobs)
 
@@ -274,8 +274,6 @@ def main():
             _log.info('System has excess capacity. Shedding {} idle workers'.format(len(idle_workers)))
             celery_app.control.broadcast('shutdown', destination=idle_workers)
             last_busy = time()
-
-
 
         _log.info('Pending: {} (active workers: {})'.format(len(futures), workers))
 
