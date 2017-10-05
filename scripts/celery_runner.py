@@ -213,23 +213,12 @@ def main():
 
     model_draws = range(args.num_model_draws) if args.num_model_draws is not None else [0]
 
-    if args.component_configuration_file.endswith('.yaml'):
-        with open(args.component_configuration_file) as f:
-            component_config = yaml.load(f)
-    else:
-        raise ValueError("Unknown components configuration type: {}".format(args.component_configuration_file))
-
-    run_configuration = component_config['configuration'].get('run_configuration', {})
-    run_configuration['results_directory'] = results_directory
-    component_config['configuration']['run_configuration'] = run_configuration
-
     np.random.seed(123456)
 
     if input_draw_count < 1000:
         input_draws = np.random.choice(range(1000), input_draw_count, replace=False)
     else:
         input_draws = range(1000)
-
 
     keyspace['input_draw'] = input_draws
     keyspace['model_draw'] = model_draws
@@ -243,11 +232,15 @@ def main():
     for branch_config in branches:
         for model_draw_num in model_draws:
             for input_draw_num in input_draws:
-                jobs.append((int(input_draw_num), int(model_draw_num), component_config, branch_config, worker_log_directory))
+                parameters = {'components': args.component_configuration_file,
+                              'config': branch_config,
+                              'input_draw': input_draw_num,
+                              'model_draw': model_draw_num}
+                jobs.append((parameters, worker_log_directory))
     np.random.shuffle(jobs)
 
     if args.group:
-        i,t = [int(x) for x in args.group.split(':')]
+        i, t = [int(x) for x in args.group.split(':')]
         stride = int(len(jobs)/t)
         jobs = jobs[i*stride:i*stride+stride]
 
