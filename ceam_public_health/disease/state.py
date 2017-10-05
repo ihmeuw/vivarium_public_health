@@ -86,16 +86,16 @@ class BaseDiseaseState(State):
             if transition.start_active:
                 transition.set_active(event.index)
 
-    def add_transition(self, output, data_type=None, get_data_functions=None, **kwargs):
+    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         transition_map = {'rate': RateTransition, 'proportion': ProportionTransition}
-        if not data_type:
+        if not source_data_type:
             return super().add_transition(output, **kwargs)
-        elif data_type in transition_map:
-            t = transition_map[data_type](self, output, get_data_functions, **kwargs)
+        elif source_data_type in transition_map:
+            t = transition_map[source_data_type](self, output, get_data_functions, **kwargs)
             self.transition_set.append(t)
             return t
         else:
-            raise ValueError(f"Unrecognized data type {data_type}")
+            raise ValueError(f"Unrecognized data type {source_data_type}")
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
