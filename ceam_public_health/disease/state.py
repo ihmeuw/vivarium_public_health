@@ -2,26 +2,29 @@
 import numpy as np
 import pandas as pd
 
-from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.state_machine import State, Transient
 from vivarium.framework.values import modifies_value
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
+from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, get_duration
+
 
 class BaseDiseaseState(State):
-    def __init__(self, state_id, side_effect_function=None, track_events=True, **kwargs):
-        super().__init__(state_id, **kwargs)
+    def __init__(self, cause, side_effect_function=None, track_events=True, **kwargs):
+        if isinstance(cause, str):
+            self.cause = None
+            super().__init__(cause, **kwargs)
+        else:  # Assume we got something from gbd_mapping.
+            self.cause = cause
+            super().__init__(cause.name, **kwargs)
 
         self.side_effect_function = side_effect_function
 
         self.track_events = track_events
         self.event_time_column = self.state_id + '_event_time'
         self.event_count_column = self.state_id + '_event_count'
-
-        # Condition is set when the state is added to a disease model
-        self.condition = None
 
     def setup(self, builder):
         """Performs this component's simulation setup and return sub-components.
@@ -36,14 +39,15 @@ class BaseDiseaseState(State):
         iterable
             This component's sub-components.
         """
+        sub_components = super().setup(builder)
         self.clock = builder.clock()
 
-        columns = [self.condition, 'alive']
+        columns = [self._model, 'alive']
         if self.track_events:
             columns += [self.event_time_column, self.event_count_column]
         self.population_view = builder.population_view(columns)
 
-        return super().setup(builder)
+        return sub_components
 
     def _transition_side_effect(self, index, event_time):
         """Updates the simulation state and triggers any side-effects associated with this state.
@@ -82,23 +86,16 @@ class BaseDiseaseState(State):
             if transition.start_active:
                 transition.set_active(event.index)
 
-    def add_transition(self, output, proportion=None, rates=None, **kwargs):
-        if proportion is not None and rates is not None:
-            raise ValueError("Both proportion and rate data provided.")
-        if proportion is not None:
-            t = ProportionTransition(output=output,
-                                     proportion=proportion,
-                                     **kwargs)
-        elif rates is not None:
-            t = RateTransition(output=output,
-                               rate_label=output.state_id,
-                               rate_data=rates,
-                               **kwargs)
-        else:
+    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+        transition_map = {'rate': RateTransition, 'proportion': ProportionTransition}
+        if not source_data_type:
             return super().add_transition(output, **kwargs)
-
-        self.transition_set.append(t)
-        return t
+        elif source_data_type in transition_map:
+            t = transition_map[source_data_type](self, output, get_data_functions, **kwargs)
+            self.transition_set.append(t)
+            return t
+        else:
+            raise ValueError(f"Unrecognized data type {source_data_type}")
 
     @modifies_value('metrics')
     def metrics(self, index, metrics):
@@ -123,8 +120,7 @@ class BaseDiseaseState(State):
 
 class DiseaseState(BaseDiseaseState):
     """State representing a disease in a state machine model."""
-    def __init__(self, state_id, disability_weight=None, prevalence_data=None,
-                 dwell_time=pd.Timedelta(0, unit='D'), cleanup_function=None, **kwargs):
+    def __init__(self, cause, get_data_functions=None, cleanup_function=None, **kwargs):
         """
         Parameters
         ----------
@@ -144,17 +140,15 @@ class DiseaseState(BaseDiseaseState):
             A function to be called when this state is entered.
         track_events : bool, optional
         """
-        super().__init__(state_id, **kwargs)
-
-        self._disability_weight_data = disability_weight
-        self.prevalence_data = prevalence_data
-        self._dwell_time = dwell_time
-
-        if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
-            self.transition_set.allow_null_transition = True
-            self.track_events = True
-
+        super().__init__(cause, **kwargs)
+        self._get_data_functions = get_data_functions if get_data_functions is not None else {}
         self.cleanup_function = cleanup_function
+
+        if (self.cause is None and
+                not set(self._get_data_functions.keys()).issuperset(['disability_weight', 'dwell_time', 'prevalence'])):
+            raise ValueError('If you do not provide a GBD cause from the gbd_mapping, you must supply'
+                             'custom data gathering functions for disability_weight, prevalence, and dwell_time.')
+
 
     def setup(self, builder):
         """Performs this component's simulation setup and return sub-components.
@@ -169,12 +163,25 @@ class DiseaseState(BaseDiseaseState):
         iterable
             This component's sub-components.
         """
-        if self._disability_weight_data is not None:
-            self._disability_weight = builder.lookup(self._disability_weight_data)
+        get_disability_weight_func = self._get_data_functions.get('disability_weight', get_disability_weight)
+        get_prevalence_func = self._get_data_functions.get('prevalence', get_prevalence)
+        get_dwell_time_func = self._get_data_functions.get('dwell_time', get_duration)
+
+        disability_weight_data = get_disability_weight_func(self.cause, builder.configuration)
+        self.prevalence_data = get_prevalence_func(self.cause, builder.configuration)
+        self._dwell_time = get_dwell_time_func(self.cause, builder.configuration)
+
+        if disability_weight_data is not None:
+            self._disability_weight = builder.lookup(disability_weight_data)
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
 
         self.dwell_time = builder.value('{}.dwell_time'.format(self.state_id))
+
+        if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
+            self.transition_set.allow_null_transition = True
+            self.track_events = True
+
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
         self.dwell_time.source = builder.lookup(self._dwell_time)
@@ -236,7 +243,7 @@ class DiseaseState(BaseDiseaseState):
             An iterable of disability weights indexed by the provided `index`."""
         population = self.population_view.get(index)
 
-        return self._disability_weight(population.index) * ((population[self.condition] == self.state_id)
+        return self._disability_weight(population.index) * ((population[self._model] == self.state_id)
                                                             & (population.alive == 'alive'))
 
     def name(self):
@@ -262,10 +269,8 @@ class ExcessMortalityState(DiseaseState):
     excess_mortality_data : `pandas.DataFrame`
         A table of excess mortality data associated with this state.
     """
-    def __init__(self, state_id, excess_mortality_data, **kwargs):
-        super().__init__(state_id, **kwargs)
-
-        self.excess_mortality_data = excess_mortality_data
+    def __init__(self, cause, **kwargs):
+        super().__init__(cause, **kwargs)
 
     def setup(self, builder):
         """Performs this component's simulation setup and return sub-components.
@@ -279,8 +284,11 @@ class ExcessMortalityState(DiseaseState):
         iterable
              This component's sub-components.
         """
+        get_excess_mortality_func = self._get_data_functions.get('excess_mortality', get_excess_mortality)
+
+        self.excess_mortality_data = get_excess_mortality_func(self.cause, builder.configuration)
         self._mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
-        if 'mortality.interpolate' in config and not config.mortality.interpolate:
+        if 'mortality.interpolate' in builder.configuration and not builder.configuration.mortality.interpolate:
             order = 0
         else:
             order = 1
@@ -300,7 +308,7 @@ class ExcessMortalityState(DiseaseState):
         """
         population = self.population_view.get(index)
         rate = (self._mortality(population.index, skip_post_processor=True)
-                * (population[self.condition] == self.state_id))
+                * (population[self._model] == self.state_id))
         if isinstance(rates_df, pd.Series):
             rates_df = pd.DataFrame({rates_df.name: rates_df, self.state_id: rate})
         else:

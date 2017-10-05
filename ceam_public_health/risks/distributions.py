@@ -55,7 +55,7 @@ def _bmi_ppf(parameters):
 
 
 def fpg(builder):
-    distribution = Interpolation(get_fpg_distribution_parameters(),
+    distribution = Interpolation(get_fpg_distribution_parameters(builder.configuration),
                                  categorical_parameters=('sex', 'location'),
                                  continuous_parameters=('age', 'year'),
                                  func=_fpg_ppf)
@@ -63,11 +63,11 @@ def fpg(builder):
 
 
 def sbp(builder):
-    return builder.lookup(get_sbp_distribution())
+    return builder.lookup(get_sbp_distribution(builder.configuration))
 
 
 def cholesterol(builder):
-    df = get_exposure_means(risk_factors.high_total_cholesterol)
+    df = get_exposure_means(risk_factors.high_total_cholesterol, builder.configuration)
     # NOTE: Cholesterol is not modeled for younger ages so set them equal to the TMRL
     df.loc[df.age < 27.5, 'continuous'] = 3.08
     df = df.set_index(['age', 'sex', 'year'])
@@ -82,7 +82,7 @@ def cholesterol(builder):
 
 
 def bmi(builder):
-    distribution = Interpolation(get_bmi_distribution_parameters(),
+    distribution = Interpolation(get_bmi_distribution_parameters(builder.configuration),
                                  categorical_parameters=('sex',),
                                  continuous_parameters=('age', 'year'),
                                  func=_bmi_ppf)

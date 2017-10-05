@@ -147,13 +147,15 @@ def test__compute_ages():
     assert dt._compute_ages(1, 10, 12, 5, 33) == 10 + 12/5*(np.sqrt(1+2*33*5/12**2*1) - 1)
 
 
-def test_get_cause_deleted_mortality():
+def test_get_cause_deleted_mortality(base_config):
+    year_start = base_config.simulation_parameters.year_start
+    year_end = base_config.simulation_parameters.year_end
     all_cause_rate = 15
     cause_specific_rate = 1
     num_csmrs = 5
 
-    all_cause_mr = build_table(all_cause_rate)
-    csmrs = [build_table(cause_specific_rate) for _ in range(num_csmrs)]
+    all_cause_mr = build_table(all_cause_rate, year_start, year_end)
+    csmrs = [build_table(cause_specific_rate, year_start, year_end) for _ in range(num_csmrs)]
     cause_deleted_mr = dt.get_cause_deleted_mortality(all_cause_mr, csmrs)
 
     assert np.allclose(cause_deleted_mr.death_due_to_other_causes, all_cause_rate - num_csmrs*cause_specific_rate)

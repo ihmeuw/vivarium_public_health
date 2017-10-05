@@ -1,29 +1,71 @@
 import os
 import math
 from itertools import product
-from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium import config
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, get_randomness
 
 import ceam_public_health.population.base_population as bp
 import ceam_public_health.population.data_transformations as dt
 
 
-def setup():
+@pytest.fixture(scope='function')
+def config(base_config):
     try:
-        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                      'input_data.auxiliary_data_folder'])
+        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                           'input_data.auxiliary_data_folder'])
     except KeyError:
         pass
-    config.simulation_parameters.set_with_metadata('pop_age_start', 0, layer='override',
-                                                   source=os.path.realpath(__file__))
-    config.simulation_parameters.set_with_metadata('pop_age_end', 110, layer='override',
-                                                   source=os.path.realpath(__file__))
+
+    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
+    base_config.population.set_with_metadata('pop_age_start', 0, **metadata)
+    base_config.population.set_with_metadata('pop_age_end', 110, **metadata)
+    base_config.input_data.set_with_metadata('location_id', 180, **metadata)
+    base_config.input_data.set_with_metadata('use_subregions', False, **metadata)
+    return base_config
+
+
+@pytest.fixture(scope='function')
+def build_pop_data_table_mock(mocker):
+    return mocker.patch('ceam_public_health.population.base_population._build_population_data_table')
+
+
+@pytest.fixture(scope='function')
+def generate_ceam_population_mock(mocker):
+    return mocker.patch('ceam_public_health.population.base_population.generate_ceam_population')
+
+
+@pytest.fixture(scope='function')
+def age_bounds_mock(mocker):
+    return mocker.patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
+
+
+@pytest.fixture(scope='function')
+def initial_age_mock(mocker):
+    return mocker.patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
+
+
+@pytest.fixture(scope='function')
+def get_pop_data_mock(mocker):
+    return mocker.patch('ceam_public_health.population.base_population._get_population_data')
+
+
+@pytest.fixture(scope='function')
+def assign_proportions_mock(mocker):
+    return mocker.patch('ceam_public_health.population.base_population.assign_demographic_proportions')
+
+
+@pytest.fixture(scope='function')
+def get_populations_mock(mocker):
+    return mocker.patch('ceam_public_health.population.base_population.get_populations')
+
+
+@pytest.fixture(scope='function')
+def get_subregions_mock(mocker):
+    return mocker.patch('ceam_public_health.population.base_population.get_subregions')
 
 
 def make_base_simulants():
@@ -65,9 +107,7 @@ def make_uniform_pop_data():
     return pop
 
 
-@patch('ceam_public_health.population.base_population.generate_ceam_population')
-@patch('ceam_public_health.population.base_population._build_population_data_table')
-def test_BasePopulation(build_pop_data_table_mock, generate_ceam_population_mock):
+def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_population_mock):
     num_days = 600
     time_step = 100  # Days
     time_start = pd.Timestamp('1990-01-01')
@@ -78,23 +118,23 @@ def test_BasePopulation(build_pop_data_table_mock, generate_ceam_population_mock
     build_pop_data_table_mock.return_value = uniform_pop
     generate_ceam_population_mock.return_value = sims
 
+    use_subregions = ('use_subregions' in config.input_data and config.input_data.use_subregions)
+
     base_pop = bp.BasePopulation()
 
-    use_subregions = ('use_subregions' in config.simulation_parameters
-                      and config.simulation_parameters.use_subregions)
+    components = [base_pop]
+    simulation = setup_simulation(components, population_size=start_population_size,
+                                  start=time_start, input_config=config)
 
-    build_pop_data_table_mock.assert_called_once_with(config.simulation_parameters.location_id, use_subregions)
+    build_pop_data_table_mock.assert_called_once_with(config.input_data.location_id, use_subregions, config)
     assert base_pop._population_data.equals(uniform_pop)
 
-    components = [base_pop]
-    simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
-
-    with_initial_age = ('initial_age' in config.simulation_parameters
-                        and config.simulation_paramters.initial_age is not None)
-    initial_age = config.simulation_parameters.initial_age if with_initial_age else None
+    with_initial_age = ('initial_age' in config.population
+                        and config.population.initial_age is not None)
+    initial_age = config.population.initial_age if with_initial_age else None
     age_params = {'initial_age': initial_age,
-                  'pop_age_start': config.simulation_parameters.pop_age_start,
-                  'pop_age_end': config.simulation_parameters.pop_age_end}
+                  'pop_age_start': config.population.pop_age_start,
+                  'pop_age_end': config.population.pop_age_end}
     sub_pop = uniform_pop[uniform_pop.year == time_start.year]
 
     generate_ceam_population_mock.assert_called_once()
@@ -111,20 +151,21 @@ def test_BasePopulation(build_pop_data_table_mock, generate_ceam_population_mock
 
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
 
-    assert np.allclose(simulation.population.population.age, final_ages, atol=0.5/365) # Within a half of a day.
+    assert np.allclose(simulation.population.population.age, final_ages, atol=0.5/365)  # Within a half of a day.
 
 
-def test_age_out_simulants():
+def test_age_out_simulants(config):
     start_population_size = 10000
     num_days = 600
     time_step = 100  # Days
     time_start = pd.Timestamp('1990-01-01')
-    config.read_dict({'simulation_parameters': {'initial_age': 4,
-                                                'maximum_age': 5,
-                                                'time_step': time_step}},
-                     layer='override')
-    components = [bp.BasePopulation(), bp.age_out_simulants]
-    simulation = setup_simulation(components, population_size=start_population_size, start=time_start)
+    config.update({'population': {'initial_age': 4,
+                                  'maximum_age': 5,
+                                  'time_step': time_step}},
+                  layer='override')
+    components = [bp.BasePopulation()]
+    simulation = setup_simulation(components, population_size=start_population_size,
+                                  start=time_start, input_config=config)
     assert float(simulation.population.population.age.unique()) == 4
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
@@ -132,8 +173,6 @@ def test_age_out_simulants():
     assert len(pop) == len(pop[pop.exit_time == time_start + pd.Timedelta(400, unit='D')])
 
 
-@patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
-@patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
 def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     creation_time = pd.Timestamp(1990, 7, 2)
     age_params = {'initial_age': None,
@@ -156,8 +195,6 @@ def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     initial_age_mock.assert_not_called()
 
 
-@patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
-@patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
 def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock):
     creation_time = pd.Timestamp(1990, 7, 2)
     age_params = {'initial_age': 0,
@@ -256,49 +293,49 @@ def test__assign_demography_with_age_bounds_error():
         bp._assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, r)
 
 
-@patch('ceam_public_health.population.base_population._get_population_data')
-@patch('ceam_public_health.population.base_population.assign_demographic_proportions')
-def test__build_population_data_table(assign_proportions_mock, get_pop_data_mock):
+def test__build_population_data_table(config, get_pop_data_mock, assign_proportions_mock):
     df = pd.DataFrame({'A': np.arange(10), 'B': np.arange(10)})
     get_pop_data_mock.return_value = df
     assign_proportions_mock.return_value = 1
-    test = bp._build_population_data_table(1, True)
+    test = bp._build_population_data_table(1, True, config)
 
-    get_pop_data_mock.assert_called_once_with(1, True)
+    get_pop_data_mock.assert_called_once_with(1, True, config)
     assign_proportions_mock.assert_called_once_with(df)
     assert test == 1
 
 
-@patch('ceam_public_health.population.base_population.get_populations')
-@patch('ceam_public_health.population.base_population.get_subregions')
-def test__get_population_data(get_subregions_mock, get_populations_mock):
+def test__get_population_data(config, get_populations_mock, get_subregions_mock):
+
     main_id = 10
     main_id_no_subregions = 20
     subregion_ids = [11, 12]
+    year_start = config.simulation_parameters.year_start
+    year_end = config.simulation_parameters.year_end
 
-    get_subregions_mock.side_effect = lambda location_id: subregion_ids if location_id == main_id else None
+    get_subregions_mock.side_effect = lambda location_id, override_config: subregion_ids if location_id == main_id else None
     test_populations = {
-        10: build_table(20, ['age', 'year', 'sex', 'pop_scaled']),
-        11: build_table(30, ['age', 'year', 'sex', 'pop_scaled']),
-        12: build_table(50, ['age', 'year', 'sex', 'pop_scaled']),
-        20: build_table(70, ['age', 'year', 'sex', 'pop_scaled']),
+        10: build_table(20, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
+        11: build_table(30, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
+        12: build_table(50, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
+        20: build_table(70, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
     }
-    get_populations_mock.side_effect = lambda location_id: test_populations[location_id]
+    get_populations_mock.side_effect = lambda location_id, override_config: test_populations[location_id]
 
-    bp._get_population_data(main_id, True)
-    get_subregions_mock.assert_called_once_with(main_id)
-    assert get_populations_mock.call_args_list == [({'location_id': loc},) for loc in subregion_ids]
+    bp._get_population_data(main_id, True, config)
+    get_subregions_mock.assert_called_once_with(main_id, config)
+    assert get_populations_mock.call_args_list == [({'location_id': loc, 'override_config': config},)
+                                                   for loc in subregion_ids]
 
     get_subregions_mock.reset_mock()
     get_populations_mock.reset_mock()
 
-    bp._get_population_data(main_id, False)
+    bp._get_population_data(main_id, False, config)
     get_subregions_mock.assert_not_called()
-    get_populations_mock.assert_called_once_with(location_id=main_id)
+    get_populations_mock.assert_called_once_with(location_id=main_id, override_config=config)
 
     get_subregions_mock.reset_mock()
     get_populations_mock.reset_mock()
 
-    bp._get_population_data(main_id_no_subregions, True)
-    get_subregions_mock.assert_called_once_with(main_id_no_subregions)
-    get_populations_mock.assert_called_once_with(location_id=main_id_no_subregions)
+    bp._get_population_data(main_id_no_subregions, True, config)
+    get_subregions_mock.assert_called_once_with(main_id_no_subregions, config)
+    get_populations_mock.assert_called_once_with(location_id=main_id_no_subregions, override_config=config)

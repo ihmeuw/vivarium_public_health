@@ -8,11 +8,15 @@ from ceam_public_health.disease.data_transformations import (get_cause_level_pre
                                                              determine_which_seq_diseased_sim_has)
 
 
-def test_get_cause_level_prevalence():
+def test_get_cause_level_prevalence(base_config):
+    year_start = base_config.simulation_parameters.year_start
+    year_end = base_config.simulation_parameters.year_end
     # pass in a states dict with only two sequela and make sure for one age/sex/year combo
     # that the value in cause_level_prevalence is equal to the sum of the two seq prevalences
-    prev_df1 = build_table(0.03).rename(columns={'rate': 'prevalence'})[['year', 'age', 'prevalence', 'sex']]
-    prev_df2 = build_table(0.02).rename(columns={'rate': 'prevalence'})[['year', 'age', 'prevalence', 'sex']]
+    prev_df1 = build_table(0.03, year_start, year_end).rename(
+        columns={'rate': 'prevalence'})[['year', 'age', 'prevalence', 'sex']]
+    prev_df2 = build_table(0.02, year_start, year_end).rename(
+        columns={'rate': 'prevalence'})[['year', 'age', 'prevalence', 'sex']]
 
     dict_of_disease_states = {'severe_heart_failure': prev_df1, 'moderate_heart_failure': prev_df2}
     cause_level, seq_level_dict = get_cause_level_prevalence(dict_of_disease_states, year_start=2005)

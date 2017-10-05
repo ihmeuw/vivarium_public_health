@@ -1,5 +1,4 @@
-from unittest.mock import patch
-
+import pytest
 import numpy as np
 
 from ceam_inputs import causes, sequelae
@@ -7,27 +6,41 @@ from vivarium.test_util import build_table
 from ceam_public_health.cube import make_measure_cube_from_gbd
 
 
-@patch('ceam_public_health.cube.get_prevalence')
-@patch('ceam_public_health.cube.get_incidence')
-@patch('ceam_public_health.cube.get_cause_specific_mortality')
-def test_make_measure_cube(csmr_mock, incidence_mock, prevalence_mock):
+@pytest.fixture(scope='function')
+def csmr_mock(mocker):
+    return mocker.patch('ceam_public_health.cube.get_cause_specific_mortality')
+
+
+@pytest.fixture(scope='function')
+def incidence_mock(mocker):
+    return mocker.patch('ceam_public_health.cube.get_incidence')
+
+
+@pytest.fixture(scope='function')
+def prevalence_mock(mocker):
+    return mocker.patch('ceam_public_health.cube.get_prevalence')
+
+
+def test_make_measure_cube(base_config, csmr_mock, incidence_mock, prevalence_mock):
+    year_start = base_config.simulation_parameters.year_start
+    year_end = base_config.simulation_parameters.year_end
+
     prevalence_dummies = {
-            sequelae.heart_attack: build_table(0.5),
-            sequelae.angina.severity_splits.mild: build_table(0.1),
+            sequelae.heart_attack: build_table(0.5, year_start, year_end),
+            sequelae.angina.severity_splits.mild: build_table(0.1, year_start, year_end),
     }
     prevalence_mock.side_effect = prevalence_dummies.get
     incidence_dummies = {
-            sequelae.angina: build_table(0.4),
-            causes.hemorrhagic_stroke: build_table(0.2),
+            sequelae.angina: build_table(0.4, year_start, year_end),
+            causes.hemorrhagic_stroke: build_table(0.2, year_start, year_end),
     }
     incidence_mock.side_effect = incidence_dummies.get
     mortality_dummies = {
-            causes.all_causes: build_table(0.6),
-            causes.ischemic_heart_disease: build_table(0.3),
-            causes.diarrhea: build_table(0.4),
+            causes.all_causes: build_table(0.6, year_start, year_end),
+            causes.ischemic_heart_disease: build_table(0.3, year_start, year_end),
+            causes.diarrhea: build_table(0.4, year_start, year_end),
     }
     csmr_mock.side_effect = mortality_dummies.get
-
 
     cube = make_measure_cube_from_gbd(1990, 2010, [180], [0], [
                                     ('heart_attack', 'prevalence'),
@@ -37,7 +50,7 @@ def test_make_measure_cube(csmr_mock, incidence_mock, prevalence_mock):
                                     ('ischemic_heart_disease', 'csmr'),
                                     ('diarrhea', 'csmr'),
                                     ('all_causes', 'csmr'),
-        ])
+        ], base_config)
 
     cube = cube.reset_index()
     assert np.all(cube.query('cause == "heart_attack" and measure == "prevalence"').value == 0.5)

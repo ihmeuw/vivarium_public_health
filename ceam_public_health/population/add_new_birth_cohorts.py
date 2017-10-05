@@ -2,7 +2,6 @@
 import pandas as pd
 import numpy as np
 
-from vivarium import config
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns, creates_simulants
 
@@ -16,21 +15,24 @@ PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
 class FertilityDeterministic:
     """Deterministic model of births.
 
-    This model of fertility expects that
-    `config.simulation_parameters.number_of_new_simulants_each_year` is
-    set in some configuration file.  It adds simulants every time-step
-    by scaling this parameter by the time-step size.
-
     Attributes
     ----------
     fractional_new_births : float
         A rolling record of the fractional part of new births generated
         each time-step that allows us to
     """
+
+    configuration_defaults = {
+        'fertility_deterministic': {
+            'number_of_new_simulants_each_year': 1000,
+        },
+    }
+
     def __init__(self):
         self.fractional_new_births = 0
-        # Assume time step comes to us in days
-        self.annual_new_simulants = config.simulation_parameters.number_of_new_simulants_each_year
+
+    def setup(self, builder):
+        self.config = builder.configuration.fertility_deterministic
 
     @listens_for('time_step')
     @creates_simulants
@@ -48,7 +50,7 @@ class FertilityDeterministic:
 
         # Assume births are uniformly distributed throughout the year.
         step_size = event.step_size/pd.Timedelta(seconds=1)
-        simulants_to_add = (self.annual_new_simulants*step_size/SECONDS_PER_YEAR
+        simulants_to_add = (self.config.number_of_new_simulants_each_year*step_size/SECONDS_PER_YEAR
                             + self.fractional_new_births)
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
@@ -79,6 +81,13 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
+        self._population_data = get_populations(builder.configuration.input_data.location_id, sex='Both',
+                                                override_config=builder.configuration)
+        self._birth_data = get_annual_live_births(builder.configuration).set_index(['year'])
+        if 'maximum_age' in builder.configuration.population:
+            self.maximum_age = builder.configuration.population.maximum_age
+        else:
+            self.maximum_age = None
         self.randomness = builder.randomness('crude_birth_rate')
 
     @listens_for('time_step')
@@ -117,8 +126,7 @@ class FertilityCrudeBirthRate:
                     'initial_age': 0.0,
                 })
 
-    @staticmethod
-    def _get_birth_rate(year):
+    def _get_birth_rate(self, year):
         """Computes a crude birth rate from demographic data in a given year.
 
         Parameters
@@ -132,17 +140,14 @@ class FertilityCrudeBirthRate:
             The crude birth rate of the population in the given year in
             births per person per year.
         """
+        population_table = self._population_data[self._population_data.year == year]
+        births = float(self._birth_data.loc[year])
 
-        location_id = config.simulation_parameters.location_id
-        population_table = get_populations(location_id, year, sex='Both')
-
-        if 'maximum_age' in config.simulation_parameters:
-            population = population_table.pop_scaled[
-                population_table.age < config.simulation_parameters.maximum_age].sum()
+        if self.maximum_age is not None:
+            population = population_table.pop_scaled[population_table.age < self.maximum_age].sum()
         else:
             population = population_table.pop_scaled.sum()
 
-        births = float(get_annual_live_births(location_id, year))
         return births / population
 
 
@@ -150,8 +155,6 @@ class FertilityAgeSpecificRates:
     """
     A simulant-specific model for fertility and pregnancies.
     """
-    def __init__(self):
-        self._asfr_data = get_age_specific_fertility_rates()[['year', 'age', 'rate']]
 
     def setup(self, builder):
         """ Setup the common randomness stream and
@@ -165,6 +168,7 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness('fertility')
+        self._asfr_data = get_age_specific_fertility_rates(builder.configuration)[['year', 'age', 'rate']]
         self.asfr = builder.rate('fertility rate')
         self.asfr.source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))
 

@@ -1,34 +1,37 @@
 import os
-from unittest.mock import patch
 
 import numpy as np
 import pytest
 
-from vivarium import config
 from vivarium.framework.event import listens_for
-from vivarium.test_util import setup_simulation, assert_rate, build_table, generate_test_population
+from vivarium.test_util import setup_simulation, assert_rate, build_table, TestPopulation
 
 from ceam_public_health.treatment import HealthcareAccess
 
 np.random.seed(100)
 
 
-def setup():
+@pytest.fixture(scope='function')
+def config(base_config):
     try:
-        config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                      'input_data.auxiliary_data_folder'])
+        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                           'input_data.auxiliary_data_folder'])
     except KeyError:
         pass
-    config.simulation_parameters.set_with_metadata('year_start', 1995, layer='override',
-                                                   source=os.path.realpath(__file__))
-    config.simulation_parameters.set_with_metadata('year_end', 2010, layer='override',
-                                                   source=os.path.realpath(__file__))
-    config.simulation_parameters.set_with_metadata('time_step', 30.5, layer='override',
-                                                   source=os.path.realpath(__file__))
+    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
+    base_config.simulation_parameters.set_with_metadata('year_start', 1995, **metadata)
+    base_config.simulation_parameters.set_with_metadata('year_end', 2010, **metadata)
+    base_config.simulation_parameters.set_with_metadata('time_step', 30.5, **metadata)
+    return base_config
+
+
+@pytest.fixture(scope='function')
+def utilization_rate_mock(mocker):
+    return mocker.patch('ceam_public_health.treatment.healthcare_access.get_proportion')
 
 
 class Metrics:
-    def setup(self, builder):
+    def __init__(self):
         self.access_count = 0
 
     @listens_for('general_healthcare_access')
@@ -40,33 +43,16 @@ class Metrics:
 
 
 @pytest.mark.slow
-@patch('ceam_public_health.treatment.healthcare_access.get_proportion')
-def test_general_access(utilization_rate_mock):
-    utilization_rate_mock.side_effect = lambda *args, **kwargs: build_table(0.1, ['age', 'year', 'sex', 'utilization_proportion'])
+def test_general_access(config, utilization_rate_mock):
+    year_start = config.simulation_parameters.year_start
+    year_end = config.simulation_parameters.year_end
+
+    def get_utilization_rate(*_, **__):
+        return build_table(0.1, year_start, year_end, ['age', 'year', 'sex', 'utilization_proportion'])
+    utilization_rate_mock.side_effect = get_utilization_rate
+
     metrics = Metrics()
-    simulation = setup_simulation([generate_test_population, metrics, HealthcareAccess()])
+    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config)
 
     # 1.2608717447575932 == a monthly probability 0.1 as a yearly rate
     assert_rate(simulation, 1.2608717447575932, lambda s: metrics.access_count)
-
-
-#TODO: get fixture data for the cost table so we can test in a stable space
-#@pytest.mark.slow
-#def test_general_access_cost():
-#    metrics = MetricsModule()
-#    access = HealthcareAccessModule()
-#    simulation = simulation_factory([metrics, access])
-#
-#    simulation.reset_population()
-#    timestep = timedelta(days=30)
-#    start_time = datetime(1990, 1, 1)
-#    simulation.current_time = start_time
-#
-#    simulation._step(timestep)
-#    simulation._step(timestep)
-#    simulation._step(timestep)
-#
-#    assert np.allclose(sum(access.cost_by_year.values()) / metrics.access_count, access.appointment_cost[1990])
-
-
-# End.
