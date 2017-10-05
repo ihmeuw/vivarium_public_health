@@ -34,7 +34,8 @@ class DiseaseModel(Machine):
     def condition(self):
         return self.state_column
 
-    def setup(self, builder):  # Completely overrides Machine.setup
+    # FIXME: The Ma
+    def setup(self, builder):
         self.config = builder.configuration
 
         get_csmr_func = self._get_data_functions.get('csmr', get_cause_specific_mortality)
