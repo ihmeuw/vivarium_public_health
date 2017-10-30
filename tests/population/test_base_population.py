@@ -74,7 +74,7 @@ def make_base_simulants():
     return pd.DataFrame({'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
                          'exit_time': pd.Series(pd.NaT, index=simulant_ids),
                          'alive': pd.Series('alive', index=simulant_ids).astype(
-                             'category', categories=['alive', 'dead', 'untracked'], ordered=False)},
+                             pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))},
                         index=simulant_ids)
 
 
@@ -82,7 +82,7 @@ def make_full_simulants():
     base_simulants = make_base_simulants()
     base_simulants['location'] = pd.Series(1, index=base_simulants.index)
     base_simulants['sex'] = pd.Series('Male', index=base_simulants.index).astype(
-        'category', categories=['Male', 'Female'], ordered=False)
+        pd.api.types.CategoricalDtype(categories=['Male', 'Female'], ordered=False))
     base_simulants['age'] = np.random.uniform(0, 100, len(base_simulants))
     return base_simulants
 
