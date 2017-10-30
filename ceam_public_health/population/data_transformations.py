@@ -73,7 +73,7 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
     age_end = min(pop_data.age_group_end.max(), pop_age_end)
 
     relevant_age_groups = (pop_data.age_group_end > age_start) & (pop_data.age_group_start < age_end)
-    pop_data = pop_data[relevant_age_groups]
+    pop_data = pop_data[relevant_age_groups].copy()
 
     for _, sub_pop in pop_data.groupby(['sex', 'location_id']):
         max_bin = sub_pop[sub_pop.age_group_end >= age_end]
