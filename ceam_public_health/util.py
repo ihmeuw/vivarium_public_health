@@ -1,8 +1,28 @@
+import numpy as np
 import pandas as pd
+import scipy.interpolate
 
 import operator
 
 from ceam_inputs import get_age_bins
+
+
+def simple_extrapolation(s):
+    """ Return a function that does a constant extrapolation of the series s
+
+    Parameters
+    ----------
+    s : pd.Series, s.index = x, s.iloc[:] = y
+
+    Results
+    -------
+    Returns function f, with f(x) == s[x] for all x in s.index
+    """
+
+    x = np.array(s.index, dtype=float)
+    y = np.array(s, dtype=float)
+
+    return scipy.interpolate.interp1d(x, y, kind='zero', fill_value='extrapolate')
 
 
 def make_age_bins_column(age_group_id_min, age_group_id_max, config):
