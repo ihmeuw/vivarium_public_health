@@ -31,7 +31,7 @@ class Mortality:
         self.csmr.source = list
 
         self.mortality_rate = builder.rate('mortality_rate')
-        self.life_table = builder.lookup(self._life_table_data, key_columns=(), parameter_columns=('age',))
+        self.life_table = builder.lookup(self._life_table_data)
 
         self.death_emitter = builder.emitter('deaths')
         self.random = builder.randomness('mortality_handler')
