@@ -65,7 +65,8 @@ class RiskEffect:
         if cause == causes.ischemic_stroke or cause == causes.hemorrhagic_stroke:
             self.cause_name = 'acute_' + self.cause_name
 
-        self.exposure_effect = (continuous_exposure_effect(self.risk) if self.risk.distribution != 'categorical'
+        is_continuous = not (self.risk.distribution == 'dichotomous' or self.risk.distribution == 'polytomous')
+        self.exposure_effect = (continuous_exposure_effect(self.risk) if is_continuous
                                 else categorical_exposure_effect(self.risk))
 
     def setup(self, builder):
