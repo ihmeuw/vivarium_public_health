@@ -61,7 +61,7 @@ class Mortality:
         dead_pop = prob_df.query('cause_of_death != "no_death"').copy()
 
         dead_pop['alive'] = pd.Series('dead', index=dead_pop.index).astype(
-            'category', categories=['alive', 'dead', 'untracked'], ordered=False)
+            pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
         dead_pop['exit_time'] = event.time
 
         self.death_emitter(event.split(dead_pop.index))

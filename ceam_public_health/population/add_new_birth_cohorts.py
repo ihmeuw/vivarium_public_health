@@ -213,7 +213,7 @@ class FertilityAgeSpecificRates:
         eligible_women = event.population[can_have_children]
 
         rate_series = self.asfr(eligible_women.index)
-        had_children = self.randomness.filter_for_rate(eligible_women, rate_series)
+        had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
 
         had_children.loc[:, 'last_birth_time'] = event.time
         event.population_view.update(had_children['last_birth_time'])

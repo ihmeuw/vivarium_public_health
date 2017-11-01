@@ -101,7 +101,7 @@ class BasePopulation:
             max_age = float(self.config.maximum_age)
             pop = event.population[event.population['age'] >= max_age].copy()
             pop['alive'] = pd.Series('untracked', index=pop.index).astype(
-                'category', categories=['alive', 'dead', 'untracked'], ordered=False)
+                pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
             pop['exit_time'] = event.time
             event.population_view.update(pop)
 
@@ -144,7 +144,7 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
     simulants = pd.DataFrame({'entrance_time': pd.Series(creation_time, index=simulant_ids),
                               'exit_time': pd.Series(pd.NaT, index=simulant_ids),
                               'alive': pd.Series('alive', index=simulant_ids).astype(
-                                  'category', categories=['alive', 'dead', 'untracked'], ordered=False)},
+                                  pd.api.types.CategoricalDtype(['alive', 'dead', 'untracked'], ordered=False))},
                              index=simulant_ids)
 
     if age_params['initial_age'] is not None:

@@ -53,10 +53,10 @@ def test_determine_if_sim_has_cause():
     grouped_results = results.groupby('age')[['condition_envelope']].sum()
 
     err_msg = "determine if sim has cause needs to appropriately assign causes based on prevalence"
-    assert np.allclose(grouped_results.get_value(0, 'condition_envelope')/125000, .25, .01), err_msg
-    assert np.allclose(grouped_results.get_value(5, 'condition_envelope')/125000, .5, .01), err_msg
-    assert np.allclose(grouped_results.get_value(10, 'condition_envelope')/125000, .75, .01), err_msg
-    assert np.allclose(grouped_results.get_value(15, 'condition_envelope')/125000, 1), err_msg
+    assert np.allclose(grouped_results.loc[0, 'condition_envelope']/125000, .25, .01), err_msg
+    assert np.allclose(grouped_results.loc[5, 'condition_envelope']/125000, .5, .01), err_msg
+    assert np.allclose(grouped_results.loc[10, 'condition_envelope']/125000, .75, .01), err_msg
+    assert np.allclose(grouped_results.loc[15, 'condition_envelope']/125000, 1), err_msg
 
 
 def test_get_sequela_proportions():
@@ -97,11 +97,11 @@ def test_determine_which_seq_diseased_sim_has():
     seq2 = results.query("condition_state == 'sequela 2'")
 
     val1 = seq1.groupby('age')[['count']].sum()
-    val1 = val1.get_value(0, 'count')
-    val1 = val1 / 100000
+    val1 = val1.loc[0, 'count']
+    val1 /= 100000
     val2 = seq2.groupby('age')[['count']].sum()
-    val2 = val2.get_value(0, 'count')
-    val2 = val2 / 100000
+    val2 = val2.loc[0, 'count']
+    val2 /= 100000
 
     err_msg = "determine which seq diseased sim has needs to assign sequelae according to sequela prevalence"
     assert np.allclose(val1, .75, .1), err_msg
