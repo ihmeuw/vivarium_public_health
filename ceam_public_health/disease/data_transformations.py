@@ -12,7 +12,12 @@ def get_cause_level_prevalence(states, year_start):
                                                                                   "get_cause_level_prevalence need "
                                                                                   "to be dataframes with columns year, "
                                                                                   "age, prevalence, and sex.")
-        states[key] = states[key].query("year == {}".format(year_start))
+        if year_start > states[key].year.max():
+            y = states[key].year.max()
+        else:
+            y = year_start
+
+        states[key] = states[key].query(f"year == {y}")
         states[key] = states[key][['year', 'age', 'prevalence', 'sex']]
         prevalence_df = prevalence_df.append(states[key])
 

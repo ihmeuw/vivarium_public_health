@@ -71,7 +71,13 @@ class BasePopulation:
         age_params = {'initial_age': event.user_data.get('initial_age', None),
                       'pop_age_start': self.config.pop_age_start,
                       'pop_age_end': self.config.pop_age_end}
-        sub_pop_data = self._population_data[self._population_data.year == event.time.year]
+
+        if event.time.year in self._population_data.year.unique():
+            sub_pop_data = self._population_data[self._population_data.year == event.time.year]
+        elif event.time.year > self._population_data.year.max():
+            sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.max()]
+        # TODO: extrapolate to earlier years as well...
+
         event.population_view.update(generate_ceam_population(simulant_ids=event.index,
                                                               creation_time=event.time,
                                                               age_params=age_params,
