@@ -70,11 +70,9 @@ class HealthcareAccess:
         self.hospitalization_count = 0
 
         self.hospitalization_cost = defaultdict(float)
-        ip_cost_df = get_inpatient_visit_costs(builder.configuration)
-        ip_cost_df.index = ip_cost_df.year_id
+        ip_cost_df = get_inpatient_visit_costs(builder.configuration).set_index('year_id')
         self._hospitalization_cost = simple_extrapolation(
             ip_cost_df.query(f'variable == "draw_{draw}" and location_id == {location_id}').ip_cost)
-
 
         cost_df = get_outpatient_visit_costs(builder.configuration).set_index('year_id')
         self._appointment_cost = simple_extrapolation(cost_df.loc[cost_df.location_id == location_id,
