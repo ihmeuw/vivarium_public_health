@@ -171,7 +171,8 @@ class CategoricalRiskComponent:
 
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
-        self.exposure.source = builder.lookup(get_exposure_means(risk=self._risk))
+        self.exposure.source = builder.lookup(get_exposure_means(risk=self._risk,
+                                                                 override_config=builder.configuration))
         self.randomness = builder.randomness(self._risk.name)
 
         return self._effects
