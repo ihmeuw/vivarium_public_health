@@ -62,7 +62,7 @@ class HealthcareAccess:
         self.clock = builder.clock()
         r = np.random.RandomState(self.general_random.get_seed())
 
-        self.semi_adherent_pr = r.normal(0.4, 0.0485)
+        self.semi_adherent_pr = r.normal(0.4, 0.0485)  # FIXME: document this parameter choice, and consider refining it
 
         self.cost_by_year = defaultdict(float)
         self.general_access_count = 0
@@ -88,12 +88,13 @@ class HealthcareAccess:
         self.utilization_proportion = builder.lookup(utilization_data)
 
     @listens_for('initialize_simulants')
-    @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'adherence_category'])
+    @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'healthcare_visits', 'adherence_category'])
     def load_population_columns(self, event):
         population_size = len(event.index)
         adherence = self.get_adherence(population_size)
         event.population_view.update(pd.DataFrame({'healthcare_followup_date': [pd.NaT]*population_size,
                                                    'healthcare_last_visit_date': [pd.NaT]*population_size,
+                                                   'healthcare_visits': [0]*population_size,
                                                    'adherence_category': adherence}))
 
     def get_adherence(self, population_size):
@@ -107,7 +108,7 @@ class HealthcareAccess:
                          dtype='category')
 
     @listens_for('time_step')
-    @uses_columns(['healthcare_last_visit_date'], "alive == 'alive'")
+    @uses_columns(['healthcare_last_visit_date', 'healthcare_visits'], "alive == 'alive'")
     def general_access(self, event):
         # determine population who accesses care
         t = self.utilization_proportion(event.index)
@@ -115,16 +116,20 @@ class HealthcareAccess:
         index = self.general_random.filter_for_probability(event.index, t)
 
         # for those who show up, emit_event that the visit has happened, and tally the cost
-        event.population_view.update(pd.Series(event.time, index=index))
+        event.population_view.update(pd.Series(event.time, index=index, name='healthcare_last_visit_date'))
         self.general_healthcare_access_emitter(event.split(index))
         self.general_access_count += len(index)
+        
+        pop = event.population_view.get(index)
+        pop.healthcare_visits += 1
+        event.population_view.update(pop.healthcare_visits)
 
         year = event.time.year
         self.cost_by_year[year] += len(index) * self._appointment_cost(year=[year])[0]
         self.outpatient_cost[year] += len(index) * self._appointment_cost(year=[year])[0]
 
     @listens_for('time_step')
-    @uses_columns(['healthcare_last_visit_date', 'healthcare_followup_date', 'adherence_category'],
+    @uses_columns(['healthcare_last_visit_date', 'healthcare_visits', 'healthcare_followup_date', 'adherence_category'],
                   "alive == 'alive'")
     def followup_access(self, event):
         # determine population due for a follow-up appointment
@@ -144,6 +149,10 @@ class HealthcareAccess:
                                                name='healthcare_last_visit_date'))
         self.followup_healthcare_access_emitter(event.split(affected_population.index))
         self.followup_access_count += len(affected_population)
+
+        pop = event.population_view.get(affected_population.index)
+        pop.healthcare_visits += 1
+        event.population_view.update(pop.healthcare_visits)
 
         year = event.time.year
         self.cost_by_year[year] += len(affected_population) * self._appointment_cost(year=[year])[0]
