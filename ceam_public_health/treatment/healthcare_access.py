@@ -113,7 +113,7 @@ class HealthcareAccess:
         # determine population who accesses care
         t = self.utilization_proportion(event.index)
         # FIXME: currently assumes timestep is one month
-        index = self.general_random.filter_for_probability(event.index, t)
+        index = self.general_random.filter_for_probability(event.index, t)  # TODO: consider including adherence_category in this
 
         # for those who show up, emit_event that the visit has happened, and tally the cost
         event.population_view.update(pd.Series(event.time, index=index, name='healthcare_last_visit_date'))
@@ -138,10 +138,11 @@ class HealthcareAccess:
         affected_population = event.population[rows]
 
         # of them, determine who shows up for their follow-up appointment
-        adherence = pd.Series(1, index=affected_population.index)
-        adherence[affected_population.adherence_category == 'non-adherent'] = 0
-        semi_adherents = affected_population.loc[affected_population.adherence_category == 'semi-adherent']
-        adherence[semi_adherents.index] = self.semi_adherent_pr
+        adherence_pr = {'adherent': 1.0,
+                        'semi-adherent': self.semi_adherent_pr,
+                        'non-adherent': 0.0}
+        adherence = affected_population.adherence_category.map(adherence_pr)
+
         affected_population = self.followup_random.filter_for_probability(affected_population, adherence)
 
         # for those who show up, emit_event that the visit has happened, and tally the cost
