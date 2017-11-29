@@ -9,7 +9,7 @@ from vivarium.framework.values import modifies_value
 from vivarium.framework.randomness import filter_for_probability
 from vivarium.interpolation import Interpolation
 
-from ceam_inputs import get_proportion, get_inpatient_visit_costs, get_outpatient_visit_costs, healthcare_entities
+from ceam_inputs import get_healthcare_annual_visits, get_inpatient_visit_costs, get_outpatient_visit_costs, healthcare_entities
 
 
 def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
@@ -54,7 +54,8 @@ class HealthcareAccess:
         location_id = builder.configuration.input_data.location_id
         draw = builder.configuration.run_configuration.input_draw_number
 
-        utilization_data = get_proportion(healthcare_entities.outpatient_visits, builder.configuration)
+        annual_visits = get_healthcare_annual_visits(healthcare_entities.outpatient_visits)
+        utilization_data['annual_visits'] = annual_visits['annual_visits'] / 12
 
         self.general_random = builder.randomness('healthcare_general_access')
         self.followup_random = builder.randomness('healthcare_followup_access')

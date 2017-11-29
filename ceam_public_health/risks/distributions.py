@@ -4,8 +4,8 @@ from scipy.stats import norm, beta
 
 from vivarium.interpolation import Interpolation
 
-from ceam_inputs import (get_fpg_distribution_parameters, get_bmi_distribution_parameters,
-                         get_sbp_distribution, get_exposure_means, risk_factors)
+#from ceam_inputs import (get_fpg_distribution_parameters, get_bmi_distribution_parameters,
+#                         get_sbp_distribution, get_exposure_means, risk_factors)
 
 
 def _sll_ppf(percentile, location, scale, shape):

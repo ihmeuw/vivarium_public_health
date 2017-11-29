@@ -5,7 +5,7 @@ import numpy as np
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns, creates_simulants
 
-from ceam_inputs import get_age_specific_fertility_rates, get_annual_live_births, get_populations
+from ceam_inputs import get_age_specific_fertility_rates, get_populations#, get_annual_live_births
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate GBD estimates into gestational model (probably as a separate component)
