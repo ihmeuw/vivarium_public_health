@@ -102,8 +102,8 @@ def make_uniform_pop_data():
                         'sex': sexes,
                         'year': years,
                         'location_id': locations,
-                        'pop_scaled': [100] * len(ages)})
-    pop.loc[pop.sex == 'Both', 'pop_scaled'] = 200
+                        'population': [100] * len(ages)})
+    pop.loc[pop.sex == 'Both', 'population'] = 200
     return pop
 
 
@@ -314,10 +314,10 @@ def test__get_population_data(config, get_populations_mock, get_subregions_mock)
 
     get_subregions_mock.side_effect = lambda location_id, override_config: subregion_ids if location_id == main_id else None
     test_populations = {
-        10: build_table(20, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
-        11: build_table(30, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
-        12: build_table(50, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
-        20: build_table(70, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
+        10: build_table(20, year_start, year_end, ['age', 'year', 'sex', 'population']),
+        11: build_table(30, year_start, year_end, ['age', 'year', 'sex', 'population']),
+        12: build_table(50, year_start, year_end, ['age', 'year', 'sex', 'population']),
+        20: build_table(70, year_start, year_end, ['age', 'year', 'sex', 'population']),
     }
     get_populations_mock.side_effect = lambda location_id, override_config: test_populations[location_id]
 
