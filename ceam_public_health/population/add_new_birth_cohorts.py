@@ -144,9 +144,9 @@ class FertilityCrudeBirthRate:
         births = float(self._birth_data.loc[year])
 
         if self.maximum_age is not None:
-            population = population_table.pop_scaled[population_table.age < self.maximum_age].sum()
+            population = population_table.population[population_table.age < self.maximum_age].sum()
         else:
-            population = population_table.pop_scaled.sum()
+            population = population_table.population.sum()
 
         return births / population
 

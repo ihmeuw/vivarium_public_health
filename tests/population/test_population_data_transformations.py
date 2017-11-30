@@ -23,8 +23,8 @@ def make_uniform_pop_data():
                         'sex': sexes,
                         'year': years,
                         'location_id': locations,
-                        'pop_scaled': [100]*len(ages)})
-    pop.loc[pop.sex == 'Both', 'pop_scaled'] = 200
+                        'population': [100]*len(ages)})
+    pop.loc[pop.sex == 'Both', 'population'] = 200
     return pop
 
 
@@ -59,8 +59,8 @@ def test_rescale_binned_proportions_clipped_ends():
     base_p = 1/len(pop_data)
     p_scaled = [base_p*3/5, base_p*2/5]
 
-    for group, sub_pop_scaled in pop_data_scaled.groupby(['sex', 'location_id']):
-        assert np.allclose(sub_pop_scaled['P(sex, location_id, age| year)'], p_scaled)
+    for group, sub_population in pop_data_scaled.groupby(['sex', 'location_id']):
+        assert np.allclose(sub_population['P(sex, location_id, age| year)'], p_scaled)
 
 
 def test_rescale_binned_proportions_age_bin_edges():

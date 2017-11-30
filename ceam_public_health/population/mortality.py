@@ -1,6 +1,6 @@
 import pandas as pd
 
-from ceam_inputs import get_life_table, causes, get_cause_specific_mortality
+from ceam_inputs import get_theoretical_minimum_risk_life_expectancy, causes, get_cause_specific_mortality
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
@@ -20,7 +20,6 @@ class Mortality:
 
     def setup(self, builder):
         self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes, builder.configuration)
-        self._life_table_data = get_life_table(builder.configuration)
         self._cause_deleted_mortality_data = None
 
         self._root_location = builder.configuration.input_data.location_id
@@ -31,7 +30,9 @@ class Mortality:
         self.csmr.source = list
 
         self.mortality_rate = builder.rate('mortality_rate')
-        self.life_table = builder.lookup(self._life_table_data, key_columns=[], parameter_columns=('age',))
+
+        life_expectancy_data = get_theoretical_minimum_risk_life_expectancy()
+        self.life_expectancy = builder.lookup(life_expectancy_data, key_columns=[], parameter_columns=('age',))
 
         self.death_emitter = builder.emitter('deaths')
         self.random = builder.randomness('mortality_handler')
@@ -85,7 +86,7 @@ class Mortality:
         the_untracked = population[population.alive == 'untracked']
 
         metrics['deaths'] = len(the_dead)
-        metrics['years_of_life_lost'] = self.life_table(the_dead.index).sum()
+        metrics['years_of_life_lost'] = self.life_expectancy(the_dead.index).sum()
         metrics['total_population'] = len(population)
         metrics['total_population__living'] = len(the_living)
         metrics['total_population__dead'] = len(the_dead)

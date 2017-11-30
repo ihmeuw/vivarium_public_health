@@ -123,7 +123,7 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
         The latter two keys can have values specified to generate simulants over an age range.
     population_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     randomness_stream : vivarium.framework.randomness.RandomnessStream
         Source of random number generation within the vivarium common random number framework.
 
@@ -164,7 +164,7 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, random
         Table that represents the new cohort of agents being added to the simulation.
     pop_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     initial_age : float
         The age to assign the new simulants.
     randomness_stream : vivarium.framework.randomness.RandomnessStream
@@ -202,7 +202,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
         Table that represents the new cohort of agents being added to the simulation.
     pop_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     age_start, age_end : float
         The start and end of the age range of interest, respectively.
     randomness_stream : vivarium.framework.randomness.RandomnessStream
@@ -250,7 +250,7 @@ def _build_population_data_table(main_location, use_subregions, override_config=
             'sex' : 'Male' or 'Female',
             'location_id' : GBD location id,
             'year' : Year,
-            'pop_scaled' : Total population estimate,
+            'population' : Total population estimate,
             'P(sex, location_id | age, year)' : Conditional probability of sex and location_id given age and year,
             'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year,
             'P(age | year, sex, location_id)' : Conditional probability of age given year, sex, and location_id.
@@ -278,7 +278,7 @@ def _get_population_data(main_location, use_subregions, override_config=None):
             'sex' : 'Male' or 'Female',
             'location_id' : GBD location id,
             'year' : Year,
-            'pop_scaled' : Total population estimate
+            'population' : Total population estimate
     """
     locations = [main_location]
     if use_subregions:

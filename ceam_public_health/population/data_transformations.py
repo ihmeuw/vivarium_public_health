@@ -9,7 +9,7 @@ def assign_demographic_proportions(population_data):
     Parameters
     ----------
     population_data : pandas.DataFrame
-        Table with columns 'age', 'sex', 'year', 'location_id', and 'pop_scaled'
+        Table with columns 'age', 'sex', 'year', 'location_id', and 'population'
 
     Returns
     -------
@@ -23,22 +23,22 @@ def assign_demographic_proportions(population_data):
     population_data['P(sex, location_id, age| year)'] = (
         population_data
             .groupby('year', as_index=False)
-            .apply(lambda sub_pop: sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum())
-            .reset_index(level=0).pop_scaled
+            .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
+            .reset_index(level=0).population
     )
 
     population_data['P(sex, location_id | age, year)'] = (
         population_data
             .groupby(['age', 'year'], as_index=False)
-            .apply(lambda sub_pop: sub_pop.pop_scaled / sub_pop[sub_pop.sex == 'Both'].pop_scaled.sum())
-            .reset_index(level=0).pop_scaled
+            .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
+            .reset_index(level=0).population
     )
 
     population_data['P(age | year, sex, location_id)'] = (
         population_data
             .groupby(['year', 'sex', 'location_id'], as_index=False)
-            .apply(lambda sub_pop: sub_pop.pop_scaled / sub_pop.pop_scaled.sum())
-            .reset_index(level=0).pop_scaled
+            .apply(lambda sub_pop: sub_pop.population / sub_pop.population.sum())
+            .reset_index(level=0).population
     )
 
     return population_data[population_data.sex != 'Both']
@@ -53,7 +53,7 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
     ----------
     pop_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
+        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
         'P(age | year, sex, location_id)'
     pop_age_start : float
         The starting age for the rescaled bins.
@@ -66,7 +66,7 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
         Table with the same columns as `pop_data` where all bins outside the range
         (pop_age_start, pop_age_end) have been discarded.  If pop_age_start and pop_age_end
         don't fall cleanly on age boundaries, the bins in which they lie are clipped and
-        the 'pop_scaled', 'P(sex, location_id, age| year)', and 'P(age | year, sex, location_id)'
+        the 'population', 'P(sex, location_id, age| year)', and 'P(age | year, sex, location_id)'
         values are rescaled to reflect their smaller representation.
     """
     age_start = max(pop_data.age_group_start.min(), pop_age_start)
@@ -84,7 +84,7 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
         min_scale = ((float(min_bin.age_group_end) - age_start)
                      / float(min_bin.age_group_end - min_bin.age_group_start))
 
-        columns_to_scale = ['P(sex, location_id, age| year)', 'P(age | year, sex, location_id)', 'pop_scaled']
+        columns_to_scale = ['P(sex, location_id, age| year)', 'P(age | year, sex, location_id)', 'population']
 
         pop_data.loc[max_bin.index, columns_to_scale] *= max_scale
         pop_data.loc[max_bin.index, 'age_group_end'] = age_end
@@ -107,7 +107,7 @@ def smooth_ages(simulants, population_data, randomness):
     simulants : pandas.DataFrame
         Table with columns 'age', 'sex', and 'location'
     population_data : pandas.DataFrame
-        Table with columns 'age', 'sex', 'year', 'location_id', 'pop_scaled',
+        Table with columns 'age', 'sex', 'year', 'location_id', 'population',
         'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
         'P(age | year, sex, location_id)'
     randomness : vivarium.framework.randomness.RandomnessStream
@@ -160,7 +160,7 @@ def _get_bins_and_proportions(pop_data, age):
     Parameters
     ----------
     pop_data : pandas.DataFrame
-        Table with columns 'age', 'sex', 'year', 'location_id', 'pop_scaled',
+        Table with columns 'age', 'sex', 'year', 'location_id', 'population',
         'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
         'P(age | year, sex, location_id)'
     age : AgeValues
