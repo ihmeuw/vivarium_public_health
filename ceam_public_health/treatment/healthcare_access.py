@@ -69,9 +69,7 @@ class HealthcareAccess:
 
         self.hospitalization_cost = defaultdict(float)
         ip_cost_df = get_inpatient_visit_costs(builder.configuration).rename(columns={'year_id':'year'})
-        ip_cost_df = pd.pivot_table(ip_cost_df, values='ip_cost', index=['location_id', 'year'], columns=['variable']).reset_index()
-        self._hospitalization_cost = Interpolation(ip_cost_df.loc[ip_cost_df.location_id == location_id,
-                                                   ('draw_{}'.format(draw), 'year')], tuple(), ('year',))
+        self._hospitalization_cost = Interpolation(ip_cost_df, tuple(), ('year',))
 
         cost_df = get_outpatient_visit_costs(builder.configuration)
         cost_df = cost_df.rename(columns={'year_id':'year'})
