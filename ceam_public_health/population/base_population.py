@@ -284,5 +284,5 @@ def _get_population_data(main_location, use_subregions, override_config=None):
     if use_subregions:
         sub_regions = get_subregions(main_location, override_config)
         locations = sub_regions if sub_regions else locations
-    return pd.concat([get_populations(location_id=location, override_config=override_config)
+    return pd.concat([get_populations(override_config=override_config)
                       for location in locations], ignore_index=True)

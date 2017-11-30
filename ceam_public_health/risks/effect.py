@@ -15,7 +15,7 @@ def continuous_exposure_effect(risk):
     """
     exposure_column = risk.name+'_exposure'
     tmrel = 0.5 * (risk.tmred.min + risk.tmred.max)
-    max_exposure = risk.max_rr
+    max_exposure = risk.exposure_parameters.max_rr
 
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     @uses_columns([exposure_column])
