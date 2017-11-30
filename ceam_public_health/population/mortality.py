@@ -31,7 +31,7 @@ class Mortality:
         self.csmr.source = list
 
         self.mortality_rate = builder.rate('mortality_rate')
-        self.life_table = builder.lookup(self._life_table_data)
+        self.life_table = builder.lookup(self._life_table_data, key_columns=[], parameter_columns=('age',))
 
         self.death_emitter = builder.emitter('deaths')
         self.random = builder.randomness('mortality_handler')
@@ -92,7 +92,7 @@ class Mortality:
         metrics['total_population__untracked'] = len(the_untracked)
 
         for (condition, count) in pd.value_counts(the_dead.cause_of_death).to_dict().items():
-            metrics['{}'.format(condition)] = count
+            metrics['{}'.format(condition)] = count  # TODO: consider changing name to 'death_by_{condition}' or somesuch
 
         return metrics
 

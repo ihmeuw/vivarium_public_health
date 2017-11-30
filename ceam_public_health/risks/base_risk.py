@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import multivariate_normal, norm
 
-from ceam_inputs import risk_factors, load_risk_correlation_matrices, get_exposure_means
+from ceam_inputs import risk_factors, get_risk_correlation_matrices, get_exposure_mean
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
@@ -41,7 +41,7 @@ def correlated_propensity_factory(config):
         initialization.
         """
 
-        correlation_matrices = load_risk_correlation_matrices(override_config=config)
+        correlation_matrices = get_risk_correlation_matrices(override_config=config)
         if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
             # There's no correlation data for this risk, just pick a uniform random propensity
             return uncorrelated_propensity(population, risk_factor)
@@ -171,8 +171,9 @@ class CategoricalRiskComponent:
 
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
-        self.exposure.source = builder.lookup(get_exposure_means(risk=self._risk,
-                                                                 override_config=builder.configuration))
+        self.exposure.source = builder.lookup(get_exposure_mean(risk=self._risk,
+                                                                override_config=builder.configuration))
+
         self.randomness = builder.randomness(self._risk.name)
 
         return self._effects

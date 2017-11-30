@@ -1,13 +1,12 @@
 import numpy as np
 from scipy import stats, optimize, integrate, special
 
-
 def get_min_max(exposure_mean, exposure_sd):
     # Construct parameters for a lognormal distribution
     alpha = 1 + exposure_sd**2/exposure_mean**2
     scale = exposure_mean/np.sqrt(alpha)
     s = np.sqrt(np.log(alpha))
-
+    
     x_min, x_max = 1/scale * stats.lognorm.ppf([0.001, 0.999], s=s, scale=scale)
 
     return x_min, x_max

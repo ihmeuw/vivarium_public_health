@@ -1,6 +1,6 @@
 import numpy as np
 
-from ceam_inputs import causes, get_relative_risks, get_pafs, get_mediation_factors
+from ceam_inputs import causes, get_relative_risks, get_population_attributable_fraction, get_mediation_factors
 
 from vivarium.framework.population import uses_columns
 
@@ -15,7 +15,7 @@ def continuous_exposure_effect(risk):
     """
     exposure_column = risk.name+'_exposure'
     tmrel = 0.5 * (risk.tmred.min + risk.tmred.max)
-    max_exposure = risk.max_rr
+    max_exposure = risk.exposure_parameters.max_rr
 
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     @uses_columns([exposure_column])
@@ -71,7 +71,7 @@ class RiskEffect:
 
     def setup(self, builder):
         get_rr_func = self._get_data_functions.get('rr', get_relative_risks)
-        get_paf_func = self._get_data_functions.get('paf', get_pafs)
+        get_paf_func = self._get_data_functions.get('paf', get_population_attributable_fraction)
         get_mf_func = self._get_data_functions.get('mf', get_mediation_factors)
 
         self._rr_data = get_rr_func(self.risk, self.cause, builder.configuration)

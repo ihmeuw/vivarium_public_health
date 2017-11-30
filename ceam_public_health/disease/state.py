@@ -8,7 +8,7 @@ from vivarium.framework.values import modifies_value
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
-from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, get_duration
+from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality
 
 
 class BaseDiseaseState(State):
@@ -165,7 +165,7 @@ class DiseaseState(BaseDiseaseState):
         """
         get_disability_weight_func = self._get_data_functions.get('disability_weight', get_disability_weight)
         get_prevalence_func = self._get_data_functions.get('prevalence', get_prevalence)
-        get_dwell_time_func = self._get_data_functions.get('dwell_time', get_duration)
+        get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: 0)
 
         disability_weight_data = get_disability_weight_func(self.cause, builder.configuration)
         self.prevalence_data = get_prevalence_func(self.cause, builder.configuration)

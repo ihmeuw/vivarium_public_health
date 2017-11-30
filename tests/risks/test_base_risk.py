@@ -62,7 +62,7 @@ def get_rr_mock(mocker):
 
 @pytest.fixture(scope='function')
 def get_paf_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.effect.get_pafs')
+    return mocker.patch('ceam_public_health.risks.effect.get_population_attributable_fraction')
 
 
 @pytest.fixture(scope='function')
