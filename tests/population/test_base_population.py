@@ -304,7 +304,7 @@ def test__build_population_data_table(config, get_pop_data_mock, assign_proporti
     assert test == 1
 
 
-def test__get_population_data(config, get_populations_mock, get_subregions_mock):
+def test__get_population_data(config, get_populations_mock, get_subregions_mock, mocker):
 
     main_id = 10
     main_id_no_subregions = 20
@@ -312,18 +312,20 @@ def test__get_population_data(config, get_populations_mock, get_subregions_mock)
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
 
-    get_subregions_mock.side_effect = lambda location_id, override_config: subregion_ids if location_id == main_id else None
+    get_subregions_mock.side_effect = lambda override_config: (subregion_ids if override_config.input_data.location_id
+                                                                                == main_id else None)
     test_populations = {
         10: build_table(20, year_start, year_end, ['age', 'year', 'sex', 'population']),
         11: build_table(30, year_start, year_end, ['age', 'year', 'sex', 'population']),
         12: build_table(50, year_start, year_end, ['age', 'year', 'sex', 'population']),
         20: build_table(70, year_start, year_end, ['age', 'year', 'sex', 'population']),
     }
-    get_populations_mock.side_effect = lambda location_id, override_config: test_populations[location_id]
+    get_populations_mock.side_effect = lambda override_config, location: test_populations[location]
 
+    config.input_data.location_id = main_id
     bp._get_population_data(main_id, True, config)
-    get_subregions_mock.assert_called_once_with(main_id, config)
-    assert get_populations_mock.call_args_list == [({'location_id': loc, 'override_config': config},)
+    get_subregions_mock.assert_called_once_with(config)
+    assert get_populations_mock.call_args_list == [mocker.call(override_config=config, location=loc)
                                                    for loc in subregion_ids]
 
     get_subregions_mock.reset_mock()
@@ -331,11 +333,12 @@ def test__get_population_data(config, get_populations_mock, get_subregions_mock)
 
     bp._get_population_data(main_id, False, config)
     get_subregions_mock.assert_not_called()
-    get_populations_mock.assert_called_once_with(location_id=main_id, override_config=config)
+    get_populations_mock.assert_called_once_with(location=main_id, override_config=config)
 
     get_subregions_mock.reset_mock()
     get_populations_mock.reset_mock()
 
+    config.input_data.location_id = main_id_no_subregions
     bp._get_population_data(main_id_no_subregions, True, config)
-    get_subregions_mock.assert_called_once_with(main_id_no_subregions, config)
-    get_populations_mock.assert_called_once_with(location_id=main_id_no_subregions, override_config=config)
+    get_subregions_mock.assert_called_once_with(config)
+    get_populations_mock.assert_called_once_with(location=main_id_no_subregions, override_config=config)
