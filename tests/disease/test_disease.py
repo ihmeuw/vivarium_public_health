@@ -120,7 +120,10 @@ def test_incidence(assign_cause_mock, config, disease):
     sick = BaseDiseaseState('sick')
     healthy.add_transition(sick)
     transition = RateTransition(
-        healthy, sick, get_data_functions={'incidence': lambda _, __: get_incidence(sequelae.heart_attack, config)})
+        input_state=healthy, output_state=sick,
+        get_data_functions={
+            'incidence': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)
+        })
     healthy.transition_set.append(transition)
 
     model = DiseaseModel(disease, states=[healthy, sick],
@@ -151,7 +154,10 @@ def test_risk_deletion(assign_cause_mock, config, disease):
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')
     transition = RateTransition(
-        healthy, sick, get_data_functions={'incidence': lambda _, __: get_incidence(sequelae.heart_attack, config)})
+        input_state=healthy, output_state=sick,
+        get_data_functions={
+            'incidence': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)}
+    )
     healthy.transition_set.append(transition)
 
     model = DiseaseModel(disease, states=[healthy, sick],
