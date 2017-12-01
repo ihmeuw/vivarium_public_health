@@ -248,8 +248,7 @@ class EnsembleMirroredGumbel:
         return stats.gumbel_r(loc=self.loc, scale=self.scale).pdf(y)
 
     def ppf(self, x):
-        y = 1 - x
-        return stats.gumbel_r(s=self.loc, scale=self.scale).ppf(y)
+        return stats.gumbel_r(loc=self.loc, scale=self.scale).ppf(x)
 
 
 class EnsembleNormal:
