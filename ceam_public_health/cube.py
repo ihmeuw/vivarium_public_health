@@ -70,10 +70,8 @@ def _get_data(cause_name, measure_name, config):
         'incidence': get_incidence,
     }
     cause = _get_cause_from_name(cause_name)
-    if measure_name in cause:
-        return function_map[measure_name](cause, config)
-    else:
-        raise ValueError("Invalid measure {} for cause {}".format(measure_name, cause_name))
+    return function_map[measure_name](cause, config)
+
 
 
 def _get_cause_from_name(cause_name):

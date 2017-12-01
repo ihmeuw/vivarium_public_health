@@ -21,7 +21,6 @@ from ceam_public_health.disease import RateTransition, DiseaseState, BaseDisease
 from ceam_public_health.risks import distributions
 from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
 from ceam_public_health.risks.exposures import basic_exposure_function
-from ceam_public_health.risks.distributions import distribution_map
 from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
                                                 correlated_propensity_factory, uncorrelated_propensity)
 

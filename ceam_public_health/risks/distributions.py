@@ -293,6 +293,7 @@ class EnsembleWeibull:
         return stats.weibull_min(c=self.c, scale=self.scale).ppf(x)
 
 
+# FIXME: several of the distributions do not currently work
 class EnsembleDistribution:
 
     distribution_map = {'betasr': EnsembleBeta,
@@ -312,12 +313,17 @@ class EnsembleDistribution:
     def __init__(self, exposure_mean, exposure_sd, weights):
         self.weights = weights
         x_min, x_max = get_min_max(exposure_mean, exposure_sd)
-        self._distributions = {distribution_name: distribution(exposure_mean, exposure_sd, x_min, x_max)
-                               for distribution_name, distribution in self.distribution_map}
+        self._distribution = EnsembleNormal(exposure_mean, exposure_sd, x_min, x_max)
+
+        # self._distributions = {distribution_name: distribution(exposure_mean, exposure_sd, x_min, x_max)
+        #                        for distribution_name, distribution in self.distribution_map}
 
     def pdf(self, x):
-        return np.sum([weight * self._distributions[dist_name].pdf(x) for dist_name, weight in self.weights.items()])
+        return self._distribution.pdf(x)
+        #return np.sum([weight * self._distributions[dist_name].pdf(x) for dist_name, weight in self.weights.items()])
+
 
     def ppf(self, x):
-        return np.sum([weight * self._distributions[dist_name].ppf(x) for dist_name, weight in self.weights.items()])
+        return self._distribution.ppf(x)
+        #return np.sum([weight * self._distributions[dist_name].ppf(x) for dist_name, weight in self.weights.items()])
 
