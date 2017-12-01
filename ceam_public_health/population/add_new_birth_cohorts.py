@@ -110,7 +110,7 @@ class FertilityCrudeBirthRate:
 
         """
         # FIXME: We are pulling data every time here.  Use the value pipeline system.
-        birth_rate = self._get_birth_rate(event.time.year).mean_value
+        birth_rate = self._get_birth_rate(event.time.year)
         population_size = len(event.index)
         step_size = event.step_size / pd.Timedelta(seconds=1)
 
@@ -140,7 +140,7 @@ class FertilityCrudeBirthRate:
             births per person per year.
         """
         population_table = self._population_data[self._population_data.year == year]
-        births = float(self._birth_data.loc[year])
+        births = float(self._birth_data.loc[year].mean_value)
 
         if self.maximum_age is not None:
             population = population_table.population[population_table.age < self.maximum_age].sum()

@@ -8,7 +8,7 @@ from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.randomness import random
 
-from ceam_public_health.risks import get_exposure_function, get_distribution, make_gbd_risk_effects
+from ceam_public_health.risks import get_exposure_function, make_gbd_risk_effects
 
 
 def uncorrelated_propensity(population, risk_factor):
