@@ -72,9 +72,7 @@ class HealthcareAccess:
         self._hospitalization_cost = Interpolation(ip_cost_df, tuple(), ('year',))
 
         cost_df = get_outpatient_visit_costs(builder.configuration)
-        cost_df = cost_df.rename(columns={'year_id':'year'})
-        self._appointment_cost = Interpolation(cost_df.loc[cost_df.location_id == location_id,
-                                               ('draw_{}'.format(draw), 'year')], tuple(), ('year',))
+        self._appointment_cost = Interpolation(cost_df, tuple(), ('year',))
 
         self.outpatient_cost = defaultdict(float)
 
