@@ -5,7 +5,7 @@ import numpy as np
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns, creates_simulants
 
-from ceam_inputs import get_age_specific_fertility_rates, get_populations#, get_annual_live_births
+from ceam_inputs import get_age_specific_fertility_rates, get_populations, get_live_births_by_sex
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate GBD estimates into gestational model (probably as a separate component)
@@ -81,9 +81,8 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-        self._population_data = get_populations(builder.configuration.input_data.location_id, sex='Both',
-                                                override_config=builder.configuration)
-        self._birth_data = get_annual_live_births(builder.configuration).set_index(['year'])
+        self._population_data = get_populations(builder.configuration).query('sex == "Both"')
+        self._birth_data = get_live_births_by_sex(builder.configuration).query('sex == "Both"').set_index(['year'])
         if 'maximum_age' in builder.configuration.population:
             self.maximum_age = builder.configuration.population.maximum_age
         else:
@@ -111,7 +110,7 @@ class FertilityCrudeBirthRate:
 
         """
         # FIXME: We are pulling data every time here.  Use the value pipeline system.
-        birth_rate = self._get_birth_rate(event.time.year)
+        birth_rate = self._get_birth_rate(event.time.year).mean_value
         population_size = len(event.index)
         step_size = event.step_size / pd.Timedelta(seconds=1)
 
