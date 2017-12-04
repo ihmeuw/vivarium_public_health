@@ -26,8 +26,8 @@ def config(base_config):
 
 
 @pytest.fixture(scope='function')
-def utilization_rate_mock(mocker):
-    return mocker.patch('ceam_public_health.treatment.healthcare_access.get_proportion')
+def get_annual_visits_mock(mocker):
+    return mocker.patch('ceam_public_health.treatment.healthcare_access.get_healthcare_annual_visits')
 
 
 class Metrics:
@@ -43,13 +43,13 @@ class Metrics:
 
 
 @pytest.mark.slow
-def test_general_access(config, utilization_rate_mock):
+def test_general_access(config, get_annual_visits_mock):
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
 
     def get_utilization_rate(*_, **__):
-        return build_table(0.1, year_start, year_end, ['age', 'year', 'sex', 'utilization_proportion'])
-    utilization_rate_mock.side_effect = get_utilization_rate
+        return build_table(0.1*12, year_start, year_end, ['age', 'year', 'sex', 'annual_visits'])
+    get_annual_visits_mock.side_effect = get_utilization_rate
 
     metrics = Metrics()
     simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config)

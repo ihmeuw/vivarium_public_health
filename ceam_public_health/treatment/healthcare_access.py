@@ -9,7 +9,8 @@ from vivarium.framework.values import modifies_value
 from vivarium.framework.randomness import filter_for_probability
 from vivarium.interpolation import Interpolation
 
-from ceam_inputs import get_healthcare_annual_visits, get_inpatient_visit_costs, get_outpatient_visit_costs, healthcare_entities
+from ceam_inputs import (get_healthcare_annual_visits, get_inpatient_visit_costs,
+                         get_outpatient_visit_costs, healthcare_entities)
 
 
 def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
