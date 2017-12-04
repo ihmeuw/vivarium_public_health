@@ -1,14 +1,23 @@
 import numpy as np
+import pandas as pd
 from scipy import stats, optimize, integrate, special
 
+from vivarium.interpolation import Interpolation
 
-def get_min_max(exposure_mean, exposure_sd):
+from ceam_inputs import get_ensemble_weights
+
+
+def get_min_max(exposure):
     # Construct parameters for a lognormal distribution
-    alpha = 1 + exposure_sd**2/exposure_mean**2
-    scale = exposure_mean/np.sqrt(alpha)
+    exposure = exposure.set_index(['age', 'sex', 'year'])
+    alpha = 1 + exposure['standard_deviation'].values**2/exposure['mean'].values**2
+    scale = exposure['mean'].values/np.sqrt(alpha)
     s = np.sqrt(np.log(alpha))
+    x_min = stats.lognorm(s=s, scale=scale).ppf([.001] * len(exposure))
+    x_max = stats.lognorm(s=s, scale=scale).ppf([.999] * len(exposure))
 
-    x_min, x_max = stats.lognorm.ppf([0.001, 0.999], s=s, scale=scale)
+    x_min = pd.DataFrame({'x_min': x_min}, index=exposure.index).reset_index()
+    x_max = pd.DataFrame({'x_max': x_max}, index=exposure.index).reset_index()
 
     return x_min, x_max
 
@@ -194,21 +203,28 @@ class LogLogistic:
 
 class LogNormal:
 
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.s, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
+    def __init__(self, exposure, x_min, x_max):
+        s, scale = self._get_params(exposure, x_min, x_max)
+        self._parameter_data = pd.DataFrame({'s': s, 'scale': scale}, index=exposure.index).reset_index()
+
+    def setup(self, builder):
+        self.parameters = builder.lookup(self._parameter_data)
 
     @staticmethod
-    def _get_params(exposure_mean, exposure_sd, _, __):
+    def _get_params(exposure, _, __):
+        exposure_mean, exposure_sd = exposure['mean'].values, exposure['standard_deviation'].values
         alpha = 1 + exposure_sd ** 2 / exposure_mean ** 2
         s = np.sqrt(np.log(alpha))
         scale = exposure_mean / np.sqrt(alpha)
         return s, scale
 
     def pdf(self, x):
-        return stats.lognorm(s=self.s, scale=self.scale).pdf(x)
+        params = self.parameters(x.index)
+        return stats.lognorm(s=params['s'], scale=params['scale']).pdf(x)
 
-    def ppf(self, x):
-        return stats.lognorm(s=self.s, scale=self.scale).ppf(x)
+    def ppf(self, propensity):
+        params = self.parameters(propensity.index)
+        return stats.lognorm(s=params['s'], scale=params['scale']).ppf(propensity)
 
 
 class MirroredGamma:
@@ -253,18 +269,24 @@ class MirroredGumbel:
 
 class Normal:
 
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.loc, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
+    def __init__(self, exposure, x_min, x_max):
+        loc, scale = self._get_params(exposure, x_min, x_max)
+        self._parameter_data = pd.DataFrame({'loc': loc, 'scale': scale}, index=exposure.index).reset_index()
+
+    def setup(self, builder):
+        self.parameters = builder.lookup(self._parameter_data)
 
     @staticmethod
-    def _get_params(exposure_mean, exposure_sd, _, __):
-        return exposure_mean, exposure_sd
+    def _get_params(exposure, _, __):
+        return exposure['mean'], exposure['standard_deviation']
 
     def pdf(self, x):
-        return stats.norm(loc=self.loc, scale=self.scale).pdf(x)
+        params = self.parameters(x.index)
+        return stats.norm(loc=params['loc'], scale=params['scale']).pdf(x)
 
-    def ppf(self, x):
-        return stats.norm(loc=self.loc, scale=self.scale).ppf(x)
+    def ppf(self, propensity):
+        params = self.parameters(propensity.index)
+        return stats.norm(loc=params['loc'], scale=params['scale']).ppf(propensity)
 
 
 class Weibull:
@@ -310,10 +332,10 @@ class EnsembleDistribution:
                         'norm': Normal,
                         'weibull': Weibull}
 
-    def __init__(self, exposure_mean, exposure_sd, weights):
+    def __init__(self, exposure, weights):
         self.weights = weights
-        x_min, x_max = get_min_max(exposure_mean, exposure_sd)
-        self._distribution = Normal(exposure_mean, exposure_sd, x_min, x_max)
+        x_min, x_max = get_min_max(exposure)
+        self._distribution = Normal(exposure, x_min, x_max)
 
         # self._distributions = {distribution_name: distribution(exposure_mean, exposure_sd, x_min, x_max)
         #                        for distribution_name, distribution in self.distribution_map}
@@ -323,17 +345,17 @@ class EnsembleDistribution:
         #return np.sum([weight * self._distributions[dist_name].pdf(x) for dist_name, weight in self.weights.items()])
 
 
-    def ppf(self, x):
-        return self._distribution.ppf(x)
+    def ppf(self, propensity):
+        return self._distribution.ppf(propensity)
         #return np.sum([weight * self._distributions[dist_name].ppf(x) for dist_name, weight in self.weights.items()])
 
 
-def get_distribution(risk):
+def get_distribution(risk, exposure, weights=None):
     if risk.distribution == 'ensemble':
-        return EnsembleDistribution
+        return EnsembleDistribution(exposure, weights)
     elif risk.distribution == 'lognormal':
-        return LogNormal
+        return LogNormal(exposure, *get_min_max(exposure))
     elif risk.distribution == 'normal':
-        return Normal
+        return Normal(exposure, *get_min_max(exposure))
     else:
         raise ValueError(f"Unhandled distribution type {risk.distribution}")

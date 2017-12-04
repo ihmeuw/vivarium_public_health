@@ -2,13 +2,13 @@ import numpy as np
 import pandas as pd
 from scipy.stats import multivariate_normal, norm
 
-from ceam_inputs import risk_factors, get_risk_correlation_matrices, get_exposure
+from ceam_inputs import risk_factors, get_risk_correlation_matrices, get_exposure, get_exposure_standard_deviation
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.randomness import random
 
-from ceam_public_health.risks import get_exposure_function, make_gbd_risk_effects, get_distribution
+from ceam_public_health.risks import make_gbd_risk_effects, get_distribution
 
 
 def uncorrelated_propensity(population, risk_factor):
@@ -103,8 +103,6 @@ class ContinuousRiskComponent:
     def __init__(self, risk, propensity_function=None):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
         self._effects = make_gbd_risk_effects(self._risk)
-        self._distribution_loader = get_distribution(self._risk)
-        self.exposure_function = get_exposure_function(self._risk)
         self.propensity_function = propensity_function
 
     def setup(self, builder):
@@ -114,7 +112,11 @@ class ContinuousRiskComponent:
             else:
                 self.propensity_function = uncorrelated_propensity
 
-        self.distribution = self._distribution_loader(builder)
+        exposure_data = get_exposure(self._risk, builder.configuration)
+        exposure_sd_data = get_exposure_standard_deviation(self._risk, builder.configuration)
+        exposure = exposure_data.merge(exposure_sd_data).set_index(['age', 'sex', 'year'])
+
+        self.exposure_distribution = get_distribution(self._risk, exposure)
         self.randomness = builder.randomness(self._risk.name)
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
 
@@ -127,19 +129,18 @@ class ContinuousRiskComponent:
                                  name=self._risk.name+'_propensity',
                                  index=event.index)
         self.population_view.update(propensities)
-        self.population_view.update(pd.Series(self.exposure_function(propensities, self.distribution(event.index)),
+        self.population_view.update(pd.Series(self.exposure_distribution.ppf(propensities),
                                               name=self._risk.name+'_exposure',
                                               index=event.index))
 
     @listens_for('time_step__prepare', priority=8)
     def update_exposure(self, event):
         population = self.population_view.get(event.index)
-        distribution = self.distribution(event.index)
-        new_exposure = self.exposure_function(population[self._risk.name+'_propensity'], distribution)
+        new_exposure = self.exposure_distribution.ppf(population[self._risk.name+'_propensity'])
         self.population_view.update(pd.Series(new_exposure, name=self._risk.name+'_exposure', index=event.index))
 
     def __repr__(self):
-        return "ContinuousRiskComponent(_risk= {}, distribution= {})".format(self._risk.name, self.distribution)
+        return "ContinuousRiskComponent(_risk= {})".format(self._risk.name)
 
 
 class CategoricalRiskComponent:
