@@ -17,8 +17,6 @@ def uncorrelated_propensity(population, risk_factor):
 
 def correlated_propensity_factory(config):
 
-    correlation_matrices = get_risk_correlation_matrices(override_config=config)
-
     def correlated_propensity(population, risk_factor):
         """Choose a propensity to the risk factor for each simulant that respects
         the risk factor's expected correlation with other risk factors unless there
@@ -42,7 +40,7 @@ def correlated_propensity_factory(config):
         this code may be run in each time step rather than primarily during
         initialization.
         """
-
+        correlation_matrices = get_risk_correlation_matrices(override_config=config)
 
         if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
             # There's no correlation data for this risk, just pick a uniform random propensity
