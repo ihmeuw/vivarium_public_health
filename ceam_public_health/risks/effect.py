@@ -16,12 +16,13 @@ def continuous_exposure_effect(risk):
     exposure_column = risk.name+'_exposure'
     tmrel = 0.5 * (risk.tmred.min + risk.tmred.max)
     max_exposure = risk.exposure_parameters.max_rr
+    scale = risk.exposure_parameters.scale
 
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     @uses_columns([exposure_column])
     def inner(rates, rr, population_view):
         exposure = np.minimum(population_view.get(rr.index)[exposure_column].values, max_exposure)
-        relative_risk = np.maximum(rr.values**((exposure - tmrel) / risk.scale), 1)
+        relative_risk = np.maximum(rr.values**((exposure - tmrel) / scale), 1)
         return rates * relative_risk
 
     return inner
@@ -65,7 +66,7 @@ class RiskEffect:
         if cause == causes.ischemic_stroke or cause == causes.hemorrhagic_stroke:
             self.cause_name = 'acute_' + self.cause_name
 
-        is_continuous = not (self.risk.distribution == 'dichotomous' or self.risk.distribution == 'polytomous')
+        is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
         self.exposure_effect = (continuous_exposure_effect(self.risk) if is_continuous
                                 else categorical_exposure_effect(self.risk))
 

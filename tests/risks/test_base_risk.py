@@ -45,8 +45,8 @@ def config(base_config):
 
 
 @pytest.fixture(scope='function')
-def get_exposure_means_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.base_risk.get_exposure_means')
+def get_exposure_mock(mocker):
+    return mocker.patch('ceam_public_health.risks.base_risk.get_exposure')
 
 
 @pytest.fixture(scope='function')
@@ -147,7 +147,7 @@ def test_continuous_exposure_effect(config):
     simulation.population.get_view([risk.name+'_exposure']).update(
         pd.Series(tmrel + 50, index=simulation.population.population.index))
 
-    expected_value = 0.01 * (1.01 ** (((tmrel + 50) - tmrel) / risk.scale))
+    expected_value = 0.01 * (1.01 ** (((tmrel + 50) - tmrel) / risk.exposure_parameters.scale))
 
     assert np.allclose(exposure_function(rates, rr), expected_value)
 
@@ -169,7 +169,7 @@ def test_categorical_exposure_effect(config):
     assert np.allclose(exposure_function(rates, rr), 0.0101)
 
 
-def test_CategoricalRiskComponent_dichotomous_case(get_exposure_means_mock, get_paf_mock,
+def test_CategoricalRiskComponent_dichotomous_case(get_exposure_mock, get_paf_mock,
                                                    get_rr_mock, get_mf_mock, config):
     time_step = pd.Timedelta(days=30.5)
     config.simulation_parameters.time_step = 30.5
@@ -177,7 +177,7 @@ def test_CategoricalRiskComponent_dichotomous_case(get_exposure_means_mock, get_
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
 
-    get_exposure_means_mock.side_effect = lambda *args, **kwargs: build_table(
+    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(
         0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2'])
     get_rr_mock.side_effect = lambda *args, **kwargs: build_table(
         [1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2'])
@@ -208,7 +208,7 @@ def test_CategoricalRiskComponent_dichotomous_case(get_exposure_means_mock, get_
     assert np.allclose(incidence_rate(unexposed_index), from_yearly(expected_unexposed_value, time_step))
 
 
-def test_CategoricalRiskComponent_polytomous_case(get_exposure_means_mock, get_rr_mock, get_paf_mock,
+def test_CategoricalRiskComponent_polytomous_case(get_exposure_mock, get_rr_mock, get_paf_mock,
                                                   get_mf_mock, config):
     time_step = pd.Timedelta(days=30.5)
     config.simulation_parameters.time_step = 30.5
@@ -216,7 +216,7 @@ def test_CategoricalRiskComponent_polytomous_case(get_exposure_means_mock, get_r
     year_end = config.simulation_parameters.year_end
 
     risk = risk_factors.smoking_prevalence_approach
-    get_exposure_means_mock.side_effect = lambda *args, **kwargs: build_table(
+    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(
         0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
     get_rr_mock.side_effect = lambda *args, **kwargs: build_table(
         [1.03, 1.02, 1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
@@ -243,13 +243,13 @@ def test_CategoricalRiskComponent_polytomous_case(get_exposure_means_mock, get_r
         assert np.allclose(incidence_rate(exposed_index), from_yearly(expected, time_step), rtol=0.01)
 
 
-def test_ContinuousRiskComponent(get_exposure_means_mock, get_rr_mock, get_paf_mock, get_mf_mock,
+def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_mock,
                                  get_distribution_mock, get_exposure_function_mock, config):
     time_step = pd.Timedelta(days=30.5)
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
     risk = risk_factors.high_systolic_blood_pressure
-    get_exposure_means_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end)
+    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end)
     get_rr_mock.side_effect = lambda *args, **kwargs: build_table(1.01, year_start, year_end)
     get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
@@ -281,12 +281,12 @@ def test_ContinuousRiskComponent(get_exposure_means_mock, get_rr_mock, get_paf_m
                        from_yearly(expected_value, time_step), rtol=0.001)
 
 
-def test_propensity_effect(get_exposure_means_mock, get_rr_mock, get_paf_mock, get_mf_mock,
+def test_propensity_effect(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_mock,
                            get_distribution_mock, get_exposure_function_mock, config):
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
     risk = risk_factors.high_systolic_blood_pressure
-    get_exposure_means_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end)
+    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end)
     get_rr_mock.side_effect = lambda *args, **kwargs: build_table(1.01, year_start, year_end)
     get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
@@ -476,14 +476,14 @@ def inputs_mock_factory(config, input_type):
 
 @pytest.mark.skip
 def test_correlated_exposures_synthetic_risks(load_risk_corr_mock, get_paf_mock, get_rr_mock,
-                                              get_exposure_means_mock, config):
+                                              get_exposure_mock, config):
     from rpy2.robjects import r, pandas2ri, numpy2ri
     pandas2ri.activate()
     numpy2ri.activate()
     draw = config.run_configuration.input_draw_number
 
     load_risk_corr_mock.return_value = _fill_in_correlation_matrix()
-    get_exposure_means_mock.side_effect = inputs_mock_factory(config, 'exposure')
+    get_exposure_mock.side_effect = inputs_mock_factory(config, 'exposure')
     get_rr_mock.side_effect = inputs_mock_factory(config, 'rr')
     get_paf_mock.side_effect = inputs_mock_factory(config, 'paf')
 

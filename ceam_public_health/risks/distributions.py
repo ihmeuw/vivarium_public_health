@@ -13,7 +13,7 @@ def get_min_max(exposure_mean, exposure_sd):
     return x_min, x_max
 
 
-class EnsembleBeta:
+class Beta:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.scale, self.shape_1, self.shape_2 = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -36,7 +36,7 @@ class EnsembleBeta:
         return stats.beta(a=self.shape_1, b=self.shape_2, scale=self.scale).ppf(x)
 
 
-class EnsembleExponential:
+class Exponential:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -52,7 +52,7 @@ class EnsembleExponential:
         return stats.expon(scale=self.scale).ppf(x)
 
 
-class EnsembleGamma:
+class Gamma:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.a, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -70,7 +70,7 @@ class EnsembleGamma:
         return stats.gamma(a=self.a, scale=self.scale).ppf(x)
 
 
-class EnsembleGeneralizedLogNormal:
+class GeneralizedLogNormal:
     """Here for completeness.
 
     The weight for the glnorm distribution is zero for all ensemble modeled risks for 2016.  Which is good, because
@@ -87,7 +87,7 @@ class EnsembleGeneralizedLogNormal:
         return 0
 
 
-class EnsembleGumbel:
+class Gumbel:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.loc, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -105,7 +105,7 @@ class EnsembleGumbel:
         return stats.gumbel_r(loc=self.loc, scale=self.scale).ppf(x)
 
 
-class EnsembleInverseGamma:
+class InverseGamma:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.a, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -133,7 +133,7 @@ class EnsembleInverseGamma:
         return stats.invgamma(a=self.a, scale=self.scale).ppf(x)
 
 
-class EnsembleInverseWeibull:
+class InverseWeibull:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.c, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -166,7 +166,7 @@ class EnsembleInverseWeibull:
         return stats.invweibull(c=self.c, scale=self.scale).ppf(x)
 
 
-class EnsembleLogLogistic:
+class LogLogistic:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.scale, self.c = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -192,7 +192,7 @@ class EnsembleLogLogistic:
         return stats.fisk(c=self.c, scale=self.scale).ppf(x)
 
 
-class EnsembleLogNormal:
+class LogNormal:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.s, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -211,7 +211,7 @@ class EnsembleLogNormal:
         return stats.lognorm(s=self.s, scale=self.scale).ppf(x)
 
 
-class EnsembleMirroredGamma:
+class MirroredGamma:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.a, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -231,7 +231,7 @@ class EnsembleMirroredGamma:
         return stats.gamma(a=self.a, scale=self.scale).ppf(x)
 
 
-class EnsembleMirroredGumbel:
+class MirroredGumbel:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.loc, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -251,7 +251,7 @@ class EnsembleMirroredGumbel:
         return stats.gumbel_r(loc=self.loc, scale=self.scale).ppf(x)
 
 
-class EnsembleNormal:
+class Normal:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.loc, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -267,7 +267,7 @@ class EnsembleNormal:
         return stats.norm(loc=self.loc, scale=self.scale).ppf(x)
 
 
-class EnsembleWeibull:
+class Weibull:
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.scale, self.c = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -296,24 +296,24 @@ class EnsembleWeibull:
 # FIXME: several of the distributions do not currently work
 class EnsembleDistribution:
 
-    distribution_map = {'betasr': EnsembleBeta,
-                        'exp': EnsembleExponential,
-                        'gamma': EnsembleGamma,
-                        'glnorm': EnsembleGeneralizedLogNormal,
-                        'gumbel': EnsembleGumbel,
-                        'invgamma': EnsembleInverseGamma,
-                        'invweibull': EnsembleInverseWeibull,
-                        'llogis': EnsembleLogLogistic,
-                        'lnorm': EnsembleLogNormal,
-                        'mgamma': EnsembleMirroredGamma,
-                        'mgumbel': EnsembleMirroredGumbel,
-                        'norm': EnsembleNormal,
-                        'weibull': EnsembleWeibull}
+    distribution_map = {'betasr': Beta,
+                        'exp': Exponential,
+                        'gamma': Gamma,
+                        'glnorm': GeneralizedLogNormal,
+                        'gumbel': Gumbel,
+                        'invgamma': InverseGamma,
+                        'invweibull': InverseWeibull,
+                        'llogis': LogLogistic,
+                        'lnorm': LogNormal,
+                        'mgamma': MirroredGamma,
+                        'mgumbel': MirroredGumbel,
+                        'norm': Normal,
+                        'weibull': Weibull}
 
     def __init__(self, exposure_mean, exposure_sd, weights):
         self.weights = weights
         x_min, x_max = get_min_max(exposure_mean, exposure_sd)
-        self._distribution = EnsembleNormal(exposure_mean, exposure_sd, x_min, x_max)
+        self._distribution = Normal(exposure_mean, exposure_sd, x_min, x_max)
 
         # self._distributions = {distribution_name: distribution(exposure_mean, exposure_sd, x_min, x_max)
         #                        for distribution_name, distribution in self.distribution_map}
@@ -327,3 +327,13 @@ class EnsembleDistribution:
         return self._distribution.ppf(x)
         #return np.sum([weight * self._distributions[dist_name].ppf(x) for dist_name, weight in self.weights.items()])
 
+
+def get_distribution(risk):
+    if risk.distribution == 'ensemble':
+        return EnsembleDistribution
+    elif risk.distribution == 'lognormal':
+        return LogNormal
+    elif risk.distribution == 'normal':
+        return Normal
+    else:
+        raise ValueError(f"Unhandled distribution type {risk.distribution}")

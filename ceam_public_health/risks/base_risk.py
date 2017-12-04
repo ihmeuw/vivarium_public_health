@@ -2,13 +2,13 @@ import numpy as np
 import pandas as pd
 from scipy.stats import multivariate_normal, norm
 
-from ceam_inputs import risk_factors, get_risk_correlation_matrices, get_exposure_mean
+from ceam_inputs import risk_factors, get_risk_correlation_matrices, get_exposure
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.randomness import random
 
-from ceam_public_health.risks import get_exposure_function, make_gbd_risk_effects
+from ceam_public_health.risks import get_exposure_function, make_gbd_risk_effects, get_distribution
 
 
 def uncorrelated_propensity(population, risk_factor):
@@ -16,6 +16,8 @@ def uncorrelated_propensity(population, risk_factor):
 
 
 def correlated_propensity_factory(config):
+
+    correlation_matrices = get_risk_correlation_matrices(override_config=config)
 
     def correlated_propensity(population, risk_factor):
         """Choose a propensity to the risk factor for each simulant that respects
@@ -41,7 +43,7 @@ def correlated_propensity_factory(config):
         initialization.
         """
 
-        correlation_matrices = get_risk_correlation_matrices(override_config=config)
+
         if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
             # There's no correlation data for this risk, just pick a uniform random propensity
             return uncorrelated_propensity(population, risk_factor)
@@ -171,8 +173,8 @@ class CategoricalRiskComponent:
 
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
-        self.exposure.source = builder.lookup(get_exposure_mean(risk=self._risk,
-                                                                override_config=builder.configuration))
+        self.exposure.source = builder.lookup(get_exposure(risk=self._risk,
+                                                           override_config=builder.configuration))
 
         self.randomness = builder.randomness(self._risk.name)
 
