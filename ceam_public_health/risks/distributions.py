@@ -9,7 +9,7 @@ from ceam_inputs import get_ensemble_weights
 
 def get_min_max(exposure):
     # Construct parameters for a lognormal distribution
-    exposure = exposure.set_index(['age', 'sex', 'year'])
+
     alpha = 1 + exposure['standard_deviation'].values**2/exposure['mean'].values**2
     scale = exposure['mean'].values/np.sqrt(alpha)
     s = np.sqrt(np.log(alpha))
@@ -339,6 +339,9 @@ class EnsembleDistribution:
 
         # self._distributions = {distribution_name: distribution(exposure_mean, exposure_sd, x_min, x_max)
         #                        for distribution_name, distribution in self.distribution_map}
+
+    def setup(self, builder):
+        self._distribution.setup(builder)
 
     def pdf(self, x):
         return self._distribution.pdf(x)
