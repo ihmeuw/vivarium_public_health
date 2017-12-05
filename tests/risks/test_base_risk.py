@@ -1,5 +1,4 @@
 import os
-from importlib import import_module
 from collections import namedtuple
 
 import pytest
@@ -15,11 +14,10 @@ from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
 
-from ceam_inputs import risk_factors, causes, sequelae
+from ceam_inputs import risk_factors, sequelae
 
 from ceam_public_health.disease import RateTransition, DiseaseState, BaseDiseaseState
 from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
-from ceam_public_health.risks.exposures import basic_exposure_function
 from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
                                                 correlated_propensity_factory, uncorrelated_propensity)
 
@@ -71,12 +69,6 @@ def get_mf_mock(mocker):
 @pytest.fixture(scope='function')
 def get_distribution_mock(mocker):
     return mocker.patch('ceam_public_health.risks.base_risk.get_distribution')
-
-
-@pytest.fixture(scope='function')
-def get_exposure_function_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.base_risk.get_exposure_function')
-
 
 
 def test_RiskEffect(config):
@@ -239,7 +231,7 @@ def test_CategoricalRiskComponent_polytomous_case(get_exposure_mock, get_rr_mock
 
 
 def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_mock,
-                                 get_distribution_mock, get_exposure_function_mock, config):
+                                 get_distribution_mock, config):
     time_step = pd.Timedelta(days=30.5)
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
@@ -249,16 +241,19 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
     get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
 
-    def loader(builder):
-        dist = Interpolation(
-                build_table([130, 0.000001], year_start, year_end, ['age', 'year', 'sex', 'mean', 'std']),
-                ['sex'],
-                ['age', 'year'],
-                func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
-        return builder.lookup(dist)
+    class Distribution:
+        def __init__(self, *_, **__):
+            pass
 
-    get_distribution_mock.side_effect = lambda *args, **kwargs: loader
-    get_exposure_function_mock.side_effect = lambda *args, **kwargs: basic_exposure_function
+        def setup(self, builder):
+            data = build_table([130, 0.000001], year_start, year_end, ['age', 'year', 'sex', 'mean', 'std'])
+            self.parameters = builder.lookup(data)
+
+        def ppf(self, propensity):
+            params = self.parameters(propensity.index)
+            return norm(loc=params['mean'], scale=params['std']).ppf(propensity)
+
+    get_distribution_mock.side_effect = lambda *args, **kwargs: Distribution(args, kwargs)
 
     component = ContinuousRiskComponent(risk)
 
@@ -277,7 +272,7 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
 
 
 def test_propensity_effect(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_mock,
-                           get_distribution_mock, get_exposure_function_mock, config):
+                           get_distribution_mock, config):
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
     risk = risk_factors.high_systolic_blood_pressure
@@ -286,16 +281,19 @@ def test_propensity_effect(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_
     get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
 
-    def loader(builder):
-        dist = Interpolation(
-                build_table([130, 15], year_start, year_end, ['age', 'year', 'sex', 'mean', 'std']),
-                ['sex'],
-                ['age', 'year'],
-                func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
-        return builder.lookup(dist)
+    class Distribution:
+        def __init__(self, *_, **__):
+            pass
 
-    get_distribution_mock.side_effect = lambda *args, **kwargs: loader
-    get_exposure_function_mock.side_effect = lambda *args, **kwargs: basic_exposure_function
+        def setup(self, builder):
+            data = build_table([130, 15], year_start, year_end, ['age', 'year', 'sex', 'mean', 'std'])
+            self.parameters = builder.lookup(data)
+
+        def ppf(self, propensity):
+            params = self.parameters(propensity.index)
+            return norm(loc=params['mean'], scale=params['std']).ppf(propensity)
+
+    get_distribution_mock.side_effect = lambda *args, **kwargs: Distribution(args, kwargs)
 
     component = ContinuousRiskComponent(risk)
 

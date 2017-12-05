@@ -120,7 +120,7 @@ class ContinuousRiskComponent:
         self.randomness = builder.randomness(self._risk.name)
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
 
-        return self._effects
+        return self._effects + [self.exposure_distribution]
 
     @listens_for('initialize_simulants')
     @uses_columns(['age', 'sex'])
