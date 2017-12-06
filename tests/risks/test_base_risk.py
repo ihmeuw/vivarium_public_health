@@ -84,7 +84,7 @@ def test_RiskEffect(config):
     r = Risk(name='test_risk', distribution='categorical')
     d = Disease(name='test_cause')
     effect_data_functions = {
-        'rr': lambda *args: build_table(1.01, year_start, year_end),
+        'rr': lambda *args: build_table([1.01, 'per_unit'], year_start, year_end, ('age', 'year', 'sex', 'relative_risk', 'parameter')),
         'paf': lambda *args: build_table(0.01, year_start, year_end),
         'mf': lambda *args: 0,
     }
@@ -165,9 +165,11 @@ def test_CategoricalRiskComponent_dichotomous_case(get_exposure_mock, get_paf_mo
     year_end = config.simulation_parameters.year_end
 
     get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(
-        0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2'])
+        0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
     get_rr_mock.side_effect = lambda *args, **kwargs: build_table(
-        [1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2'])
+        [1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='relative_risk')
 
     get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
@@ -204,9 +206,11 @@ def test_CategoricalRiskComponent_polytomous_case(get_exposure_mock, get_rr_mock
 
     risk = risk_factors.smoking_prevalence_approach
     get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(
-        0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
+        0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
     get_rr_mock.side_effect = lambda *args, **kwargs: build_table(
-        [1.03, 1.02, 1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4'])
+        [1.03, 1.02, 1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='relative_risk')
     get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
 
@@ -236,8 +240,10 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
     risk = risk_factors.high_systolic_blood_pressure
-    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end)
-    get_rr_mock.side_effect = lambda *args, **kwargs: build_table(1.01, year_start, year_end)
+    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end) \
+                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
+    get_rr_mock.side_effect = lambda *args, **kwargs: build_table(1.01, year_start, year_end) \
+                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='relative_risk')
     get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
 
@@ -276,8 +282,10 @@ def test_propensity_effect(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
     risk = risk_factors.high_systolic_blood_pressure
-    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end)
-    get_rr_mock.side_effect = lambda *args, **kwargs: build_table(1.01, year_start, year_end)
+    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end) \
+                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
+    get_rr_mock.side_effect = lambda *args, **kwargs: build_table(1.01, year_start, year_end) \
+                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='relative_risk')
     get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
 
