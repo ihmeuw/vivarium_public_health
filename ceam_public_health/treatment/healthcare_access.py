@@ -85,14 +85,24 @@ class HealthcareAccess:
         self.utilization_proportion = builder.lookup(annual_visits)
 
     @listens_for('initialize_simulants')
-    @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'healthcare_visits', 'adherence_category'])
+    @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'healthcare_visits',
+                   'adherence_category', 'general_access_propensity'])
     def load_population_columns(self, event):
         population_size = len(event.index)
         adherence = self.get_adherence(population_size)
+
+        r = np.random.RandomState(self.general_random.get_seed())
+        general_access_propensity = r.uniform(size=population_size)
+
+        # normalize propensity to have mean 1, so it can be multiplied
+        # in without changing population mean rate
+        general_access_propensity /= general_access_propensity.mean()
+
         event.population_view.update(pd.DataFrame({'healthcare_followup_date': [pd.NaT]*population_size,
                                                    'healthcare_last_visit_date': [pd.NaT]*population_size,
                                                    'healthcare_visits': [0]*population_size,
-                                                   'adherence_category': adherence}))
+                                                   'adherence_category': adherence,
+                                                   'general_access_propensity': general_access_propensity}))
 
     def get_adherence(self, population_size):
         # use a dirichlet distribution with means matching Marcia's
@@ -105,12 +115,15 @@ class HealthcareAccess:
                          dtype='category')
 
     @listens_for('time_step')
-    @uses_columns(['healthcare_last_visit_date', 'healthcare_visits'], "alive == 'alive'")
+    @uses_columns(['healthcare_last_visit_date', 'healthcare_visits', 'general_access_propensity'], "alive == 'alive'")
     def general_access(self, event):
         # determine population who accesses care
-        t = self.utilization_proportion(event.index)
-        # FIXME: currently assumes timestep is one month
-        index = self.general_random.filter_for_probability(event.index, t)
+        t = self.utilization_proportion(event.index)  # FIXME: need to convert one-month utilization probability to per-year rate?
+
+        # scale based on general access propensity
+        t *= event.population.general_access_propensity
+
+        index = self.general_random.filter_for_rate(event.index, t)
 
         # for those who show up, emit_event that the visit has happened, and tally the cost
         event.population_view.update(pd.Series(event.time, index=index, name='healthcare_last_visit_date'))
@@ -135,10 +148,11 @@ class HealthcareAccess:
         affected_population = event.population[rows]
 
         # of them, determine who shows up for their follow-up appointment
-        adherence = pd.Series(1, index=affected_population.index)
-        adherence[affected_population.adherence_category == 'non-adherent'] = 0
-        semi_adherents = affected_population.loc[affected_population.adherence_category == 'semi-adherent']
-        adherence[semi_adherents.index] = self.semi_adherent_pr
+        adherence_pr = {'adherent': 1.0,
+                        'semi-adherent': self.semi_adherent_pr,
+                        'non-adherent': 0.0}
+        adherence = affected_population.adherence_category.map(adherence_pr)
+
         affected_population = self.followup_random.filter_for_probability(affected_population, adherence)
 
         # for those who show up, emit_event that the visit has happened, and tally the cost
