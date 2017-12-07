@@ -57,7 +57,8 @@ class FertilityDeterministic:
 
         creator(simulants_to_add,
                 population_configuration={
-                    'initial_age': 0.0,
+                    'age_start': 0.0,
+                    'age_end': 0.0,
                 })
 
 
@@ -84,10 +85,10 @@ class FertilityCrudeBirthRate:
         self._population_data = get_populations(builder.configuration.input_data.location_id, sex='Both',
                                                 override_config=builder.configuration)
         self._birth_data = get_annual_live_births(builder.configuration).set_index(['year'])
-        if 'maximum_age' in builder.configuration.population:
-            self.maximum_age = builder.configuration.population.maximum_age
+        if 'exit_age' in builder.configuration.population:
+            self.exit_age = builder.configuration.population.exit_age
         else:
-            self.maximum_age = None
+            self.exit_age = None
         self.randomness = builder.randomness('crude_birth_rate')
 
     @listens_for('time_step')
@@ -123,7 +124,8 @@ class FertilityCrudeBirthRate:
 
         creator(simulants_to_add,
                 population_configuration={
-                    'initial_age': 0.0,
+                    'age_start': 0.0,
+                    'age_end': 0.0,
                 })
 
     def _get_birth_rate(self, year):
@@ -143,8 +145,8 @@ class FertilityCrudeBirthRate:
         population_table = self._population_data[self._population_data.year == year]
         births = float(self._birth_data.loc[year])
 
-        if self.maximum_age is not None:
-            population = population_table.pop_scaled[population_table.age < self.maximum_age].sum()
+        if self.exit_age is not None:
+            population = population_table.pop_scaled[population_table.age < self.exit_age].sum()
         else:
             population = population_table.pop_scaled.sum()
 
@@ -222,6 +224,6 @@ class FertilityAgeSpecificRates:
         # who their mother was.
         num_babies = len(had_children)
         if num_babies:
-            idx = creator(num_babies, population_configuration={'initial_age': 0})
+            idx = creator(num_babies, population_configuration={'age_start': 0.0, 'age_end': 0.0})
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
             event.population_view.update(parents)

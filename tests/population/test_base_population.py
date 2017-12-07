@@ -129,12 +129,8 @@ def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_populat
     build_pop_data_table_mock.assert_called_once_with(config.input_data.location_id, use_subregions, config)
     assert base_pop._population_data.equals(uniform_pop)
 
-    with_initial_age = ('initial_age' in config.population
-                        and config.population.initial_age is not None)
-    initial_age = config.population.initial_age if with_initial_age else None
-    age_params = {'initial_age': initial_age,
-                  'pop_age_start': config.population.pop_age_start,
-                  'pop_age_end': config.population.pop_age_end}
+    age_params ={ 'age_start': config.population.pop_age_start,
+                  'age_end': config.population.pop_age_end}
     sub_pop = uniform_pop[uniform_pop.year == time_start.year]
 
     generate_ceam_population_mock.assert_called_once()
@@ -159,8 +155,9 @@ def test_age_out_simulants(config):
     num_days = 600
     time_step = 100  # Days
     time_start = pd.Timestamp('1990-01-01')
-    config.update({'population': {'initial_age': 4,
-                                  'maximum_age': 5,
+    config.update({'population': {'pop_age_start': 4,
+                                  'pop_age_end': 4,
+                                  'exit_age': 5,
                                   'time_step': time_step}},
                   layer='override')
     components = [bp.BasePopulation()]
@@ -175,9 +172,8 @@ def test_age_out_simulants(config):
 
 def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     creation_time = pd.Timestamp(1990, 7, 2)
-    age_params = {'initial_age': None,
-                  'pop_age_start': 0,
-                  'pop_age_end': 120}
+    age_params = {'age_start': 0,
+                  'age_end': 120}
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     r = get_randomness()
     sims = make_base_simulants()
@@ -189,17 +185,16 @@ def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     mock_args = age_bounds_mock.call_args[0]
     assert mock_args[0].equals(sims)
     assert mock_args[1].equals(pop_data)
-    assert mock_args[2] == float(age_params['pop_age_start'])
-    assert mock_args[3] == float(age_params['pop_age_end'])
+    assert mock_args[2] == float(age_params['age_start'])
+    assert mock_args[3] == float(age_params['age_end'])
     assert mock_args[4] == r
     initial_age_mock.assert_not_called()
 
 
 def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock):
     creation_time = pd.Timestamp(1990, 7, 2)
-    age_params = {'initial_age': 0,
-                  'pop_age_start': 0,
-                  'pop_age_end': 120}
+    age_params = {'age_start': 0,
+                  'age_end': 0}
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     r = get_randomness()
     sims = make_base_simulants()
@@ -211,7 +206,7 @@ def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock)
     mock_args = initial_age_mock.call_args[0]
     assert mock_args[0].equals(sims)
     assert mock_args[1].equals(pop_data)
-    assert mock_args[2] == float(age_params['initial_age'])
+    assert mock_args[2] == float(age_params['age_start'])
     assert mock_args[3] == r
     age_bounds_mock.assert_not_called()
 
