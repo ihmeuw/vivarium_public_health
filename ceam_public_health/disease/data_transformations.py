@@ -57,10 +57,12 @@ def get_sequela_proportions(cause_level_prevalence, states):
 
 
 def determine_which_seq_diseased_sim_has(sequela_proportions, new_sim_file, randomness):
-    sequela_proportions = [(key, Interpolation(data[['sex', 'age', 'scaled_prevalence']], ['sex'], ['age']))
-                           for key, data in sequela_proportions.items()]
+    sequela_proportion_interpolations = [
+        (key, Interpolation(data[['sex', 'age', 'scaled_prevalence']], ['sex'], ['age']))
+        for key, data in sequela_proportions.items()
+    ]
     sub_pop = new_sim_file.query('condition_envelope == 1')
-    list_of_keys, list_of_weights = zip(*[(key, data(sub_pop)) for key, data in sequela_proportions])
+    list_of_keys, list_of_weights = zip(*[(key, data(sub_pop)) for key, data in sequela_proportion_interpolations])
     results = randomness.choice(sub_pop.index, list_of_keys, np.array(list_of_weights).T)
     new_sim_file.loc[sub_pop.index, 'condition_state'] = results
     return new_sim_file

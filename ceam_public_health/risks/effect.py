@@ -61,11 +61,7 @@ class RiskEffect:
         self.cause = cause
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
-        # FIXME: I'm not taking the time to rewrite the stroke model right now, so unpleasant hack here.
-        # -J.C. 09/05/2017
         self.cause_name = cause.name
-        if cause == causes.ischemic_stroke or cause == causes.hemorrhagic_stroke:
-            self.cause_name = 'acute_' + self.cause_name
 
         is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
         self.exposure_effect = (continuous_exposure_effect(self.risk) if is_continuous

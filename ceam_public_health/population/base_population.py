@@ -21,7 +21,6 @@ class BasePopulation:
     configuration_defaults = {
         'population': {
             'use_subregions': False,
-            'initial_age': None,
             'pop_age_start': 0,
             'pop_age_end': 125,
             'maximum_age': None,
@@ -68,8 +67,7 @@ class BasePopulation:
         ----------
         event : vivarium.framework.population.PopulationEvent
         """
-        age_params = {'initial_age': event.user_data.get('initial_age', None),
-                      'pop_age_start': self.config.pop_age_start,
+        age_params = {'pop_age_start': self.config.pop_age_start,
                       'pop_age_end': self.config.pop_age_end}
 
         if event.time.year in self._population_data.year.unique():
@@ -117,7 +115,6 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
         The simulation time when the simulants are created.
     age_params : dict
         Dictionary with keys
-            initial_age : Fixed age to generate all simulants with (useful for, e.g., fertility)
             pop_age_start : Start of an age range
             pop_age_end : End of an age range
         The latter two keys can have values specified to generate simulants over an age range.
@@ -146,13 +143,12 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
                               'alive': pd.Series('alive', index=simulant_ids).astype(
                                   pd.api.types.CategoricalDtype(['alive', 'dead', 'untracked'], ordered=False))},
                              index=simulant_ids)
-
-    if age_params['initial_age'] is not None:
-        return _assign_demography_with_initial_age(simulants, population_data, float(age_params['initial_age']),
-                                                   randomness_stream)
+    age_start = float(age_params['pop_age_start'])
+    age_end = float(age_params['pop_age_end'])
+    if age_start == age_end:
+        return _assign_demography_with_initial_age(simulants, population_data, age_start, randomness_stream)
     else:  # age_params['pop_age_start'] is not None and age_params['pop_age_end'] is not None
-        return _assign_demography_with_age_bounds(simulants, population_data, float(age_params['pop_age_start']),
-                                                  float(age_params['pop_age_end']), randomness_stream)
+        return _assign_demography_with_age_bounds(simulants, population_data, age_start, age_end, randomness_stream)
 
 
 def _assign_demography_with_initial_age(simulants, pop_data, initial_age, randomness_stream):

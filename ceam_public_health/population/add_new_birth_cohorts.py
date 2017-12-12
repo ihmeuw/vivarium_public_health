@@ -57,7 +57,8 @@ class FertilityDeterministic:
 
         creator(simulants_to_add,
                 population_configuration={
-                    'initial_age': 0.0,
+                    'pop_age_start': 0,
+                    'pop_age_end': 0,
                 })
 
 
@@ -122,7 +123,8 @@ class FertilityCrudeBirthRate:
 
         creator(simulants_to_add,
                 population_configuration={
-                    'initial_age': 0.0,
+                    'pop_age_start': 0,
+                    'pop_age_end': 0,
                 })
 
     def _get_birth_rate(self, year):
@@ -221,6 +223,10 @@ class FertilityAgeSpecificRates:
         # who their mother was.
         num_babies = len(had_children)
         if num_babies:
-            idx = creator(num_babies, population_configuration={'initial_age': 0})
+            idx = creator(num_babies,
+                          population_configuration={
+                              'pop_age_start': 0,
+                              'pop_age_end': 0,
+                          })
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
             event.population_view.update(parents)
