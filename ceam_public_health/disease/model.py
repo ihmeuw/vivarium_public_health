@@ -34,7 +34,6 @@ class DiseaseModel(Machine):
     def condition(self):
         return self.state_column
 
-    # FIXME: The Ma
     def setup(self, builder):
         self.config = builder.configuration
 
