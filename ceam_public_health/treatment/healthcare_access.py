@@ -81,8 +81,8 @@ class HealthcareAccess:
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
 
         annual_visits = get_healthcare_annual_visits(healthcare_entities.outpatient_visits)
-        annual_visits['annual_visits'] = annual_visits['annual_visits'] / 12
-        self.utilization_proportion = builder.lookup(annual_visits)
+        annual_visits['rate'] = annual_visits.pop('annual_visits') * 28 / 365 # FIXME: get step size here (builder.time_step()() ? builder.configuration.simulation_parameters.step_size ? )
+        self.utilization_rate = builder.lookup(annual_visits)
 
     @listens_for('initialize_simulants')
     @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'healthcare_visits',
@@ -92,7 +92,7 @@ class HealthcareAccess:
         adherence = self.get_adherence(population_size)
 
         r = np.random.RandomState(self.general_random.get_seed())
-        general_access_propensity = r.uniform(size=population_size)
+        general_access_propensity = r.uniform(size=population_size)**3
 
         # normalize propensity to have mean 1, so it can be multiplied
         # in without changing population mean rate
@@ -118,7 +118,7 @@ class HealthcareAccess:
     @uses_columns(['healthcare_last_visit_date', 'healthcare_visits', 'general_access_propensity'], "alive == 'alive'")
     def general_access(self, event):
         # determine population who accesses care
-        t = self.utilization_proportion(event.index)  # FIXME: need to convert one-month utilization probability to per-year rate?
+        t = self.utilization_rate(event.index)
 
         # scale based on general access propensity
         t *= event.population.general_access_propensity

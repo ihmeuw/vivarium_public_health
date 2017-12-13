@@ -22,8 +22,6 @@ class SampleHistory:
         self.sample_index = []
 
     def setup(self, builder):
-        import random, time
-        time.sleep(random.random()*60*10)
         self.config = builder.configuration.sample_history
         self.run_id = builder.configuration.run_configuration.run_id
         self.randomness = builder.randomness('sample_history')
