@@ -80,7 +80,7 @@ class HealthcareAccess:
         self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
 
-        annual_visits = get_healthcare_annual_visits(healthcare_entities.outpatient_visits)
+        annual_visits = get_healthcare_annual_visits(healthcare_entities.outpatient_visits, builder.configuration)
         annual_visits['annual_visits'] = annual_visits['annual_visits'] / 12
         self.utilization_proportion = builder.lookup(annual_visits)
 
