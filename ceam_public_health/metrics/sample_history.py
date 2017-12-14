@@ -26,6 +26,10 @@ class SampleHistory:
         self.run_id = builder.configuration.run_configuration.run_id
         self.randomness = builder.randomness('sample_history')
 
+        self.key = '/{}-{}'.format(builder.configuration.opportunistic_screening.medication_sheet, self.run_id)
+        if self.key == '/':
+            self.key += 'base'
+
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         sample_size = self.config.sample_size
@@ -50,7 +54,4 @@ class SampleHistory:
         from pandas.core.common import PerformanceWarning
         warnings.filterwarnings('ignore', category=PerformanceWarning)
         warnings.filterwarnings('ignore', category=tables.NaturalNameWarning)
-        key = '/{}'.format(self.run_id)
-        if key == '/':
-            key += 'base'
-        pd.Panel(self.sample_frames).to_hdf(self.config.path, key=key)
+        pd.Panel(self.sample_frames).to_hdf(self.config.path, key=self.key)
