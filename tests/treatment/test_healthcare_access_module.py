@@ -1,10 +1,10 @@
 import os
 
-import numpy as np
+import numpy as np, pandas as pd
 import pytest
 
 from vivarium.framework.event import listens_for
-from vivarium.test_util import setup_simulation, assert_rate, build_table, TestPopulation
+from vivarium.test_util import setup_simulation, pump_simulation, assert_rate, build_table, TestPopulation
 
 from ceam_public_health.treatment import HealthcareAccess
 
@@ -26,8 +26,8 @@ def config(base_config):
 
 
 @pytest.fixture(scope='function')
-def utilization_rate_mock(mocker):
-    return mocker.patch('ceam_public_health.treatment.healthcare_access.get_proportion')
+def get_annual_visits_mock(mocker):
+    return mocker.patch('ceam_public_health.treatment.healthcare_access.get_healthcare_annual_visits')
 
 
 class Metrics:
@@ -43,16 +43,41 @@ class Metrics:
 
 
 @pytest.mark.slow
-def test_general_access(config, utilization_rate_mock):
+def test_general_access(config, get_annual_visits_mock):
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
 
     def get_utilization_rate(*_, **__):
-        return build_table(0.1, year_start, year_end, ['age', 'year', 'sex', 'utilization_proportion'])
-    utilization_rate_mock.side_effect = get_utilization_rate
+        return build_table(0.1*12, year_start, year_end, ['age', 'year', 'sex', 'annual_visits'])
+    get_annual_visits_mock.side_effect = get_utilization_rate
 
     metrics = Metrics()
     simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config)
 
     # 1.2608717447575932 == a monthly probability 0.1 as a yearly rate
     assert_rate(simulation, 1.2608717447575932, lambda s: metrics.access_count)
+
+
+@pytest.mark.slow
+@pytest.mark.skip("I don't know why this is broken or how it works. -J.C.")
+def test_adherence(config, get_annual_visits_mock):
+    year_start = config.simulation_parameters.year_start
+    year_end = config.simulation_parameters.year_end
+    n_simulants = int('10_000')
+
+    def get_utilization_rate(*_, **__):
+        return build_table(0.1, year_start, year_end, ['age', 'year', 'sex', 'utilization_proportion'])
+    get_annual_visits_mock.side_effect = get_utilization_rate
+
+    metrics = Metrics()
+    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config, population_size=n_simulants)
+
+    t_step = 28 # days
+    n_days = 28*2
+    pump_simulation(simulation, time_step_days=t_step, duration=pd.Timedelta(days=n_days))
+
+    df = simulation.population.population
+    df['fu_visit'] = df.healthcare_visits > 1
+    t = df.groupby('adherence_category').fu_visit.count()
+    assert t['non-adherent'] == 0, 'non-adherents should not show for follow-up visit'
+    assert t['semi-adherent'] < .9*t['adherent'], 'semi-adherents should show up less than adherents for follow-up visit'

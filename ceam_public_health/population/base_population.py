@@ -23,7 +23,7 @@ class BasePopulation:
             'use_subregions': False,
             'pop_age_start': 0,
             'pop_age_end': 125,
-            'exit_age': None,
+            'maximum_age': None,
             'population_size': 10000,
         }
     }
@@ -67,14 +67,16 @@ class BasePopulation:
         ----------
         event : vivarium.framework.population.PopulationEvent
         """
-        age_params = {'age_start': self.config.pop_age_start,
-                      'age_end': self.config.pop_age_end}
+
+        age_params = {'pop_age_start': self.config.pop_age_start,
+                      'pop_age_end': self.config.pop_age_end}
 
         if event.time.year in self._population_data.year.unique():
             sub_pop_data = self._population_data[self._population_data.year == event.time.year]
         elif event.time.year > self._population_data.year.max():
             sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.max()]
-        # TODO: extrapolate to earlier years as well...
+        else:  # event.time.year < self._population_data.year.min():
+            sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.min()]
 
         event.population_view.update(generate_ceam_population(simulant_ids=event.index,
                                                               creation_time=event.time,
@@ -95,8 +97,8 @@ class BasePopulation:
         event.population['age'] += step_size / SECONDS_PER_YEAR
         event.population_view.update(event.population)
 
-        if self.config.exit_age is not None:
-            max_age = float(self.config.exit_age)
+        if self.config.maximum_age is not None:
+            max_age = float(self.config.maximum_age)
             pop = event.population[event.population['age'] >= max_age].copy()
             pop['alive'] = pd.Series('untracked', index=pop.index).astype(
                 pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
@@ -115,12 +117,17 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
         The simulation time when the simulants are created.
     age_params : dict
         Dictionary with keys
+<<<<<<< HEAD
+            pop_age_start : Start of an age range
+            pop_age_end : End of an age range
+=======
             age_start : Start of an age range
             age_end : End of an age range
+>>>>>>> 00e948a00806e818b4369312ffe121c7b00c02f2
         The latter two keys can have values specified to generate simulants over an age range.
     population_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     randomness_stream : vivarium.framework.randomness.RandomnessStream
         Source of random number generation within the vivarium common random number framework.
 
@@ -143,13 +150,12 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
                               'alive': pd.Series('alive', index=simulant_ids).astype(
                                   pd.api.types.CategoricalDtype(['alive', 'dead', 'untracked'], ordered=False))},
                              index=simulant_ids)
-
-    if age_params['age_start'] == age_params['age_end']:
-        return _assign_demography_with_initial_age(simulants, population_data, float(age_params['age_start']),
-                                                   randomness_stream)
+    age_start = float(age_params['pop_age_start'])
+    age_end = float(age_params['pop_age_end'])
+    if age_start == age_end:
+        return _assign_demography_with_initial_age(simulants, population_data, age_start, randomness_stream)
     else:  # age_params['pop_age_start'] is not None and age_params['pop_age_end'] is not None
-        return _assign_demography_with_age_bounds(simulants, population_data, float(age_params['age_start']),
-                                                  float(age_params['age_end']), randomness_stream)
+        return _assign_demography_with_age_bounds(simulants, population_data, age_start, age_end, randomness_stream)
 
 
 def _assign_demography_with_initial_age(simulants, pop_data, initial_age, randomness_stream):
@@ -161,7 +167,7 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, random
         Table that represents the new cohort of agents being added to the simulation.
     pop_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     initial_age : float
         The age to assign the new simulants.
     randomness_stream : vivarium.framework.randomness.RandomnessStream
@@ -199,7 +205,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
         Table that represents the new cohort of agents being added to the simulation.
     pop_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'pop_scaled', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     age_start, age_end : float
         The start and end of the age range of interest, respectively.
     randomness_stream : vivarium.framework.randomness.RandomnessStream
@@ -247,7 +253,7 @@ def _build_population_data_table(main_location, use_subregions, override_config=
             'sex' : 'Male' or 'Female',
             'location_id' : GBD location id,
             'year' : Year,
-            'pop_scaled' : Total population estimate,
+            'population' : Total population estimate,
             'P(sex, location_id | age, year)' : Conditional probability of sex and location_id given age and year,
             'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year,
             'P(age | year, sex, location_id)' : Conditional probability of age given year, sex, and location_id.
@@ -275,11 +281,11 @@ def _get_population_data(main_location, use_subregions, override_config=None):
             'sex' : 'Male' or 'Female',
             'location_id' : GBD location id,
             'year' : Year,
-            'pop_scaled' : Total population estimate
+            'population' : Total population estimate
     """
     locations = [main_location]
     if use_subregions:
-        sub_regions = get_subregions(main_location, override_config)
+        sub_regions = get_subregions(override_config)
         locations = sub_regions if sub_regions else locations
-    return pd.concat([get_populations(location_id=location, override_config=override_config)
-                      for location in locations], ignore_index=True)
+    return pd.concat([get_populations(override_config=override_config, location=location) for location in locations],
+                     ignore_index=True)

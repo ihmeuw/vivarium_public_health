@@ -1,6 +1,7 @@
 import numpy as np
+import pandas as pd
 
-from ceam_inputs import causes, get_relative_risks, get_pafs, get_mediation_factors
+from ceam_inputs import causes, get_relative_risk, get_population_attributable_fraction, get_mediation_factor
 
 from vivarium.framework.population import uses_columns
 
@@ -15,13 +16,14 @@ def continuous_exposure_effect(risk):
     """
     exposure_column = risk.name+'_exposure'
     tmrel = 0.5 * (risk.tmred.min + risk.tmred.max)
-    max_exposure = risk.max_rr
+    max_exposure = risk.exposure_parameters.max_rr
+    scale = risk.exposure_parameters.scale
 
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     @uses_columns([exposure_column])
     def inner(rates, rr, population_view):
         exposure = np.minimum(population_view.get(rr.index)[exposure_column].values, max_exposure)
-        relative_risk = np.maximum(rr.values**((exposure - tmrel) / risk.scale), 1)
+        relative_risk = np.maximum(rr.values**((exposure - tmrel) / scale), 1)
         return rates * relative_risk
 
     return inner
@@ -59,21 +61,28 @@ class RiskEffect:
         self.cause = cause
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
-        # FIXME: I'm not taking the time to rewrite the stroke model right now, so unpleasant hack here.
-        # -J.C. 09/05/2017
         self.cause_name = cause.name
-        if cause == causes.ischemic_stroke or cause == causes.hemorrhagic_stroke:
-            self.cause_name = 'acute_' + self.cause_name
 
-        self.exposure_effect = (continuous_exposure_effect(self.risk) if self.risk.distribution != 'categorical'
+        is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
+        self.exposure_effect = (continuous_exposure_effect(self.risk) if is_continuous
                                 else categorical_exposure_effect(self.risk))
 
     def setup(self, builder):
-        get_rr_func = self._get_data_functions.get('rr', get_relative_risks)
-        get_paf_func = self._get_data_functions.get('paf', get_pafs)
-        get_mf_func = self._get_data_functions.get('mf', get_mediation_factors)
+        get_rr_func = self._get_data_functions.get('rr', get_relative_risk)
+        get_paf_func = self._get_data_functions.get('paf', get_population_attributable_fraction)
+        get_mf_func = self._get_data_functions.get('mf', get_mediation_factor)
 
         self._rr_data = get_rr_func(self.risk, self.cause, builder.configuration)
+
+        if self.risk.distribution in ('dichotomous', 'polytomous'):
+            # TODO: I'm not sure this is the right place to be doing this reshaping. Maybe it should
+            # be in the data_transformations somewhere?
+            self._rr_data = pd.pivot_table(self._rr_data, index=['year', 'age', 'sex'],
+                                           columns='parameter', values='relative_risk').dropna()
+            self._rr_data = self._rr_data.reset_index()
+        else:
+            del self._rr_data['parameter']
+
         self._paf_data = get_paf_func(self.risk, self.cause, builder.configuration)
         self._mediation_factor = get_mf_func(self.risk, self.cause, builder.configuration)
 

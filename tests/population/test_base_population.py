@@ -102,8 +102,8 @@ def make_uniform_pop_data():
                         'sex': sexes,
                         'year': years,
                         'location_id': locations,
-                        'pop_scaled': [100] * len(ages)})
-    pop.loc[pop.sex == 'Both', 'pop_scaled'] = 200
+                        'population': [100] * len(ages)})
+    pop.loc[pop.sex == 'Both', 'population'] = 200
     return pop
 
 
@@ -129,8 +129,8 @@ def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_populat
     build_pop_data_table_mock.assert_called_once_with(config.input_data.location_id, use_subregions, config)
     assert base_pop._population_data.equals(uniform_pop)
 
-    age_params ={ 'age_start': config.population.pop_age_start,
-                  'age_end': config.population.pop_age_end}
+    age_params = {'pop_age_start': config.population.pop_age_start,
+                  'pop_age_end': config.population.pop_age_end}
     sub_pop = uniform_pop[uniform_pop.year == time_start.year]
 
     generate_ceam_population_mock.assert_called_once()
@@ -157,7 +157,7 @@ def test_age_out_simulants(config):
     time_start = pd.Timestamp('1990-01-01')
     config.update({'population': {'pop_age_start': 4,
                                   'pop_age_end': 4,
-                                  'exit_age': 5,
+                                  'maximum_age': 5,
                                   'time_step': time_step}},
                   layer='override')
     components = [bp.BasePopulation()]
@@ -172,8 +172,8 @@ def test_age_out_simulants(config):
 
 def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     creation_time = pd.Timestamp(1990, 7, 2)
-    age_params = {'age_start': 0,
-                  'age_end': 120}
+    age_params = {'pop_age_start': 0,
+                  'pop_age_end': 120}
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     r = get_randomness()
     sims = make_base_simulants()
@@ -185,16 +185,16 @@ def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     mock_args = age_bounds_mock.call_args[0]
     assert mock_args[0].equals(sims)
     assert mock_args[1].equals(pop_data)
-    assert mock_args[2] == float(age_params['age_start'])
-    assert mock_args[3] == float(age_params['age_end'])
+    assert mock_args[2] == float(age_params['pop_age_start'])
+    assert mock_args[3] == float(age_params['pop_age_end'])
     assert mock_args[4] == r
     initial_age_mock.assert_not_called()
 
 
 def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock):
     creation_time = pd.Timestamp(1990, 7, 2)
-    age_params = {'age_start': 0,
-                  'age_end': 0}
+    age_params = {'pop_age_start': 0,
+                  'pop_age_end': 0}
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     r = get_randomness()
     sims = make_base_simulants()
@@ -206,7 +206,8 @@ def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock)
     mock_args = initial_age_mock.call_args[0]
     assert mock_args[0].equals(sims)
     assert mock_args[1].equals(pop_data)
-    assert mock_args[2] == float(age_params['age_start'])
+
+    assert mock_args[2] == float(age_params['pop_age_start'])
     assert mock_args[3] == r
     age_bounds_mock.assert_not_called()
 
@@ -299,7 +300,7 @@ def test__build_population_data_table(config, get_pop_data_mock, assign_proporti
     assert test == 1
 
 
-def test__get_population_data(config, get_populations_mock, get_subregions_mock):
+def test__get_population_data(config, get_populations_mock, get_subregions_mock, mocker):
 
     main_id = 10
     main_id_no_subregions = 20
@@ -307,18 +308,20 @@ def test__get_population_data(config, get_populations_mock, get_subregions_mock)
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
 
-    get_subregions_mock.side_effect = lambda location_id, override_config: subregion_ids if location_id == main_id else None
+    get_subregions_mock.side_effect = lambda override_config: (subregion_ids if override_config.input_data.location_id
+                                                                                == main_id else None)
     test_populations = {
-        10: build_table(20, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
-        11: build_table(30, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
-        12: build_table(50, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
-        20: build_table(70, year_start, year_end, ['age', 'year', 'sex', 'pop_scaled']),
+        10: build_table(20, year_start, year_end, ['age', 'year', 'sex', 'population']),
+        11: build_table(30, year_start, year_end, ['age', 'year', 'sex', 'population']),
+        12: build_table(50, year_start, year_end, ['age', 'year', 'sex', 'population']),
+        20: build_table(70, year_start, year_end, ['age', 'year', 'sex', 'population']),
     }
-    get_populations_mock.side_effect = lambda location_id, override_config: test_populations[location_id]
+    get_populations_mock.side_effect = lambda override_config, location: test_populations[location]
 
+    config.input_data.location_id = main_id
     bp._get_population_data(main_id, True, config)
-    get_subregions_mock.assert_called_once_with(main_id, config)
-    assert get_populations_mock.call_args_list == [({'location_id': loc, 'override_config': config},)
+    get_subregions_mock.assert_called_once_with(config)
+    assert get_populations_mock.call_args_list == [mocker.call(override_config=config, location=loc)
                                                    for loc in subregion_ids]
 
     get_subregions_mock.reset_mock()
@@ -326,11 +329,12 @@ def test__get_population_data(config, get_populations_mock, get_subregions_mock)
 
     bp._get_population_data(main_id, False, config)
     get_subregions_mock.assert_not_called()
-    get_populations_mock.assert_called_once_with(location_id=main_id, override_config=config)
+    get_populations_mock.assert_called_once_with(location=main_id, override_config=config)
 
     get_subregions_mock.reset_mock()
     get_populations_mock.reset_mock()
 
+    config.input_data.location_id = main_id_no_subregions
     bp._get_population_data(main_id_no_subregions, True, config)
-    get_subregions_mock.assert_called_once_with(main_id_no_subregions, config)
-    get_populations_mock.assert_called_once_with(location_id=main_id_no_subregions, override_config=config)
+    get_subregions_mock.assert_called_once_with(config)
+    get_populations_mock.assert_called_once_with(location=main_id_no_subregions, override_config=config)

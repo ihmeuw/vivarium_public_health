@@ -88,7 +88,7 @@ def test_mortality_rate(config, disease):
     mort_get_data_funcs = {
         'dwell_time': lambda _, __: pd.Timedelta(days=0),
         'disability_weight': lambda _, __: 0.1,
-        'prevalence': lambda _, __: build_table(0.0000001, year_start, year_end,
+        'prevalence': lambda _, __: build_table(0.000001, year_start, year_end,
                                                 ['age', 'year', 'sex', 'prevalence']),
         'excess_mortality': lambda _, __: build_table(0.7, year_start, year_end),
     }
@@ -120,7 +120,10 @@ def test_incidence(assign_cause_mock, config, disease):
     sick = BaseDiseaseState('sick')
     healthy.add_transition(sick)
     transition = RateTransition(
-        healthy, sick, get_data_functions={'incidence': lambda _, __: get_incidence(sequelae.heart_attack, config)})
+        input_state=healthy, output_state=sick,
+        get_data_functions={
+            'incidence': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)
+        })
     healthy.transition_set.append(transition)
 
     model = DiseaseModel(disease, states=[healthy, sick],
@@ -151,7 +154,10 @@ def test_risk_deletion(assign_cause_mock, config, disease):
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')
     transition = RateTransition(
-        healthy, sick, get_data_functions={'incidence': lambda _, __: get_incidence(sequelae.heart_attack, config)})
+        input_state=healthy, output_state=sick,
+        get_data_functions={
+            'incidence': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)}
+    )
     healthy.transition_set.append(transition)
 
     model = DiseaseModel(disease, states=[healthy, sick],

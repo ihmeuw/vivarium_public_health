@@ -5,7 +5,7 @@ import numpy as np
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns, creates_simulants
 
-from ceam_inputs import get_age_specific_fertility_rates, get_annual_live_births, get_populations
+from ceam_inputs import get_age_specific_fertility_rates, get_populations, get_live_births_by_sex
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate GBD estimates into gestational model (probably as a separate component)
@@ -57,8 +57,8 @@ class FertilityDeterministic:
 
         creator(simulants_to_add,
                 population_configuration={
-                    'age_start': 0.0,
-                    'age_end': 0.0,
+                    'pop_age_start': 0,
+                    'pop_age_end': 0,
                 })
 
 
@@ -82,13 +82,12 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-        self._population_data = get_populations(builder.configuration.input_data.location_id, sex='Both',
-                                                override_config=builder.configuration)
-        self._birth_data = get_annual_live_births(builder.configuration).set_index(['year'])
-        if 'exit_age' in builder.configuration.population:
-            self.exit_age = builder.configuration.population.exit_age
+        self._population_data = get_populations(builder.configuration).query('sex == "Both"')
+        self._birth_data = get_live_births_by_sex(builder.configuration).query('sex == "Both"').set_index(['year'])
+        if 'maximum_age' in builder.configuration.population:
+            self.maximum_age = builder.configuration.population.maximum_age
         else:
-            self.exit_age = None
+            self.maximum_age = None
         self.randomness = builder.randomness('crude_birth_rate')
 
     @listens_for('time_step')
@@ -124,8 +123,8 @@ class FertilityCrudeBirthRate:
 
         creator(simulants_to_add,
                 population_configuration={
-                    'age_start': 0.0,
-                    'age_end': 0.0,
+                    'pop_age_start': 0,
+                    'pop_age_end': 0,
                 })
 
     def _get_birth_rate(self, year):
@@ -143,12 +142,12 @@ class FertilityCrudeBirthRate:
             births per person per year.
         """
         population_table = self._population_data[self._population_data.year == year]
-        births = float(self._birth_data.loc[year])
+        births = float(self._birth_data.loc[year].mean_value)
 
-        if self.exit_age is not None:
-            population = population_table.pop_scaled[population_table.age < self.exit_age].sum()
+        if self.maximum_age is not None:
+            population = population_table.population[population_table.age < self.maximum_age].sum()
         else:
-            population = population_table.pop_scaled.sum()
+            population = population_table.population.sum()
 
         return births / population
 
@@ -224,6 +223,10 @@ class FertilityAgeSpecificRates:
         # who their mother was.
         num_babies = len(had_children)
         if num_babies:
-            idx = creator(num_babies, population_configuration={'age_start': 0.0, 'age_end': 0.0})
+            idx = creator(num_babies,
+                          population_configuration={
+                              'pop_age_start': 0,
+                              'pop_age_end': 0,
+                          })
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
             event.population_view.update(parents)

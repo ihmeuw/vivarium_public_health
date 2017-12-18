@@ -4,7 +4,7 @@ from vivarium.framework.state_machine import Transition
 from vivarium.framework.util import rate_to_probability
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 
-from ceam_inputs import get_incidence, get_proportion
+from ceam_inputs import get_incidence
 
 
 class RateTransition(Transition):
@@ -45,7 +45,9 @@ class ProportionTransition(Transition):
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
-        get_proportion_func = self._get_data_functions.get('proportion', get_proportion)
+        get_proportion_func = self._get_data_functions.get('proportion', None)
+        if get_proportion_func is None:
+            raise ValueError('Must supply a proportion function')
         self._proportion_data = get_proportion_func(self.output_state.cause, builder.configuration)
         self.proportion = builder.lookup(self._proportion_data)
         return super().setup(builder)
