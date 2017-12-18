@@ -77,7 +77,8 @@ class RiskEffect:
         if self.risk.distribution in ('dichotomous', 'polytomous'):
             # TODO: I'm not sure this is the right place to be doing this reshaping. Maybe it should
             # be in the data_transformations somewhere?
-            self._rr_data = pd.pivot_table(self._rr_data, index=['year', 'age', 'sex'], columns='parameter', values='relative_risk')
+            self._rr_data = pd.pivot_table(self._rr_data, index=['year', 'age', 'sex'],
+                                           columns='parameter', values='relative_risk').dropna()
             self._rr_data = self._rr_data.reset_index()
         else:
             del self._rr_data['parameter']
