@@ -185,8 +185,8 @@ def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     mock_args = age_bounds_mock.call_args[0]
     assert mock_args[0].equals(sims)
     assert mock_args[1].equals(pop_data)
-    assert mock_args[2] == float(age_params['pop_age_start'])
-    assert mock_args[3] == float(age_params['pop_age_end'])
+    assert mock_args[2] == float(age_params['age_start'])
+    assert mock_args[3] == float(age_params['age_end'])
     assert mock_args[4] == r
     initial_age_mock.assert_not_called()
 
@@ -206,6 +206,7 @@ def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock)
     mock_args = initial_age_mock.call_args[0]
     assert mock_args[0].equals(sims)
     assert mock_args[1].equals(pop_data)
+
     assert mock_args[2] == float(age_params['pop_age_start'])
     assert mock_args[3] == r
     age_bounds_mock.assert_not_called()

@@ -67,6 +67,7 @@ class BasePopulation:
         ----------
         event : vivarium.framework.population.PopulationEvent
         """
+
         age_params = {'pop_age_start': self.config.pop_age_start,
                       'pop_age_end': self.config.pop_age_end}
 
@@ -74,7 +75,8 @@ class BasePopulation:
             sub_pop_data = self._population_data[self._population_data.year == event.time.year]
         elif event.time.year > self._population_data.year.max():
             sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.max()]
-        # TODO: extrapolate to earlier years as well...
+        else:  # event.time.year < self._population_data.year.min():
+            sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.min()]
 
         event.population_view.update(generate_ceam_population(simulant_ids=event.index,
                                                               creation_time=event.time,
@@ -95,8 +97,8 @@ class BasePopulation:
         event.population['age'] += step_size / SECONDS_PER_YEAR
         event.population_view.update(event.population)
 
-        if self.config.maximum_age is not None:
-            max_age = float(self.config.maximum_age)
+        if self.config.exit_age is not None:
+            max_age = float(self.config.exit_age)
             pop = event.population[event.population['age'] >= max_age].copy()
             pop['alive'] = pd.Series('untracked', index=pop.index).astype(
                 pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
@@ -115,8 +117,13 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
         The simulation time when the simulants are created.
     age_params : dict
         Dictionary with keys
+<<<<<<< HEAD
             pop_age_start : Start of an age range
             pop_age_end : End of an age range
+=======
+            age_start : Start of an age range
+            age_end : End of an age range
+>>>>>>> 00e948a00806e818b4369312ffe121c7b00c02f2
         The latter two keys can have values specified to generate simulants over an age range.
     population_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
