@@ -97,8 +97,8 @@ class BasePopulation:
         event.population['age'] += step_size / SECONDS_PER_YEAR
         event.population_view.update(event.population)
 
-        if self.config.exit_age is not None:
-            max_age = float(self.config.exit_age)
+        if self.config.maximum_age is not None:
+            max_age = float(self.config.maximum_age)
             pop = event.population[event.population['age'] >= max_age].copy()
             pop['alive'] = pd.Series('untracked', index=pop.index).astype(
                 pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
