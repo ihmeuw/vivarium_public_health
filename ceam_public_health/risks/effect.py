@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from ceam_inputs import causes, get_relative_risks, get_population_attributable_fraction, get_mediation_factors
+from ceam_inputs import causes, get_relative_risk, get_population_attributable_fraction, get_mediation_factor
 
 from vivarium.framework.population import uses_columns
 
@@ -68,9 +68,9 @@ class RiskEffect:
                                 else categorical_exposure_effect(self.risk))
 
     def setup(self, builder):
-        get_rr_func = self._get_data_functions.get('rr', get_relative_risks)
+        get_rr_func = self._get_data_functions.get('rr', get_relative_risk)
         get_paf_func = self._get_data_functions.get('paf', get_population_attributable_fraction)
-        get_mf_func = self._get_data_functions.get('mf', get_mediation_factors)
+        get_mf_func = self._get_data_functions.get('mf', get_mediation_factor)
 
         self._rr_data = get_rr_func(self.risk, self.cause, builder.configuration)
 

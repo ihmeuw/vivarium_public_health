@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import multivariate_normal, norm
 
-from ceam_inputs import risk_factors, get_risk_correlation_matrices, get_exposure, get_exposure_standard_deviation
+from ceam_inputs import risk_factors, get_risk_correlation_matrix, get_exposure, get_exposure_standard_deviation
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
@@ -40,7 +40,7 @@ def correlated_propensity_factory(config):
         this code may be run in each time step rather than primarily during
         initialization.
         """
-        correlation_matrices = get_risk_correlation_matrices(override_config=config)
+        correlation_matrices = get_risk_correlation_matrix(override_config=config)
 
         if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
             # There's no correlation data for this risk, just pick a uniform random propensity
