@@ -48,12 +48,12 @@ def get_exposure_mock(mocker):
 
 @pytest.fixture(scope='function')
 def load_risk_corr_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.base_risk.get_risk_correlation_matrices')
+    return mocker.patch('ceam_public_health.risks.base_risk.get_risk_correlation_matrix')
 
 
 @pytest.fixture(scope='function')
 def get_rr_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.effect.get_relative_risks')
+    return mocker.patch('ceam_public_health.risks.effect.get_relative_risk')
 
 
 @pytest.fixture(scope='function')
@@ -63,7 +63,7 @@ def get_paf_mock(mocker):
 
 @pytest.fixture(scope='function')
 def get_mf_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.effect.get_mediation_factors')
+    return mocker.patch('ceam_public_health.risks.effect.get_mediation_factor')
 
 
 @pytest.fixture(scope='function')
