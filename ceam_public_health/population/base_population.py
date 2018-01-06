@@ -82,7 +82,8 @@ class BasePopulation:
                                                               creation_time=event.time,
                                                               age_params=age_params,
                                                               population_data=sub_pop_data,
-                                                              randomness_stream=self.randomness))
+                                                              randomness_stream=self.randomness,
+                                                              step_size=event.step_size))
 
     @listens_for('time_step', priority=8)
     @uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
@@ -106,7 +107,7 @@ class BasePopulation:
             event.population_view.update(pop)
 
 
-def generate_ceam_population(simulant_ids, creation_time, age_params, population_data, randomness_stream):
+def generate_ceam_population(simulant_ids, creation_time, age_params, population_data, randomness_stream, step_size):
     """Produces a randomly generated set of simulants sampled from the provided `population_data`.
 
     Parameters
@@ -125,6 +126,8 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
         'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     randomness_stream : vivarium.framework.randomness.RandomnessStream
         Source of random number generation within the vivarium common random number framework.
+    step_size : float
+        The size of the initial time step.
 
     Returns
     -------
@@ -148,12 +151,12 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
     age_start = float(age_params['age_start'])
     age_end = float(age_params['age_end'])
     if age_start == age_end:
-        return _assign_demography_with_initial_age(simulants, population_data, age_start, randomness_stream)
+        return _assign_demography_with_initial_age(simulants, population_data, age_start, randomness_stream, step_size)
     else:  # age_params['age_start'] is not None and age_params['age_end'] is not None
         return _assign_demography_with_age_bounds(simulants, population_data, age_start, age_end, randomness_stream)
 
 
-def _assign_demography_with_initial_age(simulants, pop_data, initial_age, randomness_stream):
+def _assign_demography_with_initial_age(simulants, pop_data, initial_age, randomness_stream, step_size):
     """Assigns age, sex, and location information to the provided simulants given a fixed age.
 
     Parameters
@@ -167,6 +170,8 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, random
         The age to assign the new simulants.
     randomness_stream : vivarium.framework.randomness.RandomnessStream
         Source of random number generation within the vivarium common random number framework.
+    step_size : float
+        The size of the initial time step.
 
     Returns
     -------
@@ -183,8 +188,9 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, random
     decisions = randomness_stream.choice(simulants.index,
                                          choices=choices.index,
                                          p=choices['P(sex, location_id | age, year)'])
-
-    simulants['age'] = initial_age
+    age_fuzz = step_size * randomness_stream.get_draw(simulants.index)
+    assert len(age_fuzz.unique()) == len(age_fuzz)
+    simulants['age'] = initial_age + age_fuzz  # Spread the initial population out in the first time step
     simulants['sex'] = choices.loc[decisions, 'sex'].values
     simulants['location'] = choices.loc[decisions, 'location_id'].values
 
