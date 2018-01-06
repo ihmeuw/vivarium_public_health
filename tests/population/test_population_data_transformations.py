@@ -46,7 +46,7 @@ def test_rescale_binned_proportions_full_range():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     pop_data = pop_data[pop_data.year == 1990]
 
-    pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=0, pop_age_end=100)
+    pop_data_scaled = dt.rescale_binned_proportions(pop_data, age_start=0, age_end=100)
     # Should be a no-op
     assert np.allclose(pop_data['P(sex, location_id, age| year)'], pop_data_scaled['P(sex, location_id, age| year)'])
 
@@ -55,7 +55,7 @@ def test_rescale_binned_proportions_clipped_ends():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     pop_data = pop_data[pop_data.year == 1990]
 
-    pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=2, pop_age_end=7)
+    pop_data_scaled = dt.rescale_binned_proportions(pop_data, age_start=2, age_end=7)
     base_p = 1/len(pop_data)
     p_scaled = [base_p*3/5, base_p*2/5]
 
@@ -67,8 +67,8 @@ def test_rescale_binned_proportions_age_bin_edges():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     pop_data = pop_data[pop_data.year == 1990]
 
-    # Test edge case where pop_age_start/pop_age_end fall on age bin boundaries.
-    pop_data_scaled = dt.rescale_binned_proportions(pop_data, pop_age_start=5, pop_age_end=10)
+    # Test edge case where age_start/age_end fall on age bin boundaries.
+    pop_data_scaled = dt.rescale_binned_proportions(pop_data, age_start=5, age_end=10)
     assert len(pop_data_scaled.age.unique()) == 1
     assert 7.5 in pop_data_scaled.age.unique()
     assert np.allclose(pop_data_scaled['P(sex, location_id, age| year)'], 1/len(pop_data))

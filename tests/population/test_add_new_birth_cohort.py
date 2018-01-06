@@ -30,7 +30,7 @@ def test_FertilityDeterministic(config):
     num_days = 100
     time_step = 10  # Days
     time_start = pd.Timestamp('1990-01-01')
-    config.read_dict({'population': {'pop_age_start': 0, 'pop_age_end': 125},
+    config.read_dict({'population': {'age_start': 0, 'age_end': 125},
                       'fertility_deterministic': {'number_of_new_simulants_each_year': annual_new_simulants},
                       'simulation_parameters': {'time_step': time_step}},
                      layer='override')
@@ -53,7 +53,7 @@ def test_FertilityCrudeBirthRate(config):
     num_days = 100
     time_step = 10  # Days
     time_start = pd.Timestamp('1990-01-01')
-    config.read_dict({'population': {'pop_age_start': 0, 'pop_age_end': 125}}, layer='override')
+    config.read_dict({'population': {'age_start': 0, 'age_end': 125}}, layer='override')
 
     components = [TestPopulation(), FertilityCrudeBirthRate()]
     simulation = setup_simulation(components, population_size=start_population_size,
@@ -73,7 +73,7 @@ def test_fertility_module(config):
     num_days = 1000
     time_step = 10  # Days
     time_start = pd.Timestamp('1990-01-01')
-    config.read_dict({'population': {'pop_age_start': 0, 'pop_age_end': 125}}, layer='override')
+    config.read_dict({'population': {'age_start': 0, 'age_end': 125}}, layer='override')
 
     components = [TestPopulation(), FertilityAgeSpecificRates()]
     simulation = setup_simulation(components, population_size=start_population_size,

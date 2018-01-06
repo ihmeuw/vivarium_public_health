@@ -404,8 +404,8 @@ def test_correlated_exposures(load_rc_matrices_mock, config):
     from rpy2.robjects import r, pandas2ri, numpy2ri
     pandas2ri.activate()
     numpy2ri.activate()
-    config.population.pop_age_start = 50
-    config.population.pop_age_end = 50
+    config.population.age_start = 50
+    config.population.age_end = 50
 
     draw = config.run_configuration.input_draw_number
     categorical_risks = [risk_factors.no_access_to_handwashing_facility, risk_factors.smoking_prevalence_approach]

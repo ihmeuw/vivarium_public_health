@@ -46,7 +46,7 @@ def assign_demographic_proportions(population_data):
 
 # TODO: Could probably clip the bins with the pdf calculated in smooth_ages rather than assuming
 # a uniform distribution for this part.  The impact is probably minor though.
-def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
+def rescale_binned_proportions(pop_data, age_start, age_end):
     """Clips the edge population data bins and rescales the proportions associated with those bins.
 
     Parameters
@@ -55,22 +55,22 @@ def rescale_binned_proportions(pop_data, pop_age_start, pop_age_end):
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
         'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
         'P(age | year, sex, location_id)'
-    pop_age_start : float
+    age_start : float
         The starting age for the rescaled bins.
-    pop_age_end : float
+    age_end : float
         The terminal age for the rescaled bins.
 
     Returns
     -------
     pandas.DataFrame
         Table with the same columns as `pop_data` where all bins outside the range
-        (pop_age_start, pop_age_end) have been discarded.  If pop_age_start and pop_age_end
+        (age_start, age_end) have been discarded.  If age_start and age_end
         don't fall cleanly on age boundaries, the bins in which they lie are clipped and
         the 'population', 'P(sex, location_id, age| year)', and 'P(age | year, sex, location_id)'
         values are rescaled to reflect their smaller representation.
     """
-    age_start = max(pop_data.age_group_start.min(), pop_age_start)
-    age_end = min(pop_data.age_group_end.max(), pop_age_end)
+    age_start = max(pop_data.age_group_start.min(), age_start)
+    age_end = min(pop_data.age_group_end.max(), age_end)
 
     relevant_age_groups = (pop_data.age_group_end > age_start) & (pop_data.age_group_start < age_end)
     pop_data = pop_data[relevant_age_groups].copy()

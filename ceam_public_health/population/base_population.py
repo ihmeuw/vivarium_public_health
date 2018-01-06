@@ -21,9 +21,9 @@ class BasePopulation:
     configuration_defaults = {
         'population': {
             'use_subregions': False,
-            'pop_age_start': 0,
-            'pop_age_end': 125,
-            'maximum_age': None,
+            'age_start': 0,
+            'age_end': 125,
+            'exit_age': None,
             'population_size': 10000,
         }
     }
@@ -37,8 +37,8 @@ class BasePopulation:
         self.randomness = builder.randomness('population_generation')
         self.config = builder.configuration.population
         input_config = builder.configuration.input_data
-
-        self._population_data = _build_population_data_table(input_config.location_id, input_config.use_subregions,
+        self._population_data = _build_population_data_table(input_config.location_id,
+                                                             input_config.use_subregions,
                                                              builder.configuration)
 
 
@@ -68,8 +68,8 @@ class BasePopulation:
         event : vivarium.framework.population.PopulationEvent
         """
 
-        age_params = {'pop_age_start': self.config.pop_age_start,
-                      'pop_age_end': self.config.pop_age_end}
+        age_params = {'age_start': self.config.age_start,
+                      'age_end': self.config.age_end}
 
         if event.time.year in self._population_data.year.unique():
             sub_pop_data = self._population_data[self._population_data.year == event.time.year]
@@ -97,8 +97,8 @@ class BasePopulation:
         event.population['age'] += step_size / SECONDS_PER_YEAR
         event.population_view.update(event.population)
 
-        if self.config.maximum_age is not None:
-            max_age = float(self.config.maximum_age)
+        if self.config.exit_age is not None:
+            max_age = float(self.config.exit_age)
             pop = event.population[event.population['age'] >= max_age].copy()
             pop['alive'] = pd.Series('untracked', index=pop.index).astype(
                 pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
@@ -117,13 +117,8 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
         The simulation time when the simulants are created.
     age_params : dict
         Dictionary with keys
-<<<<<<< HEAD
-            pop_age_start : Start of an age range
-            pop_age_end : End of an age range
-=======
             age_start : Start of an age range
             age_end : End of an age range
->>>>>>> 00e948a00806e818b4369312ffe121c7b00c02f2
         The latter two keys can have values specified to generate simulants over an age range.
     population_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
@@ -150,11 +145,11 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
                               'alive': pd.Series('alive', index=simulant_ids).astype(
                                   pd.api.types.CategoricalDtype(['alive', 'dead', 'untracked'], ordered=False))},
                              index=simulant_ids)
-    age_start = float(age_params['pop_age_start'])
-    age_end = float(age_params['pop_age_end'])
+    age_start = float(age_params['age_start'])
+    age_end = float(age_params['age_end'])
     if age_start == age_end:
         return _assign_demography_with_initial_age(simulants, population_data, age_start, randomness_stream)
-    else:  # age_params['pop_age_start'] is not None and age_params['pop_age_end'] is not None
+    else:  # age_params['age_start'] is not None and age_params['age_end'] is not None
         return _assign_demography_with_age_bounds(simulants, population_data, age_start, age_end, randomness_stream)
 
 
