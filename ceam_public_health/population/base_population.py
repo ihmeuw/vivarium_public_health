@@ -41,7 +41,6 @@ class BasePopulation:
                                                              input_config.use_subregions,
                                                              builder.configuration)
 
-
     # TODO: Move most of this docstring to an rst file.
     @listens_for('initialize_simulants', priority=0)
     @uses_columns(['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time'])
@@ -68,8 +67,8 @@ class BasePopulation:
         event : vivarium.framework.population.PopulationEvent
         """
 
-        age_params = {'age_start': self.config.age_start,
-                      'age_end': self.config.age_end}
+        age_params = {'age_start': event.user_data.get('age_start', self.config.age_start),
+                      'age_end': event.user_data.get('age_end', self.config.age_end)}
 
         if event.time.year in self._population_data.year.unique():
             sub_pop_data = self._population_data[self._population_data.year == event.time.year]
