@@ -217,7 +217,8 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
             'The age range ({}, {}) is not represented by the population data structure'.format(age_start, age_end))
 
     # Assign a demographically accurate age, location, and sex distribution.
-    choices = pop_data.set_index(['age', 'sex', 'location_id'])['P(sex, location_id, age| year)'].reset_index()
+    sub_pop_data = pop_data[(pop_data.age_group_start >= age_start) & (pop_data.age_group_end <= age_end)]
+    choices = sub_pop_data.set_index(['age', 'sex', 'location_id'])['P(sex, location_id, age| year)'].reset_index()
     decisions = randomness_stream.choice(simulants.index,
                                          choices=choices.index,
                                          p=choices['P(sex, location_id, age| year)'])
