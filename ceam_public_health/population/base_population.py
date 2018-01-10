@@ -211,6 +211,8 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
         Table with same columns as `simulants` and with the additional columns 'age', 'sex',  and 'location'.
     """
     pop_data = rescale_binned_proportions(pop_data, age_start, age_end)
+    pop_data['sex'] = pop_data['sex'].astype(
+        pd.api.types.CategoricalDtype(['Male', 'Female', 'Both'], ordered=False))
 
     if pop_data.empty:
         raise ValueError(
