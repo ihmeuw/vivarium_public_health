@@ -279,7 +279,7 @@ def test__assign_demography_with_age_bounds():
     assert age_deltas.max() < 100 * age_bin_width * num_bins / n  # Make sure there are no big age gaps.
 
 
-def test__assign_demography_with_age_bounds_error():
+def test__assign_demography_withq_age_bounds_error():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     simulants = make_base_simulants()
     age_start, age_end = 110, 120
