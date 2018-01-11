@@ -157,8 +157,9 @@ def test_age_out_simulants(config):
     time_start = pd.Timestamp('1990-01-01')
     config.update({'population': {'age_start': 4,
                                   'age_end': 4,
-                                  'exit_age': 5,
-                                  'time_step': time_step}},
+                                  'exit_age': 5, },
+                   'simulation_parameters': {'time_step': time_step}
+                   },
                   layer='override')
     components = [bp.BasePopulation()]
     simulation = setup_simulation(components, population_size=start_population_size,
@@ -212,32 +213,38 @@ def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock)
     age_bounds_mock.assert_not_called()
 
 
-def test__assign_demography_with_initial_age():
+def test__assign_demography_with_initial_age(config):
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     pop_data = pop_data[pop_data.year == 1990]
     simulants = make_base_simulants()
     initial_age = 20
     r = get_randomness()
+    step_size = config.simulation_parameters.time_step
 
     simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age, r)
 
-    assert np.all(simulants.age == initial_age)
+    assert len(simulants) == len(simulants.age.unique())
+    assert simulants.age.min() > initial_age
+    assert simulants.age.max() < initial_age + step_size/365.0
     assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, abs_tol=0.01)
     for location in simulants.location.unique():
         assert math.isclose(len(simulants[simulants.location == location]) / len(simulants),
                             1 / len(simulants.location.unique()), abs_tol=0.01)
 
 
-def test__assign_demography_with_initial_age_zero():
+def test__assign_demography_with_initial_age_zero(config):
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     pop_data = pop_data[pop_data.year == 1990]
     simulants = make_base_simulants()
     initial_age = 0
     r = get_randomness()
+    step_size = config.simulation_parameters.time_step
 
     simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age, r)
 
-    assert not simulants.age.values.any()
+    assert len(simulants) == len(simulants.age.unique())
+    assert simulants.age.min() > initial_age
+    assert simulants.age.max() < initial_age + step_size / 365.0
     assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, abs_tol=0.01)
     for location in simulants.location.unique():
         assert math.isclose(len(simulants[simulants.location == location]) / len(simulants),
