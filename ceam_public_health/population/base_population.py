@@ -82,8 +82,7 @@ class BasePopulation:
                                                               step_size=event.step_size,
                                                               age_params=age_params,
                                                               population_data=sub_pop_data,
-                                                              randomness_stream=self.randomness,
-                                                              step_size=event.step_size))
+                                                              randomness_stream=self.randomness))
 
     @listens_for('time_step', priority=8)
     @uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
