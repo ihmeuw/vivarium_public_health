@@ -184,9 +184,10 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_s
                                          choices=choices.index,
                                          p=choices['P(sex, location_id | age, year)'])
 
-    simulants['age'] = initial_age + step_size * randomness_stream.get_draw(simulants.index, additional_key='age_fuzz')
+    age_fuzz = randomness_stream.get_draw(simulants.index, additional_key='age_fuzz') * step_size/pd.Timedelta(days=365)
+    simulants['age'] = initial_age + age_fuzz
     simulants['sex'] = choices.loc[decisions, 'sex'].values
-    simulants['location'] = choices.loc[decisions, 'location_id'].values
+    simulants['location'] = choices.loc[decisions, 'location_id'].valuesf
 
     return simulants
 
