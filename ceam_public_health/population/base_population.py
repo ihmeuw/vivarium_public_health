@@ -79,6 +79,7 @@ class BasePopulation:
 
         event.population_view.update(generate_ceam_population(simulant_ids=event.index,
                                                               creation_time=event.time,
+                                                              step_size=event.step_size,
                                                               age_params=age_params,
                                                               population_data=sub_pop_data,
                                                               randomness_stream=self.randomness,
@@ -106,7 +107,7 @@ class BasePopulation:
             event.population_view.update(pop)
 
 
-def generate_ceam_population(simulant_ids, creation_time, age_params, population_data, randomness_stream, step_size):
+def generate_ceam_population(simulant_ids, creation_time, step_size, age_params, population_data, randomness_stream):
     """Produces a randomly generated set of simulants sampled from the provided `population_data`.
 
     Parameters
@@ -150,12 +151,12 @@ def generate_ceam_population(simulant_ids, creation_time, age_params, population
     age_start = float(age_params['age_start'])
     age_end = float(age_params['age_end'])
     if age_start == age_end:
-        return _assign_demography_with_initial_age(simulants, population_data, age_start, randomness_stream, step_size)
+        return _assign_demography_with_initial_age(simulants, population_data, age_start, step_size, randomness_stream)
     else:  # age_params['age_start'] is not None and age_params['age_end'] is not None
         return _assign_demography_with_age_bounds(simulants, population_data, age_start, age_end, randomness_stream)
 
 
-def _assign_demography_with_initial_age(simulants, pop_data, initial_age, randomness_stream, step_size):
+def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_size, randomness_stream):
     """Assigns age, sex, and location information to the provided simulants given a fixed age.
 
     Parameters
@@ -187,11 +188,11 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, random
     decisions = randomness_stream.choice(simulants.index,
                                          choices=choices.index,
                                          p=choices['P(sex, location_id | age, year)'])
-    age_fuzz = step_size * randomness_stream.get_draw(simulants.index)
-    assert len(age_fuzz.unique()) == len(age_fuzz)
-    simulants['age'] = initial_age + age_fuzz  # Spread the initial population out in the first time step
+
+    age_fuzz = randomness_stream.get_draw(simulants.index, additional_key='age_fuzz') * step_size/pd.Timedelta(days=365)
+    simulants['age'] = initial_age + age_fuzz
     simulants['sex'] = choices.loc[decisions, 'sex'].values
-    simulants['location'] = choices.loc[decisions, 'location_id'].values
+    simulants['location'] = choices.loc[decisions, 'location_id'].valuesf
 
     return simulants
 
@@ -217,6 +218,9 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
         Table with same columns as `simulants` and with the additional columns 'age', 'sex',  and 'location'.
     """
     pop_data = rescale_binned_proportions(pop_data, age_start, age_end)
+    pop_data['sex'] = pop_data['sex'].astype(
+        pd.api.types.CategoricalDtype(['Male', 'Female', 'Both'], ordered=False)
+    )
 
     if pop_data.empty:
         raise ValueError(

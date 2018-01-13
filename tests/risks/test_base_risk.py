@@ -75,7 +75,7 @@ def test_RiskEffect(config):
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
     config.simulation_parameters.time_step = 30.5
-    time_step = pd.Timedelta(days=30.5)
+    time_step = pd.Timedelta(days=30, hours=12)
     test_exposure = [0]
 
     def test_function(rates_, rr):

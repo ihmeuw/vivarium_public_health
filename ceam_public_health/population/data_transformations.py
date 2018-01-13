@@ -71,6 +71,9 @@ def rescale_binned_proportions(pop_data, age_start, age_end):
         the 'population', 'P(sex, location_id, age| year)', and 'P(age | year, sex, location_id)'
         values are rescaled to reflect their smaller representation.
     """
+    if age_start > pop_data.age_group_end.max():
+        raise ValueError('Provided population data is insufficient to model the requested age range.')
+
     age_start = max(pop_data.age_group_start.min(), age_start)
     age_end = min(pop_data.age_group_end.max(), age_end) - 1e-8
     pop_data = _add_edge_age_groups(pop_data.copy())
