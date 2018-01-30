@@ -15,13 +15,15 @@ from .data_transformations import assign_cause_at_beginning_of_simulation
 
 
 class DiseaseModel(Machine):
-    def __init__(self, cause, get_data_functions=None,  **kwargs):
+    def __init__(self, cause, get_data_functions=None,  initial_state='healthy', **kwargs):
         if isinstance(cause, str):
             self.cause = None
             super().__init__(cause, **kwargs)
         else:
             self.cause = cause
             super().__init__(cause.name, **kwargs)
+
+        self.initial_state = initial_state
 
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
@@ -62,8 +64,8 @@ class DiseaseModel(Machine):
     def load_population_columns(self, event):
         population = event.population
 
-        assert 'healthy' in {s.state_id for s in self.states}, f"Model for {self.condition} has no valid initial state." \
-                                                                " All models must have a 'healthy' state."
+        assert self.initial_state in {s.state_id for s in self.states}, f"Model for {self.condition} has no valid initial state." \
+                                                                " All models must have a '{self.initial_state}' state."
         state_map = {s.state_id: s.prevalence_data for s in self.states
                      if hasattr(s, 'prevalence_data') and s.prevalence_data is not None}
 
@@ -71,10 +73,11 @@ class DiseaseModel(Machine):
             # only do this if there are states in the model that supply prevalence data
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
             condition_column = assign_cause_at_beginning_of_simulation(population, event.time.year,
-                                                                       state_map, self.randomness)
+                                                                       state_map, self.randomness,
+                                                                       self.initial_state)
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
         else:
-            condition_column = pd.Series('healthy', index=population.index, name=self.condition)
+            condition_column = pd.Series(self.initial_state, index=population.index, name=self.condition)
         self.population_view.update(condition_column)
 
     @modifies_value('epidemiological_point_measures')

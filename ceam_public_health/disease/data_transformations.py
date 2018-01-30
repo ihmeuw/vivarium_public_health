@@ -68,7 +68,7 @@ def determine_which_seq_diseased_sim_has(sequela_proportions, new_sim_file, rand
     return new_sim_file
 
 
-def assign_cause_at_beginning_of_simulation(simulants_df, year_start, states, randomness):
+def assign_cause_at_beginning_of_simulation(simulants_df, year_start, states, randomness, initial_state):
     simulants_df = simulants_df[['age', 'sex']]
 
     cause_level_prevalence, prevalence_draws_dictionary = get_cause_level_prevalence(states, year_start)
@@ -80,6 +80,6 @@ def assign_cause_at_beginning_of_simulation(simulants_df, year_start, states, ra
                                                                               post_cause_assignment_population,
                                                                               randomness)
     post_sequela_assignment_population.condition_state = post_sequela_assignment_population.condition_state.fillna(
-        'healthy')
+        initial_state)
 
     return post_sequela_assignment_population
