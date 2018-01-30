@@ -62,6 +62,8 @@ class DiseaseModel(Machine):
     def load_population_columns(self, event):
         population = event.population
 
+        assert 'healthy' in {s.state_id for s in self.states}, f"Model for {self.condition} has no valid initial state." \
+                                                                " All models must have a 'healthy' state."
         state_map = {s.state_id: s.prevalence_data for s in self.states
                      if hasattr(s, 'prevalence_data') and s.prevalence_data is not None}
 
