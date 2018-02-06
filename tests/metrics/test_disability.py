@@ -53,6 +53,7 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
     asymptomatic_disease_state = ExcessMortalityState('asymptomatic', get_data_functions=asymp_data_funcs)
     asymptomatic_disease_model = DiseaseModel(Disease(name='asymptomatic'),
                                               states=[asymptomatic_disease_state],
+                                              initial_state='asymptomatic',
                                               get_data_functions={
                                                   'csmr': lambda _, __: build_table(0, year_start, year_end)})
     metrics = Metrics()
@@ -67,6 +68,7 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
                           'excess_mortality': lambda _, __: build_table(0, year_start, year_end)}
         flu = ExcessMortalityState('flu', get_data_functions=flu_data_funcs)
         flu_model = DiseaseModel(Disease(name='flu'), states=[flu],
+                                 initial_state='flu',
                                  get_data_functions={'csmr': lambda _, __: build_table(0, year_start, year_end)})
         components.append(flu_model)
 
@@ -78,6 +80,7 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
                             'excess_mortality': lambda _, __: build_table(0, year_start, year_end)}
         mumps = ExcessMortalityState('mumps', get_data_functions=mumps_data_funcs)
         mumps_model = DiseaseModel(Disease(name='mumps'), states=[mumps],
+                                   initial_state='mumps',
                                    get_data_functions={'csmr': lambda _, __: build_table(0, year_start, year_end)})
         components.append(mumps_model)
 
@@ -88,7 +91,8 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
                              'dwell_time': lambda _, __: pd.Timedelta(days=0),
                              'excess_mortality': lambda _, __: build_table(0.005, year_start, year_end)}
         deadly = ExcessMortalityState('deadly', get_data_functions=deadly_data_funcs)
-        deadly_model = DiseaseModel(Disease(name='deadly'), states=[deadly], get_data_functions={
+        healthy = DiseaseState('healthy', get_data_functions=deadly_data_funcs)
+        deadly_model = DiseaseModel(Disease(name='deadly'), states=[deadly, healthy], get_data_functions={
             'csmr': lambda _, __: build_table(0.0005, year_start, year_end)})
         components.append(deadly_model)
         components.append(Mortality())
