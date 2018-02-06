@@ -35,7 +35,7 @@ def determine_if_sim_has_cause(simulants_df, cause_level_prevalence, randomness)
     del cause_level_prevalence['year']
     probability_of_disease = Interpolation(cause_level_prevalence, ['sex'], ['age'])(simulants_df[['age', 'sex']])
     probability_of_not_having_disease = 1 - probability_of_disease
-    weights = np.array([probability_of_not_having_disease, probability_of_disease]).T
+    weights = np.array([probability_of_not_having_disease.values, probability_of_disease.values]).T
     results = simulants_df.copy()
     # Need to sort results so that the simulants are in the same order as the weights
     results['condition_envelope'] = randomness.choice(results.index, [False, True], weights)
