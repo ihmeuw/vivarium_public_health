@@ -69,7 +69,7 @@ class DiseaseModel(Machine):
         state_map = {s.state_id: s.prevalence_data for s in self.states
                      if hasattr(s, 'prevalence_data') and s.prevalence_data is not None}
 
-        if state_map:
+        if state_map and not population.empty:
             # only do this if there are states in the model that supply prevalence data
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
             condition_column = assign_cause_at_beginning_of_simulation(population, event.time.year,
