@@ -88,7 +88,7 @@ class FertilityCrudeBirthRate:
             self.exit_age = builder.configuration.population.exit_age
         else:
             self.exit_age = None
-        self.randomness = builder.randomness('crude_birth_rate')
+        self.randomness = builder.randomness.get_stream('crude_birth_rate')
 
     @listens_for('time_step')
     @uses_columns([], "alive == 'alive'")
@@ -168,7 +168,7 @@ class FertilityAgeSpecificRates:
 
         """
 
-        self.randomness = builder.randomness('fertility')
+        self.randomness = builder.randomness.get_stream('fertility')
         self._asfr_data = get_age_specific_fertility_rates(builder.configuration)[['year', 'age', 'rate']]
         self.asfr = builder.rate('fertility rate')
         self.asfr.source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))

@@ -35,7 +35,7 @@ class Mortality:
         self.life_expectancy = builder.lookup(life_expectancy_data, key_columns=[], parameter_columns=('age',))
 
         self.death_emitter = builder.emitter('deaths')
-        self.random = builder.randomness('mortality_handler')
+        self.random = builder.randomness.get_stream('mortality_handler')
         self.clock = builder.clock()
 
     @produces_value('mortality_rate')

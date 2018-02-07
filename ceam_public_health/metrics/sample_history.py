@@ -24,7 +24,7 @@ class SampleHistory:
     def setup(self, builder):
         self.config = builder.configuration.sample_history
         self.run_id = builder.configuration.run_configuration.run_id
-        self.randomness = builder.randomness('sample_history')
+        self.randomness = builder.randomness.get_stream('sample_history')
 
         self.key = '/{}-{}'.format(builder.configuration.opportunistic_screening.medication_sheet, self.run_id)
         if self.key == '/':

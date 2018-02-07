@@ -43,7 +43,7 @@ class DiseaseModel(Machine):
         self._csmr_data = get_csmr_func(self.cause, builder.configuration)
 
         self.population_view = builder.population_view([self.condition], "alive == 'alive'")
-        self.randomness = builder.randomness('{}_initial_states'.format(self.condition))
+        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
 
         return self.states
 
