@@ -34,7 +34,10 @@ class BasePopulation:
         ----------
         builder : vivarium.framework.engine.Builder
         """
-        self.randomness = builder.randomness('population_generation')
+        self.randomness = {'general_purpose': builder.randomness('population_generation'),
+                           'bin_selection': builder.randomness('bin_selection', for_initialization=True),
+                           'age_smoothing': builder.randomness('age_smoothing', for_initialization=True)}
+        self.register = builder.register
         self.config = builder.configuration.population
         input_config = builder.configuration.input_data
         self._population_data = _build_population_data_table(input_config.location_id,
@@ -82,7 +85,8 @@ class BasePopulation:
                                                               step_size=event.step_size,
                                                               age_params=age_params,
                                                               population_data=sub_pop_data,
-                                                              randomness_stream=self.randomness))
+                                                              randomness_streams=self.randomness,
+                                                              register=self.register))
 
     @listens_for('time_step', priority=8)
     @uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
@@ -106,7 +110,8 @@ class BasePopulation:
             event.population_view.update(pop)
 
 
-def generate_ceam_population(simulant_ids, creation_time, step_size, age_params, population_data, randomness_stream):
+def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
+                             population_data, randomness_streams, register):
     """Produces a randomly generated set of simulants sampled from the provided `population_data`.
 
     Parameters
@@ -123,8 +128,12 @@ def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
     population_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
         'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
-    randomness_stream : vivarium.framework.randomness.RandomnessStream
+    randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
         Source of random number generation within the vivarium common random number framework.
+    step_size : float
+        The size of the initial time step.
+    register : Callable
+        A function to register the new simulants with the CRN framework.
 
     Returns
     -------
@@ -148,12 +157,14 @@ def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
     age_start = float(age_params['age_start'])
     age_end = float(age_params['age_end'])
     if age_start == age_end:
-        return _assign_demography_with_initial_age(simulants, population_data, age_start, step_size, randomness_stream)
+        return _assign_demography_with_initial_age(simulants, population_data, age_start,
+                                                   step_size, randomness_streams, register)
     else:  # age_params['age_start'] is not None and age_params['age_end'] is not None
-        return _assign_demography_with_age_bounds(simulants, population_data, age_start, age_end, randomness_stream)
+        return _assign_demography_with_age_bounds(simulants, population_data, age_start,
+                                                  age_end, randomness_streams, register)
 
 
-def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_size, randomness_stream):
+def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_size, randomness_streams, register):
     """Assigns age, sex, and location information to the provided simulants given a fixed age.
 
     Parameters
@@ -165,8 +176,12 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_s
         'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     initial_age : float
         The age to assign the new simulants.
-    randomness_stream : vivarium.framework.randomness.RandomnessStream
+    randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
         Source of random number generation within the vivarium common random number framework.
+    step_size : float
+        The size of the initial time step.
+    register : Callable
+        A function to register the new simulants with the CRN framework.
 
     Returns
     -------
@@ -178,21 +193,23 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_s
     if pop_data.empty:
         raise ValueError('The age {} is not represented by the population data structure'.format(initial_age))
 
+    age_fuzz = randomness_streams['age_smoothing'].get_draw(simulants.index) * step_size / pd.Timedelta(days=365)
+    simulants['age'] = initial_age + age_fuzz
+    register(simulants[['entrance_time', 'age']])
+
     # Assign a demographically accurate location and sex distribution.
     choices = pop_data.set_index(['sex', 'location_id'])['P(sex, location_id | age, year)'].reset_index()
-    decisions = randomness_stream.choice(simulants.index,
-                                         choices=choices.index,
-                                         p=choices['P(sex, location_id | age, year)'])
+    decisions = randomness_streams['general_purpose'].choice(simulants.index,
+                                                             choices=choices.index,
+                                                             p=choices['P(sex, location_id | age, year)'])
 
-    age_fuzz = randomness_stream.get_draw(simulants.index, additional_key='age_fuzz') * step_size/pd.Timedelta(days=365)
-    simulants['age'] = initial_age + age_fuzz
     simulants['sex'] = choices.loc[decisions, 'sex'].values
     simulants['location'] = choices.loc[decisions, 'location_id'].values
 
     return simulants
 
 
-def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, randomness_stream):
+def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, randomness_streams, register):
     """Assigns age, sex, and location information to the provided simulants given a range of ages.
 
     Parameters
@@ -204,8 +221,10 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
         'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
     age_start, age_end : float
         The start and end of the age range of interest, respectively.
-    randomness_stream : vivarium.framework.randomness.RandomnessStream
+    randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
         Source of random number generation within the vivarium common random number framework.
+    register : Callable
+        A function to register the new simulants with the CRN framework.
 
     Returns
     -------
@@ -224,13 +243,15 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     # Assign a demographically accurate age, location, and sex distribution.
     sub_pop_data = pop_data[(pop_data.age_group_start >= age_start) & (pop_data.age_group_end <= age_end)]
     choices = sub_pop_data.set_index(['age', 'sex', 'location_id'])['P(sex, location_id, age| year)'].reset_index()
-    decisions = randomness_stream.choice(simulants.index,
-                                         choices=choices.index,
-                                         p=choices['P(sex, location_id, age| year)'])
+    decisions = randomness_streams['bin_selection'].choice(simulants.index,
+                                                           choices=choices.index,
+                                                           p=choices['P(sex, location_id, age| year)'])
     simulants['age'] = choices.loc[decisions, 'age'].values
     simulants['sex'] = choices.loc[decisions, 'sex'].values
     simulants['location'] = choices.loc[decisions, 'location_id'].values
-    return smooth_ages(simulants, pop_data, randomness_stream)
+    simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing'])
+    register(simulants[['entrance_time', 'age']])
+    return simulants
 
 
 def _build_population_data_table(main_location, use_subregions, override_config=None):
