@@ -55,9 +55,9 @@ class HealthcareAccess:
         location_id = builder.configuration.input_data.location_id
         draw = builder.configuration.run_configuration.input_draw_number
 
-        self.general_random = builder.randomness('healthcare_general_access')
-        self.followup_random = builder.randomness('healthcare_followup_access')
-        self.adherence_random = builder.randomness('healthcare_adherence')
+        self.general_random = builder.randomness.get_stream('healthcare_general_access')
+        self.followup_random = builder.randomness.get_stream('healthcare_followup_access')
+        self.adherence_random = builder.randomness.get_stream('healthcare_adherence')
         self.clock = builder.clock()
         r = np.random.RandomState(self.general_random.get_seed())
 
@@ -129,7 +129,7 @@ class HealthcareAccess:
         event.population_view.update(pd.Series(event.time, index=index, name='healthcare_last_visit_date'))
         self.general_healthcare_access_emitter(event.split(index))
         self.general_access_count += len(index)
-        
+
         pop = event.population_view.get(index)
         pop.healthcare_visits += 1
         event.population_view.update(pop.healthcare_visits)

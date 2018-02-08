@@ -117,7 +117,7 @@ class ContinuousRiskComponent:
         exposure = exposure_data.merge(exposure_sd_data).set_index(['age', 'sex', 'year'])
 
         self.exposure_distribution = get_distribution(self._risk, exposure)
-        self.randomness = builder.randomness(self._risk.name)
+        self.randomness = builder.randomness.get_stream(self._risk.name)
         self.population_view = builder.population_view([self._risk.name+'_exposure', self._risk.name+'_propensity'])
 
         return self._effects + [self.exposure_distribution]
@@ -179,7 +179,7 @@ class CategoricalRiskComponent:
         self.exposure = builder.value('{}.exposure'.format(self._risk.name))
         self.exposure.source = builder.lookup(exposure_data)
 
-        self.randomness = builder.randomness(self._risk.name)
+        self.randomness = builder.randomness.get_stream(self._risk.name)
 
         return self._effects
 

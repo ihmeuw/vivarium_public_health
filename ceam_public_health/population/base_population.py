@@ -34,10 +34,10 @@ class BasePopulation:
         ----------
         builder : vivarium.framework.engine.Builder
         """
-        self.randomness = {'general_purpose': builder.randomness('population_generation'),
-                           'bin_selection': builder.randomness('bin_selection', for_initialization=True),
-                           'age_smoothing': builder.randomness('age_smoothing', for_initialization=True)}
-        self.register = builder.register
+        self.randomness = {'general_purpose': builder.randomness.get_stream('population_generation'),
+                           'bin_selection': builder.randomness.get_stream('bin_selection', for_initialization=True),
+                           'age_smoothing': builder.randomness.get_stream('age_smoothing', for_initialization=True)}
+        self.register_simulants = builder.randomness.register_simulants
         self.config = builder.configuration.population
         input_config = builder.configuration.input_data
         self._population_data = _build_population_data_table(input_config.location_id,
@@ -86,7 +86,7 @@ class BasePopulation:
                                                               age_params=age_params,
                                                               population_data=sub_pop_data,
                                                               randomness_streams=self.randomness,
-                                                              register=self.register))
+                                                              register_simulants=self.register_simulants))
 
     @listens_for('time_step', priority=8)
     @uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
@@ -111,7 +111,7 @@ class BasePopulation:
 
 
 def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
-                             population_data, randomness_streams, register):
+                             population_data, randomness_streams, register_simulants):
     """Produces a randomly generated set of simulants sampled from the provided `population_data`.
 
     Parameters
@@ -132,7 +132,7 @@ def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
         Source of random number generation within the vivarium common random number framework.
     step_size : float
         The size of the initial time step.
-    register : Callable
+    register_simulants : Callable
         A function to register the new simulants with the CRN framework.
 
     Returns
@@ -158,13 +158,14 @@ def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
     age_end = float(age_params['age_end'])
     if age_start == age_end:
         return _assign_demography_with_initial_age(simulants, population_data, age_start,
-                                                   step_size, randomness_streams, register)
+                                                   step_size, randomness_streams, register_simulants)
     else:  # age_params['age_start'] is not None and age_params['age_end'] is not None
         return _assign_demography_with_age_bounds(simulants, population_data, age_start,
-                                                  age_end, randomness_streams, register)
+                                                  age_end, randomness_streams, register_simulants)
 
 
-def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_size, randomness_streams, register):
+def _assign_demography_with_initial_age(simulants, pop_data, initial_age,
+                                        step_size, randomness_streams, register_simulants):
     """Assigns age, sex, and location information to the provided simulants given a fixed age.
 
     Parameters
@@ -180,7 +181,7 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_s
         Source of random number generation within the vivarium common random number framework.
     step_size : float
         The size of the initial time step.
-    register : Callable
+    register_simulants : Callable
         A function to register the new simulants with the CRN framework.
 
     Returns
@@ -195,7 +196,7 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_s
 
     age_fuzz = randomness_streams['age_smoothing'].get_draw(simulants.index) * step_size / pd.Timedelta(days=365)
     simulants['age'] = initial_age + age_fuzz
-    register(simulants[['entrance_time', 'age']])
+    register_simulants(simulants[['entrance_time', 'age']])
 
     # Assign a demographically accurate location and sex distribution.
     choices = pop_data.set_index(['sex', 'location_id'])['P(sex, location_id | age, year)'].reset_index()
@@ -209,7 +210,7 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age, step_s
     return simulants
 
 
-def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, randomness_streams, register):
+def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, randomness_streams, register_simulants):
     """Assigns age, sex, and location information to the provided simulants given a range of ages.
 
     Parameters
@@ -223,7 +224,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
         The start and end of the age range of interest, respectively.
     randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
         Source of random number generation within the vivarium common random number framework.
-    register : Callable
+    register_simulants : Callable
         A function to register the new simulants with the CRN framework.
 
     Returns
@@ -250,7 +251,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     simulants['sex'] = choices.loc[decisions, 'sex'].values
     simulants['location'] = choices.loc[decisions, 'location_id'].values
     simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing'])
-    register(simulants[['entrance_time', 'age']])
+    register_simulants(simulants[['entrance_time', 'age']])
     return simulants
 
 
