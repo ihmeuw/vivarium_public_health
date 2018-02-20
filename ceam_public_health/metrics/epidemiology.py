@@ -2,7 +2,6 @@ import os
 
 import pandas as pd
 
-from vivarium.framework.values import produces_value
 from vivarium.framework.event import listens_for, emits
 from vivarium.framework.util import collapse_nested_dict
 
