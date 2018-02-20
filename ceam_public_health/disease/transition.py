@@ -17,13 +17,12 @@ class RateTransition(Transition):
         self._rate_data = get_incidence_function(self.output_state.cause, builder.configuration)
         self.base_incidence = builder.lookup(self._rate_data)
 
-        self.effective_incidence = builder.rate('{}.incidence_rate'.format(self.output_state.state_id))
-        self.effective_incidence.source = self.incidence_rates
-
-        self.joint_paf = builder.value('{}.paf'.format(self.output_state.state_id),
-                                       list_combiner, joint_value_post_processor)
-        self.joint_paf.source = lambda index: [pd.Series(0, index=index)]
-
+        self.effective_incidence = builder.value.register_rate_producer(f'{self.output_state.state_id}.incidence_rate',
+                                                                        source=self.incidence_rates)
+        self.joint_paf = builder.value.register_value_producer(f'{self.output_state.state_id}.paf',
+                                                               source=lambda index: [pd.Series(0, index=index)],
+                                                               preferred_combiner=list_combiner,
+                                                               preferred_post_processor=joint_value_post_processor)
         return super().setup(builder)
 
     def _probability(self, index):

@@ -170,8 +170,8 @@ class FertilityAgeSpecificRates:
 
         self.randomness = builder.randomness.get_stream('fertility')
         self._asfr_data = get_age_specific_fertility_rates(builder.configuration)[['year', 'age', 'rate']]
-        self.asfr = builder.rate('fertility rate')
-        self.asfr.source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))
+        asfr_source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))
+        self.asfr = builder.value.register_rate_producer('fertility rate', source=asfr_source)
 
     @listens_for('initialize_simulants')
     @uses_columns(['last_birth_time', 'sex', 'parent_id'])

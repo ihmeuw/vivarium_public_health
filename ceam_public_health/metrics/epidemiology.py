@@ -20,9 +20,11 @@ class EpidemiologicalMeasures:
     """
     def setup(self, builder):
         self.run_config = builder.configuration.run_configuration
-        self.age_groups = get_age_bins(builder.configuration)
-        self.point_measures = builder.value('epidemiological_point_measures')
-        self.span_measures = builder.value('epidemiological_span_measures')
+        self.age_groups = get_age_bins()
+        self.point_measures = builder.value.register_value_producer('epidemiological_point_measures',
+                                                                    source=self.base_cube)
+        self.span_measures = builder.value.register_value_producer('epidemiological_span_measures',
+                                                                   source=self.base_cube)
         self.clock = builder.clock()
 
         self.run_key = self.run_config.run_key.to_dict() if 'run_key' in self.run_config else None
@@ -35,8 +37,6 @@ class EpidemiologicalMeasures:
         self.collecting = False
         self.last_collected_year = -1
 
-    @produces_value('epidemiological_point_measures')
-    @produces_value('epidemiological_span_measures')
     def base_cube(self, index, age_groups, sexes, all_locations, duration):
         return pd.DataFrame(
             columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'sample_size']

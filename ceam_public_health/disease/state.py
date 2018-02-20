@@ -4,7 +4,6 @@ import pandas as pd
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.state_machine import State, Transient
-from vivarium.framework.values import modifies_value
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
@@ -46,6 +45,8 @@ class BaseDiseaseState(State):
         if self.track_events:
             columns += [self.event_time_column, self.event_count_column]
         self.population_view = builder.population_view(columns)
+
+        builder.value.register_value_modifier('metrics', self.metrics)
 
         return sub_components
 
@@ -97,7 +98,6 @@ class BaseDiseaseState(State):
         else:
             raise ValueError(f"Unrecognized data type {source_data_type}")
 
-    @modifies_value('metrics')
     def metrics(self, index, metrics):
         """Records data for simulation post-processing.
 
@@ -149,7 +149,6 @@ class DiseaseState(BaseDiseaseState):
             raise ValueError('If you do not provide a GBD cause from the gbd_mapping, you must supply'
                              'custom data gathering functions for disability_weight, prevalence, and dwell_time.')
 
-
     def setup(self, builder):
         """Performs this component's simulation setup and return sub-components.
 
@@ -175,8 +174,7 @@ class DiseaseState(BaseDiseaseState):
             self._disability_weight = builder.lookup(disability_weight_data)
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
-
-        self.dwell_time = builder.value('{}.dwell_time'.format(self.state_id))
+        builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
         if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
             self.transition_set.allow_null_transition = True
@@ -184,7 +182,8 @@ class DiseaseState(BaseDiseaseState):
 
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
-        self.dwell_time.source = builder.lookup(self._dwell_time)
+        self.dwell_time = builder.value.register_value_producer(f'{self.state_id}.dwell_time',
+                                                                source=builder.lookup(self._dwell_time))
 
         return super().setup(builder)
 
@@ -228,7 +227,6 @@ class DiseaseState(BaseDiseaseState):
         if self.cleanup_function is not None:
             self.cleanup_function(index, event_time)
 
-    @modifies_value('disability_weight')
     def disability_weight(self, index):
         """Gets the disability weight associated with this state.
 
@@ -287,15 +285,17 @@ class ExcessMortalityState(DiseaseState):
         get_excess_mortality_func = self._get_data_functions.get('excess_mortality', get_excess_mortality)
 
         self.excess_mortality_data = get_excess_mortality_func(self.cause, builder.configuration)
-        self._mortality = builder.rate('{}.excess_mortality'.format(self.state_id))
         if 'mortality.interpolate' in builder.configuration and not builder.configuration.mortality.interpolate:
             order = 0
         else:
             order = 1
-        self._mortality.source = builder.lookup(self.excess_mortality_data, interpolation_order=order)
+        excess_mortality_source = builder.lookup(self.excess_mortality_data, interpolation_order=order)
+        self._mortality = builder.value.register_rate_producer(f'{self.state_id}.excess_mortality',
+                                                               source=excess_mortality_source)
+        builder.value.register_value_modifier('mortality_rate', modifier=self.mortality_rates)
+
         return super().setup(builder)
 
-    @modifies_value('mortality_rate')
     def mortality_rates(self, index, rates_df):
         """Modifies the baseline mortality rate for a simulant if they are in this state.
 

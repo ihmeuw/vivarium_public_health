@@ -5,7 +5,6 @@ import pandas as pd
 
 from vivarium.framework.event import listens_for, emits, Event
 from vivarium.framework.population import uses_columns
-from vivarium.framework.values import modifies_value
 from vivarium.framework.randomness import filter_for_probability
 from vivarium.interpolation import Interpolation
 
@@ -69,7 +68,7 @@ class HealthcareAccess:
         self.hospitalization_count = 0
 
         self.hospitalization_cost = defaultdict(float)
-        ip_cost_df = get_inpatient_visit_costs(builder.configuration).rename(columns={'year_id':'year'})
+        ip_cost_df = get_inpatient_visit_costs(builder.configuration).rename(columns={'year_id': 'year'})
         self._hospitalization_cost = Interpolation(ip_cost_df, tuple(), ('year',))
 
         cost_df = get_outpatient_visit_costs(builder.configuration)
@@ -81,8 +80,9 @@ class HealthcareAccess:
         self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
 
         annual_visits = get_healthcare_annual_visits(healthcare_entities.outpatient_visits, builder.configuration)
-        self.utilization_rate = builder.rate('healthcare_utilization.rate')
-        self.utilization_rate.source = builder.lookup(annual_visits)
+        self.utilization_rate = builder.value.register_rate_producer('healthcare_utilization.rate',
+                                                                     source=builder.lookup(annual_visits))
+        builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
     @listens_for('initialize_simulants')
     @uses_columns(['healthcare_followup_date', 'healthcare_last_visit_date', 'healthcare_visits',
@@ -176,7 +176,6 @@ class HealthcareAccess:
         self.hospitalization_cost[year] += len(event.index) * self._hospitalization_cost(year=[year])[0]
         self.cost_by_year[year] += len(event.index) * self._hospitalization_cost(year=[year])[0]
 
-    @modifies_value('metrics')
     def metrics(self, index, metrics):
         metrics['healthcare_access_cost'] = sum(self.cost_by_year.values())
         metrics['general_healthcare_access'] = self.general_access_count

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from ceam_inputs import causes, get_relative_risk, get_population_attributable_fraction, get_mediation_factor
+from ceam_inputs import get_relative_risk, get_population_attributable_fraction, get_mediation_factor
 
 from vivarium.framework.population import uses_columns
 
@@ -94,8 +94,8 @@ class RiskEffect:
         else:
             self.mediation_factor = None
 
-        builder.modifies_value(self.incidence_rates, '{}.incidence_rate'.format(self.cause_name))
-        builder.modifies_value(self.paf_mf_adjustment, '{}.paf'.format(self.cause_name))
+        builder.value.register_value_modifier(f'{self.cause_name}.incidence_rate', modifier=self.incidence_rates)
+        builder.value.register_value_modifier(f'{self.cause_name}.paf', modifier=self.paf_mf_adjustment)
 
         return [self.exposure_effect]
 

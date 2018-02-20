@@ -5,7 +5,7 @@ from ceam_inputs import get_theoretical_minimum_risk_life_expectancy, causes, ge
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.util import rate_to_probability
-from vivarium.framework.values import list_combiner, modifies_value, produces_value
+from vivarium.framework.values import list_combiner
 
 from .data_transformations import get_cause_deleted_mortality
 
@@ -26,10 +26,8 @@ class Mortality:
         self._interpolation_order = 1 if builder.configuration.mortality.interpolate else 0
         self._build_lookup_handle = builder.lookup
 
-        self.csmr = builder.value('csmr_data', list_combiner)
-        self.csmr.source = list
-
-        self.mortality_rate = builder.rate('mortality_rate')
+        self.csmr = builder.value.register_value_producer('csmr_data', source=list, preferred_combiner=list_combiner)
+        self.mortality_rate = builder.value.register_rate_producer('mortality_rate', source=self.mortality_rate_source)
 
         life_expectancy_data = get_theoretical_minimum_risk_life_expectancy()
         self.life_expectancy = builder.lookup(life_expectancy_data, key_columns=[], parameter_columns=('age',))
@@ -37,8 +35,11 @@ class Mortality:
         self.death_emitter = builder.emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')
         self.clock = builder.clock()
+        builder.value.register_value_modifier('metrics', modifier=self.metrics)
+        builder.value.register_value_modifier('epidemiological_point_measures', modifier=self.deaths)
+        builder.value.register_value_modifier('epidemiological_span_measures',
+                                              modifier=self.calculate_mortality_measure)
 
-    @produces_value('mortality_rate')
     def mortality_rate_source(self, index):
         if self._cause_deleted_mortality_data is None:
             csmr_data = self.csmr()
@@ -77,7 +78,6 @@ class Mortality:
         pop.loc[new_untracked, 'cause_of_death'] = 'untracked'
         event.population_view.update(pop)
 
-    @modifies_value('metrics')
     @uses_columns(['alive', 'age', 'cause_of_death'])
     def metrics(self, index, metrics, population_view):
         population = population_view.get(index)
@@ -97,7 +97,6 @@ class Mortality:
 
         return metrics
 
-    @modifies_value('epidemiological_span_measures')
     @uses_columns(['age', 'exit_time', 'cause_of_death', 'alive', 'sex'])
     def calculate_mortality_measure(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
         pop = population_view.get(index)
@@ -162,7 +161,6 @@ class Mortality:
                         )
         return cube
 
-    @modifies_value('epidemiological_span_measures')
     @uses_columns(['exit_time', 'sex', 'age', 'location'], 'alive != "alive"')
     def deaths(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
         pop = population_view.get(index)
