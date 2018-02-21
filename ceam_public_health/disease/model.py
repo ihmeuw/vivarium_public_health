@@ -3,7 +3,6 @@ import numbers
 import pandas as pd
 
 from vivarium.framework.event import listens_for
-from vivarium.framework.population import uses_columns
 from vivarium.framework.state_machine import Machine
 
 from ceam_public_health.disease import ExcessMortalityState, TransientDiseaseState, RateTransition, ProportionTransition
@@ -45,7 +44,7 @@ class DiseaseModel(Machine):
         builder.value.register_value_modifier('epidemiological_point_measures', modifier=self.prevalence)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-        self.population_view = builder.population_view([self.condition], "alive == 'alive'")
+        self.population_view = builder.population_view(['age', 'sex', self.condition])
         self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
 
         return self.states
@@ -62,12 +61,11 @@ class DiseaseModel(Machine):
         return self._csmr_data
 
     @listens_for('initialize_simulants')
-    @uses_columns(['age', 'sex', condition])
     def load_population_columns(self, event):
-        population = event.population
+        population = self.population_view.get(event.index)
 
-        assert self.initial_state in {s.state_id for s in self.states}, f"Model for {self.condition} has no valid initial state." \
-                                                                " All models must have a '{self.initial_state}' state."
+        assert self.initial_state in {s.state_id for s in self.states}
+
         state_map = {s.state_id: s.prevalence_data for s in self.states
                      if hasattr(s, 'prevalence_data') and s.prevalence_data is not None}
 
@@ -155,6 +153,6 @@ class DiseaseModel(Machine):
         return dot
 
     def metrics(self, index, metrics):
-        population = self.population_view.get(index)
+        population = self.population_view.get(index, query="alive == 'alive")
         metrics[self.condition + '_count'] = (population[self.condition] != 'healthy').sum()
         return metrics

@@ -3,10 +3,8 @@ import pandas as pd
 
 from ceam_inputs import get_relative_risk, get_population_attributable_fraction, get_mediation_factor
 
-from vivarium.framework.population import uses_columns
 
-
-def continuous_exposure_effect(risk):
+def continuous_exposure_effect(risk, population_view):
     """Factory that makes functions which can be used as the exposure_effect for standard continuous risks.
 
     Parameters
@@ -19,9 +17,9 @@ def continuous_exposure_effect(risk):
     max_exposure = risk.exposure_parameters.max_rr
     scale = risk.exposure_parameters.scale
 
+
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
-    @uses_columns([exposure_column])
-    def inner(rates, rr, population_view):
+    def inner(rates, rr):
         exposure = np.minimum(population_view.get(rr.index)[exposure_column].values, max_exposure)
         relative_risk = np.maximum(rr.values**((exposure - tmrel) / scale), 1)
         return rates * relative_risk
@@ -29,7 +27,7 @@ def continuous_exposure_effect(risk):
     return inner
 
 
-def categorical_exposure_effect(risk):
+def categorical_exposure_effect(risk, population_view):
     """Factory that makes functions which can be used as the exposure_effect for binary categorical risks
 
     Parameters
@@ -39,8 +37,7 @@ def categorical_exposure_effect(risk):
     """
     exposure_column = risk.name+'_exposure'
 
-    @uses_columns([exposure_column])
-    def inner(rates, rr, population_view):
+    def inner(rates, rr):
         exposure_ = population_view.get(rr.index)[exposure_column]
         return rates * (rr.lookup(exposure_.index, exposure_))
     return inner
@@ -62,10 +59,6 @@ class RiskEffect:
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
         self.cause_name = cause.name
-
-        is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
-        self.exposure_effect = (continuous_exposure_effect(self.risk) if is_continuous
-                                else categorical_exposure_effect(self.risk))
 
     def setup(self, builder):
         get_rr_func = self._get_data_functions.get('rr', get_relative_risk)
@@ -96,7 +89,10 @@ class RiskEffect:
 
         builder.value.register_value_modifier(f'{self.cause_name}.incidence_rate', modifier=self.incidence_rates)
         builder.value.register_value_modifier(f'{self.cause_name}.paf', modifier=self.paf_mf_adjustment)
-
+        self.population_view = builder.population_view([self.risk.name + '_exposure'])
+        is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
+        self.exposure_effect = (continuous_exposure_effect(self.risk, self.population_view) if is_continuous
+                                else categorical_exposure_effect(self.risk, self.population_view))
         return [self.exposure_effect]
 
     def paf_mf_adjustment(self, index):

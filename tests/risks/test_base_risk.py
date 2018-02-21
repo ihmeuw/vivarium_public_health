@@ -8,7 +8,6 @@ from scipy.stats import norm
 
 from vivarium.config_tree import ConfigTree
 from vivarium.framework.event import listens_for
-from vivarium.framework.population import uses_columns
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
@@ -113,11 +112,14 @@ def test_RiskEffect(config):
 
 
 def make_dummy_column(name, initial_value):
-    @listens_for('initialize_simulants')
-    @uses_columns([name])
-    def make_column(event):
-        event.population_view.update(pd.Series(initial_value, index=event.index, name=name))
-    return make_column
+    class _make_dummy_column:
+        def setup(self, builder):
+            self.population_view = builder.population_view([name])
+
+        @listens_for('initialize_simulants')
+        def make_column(self, event):
+            self.population_view.update(pd.Series(initial_value, index=event.index, name=name))
+    return _make_dummy_column
 
 
 def test_continuous_exposure_effect(config):

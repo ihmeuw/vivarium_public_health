@@ -39,6 +39,8 @@ class BaseDiseaseState(State):
             This component's sub-components.
         """
         sub_components = super().setup(builder)
+        if self.side_effect_function is not None:
+            sub_components.append(self.side_effect_function)
         self.clock = builder.clock()
 
         columns = [self._model, 'alive']
@@ -185,7 +187,10 @@ class DiseaseState(BaseDiseaseState):
         self.dwell_time = builder.value.register_value_producer(f'{self.state_id}.dwell_time',
                                                                 source=builder.lookup(self._dwell_time))
 
-        return super().setup(builder)
+        sub_components = super().setup(builder)
+        if self.cleanup_effect is not None:
+            sub_components.append(self.cleanup_function)
+        return sub_components
 
     def next_state(self, index, event_time, population_view):
         """Moves a population among different disease states.

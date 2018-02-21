@@ -1,7 +1,6 @@
 import pandas as pd
 
 from vivarium.framework.event import listens_for
-from vivarium.framework.population import uses_columns
 
 
 class SampleHistory:
@@ -25,6 +24,7 @@ class SampleHistory:
         self.config = builder.configuration.sample_history
         self.run_id = builder.configuration.run_configuration.run_id
         self.randomness = builder.randomness.get_stream('sample_history')
+        self.population_view = builder.population_view()
 
         self.key = '/{}-{}'.format(builder.configuration.opportunistic_screening.medication_sheet, self.run_id)
         if self.key == '/':
@@ -40,9 +40,8 @@ class SampleHistory:
         self.sample_index = priority_index[:sample_size]
 
     @listens_for('collect_metrics')
-    @uses_columns(None)
     def record(self, event):
-        sample = event.population.loc[self.sample_index]
+        sample = self.population_view.get(event.index).loc[self.sample_index]
 
         self.sample_frames[event.time] = sample
 
