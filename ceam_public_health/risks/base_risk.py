@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import multivariate_normal, norm
 
-from ceam_inputs import risk_factors, get_risk_correlation_matrix, get_exposure, get_exposure_standard_deviation
+from ceam_inputs import (risk_factors, coverage_gaps, get_risk_correlation_matrix,
+                         get_exposure, get_exposure_standard_deviation)
 
 from vivarium.framework.event import listens_for
 from vivarium.framework.randomness import random
@@ -158,7 +159,10 @@ class CategoricalRiskComponent:
     }
 
     def __init__(self, risk, propensity_function=None):
-        self._risk = risk_factors[risk] if isinstance(risk, str) else risk
+        if isinstance(risk, str):
+            self._risk = risk_factors[risk] if risk in risk_factors else coverage_gaps[risk]
+        else:
+            self._risk = risk
         self._effects = make_gbd_risk_effects(self._risk)
         self.propensity_function = propensity_function
 
@@ -209,4 +213,4 @@ class CategoricalRiskComponent:
         self.population_view.update(categories)
 
     def __repr__(self):
-        return "CategoricalRiskComponent(_risk= {}, exposure= {})".format(self._risk.name, self.exposure.source)
+        return "CategoricalRiskComponent(_risk= {})".format(self._risk.name)
