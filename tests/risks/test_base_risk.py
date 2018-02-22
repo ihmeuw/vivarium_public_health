@@ -8,7 +8,6 @@ from scipy.stats import norm
 
 from vivarium.config_tree import ConfigTree
 from vivarium.framework.event import listens_for
-from vivarium.framework.population import uses_columns
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
@@ -71,6 +70,17 @@ def get_distribution_mock(mocker):
     return mocker.patch('ceam_public_health.risks.base_risk.get_distribution')
 
 
+def make_dummy_column(name, initial_value):
+    class _make_dummy_column:
+        def setup(self, builder):
+            self.population_view = builder.population.get_view([name])
+
+        @listens_for('initialize_simulants')
+        def make_column(self, event):
+            self.population_view.update(pd.Series(initial_value, index=event.index, name=name))
+    return _make_dummy_column()
+
+
 def test_RiskEffect(config):
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
@@ -91,9 +101,9 @@ def test_RiskEffect(config):
     }
 
     effect = RiskEffect(r, d, effect_data_functions)
-    effect.exposure_effect = test_function
 
     simulation = setup_simulation([TestPopulation(), effect], input_config=config)
+    effect.exposure_effect = test_function
 
     # This one should be affected by our RiskEffect
     rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
@@ -112,17 +122,19 @@ def test_RiskEffect(config):
     assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
 
 
-def make_dummy_column(name, initial_value):
-    @listens_for('initialize_simulants')
-    @uses_columns([name])
-    def make_column(event):
-        event.population_view.update(pd.Series(initial_value, index=event.index, name=name))
-    return make_column
-
-
 def test_continuous_exposure_effect(config):
     risk = risk_factors.high_systolic_blood_pressure
-    exposure_function = continuous_exposure_effect(risk)
+
+    class exposure_function_wrapper:
+
+        def setup(self, builder):
+            self.population_view = builder.population.get_view([risk.name+'_exposure'])
+            self.exposure_function = continuous_exposure_effect(risk, self.population_view)
+
+        def __call__(self, *args, **kwargs):
+            return self.exposure_function(*args, **kwargs)
+    exposure_function = exposure_function_wrapper()
+
     tmrel = 0.5 * (risk.tmred.max + risk.tmred.min)
     components = [TestPopulation(), make_dummy_column(risk.name+'_exposure', tmrel), exposure_function]
     simulation = setup_simulation(components, input_config=config)
@@ -142,7 +154,16 @@ def test_continuous_exposure_effect(config):
 
 def test_categorical_exposure_effect(config):
     risk = risk_factors.high_systolic_blood_pressure
-    exposure_function = categorical_exposure_effect(risk)
+
+    class exposure_function_wrapper:
+        def setup(self, builder):
+            self.population_view = builder.population.get_view([risk.name + '_exposure'])
+            self.exposure_function = categorical_exposure_effect(risk, self.population_view)
+
+        def __call__(self, *args, **kwargs):
+            return self.exposure_function(*args, **kwargs)
+
+    exposure_function = exposure_function_wrapper()
     components = [TestPopulation(), make_dummy_column(risk.name+'_exposure', 'cat2'), exposure_function]
     simulation = setup_simulation(components, input_config=config)
 

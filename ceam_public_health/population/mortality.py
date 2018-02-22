@@ -3,7 +3,6 @@ import pandas as pd
 from ceam_inputs import get_theoretical_minimum_risk_life_expectancy, causes, get_cause_specific_mortality
 
 from vivarium.framework.event import listens_for
-from vivarium.framework.population import uses_columns
 from vivarium.framework.util import rate_to_probability
 from vivarium.framework.values import list_combiner
 
@@ -40,6 +39,9 @@ class Mortality:
         builder.value.register_value_modifier('epidemiological_span_measures',
                                               modifier=self.calculate_mortality_measure)
 
+        self.population_view = builder.population.get_view(
+            ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location'])
+
     def mortality_rate_source(self, index):
         if self._cause_deleted_mortality_data is None:
             csmr_data = self.csmr()
@@ -50,14 +52,13 @@ class Mortality:
         return self._cause_deleted_mortality_data(index)
 
     @listens_for('initialize_simulants')
-    @uses_columns(['cause_of_death'])
     def load_population_columns(self, event):
-        event.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
+        self.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
 
     @listens_for('time_step', priority=0)
-    @uses_columns(['alive', 'exit_time', 'cause_of_death'], "alive == 'alive'")
     def mortality_handler(self, event):
-        prob_df = rate_to_probability(pd.DataFrame(self.mortality_rate(event.index)))
+        pop = self.population_view.get(event.index, query="alive =='alive'")
+        prob_df = rate_to_probability(pd.DataFrame(self.mortality_rate(pop.index)))
         prob_df['no_death'] = 1-prob_df.sum(axis=1)
         prob_df['cause_of_death'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
         dead_pop = prob_df.query('cause_of_death != "no_death"').copy()
@@ -68,19 +69,17 @@ class Mortality:
 
         self.death_emitter(event.split(dead_pop.index))
 
-        event.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death']])
+        self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death']])
 
     @listens_for('time_step__cleanup')
-    @uses_columns(['alive', 'exit_time', 'cause_of_death'], "alive == 'untracked'")
     def untracked_handler(self, event):
-        pop = event.population
+        pop = self.population_view.get(event.index, query="alive == 'untracked'")
         new_untracked = pop.exit_time == event.time
         pop.loc[new_untracked, 'cause_of_death'] = 'untracked'
-        event.population_view.update(pop)
+        self.population_view.update(pop)
 
-    @uses_columns(['alive', 'age', 'cause_of_death'])
-    def metrics(self, index, metrics, population_view):
-        population = population_view.get(index)
+    def metrics(self, index, metrics):
+        population = self.population_view.get(index)
         the_living = population[population.alive == 'alive']
         the_dead = population[population.alive == 'dead']
         the_untracked = population[population.alive == 'untracked']
@@ -97,9 +96,8 @@ class Mortality:
 
         return metrics
 
-    @uses_columns(['age', 'exit_time', 'cause_of_death', 'alive', 'sex'])
-    def calculate_mortality_measure(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
-        pop = population_view.get(index)
+    def calculate_mortality_measure(self, index, age_groups, sexes, all_locations, duration, cube):
+        pop = self.population_view.get(index)
         duration_s = duration.total_seconds()
         years_per_second = 1/pd.Timedelta(days=365).total_seconds()
 
@@ -161,9 +159,8 @@ class Mortality:
                         )
         return cube
 
-    @uses_columns(['exit_time', 'sex', 'age', 'location'], 'alive != "alive"')
-    def deaths(self, index, age_groups, sexes, all_locations, duration, cube, population_view):
-        pop = population_view.get(index)
+    def deaths(self, index, age_groups, sexes, all_locations, duration, cube):
+        pop = self.population_view.get(index, query="alive != 'alive")
 
         if all_locations:
             locations = set(pop.location) | {-1}

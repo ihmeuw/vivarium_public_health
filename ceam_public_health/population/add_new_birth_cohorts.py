@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 
 from vivarium.framework.event import listens_for
-from vivarium.framework.population import uses_columns, creates_simulants
 
 from ceam_inputs import get_age_specific_fertility_rates, get_populations, get_live_births_by_sex
 
@@ -33,10 +32,10 @@ class FertilityDeterministic:
 
     def setup(self, builder):
         self.config = builder.configuration.fertility_deterministic
+        self.simulant_creator = builder.population.get_simulant_creator()
 
     @listens_for('time_step')
-    @creates_simulants
-    def add_new_birth_cohort(self, event, creator):
+    def add_new_birth_cohort(self, event):
         """Deterministically adds a new set of simulants at every timestep
         based on a parameter in the configuration.
 
@@ -55,11 +54,11 @@ class FertilityDeterministic:
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
 
-        creator(simulants_to_add,
-                population_configuration={
-                    'age_start': 0,
-                    'age_end': 0,
-                })
+        self.simulant_creator(simulants_to_add,
+                              population_configuration={
+                                  'age_start': 0,
+                                  'age_end': 0,
+                              })
 
 
 class FertilityCrudeBirthRate:
@@ -89,11 +88,10 @@ class FertilityCrudeBirthRate:
         else:
             self.exit_age = None
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
+        self.simulant_creator = builder.population.get_simulant_creator()
 
     @listens_for('time_step')
-    @uses_columns([], "alive == 'alive'")
-    @creates_simulants
-    def add_new_birth_cohort(self, event, creator):
+    def add_new_birth_cohort(self, event):
         """Adds new simulants every time step based on the Crude Birth Rate
         and an assumption that birth is a Poisson process
 
@@ -121,11 +119,11 @@ class FertilityCrudeBirthRate:
         r = np.random.RandomState(seed=self.randomness.get_seed())
         simulants_to_add = r.poisson(mean_births)
 
-        creator(simulants_to_add,
-                population_configuration={
-                    'age_start': 0,
-                    'age_end': 0,
-                })
+        self.simulant_creator(simulants_to_add,
+                              population_configuration={
+                                  'age_start': 0,
+                                  'age_end': 0,
+                              })
 
     def _get_birth_rate(self, year):
         """Computes a crude birth rate from demographic data in a given year.
@@ -172,9 +170,10 @@ class FertilityAgeSpecificRates:
         self._asfr_data = get_age_specific_fertility_rates(builder.configuration)[['year', 'age', 'rate']]
         asfr_source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))
         self.asfr = builder.value.register_rate_producer('fertility rate', source=asfr_source)
+        self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id'])
+        self.simulant_creator = builder.population.get_simulant_creator()
 
     @listens_for('initialize_simulants')
-    @uses_columns(['last_birth_time', 'sex', 'parent_id'])
     def update_state_table(self, event):
         """ Adds 'last_birth_time' and 'parent' columns to the state table.
 
@@ -184,20 +183,18 @@ class FertilityAgeSpecificRates:
             Event that triggered this method call.
         """
 
-        women = event.population.sex == 'Female'
+        women = self.population_view.get(event.index, query="sex == 'Female'", omit_missing_columns=True).index
         last_birth_time = pd.Series(pd.NaT, name='last_birth_time', index=event.index)
 
         # Do the naive thing, set so all women can have children
         # and none of them have had a child in the last year.
         last_birth_time[women] = event.time - pd.Timedelta(seconds=SECONDS_PER_YEAR)
 
-        event.population_view.update(last_birth_time)
-        event.population_view.update(pd.Series(-1, name='parent_id', index=event.index, dtype=np.int64))
+        self.population_view.update(last_birth_time)
+        self.population_view.update(pd.Series(-1, name='parent_id', index=event.index, dtype=np.int64))
 
     @listens_for('time_step')
-    @uses_columns(['last_birth_time', 'parent_id'], 'alive == "alive" and sex =="Female"')
-    @creates_simulants
-    def step(self, event, creator):
+    def step(self, event):
         """Produces new children and updates parent status on time steps.
 
         Parameters
@@ -209,24 +206,24 @@ class FertilityAgeSpecificRates:
         """
         # Get a view on all living women who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
-
-        can_have_children = event.population.last_birth_time < nine_months_ago
-        eligible_women = event.population[can_have_children]
+        population = self.population_view.get(event.index, query='alive == "alive" and sex =="Female"')
+        can_have_children = population.last_birth_time < nine_months_ago
+        eligible_women = population[can_have_children]
 
         rate_series = self.asfr(eligible_women.index)
         had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
 
         had_children.loc[:, 'last_birth_time'] = event.time
-        event.population_view.update(had_children['last_birth_time'])
+        self.population_view.update(had_children['last_birth_time'])
 
         # If children were born, add them to the state table and record
         # who their mother was.
         num_babies = len(had_children)
         if num_babies:
-            idx = creator(num_babies,
-                          population_configuration={
-                              'age_start': 0,
-                              'age_end': 0,
-                          })
+            idx = self.simulant_creator(num_babies,
+                                        population_configuration={
+                                            'age_start': 0,
+                                            'age_end': 0,
+                                        })
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
-            event.population_view.update(parents)
+            self.population_view.update(parents)

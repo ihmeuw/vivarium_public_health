@@ -1,7 +1,6 @@
 import pandas as pd
 
 from vivarium.framework.event import listens_for
-from vivarium.framework.population import uses_columns
 
 from ceam_inputs import get_populations, get_subregions
 
@@ -40,13 +39,14 @@ class BasePopulation:
         self.register_simulants = builder.randomness.register_simulants
         self.config = builder.configuration.population
         input_config = builder.configuration.input_data
+        self.population_view = builder.population.get_view(
+            ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time'])
         self._population_data = _build_population_data_table(input_config.location_id,
                                                              input_config.use_subregions,
                                                              builder.configuration)
 
     # TODO: Move most of this docstring to an rst file.
     @listens_for('initialize_simulants', priority=0)
-    @uses_columns(['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time'])
     def generate_base_population(self, event):
         """Creates a population with fundamental demographic and simulation properties.
 
@@ -80,16 +80,15 @@ class BasePopulation:
         else:  # event.time.year < self._population_data.year.min():
             sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.min()]
 
-        event.population_view.update(generate_ceam_population(simulant_ids=event.index,
-                                                              creation_time=event.time,
-                                                              step_size=event.step_size,
-                                                              age_params=age_params,
-                                                              population_data=sub_pop_data,
-                                                              randomness_streams=self.randomness,
-                                                              register_simulants=self.register_simulants))
+        self.population_view.update(generate_ceam_population(simulant_ids=event.index,
+                                                             creation_time=event.time,
+                                                             step_size=event.step_size,
+                                                             age_params=age_params,
+                                                             population_data=sub_pop_data,
+                                                             randomness_streams=self.randomness,
+                                                             register_simulants=self.register_simulants))
 
     @listens_for('time_step', priority=8)
-    @uses_columns(['alive', 'age', 'exit_time'], "alive == 'alive'")
     def on_time_step(self, event):
         """Ages simulants each time step.
 
@@ -98,16 +97,17 @@ class BasePopulation:
         event : vivarium.framework.population.PopulationEvent
         """
         step_size = event.step_size/pd.Timedelta(seconds=1)
-        event.population['age'] += step_size / SECONDS_PER_YEAR
-        event.population_view.update(event.population)
+        population = self.population_view.get(event.index, query="alive == 'alive'")
+        population['age'] += step_size / SECONDS_PER_YEAR
+        self.population_view.update(population)
 
         if self.config.exit_age is not None:
             max_age = float(self.config.exit_age)
-            pop = event.population[event.population['age'] >= max_age].copy()
+            pop = population[population['age'] >= max_age].copy()
             pop['alive'] = pd.Series('untracked', index=pop.index).astype(
                 pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
             pop['exit_time'] = event.time
-            event.population_view.update(pop)
+            self.population_view.update(pop)
 
 
 def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
