@@ -175,13 +175,12 @@ class CategoricalRiskComponent:
                 self.propensity_function = uncorrelated_propensity
 
         self.population_view = builder.population_view([self._risk.name+'_propensity', self._risk.name+'_exposure'])
-
         exposure_data = get_exposure(risk=self._risk, override_config=builder.configuration)
         exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='mean')
         exposure_data = exposure_data.reset_index()
 
-        self.exposure = builder.value('{}.exposure'.format(self._risk.name))
-        self.exposure.source = builder.lookup(exposure_data)
+        self.exposure = builder.value.register_value_producer(f'{self._risk.name}.exposure',
+                                                              source=builder.lookup(exposure_data))
 
         self.randomness = builder.randomness.get_stream(self._risk.name)
 

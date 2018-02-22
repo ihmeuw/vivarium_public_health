@@ -101,7 +101,7 @@ def test_mortality_rate(config, disease):
 
     simulation = setup_simulation([TestPopulation(), model], input_config=config)
 
-    mortality_rate = simulation.values.get_rate('mortality_rate')
+    mortality_rate = simulation.values.register_rate_producer('mortality_rate')
     mortality_rate.source = simulation.tables.build_table(build_table(0.0, year_start, year_end))
 
     pump_simulation(simulation, iterations=1)
@@ -171,7 +171,8 @@ def test_risk_deletion(assign_cause_mock, config, disease):
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 
-    simulation.values.mutator(simulation.tables.build_table(build_table(paf, year_start, year_end)), 'sick.paf')
+    simulation.values.register_value_modifier(
+        'sick.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end)))
 
     pump_simulation(simulation, iterations=1)
 

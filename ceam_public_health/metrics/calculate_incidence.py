@@ -1,7 +1,6 @@
 import pandas as pd
 
 from vivarium.framework.event import listens_for
-from vivarium.framework.values import modifies_value
 
 from ceam_public_health.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
 
@@ -37,6 +36,8 @@ class CalculateIncidence:
         self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
                                                                           age_group_id_max=21,
                                                                           config=builder.configuration)
+        builder.value.register_value_modifier('epidemiological_span_measures',
+                                              modifier=self.calculate_incidence_measure)
 
         self.root_location = builder.configuration.input.location_id
         self.clock = builder.clock()
@@ -96,7 +97,6 @@ class CalculateIncidence:
 
                     last_age_group_max = upr_bound
 
-    @modifies_value('epidemiological_span_measures')
     def calculate_incidence_measure(self, index, age_groups, sexes, all_locations, duration, cube):
         """
         Calculate the incidence rate measure and prepare the data for graphing

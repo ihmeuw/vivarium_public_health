@@ -5,7 +5,6 @@ import pandas as pd
 from vivarium.framework.event import listens_for
 from vivarium.framework.population import uses_columns
 from vivarium.framework.state_machine import Machine
-from vivarium.framework.values import modifies_value
 
 from ceam_public_health.disease import ExcessMortalityState, TransientDiseaseState, RateTransition, ProportionTransition
 
@@ -42,6 +41,10 @@ class DiseaseModel(Machine):
         get_csmr_func = self._get_data_functions.get('csmr', get_cause_specific_mortality)
         self._csmr_data = get_csmr_func(self.cause, builder.configuration)
 
+        builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
+        builder.value.register_value_modifier('epidemiological_point_measures', modifier=self.prevalence)
+        builder.value.register_value_modifier('metrics', modifier=self.metrics)
+
         self.population_view = builder.population_view([self.condition], "alive == 'alive'")
         self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
 
@@ -55,7 +58,6 @@ class DiseaseModel(Machine):
     def time_step__cleanup_handler(self, event):
         self.cleanup(event.index, event.time)
 
-    @modifies_value('csmr_data')
     def get_csmr(self):
         return self._csmr_data
 
@@ -80,7 +82,6 @@ class DiseaseModel(Machine):
             condition_column = pd.Series(self.initial_state, index=population.index, name=self.condition)
         self.population_view.update(condition_column)
 
-    @modifies_value('epidemiological_point_measures')
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
         root_location = self.config.input_data.location_id
         pop = self.population_view.manager.population.ix[index].query("alive == 'alive'")
@@ -153,7 +154,6 @@ class DiseaseModel(Machine):
                         dot.edge(state.state_id, state.state_id, style='dotted')
         return dot
 
-    @modifies_value('metrics')
     def metrics(self, index, metrics):
         population = self.population_view.get(index)
         metrics[self.condition + '_count'] = (population[self.condition] != 'healthy').sum()

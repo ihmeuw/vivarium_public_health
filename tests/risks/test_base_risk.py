@@ -84,7 +84,8 @@ def test_RiskEffect(config):
     r = Risk(name='test_risk', distribution='categorical')
     d = Disease(name='test_cause')
     effect_data_functions = {
-        'rr': lambda *args: build_table([1.01, 'per_unit'], year_start, year_end, ('age', 'year', 'sex', 'relative_risk', 'parameter')),
+        'rr': lambda *args: build_table([1.01, 'per_unit'], year_start, year_end,
+                                        ('age', 'year', 'sex', 'relative_risk', 'parameter')),
         'paf': lambda *args: build_table(0.01, year_start, year_end),
         'mf': lambda *args: 0,
     }
@@ -95,11 +96,11 @@ def test_RiskEffect(config):
     simulation = setup_simulation([TestPopulation(), effect], input_config=config)
 
     # This one should be affected by our RiskEffect
-    rates = simulation.values.get_rate('test_cause.incidence_rate')
+    rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
     rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
 
     # This one should not
-    other_rates = simulation.values.get_rate('some_other_cause.incidence_rate')
+    other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate')
     other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
 
     assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step))
@@ -175,11 +176,10 @@ def test_CategoricalRiskComponent_dichotomous_case(get_exposure_mock, get_paf_mo
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
 
     component = CategoricalRiskComponent(risk)
-
     simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.get_rate(risk.affected_causes[0].name+'.incidence_rate')
+    incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
 
     assert np.isclose((simulation.population.population[risk.name+'_exposure'] == 'cat1').sum()
@@ -219,7 +219,7 @@ def test_CategoricalRiskComponent_polytomous_case(get_exposure_mock, get_rr_mock
     simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.get_rate(risk.affected_causes[0].name+'.incidence_rate')
+    incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
 
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
@@ -266,7 +266,7 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
     simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.get_rate(risk.affected_causes[0].name+'.incidence_rate')
+    incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
 
     assert np.allclose(simulation.population.population[risk.name+'_exposure'], 130, rtol=0.001)
@@ -563,8 +563,10 @@ def test_make_gbd_risk_effects(config):
 
     simulation = setup_simulation([TestPopulation(), bmi], input_config=config)
 
-    pafs = simulation.values.get_value('acute_hemorrhagic_stroke.paf', list_combiner, joint_value_post_processor)
-    pafs.source = lambda index: [pd.Series(0, index=index)]
+    pafs = simulation.values.register_value_producer('acute_hemorrhagic_stroke.paf',
+                                                     source=lambda index: [pd.Series(0, index=index)],
+                                                     preferred_combiner=list_combiner,
+                                                     preferred_post_processor=joint_value_post_processor)
     assert np.allclose(pafs(simulation.population.population.index), paf * (1 - mediation_factor))
 
     # adjusted rrs
@@ -586,7 +588,7 @@ def test_make_gbd_risk_effects(config):
     heart_attack_transition = RateTransition(healthy, heart_attack, get_data_functions={
         'incidence': lambda *args: build_table(.001, year_start, year_end)})
     simulation = setup_simulation([TestPopulation(), heart_attack_transition, bmi], input_config=config)
-    irs = simulation.values.get_rate('heart_attack.incidence_rate')
+    irs = simulation.values.register_rate_producer('heart_attack.incidence_rate')
     base_ir = irs.source(simulation.population.population.index)
 
     assert np.allclose(irs(simulation.population.population.index),
