@@ -89,11 +89,11 @@ class RiskEffect:
 
         builder.value.register_value_modifier(f'{self.cause_name}.incidence_rate', modifier=self.incidence_rates)
         builder.value.register_value_modifier(f'{self.cause_name}.paf', modifier=self.paf_mf_adjustment)
-        self.population_view = builder.population_view([self.risk.name + '_exposure'])
+        self.population_view = builder.population.get_view([self.risk.name + '_exposure'])
         is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
         self.exposure_effect = (continuous_exposure_effect(self.risk, self.population_view) if is_continuous
                                 else categorical_exposure_effect(self.risk, self.population_view))
-        return [self.exposure_effect]
+
 
     def paf_mf_adjustment(self, index):
         if self.mediation_factor:

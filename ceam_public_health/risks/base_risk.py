@@ -118,14 +118,15 @@ class ContinuousRiskComponent:
 
         self.exposure_distribution = get_distribution(self._risk, exposure)
         self.randomness = builder.randomness.get_stream(self._risk.name)
-        self.population_view = builder.population_view(
+        self.population_view = builder.population.get_view(
             [self._risk.name+'_exposure', self._risk.name+'_propensity', 'age', 'sex'])
 
         return self._effects + [self.exposure_distribution]
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
-        propensities = pd.Series(self.propensity_function(self.population_view.get(event.index), self._risk),
+        population = self.population_view.get(event.index, omit_missing_columns=True)
+        propensities = pd.Series(self.propensity_function(population, self._risk),
                                  name=self._risk.name+'_propensity',
                                  index=event.index)
         self.population_view.update(propensities)
@@ -173,7 +174,7 @@ class CategoricalRiskComponent:
             else:
                 self.propensity_function = uncorrelated_propensity
 
-        self.population_view = builder.population_view(
+        self.population_view = builder.population.get_view(
             [self._risk.name+'_propensity', self._risk.name+'_exposure', 'age', 'sex'])
         exposure_data = get_exposure(risk=self._risk, override_config=builder.configuration)
         exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='mean')
@@ -188,8 +189,9 @@ class CategoricalRiskComponent:
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
+        population = self.population_view.get(event.index, omit_missing_columns=True)
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': self.propensity_function(self.population_view.get(event.index), self._risk),
+            self._risk.name+'_propensity': self.propensity_function(population, self._risk),
             self._risk.name+'_exposure': np.full(len(event.index), ''),
         }))
 

@@ -39,7 +39,7 @@ class BasePopulation:
         self.register_simulants = builder.randomness.register_simulants
         self.config = builder.configuration.population
         input_config = builder.configuration.input_data
-        self.population_view = builder.population_view(
+        self.population_view = builder.population.get_view(
             ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time'])
         self._population_data = _build_population_data_table(input_config.location_id,
                                                              input_config.use_subregions,
@@ -99,11 +99,11 @@ class BasePopulation:
         step_size = event.step_size/pd.Timedelta(seconds=1)
         population = self.population_view.get(event.index, query="alive == 'alive'")
         population['age'] += step_size / SECONDS_PER_YEAR
-        self.population_view.update(event.population)
+        self.population_view.update(population)
 
         if self.config.exit_age is not None:
             max_age = float(self.config.exit_age)
-            pop = population[event.population['age'] >= max_age].copy()
+            pop = population[population['age'] >= max_age].copy()
             pop['alive'] = pd.Series('untracked', index=pop.index).astype(
                 pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
             pop['exit_time'] = event.time

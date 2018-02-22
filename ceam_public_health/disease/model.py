@@ -44,7 +44,7 @@ class DiseaseModel(Machine):
         builder.value.register_value_modifier('epidemiological_point_measures', modifier=self.prevalence)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-        self.population_view = builder.population_view(['age', 'sex', self.condition])
+        self.population_view = builder.population.get_view(['age', 'sex', self.condition])
         self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
 
         return self.states
@@ -62,7 +62,7 @@ class DiseaseModel(Machine):
 
     @listens_for('initialize_simulants')
     def load_population_columns(self, event):
-        population = self.population_view.get(event.index)
+        population = self.population_view.get(event.index, omit_missing_columns=True)
 
         assert self.initial_state in {s.state_id for s in self.states}
 
@@ -153,6 +153,6 @@ class DiseaseModel(Machine):
         return dot
 
     def metrics(self, index, metrics):
-        population = self.population_view.get(index, query="alive == 'alive")
+        population = self.population_view.get(index, query="alive == 'alive'")
         metrics[self.condition + '_count'] = (population[self.condition] != 'healthy').sum()
         return metrics

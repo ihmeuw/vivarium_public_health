@@ -42,7 +42,7 @@ class CalculateIncidence:
         self.root_location = builder.configuration.input.location_id
         self.clock = builder.clock()
         columns = [self.disease_col, self.disease_time_col, "exit_time", "age", "sex", "alive"]
-        self.population_view = builder.population_view(columns)
+        self.population_view = builder.population.get_view(columns)
 
     @listens_for('initialize_simulants')
     def update_incidence_rate_df(self, event):

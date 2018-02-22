@@ -5,7 +5,7 @@ from vivarium.framework.event import listens_for
 
 class Inspector:
     def setup(self, builder):
-        self.population_view = builder.population_view()
+        self.population_view = builder.population.get_view()
 
     @listens_for('collect_metrics')
     def inspect(self, event):

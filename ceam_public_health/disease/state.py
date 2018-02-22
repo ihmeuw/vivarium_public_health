@@ -46,7 +46,7 @@ class BaseDiseaseState(State):
         columns = [self._model, 'alive']
         if self.track_events:
             columns += [self.event_time_column, self.event_count_column]
-        self.population_view = builder.population_view(columns)
+        self.population_view = builder.population.get_view(columns)
 
         builder.value.register_value_modifier('metrics', self.metrics)
 
@@ -188,7 +188,7 @@ class DiseaseState(BaseDiseaseState):
                                                                 source=builder.lookup(self._dwell_time))
 
         sub_components = super().setup(builder)
-        if self.cleanup_effect is not None:
+        if self.cleanup_function is not None:
             sub_components.append(self.cleanup_function)
         return sub_components
 

@@ -39,7 +39,7 @@ class Mortality:
         builder.value.register_value_modifier('epidemiological_span_measures',
                                               modifier=self.calculate_mortality_measure)
 
-        self.population_view = builder.population_view(
+        self.population_view = builder.population.get_view(
             ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location'])
 
     def mortality_rate_source(self, index):

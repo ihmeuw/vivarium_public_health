@@ -79,7 +79,7 @@ class HealthcareAccess:
                                                                      source=builder.lookup(annual_visits))
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-        self.population_view = builder.population_view(['healthcare_followup_date', 'healthcare_last_visit_date',
+        self.population_view = builder.population.get_view(['healthcare_followup_date', 'healthcare_last_visit_date',
                                                         'healthcare_visits', 'adherence_category',
                                                         'general_access_propensity'])
 
@@ -113,7 +113,7 @@ class HealthcareAccess:
 
     @listens_for('time_step')
     def general_access(self, event):
-        population = self.population_view.get(event.index, query="alive == 'alive")
+        population = self.population_view.get(event.index, query="alive == 'alive'")
         # determine population who accesses care
         t = self.utilization_rate(event.index)
 
@@ -128,7 +128,7 @@ class HealthcareAccess:
         self.general_access_count += len(index)
 
         population.healthcare_visits += 1
-        event.population_view.update(population.healthcare_visits)
+        self.population_view.update(population.healthcare_visits)
 
         year = event.time.year
         self.cost_by_year[year] += len(index) * self._appointment_cost(year=[year])[0]
