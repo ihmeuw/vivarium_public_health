@@ -2,7 +2,6 @@ import pandas as pd
 
 from ceam_inputs import get_theoretical_minimum_risk_life_expectancy, causes, get_cause_specific_mortality
 
-from vivarium.framework.event import listens_for
 from vivarium.framework.util import rate_to_probability
 from vivarium.framework.values import list_combiner
 
@@ -31,7 +30,7 @@ class Mortality:
         life_expectancy_data = get_theoretical_minimum_risk_life_expectancy()
         self.life_expectancy = builder.lookup(life_expectancy_data, key_columns=[], parameter_columns=('age',))
 
-        self.death_emitter = builder.emitter('deaths')
+        self.death_emitter = builder.event.get_emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')
         self.clock = builder.clock()
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
@@ -42,6 +41,10 @@ class Mortality:
         self.population_view = builder.population.get_view(
             ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location'])
 
+        builder.event.register_listener('initialize_simulants', self.load_population_columns)
+        builder.event.register_listener('time_step', self.mortality_handler, priority=0)
+        builder.event.register_listener('time_step__cleanup', self.untracked_handler)
+
     def mortality_rate_source(self, index):
         if self._cause_deleted_mortality_data is None:
             csmr_data = self.csmr()
@@ -51,11 +54,9 @@ class Mortality:
 
         return self._cause_deleted_mortality_data(index)
 
-    @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         self.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
 
-    @listens_for('time_step', priority=0)
     def mortality_handler(self, event):
         pop = self.population_view.get(event.index, query="alive =='alive'")
         prob_df = rate_to_probability(pd.DataFrame(self.mortality_rate(pop.index)))
@@ -71,7 +72,6 @@ class Mortality:
 
         self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death']])
 
-    @listens_for('time_step__cleanup')
     def untracked_handler(self, event):
         pop = self.population_view.get(event.index, query="alive == 'untracked'")
         new_untracked = pop.exit_time == event.time

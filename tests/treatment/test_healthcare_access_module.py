@@ -3,7 +3,6 @@ import os
 import numpy as np, pandas as pd
 import pytest
 
-from vivarium.framework.event import listens_for
 from vivarium.test_util import setup_simulation, pump_simulation, assert_rate, build_table, TestPopulation
 
 from ceam_public_health.treatment import HealthcareAccess
@@ -34,7 +33,9 @@ class Metrics:
     def __init__(self):
         self.access_count = 0
 
-    @listens_for('general_healthcare_access')
+    def setup(self, builder):
+        builder.event.register_listener('general_healthcare_access', self.count_access)
+
     def count_access(self, event):
         self.access_count += len(event.index)
 

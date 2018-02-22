@@ -2,7 +2,6 @@ import os
 
 import pandas as pd
 
-from vivarium.framework.event import listens_for, emits
 from vivarium.framework.util import collapse_nested_dict
 
 from ceam_inputs import get_age_bins
@@ -36,14 +35,16 @@ class EpidemiologicalMeasures:
         self.collecting = False
         self.last_collected_year = -1
 
+        self.measure_collection_emitter = builder.event.get_emitter('begin_epidemiological_measure_collection')
+        builder.event.register_listener('collect_metrics', self.time_step)
+        builder.event.register_listener('post_setup', self.prepare_output_file)
+
     def base_cube(self, index, age_groups, sexes, all_locations, duration):
         return pd.DataFrame(
             columns=['measure', 'age_low', 'age_high', 'sex', 'location', 'cause', 'value', 'sample_size']
         ).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])
 
-    @listens_for('collect_metrics')
-    @emits('begin_epidemiological_measure_collection')
-    def time_step(self, event, event_emitter):
+    def time_step(self, event):
         mid_year = pd.Timestamp(year=event.time.year, month=7, day=2)
         year_start = pd.Timestamp(year=event.time.year, month=1, day=1)
 
@@ -64,12 +65,11 @@ class EpidemiologicalMeasures:
                     and event.time.year > self.last_collected_year
                     and not self.collecting):
                 # Emit the begin collection event every gbd year
-                event_emitter(event.split(event.index))
+                self.measure_collection_emitter(event.split(event.index))
                 _log.debug('begin collection')
                 self.collecting = True
                 self.last_collected_year = event.time.year
 
-    @listens_for('post_setup')
     def prepare_output_file(self, event):
         pd.DataFrame().to_hdf(self.output_path, 'data')
 

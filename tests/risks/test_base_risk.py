@@ -7,7 +7,6 @@ import pandas as pd
 from scipy.stats import norm
 
 from vivarium.config_tree import ConfigTree
-from vivarium.framework.event import listens_for
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
@@ -74,8 +73,8 @@ def make_dummy_column(name, initial_value):
     class _make_dummy_column:
         def setup(self, builder):
             self.population_view = builder.population.get_view([name])
+            builder.event.register_listener('initialize_simulants', self.make_column)
 
-        @listens_for('initialize_simulants')
         def make_column(self, event):
             self.population_view.update(pd.Series(initial_value, index=event.index, name=name))
     return _make_dummy_column()

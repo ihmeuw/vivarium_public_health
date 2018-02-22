@@ -1,7 +1,5 @@
 import pandas as pd
 
-from vivarium.framework.event import listens_for
-
 from ceam_public_health.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
 
 
@@ -44,7 +42,10 @@ class CalculateIncidence:
         columns = [self.disease_col, self.disease_time_col, "exit_time", "age", "sex", "alive"]
         self.population_view = builder.population.get_view(columns)
 
-    @listens_for('initialize_simulants')
+        builder.event.register_listener('initialize_simulants', self.update_incidence_rate_df)
+        builder.event.register_listener('begin_epidemiological_measure_collection', self.set_flag)
+        builder.event.register_listener('collect_metrics', self.get_counts_and_susceptible_person_time)
+
     def update_incidence_rate_df(self, event):
 
         if self.collecting:
@@ -54,7 +55,6 @@ class CalculateIncidence:
 
             self.incidence_rate_df = self.incidence_rate_df.append(new_df)
 
-    @listens_for('begin_epidemiological_measure_collection')
     def set_flag(self, event):
         """
         Set the collecting flag to True during GBD years
@@ -65,7 +65,6 @@ class CalculateIncidence:
         for col in self.event_count_cols:
             self.incidence_rate_df[col] = pd.Series(0, index=event.index)
 
-    @listens_for('collect_metrics')
     def get_counts_and_susceptible_person_time(self, event):
         """
         Gather all of the data we need for the incidence rate calculations (event counts and susceptible person time)

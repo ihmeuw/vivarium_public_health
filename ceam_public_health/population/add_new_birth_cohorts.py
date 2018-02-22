@@ -2,8 +2,6 @@
 import pandas as pd
 import numpy as np
 
-from vivarium.framework.event import listens_for
-
 from ceam_inputs import get_age_specific_fertility_rates, get_populations, get_live_births_by_sex
 
 SECONDS_PER_YEAR = 365.25*24*60*60
@@ -33,8 +31,8 @@ class FertilityDeterministic:
     def setup(self, builder):
         self.config = builder.configuration.fertility_deterministic
         self.simulant_creator = builder.population.get_simulant_creator()
+        builder.event.register_listener('time_step', self.add_new_birth_cohort)
 
-    @listens_for('time_step')
     def add_new_birth_cohort(self, event):
         """Deterministically adds a new set of simulants at every timestep
         based on a parameter in the configuration.
@@ -89,8 +87,8 @@ class FertilityCrudeBirthRate:
             self.exit_age = None
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
         self.simulant_creator = builder.population.get_simulant_creator()
+        builder.event.register_listener('time_step', self.add_new_birth_cohort)
 
-    @listens_for('time_step')
     def add_new_birth_cohort(self, event):
         """Adds new simulants every time step based on the Crude Birth Rate
         and an assumption that birth is a Poisson process
@@ -173,7 +171,9 @@ class FertilityAgeSpecificRates:
         self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id'])
         self.simulant_creator = builder.population.get_simulant_creator()
 
-    @listens_for('initialize_simulants')
+        builder.event.register_listener('initialize_simulants', self.update_state_table)
+        builder.event.register_listener('time_step', self.step)
+
     def update_state_table(self, event):
         """ Adds 'last_birth_time' and 'parent' columns to the state table.
 
@@ -193,7 +193,6 @@ class FertilityAgeSpecificRates:
         self.population_view.update(last_birth_time)
         self.population_view.update(pd.Series(-1, name='parent_id', index=event.index, dtype=np.int64))
 
-    @listens_for('time_step')
     def step(self, event):
         """Produces new children and updates parent status on time steps.
 

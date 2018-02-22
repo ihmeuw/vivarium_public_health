@@ -8,7 +8,7 @@ import pandas as pd
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
 
 from ceam_public_health.population import Mortality
-from ceam_public_health.disease import ExcessMortalityState, DiseaseModel
+from ceam_public_health.disease import ExcessMortalityState, DiseaseModel, DiseaseState
 from ceam_public_health.metrics import Metrics, Disability
 
 Disease = namedtuple('Disease', 'name')
