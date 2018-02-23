@@ -1,7 +1,5 @@
 import pandas as pd
 
-from vivarium.framework.event import listens_for
-
 from ceam_inputs import get_populations, get_subregions
 
 from .data_transformations import assign_demographic_proportions, rescale_binned_proportions, smooth_ages
@@ -45,8 +43,10 @@ class BasePopulation:
                                                              input_config.use_subregions,
                                                              builder.configuration)
 
+        builder.event.register_listener('initialize_simulants', self.generate_base_population, priority=0)
+        builder.event.register_listener('time_step', self.on_time_step, priority=8)
+
     # TODO: Move most of this docstring to an rst file.
-    @listens_for('initialize_simulants', priority=0)
     def generate_base_population(self, event):
         """Creates a population with fundamental demographic and simulation properties.
 
@@ -88,7 +88,6 @@ class BasePopulation:
                                                              randomness_streams=self.randomness,
                                                              register_simulants=self.register_simulants))
 
-    @listens_for('time_step', priority=8)
     def on_time_step(self, event):
         """Ages simulants each time step.
 

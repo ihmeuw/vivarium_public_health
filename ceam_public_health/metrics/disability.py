@@ -1,6 +1,5 @@
 import pandas as pd
 
-from vivarium.framework.event import listens_for
 from vivarium.framework.values import list_combiner, joint_value_post_processor, rescale_post_processor
 
 
@@ -21,12 +20,13 @@ class Disability:
             preferred_post_processor=_disability_post_processor)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-    @listens_for('initialize_simulants')
+        builder.event.register_listener('initialize_simulants', self.initialize_disability)
+        builder.event.register_listener('collect_metrics', self.calculate_ylds)
+
     def initialize_disability(self, event):
         self.years_lived_with_disability = self.years_lived_with_disability.append(
             pd.Series(0, index=event.index))
 
-    @listens_for('collect_metrics')
     def calculate_ylds(self, event):
         self.years_lived_with_disability[event.index] += self.disability_weight(event.index)
 

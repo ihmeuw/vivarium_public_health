@@ -1,13 +1,11 @@
 from code import interact
 
-from vivarium.framework.event import listens_for
-
 
 class Inspector:
     def setup(self, builder):
         self.population_view = builder.population.get_view()
+        builder.event.register_listener('collect_metrics', self.inspect)
 
-    @listens_for('collect_metrics')
     def inspect(self, event):
         interact(banner="""
             Inspecting population at {}.

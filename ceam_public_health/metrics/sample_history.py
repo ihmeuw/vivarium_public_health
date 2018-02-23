@@ -1,7 +1,5 @@
 import pandas as pd
 
-from vivarium.framework.event import listens_for
-
 
 class SampleHistory:
     """Collect a detailed record of events that happen to a sampled sub-population
@@ -30,22 +28,23 @@ class SampleHistory:
         if self.key == '/':
             self.key += 'base'
 
-    @listens_for('initialize_simulants')
+        builder.event.register_listener('initialize_simulants', self.load_population_columns)
+        builder.event.register_listener('collect_metrics', self.record)
+        builder.event.register_listener('simulation_end', self.dump)
+
     def load_population_columns(self, event):
         sample_size = self.config.sample_size
         if sample_size is None or sample_size > len(event.index):
             sample_size = len(event.index)
         draw = self.randomness.get_draw(event.index)
-        priority_index = [i for d,i in sorted(zip(draw,event.index), key=lambda x:x[0])]
+        priority_index = [i for d, i in sorted(zip(draw,event.index), key=lambda x:x[0])]
         self.sample_index = priority_index[:sample_size]
 
-    @listens_for('collect_metrics')
     def record(self, event):
         sample = self.population_view.get(event.index).loc[self.sample_index]
 
         self.sample_frames[event.time] = sample
 
-    @listens_for('simulation_end')
     def dump(self, event):
         # NOTE: I'm suppressing two very noisy warnings about HDF writing that I don't think are relevant to us
         import warnings

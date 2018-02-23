@@ -3,7 +3,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-from vivarium.framework.event import listens_for, emits, Event
+from vivarium.framework.event import Event
 from vivarium.framework.randomness import filter_for_probability
 from vivarium.interpolation import Interpolation
 
@@ -11,18 +11,24 @@ from ceam_inputs import (get_healthcare_annual_visits, get_inpatient_visit_costs
                          get_outpatient_visit_costs, healthcare_entities)
 
 
-def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type, population_view):
-    @emits('hospitalization')
-    def hospitalization_side_effect(index, event_time, emitter):
-        pop = population_view.get(index)
-        pop['probability'] = 0.0
-        pop.loc[pop.sex == 'Male', 'probability'] = male_probability
-        pop.loc[pop.sex == 'Female', 'probability'] = female_probability
-        effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type),
-                                                      pop.index, pop.probability)
-        new_event = Event(effective_population)
-        emitter(new_event)
-    return hospitalization_side_effect
+def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
+
+    class hospitalization_side_effect:
+        def setup(self, builder):
+            self.population_view = builder.population.get_view(['sex'])
+            self.hospitilization_emitter = builder.event.get_emitter('hospitalization')
+
+        def __call__(self, index, event_time):
+            pop = self.population_view.get(index)
+            pop['probability'] = 0.0
+            pop.loc[pop.sex == 'Male', 'probability'] = male_probability
+            pop.loc[pop.sex == 'Female', 'probability'] = female_probability
+            effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type),
+                                                          pop.index, pop.probability)
+            new_event = Event(effective_population)
+            self.hospitilization_emitter(new_event)
+
+    return hospitalization_side_effect()
 
 
 class HealthcareAccess:
@@ -71,8 +77,8 @@ class HealthcareAccess:
 
         self.outpatient_cost = defaultdict(float)
 
-        self.general_healthcare_access_emitter = builder.emitter('general_healthcare_access')
-        self.followup_healthcare_access_emitter = builder.emitter('followup_healthcare_access')
+        self.general_healthcare_access_emitter = builder.event.get_emitter('general_healthcare_access')
+        self.followup_healthcare_access_emitter = builder.event.get_emitter('followup_healthcare_access')
 
         annual_visits = get_healthcare_annual_visits(healthcare_entities.outpatient_visits, builder.configuration)
         self.utilization_rate = builder.value.register_rate_producer('healthcare_utilization.rate',
@@ -80,16 +86,20 @@ class HealthcareAccess:
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
         self.population_view = builder.population.get_view(['healthcare_followup_date', 'healthcare_last_visit_date',
-                                                        'healthcare_visits', 'adherence_category',
-                                                        'general_access_propensity'])
+                                                            'healthcare_visits', 'adherence_category',
+                                                            'general_access_propensity'])
 
-    @listens_for('initialize_simulants')
+        builder.event.register_listener('initialize_simulants', self.load_population_columns)
+        builder.event.register_listener('time_step', self.general_access)
+        builder.event.register_listener('time_step', self.followup_access)
+        builder.event.register_listener('hospitalization', self.hospital_access)
+
     def load_population_columns(self, event):
         population_size = len(event.index)
         adherence = self.get_adherence(population_size)
 
         r = np.random.RandomState(self.general_random.get_seed())
-        general_access_propensity = np.ones(shape=population_size) #r.uniform(size=population_size)**3
+        general_access_propensity = np.ones(shape=population_size)  # r.uniform(size=population_size)**3
 
         # normalize propensity to have mean 1, so it can be multiplied
         # in without changing population mean rate
@@ -111,7 +121,6 @@ class HealthcareAccess:
         return pd.Series(r.choice(['adherent', 'semi-adherent', 'non-adherent'], p=p, size=population_size),
                          dtype='category')
 
-    @listens_for('time_step')
     def general_access(self, event):
         population = self.population_view.get(event.index, query="alive == 'alive'")
         # determine population who accesses care
@@ -134,7 +143,6 @@ class HealthcareAccess:
         self.cost_by_year[year] += len(index) * self._appointment_cost(year=[year])[0]
         self.outpatient_cost[year] += len(index) * self._appointment_cost(year=[year])[0]
 
-    @listens_for('time_step')
     def followup_access(self, event):
         # determine population due for a follow-up appointment
         population = self.population_view.get(event.index, query="alive == 'alive'")
@@ -163,7 +171,6 @@ class HealthcareAccess:
         self.cost_by_year[year] += len(affected_population) * self._appointment_cost(year=[year])[0]
         self.outpatient_cost[year] += len(affected_population) * self._appointment_cost(year=[year])[0]
 
-    @listens_for('hospitalization')
     def hospital_access(self, event):
         year = event.time.year
         self.hospitalization_count += len(event.index)

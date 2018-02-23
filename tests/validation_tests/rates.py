@@ -4,7 +4,6 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from vivarium.framework.engine import _step
 from vivarium.framework.state_machine import State
 from vivarium.test_util import setup_simulation, build_table, TestPopulation, from_yearly
 
@@ -56,7 +55,7 @@ def test_incidence_rate_recalculation(config):
     known_cases = pd.Index([])
 
     for step in range(360):
-        _step(sim, pd.Timedelta(days=1))
+        sim.step()
         cases = sim.population.population.query('simple_disease == "sick"')
         new_cases.append(len(cases.index.difference(known_cases)))
         known_cases = cases.index

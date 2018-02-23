@@ -2,7 +2,6 @@
 import numpy as np
 import pandas as pd
 
-from vivarium.framework.event import listens_for
 from vivarium.framework.state_machine import State, Transient
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
@@ -50,6 +49,8 @@ class BaseDiseaseState(State):
 
         builder.value.register_value_modifier('metrics', self.metrics)
 
+        builder.event.register_listener('initialize_simulants', self.load_population_columns)
+
         return sub_components
 
     def _transition_side_effect(self, index, event_time):
@@ -71,7 +72,6 @@ class BaseDiseaseState(State):
         if self.side_effect_function is not None:
             self.side_effect_function(index, event_time)
 
-    @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         """Adds this state's columns to the simulation state table.
 

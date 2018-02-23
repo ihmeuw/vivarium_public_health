@@ -2,7 +2,6 @@ import numbers
 
 import pandas as pd
 
-from vivarium.framework.event import listens_for
 from vivarium.framework.state_machine import Machine
 
 from ceam_public_health.disease import ExcessMortalityState, TransientDiseaseState, RateTransition, ProportionTransition
@@ -47,20 +46,21 @@ class DiseaseModel(Machine):
         self.population_view = builder.population.get_view(['age', 'sex', self.condition])
         self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
 
+        builder.event.register_listener('initialize_simulants', self.load_population_columns)
+        builder.event.register_listener('time_step', self.time_step_handler)
+        builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
+
         return self.states
 
-    @listens_for('time_step')
     def time_step_handler(self, event):
         self.transition(event.index, event.time)
 
-    @listens_for('time_step__cleanup')
     def time_step__cleanup_handler(self, event):
         self.cleanup(event.index, event.time)
 
     def get_csmr(self):
         return self._csmr_data
 
-    @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         population = self.population_view.get(event.index, omit_missing_columns=True)
 

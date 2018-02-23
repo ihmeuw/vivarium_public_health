@@ -5,7 +5,6 @@ from scipy.stats import multivariate_normal, norm
 from ceam_inputs import (risk_factors, coverage_gaps, get_risk_correlation_matrix,
                          get_exposure, get_exposure_standard_deviation)
 
-from vivarium.framework.event import listens_for
 from vivarium.framework.randomness import random
 
 from ceam_public_health.risks import make_gbd_risk_effects, get_distribution
@@ -121,9 +120,11 @@ class ContinuousRiskComponent:
         self.population_view = builder.population.get_view(
             [self._risk.name+'_exposure', self._risk.name+'_propensity', 'age', 'sex'])
 
+        builder.event.register_listener('initialize_simulants', self.load_population_columns)
+        builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
+
         return self._effects + [self.exposure_distribution]
 
-    @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         population = self.population_view.get(event.index, omit_missing_columns=True)
         propensities = pd.Series(self.propensity_function(population, self._risk),
@@ -134,7 +135,6 @@ class ContinuousRiskComponent:
                                               name=self._risk.name+'_exposure',
                                               index=event.index))
 
-    @listens_for('time_step__prepare', priority=8)
     def update_exposure(self, event):
         population = self.population_view.get(event.index)
         new_exposure = self.exposure_distribution.ppf(population[self._risk.name+'_propensity'])
@@ -184,10 +184,11 @@ class CategoricalRiskComponent:
                                                               source=builder.lookup(exposure_data))
 
         self.randomness = builder.randomness.get_stream(self._risk.name)
+        builder.event.register_listener('initialize_simulants', self.load_population_columns)
+        builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
 
         return self._effects
 
-    @listens_for('initialize_simulants')
     def load_population_columns(self, event):
         population = self.population_view.get(event.index, omit_missing_columns=True)
         self.population_view.update(pd.DataFrame({
@@ -195,7 +196,6 @@ class CategoricalRiskComponent:
             self._risk.name+'_exposure': np.full(len(event.index), ''),
         }))
 
-    @listens_for('time_step__prepare', priority=8)
     def update_exposure(self, event):
         pop = self.population_view.get(event.index)
 
