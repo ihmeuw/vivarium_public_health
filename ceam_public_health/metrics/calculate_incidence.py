@@ -42,7 +42,8 @@ class CalculateIncidence:
         columns = [self.disease_col, self.disease_time_col, "exit_time", "age", "sex", "alive"]
         self.population_view = builder.population.get_view(columns)
 
-        builder.event.register_listener('initialize_simulants', self.update_incidence_rate_df)
+        # This no longer works, but was an weird use of initialize simulants anyway.
+        # builder.event.register_listener('initialize_simulants', self.update_incidence_rate_df)
         builder.event.register_listener('begin_epidemiological_measure_collection', self.set_flag)
         builder.event.register_listener('collect_metrics', self.get_counts_and_susceptible_person_time)
 

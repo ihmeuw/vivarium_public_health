@@ -45,11 +45,12 @@ class BaseDiseaseState(State):
         columns = [self._model, 'alive']
         if self.track_events:
             columns += [self.event_time_column, self.event_count_column]
+
         self.population_view = builder.population.get_view(columns)
+        builder.population.initializes_simulants(self.load_population_columns,
+                                                 creates_columns=[self.event_time_column, self.event_count_column])
 
         builder.value.register_value_modifier('metrics', self.metrics)
-
-        builder.event.register_listener('initialize_simulants', self.load_population_columns)
 
         return sub_components
 
@@ -72,7 +73,7 @@ class BaseDiseaseState(State):
         if self.side_effect_function is not None:
             self.side_effect_function(index, event_time)
 
-    def load_population_columns(self, event):
+    def load_population_columns(self, pop_data):
         """Adds this state's columns to the simulation state table.
 
         Parameters
@@ -81,13 +82,13 @@ class BaseDiseaseState(State):
             An event signaling the creation of new simulants.
         """
         if self.track_events:
-            self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series(pd.NaT, index=event.index),
-                                                      self.event_count_column: pd.Series(0, index=event.index)},
-                                                     index=event.index))
+            self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series(pd.NaT, index=pop_data.index),
+                                                      self.event_count_column: pd.Series(0, index=pop_data.index)},
+                                                     index=pop_data.index))
 
         for transition in self.transition_set:
             if transition.start_active:
-                transition.set_active(event.index)
+                transition.set_active(pop_data.index)
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         transition_map = {'rate': RateTransition, 'proportion': ProportionTransition}

@@ -44,9 +44,11 @@ class DiseaseModel(Machine):
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
         self.population_view = builder.population.get_view(['age', 'sex', self.condition])
+        builder.population.initializes_simulants(self.load_population_columns,
+                                                 creates_columns=[self.condition],
+                                                 requires_columns=['age', 'sex'])
         self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
 
-        builder.event.register_listener('initialize_simulants', self.load_population_columns)
         builder.event.register_listener('time_step', self.time_step_handler)
         builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
 
@@ -61,8 +63,8 @@ class DiseaseModel(Machine):
     def get_csmr(self):
         return self._csmr_data
 
-    def load_population_columns(self, event):
-        population = self.population_view.get(event.index, omit_missing_columns=True)
+    def load_population_columns(self, pop_data):
+        population = self.population_view.get(pop_data.index, omit_missing_columns=True)
 
         assert self.initial_state in {s.state_id for s in self.states}
 
@@ -72,7 +74,7 @@ class DiseaseModel(Machine):
         if state_map and not population.empty:
             # only do this if there are states in the model that supply prevalence data
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
-            condition_column = assign_cause_at_beginning_of_simulation(population, event.time.year,
+            condition_column = assign_cause_at_beginning_of_simulation(population, pop_data.creation_time.year,
                                                                        state_map, self.randomness,
                                                                        self.initial_state)
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
