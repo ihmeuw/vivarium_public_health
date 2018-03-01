@@ -170,28 +170,24 @@ class FertilityAgeSpecificRates:
         self.asfr = builder.value.register_rate_producer('fertility rate', source=asfr_source)
         self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id'])
         self.simulant_creator = builder.population.get_simulant_creator()
+        builder.population.initializes_simulants(self.update_state_table,
+                                                 creates_columns=['last_birth_time', 'parent_id'],
+                                                 requires_columns=['sex'])
 
-        builder.event.register_listener('initialize_simulants', self.update_state_table)
         builder.event.register_listener('time_step', self.step)
 
-    def update_state_table(self, event):
-        """ Adds 'last_birth_time' and 'parent' columns to the state table.
+    def update_state_table(self, pop_data):
+        """ Adds 'last_birth_time' and 'parent' columns to the state table."""
 
-        Parameters
-        ----------
-        event : vivarium.population.PopulationEvent
-            Event that triggered this method call.
-        """
-
-        women = self.population_view.get(event.index, query="sex == 'Female'", omit_missing_columns=True).index
-        last_birth_time = pd.Series(pd.NaT, name='last_birth_time', index=event.index)
+        women = self.population_view.get(pop_data.index, query="sex == 'Female'", omit_missing_columns=True).index
+        last_birth_time = pd.Series(pd.NaT, name='last_birth_time', index=pop_data.index)
 
         # Do the naive thing, set so all women can have children
         # and none of them have had a child in the last year.
-        last_birth_time[women] = event.time - pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        last_birth_time[women] = pop_data.creation_time - pd.Timedelta(seconds=SECONDS_PER_YEAR)
 
         self.population_view.update(last_birth_time)
-        self.population_view.update(pd.Series(-1, name='parent_id', index=event.index, dtype=np.int64))
+        self.population_view.update(pd.Series(-1, name='parent_id', index=pop_data.index, dtype=np.int64))
 
     def step(self, event):
         """Produces new children and updates parent status on time steps.

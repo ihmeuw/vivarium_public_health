@@ -25,12 +25,14 @@ class Disability:
                                                  creates_columns=['years_lived_with_disability'])
         builder.event.register_listener('collect_metrics', self.calculate_ylds)
 
-    def initialize_disability(self, event):
-        self.population_view.update()
+    def initialize_disability(self, pop_data):
+        self.population_view.update(pd.Series(0., index=pop_data.index))
 
     def calculate_ylds(self, event):
-        self.years_lived_with_disability[event.index] += self.disability_weight(event.index)
+        disability = self.population_view.get(event.index)['years_lived_with_disability']
+        disability += self.disability_weight(event.index)
+        self.population_view.update(disability)
 
     def metrics(self, index, metrics):
-        metrics['years_lived_with_disability'] = self.years_lived_with_disability[index].sum()
+        metrics['years_lived_with_disability'] = self.population_view.get(index).sum()
         return metrics

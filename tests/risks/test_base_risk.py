@@ -73,10 +73,10 @@ def make_dummy_column(name, initial_value):
     class _make_dummy_column:
         def setup(self, builder):
             self.population_view = builder.population.get_view([name])
-            builder.event.register_listener('initialize_simulants', self.make_column)
+            builder.population.initializes_simulants(self.make_column, creates_columns=[name])
 
-        def make_column(self, event):
-            self.population_view.update(pd.Series(initial_value, index=event.index, name=name))
+        def make_column(self, pop_data):
+            self.population_view.update(pd.Series(initial_value, index=pop_data.index, name=name))
     return _make_dummy_column()
 
 

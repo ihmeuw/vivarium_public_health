@@ -40,8 +40,8 @@ class Mortality:
 
         self.population_view = builder.population.get_view(
             ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location'])
+        builder.population.initializes_simulants(self.load_population_columns, creates_columns=['cause_of_death'])
 
-        builder.event.register_listener('initialize_simulants', self.load_population_columns)
         builder.event.register_listener('time_step', self.mortality_handler, priority=0)
         builder.event.register_listener('time_step__cleanup', self.untracked_handler)
 
@@ -54,8 +54,8 @@ class Mortality:
 
         return self._cause_deleted_mortality_data(index)
 
-    def load_population_columns(self, event):
-        self.population_view.update(pd.Series('not_dead', name='cause_of_death', index=event.index))
+    def load_population_columns(self, pop_data):
+        self.population_view.update(pd.Series('not_dead', name='cause_of_death', index=pop_data.index))
 
     def mortality_handler(self, event):
         pop = self.population_view.get(event.index, query="alive =='alive'")
