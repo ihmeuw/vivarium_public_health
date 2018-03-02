@@ -119,21 +119,24 @@ class ContinuousRiskComponent:
         self.randomness = builder.randomness.get_stream(self._risk.name)
         self.population_view = builder.population.get_view(
             [self._risk.name+'_exposure', self._risk.name+'_propensity', 'age', 'sex'])
+        builder.population.initializes_simulants(self.load_population_columns,
+                                                 creates_columns=[self._risk.name + '_exposure',
+                                                                  self._risk.name + '_propensity'],
+                                                 requires_columns=['age', 'sex'])
 
-        builder.event.register_listener('initialize_simulants', self.load_population_columns)
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
 
         return self._effects + [self.exposure_distribution]
 
-    def load_population_columns(self, event):
-        population = self.population_view.get(event.index, omit_missing_columns=True)
+    def load_population_columns(self, pop_data):
+        population = self.population_view.get(pop_data.index, omit_missing_columns=True)
         propensities = pd.Series(self.propensity_function(population, self._risk),
                                  name=self._risk.name+'_propensity',
-                                 index=event.index)
+                                 index=pop_data.index)
         self.population_view.update(propensities)
         self.population_view.update(pd.Series(self.exposure_distribution.ppf(propensities),
                                               name=self._risk.name+'_exposure',
-                                              index=event.index))
+                                              index=pop_data.index))
 
     def update_exposure(self, event):
         population = self.population_view.get(event.index)
@@ -176,6 +179,11 @@ class CategoricalRiskComponent:
 
         self.population_view = builder.population.get_view(
             [self._risk.name+'_propensity', self._risk.name+'_exposure', 'age', 'sex'])
+        builder.population.initializes_simulants(self.load_population_columns,
+                                                 creates_columns=[self._risk.name + '_exposure',
+                                                                  self._risk.name + '_propensity'],
+                                                 requires_columns=['age', 'sex'])
+
         exposure_data = get_exposure(risk=self._risk, override_config=builder.configuration)
         exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='mean')
         exposure_data = exposure_data.reset_index()
@@ -184,16 +192,15 @@ class CategoricalRiskComponent:
                                                               source=builder.lookup(exposure_data))
 
         self.randomness = builder.randomness.get_stream(self._risk.name)
-        builder.event.register_listener('initialize_simulants', self.load_population_columns)
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
 
         return self._effects
 
-    def load_population_columns(self, event):
-        population = self.population_view.get(event.index, omit_missing_columns=True)
+    def load_population_columns(self, pop_data):
+        population = self.population_view.get(pop_data.index, omit_missing_columns=True)
         self.population_view.update(pd.DataFrame({
             self._risk.name+'_propensity': self.propensity_function(population, self._risk),
-            self._risk.name+'_exposure': np.full(len(event.index), ''),
+            self._risk.name+'_exposure': np.full(len(pop_data.index), ''),
         }))
 
     def update_exposure(self, event):

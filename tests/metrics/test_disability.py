@@ -44,56 +44,56 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
     year_end = config.simulation_parameters.year_end
     n_simulants = 1000
 
-    asymp_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start, year_end,
+    asymp_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start-1, year_end,
                                                                 ['age', 'year', 'sex', 'prevalence']),
                         'disability_weight': lambda _, __: 0.0,
                         'dwell_time': lambda _, __: pd.Timedelta(days=0),
-                        'excess_mortality': lambda _, __: build_table(0, year_start, year_end)}
+                        'excess_mortality': lambda _, __: build_table(0, year_start-1, year_end)}
 
     asymptomatic_disease_state = ExcessMortalityState('asymptomatic', get_data_functions=asymp_data_funcs)
     asymptomatic_disease_model = DiseaseModel(Disease(name='asymptomatic'),
                                               states=[asymptomatic_disease_state],
                                               initial_state='asymptomatic',
                                               get_data_functions={
-                                                  'csmr': lambda _, __: build_table(0, year_start, year_end)})
+                                                  'csmr': lambda _, __: build_table(0, year_start-1, year_end)})
     metrics = Metrics()
     disability = Disability()
     components = [TestPopulation(), asymptomatic_disease_model, metrics, disability]
 
     if flu:
-        flu_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start, year_end,
+        flu_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start-1, year_end,
                                                                   ['age', 'year', 'sex', 'prevalence']),
                           'disability_weight': lambda _, __: 0.2,
                           'dwell_time': lambda _, __: pd.Timedelta(days=0),
-                          'excess_mortality': lambda _, __: build_table(0, year_start, year_end)}
+                          'excess_mortality': lambda _, __: build_table(0, year_start-1, year_end)}
         flu = ExcessMortalityState('flu', get_data_functions=flu_data_funcs)
         flu_model = DiseaseModel(Disease(name='flu'), states=[flu],
                                  initial_state='flu',
-                                 get_data_functions={'csmr': lambda _, __: build_table(0, year_start, year_end)})
+                                 get_data_functions={'csmr': lambda _, __: build_table(0, year_start-1, year_end)})
         components.append(flu_model)
 
     if mumps:
-        mumps_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start, year_end,
+        mumps_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start-1, year_end,
                                                                     ['age', 'year', 'sex', 'prevalence']),
                             'disability_weight': lambda _, __: 0.4,
                             'dwell_time': lambda _, __: pd.Timedelta(days=0),
-                            'excess_mortality': lambda _, __: build_table(0, year_start, year_end)}
+                            'excess_mortality': lambda _, __: build_table(0, year_start-1, year_end)}
         mumps = ExcessMortalityState('mumps', get_data_functions=mumps_data_funcs)
         mumps_model = DiseaseModel(Disease(name='mumps'), states=[mumps],
                                    initial_state='mumps',
-                                   get_data_functions={'csmr': lambda _, __: build_table(0, year_start, year_end)})
+                                   get_data_functions={'csmr': lambda _, __: build_table(0, year_start-1, year_end)})
         components.append(mumps_model)
 
     if deadly:
-        deadly_data_funcs = {'prevalence': lambda _, __: build_table(0.1, year_start, year_end,
+        deadly_data_funcs = {'prevalence': lambda _, __: build_table(0.1, year_start-1, year_end,
                                                                      ['age', 'year', 'sex', 'prevalence']),
                              'disability_weight': lambda _, __: 0.4,
                              'dwell_time': lambda _, __: pd.Timedelta(days=0),
-                             'excess_mortality': lambda _, __: build_table(0.005, year_start, year_end)}
+                             'excess_mortality': lambda _, __: build_table(0.005, year_start-1, year_end)}
         deadly = ExcessMortalityState('deadly', get_data_functions=deadly_data_funcs)
         healthy = DiseaseState('healthy', get_data_functions=deadly_data_funcs)
         deadly_model = DiseaseModel(Disease(name='deadly'), states=[deadly, healthy], get_data_functions={
-            'csmr': lambda _, __: build_table(0.0005, year_start, year_end)})
+            'csmr': lambda _, __: build_table(0.0005, year_start-1, year_end)})
         components.append(deadly_model)
         components.append(Mortality())
 
@@ -104,7 +104,7 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
 
 def test_that_ylds_are_0_at_sim_beginning(config):
     simulation, metrics, disability = set_up_test_parameters(config)
-    ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
+    ylds = int(metrics.metrics(simulation.population.population.index)['years_lived_with_disability'])
     assert ylds == 0
 
 

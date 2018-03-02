@@ -85,17 +85,17 @@ class HealthcareAccess:
                                                                      source=builder.lookup(annual_visits))
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-        self.population_view = builder.population.get_view(['healthcare_followup_date', 'healthcare_last_visit_date',
-                                                            'healthcare_visits', 'adherence_category',
-                                                            'general_access_propensity'])
+        columns = ['healthcare_followup_date', 'healthcare_last_visit_date', 'healthcare_visits',
+                   'adherence_category', 'general_access_propensity']
+        self.population_view = builder.population.get_view(columns)
+        builder.population.initializes_simulants(self.load_population_columns, creates_columns=columns)
 
-        builder.event.register_listener('initialize_simulants', self.load_population_columns)
         builder.event.register_listener('time_step', self.general_access)
         builder.event.register_listener('time_step', self.followup_access)
         builder.event.register_listener('hospitalization', self.hospital_access)
 
-    def load_population_columns(self, event):
-        population_size = len(event.index)
+    def load_population_columns(self, pop_data):
+        population_size = len(pop_data.index)
         adherence = self.get_adherence(population_size)
 
         r = np.random.RandomState(self.general_random.get_seed())
@@ -109,7 +109,8 @@ class HealthcareAccess:
                                                   'healthcare_last_visit_date': [pd.NaT]*population_size,
                                                   'healthcare_visits': [0]*population_size,
                                                   'adherence_category': adherence,
-                                                  'general_access_propensity': general_access_propensity}))
+                                                  'general_access_propensity': general_access_propensity},
+                                                 index=pop_data.index))
 
     def get_adherence(self, population_size):
         # use a dirichlet distribution with means matching Marcia's

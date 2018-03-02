@@ -20,16 +20,19 @@ class Disability:
             preferred_post_processor=_disability_post_processor)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-        builder.event.register_listener('initialize_simulants', self.initialize_disability)
+        self.population_view = builder.population.get_view(['years_lived_with_disability'])
+        builder.population.initializes_simulants(self.initialize_disability,
+                                                 creates_columns=['years_lived_with_disability'])
         builder.event.register_listener('collect_metrics', self.calculate_ylds)
 
-    def initialize_disability(self, event):
-        self.years_lived_with_disability = self.years_lived_with_disability.append(
-            pd.Series(0, index=event.index))
+    def initialize_disability(self, pop_data):
+        self.population_view.update(pd.Series(0., index=pop_data.index))
 
     def calculate_ylds(self, event):
-        self.years_lived_with_disability[event.index] += self.disability_weight(event.index)
+        disability = self.population_view.get(event.index)['years_lived_with_disability']
+        disability += self.disability_weight(event.index)
+        self.population_view.update(disability)
 
     def metrics(self, index, metrics):
-        metrics['years_lived_with_disability'] = self.years_lived_with_disability[index].sum()
+        metrics['years_lived_with_disability'] = self.population_view.get(index).sum()
         return metrics

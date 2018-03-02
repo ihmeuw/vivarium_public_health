@@ -88,9 +88,9 @@ def test_mortality_rate(config, disease):
     mort_get_data_funcs = {
         'dwell_time': lambda _, __: pd.Timedelta(days=0),
         'disability_weight': lambda _, __: 0.1,
-        'prevalence': lambda _, __: build_table(0.000001, year_start, year_end,
+        'prevalence': lambda _, __: build_table(0.000001, year_start-1, year_end,
                                                 ['age', 'year', 'sex', 'prevalence']),
-        'excess_mortality': lambda _, __: build_table(0.7, year_start, year_end),
+        'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
     }
     mortality_state = ExcessMortalityState('sick', get_data_functions=mort_get_data_funcs)
 

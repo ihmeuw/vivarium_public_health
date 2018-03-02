@@ -136,7 +136,7 @@ def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_populat
     generate_ceam_population_mock.assert_called_once()
     # Get a dictionary of the arguments used in the call
     mock_args = generate_ceam_population_mock.call_args[1]
-    assert mock_args['creation_time'] == time_start
+    assert mock_args['creation_time'] == time_start - simulation.step_size
     assert mock_args['age_params'] == age_params
     assert mock_args['population_data'].equals(sub_pop)
     assert mock_args['randomness_streams'] == base_pop.randomness

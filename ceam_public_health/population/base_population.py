@@ -37,17 +37,17 @@ class BasePopulation:
         self.register_simulants = builder.randomness.register_simulants
         self.config = builder.configuration.population
         input_config = builder.configuration.input_data
-        self.population_view = builder.population.get_view(
-            ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time'])
+        columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
+        self.population_view = builder.population.get_view(columns)
+        builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
         self._population_data = _build_population_data_table(input_config.location_id,
                                                              input_config.use_subregions,
                                                              builder.configuration)
 
-        builder.event.register_listener('initialize_simulants', self.generate_base_population, priority=0)
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
 
     # TODO: Move most of this docstring to an rst file.
-    def generate_base_population(self, event):
+    def generate_base_population(self, pop_data):
         """Creates a population with fundamental demographic and simulation properties.
 
         When the simulation framework creates new simulants (essentially producing a new
@@ -70,19 +70,19 @@ class BasePopulation:
         event : vivarium.framework.population.PopulationEvent
         """
 
-        age_params = {'age_start': event.user_data.get('age_start', self.config.age_start),
-                      'age_end': event.user_data.get('age_end', self.config.age_end)}
+        age_params = {'age_start': pop_data.user_data.get('age_start', self.config.age_start),
+                      'age_end': pop_data.user_data.get('age_end', self.config.age_end)}
 
-        if event.time.year in self._population_data.year.unique():
-            sub_pop_data = self._population_data[self._population_data.year == event.time.year]
-        elif event.time.year > self._population_data.year.max():
+        if pop_data.creation_time.year in self._population_data.year.unique():
+            sub_pop_data = self._population_data[self._population_data.year == pop_data.creation_time.year]
+        elif pop_data.creation_time.year > self._population_data.year.max():
             sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.max()]
-        else:  # event.time.year < self._population_data.year.min():
+        else:  # pop_data.creation_time.year < self._population_data.year.min():
             sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.min()]
 
-        self.population_view.update(generate_ceam_population(simulant_ids=event.index,
-                                                             creation_time=event.time,
-                                                             step_size=event.step_size,
+        self.population_view.update(generate_ceam_population(simulant_ids=pop_data.index,
+                                                             creation_time=pop_data.creation_time,
+                                                             step_size=pop_data.creation_window,
                                                              age_params=age_params,
                                                              population_data=sub_pop_data,
                                                              randomness_streams=self.randomness,
