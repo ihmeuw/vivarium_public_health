@@ -86,7 +86,8 @@ class DiseaseModel(Machine):
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
         root_location = self.config.input_data.location_id
         pop = self.population_view.manager.population.ix[index].query("alive == 'alive'")
-        causes = set(pop[self.condition]) - {'susceptible_to_' + self.condition}
+        causes = set(pop[self.condition]) - {state.state_id for state in self.states
+                                             if isinstance(state, SusceptibleState)}
         if all_locations:
             locations = set(pop.location) | {-1}
         else:
