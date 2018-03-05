@@ -25,7 +25,7 @@ class RateTransition(Transition):
             rate_data = self._get_data_functions['incidence_rate'](self.output_state.cause, config)
             pipeline_name = f'{self.output_state.state_id}.incidence_rate'
         elif 'remission_rate' in self._get_data_functions:
-            rate_data = self._get_data_functions['incidence_rates'](self.output_state.cause, config)
+            rate_data = self._get_data_functions['remission_rate'](self.output_state.cause, config)
             pipeline_name = f'{self.input_state.state_id}.remission_rate'
         else:
             raise ValueError("No valid data functions supplied.")
