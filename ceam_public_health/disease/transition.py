@@ -4,8 +4,6 @@ from vivarium.framework.state_machine import Transition
 from vivarium.framework.util import rate_to_probability
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 
-from ceam_inputs import get_incidence
-
 
 class RateTransition(Transition):
     def __init__(self, input_state, output_state, get_data_functions=None, **kwargs):
@@ -13,23 +11,32 @@ class RateTransition(Transition):
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
-        get_incidence_function = self._get_data_functions.get('incidence', get_incidence)
-        self._rate_data = get_incidence_function(self.output_state.cause, builder.configuration)
-        self.base_incidence = builder.lookup(self._rate_data)
-
-        self.effective_incidence = builder.value.register_rate_producer(f'{self.output_state.state_id}.incidence_rate',
-                                                                        source=self.incidence_rates)
+        self._rate_data, pipeline_name = self._get_rate_data(builder.configuration)
+        self.base_rate = builder.lookup(self._rate_data)
+        self.effective_rate = builder.value.register_rate_producer(pipeline_name, source=self.rates)
         self.joint_paf = builder.value.register_value_producer(f'{self.output_state.state_id}.paf',
                                                                source=lambda index: [pd.Series(0, index=index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
         return super().setup(builder)
 
-    def _probability(self, index):
-        return rate_to_probability(self.effective_incidence(index))
+    def _get_rate_data(self, config):
+        if 'incidence_rate' in self._get_data_functions:
+            rate_data = self._get_data_functions['incidence_rate'](self.output_state.cause, config)
+            pipeline_name = f'{self.output_state.state_id}.incidence_rate'
+        elif 'remission_rate' in self._get_data_functions:
+            rate_data = self._get_data_functions['incidence_rates'](self.output_state.cause, config)
+            pipeline_name = f'{self.input_state.state_id}.remission_rate'
+        else:
+            raise ValueError("No valid data functions supplied.")
 
-    def incidence_rates(self, index):
-        base_rates = self.base_incidence(index)
+        return rate_data, pipeline_name
+
+    def _probability(self, index):
+        return rate_to_probability(self.effective_rate(index))
+
+    def rates(self, index):
+        base_rates = self.base_rate(index)
         joint_mediated_paf = self.joint_paf(index)
         # risk-deleted incidence is calculated by taking incidence from GBD and multiplying it by (1 - Joint PAF)
         return pd.Series(base_rates.values * (1 - joint_mediated_paf.values), index=index)

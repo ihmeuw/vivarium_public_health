@@ -56,7 +56,7 @@ def test_dwell_time(assign_cause_mock, config, disease):
     healthy_state.add_transition(event_state)
     event_state.add_transition(done_state)
 
-    model = DiseaseModel(disease, states=[healthy_state, event_state, done_state],
+    model = DiseaseModel(disease, initial_state=healthy_state, states=[healthy_state, event_state, done_state],
                          get_data_functions={'csmr': lambda _, __: None})
 
     simulation = setup_simulation([TestPopulation(), model], population_size=10, input_config=config)
@@ -96,7 +96,7 @@ def test_mortality_rate(config, disease):
 
     healthy.add_transition(mortality_state)
 
-    model = DiseaseModel(disease, states=[healthy, mortality_state],
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, mortality_state],
                          get_data_functions={'csmr': lambda _, __: None})
 
     simulation = setup_simulation([TestPopulation(), model], input_config=config)
@@ -122,17 +122,17 @@ def test_incidence(assign_cause_mock, config, disease):
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
-            'incidence': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)
+            'incidence_rate': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)
         })
     healthy.transition_set.append(transition)
 
-    model = DiseaseModel(disease, states=[healthy, sick],
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
 
     simulation = setup_simulation([TestPopulation(), model], input_config=config)
     year_start = config.simulation_parameters.year_start
     year_end = config.simulation_parameters.year_end
-    transition.base_incidence = simulation.tables.build_table(build_table(0.7, year_start, year_end))
+    transition.base_rate = simulation.tables.build_table(build_table(0.7, year_start, year_end))
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 
@@ -156,18 +156,18 @@ def test_risk_deletion(assign_cause_mock, config, disease):
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
-            'incidence': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)}
+            'incidence_rate': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)}
     )
     healthy.transition_set.append(transition)
 
-    model = DiseaseModel(disease, states=[healthy, sick],
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
 
     simulation = setup_simulation([TestPopulation(), model], input_config=config)
 
     base_rate = 0.7
     paf = 0.1
-    transition.base_incidence = simulation.tables.build_table(build_table(base_rate, year_start, year_end))
+    transition.base_rate = simulation.tables.build_table(build_table(base_rate, year_start, year_end))
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 

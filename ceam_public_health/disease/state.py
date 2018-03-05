@@ -6,7 +6,7 @@ from vivarium.framework.state_machine import State, Transient
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
-from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality
+from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, get_incidence, get_remission
 
 
 class BaseDiseaseState(State):
@@ -92,14 +92,16 @@ class BaseDiseaseState(State):
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         transition_map = {'rate': RateTransition, 'proportion': ProportionTransition}
+
+        if source_data_type is not None and source_data_type not in transition_map:
+            raise ValueError(f"Unrecognized data type {source_data_type}")
+
         if not source_data_type:
             return super().add_transition(output, **kwargs)
         elif source_data_type in transition_map:
             t = transition_map[source_data_type](self, output, get_data_functions, **kwargs)
             self.transition_set.append(t)
             return t
-        else:
-            raise ValueError(f"Unrecognized data type {source_data_type}")
 
     def metrics(self, index, metrics):
         """Records data for simulation post-processing.
@@ -119,6 +121,30 @@ class BaseDiseaseState(State):
             population = self.population_view.get(index)
             metrics[self.event_count_column] = population[self.event_count_column].sum()
         return metrics
+
+
+class SusceptibleState(BaseDiseaseState):
+    def __init__(self, cause, *args, **kwargs):
+        cause_name = cause if isinstance(cause, str) else cause.name
+        super().__init__('susceptible_to_' + cause_name, *args, **kwargs)
+
+    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+        if source_data_type == 'rate':
+            if get_data_functions is None:
+                get_data_functions = {'incidence_rate': get_incidence}
+            elif 'incidence_rate' not in get_data_functions:
+                raise ValueError('You must supply an incidence rate function.')
+        elif source_data_type == 'proportion':
+            if 'proportion' not in get_data_functions:
+                raise ValueError('You must supply a proportion function.')
+
+        return super().add_transition(output, source_data_type, get_data_functions, **kwargs)
+
+
+class RecoveredState(SusceptibleState):
+    def __init__(self, cause, *args, **kwargs):
+        cause_name = cause if isinstance(cause, str) else cause.name
+        super().__init__('recovered_from_' + cause_name, *args, **kwargs)
 
 
 class DiseaseState(BaseDiseaseState):
@@ -192,6 +218,17 @@ class DiseaseState(BaseDiseaseState):
         if self.cleanup_function is not None:
             sub_components.append(self.cleanup_function)
         return sub_components
+
+    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+        if source_data_type == 'rate':
+            if get_data_functions is None:
+                get_data_functions = {'remission_rate': get_remission}
+            elif 'remission_rate' not in get_data_functions:
+                raise ValueError('You must supply a remission rate function.')
+        elif source_data_type == 'proportion':
+            if 'proportion' not in get_data_functions:
+                raise ValueError('You must supply a proportion function.')
+        return super().add_transition(output, source_data_type, get_data_functions, **kwargs)
 
     def next_state(self, index, event_time, population_view):
         """Moves a population among different disease states.

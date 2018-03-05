@@ -36,7 +36,7 @@ def make_model(config, incidence_rate, recovery_rate):
     sick.transition_set.append(RateTransition(healthy, 'recovery',
                                               build_table(recovery_rate, year_start, year_end)))
 
-    model = DiseaseModel('simple_disease')
+    model = DiseaseModel('simple_disease', initial_state=healthy)
     model.states.extend([healthy, sick, recovered])
 
     return model
