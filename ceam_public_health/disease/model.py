@@ -2,17 +2,23 @@ import numbers
 
 import pandas as pd
 
+from vivarium import VivariumError
 from vivarium.framework.state_machine import Machine
 
-from ceam_public_health.disease import ExcessMortalityState, TransientDiseaseState, RateTransition, ProportionTransition
+from ceam_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
+                                        RateTransition, ProportionTransition)
 
 from ceam_inputs import get_cause_specific_mortality
 
 from .data_transformations import assign_cause_at_beginning_of_simulation
 
 
+class DiseaseModelError(VivariumError):
+    pass
+
+
 class DiseaseModel(Machine):
-    def __init__(self, cause, get_data_functions=None,  initial_state='healthy', **kwargs):
+    def __init__(self, cause, initial_state=None, get_data_functions=None, **kwargs):
         if isinstance(cause, str):
             self.cause = None
             super().__init__(cause, **kwargs)
@@ -20,7 +26,10 @@ class DiseaseModel(Machine):
             self.cause = cause
             super().__init__(cause.name, **kwargs)
 
-        self.initial_state = initial_state
+        if initial_state is not None:
+            self.initial_state = initial_state.state_id
+        else:
+            self.initial_state = self._get_default_initial_state()
 
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
@@ -54,6 +63,12 @@ class DiseaseModel(Machine):
 
         return self.states
 
+    def _get_default_initial_state(self):
+        susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]
+        if len(susceptible_states) != 1:
+            raise DiseaseModelError("Disease model must have exactly one SusceptibleState.")
+        return susceptible_states[0].state_id
+
     def time_step_handler(self, event):
         self.transition(event.index, event.time)
 
@@ -85,7 +100,8 @@ class DiseaseModel(Machine):
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
         root_location = self.config.input_data.location_id
         pop = self.population_view.manager.population.ix[index].query("alive == 'alive'")
-        causes = set(pop[self.condition]) - {'healthy'}
+        causes = set(pop[self.condition]) - {state.state_id for state in self.states
+                                             if isinstance(state, SusceptibleState)}
         if all_locations:
             locations = set(pop.location) | {-1}
         else:
@@ -125,7 +141,7 @@ class DiseaseModel(Machine):
                 dot.node(state.state_id, color='red')
             elif isinstance(state, TransientDiseaseState):
                 dot.node(state.state_id, style='dashed', color='orange')
-            elif state.state_id == 'healthy':
+            elif isinstance(state, SusceptibleState):
                 dot.node(state.state_id, color='green')
             else:
                 dot.node(state.state_id, color='orange')
@@ -156,5 +172,5 @@ class DiseaseModel(Machine):
 
     def metrics(self, index, metrics):
         population = self.population_view.get(index, query="alive == 'alive'")
-        metrics[self.condition + '_count'] = (population[self.condition] != 'healthy').sum()
+        metrics[self.condition + '_count'] = (population[self.condition] != 'susceptible_to_' + self.condition).sum()
         return metrics

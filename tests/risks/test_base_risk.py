@@ -606,7 +606,7 @@ def test_make_gbd_risk_effects(config):
     healthy = BaseDiseaseState('healthy')
     heart_attack = DiseaseState(sequelae.heart_attack)
     heart_attack_transition = RateTransition(healthy, heart_attack, get_data_functions={
-        'incidence': lambda *args: build_table(.001, year_start, year_end)})
+        'incidence_rate': lambda *args: build_table(.001, year_start, year_end)})
     simulation = setup_simulation([TestPopulation(), heart_attack_transition, bmi], input_config=config)
     irs = simulation.values.register_rate_producer('heart_attack.incidence_rate')
     base_ir = irs.source(simulation.population.population.index)
