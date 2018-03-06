@@ -2,6 +2,7 @@ import numbers
 
 import pandas as pd
 
+from vivarium import VivariumError
 from vivarium.framework.state_machine import Machine
 
 from ceam_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
@@ -12,8 +13,12 @@ from ceam_inputs import get_cause_specific_mortality
 from .data_transformations import assign_cause_at_beginning_of_simulation
 
 
+class DiseaseModelError(VivariumError):
+    pass
+
+
 class DiseaseModel(Machine):
-    def __init__(self, cause, initial_state, get_data_functions=None, **kwargs):
+    def __init__(self, cause, initial_state=None, get_data_functions=None, **kwargs):
         if isinstance(cause, str):
             self.cause = None
             super().__init__(cause, **kwargs)
@@ -21,7 +26,10 @@ class DiseaseModel(Machine):
             self.cause = cause
             super().__init__(cause.name, **kwargs)
 
-        self.initial_state = initial_state.state_id
+        if initial_state is not None:
+            self.initial_state = initial_state.state_id
+        else:
+            self.initial_state = self._get_default_initial_state()
 
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
@@ -54,6 +62,12 @@ class DiseaseModel(Machine):
         builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
 
         return self.states
+
+    def _get_default_initial_state(self):
+        susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]
+        if len(susceptible_states) != 1:
+            raise DiseaseModelError("Disease model must have exactly one SusceptibleState.")
+        return susceptible_states[0].state_id
 
     def time_step_handler(self, event):
         self.transition(event.index, event.time)
