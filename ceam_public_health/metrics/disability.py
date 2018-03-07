@@ -34,5 +34,5 @@ class Disability:
         self.population_view.update(disability)
 
     def metrics(self, index, metrics):
-        metrics['years_lived_with_disability'] = self.population_view.get(index).sum()
+        metrics['years_lived_with_disability'] = self.population_view.get(index)['years_lived_with_disability'].sum()
         return metrics
