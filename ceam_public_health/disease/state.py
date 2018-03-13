@@ -10,13 +10,14 @@ from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortal
 
 
 class BaseDiseaseState(State):
-    def __init__(self, cause, side_effect_function=None, track_events=True, **kwargs):
+    def __init__(self, cause, name_prefix=None, side_effect_function=None, track_events=True, **kwargs):
         if isinstance(cause, str):
             self.cause = None
-            super().__init__(cause, **kwargs)
+            cause_name = name_prefix + cause if name_prefix else cause
         else:  # Assume we got something from gbd_mapping.
             self.cause = cause
-            super().__init__(cause.name, **kwargs)
+            cause_name = name_prefix + cause.name if name_prefix else cause.name
+        super().__init__(cause_name, **kwargs)
 
         self.side_effect_function = side_effect_function
 
@@ -125,8 +126,7 @@ class BaseDiseaseState(State):
 
 class SusceptibleState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
-        cause_name = cause if isinstance(cause, str) else cause.name
-        super().__init__('susceptible_to_' + cause_name, *args, **kwargs)
+        super().__init__(cause, *args, name_prefix='susceptible_to_', **kwargs)
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -141,10 +141,21 @@ class SusceptibleState(BaseDiseaseState):
         return super().add_transition(output, source_data_type, get_data_functions, **kwargs)
 
 
-class RecoveredState(SusceptibleState):
+class RecoveredState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
-        cause_name = cause if isinstance(cause, str) else cause.name
-        super().__init__('recovered_from_' + cause_name, *args, **kwargs)
+        super().__init__(cause, *args, name_prefix='recovered_from_', **kwargs)
+
+    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+        if source_data_type == 'rate':
+            if get_data_functions is None:
+                get_data_functions = {'incidence_rate': get_incidence}
+            elif 'incidence_rate' not in get_data_functions:
+                raise ValueError('You must supply an incidence rate function.')
+        elif source_data_type == 'proportion':
+            if 'proportion' not in get_data_functions:
+                raise ValueError('You must supply a proportion function.')
+
+        return super().add_transition(output, source_data_type, get_data_functions, **kwargs)
 
 
 class DiseaseState(BaseDiseaseState):
