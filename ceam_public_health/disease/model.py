@@ -8,8 +8,6 @@ from vivarium.framework.state_machine import Machine
 from ceam_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
                                         RateTransition, ProportionTransition)
 
-from ceam_inputs import get_cause_specific_mortality
-
 from .data_transformations import assign_cause_at_beginning_of_simulation
 
 
@@ -45,8 +43,7 @@ class DiseaseModel(Machine):
     def setup(self, builder):
         self.config = builder.configuration
 
-        get_csmr_func = self._get_data_functions.get('csmr', get_cause_specific_mortality)
-        self._csmr_data = get_csmr_func(self.cause, builder.configuration)
+        self._csmr_data = builder.data.load(f"cause.{self.cause.name}.cause_specific_mortality")
 
         builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
         builder.value.register_value_modifier('epidemiological_point_measures', modifier=self.prevalence)

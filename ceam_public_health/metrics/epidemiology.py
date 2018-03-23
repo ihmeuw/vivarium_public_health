@@ -4,8 +4,6 @@ import pandas as pd
 
 from vivarium.framework.util import collapse_nested_dict
 
-from ceam_inputs import get_age_bins
-
 import logging
 
 _log = logging.getLogger(__name__)
@@ -18,7 +16,7 @@ class EpidemiologicalMeasures:
     """
     def setup(self, builder):
         self.run_config = builder.configuration.run_configuration
-        self.age_groups = get_age_bins()
+        self.age_groups = builder.data.load("population.age_bins")
         self.point_measures = builder.value.register_value_producer('epidemiological_point_measures',
                                                                     source=self.base_cube)
         self.span_measures = builder.value.register_value_producer('epidemiological_span_measures',

@@ -2,8 +2,6 @@
 import pandas as pd
 import numpy as np
 
-from ceam_inputs import get_age_specific_fertility_rates, get_populations, get_live_births_by_sex
-
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate GBD estimates into gestational model (probably as a separate component)
 PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
@@ -79,8 +77,8 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-        self._population_data = get_populations(builder.configuration).query('sex == "Both"')
-        self._birth_data = get_live_births_by_sex(builder.configuration).query('sex == "Both"').set_index(['year'])
+        self._population_data = builder.data.load("population.structure").query('sex == "Both"')
+        self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate").query('sex == "Both"').set_index(['year'])
         if 'exit_age' in builder.configuration.population:
             self.exit_age = builder.configuration.population.exit_age
         else:
@@ -165,7 +163,7 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness.get_stream('fertility')
-        self._asfr_data = get_age_specific_fertility_rates(builder.configuration)[['year', 'age', 'rate']]
+        self._asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")[['year', 'age', 'rate']]
         asfr_source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))
         self.asfr = builder.value.register_rate_producer('fertility rate', source=asfr_source)
         self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id'])

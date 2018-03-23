@@ -6,8 +6,6 @@ from vivarium.framework.state_machine import State, Transient
 
 from ceam_public_health.disease import RateTransition, ProportionTransition
 
-from ceam_inputs import get_disability_weight, get_prevalence, get_excess_mortality, get_incidence, get_remission
-
 
 class BaseDiseaseState(State):
     def __init__(self, cause, name_prefix=None, side_effect_function=None, track_events=True, **kwargs):
@@ -131,7 +129,7 @@ class SusceptibleState(BaseDiseaseState):
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
             if get_data_functions is None:
-                get_data_functions = {'incidence_rate': get_incidence}
+                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.incidince")}
             elif 'incidence_rate' not in get_data_functions:
                 raise ValueError('You must supply an incidence rate function.')
         elif source_data_type == 'proportion':
@@ -148,7 +146,7 @@ class RecoveredState(BaseDiseaseState):
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
             if get_data_functions is None:
-                get_data_functions = {'incidence_rate': get_incidence}
+                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.incidince")}
             elif 'incidence_rate' not in get_data_functions:
                 raise ValueError('You must supply an incidence rate function.')
         elif source_data_type == 'proportion':
@@ -202,13 +200,13 @@ class DiseaseState(BaseDiseaseState):
         iterable
             This component's sub-components.
         """
-        get_disability_weight_func = self._get_data_functions.get('disability_weight', get_disability_weight)
-        get_prevalence_func = self._get_data_functions.get('prevalence', get_prevalence)
+        get_disability_weight_func = self._get_data_functions.get('disability_weight', lambda cause, builder: builder.data.load(f"cause.{cause.name}.disability_weight"))
+        get_prevalence_func = self._get_data_functions.get('prevalence', lambda cause, builder: builder.data.load(f"cause.{cause.name}.prevalence"))
         get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: pd.Timedelta(0))
 
-        disability_weight_data = get_disability_weight_func(self.cause, builder.configuration)
-        self.prevalence_data = get_prevalence_func(self.cause, builder.configuration)
-        self._dwell_time = get_dwell_time_func(self.cause, builder.configuration)
+        disability_weight_data = get_disability_weight_func(self.cause, builder)
+        self.prevalence_data = get_prevalence_func(self.cause, builder)
+        self._dwell_time = get_dwell_time_func(self.cause, builder)
 
         if disability_weight_data is not None:
             self._disability_weight = builder.lookup(disability_weight_data)
@@ -233,7 +231,7 @@ class DiseaseState(BaseDiseaseState):
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
             if get_data_functions is None:
-                get_data_functions = {'remission_rate': get_remission}
+                get_data_functions = {'remission_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.remission_rate")}
             elif 'remission_rate' not in get_data_functions:
                 raise ValueError('You must supply a remission rate function.')
         elif source_data_type == 'proportion':
@@ -336,9 +334,9 @@ class ExcessMortalityState(DiseaseState):
         iterable
              This component's sub-components.
         """
-        get_excess_mortality_func = self._get_data_functions.get('excess_mortality', get_excess_mortality)
+        get_excess_mortality_func = self._get_data_functions.get('excess_mortality', lambda cause, builder: builder.data.load(f"cause.{cause.name}.excess_mortality"))
 
-        self.excess_mortality_data = get_excess_mortality_func(self.cause, builder.configuration)
+        self.excess_mortality_data = get_excess_mortality_func(self.cause, builder)
         if 'mortality.interpolate' in builder.configuration and not builder.configuration.mortality.interpolate:
             order = 0
         else:

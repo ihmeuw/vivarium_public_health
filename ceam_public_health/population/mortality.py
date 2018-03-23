@@ -1,7 +1,5 @@
 import pandas as pd
 
-from ceam_inputs import get_theoretical_minimum_risk_life_expectancy, causes, get_cause_specific_mortality
-
 from vivarium.framework.util import rate_to_probability
 from vivarium.framework.values import list_combiner
 
@@ -17,7 +15,7 @@ class Mortality:
     }
 
     def setup(self, builder):
-        self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes, builder.configuration)
+        self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")
         self._cause_deleted_mortality_data = None
 
         self._root_location = builder.configuration.input_data.location_id
@@ -27,7 +25,7 @@ class Mortality:
         self.csmr = builder.value.register_value_producer('csmr_data', source=list, preferred_combiner=list_combiner)
         self.mortality_rate = builder.value.register_rate_producer('mortality_rate', source=self.mortality_rate_source)
 
-        life_expectancy_data = get_theoretical_minimum_risk_life_expectancy()
+        life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
         self.life_expectancy = builder.lookup(life_expectancy_data, key_columns=[], parameter_columns=('age',))
 
         self.death_emitter = builder.event.get_emitter('deaths')

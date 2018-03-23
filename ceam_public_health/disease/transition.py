@@ -11,7 +11,7 @@ class RateTransition(Transition):
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
-        self._rate_data, pipeline_name = self._get_rate_data(builder.configuration)
+        self._rate_data, pipeline_name = self._get_rate_data(builder)
         self.base_rate = builder.lookup(self._rate_data)
         self.effective_rate = builder.value.register_rate_producer(pipeline_name, source=self.rates)
         self.joint_paf = builder.value.register_value_producer(f'{self.output_state.state_id}.paf',
@@ -20,12 +20,12 @@ class RateTransition(Transition):
                                                                preferred_post_processor=joint_value_post_processor)
         return super().setup(builder)
 
-    def _get_rate_data(self, config):
+    def _get_rate_data(self, builder):
         if 'incidence_rate' in self._get_data_functions:
-            rate_data = self._get_data_functions['incidence_rate'](self.output_state.cause, config)
+            rate_data = self._get_data_functions['incidence_rate'](self.output_state.cause, builder)
             pipeline_name = f'{self.output_state.state_id}.incidence_rate'
         elif 'remission_rate' in self._get_data_functions:
-            rate_data = self._get_data_functions['remission_rate'](self.output_state.cause, config)
+            rate_data = self._get_data_functions['remission_rate'](self.output_state.cause, builder)
             pipeline_name = f'{self.input_state.state_id}.remission_rate'
         else:
             raise ValueError("No valid data functions supplied.")
@@ -54,7 +54,7 @@ class ProportionTransition(Transition):
         get_proportion_func = self._get_data_functions.get('proportion', None)
         if get_proportion_func is None:
             raise ValueError('Must supply a proportion function')
-        self._proportion_data = get_proportion_func(self.output_state.cause, builder.configuration)
+        self._proportion_data = get_proportion_func(self.output_state.cause, builder)
         self.proportion = builder.lookup(self._proportion_data)
         return super().setup(builder)
 

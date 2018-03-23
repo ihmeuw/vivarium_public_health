@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from ceam_inputs import get_relative_risk, get_population_attributable_fraction, get_mediation_factor
-
 
 def continuous_exposure_effect(risk, population_view):
     """Factory that makes functions which can be used as the exposure_effect for standard continuous risks.
@@ -61,29 +59,18 @@ class RiskEffect:
         self.cause_name = cause.name
 
     def setup(self, builder):
-        get_rr_func = self._get_data_functions.get('rr', get_relative_risk)
-        get_paf_func = self._get_data_functions.get('paf', get_population_attributable_fraction)
-        get_mf_func = self._get_data_functions.get('mf', get_mediation_factor)
+        self._raw_rr =  self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.relative_risk"))(self.risk, self.cause, builder)
 
-        self._rr_data = get_rr_func(self.risk, self.cause, builder.configuration)
+        # FIXME: Find a better way of defering this
+        self.__lookup_builder_function = builder.lookup
+        self._relative_risk = None
 
-        if self.risk.distribution in ('dichotomous', 'polytomous'):
-            # TODO: I'm not sure this is the right place to be doing this reshaping. Maybe it should
-            # be in the data_transformations somewhere?
-            self._rr_data = pd.pivot_table(self._rr_data, index=['year', 'age', 'sex'],
-                                           columns='parameter', values='relative_risk').dropna()
-            self._rr_data = self._rr_data.reset_index()
-        else:
-            del self._rr_data['parameter']
-
-        self._paf_data = get_paf_func(self.risk, self.cause, builder.configuration)
-        self._mediation_factor = get_mf_func(self.risk, self.cause, builder.configuration)
-
-        self.relative_risk = builder.lookup(self._rr_data)
-        self.population_attributable_fraction = builder.lookup(self._paf_data)
+        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.population_attributable_fraction"))(self.risk, self.cause, builder)
+        self.population_attributable_fraction = builder.lookup(paf_data)
 
         if builder.configuration.risks.apply_mediation:
-            self.mediation_factor = builder.lookup(self._mediation_factor)
+            mf =  self._get_data_functions.get('mf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.mediation_factor"))(self.risk, self.cause, builder)
+            self.mediation_factor = builder.lookup(mf)
         else:
             self.mediation_factor = None
 
@@ -93,6 +80,21 @@ class RiskEffect:
         is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
         self.exposure_effect = (continuous_exposure_effect(self.risk, self.population_view) if is_continuous
                                 else categorical_exposure_effect(self.risk, self.population_view))
+
+
+    @property
+    def relative_risk(self):
+        if self._relative_risk is None:
+            if self.risk.distribution in ('dichotomous', 'polytomous'):
+                # TODO: I'm not sure this is the right place to be doing this reshaping. Maybe it should
+                # be in the data_transformations somewhere?
+                rr_data = pd.pivot_table(self._raw_rr, index=['year', 'age', 'sex'],
+                                               columns='parameter', values='relative_risk').dropna()
+                rr_data = self.__rr_data.reset_index()
+            else:
+                del rr_data['parameter']
+            self._relative_risk = self.__lookup_builder_function(rr_data)
+        return self._relative_risk
 
 
     def paf_mf_adjustment(self, index):

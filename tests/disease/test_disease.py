@@ -8,8 +8,6 @@ import pytest
 from vivarium.framework.util import from_yearly
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
 
-from ceam_inputs import get_incidence, sequelae
-
 from ceam_public_health.disease import (BaseDiseaseState, DiseaseState, ExcessMortalityState,
                                         RateTransition, DiseaseModel)
 
@@ -122,7 +120,7 @@ def test_incidence(assign_cause_mock, config, disease):
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
-            'incidence_rate': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)
+            'incidence_rate': lambda _, builder: builder.data.load(f"sequela.acute_myocardial_infarction_first_2_days.incidence")
         })
     healthy.transition_set.append(transition)
 
@@ -156,7 +154,7 @@ def test_risk_deletion(assign_cause_mock, config, disease):
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
-            'incidence_rate': lambda _, __: get_incidence(sequelae.acute_myocardial_infarction_first_2_days, config)}
+            'incidence_rate': lambda _, builder: builder.data.load(f"sequela.acute_myocardial_infarction_first_2_days.incidence")
     )
     healthy.transition_set.append(transition)
 

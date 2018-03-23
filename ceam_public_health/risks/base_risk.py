@@ -2,8 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import multivariate_normal, norm
 
-from ceam_inputs import (risk_factors, coverage_gaps, get_risk_correlation_matrix,
-                         get_exposure, get_exposure_standard_deviation)
+from ceam_inputs import risk_factors, coverage_gaps
 
 from vivarium.framework.randomness import random
 
@@ -14,7 +13,9 @@ def uncorrelated_propensity(population, risk_factor):
     return random('initial_propensity_{}'.format(risk_factor.name), population.index)
 
 
-def correlated_propensity_factory(config):
+def correlated_propensity_factory(builder):
+    input_draw_number = builder.configuration.run_configuration.input_draw_number
+    correlation_matrices = builder.data.load("risk_factor.correlations.correlations")
 
     def correlated_propensity(population, risk_factor):
         """Choose a propensity to the risk factor for each simulant that respects
@@ -39,14 +40,14 @@ def correlated_propensity_factory(config):
         this code may be run in each time step rather than primarily during
         initialization.
         """
-        correlation_matrices = get_risk_correlation_matrix(override_config=config)
+
+        correlation_matrices = correlation_matrices.set_index(
+            ['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
 
         if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():
             # There's no correlation data for this risk, just pick a uniform random propensity
             return uncorrelated_propensity(population, risk_factor)
 
-        correlation_matrices = correlation_matrices.set_index(
-            ['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
 
         risk_factor_idx = sorted(correlation_matrices.risk_factor.unique()).index(risk_factor.name)
         ages = sorted(correlation_matrices.age.unique())
@@ -65,7 +66,7 @@ def correlated_propensity_factory(config):
             matrix = matrix.values
 
             dist = multivariate_normal(mean=np.zeros(len(matrix)), cov=matrix)
-            draw = dist.rvs(group.index.max()+1, random_state=config.run_configuration.input_draw_number)
+            draw = dist.rvs(group.index.max()+1, random_state=input_draw_number)
             draw = draw[group.index]
             quantiles = quantiles.append(
                 pd.Series(qdist.cdf(draw).T[risk_factor_idx], index=group.index)
@@ -107,15 +108,12 @@ class ContinuousRiskComponent:
     def setup(self, builder):
         if self.propensity_function is None:
             if builder.configuration.risks.apply_correlation:
-                self.propensity_function = correlated_propensity_factory(builder.configuration)
+                self.propensity_function = correlated_propensity_factory(builder)
             else:
                 self.propensity_function = uncorrelated_propensity
 
-        exposure_data = get_exposure(self._risk, builder.configuration)
-        exposure_sd_data = get_exposure_standard_deviation(self._risk, builder.configuration)
-        exposure = exposure_data.merge(exposure_sd_data).set_index(['age', 'sex', 'year'])
 
-        self.exposure_distribution = get_distribution(self._risk, exposure)
+        self.exposure_distribution = get_distribution(self._risk)
         self.randomness = builder.randomness.get_stream(self._risk.name)
         self.population_view = builder.population.get_view(
             [self._risk.name+'_exposure', self._risk.name+'_propensity', 'age', 'sex'])
@@ -173,7 +171,7 @@ class CategoricalRiskComponent:
     def setup(self, builder):
         if self.propensity_function is None:
             if builder.configuration.risks.apply_correlation:
-                self.propensity_function = correlated_propensity_factory(builder.configuration)
+                self.propensity_function = correlated_propensity_factory(builder)
             else:
                 self.propensity_function = uncorrelated_propensity
 
@@ -184,7 +182,7 @@ class CategoricalRiskComponent:
                                                                   self._risk.name + '_propensity'],
                                                  requires_columns=['age', 'sex'])
 
-        exposure_data = get_exposure(risk=self._risk, override_config=builder.configuration)
+        exposure_data = builder.data.load(f"risk_factor.{self._risk.name}.exposure")
         exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='mean')
         exposure_data = exposure_data.reset_index()
 

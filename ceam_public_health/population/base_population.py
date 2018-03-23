@@ -1,7 +1,5 @@
 import pandas as pd
 
-from ceam_inputs import get_populations, get_subregions
-
 from .data_transformations import assign_demographic_proportions, rescale_binned_proportions, smooth_ages
 
 SECONDS_PER_YEAR = 365.25*24*60*60
@@ -40,11 +38,20 @@ class BasePopulation:
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
-        self._population_data = _build_population_data_table(input_config.location_id,
-                                                             input_config.use_subregions,
-                                                             builder.configuration)
+        self._source_population_structure = builder.data.load("population.structure")
+        self._population_data = None
+        self._use_subregions = input_config.use_subregions
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
+
+
+    @property
+    def population_data(self):
+        if self._population_data is None:
+            self._population_data = _build_population_data_table(self._source_population_structure,
+                                                                 self._use_subregions)
+        return self._population_data
+
 
     # TODO: Move most of this docstring to an rst file.
     def generate_base_population(self, pop_data):
@@ -254,13 +261,13 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     return simulants
 
 
-def _build_population_data_table(main_location, use_subregions, override_config=None):
+def _build_population_data_table(data, use_subregions):
     """Constructs a population data table for use as a population distribution over demographic characteristics.
 
     Parameters
     ----------
-    main_location : int
-        The GBD location_id associated with the region being modeled.
+    data : pd.DataFrame
+        Population structure data
     use_subregions : bool
         Whether the GBD subregion demography should be used in place of the main_location demography.
 
@@ -279,10 +286,10 @@ def _build_population_data_table(main_location, use_subregions, override_config=
             'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year,
             'P(age | year, sex, location_id)' : Conditional probability of age given year, sex, and location_id.
     """
-    return assign_demographic_proportions(_get_population_data(main_location, use_subregions, override_config))
+    return assign_demographic_proportions(_get_population_data(data, use_subregions))
 
 
-def _get_population_data(main_location, use_subregions, override_config=None):
+def _get_population_data(main_location, use_subregions, builder):
     """Grabs all relevant population data from the GBD and returns it as a pandas DataFrame.
 
     Parameters
@@ -306,7 +313,7 @@ def _get_population_data(main_location, use_subregions, override_config=None):
     """
     locations = [main_location]
     if use_subregions:
-        sub_regions = get_subregions(override_config)
+        raise NotImplementedError("This may not work and needs to be thought about")
+        sub_regions = builder.data.load("subregions.sub_region_ids")
         locations = sub_regions if sub_regions else locations
-    return pd.concat([get_populations(override_config=override_config, location=location) for location in locations],
-                     ignore_index=True)
+    return builder.data.load("population.structure")
