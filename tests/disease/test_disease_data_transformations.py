@@ -49,7 +49,7 @@ def test_determine_if_sim_has_cause():
                                   "year": [1990]*4})
     simulants_df = pd.DataFrame({'sex': ['Male']*500000,
                                  'age': [0, 5, 10, 15]*125000}, index=range(500000))
-    results = determine_if_sim_has_cause(simulants_df, prevalence_df, get_randomness())
+    results = determine_if_sim_has_cause(simulants_df, prevalence_df, get_randomness(), 1)
     grouped_results = results.groupby('age')[['condition_envelope']].sum()
 
     err_msg = "determine if sim has cause needs to appropriately assign causes based on prevalence"
@@ -90,7 +90,7 @@ def test_determine_which_seq_diseased_sim_has():
                         'scaled_prevalence': [.25, 0, .25, 0]})
     sequela_proportion_dict = dict({'sequela 1': df1, 'sequela 2': df2})
 
-    results = determine_which_seq_diseased_sim_has(sequela_proportion_dict, simulants_df, get_randomness())
+    results = determine_which_seq_diseased_sim_has(sequela_proportion_dict, simulants_df, get_randomness(), 1)
     results['count'] = 1
 
     seq1 = results.query("condition_state == 'sequela 1'")
