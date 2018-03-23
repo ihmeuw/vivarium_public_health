@@ -339,11 +339,7 @@ class ExcessMortalityState(DiseaseState):
         get_excess_mortality_func = self._get_data_functions.get('excess_mortality', get_excess_mortality)
 
         self.excess_mortality_data = get_excess_mortality_func(self.cause, builder.configuration)
-        if 'mortality.interpolate' in builder.configuration and not builder.configuration.mortality.interpolate:
-            order = 0
-        else:
-            order = 1
-        excess_mortality_source = builder.lookup(self.excess_mortality_data, interpolation_order=order)
+        excess_mortality_source = builder.lookup(self.excess_mortality_data)
         self._mortality = builder.value.register_rate_producer(f'{self.state_id}.excess_mortality',
                                                                source=excess_mortality_source)
         builder.value.register_value_modifier('mortality_rate', modifier=self.mortality_rates)

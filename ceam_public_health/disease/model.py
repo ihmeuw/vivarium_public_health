@@ -45,6 +45,8 @@ class DiseaseModel(Machine):
     def setup(self, builder):
         self.config = builder.configuration
 
+        self._interpolation_order = builder.configuration.interpolation.order
+
         get_csmr_func = self._get_data_functions.get('csmr', get_cause_specific_mortality)
         self._csmr_data = get_csmr_func(self.cause, builder.configuration)
 
@@ -91,7 +93,8 @@ class DiseaseModel(Machine):
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
             condition_column = assign_cause_at_beginning_of_simulation(population, pop_data.creation_time.year,
                                                                        state_map, self.randomness,
-                                                                       self.initial_state)
+                                                                       self.initial_state,
+                                                                       self._interpolation_order)
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
         else:
             condition_column = pd.Series(self.initial_state, index=population.index, name=self.condition)
