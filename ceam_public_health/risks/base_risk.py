@@ -134,13 +134,18 @@ class ContinuousRiskComponent:
                                  name=self._risk.name+'_propensity',
                                  index=pop_data.index)
         self.population_view.update(propensities)
-        self.population_view.update(pd.Series(self.exposure_distribution.ppf(propensities),
+        exposure = self._get_current_exposure(propensities)
+        self.population_view.update(pd.Series(exposure,
                                               name=self._risk.name+'_exposure',
                                               index=pop_data.index))
 
+
+    def _get_current_exposure(self, propensity):
+        return self.exposure_distribution.ppf(propensity)
+
     def update_exposure(self, event):
         population = self.population_view.get(event.index)
-        new_exposure = self.exposure_distribution.ppf(population[self._risk.name+'_propensity'])
+        new_exposure = self._get_current_exposure(population[self._risk.name+'_propensity'])
         self.population_view.update(pd.Series(new_exposure, name=self._risk.name+'_exposure', index=event.index))
 
     def __repr__(self):
@@ -198,16 +203,15 @@ class CategoricalRiskComponent:
 
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
+        propensity = self.propensity_function(population, self._risk)
+        exposure = self._get_current_exposure(propensity)
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': self.propensity_function(population, self._risk),
-            self._risk.name+'_exposure': np.full(len(pop_data.index), ''),
+            self._risk.name+'_propensity': propensity,
+            self._risk.name+'_exposure': exposure,
         }))
 
-    def update_exposure(self, event):
-        pop = self.population_view.get(event.index)
-
-        exposure = self.exposure(event.index)
-        propensity = pop[self._risk.name+'_propensity']
+    def _get_current_exposure(self, propensity):
+        exposure = self.exposure(propensity.index)
 
         # Get a list of sorted category names (e.g. ['cat1', 'cat2', ..., 'cat9', 'cat10', ...])
         categories = sorted([column for column in exposure if 'cat' in column])
@@ -218,7 +222,13 @@ class CategoricalRiskComponent:
 
         category_index = (exposure_sum.T < propensity).T.sum('columns')
 
-        categories = pd.Series(np.array(categories)[category_index], name=self._risk.name+'_exposure')
+        return pd.Series(np.array(categories)[category_index], name=self._risk.name+'_exposure')
+
+    def update_exposure(self, event):
+        pop = self.population_view.get(event.index)
+
+        propensity = pop[self._risk.name+'_propensity']
+        categories = self._get_current_exposure(propensity)
         self.population_view.update(categories)
 
     def __repr__(self):
