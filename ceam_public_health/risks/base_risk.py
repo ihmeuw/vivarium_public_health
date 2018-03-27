@@ -222,7 +222,7 @@ class CategoricalRiskComponent:
 
         category_index = (exposure_sum.T < propensity).T.sum('columns')
 
-        return pd.Series(np.array(categories)[category_index], name=self._risk.name+'_exposure')
+        return pd.Series(np.array(categories)[category_index], name=self._risk.name+'_exposure', index=propensity.index)
 
     def update_exposure(self, event):
         pop = self.population_view.get(event.index)
