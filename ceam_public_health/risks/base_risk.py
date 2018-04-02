@@ -99,17 +99,15 @@ class ContinuousRiskComponent:
         },
     }
 
-    def __init__(self, risk, propensity_function=None):
+    def __init__(self, risk):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
         self._effects = make_gbd_risk_effects(self._risk)
-        self.propensity_function = propensity_function
 
     def setup(self, builder):
-        if self.propensity_function is None:
-            if builder.configuration.risks.apply_correlation:
-                self.propensity_function = correlated_propensity_factory(builder.configuration)
-            else:
-                self.propensity_function = uncorrelated_propensity
+        if builder.configuration.risks.apply_correlation:
+            self.propensity_function = correlated_propensity_factory(builder.configuration)
+        else:
+            self.propensity_function = uncorrelated_propensity
 
         exposure_data = get_exposure(self._risk, builder.configuration)
         exposure_sd_data = get_exposure_standard_deviation(self._risk, builder.configuration)
@@ -139,7 +137,6 @@ class ContinuousRiskComponent:
                                               name=self._risk.name+'_exposure',
                                               index=pop_data.index))
 
-
     def _get_current_exposure(self, propensity):
         return self.exposure_distribution.ppf(propensity)
 
@@ -167,20 +164,18 @@ class CategoricalRiskComponent:
         },
     }
 
-    def __init__(self, risk, propensity_function=None):
+    def __init__(self, risk):
         if isinstance(risk, str):
             self._risk = risk_factors[risk] if risk in risk_factors else coverage_gaps[risk]
         else:
             self._risk = risk
         self._effects = make_gbd_risk_effects(self._risk)
-        self.propensity_function = propensity_function
 
     def setup(self, builder):
-        if self.propensity_function is None:
-            if builder.configuration.risks.apply_correlation:
-                self.propensity_function = correlated_propensity_factory(builder.configuration)
-            else:
-                self.propensity_function = uncorrelated_propensity
+        if builder.configuration.risks.apply_correlation:
+            self.propensity_function = correlated_propensity_factory(builder.configuration)
+        else:
+            self.propensity_function = uncorrelated_propensity
 
         self.population_view = builder.population.get_view(
             [self._risk.name+'_propensity', self._risk.name+'_exposure', 'age', 'sex'])
