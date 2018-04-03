@@ -37,8 +37,8 @@ class CalculateIncidence:
         builder.value.register_value_modifier('epidemiological_span_measures',
                                               modifier=self.calculate_incidence_measure)
 
-        self.root_location = builder.configuration.input.location_id
-        self.clock = builder.clock()
+        self.root_location = builder.configuration.input_data.location_id
+        self.clock = builder.time.clock()
         columns = [self.disease_col, self.disease_time_col, "exit_time", "age", "sex", "alive"]
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.update_incidence_rate_df)

@@ -23,8 +23,8 @@ def config(base_config):
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
     base_config.population.set_with_metadata('age_start', 0, **metadata)
     base_config.population.set_with_metadata('age_end', 110, **metadata)
+    base_config.population.set_with_metadata('use_subregions', False, **metadata)
     base_config.input_data.set_with_metadata('location_id', 180, **metadata)
-    base_config.input_data.set_with_metadata('use_subregions', False, **metadata)
     return base_config
 
 
@@ -110,7 +110,6 @@ def make_uniform_pop_data():
 def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_population_mock):
     num_days = 600
     time_step = 100  # Days
-    time_start = pd.Timestamp('1990-01-01')
     uniform_pop = dt.assign_demographic_proportions(make_uniform_pop_data())
     sims = make_full_simulants()
     start_population_size = len(sims)
@@ -118,13 +117,13 @@ def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_populat
     build_pop_data_table_mock.return_value = uniform_pop
     generate_ceam_population_mock.return_value = sims
 
-    use_subregions = ('use_subregions' in config.input_data and config.input_data.use_subregions)
+    use_subregions = ('use_subregions' in config.population and config.population.use_subregions)
 
     base_pop = bp.BasePopulation()
 
     components = [base_pop]
-    simulation = setup_simulation(components, population_size=start_population_size,
-                                  start=time_start, input_config=config)
+    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    time_start = simulation.clock.time
 
     build_pop_data_table_mock.assert_called_once_with(config.input_data.location_id, use_subregions, config)
     assert base_pop._population_data.equals(uniform_pop)
@@ -136,7 +135,7 @@ def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_populat
     generate_ceam_population_mock.assert_called_once()
     # Get a dictionary of the arguments used in the call
     mock_args = generate_ceam_population_mock.call_args[1]
-    assert mock_args['creation_time'] == time_start - simulation.step_size
+    assert mock_args['creation_time'] == time_start - simulation.clock.step_size
     assert mock_args['age_params'] == age_params
     assert mock_args['population_data'].equals(sub_pop)
     assert mock_args['randomness_streams'] == base_pop.randomness
@@ -154,16 +153,16 @@ def test_age_out_simulants(config):
     start_population_size = 10000
     num_days = 600
     time_step = 100  # Days
-    time_start = pd.Timestamp('1990-01-01')
     config.update({'population': {'age_start': 4,
                                   'age_end': 4,
                                   'exit_age': 5, },
-                   'simulation_parameters': {'time_step': time_step}
+                   'time': {'step_size': time_step}
                    },
                   layer='override')
     components = [bp.BasePopulation()]
-    simulation = setup_simulation(components, population_size=start_population_size,
-                                  start=time_start, input_config=config)
+    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    time_start = simulation.clock.time
+
     assert len(simulation.population.population) == len(simulation.population.population.age.unique())
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
@@ -227,7 +226,7 @@ def test__assign_demography_with_initial_age(config):
     initial_age = 20
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
     register = lambda *args, **kwargs: None
-    step_size = pd.Timedelta(days=config.simulation_parameters.time_step)
+    step_size = pd.Timedelta(days=config.time.step_size)
 
     simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age, step_size, r, register)
 
@@ -247,7 +246,7 @@ def test__assign_demography_with_initial_age_zero(config):
     initial_age = 0
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
     register = lambda *args, **kwargs: None
-    step_size = pd.Timedelta(days=config.simulation_parameters.time_step)
+    step_size = pd.Timedelta(days=config.time.step_size)
 
     simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age, step_size, r, register)
 
@@ -325,8 +324,8 @@ def test__get_population_data(config, get_populations_mock, get_subregions_mock,
     main_id = 10
     main_id_no_subregions = 20
     subregion_ids = [11, 12]
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
 
     get_subregions_mock.side_effect = lambda override_config: (subregion_ids if override_config.input_data.location_id
                                                                                 == main_id else None)

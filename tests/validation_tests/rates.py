@@ -18,15 +18,15 @@ def config(base_config):
     except KeyError:
         pass
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.simulation_parameters.set_with_metadata('year_start', 1990, **metadata)
-    base_config.simulation_parameters.set_with_metadata('year_end', 2010, **metadata)
-    base_config.simulation_parameters.set_with_metadata('time_step', 30.5, **metadata)
+    base_config.time.start.set_with_metadata('year', 1990, **metadata)
+    base_config.time.end.set_with_metadata('year', 2010, **metadata)
+    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
     return base_config
 
 
 def make_model(config, incidence_rate, recovery_rate):
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
     healthy = State('healthy')
     sick = State('sick')
     recovered = State('recovered')
@@ -43,8 +43,7 @@ def make_model(config, incidence_rate, recovery_rate):
 
 
 def test_incidence_rate_recalculation(config):
-    config.simulation_parameters.set_with_metadata('time_step', 1, layer='override',
-                                                   source=os.path.realpath(__file__))
+    config.time.step_size = 1
     incidence_rate = 0.01
     recovery_rate = 72  # Average duration of 5 days
     sim = setup_simulation([TestPopulation(), make_model(config, incidence_rate, recovery_rate)],

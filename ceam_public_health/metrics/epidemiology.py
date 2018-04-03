@@ -23,7 +23,7 @@ class EpidemiologicalMeasures:
                                                                     source=self.base_cube)
         self.span_measures = builder.value.register_value_producer('epidemiological_span_measures',
                                                                    source=self.base_cube)
-        self.clock = builder.clock()
+        self.clock = builder.time.clock()
 
         self.run_key = self.run_config.run_key.to_dict() if 'run_key' in self.run_config else None
 
@@ -85,7 +85,7 @@ class EpidemiologicalMeasures:
         df = measures(index, age_groups, ['Male', 'Female'], False, pd.Timedelta(days=365)).reset_index()
         df['year'] = current_year
         df['input_draw'] = self.run_config.input_draw_number
-        df['model_draw'] = self.run_config.model_draw_number
+        df['model_draw'] = self.run_config.random_seed
         existing_df = pd.read_hdf(self.output_path)
         df = existing_df.append(df)
 

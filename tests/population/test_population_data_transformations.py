@@ -1,12 +1,29 @@
 from itertools import product
 import math
+import os
 
+import pytest
 import numpy as np
 import pandas as pd
 
 from vivarium.test_util import get_randomness, build_table
 
 import ceam_public_health.population.data_transformations as dt
+
+
+@pytest.fixture(scope='function')
+def config(base_config):
+    try:
+        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                           'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+
+    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
+    base_config.time.start.set_with_metadata('year', 1990, **metadata)
+    base_config.time.end.set_with_metadata('year', 2010, **metadata)
+    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
+    return base_config
 
 
 def make_uniform_pop_data():
@@ -154,9 +171,9 @@ def test__compute_ages():
     assert dt._compute_ages(1, 10, 12, 5, 33) == 10 + 12/5*(np.sqrt(1+2*33*5/12**2*1) - 1)
 
 
-def test_get_cause_deleted_mortality(base_config):
-    year_start = base_config.simulation_parameters.year_start
-    year_end = base_config.simulation_parameters.year_end
+def test_get_cause_deleted_mortality(config):
+    year_start = config.time.start.year
+    year_end = config.time.end.year
     all_cause_rate = 15
     cause_specific_rate = 1
     num_csmrs = 5

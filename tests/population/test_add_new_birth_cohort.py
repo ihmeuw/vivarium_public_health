@@ -18,9 +18,9 @@ def config(base_config):
         pass
 
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.simulation_parameters.set_with_metadata('year_start', 1990, **metadata)
-    base_config.simulation_parameters.set_with_metadata('year_end', 2010, **metadata)
-    base_config.simulation_parameters.set_with_metadata('time_step', 30.5, **metadata)
+    base_config.time.start.set_with_metadata('year', 1990, **metadata)
+    base_config.time.end.set_with_metadata('year', 2010, **metadata)
+    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
     return base_config
 
 
@@ -29,15 +29,13 @@ def test_FertilityDeterministic(config):
     annual_new_simulants = 1000
     num_days = 100
     time_step = 10  # Days
-    time_start = pd.Timestamp('1990-01-01')
     config.read_dict({'population': {'age_start': 0, 'age_end': 125},
                       'fertility_deterministic': {'number_of_new_simulants_each_year': annual_new_simulants},
-                      'simulation_parameters': {'time_step': time_step}},
+                      'time': {'step_size': time_step}},
                      layer='override')
 
     components = [TestPopulation(), FertilityDeterministic()]
-    simulation = setup_simulation(components, population_size=start_population_size,
-                                  start=time_start, input_config=config)
+    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
     num_steps = pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     assert num_steps == num_days // time_step
     pop = simulation.population.population
@@ -52,12 +50,10 @@ def test_FertilityCrudeBirthRate(config):
     start_population_size = 10000
     num_days = 100
     time_step = 10  # Days
-    time_start = pd.Timestamp('1990-01-01')
     config.read_dict({'population': {'age_start': 0, 'age_end': 125}}, layer='override')
 
     components = [TestPopulation(), FertilityCrudeBirthRate()]
-    simulation = setup_simulation(components, population_size=start_population_size,
-                                  start=time_start, input_config=config)
+    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
 
@@ -72,12 +68,11 @@ def test_fertility_module(config):
     start_population_size = 1000
     num_days = 1000
     time_step = 10  # Days
-    time_start = pd.Timestamp('1990-01-01')
     config.read_dict({'population': {'age_start': 0, 'age_end': 125}}, layer='override')
 
     components = [TestPopulation(), FertilityAgeSpecificRates()]
-    simulation = setup_simulation(components, population_size=start_population_size,
-                                  start=time_start, input_config=config)
+    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    time_start = simulation.clock.time
 
     assert 'last_birth_time' in simulation.population.population.columns,\
         'expect Fertility module to update state table.'
