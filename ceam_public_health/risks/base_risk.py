@@ -15,7 +15,7 @@ def uncorrelated_propensity(population, risk_factor):
 
 def correlated_propensity_factory(builder):
     input_draw_number = builder.configuration.run_configuration.input_draw_number
-    correlation_matrices = builder.data.load("risk_factor.correlations.correlations")
+    correlation_matrices_data = builder.data.load("risk_factor.correlations.correlations")
 
     def correlated_propensity(population, risk_factor):
         """Choose a propensity to the risk factor for each simulant that respects
@@ -41,7 +41,7 @@ def correlated_propensity_factory(builder):
         initialization.
         """
 
-        correlation_matrices = correlation_matrices.set_index(
+        correlation_matrices = correlation_matrices_data.set_index(
             ['risk_factor', 'sex', 'age']).sort_index(0).sort_index(1).reset_index()
 
         if correlation_matrices is None or risk_factor.name not in correlation_matrices.risk_factor.unique():

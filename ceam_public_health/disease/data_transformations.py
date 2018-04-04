@@ -8,10 +8,11 @@ def get_cause_level_prevalence(states, year_start):
     prevalence_df = pd.DataFrame()
     states = dict(states)
     for key in states.keys():
-        assert set(states[key].columns) == {'year', 'age', 'prevalence', 'sex'}, ("The keys in the dict passed to "
+        assert set(states[key].columns) == {'year', 'age', 'value', 'sex'}, ("The keys in the dict passed to "
                                                                                   "get_cause_level_prevalence need "
                                                                                   "to be dataframes with columns year, "
-                                                                                  "age, prevalence, and sex.")
+                                                                                  "age, value, and sex.")
+        states[key] = states[key].rename(columns={"value":"prevalence"})
         if year_start > states[key].year.max():
             y = states[key].year.max()
         else:
@@ -46,7 +47,7 @@ def get_sequela_proportions(cause_level_prevalence, states):
     sequela_proportions = {}
 
     for key in states.keys():
-        sequela_proportions[key] = pd.merge(states[key], cause_level_prevalence,
+        sequela_proportions[key] = pd.merge(states[key].rename(columns={"value":"prevalence"}), cause_level_prevalence,
                                             on=['age', 'sex', 'year'], suffixes=('_single', '_total'))
         single = sequela_proportions[key]['prevalence_single']
         total = sequela_proportions[key]['prevalence_total']

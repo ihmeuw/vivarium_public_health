@@ -15,7 +15,6 @@ class BasePopulation:
 
     configuration_defaults = {
         'population': {
-            'use_subregions': False,
             'age_start': 0,
             'age_end': 125,
             'exit_age': None,
@@ -38,9 +37,9 @@ class BasePopulation:
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
-        self._source_population_structure = builder.data.load("population.structure")
+        self._source_population_structure = builder.data.load("population.structure", keep_age_group_edges=True)
         self._population_data = None
-        self._use_subregions = input_config.use_subregions
+        self._location = input_config.location_id
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
 
@@ -48,8 +47,8 @@ class BasePopulation:
     @property
     def population_data(self):
         if self._population_data is None:
-            self._population_data = _build_population_data_table(self._source_population_structure,
-                                                                 self._use_subregions)
+            self._source_population_structure['location_id'] = self._location
+            self._population_data = _build_population_data_table(self._source_population_structure)
         return self._population_data
 
 
@@ -80,12 +79,12 @@ class BasePopulation:
         age_params = {'age_start': pop_data.user_data.get('age_start', self.config.age_start),
                       'age_end': pop_data.user_data.get('age_end', self.config.age_end)}
 
-        if pop_data.creation_time.year in self._population_data.year.unique():
-            sub_pop_data = self._population_data[self._population_data.year == pop_data.creation_time.year]
-        elif pop_data.creation_time.year > self._population_data.year.max():
-            sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.max()]
-        else:  # pop_data.creation_time.year < self._population_data.year.min():
-            sub_pop_data = self._population_data[self._population_data.year == self._population_data.year.min()]
+        if pop_data.creation_time.year in self.population_data.year.unique():
+            sub_pop_data = self.population_data[self.population_data.year == pop_data.creation_time.year]
+        elif pop_data.creation_time.year > self.population_data.year.max():
+            sub_pop_data = self.population_data[self.population_data.year == self.population_data.year.max()]
+        else:  # pop_data.creation_time.year < self.population_data.year.min():
+            sub_pop_data = self.population_data[self.population_data.year == self.population_data.year.min()]
 
         self.population_view.update(generate_ceam_population(simulant_ids=pop_data.index,
                                                              creation_time=pop_data.creation_time,
@@ -261,15 +260,13 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     return simulants
 
 
-def _build_population_data_table(data, use_subregions):
+def _build_population_data_table(data):
     """Constructs a population data table for use as a population distribution over demographic characteristics.
 
     Parameters
     ----------
     data : pd.DataFrame
         Population structure data
-    use_subregions : bool
-        Whether the GBD subregion demography should be used in place of the main_location demography.
 
     Returns
     -------
@@ -286,34 +283,4 @@ def _build_population_data_table(data, use_subregions):
             'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year,
             'P(age | year, sex, location_id)' : Conditional probability of age given year, sex, and location_id.
     """
-    return assign_demographic_proportions(_get_population_data(data, use_subregions))
-
-
-def _get_population_data(main_location, use_subregions, builder):
-    """Grabs all relevant population data from the GBD and returns it as a pandas DataFrame.
-
-    Parameters
-    ----------
-    main_location : int
-        The GBD location_id associated with the region being modeled.
-    use_subregions : bool
-        Whether the GBD subregion demography should be used in place of the main_location demography.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Table with columns
-            'age' : Midpoint of the age group,
-            'age_group_start' : Lower bound of the age group,
-            'age_group_end' : Upper bound of the age group,
-            'sex' : 'Male' or 'Female',
-            'location_id' : GBD location id,
-            'year' : Year,
-            'population' : Total population estimate
-    """
-    locations = [main_location]
-    if use_subregions:
-        raise NotImplementedError("This may not work and needs to be thought about")
-        sub_regions = builder.data.load("subregions.sub_region_ids")
-        locations = sub_regions if sub_regions else locations
-    return builder.data.load("population.structure")
+    return assign_demographic_proportions(data)

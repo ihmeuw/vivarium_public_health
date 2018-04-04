@@ -77,8 +77,8 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-        self._population_data = builder.data.load("population.structure").query('sex == "Both"')
-        self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate").query('sex == "Both"').set_index(['year'])
+        self._population_data = builder.data.load("population.structure")
+        self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
         if 'exit_age' in builder.configuration.population:
             self.exit_age = builder.configuration.population.exit_age
         else:
@@ -135,8 +135,8 @@ class FertilityCrudeBirthRate:
             The crude birth rate of the population in the given year in
             births per person per year.
         """
-        population_table = self._population_data[self._population_data.year == year]
-        births = float(self._birth_data.loc[year].mean_value)
+        population_table = self._population_data[self._population_data.year == year].query("sex == 'Both'")
+        births = float(self._birth_data.query('sex == "Both"').set_index(['year']).loc[year].mean_value)
 
         if self.exit_age is not None:
             population = population_table.population[population_table.age < self.exit_age].sum()

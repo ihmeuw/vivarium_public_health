@@ -129,7 +129,7 @@ class SusceptibleState(BaseDiseaseState):
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
             if get_data_functions is None:
-                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.incidince")}
+                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.incidence")}
             elif 'incidence_rate' not in get_data_functions:
                 raise ValueError('You must supply an incidence rate function.')
         elif source_data_type == 'proportion':
@@ -146,7 +146,7 @@ class RecoveredState(BaseDiseaseState):
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
             if get_data_functions is None:
-                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.incidince")}
+                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.incidence")}
             elif 'incidence_rate' not in get_data_functions:
                 raise ValueError('You must supply an incidence rate function.')
         elif source_data_type == 'proportion':
@@ -209,7 +209,7 @@ class DiseaseState(BaseDiseaseState):
         self._dwell_time = get_dwell_time_func(self.cause, builder)
 
         if disability_weight_data is not None:
-            self._disability_weight = builder.lookup(disability_weight_data)
+            self._disability_weight = builder.lookup(float(disability_weight_data.value))
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)

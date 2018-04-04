@@ -36,6 +36,9 @@ class DiseaseModel(Machine):
             raise ValueError('If you do not provide a GBD cause from the gbd_mapping, you must supply'
                              'custom data gathering functions for csmr.')
 
+        if 'csmr' not in self._get_data_functions:
+            self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(f"cause.{cause.name}.cause_specific_mortality")
+
     @property
     def condition(self):
         return self.state_column
@@ -43,7 +46,7 @@ class DiseaseModel(Machine):
     def setup(self, builder):
         self.config = builder.configuration
 
-        self._csmr_data = builder.data.load(f"cause.{self.cause.name}.cause_specific_mortality")
+        self._csmr_data = self._get_data_functions['csmr'](self.cause, builder)
 
         builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
         builder.value.register_value_modifier('epidemiological_point_measures', modifier=self.prevalence)

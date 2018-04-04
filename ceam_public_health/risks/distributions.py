@@ -30,10 +30,10 @@ class BaseDistribution:
     @property
     def params(self):
         if self._params is None:
-            self._params = self.load_parameters()
+            self._params = self.get_parameters()
         return self._params
 
-    def load_parameters(self):
+    def get_parameters(self):
         raise NotImplementedError()
 
     def setup(self, builder):
@@ -203,7 +203,7 @@ class LogNormal(BaseDistribution):
         self._build_lookup_function = builder.lookup
 
     def get_parameters(self):
-        exposure_mean, exposure_sd = self._exposure_mean.values, self._exposure_std.values
+        exposure_mean, exposure_sd = self._exposure_mean.values, self._exposure_sd.values
         alpha = 1 + exposure_sd ** 2 / exposure_mean ** 2
         s = np.sqrt(np.log(alpha))
         scale = exposure_mean / np.sqrt(alpha)
@@ -260,7 +260,9 @@ class Normal(BaseDistribution):
         self._build_lookup_function = builder.lookup
 
     def get_parameters(self):
-        return self._build_lookup_function(pd.DataFrame({'loc': self._exposure_mean, 'scale': self._exposure_std}, index=self._exposure.index).reset_index())
+        mean = self._exposure_mean.set_index(['year', 'sex', 'age']).value
+        sd = self._exposure_sd.set_index(['year', 'sex', 'age']).value
+        return self._build_lookup_function(pd.DataFrame({'loc': mean, 'scale': sd}).reset_index())
 
     def pdf(self, x):
         params = self.params(x.index)

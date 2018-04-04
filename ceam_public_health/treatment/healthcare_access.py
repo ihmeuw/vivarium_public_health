@@ -95,13 +95,13 @@ class HealthcareAccess:
     @property
     def _hospitalization_cost(self):
         if self.__hospitalization_cost is None:
-            self.__hospitalization_cost = Interpolation(self._ip_cost_df, tuple(), ('year',))
+            self.__hospitalization_cost = Interpolation(self._ip_cost_df[['year','value']], tuple(), ('year',))
         return self.__hospitalization_cost
 
     @property
     def _appointment_cost(self):
         if self.__appointment_cost is None:
-            self.__appointment_cost = Interpolation(self._op_cost_df, tuple(), ('year',))
+            self.__appointment_cost = Interpolation(self._op_cost_df[['year','value']], tuple(), ('year',))
         return self.__appointment_cost
 
     def load_population_columns(self, pop_data):

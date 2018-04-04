@@ -59,18 +59,21 @@ class RiskEffect:
         self.cause_name = cause.name
 
     def setup(self, builder):
-        self._raw_rr =  self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.relative_risk"))(self.risk, self.cause, builder)
+        self._raw_rr =  self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.relative_risk", cause_id=self.cause.gbd_id))(self.risk, self.cause, builder)
 
         # FIXME: Find a better way of defering this
         self.__lookup_builder_function = builder.lookup
         self._relative_risk = None
 
-        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.population_attributable_fraction"))(self.risk, self.cause, builder)
+        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.population_attributable_fraction", cause_id=self.cause.gbd_id))(self.risk, self.cause, builder)
         self.population_attributable_fraction = builder.lookup(paf_data)
 
         if builder.configuration.risks.apply_mediation:
-            mf =  self._get_data_functions.get('mf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.mediation_factor"))(self.risk, self.cause, builder)
-            self.mediation_factor = builder.lookup(mf)
+            mf =  self._get_data_functions.get('mf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.mediation_factor", cause_id=self.cause.gbd_id))(self.risk, self.cause, builder)
+            if mf is not None and not mf.empty:
+                self.mediation_factor = builder.lookup(mf)
+            else:
+                self.mediation_factor = None
         else:
             self.mediation_factor = None
 
@@ -92,7 +95,7 @@ class RiskEffect:
                                                columns='parameter', values='relative_risk').dropna()
                 rr_data = self.__rr_data.reset_index()
             else:
-                del rr_data['parameter']
+                rr_data = self._raw_rr
             self._relative_risk = self.__lookup_builder_function(rr_data)
         return self._relative_risk
 
