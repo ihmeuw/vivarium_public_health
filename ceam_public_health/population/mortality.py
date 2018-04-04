@@ -19,7 +19,6 @@ class Mortality:
         self._cause_deleted_mortality_data = None
 
         self._root_location = builder.configuration.input_data.location_id
-        self._interpolation_order = 1 if builder.configuration.mortality.interpolate else 0
         self._build_lookup_handle = builder.lookup
 
         self.csmr = builder.value.register_value_producer('csmr_data', source=list, preferred_combiner=list_combiner)
@@ -48,7 +47,7 @@ class Mortality:
             csmr_data = self.csmr()
             cause_deleted_mr = get_cause_deleted_mortality(self._all_cause_mortality_data, csmr_data)
             self._cause_deleted_mortality_data = self._build_lookup_handle(
-                cause_deleted_mr, interpolation_order=self._interpolation_order)
+                cause_deleted_mr)
 
         return self._cause_deleted_mortality_data(index)
 

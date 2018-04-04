@@ -208,8 +208,10 @@ class DiseaseState(BaseDiseaseState):
         self.prevalence_data = get_prevalence_func(self.cause, builder)
         self._dwell_time = get_dwell_time_func(self.cause, builder)
 
-        if disability_weight_data is not None:
+        if isinstance(disability_weight_data, pd.DataFrame):
             self._disability_weight = builder.lookup(float(disability_weight_data.value))
+        elif disability_weight_data is not None:
+            self._disability_weight = disability_weight_data
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
@@ -337,11 +339,7 @@ class ExcessMortalityState(DiseaseState):
         get_excess_mortality_func = self._get_data_functions.get('excess_mortality', lambda cause, builder: builder.data.load(f"cause.{cause.name}.excess_mortality"))
 
         self.excess_mortality_data = get_excess_mortality_func(self.cause, builder)
-        if 'mortality.interpolate' in builder.configuration and not builder.configuration.mortality.interpolate:
-            order = 0
-        else:
-            order = 1
-        excess_mortality_source = builder.lookup(self.excess_mortality_data, interpolation_order=order)
+        excess_mortality_source = builder.lookup(self.excess_mortality_data)
         self._mortality = builder.value.register_rate_producer(f'{self.state_id}.excess_mortality',
                                                                source=excess_mortality_source)
         builder.value.register_value_modifier('mortality_rate', modifier=self.mortality_rates)

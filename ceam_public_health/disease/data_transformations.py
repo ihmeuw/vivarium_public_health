@@ -6,6 +6,7 @@ from vivarium.interpolation import Interpolation
 
 def get_cause_level_prevalence(states, year_start):
     prevalence_df = pd.DataFrame()
+    initial_states = states
     states = dict(states)
     for key in states.keys():
         assert set(states[key].columns) == {'year', 'age', 'value', 'sex'}, ("The keys in the dict passed to "
@@ -34,7 +35,7 @@ def determine_if_sim_has_cause(simulants_df, cause_level_prevalence, randomness)
     assert len(set(cause_level_prevalence.year)) == 1
     cause_level_prevalence = cause_level_prevalence.copy()
     del cause_level_prevalence['year']
-    probability_of_disease = Interpolation(cause_level_prevalence, ['sex'], ['age'])(simulants_df[['age', 'sex']])
+    probability_of_disease = Interpolation(cause_level_prevalence, ['sex'], ['age'], order=1)(simulants_df[['age', 'sex']])
     probability_of_not_having_disease = 1 - probability_of_disease
     weights = np.array([probability_of_not_having_disease.values, probability_of_disease.values]).T
     results = simulants_df.copy()
@@ -59,7 +60,7 @@ def get_sequela_proportions(cause_level_prevalence, states):
 
 def determine_which_seq_diseased_sim_has(sequela_proportions, new_sim_file, randomness):
     sequela_proportion_interpolations = [
-        (key, Interpolation(data[['sex', 'age', 'scaled_prevalence']], ['sex'], ['age']))
+        (key, Interpolation(data[['sex', 'age', 'scaled_prevalence']], ['sex'], ['age'], order=1))
         for key, data in sequela_proportions.items()
     ]
     sub_pop = new_sim_file.query('condition_envelope == 1')

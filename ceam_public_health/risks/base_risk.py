@@ -183,11 +183,12 @@ class CategoricalRiskComponent:
                                                  requires_columns=['age', 'sex'])
 
         exposure_data = builder.data.load(f"risk_factor.{self._risk.name}.exposure")
-        exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='mean')
-        exposure_data = exposure_data.reset_index()
+        def make_exposure():
+            exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='mean')
+            return exposure_data.reset_index()
 
         self.exposure = builder.value.register_value_producer(f'{self._risk.name}.exposure',
-                                                              source=builder.lookup(exposure_data))
+                                                              source=builder.lookup(make_exposure))
 
         self.randomness = builder.randomness.get_stream(self._risk.name)
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)

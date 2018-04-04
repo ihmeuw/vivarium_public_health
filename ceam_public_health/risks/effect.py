@@ -71,7 +71,7 @@ class RiskEffect:
         if builder.configuration.risks.apply_mediation:
             mf =  self._get_data_functions.get('mf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.mediation_factor", cause_id=self.cause.gbd_id))(self.risk, self.cause, builder)
             if mf is not None and not mf.empty:
-                self.mediation_factor = builder.lookup(mf)
+                self.mediation_factor = builder.lookup(float(mf.value))
             else:
                 self.mediation_factor = None
         else:
