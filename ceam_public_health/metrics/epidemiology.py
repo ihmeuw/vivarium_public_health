@@ -85,7 +85,7 @@ class EpidemiologicalMeasures:
         df = measures(index, age_groups, ['Male', 'Female'], False, pd.Timedelta(days=365)).reset_index()
         df['year'] = current_year
         df['input_draw'] = self.run_config.input_draw_number
-        df['model_draw'] = self.run_config.random_seed
+        df['random_seed'] = self.run_config.random_seed
         existing_df = pd.read_hdf(self.output_path)
         df = existing_df.append(df)
 
