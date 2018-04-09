@@ -22,9 +22,9 @@ def config(base_config):
         pass
 
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.simulation_parameters.set_with_metadata('year_start', 1995, **metadata)
-    base_config.simulation_parameters.set_with_metadata('year_end', 2000, **metadata)
-    base_config.simulation_parameters.set_with_metadata('time_step', 30.5, **metadata)
+    base_config.time.start.set_with_metadata('year', 1995, **metadata)
+    base_config.time.end.set_with_metadata('year', 2000, **metadata)
+    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
     return base_config
 
 
@@ -40,8 +40,8 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
         If true, include an excess mortality state for mumps
         If false, do not include an excess mortality state for mumps
     """
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
     n_simulants = 1000
 
     asymp_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start-1, year_end,

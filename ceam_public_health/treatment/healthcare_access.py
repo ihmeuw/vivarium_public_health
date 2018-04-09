@@ -58,7 +58,7 @@ class HealthcareAccess:
         self.general_random = builder.randomness.get_stream('healthcare_general_access')
         self.followup_random = builder.randomness.get_stream('healthcare_followup_access')
         self.adherence_random = builder.randomness.get_stream('healthcare_adherence')
-        self.clock = builder.clock()
+        self.clock = builder.time.clock()
         r = np.random.RandomState(self.general_random.get_seed())
 
         self.semi_adherent_pr = r.normal(0.4, 0.0485)  # FIXME: document this parameter choice, and consider refining it

@@ -18,9 +18,10 @@ def config(base_config):
     except KeyError:
         pass
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.simulation_parameters.set_with_metadata('year_start', 1995, **metadata)
-    base_config.simulation_parameters.set_with_metadata('year_end', 2010, **metadata)
-    base_config.simulation_parameters.set_with_metadata('time_step', 30.5, **metadata)
+    base_config.time.start.set_with_metadata('year', 1995, **metadata)
+    base_config.time.end.set_with_metadata('year', 2010, **metadata)
+    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
+    base_config.run_configuration.set_with_metadata('input_draw_number', 1, **metadata)
     return base_config
 
 
@@ -45,8 +46,8 @@ class Metrics:
 
 @pytest.mark.slow
 def test_general_access(config, get_annual_visits_mock):
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
 
     def get_utilization_rate(*_, **__):
         return build_table(0.1*12, year_start, year_end, ['age', 'year', 'sex', 'annual_visits'])
@@ -62,8 +63,8 @@ def test_general_access(config, get_annual_visits_mock):
 @pytest.mark.slow
 @pytest.mark.skip("I don't know why this is broken or how it works. -J.C.")
 def test_adherence(config, get_annual_visits_mock):
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
     n_simulants = int('10_000')
 
     def get_utilization_rate(*_, **__):

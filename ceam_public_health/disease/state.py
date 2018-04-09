@@ -41,7 +41,7 @@ class BaseDiseaseState(State):
         sub_components = super().setup(builder)
         if self.side_effect_function is not None:
             sub_components.append(self.side_effect_function)
-        self.clock = builder.clock()
+        self.clock = builder.time.clock()
 
         columns = [self._model, 'alive']
         if self.track_events:
