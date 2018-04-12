@@ -8,12 +8,6 @@ from .data_transformations import get_cause_deleted_mortality
 
 class Mortality:
 
-    configuration_defaults = {
-            'mortality': {
-                'interpolate': True
-            }
-    }
-
     def setup(self, builder):
         self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")
         self._cause_deleted_mortality_data = None
@@ -29,7 +23,7 @@ class Mortality:
 
         self.death_emitter = builder.event.get_emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')
-        self.clock = builder.clock()
+        self.clock = builder.time.clock()
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
         builder.value.register_value_modifier('epidemiological_point_measures', modifier=self.deaths)
         builder.value.register_value_modifier('epidemiological_span_measures',

@@ -18,9 +18,9 @@ def config(base_config):
         pass
 
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.simulation_parameters.set_with_metadata('year_start', 2009, **metadata)
-    base_config.simulation_parameters.set_with_metadata('year_end', 2011, **metadata)
-    base_config.simulation_parameters.set_with_metadata('time_step', 365, **metadata)
+    base_config.time.start.set_with_metadata('year', 2009, **metadata)
+    base_config.time.end.set_with_metadata('year', 2011, **metadata)
+    base_config.time.set_with_metadata('step_size', 365, **metadata)
     base_config.population.set_with_metadata('population_size', 1000, **metadata)
     return base_config
 

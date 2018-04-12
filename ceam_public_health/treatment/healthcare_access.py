@@ -55,7 +55,7 @@ class HealthcareAccess:
         self.general_random = builder.randomness.get_stream('healthcare_general_access')
         self.followup_random = builder.randomness.get_stream('healthcare_followup_access')
         self.adherence_random = builder.randomness.get_stream('healthcare_adherence')
-        self.clock = builder.clock()
+        self.clock = builder.time.clock()
         r = np.random.RandomState(self.general_random.get_seed())
 
         self.semi_adherent_pr = r.normal(0.4, 0.0485)  # FIXME: document this parameter choice, and consider refining it
@@ -65,6 +65,7 @@ class HealthcareAccess:
         self.followup_access_count = 0
         self.hospitalization_count = 0
 
+        interpolation_order = builder.configuration.interpolation.order
         self.hospitalization_cost = defaultdict(float)
         self._ip_cost_df = builder.data.load("healthcare_entity.inpatient_visits.cost")
         self.__hospitalization_cost = None

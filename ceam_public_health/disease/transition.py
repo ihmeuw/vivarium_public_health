@@ -11,8 +11,8 @@ class RateTransition(Transition):
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
-        self._rate_data, pipeline_name = self._get_rate_data(builder)
-        self.base_rate = builder.lookup(self._rate_data)
+        rate_data, pipeline_name = self._get_rate_data(builder)
+        self.base_rate = builder.lookup(rate_data)
         self.effective_rate = builder.value.register_rate_producer(pipeline_name, source=self.rates)
         self.joint_paf = builder.value.register_value_producer(f'{self.output_state.state_id}.paf',
                                                                source=lambda index: [pd.Series(0, index=index)],
@@ -29,7 +29,6 @@ class RateTransition(Transition):
             pipeline_name = f'{self.input_state.state_id}.remission_rate'
         else:
             raise ValueError("No valid data functions supplied.")
-
         return rate_data, pipeline_name
 
     def _probability(self, index):

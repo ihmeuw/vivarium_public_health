@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from vivarium.config_tree import ConfigTree
+from vivarium.configuration import ConfigTree
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
@@ -33,9 +33,10 @@ def config(base_config):
         pass
 
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.simulation_parameters.set_with_metadata('year_start', 1990, **metadata)
-    base_config.simulation_parameters.set_with_metadata('year_end', 2010, **metadata)
-    base_config.simulation_parameters.set_with_metadata('time_step', 30.5, **metadata)
+    base_config.time.start.set_with_metadata('year', 1990, **metadata)
+    base_config.time.end.set_with_metadata('year', 2010, **metadata)
+    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
+    base_config.run_configuration.set_with_metadata('input_draw_number', 1, **metadata)
     return base_config
 
 
@@ -81,9 +82,9 @@ def make_dummy_column(name, initial_value):
 
 
 def test_RiskEffect(config):
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
-    config.simulation_parameters.time_step = 30.5
+    year_start = config.time.start.year
+    year_end = config.time.end.year
+    config.time.step_size = 30.5
     time_step = pd.Timedelta(days=30, hours=12)
     test_exposure = [0]
 
@@ -179,11 +180,11 @@ def test_categorical_exposure_effect(config):
 
 def test_CategoricalRiskComponent_dichotomous_case(get_exposure_mock, get_paf_mock,
                                                    get_rr_mock, get_mf_mock, config):
-    time_step = pd.Timedelta(days=30.5)
-    config.simulation_parameters.time_step = 30.5
+    time_step = pd.Timedelta(days=30, hours=12)
+    config.time.step_size = 30.5
     risk = risk_factors.smoking_prevalence_approach
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
 
     get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(
         0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
@@ -219,10 +220,10 @@ def test_CategoricalRiskComponent_dichotomous_case(get_exposure_mock, get_paf_mo
 
 def test_CategoricalRiskComponent_polytomous_case(get_exposure_mock, get_rr_mock, get_paf_mock,
                                                   get_mf_mock, config):
-    time_step = pd.Timedelta(days=30.5)
-    config.simulation_parameters.time_step = 30.5
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    time_step = pd.Timedelta(days=30, hours=12)
+    config.time.step_size = 30.5
+    year_start = config.time.start.year
+    year_end = config.time.end.year
 
     risk = risk_factors.smoking_prevalence_approach
     get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(
@@ -256,9 +257,11 @@ def test_CategoricalRiskComponent_polytomous_case(get_exposure_mock, get_rr_mock
 
 def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_mock,
                                  get_distribution_mock, config):
-    time_step = pd.Timedelta(days=30.5)
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    time_step = pd.Timedelta(days=30, hours=12)
+    config.time.step_size = 30.5
+    year_start = config.time.start.year
+    year_end = config.time.end.year
+
     risk = risk_factors.high_systolic_blood_pressure
     get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end) \
                     .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
@@ -299,8 +302,9 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
 
 def test_propensity_effect(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_mock,
                            get_distribution_mock, config):
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
+
     risk = risk_factors.high_systolic_blood_pressure
     get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end) \
                     .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
@@ -465,8 +469,8 @@ def test_correlated_exposures(load_rc_matrices_mock, config):
 
 
 def inputs_mock_factory(config, input_type):
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
 
     def _mock_get_exposure_means(risk_id):
         e = {1: 0.5, 2: 0.25, 3: 0.1, 4: 0.8}[risk_id]
@@ -566,9 +570,9 @@ def test_correlated_exposures_synthetic_risks(load_risk_corr_mock, get_paf_mock,
 
 @pytest.mark.skip("Old and outdated test.  Needs serious rewrite.")
 def test_make_gbd_risk_effects(config):
-    time_step = config.simulation_parameters.time_step
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    time_step = config.time.step_size
+    year_start = config.time.start.year
+    year_end = config.time.end.year
 
     # adjusted pafs
     paf = 0.9

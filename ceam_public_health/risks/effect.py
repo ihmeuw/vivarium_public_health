@@ -59,14 +59,18 @@ class RiskEffect:
         self.cause_name = cause.name
 
     def setup(self, builder):
+        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.population_attributable_fraction", cause_id=self.cause.gbd_id))(self.risk, self.cause, builder)
+        self.population_attributable_fraction = builder.lookup(paf_data)
+        if paf_data.empty:
+            #FIXME: Bailing out because we don't have preloaded data for this cause-risk pair. This should be handled higher up but since it isn't yet I'm just going to skip all the plumbing leaving this as a NOP component
+            return
+
         self._raw_rr =  self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.relative_risk", cause_id=self.cause.gbd_id))(self.risk, self.cause, builder)
 
         # FIXME: Find a better way of defering this
         self.__lookup_builder_function = builder.lookup
         self._relative_risk = None
 
-        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.population_attributable_fraction", cause_id=self.cause.gbd_id))(self.risk, self.cause, builder)
-        self.population_attributable_fraction = builder.lookup(paf_data)
 
         if builder.configuration.risks.apply_mediation:
             mf =  self._get_data_functions.get('mf', lambda risk, cause, builder: builder.data.load(f"risk_factor.{risk.name}.mediation_factor", cause_id=self.cause.gbd_id))(self.risk, self.cause, builder)

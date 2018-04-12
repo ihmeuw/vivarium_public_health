@@ -100,17 +100,15 @@ class ContinuousRiskComponent:
         },
     }
 
-    def __init__(self, risk, propensity_function=None):
+    def __init__(self, risk):
         self._risk = risk_factors[risk] if isinstance(risk, str) else risk
         self._effects = make_gbd_risk_effects(self._risk)
-        self.propensity_function = propensity_function
 
     def setup(self, builder):
-        if self.propensity_function is None:
-            if builder.configuration.risks.apply_correlation:
-                self.propensity_function = correlated_propensity_factory(builder)
-            else:
-                self.propensity_function = uncorrelated_propensity
+        if builder.configuration.risks.apply_correlation:
+            self.propensity_function = correlated_propensity_factory(builder)
+        else:
+            self.propensity_function = uncorrelated_propensity
 
 
         self.exposure_distribution = get_distribution(self._risk)
@@ -132,13 +130,17 @@ class ContinuousRiskComponent:
                                  name=self._risk.name+'_propensity',
                                  index=pop_data.index)
         self.population_view.update(propensities)
-        self.population_view.update(pd.Series(self.exposure_distribution.ppf(propensities),
+        exposure = self._get_current_exposure(propensities)
+        self.population_view.update(pd.Series(exposure,
                                               name=self._risk.name+'_exposure',
                                               index=pop_data.index))
 
+    def _get_current_exposure(self, propensity):
+        return self.exposure_distribution.ppf(propensity)
+
     def update_exposure(self, event):
         population = self.population_view.get(event.index)
-        new_exposure = self.exposure_distribution.ppf(population[self._risk.name+'_propensity'])
+        new_exposure = self._get_current_exposure(population[self._risk.name+'_propensity'])
         self.population_view.update(pd.Series(new_exposure, name=self._risk.name+'_exposure', index=event.index))
 
     def __repr__(self):
@@ -160,20 +162,18 @@ class CategoricalRiskComponent:
         },
     }
 
-    def __init__(self, risk, propensity_function=None):
+    def __init__(self, risk):
         if isinstance(risk, str):
             self._risk = risk_factors[risk] if risk in risk_factors else coverage_gaps[risk]
         else:
             self._risk = risk
         self._effects = make_gbd_risk_effects(self._risk)
-        self.propensity_function = propensity_function
 
     def setup(self, builder):
-        if self.propensity_function is None:
-            if builder.configuration.risks.apply_correlation:
-                self.propensity_function = correlated_propensity_factory(builder)
-            else:
-                self.propensity_function = uncorrelated_propensity
+        if builder.configuration.risks.apply_correlation:
+            self.propensity_function = correlated_propensity_factory(builder)
+        else:
+            self.propensity_function = uncorrelated_propensity
 
         self.population_view = builder.population.get_view(
             [self._risk.name+'_propensity', self._risk.name+'_exposure', 'age', 'sex'])
@@ -183,12 +183,11 @@ class CategoricalRiskComponent:
                                                  requires_columns=['age', 'sex'])
 
         exposure_data = builder.data.load(f"risk_factor.{self._risk.name}.exposure")
-        def make_exposure():
-            exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='mean')
-            return exposure_data.reset_index()
+        def transform_exposure():
+            return pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='value').reset_index()
 
         self.exposure = builder.value.register_value_producer(f'{self._risk.name}.exposure',
-                                                              source=builder.lookup(make_exposure))
+                                                              source=builder.lookup(transform_exposure))
 
         self.randomness = builder.randomness.get_stream(self._risk.name)
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
@@ -197,16 +196,15 @@ class CategoricalRiskComponent:
 
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
+        propensity = self.propensity_function(population, self._risk)
+        exposure = self._get_current_exposure(propensity)
         self.population_view.update(pd.DataFrame({
-            self._risk.name+'_propensity': self.propensity_function(population, self._risk),
-            self._risk.name+'_exposure': np.full(len(pop_data.index), ''),
+            self._risk.name+'_propensity': propensity,
+            self._risk.name+'_exposure': exposure,
         }))
 
-    def update_exposure(self, event):
-        pop = self.population_view.get(event.index)
-
-        exposure = self.exposure(event.index)
-        propensity = pop[self._risk.name+'_propensity']
+    def _get_current_exposure(self, propensity):
+        exposure = self.exposure(propensity.index)
 
         # Get a list of sorted category names (e.g. ['cat1', 'cat2', ..., 'cat9', 'cat10', ...])
         categories = sorted([column for column in exposure if 'cat' in column])
@@ -217,7 +215,13 @@ class CategoricalRiskComponent:
 
         category_index = (exposure_sum.T < propensity).T.sum('columns')
 
-        categories = pd.Series(np.array(categories)[category_index], name=self._risk.name+'_exposure')
+        return pd.Series(np.array(categories)[category_index], name=self._risk.name+'_exposure', index=propensity.index)
+
+    def update_exposure(self, event):
+        pop = self.population_view.get(event.index)
+
+        propensity = pop[self._risk.name+'_propensity']
+        categories = self._get_current_exposure(propensity)
         self.population_view.update(categories)
 
     def __repr__(self):

@@ -39,7 +39,7 @@ class BaseDiseaseState(State):
         sub_components = super().setup(builder)
         if self.side_effect_function is not None:
             sub_components.append(self.side_effect_function)
-        self.clock = builder.clock()
+        self.clock = builder.time.clock()
 
         columns = [self._model, 'alive']
         if self.track_events:
@@ -211,9 +211,9 @@ class DiseaseState(BaseDiseaseState):
         if isinstance(disability_weight_data, pd.DataFrame):
             self._disability_weight = builder.lookup(float(disability_weight_data.value))
         elif disability_weight_data is not None:
-            self._disability_weight = disability_weight_data
+            self._disability_weight = builder.lookup(disability_weight_data)
         else:
-            self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
+            self._disability_weight = builder.lookup(0)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
         if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:

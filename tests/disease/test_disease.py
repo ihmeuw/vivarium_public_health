@@ -20,9 +20,9 @@ def config(base_config):
     except KeyError:
         pass
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.simulation_parameters.set_with_metadata('year_start', 1990, **metadata)
-    base_config.simulation_parameters.set_with_metadata('year_end', 2010, **metadata)
-    base_config.simulation_parameters.set_with_metadata('time_step', 30.5, **metadata)
+    base_config.time.start.set_with_metadata('year', 1990, **metadata)
+    base_config.time.end.set_with_metadata('year', 2010, **metadata)
+    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
     return base_config
 
 
@@ -42,8 +42,7 @@ def test_dwell_time(assign_cause_mock, config, disease):
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
 
-    config.simulation_parameters.set_with_metadata('time_step', time_step,
-                                                   layer='override', source=os.path.realpath(__file__))
+    config.time.set_with_metadata('step_size', time_step, layer='override', source=os.path.realpath(__file__))
 
     healthy_state = BaseDiseaseState('healthy')
     event_state = DiseaseState('event', get_data_functions={'dwell_time': lambda _, __: pd.Timedelta(days=28),
@@ -62,7 +61,7 @@ def test_dwell_time(assign_cause_mock, config, disease):
     # Move everyone into the event state
 
     pump_simulation(simulation, iterations=1)
-    event_time = simulation.current_time
+    event_time = simulation.clock.time
     assert np.all(simulation.population.population[disease.name] == 'event')
 
     pump_simulation(simulation, iterations=2)
@@ -77,10 +76,10 @@ def test_dwell_time(assign_cause_mock, config, disease):
 
 
 def test_mortality_rate(config, disease):
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
 
-    time_step = pd.Timedelta(days=config.simulation_parameters.time_step)
+    time_step = pd.Timedelta(days=config.time.step_size)
 
     healthy = BaseDiseaseState('healthy')
     mort_get_data_funcs = {
@@ -109,7 +108,8 @@ def test_mortality_rate(config, disease):
 
 
 def test_incidence(assign_cause_mock, config, disease):
-    time_step = pd.Timedelta(days=config.simulation_parameters.time_step)
+    time_step = pd.Timedelta(days=config.time.step_size)
+    config.run_configuration.input_draw_number = 1
 
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
@@ -128,8 +128,8 @@ def test_incidence(assign_cause_mock, config, disease):
                          get_data_functions={'csmr': lambda _, __: None})
 
     simulation = setup_simulation([TestPopulation(), model], input_config=config)
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
     transition.base_rate = simulation.tables.build_table(build_table(0.7, year_start, year_end))
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
@@ -141,10 +141,11 @@ def test_incidence(assign_cause_mock, config, disease):
 
 
 def test_risk_deletion(assign_cause_mock, config, disease):
-    time_step = config.simulation_parameters.time_step
+    time_step = config.time.step_size
     time_step = pd.Timedelta(days=time_step)
-    year_start = config.simulation_parameters.year_start
-    year_end = config.simulation_parameters.year_end
+    year_start = config.time.start.year
+    year_end = config.time.end.year
+    config.run_configuration.input_draw_number = 1
 
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)

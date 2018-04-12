@@ -1,3 +1,5 @@
+import os
+
 import pytest
 import numpy as np
 
@@ -5,6 +7,20 @@ from ceam_inputs import causes, sequelae
 from vivarium.test_util import build_table
 from ceam_public_health.cube import make_measure_cube_from_gbd
 
+
+@pytest.fixture(scope='function')
+def config(base_config):
+    try:
+        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
+                                                           'input_data.auxiliary_data_folder'])
+    except KeyError:
+        pass
+
+    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
+    base_config.time.start.set_with_metadata('year', 1990, **metadata)
+    base_config.time.end.set_with_metadata('year', 2010, **metadata)
+    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
+    return base_config
 
 @pytest.fixture(scope='function')
 def csmr_mock(mocker):
@@ -21,9 +37,9 @@ def prevalence_mock(mocker):
     return mocker.patch('ceam_public_health.cube.get_prevalence')
 
 
-def test_make_measure_cube(base_config, csmr_mock, incidence_mock, prevalence_mock):
-    year_start = base_config.simulation_parameters.year_start
-    year_end = base_config.simulation_parameters.year_end
+def test_make_measure_cube(config, csmr_mock, incidence_mock, prevalence_mock):
+    year_start = config.time.start.year
+    year_end = config.time.end.year
 
     prevalence_dummies = {
             causes.ischemic_heart_disease: build_table(0.5, year_start, year_end),
@@ -50,7 +66,7 @@ def test_make_measure_cube(base_config, csmr_mock, incidence_mock, prevalence_mo
                                     (causes.all_causes.name, 'csmr'),
                                     (causes.diarrheal_diseases.name, 'csmr'),
                                     (causes.ischemic_heart_disease.name, 'csmr'),
-        ], base_config)
+        ], config)
 
     cube = cube.reset_index()
     assert np.all(cube.query('cause == @causes.ischemic_heart_disease.name '
