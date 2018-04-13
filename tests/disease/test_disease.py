@@ -111,7 +111,7 @@ def test_mortality_rate(config, disease):
 
 def test_incidence(assign_cause_mock, config, disease):
     time_step = pd.Timedelta(days=config.time.step_size)
-    config.run_configuration.input_draw_number = 1
+    config.input_data.input_draw_number = 1
 
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
@@ -147,7 +147,7 @@ def test_risk_deletion(assign_cause_mock, config, disease):
     time_step = pd.Timedelta(days=time_step)
     year_start = config.time.start.year
     year_end = config.time.end.year
-    config.run_configuration.input_draw_number = 1
+    config.input_data.input_draw_number = 1
 
     assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)

@@ -43,8 +43,9 @@ class DiseaseModel(Machine):
         return self.state_column
 
     def setup(self, builder):
-        self.config = builder.configuration
+        builder.components.add_components(self.states)
 
+        self.config = builder.configuration
         self._interpolation_order = builder.configuration.interpolation.order
 
         get_csmr_func = self._get_data_functions.get('csmr', get_cause_specific_mortality)
@@ -62,8 +63,6 @@ class DiseaseModel(Machine):
 
         builder.event.register_listener('time_step', self.time_step_handler)
         builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
-
-        return self.states
 
     def _get_default_initial_state(self):
         susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]

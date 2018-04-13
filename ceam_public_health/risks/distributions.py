@@ -341,7 +341,7 @@ class EnsembleDistribution:
         #                        for distribution_name, distribution in self.distribution_map}
 
     def setup(self, builder):
-        self._distribution.setup(builder)
+        builder.components.add_components([self._distribution])
 
     def pdf(self, x):
         return self._distribution.pdf(x)

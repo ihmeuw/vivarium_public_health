@@ -21,7 +21,7 @@ def config(base_config):
     base_config.time.start.set_with_metadata('year', 1995, **metadata)
     base_config.time.end.set_with_metadata('year', 2010, **metadata)
     base_config.time.set_with_metadata('step_size', 30.5, **metadata)
-    base_config.run_configuration.set_with_metadata('input_draw_number', 1, **metadata)
+    base_config.input_data.set_with_metadata('input_draw_number', 1, **metadata)
     return base_config
 
 

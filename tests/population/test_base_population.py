@@ -14,12 +14,6 @@ import ceam_public_health.population.data_transformations as dt
 
 @pytest.fixture(scope='function')
 def config(base_config):
-    try:
-        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                           'input_data.auxiliary_data_folder'])
-    except KeyError:
-        pass
-
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
     base_config.population.set_with_metadata('age_start', 0, **metadata)
     base_config.population.set_with_metadata('age_end', 110, **metadata)
@@ -117,15 +111,12 @@ def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_populat
     build_pop_data_table_mock.return_value = uniform_pop
     generate_ceam_population_mock.return_value = sims
 
-    use_subregions = ('use_subregions' in config.population and config.population.use_subregions)
-
     base_pop = bp.BasePopulation()
 
     components = [base_pop]
     simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
     time_start = simulation.clock.time
 
-    build_pop_data_table_mock.assert_called_once_with(config.input_data.location_id, use_subregions, config)
     assert base_pop._population_data.equals(uniform_pop)
 
     age_params = {'age_start': config.population.age_start,

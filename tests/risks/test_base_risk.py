@@ -36,7 +36,7 @@ def config(base_config):
     base_config.time.start.set_with_metadata('year', 1990, **metadata)
     base_config.time.end.set_with_metadata('year', 2010, **metadata)
     base_config.time.set_with_metadata('step_size', 30.5, **metadata)
-    base_config.run_configuration.set_with_metadata('input_draw_number', 1, **metadata)
+    base_config.input_data.set_with_metadata('input_draw_number', 1, **metadata)
     return base_config
 
 
@@ -431,7 +431,7 @@ def test_correlated_exposures(load_rc_matrices_mock, config):
     config.population.age_start = 50
     config.population.age_end = 50
 
-    draw = config.run_configuration.input_draw_number
+    draw = config.input_data.input_draw_number
     categorical_risks = [risk_factors.no_access_to_handwashing_facility, risk_factors.smoking_prevalence_approach]
     continuous_risks = [risk_factors.high_systolic_blood_pressure, risk_factors.high_total_cholesterol]
 
@@ -444,7 +444,7 @@ def test_correlated_exposures(load_rc_matrices_mock, config):
     observations = []
     for i in range(100):
         print('running {}'.format(i))
-        config.run_configuration.input_draw_number = i
+        config.input_data.input_draw_number = i
         risks = [CategoricalRiskComponent(r, correlated_propensity_factory(draw)) for r in categorical_risks]
         risks += [ContinuousRiskComponent(r, correlated_propensity_factory(draw)) for r in continuous_risks]
         simulation = setup_simulation([TestPopulation()] + risks, 100000, input_config=config)
@@ -505,7 +505,7 @@ def test_correlated_exposures_synthetic_risks(load_risk_corr_mock, get_paf_mock,
     from rpy2.robjects import r, pandas2ri, numpy2ri
     pandas2ri.activate()
     numpy2ri.activate()
-    draw = config.run_configuration.input_draw_number
+    draw = config.input_data.input_draw_number
 
     load_risk_corr_mock.return_value = _fill_in_correlation_matrix()
     get_exposure_mock.side_effect = inputs_mock_factory(config, 'exposure')
