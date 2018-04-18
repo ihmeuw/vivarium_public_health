@@ -156,7 +156,7 @@ def test_risk_deletion(assign_cause_mock, config, disease):
         input_state=healthy, output_state=sick,
         get_data_functions={
             'incidence_rate': lambda _, builder: builder.data.load(f"sequela.acute_myocardial_infarction_first_2_days.incidence")
-    )
+            })
     healthy.transition_set.append(transition)
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
