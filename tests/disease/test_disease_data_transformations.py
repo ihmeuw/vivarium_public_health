@@ -8,7 +8,8 @@ from vivarium.test_util import build_table, get_randomness
 
 from ceam_public_health.disease.data_transformations import (get_cause_level_prevalence, determine_if_sim_has_cause,
                                                              get_sequela_proportions,
-                                                             determine_which_seq_diseased_sim_has)
+                                                             determine_which_seq_diseased_sim_has,
+                                                             assign_initial_status_to_simulants)
 
 
 @pytest.fixture(scope='function')
@@ -68,7 +69,6 @@ def test_determine_if_sim_has_cause():
                                  'age': [0, 5, 10, 15]*125000}, index=range(500000))
     results = determine_if_sim_has_cause(simulants_df, prevalence_df, get_randomness(), 1)
     grouped_results = results.groupby('age')[['condition_envelope']].sum()
-
     err_msg = "determine if sim has cause needs to appropriately assign causes based on prevalence"
     assert np.allclose(grouped_results.loc[0, 'condition_envelope']/125000, .25, .01), err_msg
     assert np.allclose(grouped_results.loc[5, 'condition_envelope']/125000, .5, .01), err_msg
@@ -123,3 +123,30 @@ def test_determine_which_seq_diseased_sim_has():
     err_msg = "determine which seq diseased sim has needs to assign sequelae according to sequela prevalence"
     assert np.allclose(val1, .75, .1), err_msg
     assert np.allclose(val2, .25, .1), err_msg
+
+
+def test_assign_initial_status_to_simulants():
+    simulants_df = pd.DataFrame({'age': [0] * 100000,
+                                 'sex': ['Male'] * 100000}, index=range(100000))
+
+    df1 = pd.Series([.3]*100000, index=simulants_df.index)
+    df2 = pd.Series([.2]*100000, index=simulants_df.index)
+    df3 = pd.Series(1-df1-df2, index=simulants_df.index)
+    prevalence_dict = dict({'sequela 1': df1, 'sequela 2': df2, 'initial_status': df3})
+    results = assign_initial_status_to_simulants(simulants_df, prevalence_dict, get_randomness())
+    results['count'] = 1
+
+    seq1 = results.query("condition_state == 'sequela 1'")
+    seq2 = results.query("condition_state == 'sequela 2'")
+
+    val1 = seq1.groupby('age')[['count']].sum()
+    val1 = val1.loc[0, 'count']
+    val1 /= 100000
+    val2 = seq2.groupby('age')[['count']].sum()
+    val2 = val2.loc[0, 'count']
+    val2 /= 100000
+
+    err_msg = "assign initial status needs to assign initial status according to prevalence"
+    assert np.allclose(val1, .3, .1), err_msg
+    assert np.allclose(val2, .2, .1), err_msg
+

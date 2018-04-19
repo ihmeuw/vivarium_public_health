@@ -207,7 +207,8 @@ class DiseaseState(BaseDiseaseState):
         get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: pd.Timedelta(0))
 
         disability_weight_data = get_disability_weight_func(self.cause, builder.configuration)
-        self.prevalence_data = get_prevalence_func(self.cause, builder.configuration)
+        self._prevalence_data = get_prevalence_func(self.cause, builder.configuration)
+        self.prevalence_data = builder.lookup(self._prevalence_data)
         self._dwell_time = get_dwell_time_func(self.cause, builder.configuration)
 
         if disability_weight_data is not None:

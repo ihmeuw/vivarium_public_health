@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+
 from vivarium.interpolation import Interpolation
 
 
@@ -13,15 +14,15 @@ def get_cause_level_prevalence(states, year_start):
                                                                                   "to be dataframes with columns year, "
                                                                                   "age, prevalence, and sex.")
 
-        # round to nearest gbd year
+  # round to nearest gbd year
         years = list(states[key].year.unique())
         deltas = [abs(year_start - y) for y in years]
         y = years[deltas.index(min(deltas))]
         states[key] = states[key].query(f"year == {y}")
         states[key] = states[key][['year', 'age', 'prevalence', 'sex']]
         prevalence_df = prevalence_df.append(states[key])
-
     cause_level_prevalence = prevalence_df.groupby(['year', 'sex', 'age'], as_index=False)[['prevalence']].sum()
+    import pdb; pdb.set_trace()
     return cause_level_prevalence, states
 
 
@@ -41,7 +42,6 @@ def determine_if_sim_has_cause(simulants_df, cause_level_prevalence, randomness,
     # Need to sort results so that the simulants are in the same order as the weights
     results['condition_envelope'] = randomness.choice(results.index, [False, True], weights)
     return results
-
 
 def get_sequela_proportions(cause_level_prevalence, states):
     sequela_proportions = {}
@@ -88,5 +88,17 @@ def assign_cause_at_beginning_of_simulation(simulants_df, year_start, states, ra
                                                                               interpolation_order)
     post_sequela_assignment_population.condition_state = post_sequela_assignment_population.condition_state.fillna(
         initial_state)
-
     return post_sequela_assignment_population
+
+
+def assign_initial_status_to_simulants(simulants_df, states, randomness):
+    simulants = simulants_df[['age', 'sex']]
+    list_of_weights = [states[key] for key in states]
+    list_of_states = [key for key in states]
+    simulants['condition_state'] = pd.DataFrame(randomness.choice(simulants.index, list_of_states,
+                                                np.array(list_of_weights).T))
+
+    import pdb; pdb.set_trace()
+    return simulants
+
+
