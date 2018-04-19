@@ -10,7 +10,6 @@ from ceam_public_health.disease import (SusceptibleState, ExcessMortalityState, 
                                         RateTransition, ProportionTransition)
 
 from ceam_inputs import get_cause_specific_mortality
-from .data_transformations import assign_cause_at_beginning_of_simulation
 
 class DiseaseModelError(VivariumError):
     pass

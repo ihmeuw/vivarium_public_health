@@ -118,7 +118,6 @@ def test_prevalence_single_state_with_migration(config, disease, base_data):
     # check the prevalence of current simulants after initial simulation
     assert np.isclose(get_test_prevalence(simulation, 'sick'), 0.35,
                        0.1), error_message
-    import pdb; pdb.set_trace()
     simulation.simulant_creator(500)
     assert np.isclose(get_test_prevalence(simulation, 'sick'), 0.35, 0.1), error_message
 
