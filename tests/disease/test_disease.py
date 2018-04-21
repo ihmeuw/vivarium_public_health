@@ -26,6 +26,7 @@ def config(base_config):
     base_config.time.start.set_with_metadata('year', 1990, **metadata)
     base_config.time.end.set_with_metadata('year', 2010, **metadata)
     base_config.time.set_with_metadata('step_size', 30.5, **metadata)
+    base_config.randomness.update({'key_columns': ['entrance_time', 'age']}, **metadata)
     return base_config
 
 
@@ -42,20 +43,25 @@ def assign_cause_mock(mocker):
 
 @pytest.fixture(scope='function')
 def base_data():
-    base_function = dict()
-    base_function['disability_weight'] = lambda _, __: 0
-    base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=0)
-    base_function['prevalence'] = lambda _, __: 0
-
-    return base_function
+    def _set_prevalence(p):
+        base_function = dict()
+        base_function['disability_weight'] = lambda _, __: 0
+        base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=0)
+        base_function['prevalence'] = lambda _, __: p
+        return base_function
+    return _set_prevalence
 
 
 def get_test_prevalence(simulation, key):
     """
     Helper function to calculate the prevalence for the given state(key)
     """
-    simulants_status_counts = simulation.population.population.test.value_counts().to_dict()
-    return simulants_status_counts[key]/simulation.population.population.test.size
+    try:
+        simulants_status_counts = simulation.population.population.test.value_counts().to_dict()
+        result = float(simulants_status_counts[key] / simulation.population.population.test.size)
+    except KeyError:
+        result = 0
+    return result
 
 
 def test_dwell_time(assign_cause_mock, config, disease, base_data):
@@ -66,8 +72,9 @@ def test_dwell_time(assign_cause_mock, config, disease, base_data):
     config.time.set_with_metadata('step_size', time_step, layer='override', source=os.path.realpath(__file__))
 
     healthy_state = BaseDiseaseState('healthy')
-    base_data['dwell_time'] = lambda _, __: pd.Timedelta(days=28)
-    event_state = DiseaseState('event', get_data_functions=base_data)
+    data_function = base_data(0)
+    data_function['dwell_time'] = lambda _, __: pd.Timedelta(days=28)
+    event_state = DiseaseState('event', get_data_functions=data_function)
     done_state = BaseDiseaseState('sick')
 
     healthy_state.add_transition(event_state)
@@ -92,69 +99,49 @@ def test_dwell_time(assign_cause_mock, config, disease, base_data):
     assert np.all(simulation.population.population.event_event_count == 1)
 
 
-def test_prevalence_single_state_with_migration(config, disease, base_data):
+@pytest.mark.parametrize('test_prevalence_level', [0, 0.35, 1])
+def test_prevalence_single_state_with_migration(config, disease, base_data, test_prevalence_level):
     """
     Test the prevalence for the single state over newly migrated population.
     Start with the initial population, check the prevalence for initial assignment.
-    Simulate for several iterations, then add new simulants and check whether the initial status is
+    Then add new simulants and check whether the initial status is
     properly assigned to new simulants based on the prevalence data and pre-existing simulants status
 
     """
-    year_start = config.time.start.year
-    year_end = config.time.end.year
     healthy = BaseDiseaseState('healthy')
 
-    base_data['prevalence'] = lambda _, __: build_table(0.35, year_start-1, year_end,
-                                                            ['age', 'year', 'sex', 'prevalence'])
-    sick = DiseaseState('sick', get_data_functions=base_data)
+    sick = DiseaseState('sick', get_data_functions=base_data(test_prevalence_level))
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
     simulation = setup_simulation([TestPopulation(), model], population_size=50000, input_config=config)
-
     error_message = "initial status of simulants should be matched to the prevalence data."
-    assert np.isclose(get_test_prevalence(simulation, 'sick'), 0.35, 0.05), error_message
-
-    pump_simulation(simulation, iterations=2)
-    # check the prevalence of current simulants after initial simulation
-    assert np.isclose(get_test_prevalence(simulation, 'sick'), 0.35,
-                       0.1), error_message
-    simulation.simulant_creator(500)
-    assert np.isclose(get_test_prevalence(simulation, 'sick'), 0.35, 0.1), error_message
-
-    pump_simulation(simulation, iterations=5)
-    simulation.simulant_creator(300)
-    assert np.isclose(get_test_prevalence(simulation, 'sick'), 0.35, 0.1), error_message
+    assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, 0.01), error_message
+    #import pdb; pdb.set_trace()
+    simulation.clock.step_forward()
+    assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
+    simulation.simulant_creator(50000)
+    assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
+    simulation.clock.step_forward()
+    simulation.simulant_creator(50000)
+    assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
 
 
-def test_prevalence_multiple_sequelae(config, disease, base_data):
-    year_start = config.time.start.year
-    year_end = config.time.end.year
-    config.run_configuration.input_draw_number = 1
+@pytest.mark.parametrize('test_prevalence_level',
+                         [[0.15, 0.05, 0.35], [0, 0.15, 0.5], [0.2, 0.3, 0.5], [0, 0, 1], [0, 0, 0]])
+def test_prevalence_multiple_sequelae(config, disease, base_data, test_prevalence_level):
     healthy = BaseDiseaseState('healthy')
 
-    sequela1_get_data_funcs = base_data.copy()
-    sequela1_get_data_funcs['prevalence'] = lambda _, __: build_table(0.15, year_start-1, year_end,
-                                                ['age', 'year', 'sex', 'prevalence'])
+    sequela = dict()
+    for i, p in enumerate(test_prevalence_level):
+        sequela[i] = DiseaseState('sequela'+str(i), get_data_functions=base_data(p))
 
-    sequela2_get_data_funcs = base_data.copy()
-    sequela2_get_data_funcs['prevalence'] = lambda _, __: build_table(0.05, year_start-1, year_end,
-                                                ['age', 'year', 'sex', 'prevalence'])
-
-    sequela3_get_data_funcs = base_data.copy()
-    sequela3_get_data_funcs['prevalence'] = lambda _, __: build_table(0.35, year_start-1, year_end,
-                                                ['age', 'year', 'sex', 'prevalence'])
-
-    sequela1 = DiseaseState('sequela1', get_data_functions=sequela1_get_data_funcs)
-    sequela2 = DiseaseState('sequela2', get_data_functions=sequela2_get_data_funcs)
-    sequela3 = DiseaseState('sequela3', get_data_functions=sequela3_get_data_funcs)
-
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sequela1, sequela2, sequela3],
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]],
                          get_data_functions={'csmr': lambda _, __: None})
     simulation = setup_simulation([TestPopulation(), model], population_size=100000, input_config=config)
     error_message = "initial sequela status of simulants should be matched to the prevalence data."
-    assert np.allclose([get_test_prevalence(simulation, 'sequela1'),
-                        get_test_prevalence(simulation, 'sequela2'),
-                        get_test_prevalence(simulation, 'sequela3')],[.15, .05, .35], .05), error_message
+    assert np.allclose([get_test_prevalence(simulation, 'sequela0'),
+                        get_test_prevalence(simulation, 'sequela1'),
+                        get_test_prevalence(simulation, 'sequela2')],test_prevalence_level, .02), error_message
 
 
 def test_mortality_rate(config, disease):
@@ -167,9 +154,8 @@ def test_mortality_rate(config, disease):
     mort_get_data_funcs = {
         'dwell_time': lambda _, __: pd.Timedelta(days=0),
         'disability_weight': lambda _, __: 0.1,
-        'prevalence': lambda _, __: build_table(1, year_start-1, year_end,
-                                                ['age', 'year', 'sex', 'prevalence']),
-        'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
+        'prevalence': lambda _, __: 1,
+        'excess_mortality': lambda _, __: 0.7,
     }
 
     mortality_state = ExcessMortalityState('sick', get_data_functions=mort_get_data_funcs)
@@ -191,7 +177,6 @@ def test_mortality_rate(config, disease):
 
 def test_incidence(config, disease):
     time_step = pd.Timedelta(days=config.time.step_size)
-    config.run_configuration.input_draw_number = 1
 
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')
@@ -225,7 +210,6 @@ def test_risk_deletion(config, disease):
     time_step = pd.Timedelta(days=time_step)
     year_start = config.time.start.year
     year_end = config.time.end.year
-    config.run_configuration.input_draw_number = 1
 
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')

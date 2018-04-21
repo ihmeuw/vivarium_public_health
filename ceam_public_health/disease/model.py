@@ -78,15 +78,15 @@ class DiseaseModel(Machine):
     def get_csmr(self):
         return self._csmr_data
 
-    def assign_initial_status_to_simulants(self, simulants_df, states):
+    @staticmethod
+    def assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness):
         simulants = simulants_df[['age', 'sex']]
-        list_of_weights = [states[key] for key in states]
-        list_of_weights.append(1-sum(list_of_weights))
-        list_of_states = [key for key in states]
-        list_of_states.append(self.initial_state)
-        simulants.is_copy = False
-        simulants['condition_state'] = pd.DataFrame(self.randomness.choice(simulants.index, list_of_states,
-                                                                      np.array(list_of_weights).T))
+        sequelae, weights = zip(*states.items())
+        sequelae += (initial_state,)
+        weights += ((1-np.sum(weights, axis=0)),)
+        simulants['condition_state'] = randomness.choice(simulants.index, sequelae,
+                                                              np.array(weights).T)
+
         return simulants
 
     def load_population_columns(self, pop_data):
@@ -101,8 +101,8 @@ class DiseaseModel(Machine):
             # only do this if there are states in the model that supply prevalence data
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
 
-            condition_column = self.assign_initial_status_to_simulants(population, state_map)
-
+            condition_column = DiseaseModel.assign_initial_status_to_simulants(population, state_map,
+                                                                               self.initial_state, self.randomness)
 
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
         else:
