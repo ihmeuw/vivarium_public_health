@@ -101,8 +101,8 @@ class DiseaseModel(Machine):
             # only do this if there are states in the model that supply prevalence data
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
 
-            condition_column = DiseaseModel.assign_initial_status_to_simulants(population, state_map,
-                                                                               self.initial_state, self.randomness)
+            condition_column = self.assign_initial_status_to_simulants(population, state_map,
+                                                                       self.initial_state, self.randomness)
 
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
         else:

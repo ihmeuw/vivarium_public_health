@@ -116,7 +116,6 @@ def test_prevalence_single_state_with_migration(config, disease, base_data, test
     simulation = setup_simulation([TestPopulation(), model], population_size=50000, input_config=config)
     error_message = "initial status of simulants should be matched to the prevalence data."
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, 0.01), error_message
-    #import pdb; pdb.set_trace()
     simulation.clock.step_forward()
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
     simulation.simulant_creator(50000)
