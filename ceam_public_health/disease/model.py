@@ -17,12 +17,8 @@ class DiseaseModelError(VivariumError):
 
 class DiseaseModel(Machine):
     def __init__(self, cause, initial_state=None, get_data_functions=None, **kwargs):
-        if isinstance(cause, str):
-            self.cause = None
-            super().__init__(cause, **kwargs)
-        else:
-            self.cause = cause
-            super().__init__(cause.name, **kwargs)
+        self.cause = cause
+        super().__init__(cause, **kwargs)
 
         if initial_state is not None:
             self.initial_state = initial_state.state_id
@@ -31,13 +27,8 @@ class DiseaseModel(Machine):
 
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
-        if (self.cause is None and
-                not set(self._get_data_functions.keys()).issuperset(['csmr'])):
-            raise ValueError('If you do not provide a GBD cause from the gbd_mapping, you must supply'
-                             'custom data gathering functions for csmr.')
-
         if 'csmr' not in self._get_data_functions:
-            self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(f"cause.{cause.name}.cause_specific_mortality")
+            self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(f"cause.{cause}.cause_specific_mortality")
 
     @property
     def condition(self):

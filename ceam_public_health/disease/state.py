@@ -9,12 +9,8 @@ from ceam_public_health.disease import RateTransition, ProportionTransition
 
 class BaseDiseaseState(State):
     def __init__(self, cause, name_prefix=None, side_effect_function=None, track_events=True, **kwargs):
-        if isinstance(cause, str):
-            self.cause = None
-            cause_name = name_prefix + cause if name_prefix else cause
-        else:  # Assume we got something from gbd_mapping.
-            self.cause = cause
-            cause_name = name_prefix + cause.name if name_prefix else cause.name
+        self.cause = cause
+        cause_name = name_prefix + cause if name_prefix else cause
         super().__init__(cause_name, **kwargs)
 
         self.side_effect_function = side_effect_function
@@ -129,7 +125,7 @@ class SusceptibleState(BaseDiseaseState):
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
             if get_data_functions is None:
-                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.incidence")}
+                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause}.incidence")}
             elif 'incidence_rate' not in get_data_functions:
                 raise ValueError('You must supply an incidence rate function.')
         elif source_data_type == 'proportion':
@@ -146,7 +142,7 @@ class RecoveredState(BaseDiseaseState):
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
             if get_data_functions is None:
-                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.incidence")}
+                get_data_functions = {'incidence_rate': lambda cause, builder: builder.data.load(f"cause.{cause}.incidence")}
             elif 'incidence_rate' not in get_data_functions:
                 raise ValueError('You must supply an incidence rate function.')
         elif source_data_type == 'proportion':
@@ -200,8 +196,8 @@ class DiseaseState(BaseDiseaseState):
         iterable
             This component's sub-components.
         """
-        get_disability_weight_func = self._get_data_functions.get('disability_weight', lambda cause, builder: builder.data.load(f"cause.{cause.name}.disability_weight"))
-        get_prevalence_func = self._get_data_functions.get('prevalence', lambda cause, builder: builder.data.load(f"cause.{cause.name}.prevalence"))
+        get_disability_weight_func = self._get_data_functions.get('disability_weight', lambda cause, builder: builder.data.load(f"cause.{cause}.disability_weight"))
+        get_prevalence_func = self._get_data_functions.get('prevalence', lambda cause, builder: builder.data.load(f"cause.{cause}.prevalence"))
         get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: pd.Timedelta(0))
 
         disability_weight_data = get_disability_weight_func(self.cause, builder)
@@ -233,7 +229,7 @@ class DiseaseState(BaseDiseaseState):
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
             if get_data_functions is None:
-                get_data_functions = {'remission_rate': lambda cause, builder: builder.data.load(f"cause.{cause.name}.remission_rate")}
+                get_data_functions = {'remission_rate': lambda cause, builder: builder.data.load(f"cause.{cause}.remission_rate")}
             elif 'remission_rate' not in get_data_functions:
                 raise ValueError('You must supply a remission rate function.')
         elif source_data_type == 'proportion':
@@ -336,7 +332,7 @@ class ExcessMortalityState(DiseaseState):
         iterable
              This component's sub-components.
         """
-        get_excess_mortality_func = self._get_data_functions.get('excess_mortality', lambda cause, builder: builder.data.load(f"cause.{cause.name}.excess_mortality"))
+        get_excess_mortality_func = self._get_data_functions.get('excess_mortality', lambda cause, builder: builder.data.load(f"cause.{cause}.excess_mortality"))
 
         self.excess_mortality_data = get_excess_mortality_func(self.cause, builder)
         excess_mortality_source = builder.lookup(self.excess_mortality_data)

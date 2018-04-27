@@ -2,6 +2,7 @@ from datetime import datetime
 import os.path
 
 import pandas as pd
+from tables.nodes import filenode
 
 from vivarium.framework.time import _get_time_stamp
 
@@ -34,6 +35,18 @@ class Artifact:
             return self._cache[cache_key]
         else:
             group = '/'+entity_path.replace('.','/')
+            try:
+                node_type = self._hdf._handle.get_node_attr(group, "NODE_TYPE")
+                if node_type == "file":
+                    # This should be a json encoded document rather than a pandas dataframe
+                    fnode = filenode.open_node(s._handle.get_node(group), 'r')
+                    document = json.load(fnode)
+                    fnode.close()
+                    self._cache[cache_key] = document
+                    return document
+            except AttributeError:
+                # This isn't a json node so move on
+                pass
             #TODO: Is there a better way to get the columns without loading  much data?
             try:
                 columns = self._hdf.select(group, stop=1).columns

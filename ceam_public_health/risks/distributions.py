@@ -37,8 +37,8 @@ class BaseDistribution:
         raise NotImplementedError()
 
     def setup(self, builder):
-        self._exposure_mean = builder.data.load(f"risk_factor.{self._risk.name}.exposure")
-        self._exposure_sd = builder.data.load(f"risk_factor.{self._risk.name}.exposure_standard_deviation")
+        self._exposure_mean = builder.data.load(f"risk_factor.{self._risk}.exposure")
+        self._exposure_sd = builder.data.load(f"risk_factor.{self._risk}.exposure_standard_deviation")
         #self._exposure_data = exposure_data.merge(exposure_sd_data).set_index(['age', 'sex', 'year'])
 
 class Beta(BaseDistribution):
