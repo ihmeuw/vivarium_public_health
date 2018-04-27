@@ -59,12 +59,12 @@ class RiskEffect:
 
     def setup(self, builder):
         paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.population_attributable_fraction", cause=self.cause))(self.risk, self.cause, builder)
-        self.population_attributable_fraction = builder.lookup(paf_data)
+        self.population_attributable_fraction = builder.lookup(paf_data[['year', 'sex', 'age', 'value']])
         if paf_data.empty:
             #FIXME: Bailing out because we don't have preloaded data for this cause-risk pair. This should be handled higher up but since it isn't yet I'm just going to skip all the plumbing leaving this as a NOP component
             return
 
-        self._raw_rr =  self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.relative_risk", cause=self.cause))(self.risk, self.cause, builder)
+        self._raw_rr =  self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.relative_risk", cause=self.cause))(self.risk, self.cause, builder)[['year', 'parameter', 'sex', 'age', 'value']]
 
         # FIXME: Find a better way of defering this
         self.__lookup_builder_function = builder.lookup
@@ -83,20 +83,21 @@ class RiskEffect:
         builder.value.register_value_modifier(f'{self.cause}.incidence_rate', modifier=self.incidence_rates)
         builder.value.register_value_modifier(f'{self.cause}.paf', modifier=self.paf_mf_adjustment)
         self.population_view = builder.population.get_view([self.risk + '_exposure'])
-        is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
-        self.exposure_effect = (continuous_exposure_effect(self.risk, self.population_view) if is_continuous
+        distribution = builder.data.load(f"{self.risk_type}.{self.risk}.distribution")
+        self.is_continuous = distribution in ['lognormal', 'ensemble', 'normal']
+        self.exposure_effect = (continuous_exposure_effect(self.risk, self.population_view) if self.is_continuous
                                 else categorical_exposure_effect(self.risk, self.population_view))
 
 
     @property
     def relative_risk(self):
         if self._relative_risk is None:
-            if self.risk.distribution in ('dichotomous', 'polytomous'):
+            if not self.is_continuous:
                 # TODO: I'm not sure this is the right place to be doing this reshaping. Maybe it should
                 # be in the data_transformations somewhere?
                 rr_data = pd.pivot_table(self._raw_rr, index=['year', 'age', 'sex'],
-                                               columns='parameter', values='relative_risk').dropna()
-                rr_data = self.__rr_data.reset_index()
+                                               columns='parameter', values='value').dropna()
+                rr_data = rr_data.reset_index()
             else:
                 rr_data = self._raw_rr
             self._relative_risk = self.__lookup_builder_function(rr_data)

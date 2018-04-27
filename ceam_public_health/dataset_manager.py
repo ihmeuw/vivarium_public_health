@@ -1,5 +1,6 @@
 from datetime import datetime
 import os.path
+import json
 
 import pandas as pd
 from tables.nodes import filenode
@@ -39,7 +40,7 @@ class Artifact:
                 node_type = self._hdf._handle.get_node_attr(group, "NODE_TYPE")
                 if node_type == "file":
                     # This should be a json encoded document rather than a pandas dataframe
-                    fnode = filenode.open_node(s._handle.get_node(group), 'r')
+                    fnode = filenode.open_node(self._hdf._handle.get_node(group), 'r')
                     document = json.load(fnode)
                     fnode.close()
                     self._cache[cache_key] = document
