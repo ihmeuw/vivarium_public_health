@@ -1,0 +1,99 @@
+import numpy as np
+import pandas as pd
+
+from vivarium.framework.components import ComponentConfigError
+from .effect import TreatmentEffect
+
+
+class Treatment:
+
+    def __init__(self, name):
+        self.name = name
+        self.treatment_effects = []
+
+    def setup(self, builder):
+        if self.name not in builder.configuration:
+            raise ComponentConfigError(f'No configuration found for {self.name}')
+
+        self.config = builder.configuration[self.name]
+        self.dose_response = dict(
+            onset_delay=pd.to_timedelta(self.config.dose_response.onset_delay, unit='D'),
+            duration=pd.to_timedelta(self.config.dose_response.duration, unit='D'),
+            waning_rate=float(self.config.dose_response.waning_rate),
+        )
+        self.protection = self._get_protection(builder)
+
+        self.clock = builder.time.clock()
+        return self.treatment_effects
+
+    def _get_protection(self, builder):
+        return self.get_protection(builder)
+
+    @staticmethod
+    def get_protection(builder):
+        raise NotImplementedError('You must supply an implementation of get_protection')
+
+    def add_treatment_effect(self, cause):
+        self.treatment_effects.append(TreatmentEffect(self.name, cause))
+
+    def _get_dosing_status(self, population):
+        received_current_dose = population[f'{self.name}_current_dose'] != 'none'
+        current_dose_full_immunity_start = (population[f'{self.name}_current_dose_event_time']
+                                            + self.dose_response['onset_delay'])
+        current_dose_giving_immunity = received_current_dose & (current_dose_full_immunity_start <= self.clock())
+
+        received_previous_dose = population[f'{self.name}_previous_dose'].notna()
+        previous_dose_full_immunity_start = (population[f'{self.name}_previous_dose_event_time']
+                                             + self.dose_response['onset_delay'])
+        previous_dose_giving_immunity = (received_previous_dose
+                                          & (previous_dose_full_immunity_start <= self.clock())
+                                          & ~current_dose_giving_immunity)
+
+        dosing_status = pd.DataFrame({'dose': None, 'date': pd.NaT}, index=population.index)
+        dosing_status.loc[current_dose_giving_immunity, :] = population[
+            current_dose_giving_immunity, [f'{self.name}_current_dose',
+                                           f'{self.name}_current_dose_event_time']]
+        dosing_status.loc[current_dose_giving_immunity, :] = population[
+            previous_dose_giving_immunity, [f'{self.name}_previous_dose',
+                                            f'{self.name}_previous_dose_event_time']]
+
+        return dosing_status
+
+    def determine_protection(self, population):
+        """Determines how much protection simulants receive from the vaccine.
+
+         Parameters
+         ----------
+         population: pandas.DataFrame
+             A copy of the relevant portions of the simulation state table.
+
+         Returns
+         -------
+         pandas.Series
+             A list of the protection conferred by the vaccine indexed by the simulant ids.
+
+         every time step, we have 3 types of immunities:
+         1. no immunity
+            a. Never get any dose (filter from got_this_dose)
+            b. Got the most recent dose as 1st dose but still in delay
+         2. waning immunity
+            a. full immunity ended from the most recent dose
+            b. full immunity ended from the previous dose, got a new dose but still in delay
+         3. full immunity
+            a. have full immunity from the most recent dose
+            b. Got the previous dose and most recent dose: full immunity from previous dose/ most recent dose in delay
+         """
+        dosing_status = self._get_dosing_status(population)
+
+        no_immunity = dosing_status['dose'].isnull()
+        full_immunity = self.clock() < (dosing_status['date'] + self.dose_response['onset_delay']
+                                        + self.dose_response['duration'])
+        waning_immunity = ~no_immunity & ~full_immunity
+        time_in_waning = self.clock() - (dosing_status.loc[waning_immunity, 'date']
+                                         + self.dose_response['onset_delay'] + self.dose_response['duration'])
+
+        protection = pd.Series(0, index=population.index)
+        protection[full_immunity | waning_immunity] = dosing_status[full_immunity].map(self.protection)
+        protection[waning_immunity] *= np.exp(-self.dose_response['waning_rate']*time_in_waning.dt.days)
+
+        return protection
