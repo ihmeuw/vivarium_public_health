@@ -12,7 +12,7 @@ class Mortality:
         self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")
         self._cause_deleted_mortality_data = None
 
-        self._root_location = builder.configuration.input_data.location_id
+        self._root_location = builder.configuration.input_data.location
         self._build_lookup_handle = builder.lookup
 
         self.csmr = builder.value.register_value_producer('csmr_data', source=list, preferred_combiner=list_combiner)

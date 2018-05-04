@@ -39,7 +39,7 @@ class BasePopulation:
         builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
         self._source_population_structure = builder.data.load("population.structure", keep_age_group_edges=True)
         self._population_data = None
-        self._location = input_config.location_id
+        self._location = input_config.location
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
 
@@ -47,7 +47,7 @@ class BasePopulation:
     @property
     def population_data(self):
         if self._population_data is None:
-            self._source_population_structure['location_id'] = self._location
+            self._source_population_structure['location'] = self._location
             self._population_data = _build_population_data_table(self._source_population_structure)
         return self._population_data
 
@@ -132,7 +132,7 @@ def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
         The latter two keys can have values specified to generate simulants over an age range.
     population_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location', 'population', 'P(sex, location, age| year)', 'P(sex, location | age, year)'
     randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
         Source of random number generation within the vivarium common random number framework.
     step_size : float
@@ -151,7 +151,7 @@ def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
             'alive' : One of 'alive', 'dead', or 'untracked' indicating how the simulation
                 interacts with the simulant.
             'age' : The age of the simulant at the current time step.
-            'location' : The GBD location_id indicating where the simulant resides.
+            'location' : The GBD location indicating where the simulant resides.
             'sex' : Either 'Male' or 'Female'.  The sex of the simulant.
     """
     simulants = pd.DataFrame({'entrance_time': pd.Series(creation_time, index=simulant_ids),
@@ -179,7 +179,7 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age,
         Table that represents the new cohort of agents being added to the simulation.
     pop_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location', 'population', 'P(sex, location, age| year)', 'P(sex, location | age, year)'
     initial_age : float
         The age to assign the new simulants.
     randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
@@ -204,13 +204,13 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age,
     register_simulants(simulants[['entrance_time', 'age']])
 
     # Assign a demographically accurate location and sex distribution.
-    choices = pop_data.set_index(['sex', 'location_id'])['P(sex, location_id | age, year)'].reset_index()
+    choices = pop_data.set_index(['sex', 'location'])['P(sex, location | age, year)'].reset_index()
     decisions = randomness_streams['general_purpose'].choice(simulants.index,
                                                              choices=choices.index,
-                                                             p=choices['P(sex, location_id | age, year)'])
+                                                             p=choices['P(sex, location | age, year)'])
 
     simulants['sex'] = choices.loc[decisions, 'sex'].values
-    simulants['location'] = choices.loc[decisions, 'location_id'].values
+    simulants['location'] = choices.loc[decisions, 'location'].values
 
     return simulants
 
@@ -224,7 +224,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
         Table that represents the new cohort of agents being added to the simulation.
     pop_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)'
+        'location', 'population', 'P(sex, location, age| year)', 'P(sex, location | age, year)'
     age_start, age_end : float
         The start and end of the age range of interest, respectively.
     randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
@@ -248,13 +248,13 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
 
     # Assign a demographically accurate age, location, and sex distribution.
     sub_pop_data = pop_data[(pop_data.age_group_start >= age_start) & (pop_data.age_group_end <= age_end)]
-    choices = sub_pop_data.set_index(['age', 'sex', 'location_id'])['P(sex, location_id, age| year)'].reset_index()
+    choices = sub_pop_data.set_index(['age', 'sex', 'location'])['P(sex, location, age| year)'].reset_index()
     decisions = randomness_streams['bin_selection'].choice(simulants.index,
                                                            choices=choices.index,
-                                                           p=choices['P(sex, location_id, age| year)'])
+                                                           p=choices['P(sex, location, age| year)'])
     simulants['age'] = choices.loc[decisions, 'age'].values
     simulants['sex'] = choices.loc[decisions, 'sex'].values
-    simulants['location'] = choices.loc[decisions, 'location_id'].values
+    simulants['location'] = choices.loc[decisions, 'location'].values
     simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing'])
     register_simulants(simulants[['entrance_time', 'age']])
     return simulants
@@ -276,11 +276,11 @@ def _build_population_data_table(data):
             'age_group_start' : Lower bound of the age group,
             'age_group_end' : Upper bound of the age group,
             'sex' : 'Male' or 'Female',
-            'location_id' : GBD location id,
+            'location' : GBD location,
             'year' : Year,
             'population' : Total population estimate,
-            'P(sex, location_id | age, year)' : Conditional probability of sex and location_id given age and year,
-            'P(sex, location_id, age | year)' : Conditional probability of sex, location_id, and age given year,
-            'P(age | year, sex, location_id)' : Conditional probability of age given year, sex, and location_id.
+            'P(sex, location | age, year)' : Conditional probability of sex and location given age and year,
+            'P(sex, location, age | year)' : Conditional probability of sex, location, and age given year,
+            'P(age | year, sex, location)' : Conditional probability of age given year, sex, and location.
     """
     return assign_demographic_proportions(data)

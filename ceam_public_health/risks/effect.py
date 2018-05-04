@@ -51,14 +51,15 @@ class RiskEffect:
         },
     }
 
-    def __init__(self, risk, cause, get_data_functions=None, risk_type="risk_factor"):
+    def __init__(self, risk, cause, get_data_functions=None, risk_type="risk_factor", cause_type="cause"):
         self.risk = risk
         self.risk_type = risk_type
         self.cause = cause
+        self.cause_type = cause_type
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
-        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.population_attributable_fraction", cause=self.cause))(self.risk, self.cause, builder)
+        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(f"{self.cause_type}.{cause}.population_attributable_fraction", risk=risk))(self.risk, self.cause, builder)
         self.population_attributable_fraction = builder.lookup(paf_data[['year', 'sex', 'age', 'value']])
         if paf_data.empty:
             #FIXME: Bailing out because we don't have preloaded data for this cause-risk pair. This should be handled higher up but since it isn't yet I'm just going to skip all the plumbing leaving this as a NOP component

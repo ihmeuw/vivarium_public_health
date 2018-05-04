@@ -16,8 +16,9 @@ class DiseaseModelError(VivariumError):
 
 
 class DiseaseModel(Machine):
-    def __init__(self, cause, initial_state=None, get_data_functions=None, **kwargs):
+    def __init__(self, cause, initial_state=None, get_data_functions=None, cause_type="cause", **kwargs):
         self.cause = cause
+        self.cause_type = cause_type
         super().__init__(cause, **kwargs)
 
         if initial_state is not None:
@@ -28,7 +29,7 @@ class DiseaseModel(Machine):
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
         if 'csmr' not in self._get_data_functions:
-            self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(f"cause.{cause}.cause_specific_mortality")
+            self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.cause_specific_mortality")
 
     @property
     def condition(self):
@@ -80,7 +81,6 @@ class DiseaseModel(Machine):
 
         if state_map and not population.empty:
             # only do this if there are states in the model that supply prevalence data
-            population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
             condition_column = assign_cause_at_beginning_of_simulation(population, pop_data.creation_time.year,
                                                                        state_map, self.randomness,
                                                                        self.initial_state,
@@ -91,7 +91,7 @@ class DiseaseModel(Machine):
         self.population_view.update(condition_column)
 
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
-        root_location = self.config.input_data.location_id
+        root_location = self.config.input_data.location
         pop = self.population_view.manager.population.ix[index].query("alive == 'alive'")
         causes = set(pop[self.condition]) - {state.state_id for state in self.states
                                              if isinstance(state, SusceptibleState)}

@@ -22,14 +22,14 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures,
     # unless we re-architect the existing ceam_input functions.
     old_year_start = config.time.start.year
     old_year_end = config.time.end.year
-    old_location = config.input_data.location_id
+    old_location = config.input_data.location
     old_draw = config.run_configuration.input_draw_number
     config.time.start.year = year_start
     config.time.end.year = year_end
 
     cube = pd.DataFrame(columns=['year', 'age', 'sex', 'measure', 'cause', 'draw', 'value'])
     for location in locations:
-        config.input_data.location_id = location
+        config.input_data.location = location
         for draw in draws:
             config.run_configuration.input_draw_number = draw
             for cause, measure in measures:
@@ -55,7 +55,7 @@ def make_measure_cube_from_gbd(year_start, year_end, locations, draws, measures,
 
     config.time.start.year = old_year_start
     config.time.end.year = old_year_end
-    config.input_data.location_id = old_location
+    config.input_data.location = old_location
     config.run_configuration.input_draw_number = old_draw
 
     return cube.set_index(['year', 'age', 'sex', 'measure', 'cause', 'draw', 'location'])

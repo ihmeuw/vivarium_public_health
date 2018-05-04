@@ -16,7 +16,7 @@ class Artifact:
         self.end_time = _get_time_stamp(builder.configuration.time.end)
         self.start_time = _get_time_stamp(builder.configuration.time.start)
         self.draw = builder.configuration.run_configuration.input_draw_number
-        self.location = builder.configuration.input_data.location_id
+        self.location = builder.configuration.input_data.location
 
         #NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
         # config file.
@@ -64,15 +64,12 @@ class Artifact:
                     if not isinstance(condition, (list, tuple)):
                         condition = [condition]
                     for c in condition:
-                        if isinstance(c, str):
-                            terms.append(f"{column} {c}")
-                        else:
-                            terms.append(f"{column} = {c}")
+                        terms.append(f"{column} = {c}")
             columns_to_remove = set(column_filters.keys())
-            if "location_id" not in column_filters and "location_id" in columns:
+            if "location" not in column_filters and "location" in columns:
                 #TODO I think this is a sign I should be handling queries differently
-                terms.append(f"location_id == {self.location} | location_id == 1")
-                columns_to_remove.add("location_id")
+                terms.append(f"location == {self.location} | location == 'Global'")
+                columns_to_remove.add("location")
             data = pd.read_hdf(self._hdf, group, where=terms if terms else None)
             if not keep_age_group_edges:
                 # TODO: Should probably be using these age group bins rather than the midpoints but for now we use mids
