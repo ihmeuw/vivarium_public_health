@@ -21,7 +21,11 @@ class Artifact:
         #NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
         # config file.
         path_config = builder.configuration.input_data.metadata('artifact_path')[0]
-        self.artifact_path = os.path.normpath(os.path.join(os.path.dirname(path_config['source']), path_config['value']))
+        if path_config['source'] is not None:
+            path = os.path.join(os.path.dirname(path_config['source']), path_config['value'])
+        else:
+            path = path_config['value']
+        self.artifact_path = os.path.normpath(path)
 
 
         self.open()
