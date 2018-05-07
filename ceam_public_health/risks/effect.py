@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-def continuous_exposure_effect(risk, population_view):
+def continuous_exposure_effect(risk, population_view, builder):
     """Factory that makes functions which can be used as the exposure_effect for standard continuous risks.
 
     Parameters
@@ -11,9 +11,11 @@ def continuous_exposure_effect(risk, population_view):
         The gbd data mapping for the risk.
     """
     exposure_column = risk+'_exposure'
-    tmrel = 0.5 * (risk.tmred.min + risk.tmred.max)
-    max_exposure = risk.exposure_parameters.max_rr
-    scale = risk.exposure_parameters.scale
+    tmred = builder.data.load(f"{risk_type}.{risk}.tmred")
+    tmrel = 0.5 * (tmred["min"] + tmred["max"])
+    exposure_parameters = builder.data.load(f"{risk_type}.{risk}.exposure_parameters")
+    max_exposure = exposure_parameters["max_rr"]
+    scale = exposure_parameters["scale"]
 
 
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.

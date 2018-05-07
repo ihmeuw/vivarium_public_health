@@ -10,23 +10,40 @@ from vivarium.framework.time import _get_time_stamp
 import logging
 _log = logging.getLogger(__name__)
 
-class Artifact:
+class ArtifactManager:
     def setup(self, builder):
-        self._loading_start_time = datetime.now()
-        self.end_time = _get_time_stamp(builder.configuration.time.end)
-        self.start_time = _get_time_stamp(builder.configuration.time.start)
-        self.draw = builder.configuration.run_configuration.input_draw_number
-        self.location = builder.configuration.input_data.location
+        end_time = _get_time_stamp(builder.configuration.time.end)
+        start_time = _get_time_stamp(builder.configuration.time.start)
+        draw = builder.configuration.run_configuration.input_draw_number
+        location = builder.configuration.input_data.location
 
         #NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
         # config file.
         path_config = builder.configuration.input_data.metadata('artifact_path')[0]
-        self.artifact_path = os.path.normpath(os.path.join(os.path.dirname(path_config['source']), path_config['value']))
+        artifact_path = os.path.normpath(os.path.join(os.path.dirname(path_config['source']), path_config['value']))
 
 
-        self.open()
-        builder.event.register_listener('post_setup', lambda _: self.close())
+        self.artifact = Artifact(artifact_path, start_time, end_time, draw, location)
+
+        self.artifact.open()
+        builder.event.register_listener('post_setup', lambda _: self.artifact.close())
+
+
+    def load(self, entity_path, keep_age_group_edges=False, **column_filters):
+        return self.artifact.load(entity_path, keep_age_group_edges, **column_filters)
+
+
+class Artifact:
+    def __init__(self, path, start_time, end_time, draw, location):
+        self.artifact_path = path
+        self.start_time = start_time
+        self.end_time = end_time
+        self.draw = draw
+        self.location = location
+
         self._cache = {}
+
+        self._loading_start_time = datetime.now()
 
     def load(self, entity_path, keep_age_group_edges=False, **column_filters):
         _log.debug(f"loading {entity_path}")

@@ -12,6 +12,8 @@ class RateTransition(Transition):
 
     def setup(self, builder):
         rate_data, pipeline_name = self._get_rate_data(builder)
+        if rate_data is None:
+            import pdb; pdb.set_trace()
         self.base_rate = builder.lookup(rate_data)
         self.effective_rate = builder.value.register_rate_producer(pipeline_name, source=self.rates)
         self.joint_paf = builder.value.register_value_producer(f'{self.output_state.state_id}.paf',

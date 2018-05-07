@@ -230,7 +230,7 @@ class DiseaseState(BaseDiseaseState):
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
             if get_data_functions is None:
-                get_data_functions = {'remission_rate': lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.remission_rate")}
+                get_data_functions = {'remission_rate': lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.remission")}
             elif 'remission_rate' not in get_data_functions:
                 raise ValueError('You must supply a remission rate function.')
         elif source_data_type == 'proportion':

@@ -99,7 +99,7 @@ class ContinuousRiskComponent:
     }
 
     def __init__(self, risk):
-        self._risk = risk
+        self._risk_type, self._risk = risk.split('.')
         self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
 
     def setup(self, builder):
@@ -109,7 +109,7 @@ class ContinuousRiskComponent:
             self.propensity_function = uncorrelated_propensity
 
 
-        self.exposure_distribution = get_distribution(self._risk)
+        self.exposure_distribution = get_distribution(self._risk, self._risk_type, builder)
         self.randomness = builder.randomness.get_stream(self._risk)
         self.population_view = builder.population.get_view(
             [self._risk+'_exposure', self._risk+'_propensity', 'age', 'sex'])

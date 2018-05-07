@@ -22,8 +22,9 @@ def get_min_max(exposure_mean, exposure_sd):
 
 
 class BaseDistribution:
-    def __init__(self, risk, weights=None):
+    def __init__(self, risk, risk_type="risk_factor", weights=None):
         self._risk = risk
+        self._risk_type = risk_type
         self._weights = weights
         self._params = None
 
@@ -37,8 +38,8 @@ class BaseDistribution:
         raise NotImplementedError()
 
     def setup(self, builder):
-        self._exposure_mean = builder.data.load(f"risk_factor.{self._risk}.exposure")
-        self._exposure_sd = builder.data.load(f"risk_factor.{self._risk}.exposure_standard_deviation")
+        self._exposure_mean = builder.data.load(f"{self._risk_type}.{self._risk}.exposure")
+        self._exposure_sd = builder.data.load(f"{self._risk_type}.{self._risk}.exposure_standard_deviation")
         #self._exposure_data = exposure_data.merge(exposure_sd_data).set_index(['age', 'sex', 'year'])
 
 class Beta(BaseDistribution):
@@ -313,8 +314,8 @@ class EnsembleDistribution:
                         'norm': Normal,
                         'weibull': Weibull}
 
-    def __init__(self, risk, weights):
-        self._distribution = Normal(risk, weights)
+    def __init__(self, risk, risk_type, weights):
+        self._distribution = Normal(risk, risk_type, weights=weights)
 
         # self._distributions = {distribution_name: distribution(exposure_mean, exposure_sd, x_min, x_max)
         #                        for distribution_name, distribution in self.distribution_map}
@@ -332,12 +333,13 @@ class EnsembleDistribution:
         #return np.sum([weight * self._distributions[dist_name].ppf(x) for dist_name, weight in self.weights.items()])
 
 
-def get_distribution(risk, weights=None):
-    if risk.distribution == 'ensemble':
-        return EnsembleDistribution(risk, weights)
-    elif risk.distribution == 'lognormal':
-        return LogNormal(risk, exposure)
-    elif risk.distribution == 'normal':
-        return Normal(risk, exposure)
+def get_distribution(risk, risk_type, builder, weights=None):
+    distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
+    if distribution == 'ensemble':
+        return EnsembleDistribution(risk, risk_type, weights)
+    elif distribution == 'lognormal':
+        return LogNormal(risk, risk_type, exposure)
+    elif distribution == 'normal':
+        return Normal(risk, risk_type, exposure)
     else:
-        raise ValueError(f"Unhandled distribution type {risk.distribution}")
+        raise ValueError(f"Unhandled distribution type {distribution}")
