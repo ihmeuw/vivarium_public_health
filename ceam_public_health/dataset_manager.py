@@ -20,14 +20,16 @@ class ArtifactManager:
         #NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
         # config file.
         path_config = builder.configuration.input_data.metadata('artifact_path')[0]
-        artifact_path = os.path.normpath(os.path.join(os.path.dirname(path_config['source']), path_config['value']))
+        if path_config['source'] is not None:
+            artifact_path = os.path.join(os.path.dirname(path_config['source']), path_config['value'])
+        else:
+            artifact_path = path_config['value']
 
 
         self.artifact = Artifact(artifact_path, start_time, end_time, draw, location)
 
         self.artifact.open()
         builder.event.register_listener('post_setup', lambda _: self.artifact.close())
-
 
     def load(self, entity_path, keep_age_group_edges=False, **column_filters):
         return self.artifact.load(entity_path, keep_age_group_edges, **column_filters)
