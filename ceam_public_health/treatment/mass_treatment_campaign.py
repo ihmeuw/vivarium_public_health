@@ -19,7 +19,7 @@ class MassTreatmentCampaign:
                     'mean': 0.5,
                     'standard_error': 0.11,
                 },
-                'dose_proportion': {
+                'dose_protection': {
                     'first': 0.7,
                     'second': 1.0,
                     'booster': 1.0,
@@ -36,13 +36,14 @@ class MassTreatmentCampaign:
     }
 
     def __init__(self, treatment_name):
-        self.configuration_defaults = {self.treatment: MassTreatmentCampaign.configuration_defaults['treatment']}
-
+        self.treatment_name = treatment_name
+        self.configuration_defaults = {treatment_name: MassTreatmentCampaign.configuration_defaults['treatment']}
         self.treatment = Treatment(treatment_name)
         self.schedule = TreatmentSchedule(treatment_name)
 
+
     def setup(self, builder):
-        self.config = builder.configuration[self.treatment]
+        self.config = builder.configuration[self.treatment_name]
         self.clock = builder.time.clock()
 
         columns = [f'{self.treatment.name}_current_dose',
@@ -73,7 +74,7 @@ class MassTreatmentCampaign:
         }, index=event.index))
 
     def administer_treatment(self, event):
-        population = self.population_view.get(event.index, "'alive' == True")
+        population = self.population_view.get(event.index, 'alive' == True)
         for dose in self.schedule.doses:
             dosed_population = self.schedule.get_newly_dosed_simulants(dose, population, event.step_size)
 

@@ -37,7 +37,7 @@ class Treatment:
         self.treatment_effects.append(TreatmentEffect(self.name, cause))
 
     def _get_dosing_status(self, population):
-        received_current_dose = population[f'{self.name}_current_dose'] != 'none'
+        received_current_dose = population[f'{self.name}_current_dose'].notnull()
         current_dose_full_immunity_start = (population[f'{self.name}_current_dose_event_time']
                                             + self.dose_response['onset_delay'])
         current_dose_giving_immunity = received_current_dose & (current_dose_full_immunity_start <= self.clock())
@@ -50,12 +50,15 @@ class Treatment:
                                           & ~current_dose_giving_immunity)
 
         dosing_status = pd.DataFrame({'dose': None, 'date': pd.NaT}, index=population.index)
-        dosing_status.loc[current_dose_giving_immunity, :] = population[
-            current_dose_giving_immunity, [f'{self.name}_current_dose',
-                                           f'{self.name}_current_dose_event_time']]
-        dosing_status.loc[current_dose_giving_immunity, :] = population[
-            previous_dose_giving_immunity, [f'{self.name}_previous_dose',
-                                            f'{self.name}_previous_dose_event_time']]
+        #  not sure why, but pandas doesn't save the sliced data for two columns at the same time
+        dosing_status.loc[current_dose_giving_immunity, 'dose'] = population.loc[
+            current_dose_giving_immunity, f'{self.name}_current_dose']
+        dosing_status.loc[current_dose_giving_immunity, 'date'] = population.loc[
+            current_dose_giving_immunity, f'{self.name}_current_dose_event_time']
+        dosing_status.loc[previous_dose_giving_immunity, 'dose'] = population.loc[
+            previous_dose_giving_immunity, f'{self.name}_previous_dose']
+        dosing_status.loc[previous_dose_giving_immunity, 'date'] = population.loc[
+            previous_dose_giving_immunity, f'{self.name}_previous_dose_event_time']
 
         return dosing_status
 
@@ -85,6 +88,7 @@ class Treatment:
          """
         dosing_status = self._get_dosing_status(population)
 
+
         no_immunity = dosing_status['dose'].isnull()
         full_immunity = self.clock() < (dosing_status['date'] + self.dose_response['onset_delay']
                                         + self.dose_response['duration'])
@@ -93,7 +97,9 @@ class Treatment:
                                          + self.dose_response['onset_delay'] + self.dose_response['duration'])
 
         protection = pd.Series(0, index=population.index)
-        protection[full_immunity | waning_immunity] = dosing_status[full_immunity].map(self.protection)
+
+        protection[full_immunity | waning_immunity] = dosing_status.dose[full_immunity|waning_immunity].map(self.protection)
+
         protection[waning_immunity] *= np.exp(-self.dose_response['waning_rate']*time_in_waning.dt.days)
 
         return protection

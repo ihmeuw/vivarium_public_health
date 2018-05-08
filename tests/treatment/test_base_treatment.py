@@ -22,7 +22,7 @@ def config(base_config):
 
 
 @pytest.fixture(scope='function')
-def builder(mocker, config)
+def builder(mocker, config):
     builder = mocker.MagicMock()
     builder.configuration = config
     return builder
