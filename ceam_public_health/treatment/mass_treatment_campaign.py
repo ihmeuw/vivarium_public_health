@@ -35,10 +35,10 @@ class MassTreatmentCampaign:
         }
     }
 
-    def __init__(self, treatment_name):
+    def __init__(self, treatment_name, etiology):
         self.treatment_name = treatment_name
         self.configuration_defaults = {treatment_name: MassTreatmentCampaign.configuration_defaults['treatment']}
-        self.treatment = Treatment(treatment_name)
+        self.treatment = Treatment(treatment_name, etiology)
         self.schedule = TreatmentSchedule(treatment_name)
 
 
@@ -50,7 +50,7 @@ class MassTreatmentCampaign:
                    f'{self.treatment.name}_current_dose_event_time',
                    f'{self.treatment.name}_previous_dose',
                    f'{self.treatment.name}_previous_dose_event_time']
-        self.population_view = builder.population.get_view(columns + ['age', 'alive'])
+        self.population_view = builder.population.get_view(['age', 'alive']+columns)
         builder.population.initializes_simulants(self.load_population_columns, creates_columns=columns)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
         builder.event.register_listener('time_step', self.administer_treatment)
@@ -93,6 +93,6 @@ class MassTreatmentCampaign:
         current_dose = population[f'{self.treatment.name}_current_dose'].value_counts().to_dict()
         previous_dose = population[f'{self.treatment.name}_previous_dose'].value_counts().to_dict()
         for dose in self.schedule.doses:
-            metrics[f'{self.treatment.name}_{dose}_dose_current_count'] = current_dose[dose]
-            metrics[f'{self.treatment.name}_{dose}_dose_previous_count'] = previous_dose[dose]
+            metrics[f'{self.treatment.name}_{dose}_dose_current_count'] = current_dose.get(dose)
+            metrics[f'{self.treatment.name}_{dose}_dose_previous_count'] = previous_dose.get(dose)
         return metrics

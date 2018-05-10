@@ -2,13 +2,12 @@ import numpy as np
 import pandas as pd
 
 from vivarium.framework.components import ComponentConfigError
-from .effect import TreatmentEffect
-
 
 class Treatment:
 
-    def __init__(self, name):
+    def __init__(self, name, etiology):
         self.name = name
+        self.etiology = etiology
         self.treatment_effects = []
 
     def setup(self, builder):
@@ -23,6 +22,15 @@ class Treatment:
         )
         self.protection = self._get_protection(builder)
 
+        builder.value.register_value_modifier(f'{self.etiology}.incidence_rate',
+                                              modifier=self.incidence_rates)
+
+        columns = [f'{self.name}_current_dose',
+                   f'{self.name}_current_dose_event_time',
+                   f'{self.name}_previous_dose',
+                   f'{self.name}_previous_dose_event_time']
+        self.population_view = builder.population.get_view(['alive']+columns)
+
         self.clock = builder.time.clock()
         return self.treatment_effects
 
@@ -33,8 +41,6 @@ class Treatment:
     def get_protection(builder):
         raise NotImplementedError('You must supply an implementation of get_protection')
 
-    def add_treatment_effect(self, cause):
-        self.treatment_effects.append(TreatmentEffect(self.name, cause))
 
     def _get_dosing_status(self, population):
         received_current_dose = population[f'{self.name}_current_dose'].notnull()
@@ -88,7 +94,6 @@ class Treatment:
          """
         dosing_status = self._get_dosing_status(population)
 
-
         no_immunity = dosing_status['dose'].isnull()
         full_immunity = self.clock() < (dosing_status['date'] + self.dose_response['onset_delay']
                                         + self.dose_response['duration'])
@@ -103,3 +108,25 @@ class Treatment:
         protection[waning_immunity] *= np.exp(-self.dose_response['waning_rate']*time_in_waning.dt.days)
 
         return protection
+
+
+    def incidence_rates(self, index, rates):
+        """Modifies the incidence of shigellosis.
+
+        Parameters
+        ----------
+        index: pandas.Index
+            The set of simulants who are susceptible to shigellosis.
+        rates: pandas.Series
+            The baseline incidence rate of shigellosis.
+
+        Returns
+        -------
+        pandas.Series
+            The shigellosis incidence rates adjusted for the presence of the vaccine.
+        """
+        population = self.population_view.get(index)
+        population = population[population.alive == 'alive']
+        protection = self.determine_protection(population)
+        rates.loc[population.index] *= (1-protection.values)
+        return rates

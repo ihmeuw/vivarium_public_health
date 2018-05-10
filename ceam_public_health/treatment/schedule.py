@@ -63,22 +63,25 @@ class TreatmentSchedule:
             dosed_index = eligible_index[coverage_draw[eligible_index] < coverage[eligible_index]]
 
             age_draw = self.randomness.get_draw(population.index, additional_key=f'{dose}_age')
+
             min_age, max_age = self.dose_ages[dose]
             mean_age = (min_age + max_age) / 2
             age_std_dev = (mean_age - min_age) / 3
-            age_at_dose = stats.norm(mean_age, age_std_dev**2).ppf(age_draw) \
+            age_at_dose = stats.norm(mean_age, age_std_dev).ppf(age_draw) \
                 if age_std_dev else pd.Series(int(mean_age), index=population.index)
-            age_at_dose[age_at_dose > max_age] = max_age
-            age_at_dose[age_at_dose < min_age] = min_age
+
+            age_at_dose[age_at_dose > max_age] = max_age*0.99
+            age_at_dose[age_at_dose < min_age] = min_age*1.01
 
             schedule.loc[dosed_index, dose] = True
             schedule.loc[dosed_index, f'{dose}_age'] = age_at_dose[dosed_index]
         return schedule  # in days
 
     def get_newly_dosed_simulants(self, dose, population, step_size):
-        eligible_pop = population[self._schedule[dose]]
+        eligible_pop = population[(self._schedule[dose]) & (population.shigellosis_vaccine_current_dose != dose)]
         dose_age = self._schedule.loc[eligible_pop.index, f'{dose}_age']
 
         time_to_dose = eligible_pop.age * 365 + step_size.days - dose_age
         correct_age = np.abs(time_to_dose) < step_size.days / 2
+
         return eligible_pop[correct_age]
