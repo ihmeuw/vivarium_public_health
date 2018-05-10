@@ -19,6 +19,7 @@ def config(base_config):
             },
         }
     }, **metadata)
+    return base_config
 
 
 @pytest.fixture(scope='function')
@@ -30,7 +31,7 @@ def builder(mocker, config):
 
 @pytest.fixture(scope='function')
 def treatment(builder):
-    tx = Treatment('test_treatment')
+    tx = Treatment('test_treatment', 'test_cause')
 
     protection = {'first': 0.5, 'second': 0.7}
     tx.get_protection = lambda builder_: protection
@@ -41,19 +42,19 @@ def treatment(builder):
 
 
 def test_setup(builder):
-    tx = Treatment('not_a_treatment')
+    tx = Treatment('not_a_treatment', 'test_cause')
 
     with pytest.raises(ComponentConfigError):
         tx.setup(builder)
 
-    tx = Treatment('test_treatment')
+    tx = Treatment('test_treatment', 'test_cause')
 
     with pytest.raises(NotImplementedError):
         tx.setup(builder)
 
 
 def test_get_protection(builder):
-    tx = Treatment('test_treatment')
+    tx = Treatment('test_treatment', 'test_cause')
 
     with pytest.raises(NotImplementedError):
         tx._get_protection(builder)
@@ -66,6 +67,3 @@ def test_get_protection(builder):
 
     assert tx._get_protection(builder) == protection
 
-
-def test_get_dosing_status(builder):
-    tx = Treatment(builder)

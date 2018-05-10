@@ -3,11 +3,12 @@ import pandas as pd
 
 from vivarium.framework.components import ComponentConfigError
 
+
 class Treatment:
 
-    def __init__(self, name, etiology):
+    def __init__(self, name, cause):
         self.name = name
-        self.etiology = etiology
+        self.cause = cause
         self.treatment_effects = []
 
     def setup(self, builder):
@@ -22,7 +23,7 @@ class Treatment:
         )
         self.protection = self._get_protection(builder)
 
-        builder.value.register_value_modifier(f'{self.etiology}.incidence_rate',
+        builder.value.register_value_modifier(f'{self.cause}.incidence_rate',
                                               modifier=self.incidence_rates)
 
         columns = [f'{self.name}_current_dose',
@@ -40,7 +41,6 @@ class Treatment:
     @staticmethod
     def get_protection(builder):
         raise NotImplementedError('You must supply an implementation of get_protection')
-
 
     def _get_dosing_status(self, population):
         received_current_dose = population[f'{self.name}_current_dose'].notnull()
@@ -108,7 +108,6 @@ class Treatment:
         protection[waning_immunity] *= np.exp(-self.dose_response['waning_rate']*time_in_waning.dt.days)
 
         return protection
-
 
     def incidence_rates(self, index, rates):
         """Modifies the incidence of shigellosis.
