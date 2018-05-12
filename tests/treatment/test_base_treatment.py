@@ -86,14 +86,13 @@ def view(test_population):
 
 
 @pytest.fixture(scope='function')
-def treatment(builder, view):
+def treatment(builder):
     tx = Treatment('test_treatment', 'test_cause')
 
     protection = {'first': 0.5, 'second': 0.7}
     tx.get_protection = lambda builder_: protection
 
     tx.setup(builder)
-    tx.population_view = view
 
     tx.clock = lambda: pd.Timestamp('07-02-2005')
     return tx
@@ -173,24 +172,19 @@ def test_determine_protection(treatment):
     assert pd.DataFrame.equals(expected_protection, protection)
 
 
-def test_incidence_rates(treatment):
-    tx = treatment
-    pop = tx.population_view.get(pd.Index(range(7000)))
-    rates = pd.Series(1, index=pop.index)
+def test_incidence_rates(treatment, mocker):
+    protection = 0.5
+    base_rate = 1
 
-    incidence = tx.incidence_rates(pd.Index(range(7000)), rates)
+    treatment.determine_protection = mocker.Mock()
+    treatment.determine_protection.side_effect = lambda index: pd.Series(protection, index=index)
 
-    # First dose full immunity: grp2, grp7 : should have incidence = 1- tx.protection['first'] = 0.5
-    rates.loc[pd.Index(range(1000, 2000))] = 1-tx.protection['first']
-    rates.loc[pd.Index(range(6000, 7000))] = 1 - tx.protection['first']
-    # Second dose full immunity: grp5 : 1-tx.protection['second'] = 0.3
-    rates.loc[pd.Index(range(4000, 5000))] = 1-tx.protection['second']
-    # First dose waning immunity: grp3 (time in waning 8 days): 1- 0.5*exp(-0.038*8)
-    rates.loc[pd.Index(range(2000, 3000))] = 1- tx.protection['first'] * \
-                                                           np.exp(-tx.dose_response['waning_rate'] * 8)
-    # Second dose waning immunity: grp6 (time in waning 3 days): 1-0.7*exp(-0.038*3)
-    rates.loc[pd.Index(range(5000, 6000))] = 1-tx.protection['second'] * \
-                                                           np.exp(-tx.dose_response['waning_rate'] * 3)
+    treatment.population_view.get = mocker.Mock()
+    return_pop = pd.DataFrame({'alive': 5000*['alive', 'dead', 'untracked']})
+    alive_pop = return_pop[return_pop.alive == 'alive']
+    treatment.population_view.get.return_value = return_pop
 
-    assert pd.DataFrame.equals(incidence, rates)
+    rates = pd.Series(base_rate, index=alive_pop.index)
 
+    incidence = treatment.incidence_rates(return_pop.index, rates)
+    assert np.all(incidence == base_rate*(1-protection))
