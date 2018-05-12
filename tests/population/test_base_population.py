@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, get_randomness
+from vivarium.test_util import build_table, get_randomness
+from vivarium.interface.interactive import setup_simulation
 
 import ceam_public_health.population.base_population as bp
 import ceam_public_health.population.data_transformations as dt
@@ -114,7 +115,9 @@ def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_populat
     base_pop = bp.BasePopulation()
 
     components = [base_pop]
-    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    config.update({'population': {'population_size': start_population_size},
+                   'time': {'step_size': time_step}}, layer='override')
+    simulation = setup_simulation(components, input_config=config)
     time_start = simulation.clock.time
 
     assert base_pop._population_data.equals(uniform_pop)
@@ -135,7 +138,7 @@ def test_BasePopulation(config, build_pop_data_table_mock, generate_ceam_populat
 
     final_ages = simulation.population.population.age + num_days/365
 
-    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    simulation.run_for(duration=pd.Timedelta(days=num_days))
 
     assert np.allclose(simulation.population.population.age, final_ages, atol=0.5/365)  # Within a half of a day.
 
@@ -144,18 +147,20 @@ def test_age_out_simulants(config):
     start_population_size = 10000
     num_days = 600
     time_step = 100  # Days
-    config.update({'population': {'age_start': 4,
-                                  'age_end': 4,
-                                  'exit_age': 5, },
-                   'time': {'step_size': time_step}
-                   },
-                  layer='override')
+    config.update({'population': {
+        'population_size': start_population_size,
+        'age_start': 4,
+        'age_end': 4,
+        'exit_age': 5,
+    },
+        'time': {'step_size': time_step}
+    }, layer='override')
     components = [bp.BasePopulation()]
-    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    simulation = setup_simulation(components, input_config=config)
     time_start = simulation.clock.time
 
     assert len(simulation.population.population) == len(simulation.population.population.age.unique())
-    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
     assert len(pop) == len(pop[pop.alive == 'untracked'])
     exit_after_300_days = pop.exit_time >= time_start + pd.Timedelta(300, unit='D')

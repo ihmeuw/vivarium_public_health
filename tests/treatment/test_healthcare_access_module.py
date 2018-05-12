@@ -3,7 +3,8 @@ import os
 import numpy as np, pandas as pd
 import pytest
 
-from vivarium.test_util import setup_simulation, pump_simulation, assert_rate, build_table, TestPopulation
+from vivarium.test_util import assert_rate, build_table, TestPopulation
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_public_health.treatment import HealthcareAccess
 
@@ -65,6 +66,7 @@ def test_general_access(config, get_annual_visits_mock):
 def test_adherence(config, get_annual_visits_mock):
     year_start = config.time.start.year
     year_end = config.time.end.year
+    t_step = 28  # days
     n_simulants = int('10_000')
 
     def get_utilization_rate(*_, **__):
@@ -72,11 +74,11 @@ def test_adherence(config, get_annual_visits_mock):
     get_annual_visits_mock.side_effect = get_utilization_rate
 
     metrics = Metrics()
-    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config, population_size=n_simulants)
+    config.update({'population': {'population_size': n_simulants},
+                   'time': {'step_size': t_step}}, layer='override')
+    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config)
 
-    t_step = 28 # days
-    n_days = 28*2
-    pump_simulation(simulation, time_step_days=t_step, duration=pd.Timedelta(days=n_days))
+    simulation.take_steps(number_of_steps=2)
 
     df = simulation.population.population
     df['fu_visit'] = df.healthcare_visits > 1

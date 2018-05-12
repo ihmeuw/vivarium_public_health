@@ -94,7 +94,6 @@ class RiskEffect:
         self.exposure_effect = (continuous_exposure_effect(self.risk, self.population_view) if is_continuous
                                 else categorical_exposure_effect(self.risk, self.population_view))
 
-
     def paf_mf_adjustment(self, index):
         if self.mediation_factor:
             return self.population_attributable_fraction(index) * (1 - self.mediation_factor(index))

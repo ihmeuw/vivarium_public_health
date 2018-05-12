@@ -7,7 +7,8 @@ import pytest
 
 from vivarium.framework.util import from_yearly
 
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
+from vivarium.test_util import build_table, TestPopulation
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_inputs import get_incidence, sequelae
 
@@ -83,16 +84,18 @@ def test_dwell_time(assign_cause_mock, config, disease, base_data):
     model = DiseaseModel(disease, initial_state=healthy_state, states=[healthy_state, event_state, done_state],
                          get_data_functions={'csmr': lambda _, __: None})
 
-    simulation = setup_simulation([TestPopulation(), model], population_size=10, input_config=config)
+    config.update({'population': {'population_size': 10}})
+    simulation = setup_simulation([TestPopulation(), model], input_config=config)
 
     # Move everyone into the event state
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
     event_time = simulation.clock.time
     assert np.all(simulation.population.population[disease.name] == 'event')
-    pump_simulation(simulation, iterations=2)
+    simulation.step()
+    simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
     assert np.all(simulation.population.population[disease.name] == 'event')
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
     # Now enough time has passed so people should transition away
     assert np.all(simulation.population.population[disease.name] == 'sick')
     assert np.all(simulation.population.population.event_event_time == pd.to_datetime(event_time))
@@ -113,7 +116,8 @@ def test_prevalence_single_state_with_migration(config, disease, base_data, test
     sick = DiseaseState('sick', get_data_functions=base_data(test_prevalence_level))
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
-    simulation = setup_simulation([TestPopulation(), model], population_size=50000, input_config=config)
+    config.update({'population': {'population_size': 50000}})
+    simulation = setup_simulation([TestPopulation(), model], input_config=config)
     error_message = "initial status of simulants should be matched to the prevalence data."
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, 0.01), error_message
     simulation.clock.step_forward()
@@ -136,7 +140,8 @@ def test_prevalence_multiple_sequelae(config, disease, base_data, test_prevalenc
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]],
                          get_data_functions={'csmr': lambda _, __: None})
-    simulation = setup_simulation([TestPopulation(), model], population_size=100000, input_config=config)
+    config.update({'population': {'population_size': 100000}})
+    simulation = setup_simulation([TestPopulation(), model], input_config=config)
     error_message = "initial sequela status of simulants should be matched to the prevalence data."
     assert np.allclose([get_test_prevalence(simulation, 'sequela0'),
                         get_test_prevalence(simulation, 'sequela1'),
@@ -169,7 +174,7 @@ def test_mortality_rate(config, disease):
     mortality_rate = simulation.values.register_rate_producer('mortality_rate')
     mortality_rate.source = simulation.tables.build_table(build_table(0.0, year_start, year_end))
 
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
     # Folks instantly transition to sick so now our mortality rate should be much higher
     assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['sick'])
 
@@ -198,7 +203,7 @@ def test_incidence(config, disease):
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     assert np.allclose(from_yearly(0.7, time_step),
                        incidence_rate(simulation.population.population.index), atol=0.00001)
@@ -234,7 +239,7 @@ def test_risk_deletion(config, disease):
     simulation.values.register_value_modifier(
         'sick.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end)))
 
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     expected_rate = base_rate * (1 - paf)
 

@@ -4,7 +4,8 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from vivarium.test_util import setup_simulation, pump_simulation, TestPopulation
+from vivarium.test_util import TestPopulation
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_public_health.population import FertilityDeterministic, FertilityCrudeBirthRate, FertilityAgeSpecificRates
 
@@ -29,14 +30,19 @@ def test_FertilityDeterministic(config):
     annual_new_simulants = 1000
     num_days = 100
     time_step = 10  # Days
-    config.read_dict({'population': {'age_start': 0, 'age_end': 125},
-                      'fertility_deterministic': {'number_of_new_simulants_each_year': annual_new_simulants},
-                      'time': {'step_size': time_step}},
-                     layer='override')
+    config.update({
+        'population': {
+            'population_size': start_population_size,
+            'age_start': 0,
+            'age_end': 125
+        },
+        'fertility_deterministic': {'number_of_new_simulants_each_year': annual_new_simulants},
+        'time': {'step_size': time_step}
+    }, layer='override')
 
     components = [TestPopulation(), FertilityDeterministic()]
-    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
-    num_steps = pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    simulation = setup_simulation(components, input_config=config)
+    num_steps = simulation.run_for(duration=pd.Timedelta(days=num_days))
     assert num_steps == num_days // time_step
     pop = simulation.population.population
 
@@ -50,11 +56,17 @@ def test_FertilityCrudeBirthRate(config):
     start_population_size = 10000
     num_days = 100
     time_step = 10  # Days
-    config.read_dict({'population': {'age_start': 0, 'age_end': 125}}, layer='override')
+    config.update({
+        'population': {
+            'population_size': start_population_size,
+            'age_start': 0,
+            'age_end': 125},
+        'time': {'step_size': time_step}
+    }, layer='override')
 
     components = [TestPopulation(), FertilityCrudeBirthRate()]
-    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
-    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    simulation = setup_simulation(components, input_config=config)
+    simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
 
     # No death in this model.
@@ -68,10 +80,16 @@ def test_fertility_module(config):
     start_population_size = 1000
     num_days = 1000
     time_step = 10  # Days
-    config.read_dict({'population': {'age_start': 0, 'age_end': 125}}, layer='override')
+    config.update({
+        'population': {
+            'population_size': start_population_size,
+            'age_start': 0,
+            'age_end': 125},
+        'time': {'step_size': time_step}
+    }, layer='override')
 
     components = [TestPopulation(), FertilityAgeSpecificRates()]
-    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    simulation = setup_simulation(components, input_config=config)
     time_start = simulation.clock.time
 
     assert 'last_birth_time' in simulation.population.population.columns,\
@@ -79,7 +97,7 @@ def test_fertility_module(config):
     assert 'parent_id' in simulation.population.population.columns, \
         'expect Fertility module to update state table.'
 
-    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
 
     # No death in this model.

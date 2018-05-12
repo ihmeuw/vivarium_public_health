@@ -12,6 +12,7 @@ class Treatment:
         self.treatment_effects = []
 
     def setup(self, builder):
+        builder.components.add_components(self.treatment_effects)
         if self.name not in builder.configuration:
             raise ComponentConfigError(f'No configuration found for {self.name}')
 
@@ -33,7 +34,6 @@ class Treatment:
         self.population_view = builder.population.get_view(['alive']+columns)
 
         self.clock = builder.time.clock()
-        return self.treatment_effects
 
     def _get_protection(self, builder):
         return self.get_protection(builder)

@@ -5,13 +5,15 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
+from vivarium.test_util import build_table, TestPopulation
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_public_health.population import Mortality
 from ceam_public_health.disease import ExcessMortalityState, DiseaseModel, DiseaseState
 from ceam_public_health.metrics import Metrics, Disability
 
 Disease = namedtuple('Disease', 'name')
+
 
 @pytest.fixture(scope='function')
 def config(base_config):
@@ -98,7 +100,8 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
         components.append(deadly_model)
         components.append(Mortality())
 
-    simulation = setup_simulation(components=components, population_size=n_simulants, input_config=config)
+    config.update({'population': {'population_size': n_simulants}})
+    simulation = setup_simulation(components=components, input_config=config)
 
     return simulation, metrics, disability
 
@@ -111,7 +114,7 @@ def test_that_ylds_are_0_at_sim_beginning(config):
 
 def test_that_healthy_people_dont_accrue_disability_weights(config):
     simulation, metrics, disability = set_up_test_parameters(config)
-    pump_simulation(simulation, duration=pd.Timedelta(days=365))
+    simulation.run_for(duration=pd.Timedelta(days=365))
     pop_size = len(simulation.population.population)
     ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
     assert np.isclose(ylds, pop_size * 0.0, rtol=0.01)
@@ -120,7 +123,7 @@ def test_that_healthy_people_dont_accrue_disability_weights(config):
 def test_single_disability_weight(config):
     simulation, metrics, disability = set_up_test_parameters(config, flu=True)
     flu_dw = 0.2
-    pump_simulation(simulation, duration=pd.Timedelta(days=365))
+    simulation.run_for(duration=pd.Timedelta(days=365))
     pop_size = len(simulation.population.population)
     ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
     assert np.isclose(ylds, pop_size * flu_dw, rtol=0.01)
@@ -130,7 +133,7 @@ def test_joint_disability_weight(config):
     simulation, metrics, disability = set_up_test_parameters(config, flu=True, mumps=True)
     flu_dw = 0.2
     mumps_dw = 0.4
-    pump_simulation(simulation, duration=pd.Timedelta(days=365))
+    simulation.run_for(duration=pd.Timedelta(days=365))
     pop_size = len(simulation.population.population)
     ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
     # check that JOINT disability weight is correctly calculated
@@ -140,7 +143,7 @@ def test_joint_disability_weight(config):
 @pytest.mark.skip(reason="Error in way csmr is being computed when using dataframes with inconsistent ages.")
 def test_dead_people_dont_accrue_disability(config):
     simulation, metrics, disability = set_up_test_parameters(config, deadly=True)
-    pump_simulation(simulation, duration=pd.Timedelta(days=365))
+    simulation.run_for(duration=pd.Timedelta(days=365))
     pop = simulation.population.population
     dead = pop[pop.alive == 'dead']
     assert len(dead) > 0

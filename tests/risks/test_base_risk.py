@@ -6,11 +6,12 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from vivarium.configuration import ConfigTree
+from vivarium.config_tree import ConfigTree
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
+from vivarium.test_util import build_table, TestPopulation
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_inputs import risk_factors, sequelae
 
@@ -197,8 +198,9 @@ def test_CategoricalRiskComponent_dichotomous_case(get_exposure_mock, get_paf_mo
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
 
     component = CategoricalRiskComponent(risk)
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
-    pump_simulation(simulation, iterations=1)
+    config.update({'population': {'population_size': 100000}}, layer='override')
+    simulation = setup_simulation([TestPopulation(), component], input_config=config)
+    simulation.step()
 
     incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
@@ -236,9 +238,9 @@ def test_CategoricalRiskComponent_polytomous_case(get_exposure_mock, get_rr_mock
     get_mf_mock.side_effect = lambda *args, **kwargs: 0
 
     component = CategoricalRiskComponent(risk)
-
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
-    pump_simulation(simulation, iterations=1)
+    config.update({'population': {'population_size': 100000}}, layer='override')
+    simulation = setup_simulation([TestPopulation(), component], input_config=config)
+    simulation.step()
 
     incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
@@ -286,8 +288,9 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
 
     component = ContinuousRiskComponent(risk)
 
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
-    pump_simulation(simulation, iterations=1)
+    config.update({'population': {'population_size': 100000}}, layer='override')
+    simulation = setup_simulation([TestPopulation(), component], input_config=config)
+    simulation.step()
 
     incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
@@ -329,23 +332,24 @@ def test_propensity_effect(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_
 
     component = ContinuousRiskComponent(risk)
 
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
+    config.update({'population': {'population_size': 100000}}, layer='override')
+    simulation = setup_simulation([TestPopulation(), component], input_config=config)
     pop_view = simulation.population.get_view([risk.name+'_propensity'])
 
     pop_view.update(pd.Series(0.00001, index=simulation.population.population.index))
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     expected_value = norm(loc=130, scale=15).ppf(0.00001)
     assert np.allclose(simulation.population.population[risk.name+'_exposure'], expected_value)
 
     pop_view.update(pd.Series(0.5, index=simulation.population.population.index))
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     expected_value = 130
     assert np.allclose(simulation.population.population[risk.name+'_exposure'], expected_value)
 
     pop_view.update(pd.Series(0.99999, index=simulation.population.population.index))
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     expected_value = norm(loc=130, scale=15).ppf(0.99999)
     assert np.allclose(simulation.population.population[risk.name+'_exposure'], expected_value)
@@ -447,9 +451,10 @@ def test_correlated_exposures(load_rc_matrices_mock, config):
         config.input_data.input_draw_number = i
         risks = [CategoricalRiskComponent(r, correlated_propensity_factory(draw)) for r in categorical_risks]
         risks += [ContinuousRiskComponent(r, correlated_propensity_factory(draw)) for r in continuous_risks]
-        simulation = setup_simulation([TestPopulation()] + risks, 100000, input_config=config)
+        config.update({'population': {'population_size': 100000}}, layer='override')
+        simulation = setup_simulation([TestPopulation()] + risks, input_config=config)
 
-        pump_simulation(simulation, iterations=1)
+        simulation.step()
         print('simulation done')
 
         r.source('/home/alecwd/Code/cost_effectiveness_misc/03_get_corr_matrix_function.R')
@@ -544,9 +549,9 @@ def test_correlated_exposures_synthetic_risks(load_risk_corr_mock, get_paf_mock,
     categorical_2_component = CategoricalRiskComponent(categorical_2, correlated_propensity_factory(draw))
     components = [TestPopulation(), continuous_1_component, continuous_2_component,
                   categorical_1_component, categorical_2_component]
-    simulation = setup_simulation(components, 10000, input_config=config)
-
-    pump_simulation(simulation, iterations=1)
+    config.update({'population': {'population_size': 100000}}, layer='override')
+    simulation = setup_simulation(components, input_config=config)
+    simulation.step()
 
     r.source('/home/alecwd/Code/cost_effectiveness_misc/03_get_corr_matrix_function.R')
     pop = simulation.population.population[[c for c in simulation.population.population.columns if 'exposure' in c]]

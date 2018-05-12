@@ -3,7 +3,8 @@ import os
 import pytest
 import pandas as pd
 
-from vivarium.test_util import setup_simulation, TestPopulation, pump_simulation
+from vivarium.test_util import TestPopulation
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_public_health.metrics.calculate_incidence import CalculateIncidence
 from ceam_public_health.metrics.epidemiology import EpidemiologicalMeasures
@@ -33,7 +34,7 @@ def test_calculate_incidence(config):
     ci = CalculateIncidence(disease_col='diarrhea', disease='diarrhea', disease_states=['mild_diarrhea'])
     simulation = setup_simulation([TestPopulation(), ci, EpidemiologicalMeasures()] + factory, input_config=config)
     simulation.population.population['diarrhea'] = ['healthy'] * 50 + ['mild_diarrhea'] * 50
-    pump_simulation(simulation, duration=pd.Timedelta(days=730))
+    simulation.run_for(pd.Timedelta(days=730))
 
     inc = simulation.values.get_value('epidemiological_span_measures')
 

@@ -41,7 +41,7 @@ class DiseaseModel(Machine):
         return self.state_column
 
     def setup(self, builder):
-        builder.components.add_components(self.states)
+        super().setup(builder)
 
         self.config = builder.configuration
         self._interpolation_order = builder.configuration.interpolation.order
