@@ -78,10 +78,9 @@ class TreatmentSchedule:
         return schedule  # in days
 
     def get_newly_dosed_simulants(self, dose, population, step_size):
-        eligible_pop = population[(self._schedule[dose]) & (population.shigellosis_vaccine_current_dose != dose)]
+        eligible_pop = population[(self._schedule[dose]) & (population[f'{self.name}_current_dose'] != dose)]
         dose_age = self._schedule.loc[eligible_pop.index, f'{dose}_age']
 
         time_to_dose = eligible_pop.age * 365 + step_size.days - dose_age
         correct_age = np.abs(time_to_dose) < step_size.days / 2
-
         return eligible_pop[correct_age]

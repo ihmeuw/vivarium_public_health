@@ -8,8 +8,6 @@ from vivarium.framework.components import ComponentConfigError
 
 from ceam_public_health.treatment import Treatment
 
-from vivarium.framework.population import PopulationView, PopulationManager
-
 
 @pytest.fixture(scope='function')
 def config(base_config):
@@ -32,8 +30,7 @@ def test_population():
     cols = [f'{tx.name}_current_dose',
             f'{tx.name}_current_dose_event_time',
             f'{tx.name}_previous_dose',
-            f'{tx.name}_previous_dose_event_time',
-            'alive']
+            f'{tx.name}_previous_dose_event_time']
 
     # grp 1 does not get any dose and get no immunity
     grp1 = pd.DataFrame(columns=cols, index=range(1000))
@@ -54,7 +51,7 @@ def test_population():
                          f'{tx.name}_previous_dose': 'first',
                          f'{tx.name}_previous_dose_event_time': pd.Timestamp('12-15-2004')}, index=range(4000, 5000))
 
-    # grp 6 got both current and previous doses and get waning immutnity from current dose
+    # grp 6 got both current and previous doses and get waning immunity from current dose
     grp6 = pd.DataFrame({f'{tx.name}_current_dose': 'second',
                          f'{tx.name}_current_dose_event_time': pd.Timestamp('06-20-2004'),
                          f'{tx.name}_previous_dose': 'first',
@@ -66,7 +63,6 @@ def test_population():
                          f'{tx.name}_previous_dose': 'first',
                          f'{tx.name}_previous_dose_event_time': pd.Timestamp('01-01-2005')}, index=range(6000, 7000))
     pop = pd.concat([grp1, grp2, grp3, grp4, grp5, grp6, grp7])
-    pop.alive = 'alive'
     return pop
 
 
@@ -75,14 +71,6 @@ def builder(mocker, config):
     builder = mocker.MagicMock()
     builder.configuration = config
     return builder
-
-
-@pytest.fixture(scope='function')
-def view(test_population):
-    manager = PopulationManager()
-    manager._population = test_population
-    view = PopulationView(manager, columns=test_population.columns)
-    return view
 
 
 @pytest.fixture(scope='function')
@@ -125,11 +113,10 @@ def test_get_protection(builder):
     assert tx._get_protection(builder) == protection
 
 
-def test_get_dosing_status(treatment):
+def test_get_dosing_status(treatment, test_population):
     tx = treatment
-    pop = tx.population_view.get(pd.Index(range(7000)))
-    dosing_status = tx._get_dosing_status(pop)
-    expected_dosing_status = pd.DataFrame({'dose': None, 'date': pd.NaT}, index=pop.index)
+    dosing_status = tx._get_dosing_status(test_population)
+    expected_dosing_status = pd.DataFrame({'dose': None, 'date': pd.NaT}, index=test_population.index)
 
     # grp2
     expected_dosing_status.dose.loc[pd.Index(range(1000, 2000))] = 'first'
@@ -150,17 +137,17 @@ def test_get_dosing_status(treatment):
     assert pd.DataFrame.equals(expected_dosing_status, dosing_status)
 
 
-def test_determine_protection(treatment):
+def test_determine_protection(treatment, test_population):
     tx = treatment
-    pop = tx.population_view.get(pd.Index(range(7000)))
+
     # No immunity : grp1, grp4
-    expected_protection = pd.Series(0, index=pop.index)
+    expected_protection = pd.Series(0, index=test_population.index)
 
     # First dose full immunity: grp2, grp7
     expected_protection.loc[pd.Index(range(1000, 2000))] = tx.protection['first']
     expected_protection.loc[pd.Index(range(6000, 7000))] = tx.protection['first']
     # Second dose full immunity: grp5
-    expected_protection.loc[pd.Index(range(4000, 5000))]= tx.protection['second']
+    expected_protection.loc[pd.Index(range(4000, 5000))] = tx.protection['second']
     # First dose waning immunity: grp3 (time in waning 8 days)
     expected_protection.loc[pd.Index(range(2000, 3000))] = tx.protection['first'] * \
                                                           np.exp(-tx.dose_response['waning_rate'] * 8)
@@ -168,7 +155,7 @@ def test_determine_protection(treatment):
     expected_protection.loc[pd.Index(range(5000, 6000))] = tx.protection['second'] * \
                                                            np.exp(-tx.dose_response['waning_rate'] * 3)
 
-    protection=tx.determine_protection(pop)
+    protection=tx.determine_protection(test_population)
     assert pd.DataFrame.equals(expected_protection, protection)
 
 
@@ -183,7 +170,6 @@ def test_incidence_rates(treatment, mocker):
     return_pop = pd.DataFrame({'alive': 5000*['alive', 'dead', 'untracked']})
     alive_pop = return_pop[return_pop.alive == 'alive']
     treatment.population_view.get.return_value = return_pop
-
     rates = pd.Series(base_rate, index=alive_pop.index)
 
     incidence = treatment.incidence_rates(return_pop.index, rates)
