@@ -263,7 +263,9 @@ class Normal(BaseDistribution):
     def get_parameters(self):
         mean = self._exposure_mean.set_index(['year', 'sex', 'age']).value
         sd = self._exposure_sd.set_index(['year', 'sex', 'age']).value
-        return self._build_lookup_function(pd.DataFrame({'loc': mean, 'scale': sd}).reset_index())
+        dist = self._exposure_sd.merge(self._exposure_mean, on=['year', 'sex', 'age'])
+        dist = dist.rename(columns={'value_x': 'loc', 'value_y': 'scale'})
+        return self._build_lookup_function(dist[["year", "sex", "age", "loc", "scale"]])
 
     def pdf(self, x):
         params = self.params(x.index)

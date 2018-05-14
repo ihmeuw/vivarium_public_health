@@ -1,4 +1,5 @@
 from datetime import datetime
+import io
 import os.path
 import json
 
@@ -107,3 +108,12 @@ class Artifact:
         self._hdf.close()
         self._cache = {}
         _log.debug(f"Data loading took at most {datetime.now() - self._loading_start_time} seconds")
+
+    def summary(self):
+        result = io.StringIO()
+        for child in self._hdf._handle.root._v_children:
+            result.write(f"{child}\n")
+            for sub_child in getattr(self._hdf._handle.root, child)._v_children:
+                result.write(f"\t{sub_child}\n")
+        return result.getvalue()
+
