@@ -7,11 +7,24 @@ import pandas as pd
 from tables.nodes import filenode
 
 from vivarium.framework.time import _get_time_stamp
+from vivarium.framework.util import import_by_path
 
 import logging
 _log = logging.getLogger(__name__)
 
+class ArtifactException(Exception):
+    pass
+
 class ArtifactManager:
+    configuration_defaults = {
+            'artifact': {
+                'artifact_class': 'ceam_public_health.dataset_manager.Artifact',
+            }
+    }
+
+    def __init__(self, artifact=None):
+        self.artifact = artifact
+
     def setup(self, builder):
         end_time = _get_time_stamp(builder.configuration.time.end)
         start_time = _get_time_stamp(builder.configuration.time.start)
@@ -26,10 +39,11 @@ class ArtifactManager:
         else:
             artifact_path = path_config['value']
 
+        if self.artifact is None:
+            artifact_class = import_by_path(builder.configuration.artifact.artifact_class)
+            self.artifact = artifact_class()
 
-        self.artifact = Artifact(artifact_path, start_time, end_time, draw, location)
-
-        self.artifact.open()
+        self.artifact.open(artifact_path, start_time, end_time, draw, location)
         builder.event.register_listener('post_setup', lambda _: self.artifact.close())
 
     def load(self, entity_path, keep_age_group_edges=False, **column_filters):
@@ -37,16 +51,17 @@ class ArtifactManager:
 
 
 class Artifact:
-    def __init__(self, path, start_time, end_time, draw, location):
-        self.artifact_path = path
-        self.start_time = start_time
-        self.end_time = end_time
-        self.draw = draw
-        self.location = location
+    def __init__(self):
+        self.artifact_path = None
+        self.start_time = None
+        self.end_time = None
+        self.draw = None
+        self.location = None
 
         self._cache = {}
+        self._hdf = None
 
-        self._loading_start_time = datetime.now()
+        self._loading_start_time = None
 
     def load(self, entity_path, keep_age_group_edges=False, **column_filters):
         _log.debug(f"loading {entity_path}")
@@ -101,13 +116,26 @@ class Artifact:
         self._cache[cache_key] = data
         return data
 
-    def open(self):
-        self._hdf = pd.HDFStore(self.artifact_path, mode='r')
+    def open(self, path, start_time, end_time, draw, location):
+        if self._hdf is None:
+            self.artifact_path = path
+            self.start_time = start_time
+            self.end_time = end_time
+            self.draw = draw
+            self.location = location
+            self._loading_start_time = datetime.now()
+            self._hdf = pd.HDFStore(self.artifact_path, mode='r')
+        else:
+            raise ArtifactException("Opening already open artifact")
 
     def close(self):
-        self._hdf.close()
-        self._cache = {}
-        _log.debug(f"Data loading took at most {datetime.now() - self._loading_start_time} seconds")
+        if self._hdf is not None:
+            self._hdf.close()
+            self._hdf = None
+            self._cache = {}
+            _log.debug(f"Data loading took at most {datetime.now() - self._loading_start_time} seconds")
+        else:
+            raise ArtifactException("Closing already closed artifact")
 
     def summary(self):
         result = io.StringIO()

@@ -37,19 +37,11 @@ class BasePopulation:
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
-        self._source_population_structure = builder.data.load("population.structure", keep_age_group_edges=True)
-        self._population_data = None
-        self._location = input_config.location
+        source_population_structure = builder.data.load("population.structure", keep_age_group_edges=True)
+        source_population_structure['location'] = input_config.location
+        self.population_data = _build_population_data_table(source_population_structure)
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
-
-
-    @property
-    def population_data(self):
-        if self._population_data is None:
-            self._source_population_structure['location'] = self._location
-            self._population_data = _build_population_data_table(self._source_population_structure)
-        return self._population_data
 
 
     # TODO: Move most of this docstring to an rst file.

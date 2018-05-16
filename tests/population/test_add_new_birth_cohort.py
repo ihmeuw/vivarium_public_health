@@ -4,8 +4,10 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from vivarium.test_util import setup_simulation, pump_simulation, TestPopulation
+from vivarium.test_util import setup_simulation, pump_simulation, TestPopulation, build_table
 
+from ceam_public_health.dataset_manager import ArtifactManager
+from ceam_public_health.testing.mock_artifact import MockArtifact
 from ceam_public_health.population import FertilityDeterministic, FertilityCrudeBirthRate, FertilityAgeSpecificRates
 
 
@@ -21,6 +23,10 @@ def config(base_config):
     base_config.time.start.set_with_metadata('year', 1990, **metadata)
     base_config.time.end.set_with_metadata('year', 2010, **metadata)
     base_config.time.set_with_metadata('step_size', 30.5, **metadata)
+    base_config.input_data.set_with_metadata('location', 'Kenya', **metadata)
+    base_config.vivarium.set_with_metadata('dataset_manager', 'ceam_public_health.dataset_manager.ArtifactManager', **metadata)
+    base_config.input_data.set_with_metadata('artifact_path', '/tmp/dummy.hdf', **metadata)
+    base_config.artifact.set_with_metadata('artifact_class', 'ceam_public_health.testing.mock_artifact.MockArtifact', **metadata)
     return base_config
 
 
@@ -52,8 +58,12 @@ def test_FertilityCrudeBirthRate(config):
     time_step = 10  # Days
     config.read_dict({'population': {'age_start': 0, 'age_end': 125}}, layer='override')
 
+    artifact = MockArtifact()
+    artifact.set("covariate.age_specific_fertility_rate.estimate", 0.01)
+    artifact.set("covariate.live_births_by_sex.estimate", build_table(5000, 1990, 2018, ('age', 'year', 'sex', 'mean_value')).query('age == 25').drop('age', 'columns'))
     components = [TestPopulation(), FertilityCrudeBirthRate()]
-    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    simulation = setup_simulation(components, population_size=start_population_size, input_config=config, dataset_manager=ArtifactManager(artifact))
+
     pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
 
@@ -70,8 +80,11 @@ def test_fertility_module(config):
     time_step = 10  # Days
     config.read_dict({'population': {'age_start': 0, 'age_end': 125}}, layer='override')
 
+    artifact = MockArtifact()
+    artifact.set("covariate.age_specific_fertility_rate.estimate", build_table(0.05, 1990, 2018).query("sex == 'Female'").drop("sex", "columns"))
+
     components = [TestPopulation(), FertilityAgeSpecificRates()]
-    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    simulation = setup_simulation(components, population_size=start_population_size, input_config=config, dataset_manager=ArtifactManager(artifact))
     time_start = simulation.clock.time
 
     assert 'last_birth_time' in simulation.population.population.columns,\

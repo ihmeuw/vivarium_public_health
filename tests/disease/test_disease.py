@@ -23,13 +23,15 @@ def config(base_config):
     base_config.time.start.set_with_metadata('year', 1990, **metadata)
     base_config.time.end.set_with_metadata('year', 2010, **metadata)
     base_config.time.set_with_metadata('step_size', 30.5, **metadata)
+    base_config.vivarium.set_with_metadata('dataset_manager', 'ceam_public_health.dataset_manager.ArtifactManager', **metadata)
+    base_config.input_data.set_with_metadata('artifact_path', '/tmp/dummy.hdf', **metadata)
+    base_config.artifact.set_with_metadata('artifact_class', 'ceam_public_health.testing.mock_artifact.MockArtifact', **metadata)
     return base_config
 
 
 @pytest.fixture(scope='function')
 def disease():
-    Disease = namedtuple('Disease', 'name')
-    return Disease(name='test')
+    return 'test'
 
 
 @pytest.fixture(scope='function')
@@ -62,15 +64,15 @@ def test_dwell_time(assign_cause_mock, config, disease):
 
     pump_simulation(simulation, iterations=1)
     event_time = simulation.clock.time
-    assert np.all(simulation.population.population[disease.name] == 'event')
+    assert np.all(simulation.population.population[disease] == 'event')
 
     pump_simulation(simulation, iterations=2)
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    assert np.all(simulation.population.population[disease.name] == 'event')
+    assert np.all(simulation.population.population[disease] == 'event')
 
     pump_simulation(simulation, iterations=1)
     # Now enough time has passed so people should transition away
-    assert np.all(simulation.population.population[disease.name] == 'sick')
+    assert np.all(simulation.population.population[disease] == 'sick')
     assert np.all(simulation.population.population.event_event_time == pd.to_datetime(event_time))
     assert np.all(simulation.population.population.event_event_count == 1)
 
@@ -86,7 +88,7 @@ def test_mortality_rate(config, disease):
         'dwell_time': lambda _, __: pd.Timedelta(days=0),
         'disability_weight': lambda _, __: 0.1,
         'prevalence': lambda _, __: build_table(0.000001, year_start-1, year_end,
-                                                ['age', 'year', 'sex', 'prevalence']),
+                                                ['age', 'year', 'sex', 'value']),
         'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
     }
     mortality_state = ExcessMortalityState('sick', get_data_functions=mort_get_data_funcs)
