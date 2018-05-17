@@ -1,9 +1,7 @@
-import os
-
 import pytest
 import pandas as pd
 
-from vivarium.test_util import TestPopulation
+from vivarium.test_util import TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation
 
 from ceam_public_health.metrics.calculate_incidence import CalculateIncidence
@@ -12,17 +10,15 @@ from ceam_public_health.metrics.epidemiology import EpidemiologicalMeasures
 
 @pytest.fixture(scope='function')
 def config(base_config):
-    try:
-        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                           'input_data.auxiliary_data_folder'])
-    except KeyError:
-        pass
+    base_config.update({
+        'time': {
+            'start': {'year': 2009},
+            'end': {'year': 2011},
+            'step_size': 365
+        },
+        'population': {'population_size': 1000}
+    }, **metadata(__file__))
 
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.time.start.set_with_metadata('year', 2009, **metadata)
-    base_config.time.end.set_with_metadata('year', 2011, **metadata)
-    base_config.time.set_with_metadata('step_size', 365, **metadata)
-    base_config.population.set_with_metadata('population_size', 1000, **metadata)
     return base_config
 
 

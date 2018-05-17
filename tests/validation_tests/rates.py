@@ -1,27 +1,11 @@
-import os
-
-import pytest
 import numpy as np
 import pandas as pd
 
 from vivarium.framework.state_machine import State
-from vivarium.test_util import setup_simulation, build_table, TestPopulation, from_yearly
+from vivarium.test_util import build_table, TestPopulation, from_yearly
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_public_health.disease import RateTransition, DiseaseModel
-
-
-@pytest.fixture(scope='function')
-def config(base_config):
-    try:
-        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                           'input_data.auxiliary_data_folder'])
-    except KeyError:
-        pass
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.time.start.set_with_metadata('year', 1990, **metadata)
-    base_config.time.end.set_with_metadata('year', 2010, **metadata)
-    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
-    return base_config
 
 
 def make_model(config, incidence_rate, recovery_rate):
@@ -42,12 +26,11 @@ def make_model(config, incidence_rate, recovery_rate):
     return model
 
 
-def test_incidence_rate_recalculation(config):
-    config.time.step_size = 1
+def test_incidence_rate_recalculation(base_config):
+    base_config.time.step_size = 1
     incidence_rate = 0.01
     recovery_rate = 72  # Average duration of 5 days
-    sim = setup_simulation([TestPopulation(), make_model(config, incidence_rate, recovery_rate)],
-                           population_size=50000, input_config=config)
+    sim = setup_simulation([TestPopulation(), make_model(base_config, incidence_rate, recovery_rate)], config)
 
     susceptible = [(sim.population.population.simple_disease == 'healthy').sum()]
     new_cases = []

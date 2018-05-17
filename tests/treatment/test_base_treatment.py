@@ -1,15 +1,14 @@
-import os
-
 import pytest
 import pandas as pd
 
 from vivarium.framework.components import ComponentConfigError
+from vivarium.test_util import metadata
+
 from ceam_public_health.treatment import Treatment
 
 
 @pytest.fixture(scope='function')
 def config(base_config):
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
     base_config.update({
         'test_treatment': {
             'dose_response': {
@@ -18,7 +17,7 @@ def config(base_config):
                 'waning_rate': 0.038  # Percent/Day
             },
         }
-    }, **metadata)
+    }, **metadata(__file__))
     return base_config
 
 
