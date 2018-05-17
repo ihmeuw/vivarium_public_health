@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-def continuous_exposure_effect(risk, population_view, builder):
+def continuous_exposure_effect(risk, risk_type, population_view, builder):
     """Factory that makes functions which can be used as the exposure_effect for standard continuous risks.
 
     Parameters
@@ -67,15 +67,16 @@ class RiskEffect:
             #FIXME: Bailing out because we don't have preloaded data for this cause-risk pair. This should be handled higher up but since it isn't yet I'm just going to skip all the plumbing leaving this as a NOP component
             return
 
-        self._raw_rr =  self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.relative_risk", cause=self.cause))(self.risk, self.cause, builder)[['year', 'parameter', 'sex', 'age', 'value']]
+        rr_data = self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.relative_risk", cause=self.cause))(self.risk, self.cause, builder)[['year', 'parameter', 'sex', 'age', 'value']]
 
-        # FIXME: Find a better way of defering this
-        self.__lookup_builder_function = builder.lookup
-        self._relative_risk = None
+        rr_data = pd.pivot_table(rr_data, index=['year', 'age', 'sex'],
+                                               columns='parameter', values='value').dropna()
+        rr_data = rr_data.reset_index()
+        self.relative_risk = builder.lookup(rr_data)
 
 
         if builder.configuration.risks.apply_mediation:
-            mf =  self._get_data_functions.get('mf', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.mediation_factor", cause=self.cause))(self.risk, self.cause, builder)
+            mf = self._get_data_functions.get('mf', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.mediation_factor", cause=self.cause))(self.risk, self.cause, builder)
             if mf is not None and not mf.empty:
                 self.mediation_factor = builder.lookup(float(mf.value))
             else:
@@ -88,23 +89,8 @@ class RiskEffect:
         self.population_view = builder.population.get_view([self.risk + '_exposure'])
         distribution = builder.data.load(f"{self.risk_type}.{self.risk}.distribution")
         self.is_continuous = distribution in ['lognormal', 'ensemble', 'normal']
-        self.exposure_effect = (continuous_exposure_effect(self.risk, self.population_view) if self.is_continuous
+        self.exposure_effect = (continuous_exposure_effect(self.risk, self.risk_type, self.population_view, builder) if self.is_continuous
                                 else categorical_exposure_effect(self.risk, self.population_view))
-
-
-    @property
-    def relative_risk(self):
-        if self._relative_risk is None:
-            if not self.is_continuous:
-                # TODO: I'm not sure this is the right place to be doing this reshaping. Maybe it should
-                # be in the data_transformations somewhere?
-                rr_data = pd.pivot_table(self._raw_rr, index=['year', 'age', 'sex'],
-                                               columns='parameter', values='value').dropna()
-                rr_data = rr_data.reset_index()
-            else:
-                rr_data = self._raw_rr
-            self._relative_risk = self.__lookup_builder_function(rr_data)
-        return self._relative_risk
 
 
     def paf_mf_adjustment(self, index):

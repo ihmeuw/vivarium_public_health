@@ -1,5 +1,6 @@
 import os
 from collections import namedtuple
+from unittest.mock import Mock
 
 import pytest
 import numpy as np
@@ -12,16 +13,12 @@ from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
 from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
 
-from ceam_inputs import risk_factors, sequelae
-
+from ceam_public_health.dataset_manager import ArtifactManager
+from ceam_public_health.testing.mock_artifact import MockArtifact
 from ceam_public_health.disease import RateTransition, DiseaseState, BaseDiseaseState
 from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
 from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
                                                 correlated_propensity_factory, uncorrelated_propensity)
-
-
-Disease = namedtuple('Disease', 'name')
-Risk = namedtuple('Risk', ['name', 'distribution'])
 
 
 @pytest.fixture(scope='function')
@@ -37,32 +34,10 @@ def config(base_config):
     base_config.time.end.set_with_metadata('year', 2010, **metadata)
     base_config.time.set_with_metadata('step_size', 30.5, **metadata)
     base_config.run_configuration.set_with_metadata('input_draw_number', 1, **metadata)
+    base_config.vivarium.set_with_metadata('dataset_manager', 'ceam_public_health.dataset_manager.ArtifactManager', **metadata)
+    base_config.input_data.set_with_metadata('artifact_path', '/tmp/dummy.hdf', **metadata)
+    base_config.artifact.set_with_metadata('artifact_class', 'ceam_public_health.testing.mock_artifact.MockArtifact', **metadata)
     return base_config
-
-
-@pytest.fixture(scope='function')
-def get_exposure_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.base_risk.get_exposure')
-
-
-@pytest.fixture(scope='function')
-def load_risk_corr_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.base_risk.get_risk_correlation_matrix')
-
-
-@pytest.fixture(scope='function')
-def get_rr_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.effect.get_relative_risk')
-
-
-@pytest.fixture(scope='function')
-def get_paf_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.effect.get_population_attributable_fraction')
-
-
-@pytest.fixture(scope='function')
-def get_mf_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.effect.get_mediation_factor')
 
 
 @pytest.fixture(scope='function')
@@ -91,18 +66,21 @@ def test_RiskEffect(config):
     def test_function(rates_, rr):
         return rates_ * (rr.values**test_exposure[0])
 
-    r = Risk(name='test_risk', distribution='categorical')
-    d = Disease(name='test_cause')
+    r = 'test_risk'
+    d = 'test_cause'
     effect_data_functions = {
         'rr': lambda *args: build_table([1.01, 'per_unit'], year_start, year_end,
-                                        ('age', 'year', 'sex', 'relative_risk', 'parameter')),
-        'paf': lambda *args: build_table(0.01, year_start, year_end),
-        'mf': lambda *args: 0,
+                                        ('age', 'year', 'sex', 'value', 'parameter')),
+        'paf': lambda *args: build_table(0.01, year_start, year_end, ('age', 'year', 'sex', 'value')),
+        'mf': lambda *args: None,
     }
 
     effect = RiskEffect(r, d, effect_data_functions)
 
-    simulation = setup_simulation([TestPopulation(), effect], input_config=config)
+    artifact = MockArtifact()
+    artifact.set("risk_factor.test_risk.distribution", "dichotomuous")
+
+    simulation = setup_simulation([TestPopulation(), effect], input_config=config, dataset_manager=ArtifactManager(artifact))
     effect.exposure_effect = test_function
 
     # This one should be affected by our RiskEffect
@@ -123,48 +101,66 @@ def test_RiskEffect(config):
 
 
 def test_continuous_exposure_effect(config):
-    risk = risk_factors.high_systolic_blood_pressure
+    risk = "test_risk"
+    tmred = {
+            "distribution": 'uniform',
+            "min": 110.0,
+            "max": 115.0,
+            "inverted": False,
+    }
+    exposure_parameters = {
+            "scale": 10.0,
+            "max_rr": 200.0,
+            "max_val": 300.0,
+            "min_val": 50.0,
+    }
 
     class exposure_function_wrapper:
 
         def setup(self, builder):
-            self.population_view = builder.population.get_view([risk.name+'_exposure'])
-            self.exposure_function = continuous_exposure_effect(risk, self.population_view)
+            self.population_view = builder.population.get_view([risk+'_exposure'])
+            self.exposure_function = continuous_exposure_effect(risk, "risk_factor", self.population_view, builder)
 
         def __call__(self, *args, **kwargs):
             return self.exposure_function(*args, **kwargs)
     exposure_function = exposure_function_wrapper()
 
-    tmrel = 0.5 * (risk.tmred.max + risk.tmred.min)
-    components = [TestPopulation(), make_dummy_column(risk.name+'_exposure', tmrel), exposure_function]
-    simulation = setup_simulation(components, input_config=config)
+    tmrel = 0.5 * (tmred["max"] + tmred["min"])
+
+    artifact = MockArtifact()
+    artifact.set("risk_factor.test_risk.distribution", "ensemble")
+    artifact.set("risk_factor.test_risk.tmred", tmred)
+    artifact.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
+
+    components = [TestPopulation(), make_dummy_column(risk+'_exposure', tmrel), exposure_function]
+    simulation = setup_simulation(components, input_config=config, dataset_manager=ArtifactManager(artifact))
 
     rates = pd.Series(0.01, index=simulation.population.population.index)
     rr = pd.Series(1.01, index=simulation.population.population.index)
 
     assert np.all(exposure_function(rates, rr) == 0.01)
 
-    simulation.population.get_view([risk.name+'_exposure']).update(
+    simulation.population.get_view([risk+'_exposure']).update(
         pd.Series(tmrel + 50, index=simulation.population.population.index))
 
-    expected_value = 0.01 * (1.01 ** (((tmrel + 50) - tmrel) / risk.exposure_parameters.scale))
+    expected_value = 0.01 * (1.01 ** (((tmrel + 50) - tmrel) / exposure_parameters["scale"]))
 
     assert np.allclose(exposure_function(rates, rr), expected_value)
 
 
 def test_categorical_exposure_effect(config):
-    risk = risk_factors.high_systolic_blood_pressure
+    risk = "test_risk"
 
     class exposure_function_wrapper:
         def setup(self, builder):
-            self.population_view = builder.population.get_view([risk.name + '_exposure'])
+            self.population_view = builder.population.get_view([risk + '_exposure'])
             self.exposure_function = categorical_exposure_effect(risk, self.population_view)
 
         def __call__(self, *args, **kwargs):
             return self.exposure_function(*args, **kwargs)
 
     exposure_function = exposure_function_wrapper()
-    components = [TestPopulation(), make_dummy_column(risk.name+'_exposure', 'cat2'), exposure_function]
+    components = [TestPopulation(), make_dummy_column(risk+'_exposure', 'cat2'), exposure_function]
     simulation = setup_simulation(components, input_config=config)
 
     rates = pd.Series(0.01, index=simulation.population.population.index)
@@ -172,103 +168,133 @@ def test_categorical_exposure_effect(config):
 
     assert np.all(exposure_function(rates, rr) == 0.01)
 
-    simulation.population.get_view([risk.name+'_exposure']).update(
+    simulation.population.get_view([risk+'_exposure']).update(
         pd.Series('cat1', index=simulation.population.population.index))
 
     assert np.allclose(exposure_function(rates, rr), 0.0101)
 
 
-def test_CategoricalRiskComponent_dichotomous_case(get_exposure_mock, get_paf_mock,
-                                                   get_rr_mock, get_mf_mock, config):
+def test_CategoricalRiskComponent_dichotomous_case(config):
     time_step = pd.Timedelta(days=30, hours=12)
     config.time.step_size = 30.5
-    risk = risk_factors.smoking_prevalence_approach
+    risk = "test_risk"
     year_start = config.time.start.year
     year_end = config.time.end.year
 
-    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(
-        0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
-    get_rr_mock.side_effect = lambda *args, **kwargs: build_table(
+    artifact = MockArtifact()
+    exposure_data = build_table(0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
+                                .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    artifact.set("risk_factor.test_risk.exposure", exposure_data)
+    rr_data = build_table(
         [1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='relative_risk')
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    artifact.set("risk_factor.test_risk.relative_risk", rr_data)
+    artifact.set("risk_factor.test_risk.mediation_factor", None)
+    artifact.set("risk_factor.test_risk.population_attributable_fraction", 1)
+    affected_causes = ["test_cause_1", "test_cause_2"]
+    artifact.set("risk_factor.test_risk.affected_causes", affected_causes)
+    artifact.set("risk_factor.test_risk.distribution", "dichotomous")
 
-    get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
-    get_mf_mock.side_effect = lambda *args, **kwargs: 0
 
-    component = CategoricalRiskComponent(risk)
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
+    component = CategoricalRiskComponent("risk_factor."+risk)
+    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config, dataset_manager=ArtifactManager(artifact))
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
+    incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
 
-    assert np.isclose((simulation.population.population[risk.name+'_exposure'] == 'cat1').sum()
+    assert np.isclose((simulation.population.population[risk+'_exposure'] == 'cat1').sum()
                       / len(simulation.population.population), 0.5, rtol=0.01)
 
     expected_exposed_value = 0.01 * 1.01
     expected_unexposed_value = 0.01
 
     exposed_index = simulation.population.population.index[
-        simulation.population.population[risk.name+'_exposure'] == 'cat1']
+        simulation.population.population[risk+'_exposure'] == 'cat1']
     unexposed_index = simulation.population.population.index[
-        simulation.population.population[risk.name+'_exposure'] == 'cat2']
+        simulation.population.population[risk+'_exposure'] == 'cat2']
 
     assert np.allclose(incidence_rate(exposed_index), from_yearly(expected_exposed_value, time_step))
     assert np.allclose(incidence_rate(unexposed_index), from_yearly(expected_unexposed_value, time_step))
 
 
-def test_CategoricalRiskComponent_polytomous_case(get_exposure_mock, get_rr_mock, get_paf_mock,
-                                                  get_mf_mock, config):
+def test_CategoricalRiskComponent_polytomous_case(config):
     time_step = pd.Timedelta(days=30, hours=12)
     config.time.step_size = 30.5
     year_start = config.time.start.year
     year_end = config.time.end.year
 
-    risk = risk_factors.smoking_prevalence_approach
-    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(
-        0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
-    get_rr_mock.side_effect = lambda *args, **kwargs: build_table(
-        [1.03, 1.02, 1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='relative_risk')
-    get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
-    get_mf_mock.side_effect = lambda *args, **kwargs: 0
+    risk = "test_risk"
 
-    component = CategoricalRiskComponent(risk)
+    artifact = MockArtifact()
+    exposure_data = build_table( 0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    artifact.set("risk_factor.test_risk.exposure", exposure_data)
+    rr_data = build_table( [1.03, 1.02, 1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    artifact.set("risk_factor.test_risk.relative_risk", rr_data)
+    artifact.set("risk_factor.test_risk.mediation_factor", None)
+    artifact.set("risk_factor.test_risk.population_attributable_fraction", 1)
+    affected_causes = ["test_cause_1", "test_cause_2"]
+    artifact.set("risk_factor.test_risk.affected_causes", affected_causes)
+    artifact.set("risk_factor.test_risk.distribution", "polytomous")
 
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
+    component = CategoricalRiskComponent("risk_factor."+risk)
+
+    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config, dataset_manager=ArtifactManager(artifact))
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
+    incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
 
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
-        assert np.isclose((simulation.population.population[risk.name+'_exposure'] == category).sum()
+        assert np.isclose((simulation.population.population[risk+'_exposure'] == category).sum()
                           / len(simulation.population.population), 0.25, rtol=0.02)
 
     expected_exposed_value = 0.01 * np.array([1.02, 1.03, 1.01])
 
     for cat, expected in zip(['cat1', 'cat2', 'cat3', 'cat4'], expected_exposed_value):
         exposed_index = simulation.population.population.index[
-            simulation.population.population[risk.name+'_exposure'] == cat]
+            simulation.population.population[risk+'_exposure'] == cat]
         assert np.allclose(incidence_rate(exposed_index), from_yearly(expected, time_step), rtol=0.01)
 
 
-def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_mock,
-                                 get_distribution_mock, config):
+def test_ContinuousRiskComponent(get_distribution_mock, config):
     time_step = pd.Timedelta(days=30, hours=12)
     config.time.step_size = 30.5
     year_start = config.time.start.year
     year_end = config.time.end.year
 
-    risk = risk_factors.high_systolic_blood_pressure
-    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end) \
-                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
-    get_rr_mock.side_effect = lambda *args, **kwargs: build_table(1.01, year_start, year_end) \
-                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='relative_risk')
-    get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
-    get_mf_mock.side_effect = lambda *args, **kwargs: 0
+    risk = "test_risk"
+
+    artifact = MockArtifact()
+
+    exposure_data = build_table(0.5, year_start, year_end) \
+                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    artifact.set("risk_factor.test_risk.exposure", exposure_data)
+    rr_data = build_table(1.01, year_start, year_end) \
+                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    artifact.set("risk_factor.test_risk.relative_risk", rr_data)
+    artifact.set("risk_factor.test_risk.mediation_factor", None)
+    artifact.set("risk_factor.test_risk.population_attributable_fraction", 1)
+    affected_causes = ["test_cause_1", "test_cause_2"]
+    artifact.set("risk_factor.test_risk.affected_causes", affected_causes)
+    artifact.set("risk_factor.test_risk.distribution", "ensemble")
+
+    tmred = {
+            "distribution": 'uniform',
+            "min": 110.0,
+            "max": 115.0,
+            "inverted": False,
+    }
+    artifact.set("risk_factor.test_risk.tmred", tmred)
+    exposure_parameters = {
+            "scale": 10.0,
+            "max_rr": 200.0,
+            "max_val": 300.0,
+            "min_val": 50.0,
+    }
+    artifact.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
 
     class Distribution:
         def __init__(self, *_, **__):
@@ -284,15 +310,15 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
 
     get_distribution_mock.side_effect = lambda *args, **kwargs: Distribution(args, kwargs)
 
-    component = ContinuousRiskComponent(risk)
+    component = ContinuousRiskComponent("risk_factor."+risk)
 
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
+    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config, dataset_manager=ArtifactManager(artifact))
     pump_simulation(simulation, iterations=1)
 
-    incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
+    incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
 
-    assert np.allclose(simulation.population.population[risk.name+'_exposure'], 130, rtol=0.001)
+    assert np.allclose(simulation.population.population[risk+'_exposure'], 130, rtol=0.001)
 
     expected_value = 0.01 * (1.01**((130 - 112) / 10))
 
@@ -300,18 +326,39 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
                        from_yearly(expected_value, time_step), rtol=0.001)
 
 
-def test_propensity_effect(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_mock,
-                           get_distribution_mock, config):
+def test_propensity_effect(get_distribution_mock, config):
     year_start = config.time.start.year
     year_end = config.time.end.year
 
-    risk = risk_factors.high_systolic_blood_pressure
-    get_exposure_mock.side_effect = lambda *args, **kwargs: build_table(0.5, year_start, year_end) \
-                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='mean')
-    get_rr_mock.side_effect = lambda *args, **kwargs: build_table(1.01, year_start, year_end) \
-                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='relative_risk')
-    get_paf_mock.side_effect = lambda *args, **kwargs: build_table(1, year_start, year_end)
-    get_mf_mock.side_effect = lambda *args, **kwargs: 0
+    risk = "test_risk"
+    artifact = MockArtifact()
+
+    exposure_data = build_table(0.5, year_start, year_end) \
+                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    artifact.set("risk_factor.test_risk.exposure", exposure_data)
+    rr_data = build_table(1.01, year_start, year_end) \
+                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    artifact.set("risk_factor.test_risk.relative_risk", rr_data)
+    artifact.set("risk_factor.test_risk.mediation_factor", None)
+    artifact.set("risk_factor.test_risk.population_attributable_fraction", 1)
+    affected_causes = ["test_cause_1", "test_cause_2"]
+    artifact.set("risk_factor.test_risk.affected_causes", affected_causes)
+    artifact.set("risk_factor.test_risk.distribution", "ensemble")
+
+    tmred = {
+            "distribution": 'uniform',
+            "min": 110.0,
+            "max": 115.0,
+            "inverted": False,
+    }
+    artifact.set("risk_factor.test_risk.tmred", tmred)
+    exposure_parameters = {
+            "scale": 10.0,
+            "max_rr": 200.0,
+            "max_val": 300.0,
+            "min_val": 50.0,
+    }
+    artifact.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
 
     class Distribution:
         def __init__(self, *_, **__):
@@ -327,31 +374,31 @@ def test_propensity_effect(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_
 
     get_distribution_mock.side_effect = lambda *args, **kwargs: Distribution(args, kwargs)
 
-    component = ContinuousRiskComponent(risk)
+    component = ContinuousRiskComponent("risk_factor."+risk)
 
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config)
-    pop_view = simulation.population.get_view([risk.name+'_propensity'])
+    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config, dataset_manager=ArtifactManager(artifact))
+    pop_view = simulation.population.get_view([risk+'_propensity'])
 
     pop_view.update(pd.Series(0.00001, index=simulation.population.population.index))
     pump_simulation(simulation, iterations=1)
 
     expected_value = norm(loc=130, scale=15).ppf(0.00001)
-    assert np.allclose(simulation.population.population[risk.name+'_exposure'], expected_value)
+    assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
 
     pop_view.update(pd.Series(0.5, index=simulation.population.population.index))
     pump_simulation(simulation, iterations=1)
 
     expected_value = 130
-    assert np.allclose(simulation.population.population[risk.name+'_exposure'], expected_value)
+    assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
 
     pop_view.update(pd.Series(0.99999, index=simulation.population.population.index))
     pump_simulation(simulation, iterations=1)
 
     expected_value = norm(loc=130, scale=15).ppf(0.99999)
-    assert np.allclose(simulation.population.population[risk.name+'_exposure'], expected_value)
+    assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
 
 
-def test_correlated_propensity(load_risk_corr_mock, config):
+def test_correlated_propensity(config):
 
     correlation_matrix = pd.DataFrame({
         'high_systolic_blood_pressure':           [1, 0.282213017344475, 0.110525231808424, 0.130475437755401, 0.237914389663941],
@@ -365,18 +412,21 @@ def test_correlated_propensity(load_risk_corr_mock, config):
         })
     correlation_matrix['age'] = 30
     correlation_matrix['sex'] = 'Male'
-    load_risk_corr_mock.return_value = correlation_matrix
 
     pop = pd.DataFrame({'age': [30]*100000, 'sex': ['Male']*100000})
 
+    mock_builder = Mock()
+    mock_builder.configuration.run_configuration.input_draw_number = 0
+    mock_builder.data.load.return_value = correlation_matrix
+
     propensities = []
     for risk in [
-            risk_factors.high_systolic_blood_pressure,
-            risk_factors.high_body_mass_index,
-            risk_factors.high_total_cholesterol,
-            risk_factors.smoking_prevalence_approach,
-            risk_factors.high_fasting_plasma_glucose_continuous]:
-        propensities.append(correlated_propensity_factory(config)(pop, risk))
+            "high_systolic_blood_pressure",
+            "high_body_mass_index",
+            "high_total_cholesterol",
+            "smoking_prevalence_approach",
+            "high_fasting_plasma_glucose_continuous"]:
+        propensities.append(correlated_propensity_factory(mock_builder)(pop, risk))
 
     matrix = np.corrcoef(np.array(propensities))
     assert np.allclose(correlation_matrix[['high_systolic_blood_pressure', 'high_body_mass_index',
@@ -388,11 +438,11 @@ def test_uncorrelated_propensity():
     pop = pd.DataFrame({'age': [30]*1000000, 'sex': ['Male']*1000000})
     propensities = []
     for risk in [
-            risk_factors.high_systolic_blood_pressure,
-            risk_factors.high_body_mass_index,
-            risk_factors.high_total_cholesterol,
-            risk_factors.smoking_prevalence_approach,
-            risk_factors.high_fasting_plasma_glucose_continuous]:
+            "high_systolic_blood_pressure",
+            "high_body_mass_index",
+            "high_total_cholesterol",
+            "smoking_prevalence_approach",
+            "high_fasting_plasma_glucose_continuous"]:
         propensities.append(uncorrelated_propensity(pop, risk))
 
     propensities = np.array(propensities)
@@ -424,7 +474,7 @@ def _fill_in_correlation_matrix(risk_order):
 
 @pytest.mark.skip
 @pytest.mark.slow
-def test_correlated_exposures(load_rc_matrices_mock, config):
+def test_correlated_exposures(config):
     from rpy2.robjects import r, pandas2ri, numpy2ri
     pandas2ri.activate()
     numpy2ri.activate()
@@ -432,8 +482,8 @@ def test_correlated_exposures(load_rc_matrices_mock, config):
     config.population.age_end = 50
 
     draw = config.run_configuration.input_draw_number
-    categorical_risks = [risk_factors.no_access_to_handwashing_facility, risk_factors.smoking_prevalence_approach]
-    continuous_risks = [risk_factors.high_systolic_blood_pressure, risk_factors.high_total_cholesterol]
+    categorical_risks = ["no_access_to_handwashing_facility," "smoking_prevalence_approach"]
+    continuous_risks = ["high_systolic_blood_pressure," "high_total_cholesterol"]
 
     categorical_risk_order = [r.name for r in categorical_risks]
     continuous_risk_order = [r.name for r in continuous_risks]
@@ -457,7 +507,7 @@ def test_correlated_exposures(load_rc_matrices_mock, config):
         pop.columns = [c if 'exposure' not in c else c.rpartition('_')[0] for c in pop.columns]
 
         for risk in categorical_risks:
-            pop[risk.name] = pop[risk.name].astype('category')
+            pop[risk] = pop[risk].astype('category')
 
         pop = pop[risk_order]
 
@@ -500,8 +550,7 @@ def inputs_mock_factory(config, input_type):
 
 
 @pytest.mark.skip
-def test_correlated_exposures_synthetic_risks(load_risk_corr_mock, get_paf_mock, get_rr_mock,
-                                              get_exposure_mock, config):
+def test_correlated_exposures_synthetic_risks(config):
     from rpy2.robjects import r, pandas2ri, numpy2ri
     pandas2ri.activate()
     numpy2ri.activate()
@@ -583,7 +632,7 @@ def test_make_gbd_risk_effects(config):
         'mf': lambda *args: mediation_factor,
     }
 
-    bmi = ContinuousRiskComponent(risk_factors.high_body_mass_index)
+    bmi = ContinuousRiskComponent("high_body_mass_index")
 
     simulation = setup_simulation([TestPopulation(), bmi], input_config=config)
 
@@ -606,9 +655,9 @@ def test_make_gbd_risk_effects(config):
         'paf': lambda *args: build_table(0, year_start, year_end),
         'mf': lambda *args: mediation_factor,
     }
-    bmi = ContinuousRiskComponent(risk_factors.high_body_mass_index)
+    bmi = ContinuousRiskComponent("high_body_mass_index")
     healthy = BaseDiseaseState('healthy')
-    heart_attack = DiseaseState(sequelae.heart_attack)
+    heart_attack = DiseaseState("heart_attack")
     heart_attack_transition = RateTransition(healthy, heart_attack, get_data_functions={
         'incidence_rate': lambda *args: build_table(.001, year_start, year_end)})
     simulation = setup_simulation([TestPopulation(), heart_attack_transition, bmi], input_config=config)

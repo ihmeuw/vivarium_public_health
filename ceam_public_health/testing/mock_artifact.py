@@ -1,3 +1,7 @@
+import pandas as pd
+
+from vivarium.test_util import build_table
+
 from ..dataset_manager import Artifact, ArtifactException
 from .utils import make_uniform_pop_data
 
@@ -5,6 +9,7 @@ MOCKERS = {
         'cause': {
             'prevalence': lambda *args: 0,
             'cause_specific_mortality': lambda *args: 0,
+            'population_attributable_fraction': lambda *args: build_table(1, 1990, 2018, ('age', 'year', 'sex', 'value')),
             'excess_mortality': lambda *args: 0,
             'remission': lambda *args: 0,
             'incidence': lambda *args: 0,
@@ -25,7 +30,9 @@ class MockArtifact(Artifact):
     def __init__(self):
         super(MockArtifact, self).__init__()
         self._is_open = False
-        self._overrides = {}
+        self._overrides = {
+                "risk_factor.correlations.correlations": pd.DataFrame([], columns=["risk_factor", "sex", "age"]),
+        }
 
     def load(self, entity_path, keep_age_group_edges=False, **column_filters):
         if entity_path in self._overrides:

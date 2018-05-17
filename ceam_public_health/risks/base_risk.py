@@ -178,11 +178,10 @@ class CategoricalRiskComponent:
                                                  requires_columns=['age', 'sex'])
 
         exposure_data = builder.data.load(f"{self._risk_type}.{self._risk}.exposure")
-        def transform_exposure():
-            return pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='value').reset_index()
+        exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='value').reset_index()
 
         self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
-                                                              source=builder.lookup(transform_exposure))
+                                                              source=builder.lookup(exposure_data))
 
         self.randomness = builder.randomness.get_stream(self._risk)
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
