@@ -119,7 +119,6 @@ class InverseGamma:
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.a, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
 
-
     @staticmethod
     def _get_params(exposure_mean, exposure_sd, _, __):
 
@@ -346,7 +345,6 @@ class EnsembleDistribution:
     def pdf(self, x):
         return self._distribution.pdf(x)
         #return np.sum([weight * self._distributions[dist_name].pdf(x) for dist_name, weight in self.weights.items()])
-
 
     def ppf(self, propensity):
         return self._distribution.ppf(propensity)

@@ -73,7 +73,6 @@ def _get_data(cause_name, measure_name, config):
     return function_map[measure_name](cause, config)
 
 
-
 def _get_cause_from_name(cause_name):
     if cause_name in causes:
         cause = causes[cause_name]

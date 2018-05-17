@@ -17,7 +17,6 @@ def continuous_exposure_effect(risk, population_view):
     max_exposure = risk.exposure_parameters.max_rr
     scale = risk.exposure_parameters.scale
 
-
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     def inner(rates, rr):
         exposure = np.minimum(population_view.get(rr.index)[exposure_column].values, max_exposure)

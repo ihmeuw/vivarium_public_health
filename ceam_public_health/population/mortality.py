@@ -69,7 +69,6 @@ class Mortality:
 
             self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death', 'years_of_life_lost']])
 
-
     def untracked_handler(self, event):
         pop = self.population_view.get(event.index, query="alive == 'untracked'")
         new_untracked = pop.exit_time == event.time

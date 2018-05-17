@@ -11,6 +11,7 @@ from ceam_public_health.disease import (SusceptibleState, ExcessMortalityState, 
 
 from ceam_inputs import get_cause_specific_mortality
 
+
 class DiseaseModelError(VivariumError):
     pass
 

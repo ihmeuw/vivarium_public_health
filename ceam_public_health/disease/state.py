@@ -350,6 +350,3 @@ class ExcessMortalityState(DiseaseState):
 
     def __str__(self):
         return 'ExcessMortalityState({})'.format(self.state_id)
-
-
-
