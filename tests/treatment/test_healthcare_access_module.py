@@ -5,6 +5,8 @@ import pytest
 
 from vivarium.test_util import setup_simulation, pump_simulation, assert_rate, build_table, TestPopulation
 
+from ceam_public_health.dataset_manager import ArtifactManager
+from ceam_public_health.testing.mock_artifact import MockArtifact
 from ceam_public_health.treatment import HealthcareAccess
 
 np.random.seed(100)
@@ -22,12 +24,10 @@ def config(base_config):
     base_config.time.end.set_with_metadata('year', 2010, **metadata)
     base_config.time.set_with_metadata('step_size', 30.5, **metadata)
     base_config.run_configuration.set_with_metadata('input_draw_number', 1, **metadata)
+    base_config.vivarium.set_with_metadata('dataset_manager', 'ceam_public_health.dataset_manager.ArtifactManager', **metadata)
+    base_config.input_data.set_with_metadata('artifact_path', '/tmp/dummy.hdf', **metadata)
+    base_config.artifact.set_with_metadata('artifact_class', 'ceam_public_health.testing.mock_artifact.MockArtifact', **metadata)
     return base_config
-
-
-@pytest.fixture(scope='function')
-def get_annual_visits_mock(mocker):
-    return mocker.patch('ceam_public_health.treatment.healthcare_access.get_healthcare_annual_visits')
 
 
 class Metrics:
@@ -45,16 +45,17 @@ class Metrics:
 
 
 @pytest.mark.slow
-def test_general_access(config, get_annual_visits_mock):
+def test_general_access(config):
     year_start = config.time.start.year
     year_end = config.time.end.year
 
-    def get_utilization_rate(*_, **__):
-        return build_table(0.1*12, year_start, year_end, ['age', 'year', 'sex', 'annual_visits'])
-    get_annual_visits_mock.side_effect = get_utilization_rate
+    artifact = MockArtifact()
+
+    utilization_rate = build_table(0.1*12, year_start, year_end, ['age', 'year', 'sex', 'value'])
+    artifact.set("healthcare_entity.outpatient_visits.annual_visits", utilization_rate)
 
     metrics = Metrics()
-    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config)
+    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config, dataset_manager=ArtifactManager(artifact))
 
     # 1.2608717447575932 == a monthly probability 0.1 as a yearly rate
     assert_rate(simulation, 1.2608717447575932, lambda s: metrics.access_count)

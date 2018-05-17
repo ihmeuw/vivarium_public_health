@@ -21,6 +21,10 @@ MOCKERS = {
             'remission': lambda *args: 0,
             'incidence': lambda *args: 0,
         },
+        'healthcare_entity': {
+            'cost': lambda *args: build_table(0, 1990, 2018, ['age', 'year', 'sex', 'value']).query('sex=="Both" and age==27').drop('sex', 'columns'),
+            'annual_visits': lambda *args: 0,
+        },
         'population': {
             'structure': lambda: make_uniform_pop_data(),
         },
