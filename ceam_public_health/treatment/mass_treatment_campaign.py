@@ -32,6 +32,11 @@ class MassTreatmentCampaign:
                 'booster': (1080, 1440),
                 'catchup': (1080, 1440),
             },
+            'coverage_proportion': {
+                'second': 0.8,
+                'booster': 0.9,
+                'catchup': 0.1,
+            },
         }
     }
 
