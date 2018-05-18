@@ -3,7 +3,6 @@ import os
 import pytest
 import pandas as pd
 import numpy as np
-from scipy import stats
 
 from ceam_public_health.treatment import TreatmentSchedule
 
@@ -15,8 +14,8 @@ def config(base_config):
         'test_treatment': {
             'doses': ['first', 'second'],
             'dose_age_range': {
-                'first': (36.5*2, 36.5*3),
-                'second': (36.5*8, 36.5*8)
+                'first': (60, 90),
+                'second': (180, 180)
             },
         }
     }, **metadata)
@@ -43,10 +42,12 @@ def treatment_schedule(mocker, builder):
 def test_get_coverage(builder, mocker):
     tx = TreatmentSchedule('test_treatment')
     tx.determine_dose_eligibility = mocker.MagicMock()
+
     with pytest.raises(NotImplementedError):
         tx._get_coverage(builder)
     with pytest.raises(NotImplementedError):
         tx.get_coverage(builder)
+
     coverage = dict(first=1, second=0.5)
     tx.get_coverage = lambda builder_: coverage
 
@@ -54,119 +55,137 @@ def test_get_coverage(builder, mocker):
 
 
 def test_determine_dose_eligibility(builder, mocker):
+    population_size = 5000
     tx = TreatmentSchedule('test_treatment')
     coverage = dict(first=1, second=0.5)
     tx.get_coverage = lambda builder_: coverage
     _current_schedule = mocker.Mock()
+
     with pytest.raises(NotImplementedError):
-        tx._determine_dose_eligibility(builder, _current_schedule, pd.Index(range(5000)))
+        tx._determine_dose_eligibility(builder, _current_schedule, pd.Index(range(population_size)))
     with pytest.raises(NotImplementedError):
-        tx.determine_dose_eligibility(builder, _current_schedule, pd.Index(range(5000)))
+        tx.determine_dose_eligibility(builder, _current_schedule, pd.Index(range(population_size)))
+
     tx.determine_dose_eligibility = mocker.Mock()
-    eligible_index = pd.Index(range(0,5000,2))
+    eligible_index = pd.Index(range(0, population_size, 2))
     tx.determine_dose_eligibility.side_effect = lambda schedule_, dose_, index_: eligible_index
 
-    assert np.array_equal(tx.determine_dose_eligibility(_current_schedule, 'second', pd.Index(range(5000))), eligible_index)
+    assert np.array_equal(tx.determine_dose_eligibility(_current_schedule, 'second', pd.Index(range(population_size))),
+                          eligible_index)
 
 
-def test_determine_who_should_receive_dose_and_when(treatment_schedule, mocker):
-    # pop size was chosen small since stats.normaltest (or other similar tests) tends to have smaller p-value for large
-    # size population (https://stats.stackexchange.com/questions/2492/is-normality-testing-essentially-useless)
-    # and I'm also sure that we can rely on CLT if we use large size sample.
-    # if there's a better way to test normality, let me know. -MP
+def test_who_should_receive_dose(treatment_schedule, mocker):
+    population_size = 5000
+    age = 0.1
+    pop = pd.DataFrame({'age': population_size*[age]})
+    tx = treatment_schedule
+    tx.population_view.get = mocker.Mock()
+    tx.population_view.get.return_value = pop
+    doses = ['first', 'second']
 
-    pop = pd.DataFrame({'age': 500 * [0.1]})  # everybody at 36.5 days old
-    treatment_schedule.population_view.get = mocker.Mock()
-    treatment_schedule.population_view.get.return_value = pop
-    doses = treatment_schedule.doses
+    coverage = {'first': lambda index: pd.Series(1, index=index), 'second': lambda index: pd.Series(0.5, index=index)}
+    tx.dose_coverages = coverage
+
+    tx._determine_dose_eligibility = lambda _sch, _dose, index: pop.index
+
     schedule = {dose: False for dose in doses}
     schedule.update({f'{dose}_age': np.NaN for dose in doses})
-    schedule = pd.DataFrame(schedule, index=pop.index)
-    dose_coverages = {'first': 1, 'second': 0.5}
 
-    treatment_schedule.dose_coverages = lambda dose, index: pd.Series(dose_coverages[dose], index=index)
-    treatment_schedule._determine_dose_eligibility = lambda _sch, _dose, index: pop.index
+    tx._determine_dose_eligibility = lambda _sch, _dose, index: pop.index
 
-    coverage_draw = {'first': pd.Series(500 * [0.5]), 'second': pd.Series(250 * [0, 1])}
+    def coverage_draw_side_effect(index, additional_key):
+        if additional_key == 'first_covered':
+            return pd.Series(0.5, index=index)
+        else:
+            coverage_draws = pd.Series(0, index=index)
+            coverage_draws.loc[len(index)//2:] = 1
+            return coverage_draws
+
+    tx.randomness.get_draw.side_effect = coverage_draw_side_effect
+
+    first_dosed_index = tx._determine_who_should_receive_dose('first', pop, schedule)
+    assert np.array_equal(first_dosed_index, pop.index)
+
+    second_dosed_index = tx._determine_who_should_receive_dose('second', pop, schedule)
+    assert np.array_equal(second_dosed_index, pd.Index(range(len(pop.index)//2)))
 
 
-    def _who_should_receive_dose(simulant_data):
-        population = treatment_schedule.population_view.get(simulant_data.index)
-        dosed_pop = dict()
-        for dose in doses:
-            coverage = treatment_schedule.dose_coverages(dose, population.index)
-            eligible_index = treatment_schedule._determine_dose_eligibility(schedule, dose, population.index)
-            # this 'dosed_index' line is the main functionality to decide who should receive dose
-            dosed_index = eligible_index[coverage_draw[dose][eligible_index] < coverage[eligible_index]]
-            dosed_pop[dose] = dosed_index
-        return dosed_pop
+def test_when_should_receive_dose(treatment_schedule, mocker):
+    population_size = 5000
+    age = 0.1
+    pop = pd.DataFrame({'age': population_size*[age]})
+    tx = treatment_schedule
+    tx.population_view.get = mocker.Mock()
+    tx.population_view.get.return_value = pop
 
-    def _when_should_receive_dose(simulant_data):
-        dosed_pop = _who_should_receive_dose(simulant_data)
-        population = treatment_schedule.population_view.get(simulant_data.index)
-        for dose in doses:
-            age_draw = pd.Series(np.random.rand(len(simulant_data)), index=population.index)
-            min_age, max_age = treatment_schedule.dose_ages[dose]
-            mean_age = (min_age + max_age) / 2
-            age_std_dev = (mean_age - min_age) / 3
-            age_at_dose = stats.norm(mean_age, age_std_dev).ppf(age_draw) \
-                if age_std_dev else pd.Series(int(mean_age), index=population.index)
+    def age_draw_side_effect(index, additional_key):
+        age_draws = [0.00001, 0.25, 0.5, 0.75, 0.99999] # should give ages < min_age and age > max_age
+        if len(index) < len(age_draws):
+            return pd.Series(age_draws[:index])
 
-            age_at_dose[age_at_dose > max_age] = max_age * 0.99
-            age_at_dose[age_at_dose < min_age] = min_age * 1.01
+        else:
+            return pd.Series(age_draws * (len(index)//5) + age_draws[:(len(index) % 5)])
 
-            schedule.loc[dosed_pop[dose], dose] = True
-            schedule.loc[dosed_pop[dose], f'{dose}_age'] = age_at_dose[dosed_pop[dose]]
-        return schedule
+    tx.randomness.get_draw.side_effect = age_draw_side_effect
 
-    # check whether it assigns the dose index properly
-    dosed_pop = _who_should_receive_dose(pop)
+    # any ages outsider [min_age, max_age] should be pushed inside of the ranage.
+    age_at_first_dose = tx._determine_when_should_receive_dose('first', pop)
+    assert min(age_at_first_dose) == tx.dose_ages['first'][0] * 1.01
+    assert max(age_at_first_dose) == tx.dose_ages['first'][1] * 0.99
 
-    assert np.array_equal(dosed_pop['first'], coverage_draw['first'].index)
-    assert np.array_equal(dosed_pop['second'], coverage_draw['second'][coverage_draw['second']==0].index)
-
-    # check whether it scheduled them properly
-    vaccine_schedule = _when_should_receive_dose(pop)
-    z, pval = stats.normaltest(vaccine_schedule['first_age']) # first dose age should be approximately normal
-    assert (pval > 0.05)  # p-value lower than 0.05 considered insignificant
-    assert min(vaccine_schedule['first_age']) >= treatment_schedule.dose_ages['first'][0]
-    assert max(vaccine_schedule['first_age']) <= treatment_schedule.dose_ages['first'][1]
-    assert (vaccine_schedule['second_age'].loc[0] == treatment_schedule.dose_ages['second'][0] ==
-            treatment_schedule.dose_ages['second'][1])
-    # second dose should be scheduled for the same date as the first one that we checked above.
-    assert (vaccine_schedule['second_age'].value_counts()[vaccine_schedule['second_age'].loc[0]] == 250)
+    # min_age and max_age are same, should be all equal to a single age
+    age_at_second_dose = tx._determine_when_should_receive_dose('second', pop)
+    assert min(age_at_second_dose) == tx.dose_ages['second'][0]
+    assert max(age_at_second_dose) == tx.dose_ages['second'][1]
 
 
 def test_get_newly_dosed_simulants(treatment_schedule):
+    population_size = 5000
     tx = treatment_schedule
-    pop = pd.DataFrame({'age': 5000 * [72.3/365]})
+    age = 59.3
+    pop = pd.DataFrame({'age': population_size * [age/365]})
     pop[f'{tx.name}_current_dose'] = None
     schedule = {dose: False for dose in tx.doses}
     schedule.update({f'{dose}_age': np.NaN for dose in tx.doses})
     tx._schedule = pd.DataFrame(schedule, index=pop.index)
     tx._schedule['first'] = True
-    tx._schedule['first_age'].loc[:2000] = 36.5*2  # 73days
-    tx._schedule['first_age'].loc[2001:4000] = 36.5*2.5  # 91.25days
-    tx._schedule['first_age'].loc[4001:]= 36.5*3  # 109.5 days
+
+    # first dose at 60 days
+    tx._schedule['first_age'].loc[:1999] = 60
+
+    # first dose at 75 days
+    tx._schedule['first_age'].loc[2000:3999] = 75
+
+    # first dose at 90 days
+    tx._schedule['first_age'].loc[4000:] = 90
+
+    # second dose True
     tx._schedule['second'].loc[:2500] = True
-    tx._schedule['second_age'].loc[:2500] = 36.5*8  # 292 days
+    tx._schedule['second_age'].loc[:2500] = 180
 
     step_size = pd.Timedelta(days=1)
 
-    assert np.array_equal(pop.loc[:2000], tx.get_newly_dosed_simulants('first', pop, step_size))
+    # current age = 59.3 days
+    assert np.array_equal(pop[tx._schedule.first_age == 60], tx.get_newly_dosed_simulants('first', pop, step_size))
+    pop[f'{tx.name}_current_dose'][tx._schedule.first_age == 60] = 'first'  # update the current dose
 
-    pop['age'] = 90/365
-    pop[f'{tx.name}_current_dose'].loc[:2000] = 'first'
+    # current age = 74.3 days
+    age = 74.3  # days
+    pop['age'] = age/365
 
-    assert np.array_equal(pop.loc[2001:4000], tx.get_newly_dosed_simulants('first', pop, step_size))
+    assert np.array_equal(pop[tx._schedule.first_age == 75], tx.get_newly_dosed_simulants('first', pop, step_size))
+    pop[f'{tx.name}_current_dose'][tx._schedule.first_age == 75] = 'first'  # update the current dose
 
-    pop['age'] = 108.8/365
-    pop[f'{tx.name}_current_dose'].loc[2001:4000] = 'first'
+    # current age = 89.3 days
+    age = 89.3  # days
+    pop['age'] = age/365
 
-    assert np.array_equal(pop.loc[4001:], tx.get_newly_dosed_simulants('first', pop, step_size))
+    assert np.array_equal(pop[tx._schedule.first_age == 90], tx.get_newly_dosed_simulants('first', pop, step_size))
+    pop[f'{tx.name}_current_dose'][tx._schedule.first_age == 90] = 'first'  # update the current dose
 
-    pop['age'] = 291.3 / 365
-    pop[f'{tx.name}_current_dose'].loc[4001:] = 'first'
+    # current age =179.3 days, ready for second dose
+    age = 179.3  # days
+    pop['age'] = age / 365
 
-    assert np.array_equal(pop.loc[:2500], tx.get_newly_dosed_simulants('second', pop, step_size))
-
+    assert np.array_equal(pop[tx._schedule.second == True], tx.get_newly_dosed_simulants('second', pop, step_size))
+    pop[f'{tx.name}_current_dose'][tx._schedule.second == True] = 'second'  # update the current dose

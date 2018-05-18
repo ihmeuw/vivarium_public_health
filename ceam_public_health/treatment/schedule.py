@@ -53,29 +53,38 @@ class TreatmentSchedule:
         schedule = {dose: False for dose in self.doses}
         schedule.update({f'{dose}_age': np.NaN for dose in self.doses})
         schedule = pd.DataFrame(schedule, index=simulant_data.index)
-
-        population = self.population_view.get(simulant_data.index)
         for dose in self.doses:
-            coverage = self.dose_coverages[dose](population.index)
-            eligible_index = self._determine_dose_eligibility(schedule, dose, population.index)
-
-            coverage_draw = self.randomness.get_draw(population.index, additional_key=f'{dose}_covered')
-            dosed_index = eligible_index[coverage_draw[eligible_index] < coverage[eligible_index]]
-
-            age_draw = self.randomness.get_draw(population.index, additional_key=f'{dose}_age')
-
-            min_age, max_age = self.dose_ages[dose]
-            mean_age = (min_age + max_age) / 2
-            age_std_dev = (mean_age - min_age) / 3
-            age_at_dose = stats.norm(mean_age, age_std_dev).ppf(age_draw) \
-                if age_std_dev else pd.Series(int(mean_age), index=population.index)
-
-            age_at_dose[age_at_dose > max_age] = max_age*0.99
-            age_at_dose[age_at_dose < min_age] = min_age*1.01
-
+            dosed_index = self._determine_who_should_receive_dose(dose, simulant_data, schedule)
+            age_at_dose = self._determine_when_should_receive_dose(dose, simulant_data)
             schedule.loc[dosed_index, dose] = True
             schedule.loc[dosed_index, f'{dose}_age'] = age_at_dose[dosed_index]
+
         return schedule  # in days
+
+    def _determine_who_should_receive_dose(self, dose, simulant_data, schedule):
+        population = self.population_view.get(simulant_data.index)
+        coverage = self.dose_coverages[dose](population.index)
+        eligible_index = self._determine_dose_eligibility(schedule, dose, population.index)
+        coverage_draw = self.randomness.get_draw(population.index, additional_key=f'{dose}_covered')
+        dosed_index = eligible_index[coverage_draw[eligible_index] < coverage[eligible_index]]
+        return dosed_index
+
+    def _determine_when_should_receive_dose(self, dose, simulant_data):
+        population = self.population_view.get(simulant_data.index)
+        age_draw = self.randomness.get_draw(population.index, additional_key=f'{dose}_age')
+
+        min_age, max_age = self.dose_ages[dose]
+        mean_age = (min_age + max_age) / 2
+        age_std_dev = (mean_age - min_age) / 3
+
+        if age_std_dev:
+            age_at_dose = stats.norm(mean_age, age_std_dev).ppf(age_draw)
+            age_at_dose[age_at_dose > max_age] = max_age * 0.99
+            age_at_dose[age_at_dose < min_age] = min_age * 1.01
+        else:
+            age_at_dose = pd.Series(int(mean_age), index=population.index)
+
+        return age_at_dose
 
     def get_newly_dosed_simulants(self, dose, population, step_size):
         eligible_pop = population[(self._schedule[dose]) & (population[f'{self.name}_current_dose'] != dose)]
