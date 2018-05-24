@@ -163,7 +163,7 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness.get_stream('fertility')
-        self._asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")[['year', 'age', 'rate']]
+        self._asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")[['year', 'age', 'value']]
         asfr_source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))
         self.asfr = builder.value.register_rate_producer('fertility rate', source=asfr_source)
         self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id'])

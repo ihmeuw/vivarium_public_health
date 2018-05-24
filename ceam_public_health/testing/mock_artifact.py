@@ -7,26 +7,32 @@ from .utils import make_uniform_pop_data
 
 MOCKERS = {
         'cause': {
-            'prevalence': lambda *args: 0,
-            'cause_specific_mortality': lambda *args: 0,
-            'population_attributable_fraction': lambda *args: build_table(1, 1990, 2018, ('age', 'year', 'sex', 'value')),
-            'excess_mortality': lambda *args: 0,
-            'remission': lambda *args: 0,
-            'incidence': lambda *args: 0,
+            'prevalence': 0,
+            'cause_specific_mortality': 0,
+            'population_attributable_fraction': 1,
+            'excess_mortality': 0,
+            'remission': 0,
+            'incidence': 0.001,
+            'disability_weight': pd.DataFrame({'value': [0]}),
         },
         'sequela': {
-            'prevalence': lambda *args: 0,
-            'cause_specific_mortality': lambda *args: 0,
-            'excess_mortality': lambda *args: 0,
-            'remission': lambda *args: 0,
-            'incidence': lambda *args: 0,
+            'prevalence': 0,
+            'cause_specific_mortality': 0,
+            'excess_mortality': 0,
+            'remission': 0,
+            'incidence': 0.001,
+            'disability_weight': pd.DataFrame({'value': [0]}),
+        },
+        'etiology': {
+            'population_attributable_fraction': 1,
         },
         'healthcare_entity': {
-            'cost': lambda *args: build_table(0, 1990, 2018, ['age', 'year', 'sex', 'value']).query('sex=="Both" and age==27').drop('sex', 'columns'),
-            'annual_visits': lambda *args: 0,
+            'cost': build_table(0, 1990, 2018).query('sex=="Both" and age==27').drop('sex', 'columns'),
+            'annual_visits': 0,
         },
         'population': {
-            'structure': lambda: make_uniform_pop_data(),
+            'structure': make_uniform_pop_data(),
+            'theoretical_minimum_risk_life_expectancy': 98,
         },
 }
 
@@ -40,13 +46,20 @@ class MockArtifact(Artifact):
 
     def load(self, entity_path, keep_age_group_edges=False, **column_filters):
         if entity_path in self._overrides:
-            return self._overrides[entity_path]
+            value = self._overrides[entity_path]
+        else:
+            entity_type, *tail = entity_path.split('.')
+            assert entity_type in MOCKERS
+            assert tail[-1] in MOCKERS[entity_type]
 
-        entity_type, *tail = entity_path.split('.')
-        assert entity_type in MOCKERS
-        assert tail[-1] in MOCKERS[entity_type]
+            value = MOCKERS[entity_type][tail[-1]]
+            if not isinstance(value, (pd.DataFrame, pd.Series)):
+                value = build_table(value, 1990, 2018)
 
-        return MOCKERS[entity_type][tail[-1]]()
+        if callable(value):
+            value = value(entity_path, keep_age_group_edges, **column_filters)
+
+        return value
 
     def set(self, entity_path, value):
         self._overrides[entity_path] = value
