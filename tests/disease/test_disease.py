@@ -7,7 +7,7 @@ import pytest
 
 from vivarium.framework.util import from_yearly
 
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation, get_randomness
+from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
 
 from ceam_inputs import get_incidence, sequelae
 
@@ -28,7 +28,6 @@ def config(base_config):
     base_config.time.end.set_with_metadata('year', 2010, **metadata)
     base_config.time.set_with_metadata('step_size', 30.5, **metadata)
     base_config.randomness.update({'key_columns': ['entrance_time', 'age']}, **metadata)
-    base_config.randomness.choice = get_randomness().choice
     return base_config
 
 
@@ -145,13 +144,15 @@ def test_prevalence_multiple_sequelae(config, disease, base_data, test_prevalenc
                         get_test_prevalence(simulation, 'sequela2')],test_prevalence_level, .02), error_message
 
 
-def test_prevalence_single_simulant(config):
+def test_prevalence_single_simulant(config, mocker):
     # pandas has a bug on the case of single element with non-zero index; this test is to catch that case
     test_index = [20]
     initial_state = 'healthy'
     simulants_df = pd.DataFrame({'sex': 'Female', 'age': 3, 'sex_id': 2.0}, index=test_index)
     states = {'sick': pd.Series(1, index=test_index)}
-    simulants = DiseaseModel.assign_initial_status_to_simulants(simulants_df, states, initial_state, config.randomness)
+    randomness = mocker.Mock()
+    randomness.choice.side_effect = lambda index, _, __: pd.Series('sick', index=index)
+    simulants = DiseaseModel.assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness)
     expected = simulants_df[['age', 'sex']]
     expected['condition_state'] = 'sick'
     assert expected.equals(simulants)
