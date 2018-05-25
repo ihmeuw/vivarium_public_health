@@ -35,7 +35,8 @@ class TreatmentSchedule:
         raise NotImplementedError
 
     def add_simulants(self, simulant_data):
-        self._schedule = self._schedule.append(self.determine_who_should_receive_dose_and_when(simulant_data))
+        if not simulant_data.index.empty:
+            self._schedule = self._schedule.append(self.determine_who_should_receive_dose_and_when(simulant_data))
 
     def determine_who_should_receive_dose_and_when(self, simulant_data):
         """Determine who/when will get each dose and record it in the self.vaccination DataFrame
