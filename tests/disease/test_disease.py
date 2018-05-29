@@ -15,6 +15,7 @@ from ceam_public_health.disease import (BaseDiseaseState, DiseaseState, ExcessMo
                                         RateTransition, DiseaseModel)
 
 
+
 @pytest.fixture(scope='function')
 def config(base_config):
     try:
@@ -141,6 +142,20 @@ def test_prevalence_multiple_sequelae(config, disease, base_data, test_prevalenc
     assert np.allclose([get_test_prevalence(simulation, 'sequela0'),
                         get_test_prevalence(simulation, 'sequela1'),
                         get_test_prevalence(simulation, 'sequela2')],test_prevalence_level, .02), error_message
+
+
+def test_prevalence_single_simulant(config, mocker):
+    # pandas has a bug on the case of single element with non-zero index; this test is to catch that case
+    test_index = [20]
+    initial_state = 'healthy'
+    simulants_df = pd.DataFrame({'sex': 'Female', 'age': 3, 'sex_id': 2.0}, index=test_index)
+    states = {'sick': pd.Series(1, index=test_index)}
+    randomness = mocker.Mock()
+    randomness.choice.side_effect = lambda index, _, __: pd.Series('sick', index=index)
+    simulants = DiseaseModel.assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness)
+    expected = simulants_df[['age', 'sex']]
+    expected['condition_state'] = 'sick'
+    assert expected.equals(simulants)
 
 
 def test_mortality_rate(config, disease):
