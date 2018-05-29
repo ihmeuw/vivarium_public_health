@@ -35,7 +35,8 @@ class TreatmentSchedule:
         raise NotImplementedError
 
     def add_simulants(self, simulant_data):
-        self._schedule = self._schedule.append(self.determine_who_should_receive_dose_and_when(simulant_data))
+        if not simulant_data.index.empty:
+            self._schedule = self._schedule.append(self.determine_who_should_receive_dose_and_when(simulant_data))
 
     def determine_who_should_receive_dose_and_when(self, simulant_data):
         """Determine who/when will get each dose and record it in the self.vaccination DataFrame
@@ -58,7 +59,6 @@ class TreatmentSchedule:
             age_at_dose = self._determine_when_should_receive_dose(dose, simulant_data)
             schedule.loc[dosed_index, dose] = True
             schedule.loc[dosed_index, f'{dose}_age'] = age_at_dose[dosed_index]
-
         return schedule  # in days
 
     def _determine_who_should_receive_dose(self, dose, simulant_data, schedule):
@@ -81,6 +81,7 @@ class TreatmentSchedule:
             age_at_dose = stats.norm(mean_age, age_std_dev).ppf(age_draw)
             age_at_dose[age_at_dose > max_age] = max_age * 0.99
             age_at_dose[age_at_dose < min_age] = min_age * 1.01
+            age_at_dose = pd.Series(age_at_dose, index=population.index)
         else:
             age_at_dose = pd.Series(int(mean_age), index=population.index)
 
