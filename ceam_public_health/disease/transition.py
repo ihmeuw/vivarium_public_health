@@ -61,8 +61,5 @@ class ProportionTransition(Transition):
     def _probability(self, index):
         return self.proportion(index)
 
-    def label(self):
-        return super().label
-
     def __str__(self):
         return f'ProportionTransition(from={self.input_state.state_id}, {self.output_state.state_id})'
