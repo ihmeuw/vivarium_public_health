@@ -78,11 +78,11 @@ class RiskEffect:
         self._paf_data = get_paf_func(self.risk, self.cause, builder.configuration)
         self._mediation_factor = get_mf_func(self.risk, self.cause, builder.configuration)
 
-        self.relative_risk = builder.lookup(self._rr_data)
-        self.population_attributable_fraction = builder.lookup(self._paf_data)
+        self.relative_risk = builder.lookup.build_table(self._rr_data)
+        self.population_attributable_fraction = builder.lookup.build_table(self._paf_data)
 
         if builder.configuration.risks.apply_mediation:
-            self.mediation_factor = builder.lookup(self._mediation_factor)
+            self.mediation_factor = builder.lookup.build_table(self._mediation_factor)
         else:
             self.mediation_factor = None
 

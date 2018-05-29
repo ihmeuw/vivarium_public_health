@@ -90,11 +90,15 @@ def test_RiskEffect(base_config):
 
     # This one should be affected by our RiskEffect
     rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
-    rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                 key_columns=('sex',),
+                                                 parameter_columns=('age', 'year'))
 
     # This one should not
     other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate')
-    other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                       key_columns=('sex',),
+                                                       parameter_columns=('age', 'year'))
 
     assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step))
     assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
@@ -186,7 +190,9 @@ def test_CategoricalRiskComponent_dichotomous_case(get_exposure_mock, get_paf_mo
     simulation.step()
 
     incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
-    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                          key_columns=('sex',),
+                                                          parameter_columns=('age', 'year'))
 
     assert np.isclose((simulation.population.population[risk.name+'_exposure'] == 'cat1').sum()
                       / len(simulation.population.population), 0.5, rtol=0.01)
@@ -225,7 +231,9 @@ def test_CategoricalRiskComponent_polytomous_case(get_exposure_mock, get_rr_mock
     simulation.step()
 
     incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
-    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                          key_columns=('sex',),
+                                                          parameter_columns=('age', 'year'))
 
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
         assert np.isclose((simulation.population.population[risk.name+'_exposure'] == category).sum()
@@ -259,7 +267,7 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
 
         def setup(self, builder):
             data = build_table([130, 0.000001], year_start, year_end, ['age', 'year', 'sex', 'mean', 'std'])
-            self.parameters = builder.lookup(data)
+            self.parameters = builder.lookup.build_table(data)
 
         def ppf(self, propensity):
             params = self.parameters(propensity.index)
@@ -274,7 +282,9 @@ def test_ContinuousRiskComponent(get_exposure_mock, get_rr_mock, get_paf_mock, g
     simulation.step()
 
     incidence_rate = simulation.values.register_rate_producer(risk.affected_causes[0].name+'.incidence_rate')
-    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                          key_columns=('sex',),
+                                                          parameter_columns=('age', 'year'))
 
     assert np.allclose(simulation.population.population[risk.name+'_exposure'], 130, rtol=0.001)
 
@@ -303,7 +313,7 @@ def test_propensity_effect(get_exposure_mock, get_rr_mock, get_paf_mock, get_mf_
 
         def setup(self, builder):
             data = build_table([130, 15], year_start, year_end, ['age', 'year', 'sex', 'mean', 'std'])
-            self.parameters = builder.lookup(data)
+            self.parameters = builder.lookup.build_table(data)
 
         def ppf(self, propensity):
             params = self.parameters(propensity.index)
@@ -504,7 +514,7 @@ def test_correlated_exposures_synthetic_risks(load_risk_corr_mock, get_paf_mock,
                 ['sex'],
                 ['age', 'year'],
                 func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
-        return builder.lookup(dist)
+        return builder.lookup.build_table(dist)
 
     continuous_1 = ConfigTree({'name': 'continuous_1', 'gbd_risk': 1, 'risk_type': 'continuous',
                                'affected_causes': [], 'tmrl': 112.5, 'scale': 10})

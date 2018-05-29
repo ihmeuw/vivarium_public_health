@@ -172,7 +172,9 @@ def test_mortality_rate(base_config, disease):
     simulation = setup_simulation([TestPopulation(), model], base_config)
 
     mortality_rate = simulation.values.register_rate_producer('mortality_rate')
-    mortality_rate.source = simulation.tables.build_table(build_table(0.0, year_start, year_end))
+    mortality_rate.source = simulation.tables.build_table(build_table(0.0, year_start, year_end),
+                                                          key_columns=('sex',),
+                                                          parameter_columns=('age', 'year'))
 
     simulation.step()
     # Folks instantly transition to sick so now our mortality rate should be much higher
@@ -201,7 +203,9 @@ def test_incidence(base_config, disease):
 
     simulation = setup_simulation([TestPopulation(), model], base_config)
 
-    transition.base_rate = simulation.tables.build_table(build_table(0.7, year_start, year_end))
+    transition.base_rate = simulation.tables.build_table(build_table(0.7, year_start, year_end),
+                                                         key_columns=('sex',),
+                                                         parameter_columns=('age', 'year'))
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 
@@ -234,12 +238,16 @@ def test_risk_deletion(base_config, disease):
 
     base_rate = 0.7
     paf = 0.1
-    transition.base_rate = simulation.tables.build_table(build_table(base_rate, year_start, year_end))
+    transition.base_rate = simulation.tables.build_table(build_table(base_rate, year_start, year_end),
+                                                         key_columns=('sex',),
+                                                         parameter_columns=('age', 'year'))
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 
     simulation.values.register_value_modifier(
-        'sick.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end)))
+        'sick.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end),
+                                                           key_columns=('sex',),
+                                                           parameter_columns=('age', 'year')))
 
     simulation.step()
 

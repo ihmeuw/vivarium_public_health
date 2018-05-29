@@ -86,8 +86,8 @@ class DiseaseModel(Machine):
         for w in weights:
             w.reset_index(inplace=True, drop=True)
         weights += ((1 - np.sum(weights, axis=0)),)
-        simulants['condition_state'] = randomness.choice(simulants.index, sequelae,
-                                                         np.array(weights).T)
+        simulants.loc[:, 'condition_state'] = randomness.choice(simulants.index, sequelae,
+                                                                np.array(weights).T)
         return simulants
 
     def load_population_columns(self, pop_data):

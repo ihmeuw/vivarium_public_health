@@ -15,13 +15,14 @@ class Mortality:
         self._cause_deleted_mortality_data = None
 
         self._root_location = builder.configuration.input_data.location_id
-        self._build_lookup_handle = builder.lookup
+        self._build_lookup_handle = builder.lookup.build_table
 
         self.csmr = builder.value.register_value_producer('csmr_data', source=list, preferred_combiner=list_combiner)
         self.mortality_rate = builder.value.register_rate_producer('mortality_rate', source=self.mortality_rate_source)
 
         life_expectancy_data = get_theoretical_minimum_risk_life_expectancy()
-        self.life_expectancy = builder.lookup(life_expectancy_data, key_columns=[], parameter_columns=('age',))
+        self.life_expectancy = builder.lookup.build_table(
+            life_expectancy_data, key_columns=[], parameter_columns=('age',))
 
         self.death_emitter = builder.event.get_emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')

@@ -191,7 +191,7 @@ class CategoricalRiskComponent:
         exposure_data = exposure_data.reset_index()
 
         self.exposure = builder.value.register_value_producer(f'{self._risk.name}.exposure',
-                                                              source=builder.lookup(exposure_data))
+                                                              source=builder.lookup.build_table(exposure_data))
 
         self.randomness = builder.randomness.get_stream(self._risk.name)
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)

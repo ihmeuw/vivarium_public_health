@@ -207,7 +207,7 @@ class LogNormal:
         self._parameter_data = pd.DataFrame({'s': s, 'scale': scale}, index=exposure.index).reset_index()
 
     def setup(self, builder):
-        self.parameters = builder.lookup(self._parameter_data)
+        self.parameters = builder.lookup.build_table(self._parameter_data)
 
     @staticmethod
     def _get_params(exposure, _, __):
@@ -273,7 +273,7 @@ class Normal:
         self._parameter_data = pd.DataFrame({'loc': loc, 'scale': scale}, index=exposure.index).reset_index()
 
     def setup(self, builder):
-        self.parameters = builder.lookup(self._parameter_data)
+        self.parameters = builder.lookup.build_table(self._parameter_data)
 
     @staticmethod
     def _get_params(exposure, _, __):

@@ -167,25 +167,25 @@ def test_get_newly_dosed_simulants(treatment_schedule):
 
     # current age = 59.3 days
     assert np.array_equal(pop[tx._schedule.first_age == 60], tx.get_newly_dosed_simulants('first', pop, step_size))
-    pop[f'{tx.name}_current_dose'][tx._schedule.first_age == 60] = 'first'  # update the current dose
+    pop.loc[tx._schedule.first_age == 60, f'{tx.name}_current_dose'] = 'first'  # update the current dose
 
     # current age = 74.3 days
     age = 74.3  # days
     pop['age'] = age/365
 
     assert np.array_equal(pop[tx._schedule.first_age == 75], tx.get_newly_dosed_simulants('first', pop, step_size))
-    pop[f'{tx.name}_current_dose'][tx._schedule.first_age == 75] = 'first'  # update the current dose
+    pop.loc[tx._schedule.first_age == 75, f'{tx.name}_current_dose'] = 'first'  # update the current dose
 
     # current age = 89.3 days
     age = 89.3  # days
     pop['age'] = age/365
 
     assert np.array_equal(pop[tx._schedule.first_age == 90], tx.get_newly_dosed_simulants('first', pop, step_size))
-    pop[f'{tx.name}_current_dose'][tx._schedule.first_age == 90] = 'first'  # update the current dose
+    pop.loc[tx._schedule.first_age == 90, f'{tx.name}_current_dose'] = 'first'  # update the current dose
 
     # current age =179.3 days, ready for second dose
     age = 179.3  # days
     pop['age'] = age / 365
 
     assert np.array_equal(pop[tx._schedule.second == True], tx.get_newly_dosed_simulants('second', pop, step_size))
-    pop[f'{tx.name}_current_dose'][tx._schedule.second == True] = 'second'  # update the current dose
+    pop.loc[tx._schedule.second == True, f'{tx.name}_current_dose'] = 'second'  # update the current dose
