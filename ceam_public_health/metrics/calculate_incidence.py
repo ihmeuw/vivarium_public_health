@@ -25,15 +25,12 @@ class CalculateIncidence:
     def setup(self, builder):
         self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time",
                                                                                age_group_id_min=2,
-                                                                               age_group_id_max=21,
-                                                                               config=builder.configuration)
+                                                                               age_group_id_max=21)
         self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease),
                                                                    age_group_id_min=2,
-                                                                   age_group_id_max=21,
-                                                                   config=builder.configuration)
+                                                                   age_group_id_max=21)
         self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
-                                                                          age_group_id_max=21,
-                                                                          config=builder.configuration)
+                                                                          age_group_id_max=21)
         builder.value.register_value_modifier('epidemiological_span_measures',
                                               modifier=self.calculate_incidence_measure)
 

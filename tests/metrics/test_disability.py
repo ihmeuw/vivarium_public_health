@@ -1,34 +1,20 @@
 from collections import namedtuple
-import os
 
 import pytest
 import numpy as np
 import pandas as pd
 
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
+from vivarium.test_util import build_table, TestPopulation
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_public_health.population import Mortality
 from ceam_public_health.disease import ExcessMortalityState, DiseaseModel, DiseaseState
-from ceam_public_health.metrics import Metrics, Disability
+from ceam_public_health.metrics import Disability
 
 Disease = namedtuple('Disease', 'name')
 
-@pytest.fixture(scope='function')
-def config(base_config):
-    try:
-        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                           'input_data.auxiliary_data_folder'])
-    except KeyError:
-        pass
 
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.time.start.set_with_metadata('year', 1995, **metadata)
-    base_config.time.end.set_with_metadata('year', 2000, **metadata)
-    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
-    return base_config
-
-
-def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
+def set_up_test_parameters(base_config, flu=False, mumps=False, deadly=False):
     """
     Sets up a simulation with specified disease states
 
@@ -40,8 +26,8 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
         If true, include an excess mortality state for mumps
         If false, do not include an excess mortality state for mumps
     """
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
     n_simulants = 1000
 
     asymp_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start-1, year_end,
@@ -56,9 +42,8 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
                                               initial_state=asymptomatic_disease_state,
                                               get_data_functions={
                                                   'csmr': lambda _, __: build_table(0, year_start-1, year_end)})
-    metrics = Metrics()
     disability = Disability()
-    components = [TestPopulation(), asymptomatic_disease_model, metrics, disability]
+    components = [TestPopulation(), asymptomatic_disease_model, disability]
 
     if flu:
         flu_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start-1, year_end,
@@ -98,49 +83,50 @@ def set_up_test_parameters(config, flu=False, mumps=False, deadly=False):
         components.append(deadly_model)
         components.append(Mortality())
 
-    simulation = setup_simulation(components=components, population_size=n_simulants, input_config=config)
+    base_config.update({'population': {'population_size': n_simulants}})
+    simulation = setup_simulation(components, base_config)
 
-    return simulation, metrics, disability
+    return simulation, disability
 
 
-def test_that_ylds_are_0_at_sim_beginning(config):
-    simulation, metrics, disability = set_up_test_parameters(config)
-    ylds = int(metrics.metrics(simulation.population.population.index)['years_lived_with_disability'])
+def test_that_ylds_are_0_at_sim_beginning(base_config):
+    simulation, disability = set_up_test_parameters(base_config)
+    ylds = int(simulation.get_value('metrics')(simulation.population.population.index)['years_lived_with_disability'])
     assert ylds == 0
 
 
-def test_that_healthy_people_dont_accrue_disability_weights(config):
-    simulation, metrics, disability = set_up_test_parameters(config)
-    pump_simulation(simulation, duration=pd.Timedelta(days=365))
+def test_that_healthy_people_dont_accrue_disability_weights(base_config):
+    simulation, disability = set_up_test_parameters(base_config)
+    simulation.run_for(duration=pd.Timedelta(days=365))
     pop_size = len(simulation.population.population)
-    ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
+    ylds = simulation.get_value('metrics')(simulation.population.population.index)['years_lived_with_disability']
     assert np.isclose(ylds, pop_size * 0.0, rtol=0.01)
 
 
-def test_single_disability_weight(config):
-    simulation, metrics, disability = set_up_test_parameters(config, flu=True)
+def test_single_disability_weight(base_config):
+    simulation, disability = set_up_test_parameters(base_config, flu=True)
     flu_dw = 0.2
-    pump_simulation(simulation, duration=pd.Timedelta(days=365))
+    simulation.run_for(duration=pd.Timedelta(days=365))
     pop_size = len(simulation.population.population)
-    ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
+    ylds = simulation.get_value('metrics')(simulation.population.population.index)['years_lived_with_disability']
     assert np.isclose(ylds, pop_size * flu_dw, rtol=0.01)
 
 
-def test_joint_disability_weight(config):
-    simulation, metrics, disability = set_up_test_parameters(config, flu=True, mumps=True)
+def test_joint_disability_weight(base_config):
+    simulation, disability = set_up_test_parameters(base_config, flu=True, mumps=True)
     flu_dw = 0.2
     mumps_dw = 0.4
-    pump_simulation(simulation, duration=pd.Timedelta(days=365))
+    simulation.run_for(duration=pd.Timedelta(days=365))
     pop_size = len(simulation.population.population)
-    ylds = metrics.metrics(simulation.population.population.index)['years_lived_with_disability']
+    ylds = simulation.get_value('metrics')(simulation.population.population.index)['years_lived_with_disability']
     # check that JOINT disability weight is correctly calculated
     assert np.isclose(ylds, pop_size * (1-(1-flu_dw)*(1-mumps_dw)), rtol=0.01)
 
 
 @pytest.mark.skip(reason="Error in way csmr is being computed when using dataframes with inconsistent ages.")
-def test_dead_people_dont_accrue_disability(config):
-    simulation, metrics, disability = set_up_test_parameters(config, deadly=True)
-    pump_simulation(simulation, duration=pd.Timedelta(days=365))
+def test_dead_people_dont_accrue_disability(base_config):
+    simulation, disability = set_up_test_parameters(base_config, deadly=True)
+    simulation.run_for(duration=pd.Timedelta(days=365))
     pop = simulation.population.population
     dead = pop[pop.alive == 'dead']
     assert len(dead) > 0

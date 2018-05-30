@@ -26,21 +26,17 @@ class BaseDiseaseState(State):
         self.event_count_column = self.state_id + '_event_count'
 
     def setup(self, builder):
-        """Performs this component's simulation setup and return sub-components.
+        """Performs this component's simulation setup.
 
         Parameters
         ----------
         builder : `engine.Builder`
             Interface to several simulation tools.
-
-        Returns
-        -------
-        iterable
-            This component's sub-components.
         """
-        sub_components = super().setup(builder)
+        super().setup(builder)
         if self.side_effect_function is not None:
-            sub_components.append(self.side_effect_function)
+            builder.components.add_components([self.side_effect_function])
+
         self.clock = builder.time.clock()
 
         columns = [self._model, 'alive']
@@ -52,8 +48,6 @@ class BaseDiseaseState(State):
                                                  creates_columns=[self.event_time_column, self.event_count_column])
 
         builder.value.register_value_modifier('metrics', self.metrics)
-
-        return sub_components
 
     def _transition_side_effect(self, index, event_time):
         """Updates the simulation state and triggers any side-effects associated with this state.
@@ -190,29 +184,28 @@ class DiseaseState(BaseDiseaseState):
                              'custom data gathering functions for disability_weight, prevalence, and dwell_time.')
 
     def setup(self, builder):
-        """Performs this component's simulation setup and return sub-components.
+        """Performs this component's simulation setup.
 
         Parameters
         ----------
         builder : `engine.Builder`
             Interface to several simulation tools.
-
-        Returns
-        -------
-        iterable
-            This component's sub-components.
         """
+        super().setup(builder)
+        if self.cleanup_function is not None:
+            builder.components.add_components(self.cleanup_function)
+
         get_disability_weight_func = self._get_data_functions.get('disability_weight', get_disability_weight)
         get_prevalence_func = self._get_data_functions.get('prevalence', get_prevalence)
         get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: pd.Timedelta(0))
 
         disability_weight_data = get_disability_weight_func(self.cause, builder.configuration)
         _prevalence_data = get_prevalence_func(self.cause, builder.configuration)
-        self.prevalence_data = builder.lookup(_prevalence_data)
+        self.prevalence_data = builder.lookup.build_table(_prevalence_data)
         self._dwell_time = get_dwell_time_func(self.cause, builder.configuration)
 
         if disability_weight_data is not None:
-            self._disability_weight = builder.lookup(disability_weight_data)
+            self._disability_weight = builder.lookup.build_table(disability_weight_data)
         else:
             self._disability_weight = lambda index: pd.Series(np.zeros(len(index), dtype=float), index=index)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
@@ -224,12 +217,7 @@ class DiseaseState(BaseDiseaseState):
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
         self.dwell_time = builder.value.register_value_producer(f'{self.state_id}.dwell_time',
-                                                                source=builder.lookup(self._dwell_time))
-
-        sub_components = super().setup(builder)
-        if self.cleanup_function is not None:
-            sub_components.append(self.cleanup_function)
-        return sub_components
+                                                                source=builder.lookup.build_table(self._dwell_time))
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -326,26 +314,20 @@ class ExcessMortalityState(DiseaseState):
         super().__init__(cause, **kwargs)
 
     def setup(self, builder):
-        """Performs this component's simulation setup and return sub-components.
+        """Performs this component's simulation setup.
         Parameters
         ----------
         builder : `engine.Builder`
             Interface to several simulation tools.
-
-        Returns
-        -------
-        iterable
-             This component's sub-components.
         """
+        super().setup(builder)
         get_excess_mortality_func = self._get_data_functions.get('excess_mortality', get_excess_mortality)
 
         self.excess_mortality_data = get_excess_mortality_func(self.cause, builder.configuration)
-        excess_mortality_source = builder.lookup(self.excess_mortality_data)
+        excess_mortality_source = builder.lookup.build_table(self.excess_mortality_data)
         self._mortality = builder.value.register_rate_producer(f'{self.state_id}.excess_mortality',
                                                                source=excess_mortality_source)
         builder.value.register_value_modifier('mortality_rate', modifier=self.mortality_rates)
-
-        return super().setup(builder)
 
     def mortality_rates(self, index, rates_df):
         """Modifies the baseline mortality rate for a simulant if they are in this state.
@@ -368,6 +350,3 @@ class ExcessMortalityState(DiseaseState):
 
     def __str__(self):
         return 'ExcessMortalityState({})'.format(self.state_id)
-
-
-

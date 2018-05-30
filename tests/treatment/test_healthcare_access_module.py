@@ -1,28 +1,13 @@
-import os
-
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
 import pytest
 
-from vivarium.test_util import setup_simulation, pump_simulation, assert_rate, build_table, TestPopulation
+from vivarium.test_util import build_table, TestPopulation, from_yearly, to_yearly
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_public_health.treatment import HealthcareAccess
 
 np.random.seed(100)
-
-
-@pytest.fixture(scope='function')
-def config(base_config):
-    try:
-        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                           'input_data.auxiliary_data_folder'])
-    except KeyError:
-        pass
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.time.start.set_with_metadata('year', 1995, **metadata)
-    base_config.time.end.set_with_metadata('year', 2010, **metadata)
-    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
-    base_config.run_configuration.set_with_metadata('input_draw_number', 1, **metadata)
-    return base_config
 
 
 @pytest.fixture(scope='function')
@@ -45,26 +30,49 @@ class Metrics:
 
 
 @pytest.mark.slow
-def test_general_access(config, get_annual_visits_mock):
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+def test_general_access(base_config, get_annual_visits_mock):
+    year_start = 1990
+    year_end = 2005
+    step_size = 30.5  # Days, about 1 month
+    population_size = 10000
+    base_config.update({
+        'time': {
+            'start': {'year': 1990},
+            'end': {'year': 2005},
+            'step_size': step_size
+        },
+        'population': {
+            'population_size': population_size
+        }
+    })
+    step_size = pd.Timedelta(days=step_size)
+    monthly_rate = 0.1
+    annual_rate = to_yearly(monthly_rate, step_size)
 
     def get_utilization_rate(*_, **__):
-        return build_table(0.1*12, year_start, year_end, ['age', 'year', 'sex', 'annual_visits'])
+        return build_table(annual_rate, year_start, year_end, ['age', 'year', 'sex', 'annual_visits'])
+
     get_annual_visits_mock.side_effect = get_utilization_rate
 
     metrics = Metrics()
-    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config)
+    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=base_config)
 
-    # 1.2608717447575932 == a monthly probability 0.1 as a yearly rate
-    assert_rate(simulation, 1.2608717447575932, lambda s: metrics.access_count)
+    steps_to_take = 10 * 12  # ten years
+    effective_person_time = population_size * steps_to_take * (step_size/pd.Timedelta(days=365))  # person-years
+
+    simulation.take_steps(steps_to_take)
+
+    effective_annual_rate = metrics.access_count/effective_person_time
+
+    assert abs(annual_rate - effective_annual_rate)/annual_rate < 0.1
 
 
 @pytest.mark.slow
 @pytest.mark.skip("I don't know why this is broken or how it works. -J.C.")
-def test_adherence(config, get_annual_visits_mock):
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+def test_adherence(base_config, get_annual_visits_mock):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    t_step = 28  # days
     n_simulants = int('10_000')
 
     def get_utilization_rate(*_, **__):
@@ -72,11 +80,11 @@ def test_adherence(config, get_annual_visits_mock):
     get_annual_visits_mock.side_effect = get_utilization_rate
 
     metrics = Metrics()
-    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=config, population_size=n_simulants)
+    base_config.update({'population': {'population_size': n_simulants},
+                   'time': {'step_size': t_step}}, layer='override')
+    simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=base_config)
 
-    t_step = 28 # days
-    n_days = 28*2
-    pump_simulation(simulation, time_step_days=t_step, duration=pd.Timedelta(days=n_days))
+    simulation.take_steps(number_of_steps=2)
 
     df = simulation.population.population
     df['fu_visit'] = df.healthcare_visits > 1

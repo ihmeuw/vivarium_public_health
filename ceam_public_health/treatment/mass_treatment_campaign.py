@@ -32,6 +32,11 @@ class MassTreatmentCampaign:
                 'booster': (1080, 1440),
                 'catchup': (1080, 1440),
             },
+            'coverage_proportion': {
+                'second': 0.8,
+                'booster': 0.9,
+                'catchup': 0.1,
+            },
         }
     }
 
@@ -41,8 +46,8 @@ class MassTreatmentCampaign:
         self.treatment = Treatment(treatment_name, etiology)
         self.schedule = TreatmentSchedule(treatment_name)
 
-
     def setup(self, builder):
+        builder.components.add_components([self.treatment, self.schedule])
         self.config = builder.configuration[self.treatment_name]
         self.clock = builder.time.clock()
 
@@ -55,7 +60,7 @@ class MassTreatmentCampaign:
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
         builder.event.register_listener('time_step', self.administer_treatment)
 
-        return [self.treatment, self.schedule]
+        return
 
     def load_population_columns(self, event):
         """Adds this components columns to the simulation state table.
