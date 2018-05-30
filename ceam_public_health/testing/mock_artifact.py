@@ -15,6 +15,25 @@ MOCKERS = {
             'incidence': 0.001,
             'disability_weight': pd.DataFrame({'value': [0]}),
         },
+        'risk_factor': {
+            'distribution': lambda *args, **kwargs: 'ensemble',
+            'exposure': 0,
+            'exposure_standard_deviation': 0.001,
+            'relative_risk': build_table([1, "continuous"], 1990, 2018, ("age", "sex", "year", "value", "parameter")),
+            'mediation_factor': pd.DataFrame({"value": [0]}),
+            'tmred': lambda *args, **kwargs: {
+                "distribution": "uniform",
+                "min": 0,
+                "max": 100,
+                "inverted": False,
+            },
+            'exposure_parameters': lambda *args, **kwargs: {
+                'scale': 1,
+                'max_rr': 10,
+                'max_val': 200,
+                'min_val': 0,
+            },
+        },
         'sequela': {
             'prevalence': 0,
             'cause_specific_mortality': 0,
@@ -53,7 +72,7 @@ class MockArtifact(Artifact):
             assert tail[-1] in MOCKERS[entity_type]
 
             value = MOCKERS[entity_type][tail[-1]]
-            if not isinstance(value, (pd.DataFrame, pd.Series)):
+            if not callable(value) and not isinstance(value, (pd.DataFrame, pd.Series)):
                 value = build_table(value, 1990, 2018)
 
         if callable(value):

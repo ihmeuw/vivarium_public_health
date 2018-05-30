@@ -261,10 +261,8 @@ class Normal(BaseDistribution):
         self._build_lookup_function = builder.lookup
 
     def get_parameters(self):
-        mean = self._exposure_mean.set_index(['year', 'sex', 'age']).value
-        sd = self._exposure_sd.set_index(['year', 'sex', 'age']).value
         dist = self._exposure_sd.merge(self._exposure_mean, on=['year', 'sex', 'age'])
-        dist = dist.rename(columns={'value_x': 'loc', 'value_y': 'scale'})
+        dist = dist.rename(columns={'value_x': 'scale', 'value_y': 'loc'})
         return self._build_lookup_function(dist[["year", "sex", "age", "loc", "scale"]])
 
     def pdf(self, x):
