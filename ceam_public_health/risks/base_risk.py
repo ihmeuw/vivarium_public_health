@@ -187,7 +187,8 @@ class CategoricalRiskComponent:
                                                  requires_columns=['age', 'sex'])
 
         exposure_data = get_exposure(risk=self._risk, override_config=builder.configuration)
-        exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='mean')
+        exposure_data = pd.pivot_table(exposure_data,
+                                       index=['year', 'age', 'sex'], columns='parameter', values='mean').dropna()
         exposure_data = exposure_data.reset_index()
 
         self.exposure = builder.value.register_value_producer(f'{self._risk.name}.exposure',
