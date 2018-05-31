@@ -95,7 +95,7 @@ class ContinuousRiskComponent:
 
     configuration_defaults = {
         'risks': {
-            'apply_correlation': True,
+            'apply_correlation': False,
         },
     }
 
@@ -161,7 +161,7 @@ class CategoricalRiskComponent:
 
     configuration_defaults = {
         'risks': {
-            'apply_correlation': True,
+            'apply_correlation': False,
         },
     }
 
