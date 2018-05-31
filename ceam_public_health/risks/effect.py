@@ -17,7 +17,6 @@ def continuous_exposure_effect(risk, population_view):
     max_exposure = risk.exposure_parameters.max_rr
     scale = risk.exposure_parameters.scale
 
-
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     def inner(rates, rr):
         exposure = np.minimum(population_view.get(rr.index)[exposure_column].values, max_exposure)
@@ -79,11 +78,11 @@ class RiskEffect:
         self._paf_data = get_paf_func(self.risk, self.cause, builder.configuration)
         self._mediation_factor = get_mf_func(self.risk, self.cause, builder.configuration)
 
-        self.relative_risk = builder.lookup(self._rr_data)
-        self.population_attributable_fraction = builder.lookup(self._paf_data)
+        self.relative_risk = builder.lookup.build_table(self._rr_data)
+        self.population_attributable_fraction = builder.lookup.build_table(self._paf_data)
 
         if builder.configuration.risks.apply_mediation:
-            self.mediation_factor = builder.lookup(self._mediation_factor)
+            self.mediation_factor = builder.lookup.build_table(self._mediation_factor)
         else:
             self.mediation_factor = None
 
@@ -93,7 +92,6 @@ class RiskEffect:
         is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
         self.exposure_effect = (continuous_exposure_effect(self.risk, self.population_view) if is_continuous
                                 else categorical_exposure_effect(self.risk, self.population_view))
-
 
     def paf_mf_adjustment(self, index):
         if self.mediation_factor:

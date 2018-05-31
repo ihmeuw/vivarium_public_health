@@ -65,7 +65,7 @@ def correlated_propensity_factory(config):
             matrix = matrix.values
 
             dist = multivariate_normal(mean=np.zeros(len(matrix)), cov=matrix)
-            draw = dist.rvs(group.index.max()+1, random_state=config.run_configuration.input_draw_number)
+            draw = dist.rvs(group.index.max()+1, random_state=config.input_data.input_draw_number)
             draw = draw[group.index]
             quantiles = quantiles.append(
                 pd.Series(qdist.cdf(draw).T[risk_factor_idx], index=group.index)
@@ -104,6 +104,7 @@ class ContinuousRiskComponent:
         self._effects = make_gbd_risk_effects(self._risk)
 
     def setup(self, builder):
+
         if builder.configuration.risks.apply_correlation:
             self.propensity_function = correlated_propensity_factory(builder.configuration)
         else:
@@ -114,6 +115,8 @@ class ContinuousRiskComponent:
         exposure = exposure_data.merge(exposure_sd_data).set_index(['age', 'sex', 'year'])
 
         self.exposure_distribution = get_distribution(self._risk, exposure)
+        builder.components.add_components(self._effects +[self.exposure_distribution])
+
         self.randomness = builder.randomness.get_stream(self._risk.name)
         self.population_view = builder.population.get_view(
             [self._risk.name+'_exposure', self._risk.name+'_propensity', 'age', 'sex'])
@@ -123,8 +126,6 @@ class ContinuousRiskComponent:
                                                  requires_columns=['age', 'sex'])
 
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
-
-        return self._effects + [self.exposure_distribution]
 
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
@@ -172,6 +173,7 @@ class CategoricalRiskComponent:
         self._effects = make_gbd_risk_effects(self._risk)
 
     def setup(self, builder):
+        builder.components.add_components(self._effects)
         if builder.configuration.risks.apply_correlation:
             self.propensity_function = correlated_propensity_factory(builder.configuration)
         else:
@@ -185,16 +187,15 @@ class CategoricalRiskComponent:
                                                  requires_columns=['age', 'sex'])
 
         exposure_data = get_exposure(risk=self._risk, override_config=builder.configuration)
-        exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='mean')
+        exposure_data = pd.pivot_table(exposure_data,
+                                       index=['year', 'age', 'sex'], columns='parameter', values='mean').dropna()
         exposure_data = exposure_data.reset_index()
 
         self.exposure = builder.value.register_value_producer(f'{self._risk.name}.exposure',
-                                                              source=builder.lookup(exposure_data))
+                                                              source=builder.lookup.build_table(exposure_data))
 
         self.randomness = builder.randomness.get_stream(self._risk.name)
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
-
-        return self._effects
 
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)

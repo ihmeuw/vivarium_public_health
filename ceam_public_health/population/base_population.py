@@ -17,7 +17,6 @@ class BasePopulation:
 
     configuration_defaults = {
         'population': {
-            'use_subregions': False,
             'age_start': 0,
             'age_end': 125,
             'exit_age': None,
@@ -41,7 +40,7 @@ class BasePopulation:
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
         self._population_data = _build_population_data_table(input_config.location_id,
-                                                             self.config.use_subregions,
+                                                             input_config.use_subregions,
                                                              builder.configuration)
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)

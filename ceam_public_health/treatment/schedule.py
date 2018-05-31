@@ -11,8 +11,10 @@ class TreatmentSchedule:
 
     def setup(self, builder):
         coverages = self._get_coverage(builder)
-        self.dose_coverages = {dose: builder.lookup(dose_coverage, key_columns=(), parameter_columns=('year',))
-                               for dose, dose_coverage in coverages.items()}
+        self.dose_coverages = {
+            dose: builder.lookup.build_table(dose_coverage, key_columns=(), parameter_columns=('year',))
+            for dose, dose_coverage in coverages.items()
+        }
         self.doses = builder.configuration[self.name].doses
         self.dose_ages = builder.configuration[self.name].dose_age_range.to_dict()
 

@@ -119,7 +119,6 @@ class InverseGamma:
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.a, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
 
-
     @staticmethod
     def _get_params(exposure_mean, exposure_sd, _, __):
 
@@ -208,7 +207,7 @@ class LogNormal:
         self._parameter_data = pd.DataFrame({'s': s, 'scale': scale}, index=exposure.index).reset_index()
 
     def setup(self, builder):
-        self.parameters = builder.lookup(self._parameter_data)
+        self.parameters = builder.lookup.build_table(self._parameter_data)
 
     @staticmethod
     def _get_params(exposure, _, __):
@@ -274,7 +273,7 @@ class Normal:
         self._parameter_data = pd.DataFrame({'loc': loc, 'scale': scale}, index=exposure.index).reset_index()
 
     def setup(self, builder):
-        self.parameters = builder.lookup(self._parameter_data)
+        self.parameters = builder.lookup.build_table(self._parameter_data)
 
     @staticmethod
     def _get_params(exposure, _, __):
@@ -341,12 +340,11 @@ class EnsembleDistribution:
         #                        for distribution_name, distribution in self.distribution_map}
 
     def setup(self, builder):
-        self._distribution.setup(builder)
+        builder.components.add_components([self._distribution])
 
     def pdf(self, x):
         return self._distribution.pdf(x)
         #return np.sum([weight * self._distributions[dist_name].pdf(x) for dist_name, weight in self.weights.items()])
-
 
     def ppf(self, propensity):
         return self._distribution.ppf(propensity)

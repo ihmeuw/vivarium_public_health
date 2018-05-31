@@ -1,17 +1,15 @@
-import os
-
 import pytest
 import pandas as pd
 import numpy as np
 
 from vivarium.framework.components import ComponentConfigError
+from vivarium.test_util import metadata
 
 from ceam_public_health.treatment import Treatment
 
 
 @pytest.fixture(scope='function')
 def config(base_config):
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
     base_config.update({
         'test_treatment': {
             'dose_response': {
@@ -20,7 +18,7 @@ def config(base_config):
                 'waning_rate': 0.038  # Percent/Day
             },
         }
-    }, **metadata)
+    }, **metadata(__file__))
     return base_config
 
 
@@ -137,8 +135,8 @@ def test_get_dosing_status(treatment, test_population):
     expected_dosing_status['dose'] = test_population['active_dose']
     current_dose_active = test_population['active_dose'] == test_population[f'{tx.name}_current_dose']
     previous_dose_active = test_population['active_dose'] == test_population[f'{tx.name}_previous_dose']
-    expected_dosing_status['date'][current_dose_active] = test_population[f'{tx.name}_current_dose_event_time']
-    expected_dosing_status['date'][previous_dose_active] = test_population[f'{tx.name}_previous_dose_event_time']
+    expected_dosing_status.loc[current_dose_active, 'date'] = test_population[f'{tx.name}_current_dose_event_time']
+    expected_dosing_status.loc[previous_dose_active, 'date'] = test_population[f'{tx.name}_previous_dose_event_time']
 
     no_immunity = (test_population['active_dose'].isna()) & (test_population['immunity'].isna())
     assert pd.DataFrame.equals(expected_dosing_status[no_immunity], dosing_status[no_immunity])
@@ -172,15 +170,15 @@ def test_determine_protection(treatment, test_population):
 
     # First dose waning immunity (time in waning 8 days)
     first_waning_immunity = (test_population['active_dose'] == 'first') & (test_population['immunity'] == 'waning')
-    expected_protection[first_waning_immunity] = tx.protection['first'] \
-                                                 * np.exp(-tx.dose_response['waning_rate'] * 8)
+    expected_protection[first_waning_immunity] = (tx.protection['first']
+                                                      * np.exp(-tx.dose_response['waning_rate'] * 8))
 
     # Second dose waning immunity (time in waning 3 days)
     second_waning_immunity = (test_population['active_dose'] == 'second') & (test_population['immunity'] == 'waning')
-    expected_protection[second_waning_immunity] = tx.protection['second'] \
-                                                  * np.exp(-tx.dose_response['waning_rate'] * 3)
+    expected_protection[second_waning_immunity] = (tx.protection['second']
+                                                       * np.exp(-tx.dose_response['waning_rate'] * 3))
 
-    protection=tx.determine_protection(test_population)
+    protection = tx.determine_protection(test_population)
 
     assert pd.DataFrame.equals(expected_protection[first_full_immunity], protection[first_full_immunity])
     assert pd.DataFrame.equals(expected_protection[first_waning_immunity], protection[first_waning_immunity])

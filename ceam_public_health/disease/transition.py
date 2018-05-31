@@ -11,14 +11,14 @@ class RateTransition(Transition):
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
+        super().setup(builder)
         self._rate_data, pipeline_name = self._get_rate_data(builder.configuration)
-        self.base_rate = builder.lookup(self._rate_data)
+        self.base_rate = builder.lookup.build_table(self._rate_data)
         self.effective_rate = builder.value.register_rate_producer(pipeline_name, source=self.rates)
         self.joint_paf = builder.value.register_value_producer(f'{self.output_state.state_id}.paf',
                                                                source=lambda index: [pd.Series(0, index=index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
-        return super().setup(builder)
 
     def _get_rate_data(self, config):
         if 'incidence_rate' in self._get_data_functions:
@@ -51,12 +51,12 @@ class ProportionTransition(Transition):
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
+        super().setup(builder)
         get_proportion_func = self._get_data_functions.get('proportion', None)
         if get_proportion_func is None:
             raise ValueError('Must supply a proportion function')
         self._proportion_data = get_proportion_func(self.output_state.cause, builder.configuration)
-        self.proportion = builder.lookup(self._proportion_data)
-        return super().setup(builder)
+        self.proportion = builder.lookup.build_table(self._proportion_data)
 
     def _probability(self, index):
         return self.proportion(index)
