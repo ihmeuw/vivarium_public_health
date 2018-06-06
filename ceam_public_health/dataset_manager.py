@@ -18,12 +18,9 @@ class ArtifactException(Exception):
 class ArtifactManager:
     configuration_defaults = {
             'artifact': {
-                'artifact_class': 'ceam_public_health.dataset_manager.Artifact',
+                'path': None,
             }
     }
-
-    def __init__(self, artifact=None):
-        self.artifact = artifact
 
     def setup(self, builder):
         end_time = _get_time_stamp(builder.configuration.time.end)
@@ -33,15 +30,12 @@ class ArtifactManager:
 
         #NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
         # config file.
-        path_config = builder.configuration.input_data.metadata('artifact_path')[0]
+        path_config = builder.configuration.artifact.metadata('path')[0]
         if path_config['source'] is not None:
             artifact_path = os.path.join(os.path.dirname(path_config['source']), path_config['value'])
         else:
             artifact_path = path_config['value']
-
-        if self.artifact is None:
-            artifact_class = import_by_path(builder.configuration.artifact.artifact_class)
-            self.artifact = artifact_class()
+        self.artifact = Artifact()
 
         self.artifact.open(artifact_path, start_time, end_time, draw, location)
         builder.event.register_listener('post_setup', lambda _: self.artifact.close())
@@ -145,3 +139,9 @@ class Artifact:
                 result.write(f"\t{sub_child}\n")
         return result.getvalue()
 
+class ArtifactManagerInterface():
+    def __init__(self, controller):
+        self._controller = controller
+
+    def load(self, entity_path, keep_age_group_edges=False, **column_filters):
+        return self._controller.load(entity_path, keep_age_group_edges, **column_filters)

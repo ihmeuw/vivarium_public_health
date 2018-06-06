@@ -1,4 +1,3 @@
-import os
 from collections import namedtuple
 
 import numpy as np
@@ -6,27 +5,11 @@ import pandas as pd
 import pytest
 
 from vivarium.framework.util import from_yearly
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
+from vivarium.test_util import build_table, TestPopulation, metadata
+from vivarium.interface.interactive import setup_simulation
 
 from ceam_public_health.disease import (BaseDiseaseState, DiseaseState, ExcessMortalityState,
                                         RateTransition, DiseaseModel)
-
-
-@pytest.fixture(scope='function')
-def config(base_config):
-    try:
-        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                           'input_data.auxiliary_data_folder'])
-    except KeyError:
-        pass
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.time.start.set_with_metadata('year', 1990, **metadata)
-    base_config.time.end.set_with_metadata('year', 2010, **metadata)
-    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
-    base_config.vivarium.set_with_metadata('dataset_manager', 'ceam_public_health.dataset_manager.ArtifactManager', **metadata)
-    base_config.input_data.set_with_metadata('artifact_path', '/tmp/dummy.hdf', **metadata)
-    base_config.artifact.set_with_metadata('artifact_class', 'ceam_public_health.testing.mock_artifact.MockArtifact', **metadata)
-    return base_config
 
 
 @pytest.fixture(scope='function')
@@ -36,20 +19,46 @@ def disease():
 
 @pytest.fixture(scope='function')
 def assign_cause_mock(mocker):
-    return mocker.patch('ceam_public_health.disease.model.assign_cause_at_beginning_of_simulation')
+    return mocker.patch('ceam_public_health.disease.model.DiseaseModel.assign_initial_status_to_simulants')
 
 
-def test_dwell_time(assign_cause_mock, config, disease):
+@pytest.fixture(scope='function')
+def base_data():
+    def _set_prevalence(p):
+        base_function = dict()
+        base_function['disability_weight'] = lambda _, __: 0
+        base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=0)
+        base_function['prevalence'] = lambda _, __: p
+        return base_function
+    return _set_prevalence
+
+
+def get_test_prevalence(simulation, key):
+    """
+    Helper function to calculate the prevalence for the given state(key)
+    """
+    try:
+        simulants_status_counts = simulation.population.population.test.value_counts().to_dict()
+        result = float(simulants_status_counts[key] / simulation.population.population.test.size)
+    except KeyError:
+        result = 0
+    return result
+
+
+def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     time_step = 10
-    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
+    assign_cause_mock.side_effect = lambda population, *args: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
 
-    config.time.set_with_metadata('step_size', time_step, layer='override', source=os.path.realpath(__file__))
+    base_config.update({
+        'time': {'step_size': time_step},
+        'population': {'population_size': 10}
+    }, **metadata(__file__))
 
     healthy_state = BaseDiseaseState('healthy')
-    event_state = DiseaseState('event', get_data_functions={'dwell_time': lambda _, __: pd.Timedelta(days=28),
-                                                            'disability_weight': lambda _, __: 0,
-                                                            'prevalence': lambda _, __: None})
+    data_function = base_data(0)
+    data_function['dwell_time'] = lambda _, __: pd.Timedelta(days=28)
+    event_state = DiseaseState('event', get_data_functions=data_function)
     done_state = BaseDiseaseState('sick')
 
     healthy_state.add_transition(event_state)
@@ -58,30 +67,90 @@ def test_dwell_time(assign_cause_mock, config, disease):
     model = DiseaseModel(disease, initial_state=healthy_state, states=[healthy_state, event_state, done_state],
                          get_data_functions={'csmr': lambda _, __: None})
 
-    simulation = setup_simulation([TestPopulation(), model], population_size=10, input_config=config)
+    simulation = setup_simulation([TestPopulation(), model], base_config)
 
     # Move everyone into the event state
-
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
     event_time = simulation.clock.time
     assert np.all(simulation.population.population[disease] == 'event')
 
-    pump_simulation(simulation, iterations=2)
+    simulation.step()
+    simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
     assert np.all(simulation.population.population[disease] == 'event')
 
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
     # Now enough time has passed so people should transition away
     assert np.all(simulation.population.population[disease] == 'sick')
     assert np.all(simulation.population.population.event_event_time == pd.to_datetime(event_time))
     assert np.all(simulation.population.population.event_event_count == 1)
 
 
-def test_mortality_rate(config, disease):
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+@pytest.mark.parametrize('test_prevalence_level', [0, 0.35, 1])
+def test_prevalence_single_state_with_migration(base_config, disease, base_data, test_prevalence_level):
+    """
+    Test the prevalence for the single state over newly migrated population.
+    Start with the initial population, check the prevalence for initial assignment.
+    Then add new simulants and check whether the initial status is
+    properly assigned to new simulants based on the prevalence data and pre-existing simulants status
 
-    time_step = pd.Timedelta(days=config.time.step_size)
+    """
+    healthy = BaseDiseaseState('healthy')
+
+    sick = DiseaseState('sick', get_data_functions=base_data(test_prevalence_level))
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
+                         get_data_functions={'csmr': lambda _, __: None})
+    base_config.update({'population': {'population_size': 50000}}, **metadata(__file__))
+    simulation = setup_simulation([TestPopulation(), model], base_config)
+    error_message = "initial status of simulants should be matched to the prevalence data."
+    assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, 0.01), error_message
+    simulation.clock.step_forward()
+    assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
+    simulation.simulant_creator(50000)
+    assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
+    simulation.clock.step_forward()
+    simulation.simulant_creator(50000)
+    assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
+
+
+@pytest.mark.parametrize('test_prevalence_level',
+                         [[0.15, 0.05, 0.35], [0, 0.15, 0.5], [0.2, 0.3, 0.5], [0, 0, 1], [0, 0, 0]])
+def test_prevalence_multiple_sequelae(base_config, disease, base_data, test_prevalence_level):
+    healthy = BaseDiseaseState('healthy')
+
+    sequela = dict()
+    for i, p in enumerate(test_prevalence_level):
+        sequela[i] = DiseaseState('sequela'+str(i), get_data_functions=base_data(p))
+
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]],
+                         get_data_functions={'csmr': lambda _, __: None})
+    base_config.update({'population': {'population_size': 100000}}, **metadata(__file__))
+    simulation = setup_simulation([TestPopulation(), model], base_config)
+    error_message = "initial sequela status of simulants should be matched to the prevalence data."
+    assert np.allclose([get_test_prevalence(simulation, 'sequela0'),
+                        get_test_prevalence(simulation, 'sequela1'),
+                        get_test_prevalence(simulation, 'sequela2')],test_prevalence_level, .02), error_message
+
+
+def test_prevalence_single_simulant(mocker):
+    # pandas has a bug on the case of single element with non-zero index; this test is to catch that case
+    test_index = [20]
+    initial_state = 'healthy'
+    simulants_df = pd.DataFrame({'sex': 'Female', 'age': 3, 'sex_id': 2.0}, index=test_index)
+    states = {'sick': pd.Series(1, index=test_index)}
+    randomness = mocker.Mock()
+    randomness.choice.side_effect = lambda index, _, __: pd.Series('sick', index=index)
+    simulants = DiseaseModel.assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness)
+    expected = simulants_df[['age', 'sex']]
+    expected['condition_state'] = 'sick'
+    assert expected.equals(simulants)
+
+
+def test_mortality_rate(base_config, base_plugins, disease):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+
+    time_step = pd.Timedelta(days=base_config.time.step_size)
 
     healthy = BaseDiseaseState('healthy')
     mort_get_data_funcs = {
@@ -91,6 +160,7 @@ def test_mortality_rate(config, disease):
                                                 ['age', 'year', 'sex', 'value']),
         'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
     }
+
     mortality_state = ExcessMortalityState('sick', get_data_functions=mort_get_data_funcs)
 
     healthy.add_transition(mortality_state)
@@ -98,27 +168,27 @@ def test_mortality_rate(config, disease):
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, mortality_state],
                          get_data_functions={'csmr': lambda _, __: None})
 
-    simulation = setup_simulation([TestPopulation(), model], input_config=config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
 
     mortality_rate = simulation.values.register_rate_producer('mortality_rate')
-    mortality_rate.source = simulation.tables.build_table(build_table(0.0, year_start, year_end))
+    mortality_rate.source = simulation.tables.build_table(build_table(0.0, year_start, year_end),
+                                                          key_columns=('sex',),
+                                                          parameter_columns=('age', 'year'))
 
-    pump_simulation(simulation, iterations=1)
-
+    simulation.step()
     # Folks instantly transition to sick so now our mortality rate should be much higher
     assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['sick'])
 
 
-def test_incidence(assign_cause_mock, config, disease):
-    time_step = pd.Timedelta(days=config.time.step_size)
-    config.run_configuration.input_draw_number = 1
-
-    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
-        {'condition_state': 'healthy'}, index=population.index)
+def test_incidence(base_config, base_plugins, disease):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    time_step = pd.Timedelta(days=base_config.time.step_size)
 
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')
     healthy.add_transition(sick)
+
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
@@ -129,28 +199,25 @@ def test_incidence(assign_cause_mock, config, disease):
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
 
-    simulation = setup_simulation([TestPopulation(), model], input_config=config)
-    year_start = config.time.start.year
-    year_end = config.time.end.year
-    transition.base_rate = simulation.tables.build_table(build_table(0.7, year_start, year_end))
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
+
+    transition.base_rate = simulation.tables.build_table(build_table(0.7, year_start, year_end),
+                                                         key_columns=('sex',),
+                                                         parameter_columns=('age', 'year'))
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     assert np.allclose(from_yearly(0.7, time_step),
                        incidence_rate(simulation.population.population.index), atol=0.00001)
 
 
-def test_risk_deletion(assign_cause_mock, config, disease):
-    time_step = config.time.step_size
+def test_risk_deletion(base_config, base_plugins, disease):
+    time_step = base_config.time.step_size
     time_step = pd.Timedelta(days=time_step)
-    year_start = config.time.start.year
-    year_end = config.time.end.year
-    config.run_configuration.input_draw_number = 1
-
-    assign_cause_mock.side_effect = lambda population, state_map: pd.DataFrame(
-        {'condition_state': 'healthy'}, index=population.index)
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
 
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')
@@ -158,24 +225,29 @@ def test_risk_deletion(assign_cause_mock, config, disease):
         input_state=healthy, output_state=sick,
         get_data_functions={
             'incidence_rate': lambda _, builder: builder.data.load(f"sequela.acute_myocardial_infarction_first_2_days.incidence")
-            })
+        }
+    )
     healthy.transition_set.append(transition)
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
 
-    simulation = setup_simulation([TestPopulation(), model], input_config=config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
 
     base_rate = 0.7
     paf = 0.1
-    transition.base_rate = simulation.tables.build_table(build_table(base_rate, year_start, year_end))
+    transition.base_rate = simulation.tables.build_table(build_table(base_rate, year_start, year_end),
+                                                         key_columns=('sex',),
+                                                         parameter_columns=('age', 'year'))
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 
     simulation.values.register_value_modifier(
-        'sick.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end)))
+        'sick.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end),
+                                                           key_columns=('sex',),
+                                                           parameter_columns=('age', 'year')))
 
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     expected_rate = base_rate * (1 - paf)
 

@@ -80,7 +80,7 @@ class HealthcareAccess:
 
         annual_visits = builder.data.load("healthcare_entity.outpatient_visits.annual_visits")
         self.utilization_rate = builder.value.register_rate_producer('healthcare_utilization.rate',
-                                                                     source=builder.lookup(annual_visits))
+                                                                     source=builder.lookup.build_table(annual_visits))
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
         columns = ['healthcare_followup_date', 'healthcare_last_visit_date', 'healthcare_visits',

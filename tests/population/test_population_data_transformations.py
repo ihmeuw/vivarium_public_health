@@ -1,29 +1,12 @@
 from itertools import product
 import math
-import os
 
-import pytest
 import numpy as np
 import pandas as pd
 
 from vivarium.test_util import get_randomness, build_table
 
 import ceam_public_health.population.data_transformations as dt
-
-
-@pytest.fixture(scope='function')
-def config(base_config):
-    try:
-        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                           'input_data.auxiliary_data_folder'])
-    except KeyError:
-        pass
-
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.time.start.set_with_metadata('year', 1990, **metadata)
-    base_config.time.end.set_with_metadata('year', 2010, **metadata)
-    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
-    return base_config
 
 
 def make_uniform_pop_data():
@@ -62,7 +45,6 @@ def test_assign_demographic_proportions():
 def test_rescale_binned_proportions_full_range():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     pop_data = pop_data[pop_data.year == 1990]
-    index_cols = ['age', 'sex', 'location']
 
     pop_data_scaled = dt.rescale_binned_proportions(pop_data, age_start=0, age_end=100)
     pop_data_scaled = pop_data_scaled[pop_data_scaled.age.isin(pop_data.age.unique())]
@@ -171,9 +153,9 @@ def test__compute_ages():
     assert dt._compute_ages(1, 10, 12, 5, 33) == 10 + 12/5*(np.sqrt(1+2*33*5/12**2*1) - 1)
 
 
-def test_get_cause_deleted_mortality(config):
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+def test_get_cause_deleted_mortality():
+    year_start = 1990
+    year_end = 2010
     all_cause_rate = 15
     cause_specific_rate = 1
     num_csmrs = 5

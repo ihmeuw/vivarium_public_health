@@ -94,7 +94,7 @@ class ContinuousRiskComponent:
 
     configuration_defaults = {
         'risks': {
-            'apply_correlation': True,
+            'apply_correlation': False,
         },
     }
 
@@ -103,6 +103,7 @@ class ContinuousRiskComponent:
         self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
 
     def setup(self, builder):
+
         if builder.configuration.risks.apply_correlation:
             self.propensity_function = correlated_propensity_factory(builder)
         else:
@@ -110,6 +111,7 @@ class ContinuousRiskComponent:
 
 
         self.exposure_distribution = get_distribution(self._risk, self._risk_type, builder)
+        builder.components.add_components([self._effects, self.exposure_distribution])
         self.randomness = builder.randomness.get_stream(self._risk)
         self.population_view = builder.population.get_view(
             [self._risk+'_exposure', self._risk+'_propensity', 'age', 'sex'])
@@ -119,8 +121,6 @@ class ContinuousRiskComponent:
                                                  requires_columns=['age', 'sex'])
 
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
-
-        return [self._effects, self.exposure_distribution]
 
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
@@ -156,7 +156,7 @@ class CategoricalRiskComponent:
 
     configuration_defaults = {
         'risks': {
-            'apply_correlation': True,
+            'apply_correlation': False,
         },
     }
 
@@ -165,6 +165,7 @@ class CategoricalRiskComponent:
         self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
 
     def setup(self, builder):
+        builder.components.add_components([self._effects])
         if builder.configuration.risks.apply_correlation:
             self.propensity_function = correlated_propensity_factory(builder)
         else:
@@ -178,15 +179,16 @@ class CategoricalRiskComponent:
                                                  requires_columns=['age', 'sex'])
 
         exposure_data = builder.data.load(f"{self._risk_type}.{self._risk}.exposure")
-        exposure_data = pd.pivot_table(exposure_data, index=['year', 'age', 'sex'], columns='parameter', values='value').reset_index()
+        exposure_data = pd.pivot_table(exposure_data,
+                                       index=['year', 'age', 'sex'],
+                                       columns='parameter', values='value'
+                                      ).dropna().reset_index()
 
         self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
-                                                              source=builder.lookup(exposure_data))
+                                                              source=builder.lookup.build_table(exposure_data))
 
         self.randomness = builder.randomness.get_stream(self._risk)
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
-
-        return [self._effects]
 
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
@@ -219,4 +221,4 @@ class CategoricalRiskComponent:
         self.population_view.update(categories)
 
     def __repr__(self):
-        return f"CategoricalRiskComponent(_risk= {self.risk})"
+        return f"CategoricalRiskComponent(_risk= {self._risk})"

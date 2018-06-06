@@ -1,6 +1,7 @@
 import numbers
 
 import pandas as pd
+import numpy as np
 
 from vivarium import VivariumError
 from vivarium.framework.state_machine import Machine
@@ -8,7 +9,6 @@ from vivarium.framework.state_machine import Machine
 from ceam_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
                                         RateTransition, ProportionTransition)
 
-from .data_transformations import assign_cause_at_beginning_of_simulation
 
 
 class DiseaseModelError(VivariumError):
@@ -36,9 +36,10 @@ class DiseaseModel(Machine):
         return self.state_column
 
     def setup(self, builder):
-        self.config = builder.configuration
+        super().setup(builder)
 
         self._csmr_data = self._get_data_functions['csmr'](self.cause, builder)
+        self.config = builder.configuration
         self._interpolation_order = builder.configuration.interpolation.order
 
         builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
@@ -53,8 +54,6 @@ class DiseaseModel(Machine):
 
         builder.event.register_listener('time_step', self.time_step_handler)
         builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
-
-        return self.states
 
     def _get_default_initial_state(self):
         susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]
@@ -71,20 +70,33 @@ class DiseaseModel(Machine):
     def get_csmr(self):
         return self._csmr_data
 
+    @staticmethod
+    def assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness):
+        simulants = simulants_df[['age', 'sex']]
+        sequelae, weights = zip(*states.items())
+        sequelae += (initial_state,)
+        for w in weights:
+            w.reset_index(inplace=True, drop=True)
+        weights += ((1 - np.sum(weights, axis=0)),)
+        simulants.loc[:, 'condition_state'] = randomness.choice(simulants.index, sequelae,
+                                                                np.array(weights).T)
+        return simulants
+
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
 
         assert self.initial_state in {s.state_id for s in self.states}
 
-        state_map = {s.state_id: s.prevalence_data for s in self.states
+        state_map = {s.state_id: s.prevalence_data(pop_data.index) for s in self.states
                      if hasattr(s, 'prevalence_data') and s.prevalence_data is not None}
 
         if state_map and not population.empty:
             # only do this if there are states in the model that supply prevalence data
-            condition_column = assign_cause_at_beginning_of_simulation(population, pop_data.creation_time.year,
-                                                                       state_map, self.randomness,
-                                                                       self.initial_state,
-                                                                       self._interpolation_order)
+            population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
+
+            condition_column = self.assign_initial_status_to_simulants(population, state_map,
+                                                                       self.initial_state, self.randomness)
+
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
         else:
             condition_column = pd.Series(self.initial_state, index=population.index, name=self.condition)

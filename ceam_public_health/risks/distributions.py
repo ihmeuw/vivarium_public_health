@@ -117,7 +117,6 @@ class Gumbel(BaseDistribution):
         loc, scale = self.params
         return stats.gumbel_r(loc=loc, scale=scale).ppf(x)
 
-
 class InverseGamma(BaseDistribution):
     def get_parameters(self):
         def f(guess):
@@ -321,12 +320,11 @@ class EnsembleDistribution:
         #                        for distribution_name, distribution in self.distribution_map}
 
     def setup(self, builder):
-        self._distribution.setup(builder)
+        builder.components.add_components([self._distribution])
 
     def pdf(self, x):
         return self._distribution.pdf(x)
         #return np.sum([weight * self._distributions[dist_name].pdf(x) for dist_name, weight in self.weights.items()])
-
 
     def ppf(self, propensity):
         return self._distribution.ppf(propensity)

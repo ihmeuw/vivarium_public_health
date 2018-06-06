@@ -25,8 +25,7 @@ class CalculateIncidence:
     def setup(self, builder):
         self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time",
                                                                                age_group_id_min=2,
-                                                                               age_group_id_max=21,
-                                                                               builder=builder)
+                                                                               age_group_id_max=21)
         self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease),
                                                                    age_group_id_min=2,
                                                                    age_group_id_max=21,

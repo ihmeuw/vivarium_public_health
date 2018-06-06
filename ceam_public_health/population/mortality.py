@@ -19,7 +19,7 @@ class Mortality:
         self.mortality_rate = builder.value.register_rate_producer('mortality_rate', source=self.mortality_rate_source)
 
         life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
-        self.life_expectancy = builder.lookup(life_expectancy_data, key_columns=[], parameter_columns=('age',))
+        self.life_expectancy = builder.lookup.build_table(life_expectancy_data, key_columns=[], parameter_columns=('age',))
 
         self.death_emitter = builder.event.get_emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')
@@ -30,8 +30,9 @@ class Mortality:
                                               modifier=self.calculate_mortality_measure)
 
         self.population_view = builder.population.get_view(
-            ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location'])
-        builder.population.initializes_simulants(self.load_population_columns, creates_columns=['cause_of_death'])
+            ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location', 'years_of_life_lost'])
+        builder.population.initializes_simulants(self.load_population_columns,
+                                                 creates_columns=['cause_of_death', 'years_of_life_lost'])
 
         builder.event.register_listener('time_step', self.mortality_handler, priority=0)
         builder.event.register_listener('time_step__cleanup', self.untracked_handler)
@@ -46,7 +47,8 @@ class Mortality:
         return self._cause_deleted_mortality_data(index)
 
     def load_population_columns(self, pop_data):
-        self.population_view.update(pd.Series('not_dead', name='cause_of_death', index=pop_data.index))
+        self.population_view.update(pd.DataFrame({'cause_of_death': 'not_dead',
+                                                  'years_of_life_lost': 0.}, index=pop_data.index))
 
     def mortality_handler(self, event):
         pop = self.population_view.get(event.index, query="alive =='alive'")
@@ -55,13 +57,16 @@ class Mortality:
         prob_df['cause_of_death'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
         dead_pop = prob_df.query('cause_of_death != "no_death"').copy()
 
-        dead_pop['alive'] = pd.Series('dead', index=dead_pop.index).astype(
-            pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
-        dead_pop['exit_time'] = event.time
+        if not dead_pop.empty:
+            dead_pop['alive'] = pd.Series('dead', index=dead_pop.index).astype(
+                pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
+            dead_pop['exit_time'] = event.time
 
-        self.death_emitter(event.split(dead_pop.index))
+            dead_pop['years_of_life_lost'] = self.life_expectancy(dead_pop.index)
 
-        self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death']])
+            self.death_emitter(event.split(dead_pop.index))
+
+            self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death', 'years_of_life_lost']])
 
     def untracked_handler(self, event):
         pop = self.population_view.get(event.index, query="alive == 'untracked'")

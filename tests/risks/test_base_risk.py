@@ -1,4 +1,3 @@
-import os
 from collections import namedtuple
 from unittest.mock import Mock
 
@@ -7,14 +6,13 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from vivarium.configuration import ConfigTree
+from vivarium.config_tree import ConfigTree
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, TestPopulation
+from vivarium.test_util import build_table, TestPopulation, metadata
+from vivarium.interface.testing import setup_simulation, initialize_simulation
 
-from ceam_public_health.dataset_manager import ArtifactManager
-from ceam_public_health.testing.mock_artifact import MockArtifact
 from ceam_public_health.disease import RateTransition, DiseaseState, BaseDiseaseState
 from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
 from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
@@ -22,22 +20,6 @@ from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, Contin
 
 
 @pytest.fixture(scope='function')
-def config(base_config):
-    try:
-        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                           'input_data.auxiliary_data_folder'])
-    except KeyError:
-        pass
-
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.time.start.set_with_metadata('year', 1990, **metadata)
-    base_config.time.end.set_with_metadata('year', 2010, **metadata)
-    base_config.time.set_with_metadata('step_size', 30.5, **metadata)
-    base_config.run_configuration.set_with_metadata('input_draw_number', 1, **metadata)
-    base_config.vivarium.set_with_metadata('dataset_manager', 'ceam_public_health.dataset_manager.ArtifactManager', **metadata)
-    base_config.input_data.set_with_metadata('artifact_path', '/tmp/dummy.hdf', **metadata)
-    base_config.artifact.set_with_metadata('artifact_class', 'ceam_public_health.testing.mock_artifact.MockArtifact', **metadata)
-    return base_config
 
 
 @pytest.fixture(scope='function')
@@ -56,11 +38,10 @@ def make_dummy_column(name, initial_value):
     return _make_dummy_column()
 
 
-def test_RiskEffect(config):
-    year_start = config.time.start.year
-    year_end = config.time.end.year
-    config.time.step_size = 30.5
-    time_step = pd.Timedelta(days=30, hours=12)
+def test_RiskEffect(base_config, base_plugins):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    time_step = pd.Timedelta(days=base_config.time.step_size)
     test_exposure = [0]
 
     def test_function(rates_, rr):
@@ -77,19 +58,26 @@ def test_RiskEffect(config):
 
     effect = RiskEffect(r, d, effect_data_functions)
 
-    artifact = MockArtifact()
-    artifact.set("risk_factor.test_risk.distribution", "dichotomuous")
 
-    simulation = setup_simulation([TestPopulation(), effect], input_config=config, dataset_manager=ArtifactManager(artifact))
+    simulation = initialize_simulation([TestPopulation(), effect], input_config=base_config, plugin_config=base_plugins)
+    simulation.data.set("risk_factor.test_risk.distribution", "dichotomuous")
+
+    simulation.setup()
+    simulation.initialize_simulants()
+
     effect.exposure_effect = test_function
 
     # This one should be affected by our RiskEffect
     rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
-    rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                 key_columns=('sex',),
+                                                 parameter_columns=('age', 'year'))
 
     # This one should not
     other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate')
-    other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                       key_columns=('sex',),
+                                                       parameter_columns=('age', 'year'))
 
     assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step))
     assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
@@ -100,7 +88,7 @@ def test_RiskEffect(config):
     assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
 
 
-def test_continuous_exposure_effect(config):
+def test_continuous_exposure_effect(base_config, base_plugins):
     risk = "test_risk"
     tmred = {
             "distribution": 'uniform',
@@ -127,13 +115,15 @@ def test_continuous_exposure_effect(config):
 
     tmrel = 0.5 * (tmred["max"] + tmred["min"])
 
-    artifact = MockArtifact()
-    artifact.set("risk_factor.test_risk.distribution", "ensemble")
-    artifact.set("risk_factor.test_risk.tmred", tmred)
-    artifact.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
 
     components = [TestPopulation(), make_dummy_column(risk+'_exposure', tmrel), exposure_function]
-    simulation = setup_simulation(components, input_config=config, dataset_manager=ArtifactManager(artifact))
+    simulation = initialize_simulation(components, input_config=base_config, plugin_config=base_plugins)
+    simulation.data.set("risk_factor.test_risk.distribution", "ensemble")
+    simulation.data.set("risk_factor.test_risk.tmred", tmred)
+    simulation.data.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
+
+    simulation.setup()
+    simulation.initialize_simulants()
 
     rates = pd.Series(0.01, index=simulation.population.population.index)
     rr = pd.Series(1.01, index=simulation.population.population.index)
@@ -148,7 +138,7 @@ def test_continuous_exposure_effect(config):
     assert np.allclose(exposure_function(rates, rr), expected_value)
 
 
-def test_categorical_exposure_effect(config):
+def test_categorical_exposure_effect(base_config):
     risk = "test_risk"
 
     class exposure_function_wrapper:
@@ -161,7 +151,7 @@ def test_categorical_exposure_effect(config):
 
     exposure_function = exposure_function_wrapper()
     components = [TestPopulation(), make_dummy_column(risk+'_exposure', 'cat2'), exposure_function]
-    simulation = setup_simulation(components, input_config=config)
+    simulation = setup_simulation(components, input_config=base_config)
 
     rates = pd.Series(0.01, index=simulation.population.population.index)
     rr = pd.DataFrame({'cat1': 1.01, 'cat2': 1}, index=simulation.population.population.index)
@@ -174,34 +164,42 @@ def test_categorical_exposure_effect(config):
     assert np.allclose(exposure_function(rates, rr), 0.0101)
 
 
-def test_CategoricalRiskComponent_dichotomous_case(config):
-    time_step = pd.Timedelta(days=30, hours=12)
-    config.time.step_size = 30.5
+def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    time_step = pd.Timedelta(days=base_config.time.step_size)
+    # FIXME: Should not depend on GBD inputs
+    base_config.update({'input_data': {'input_draw_number': 1}}, **metadata(__file__))
     risk = "test_risk"
-    year_start = config.time.start.year
-    year_end = config.time.end.year
 
-    artifact = MockArtifact()
-    exposure_data = build_table(0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
-                                .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    artifact.set("risk_factor.test_risk.exposure", exposure_data)
-    rr_data = build_table(
-        [1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    artifact.set("risk_factor.test_risk.relative_risk", rr_data)
-    artifact.set("risk_factor.test_risk.mediation_factor", None)
-    artifact.set("risk_factor.test_risk.population_attributable_fraction", 1)
-    affected_causes = ["test_cause_1", "test_cause_2"]
-    artifact.set("risk_factor.test_risk.affected_causes", affected_causes)
-    artifact.set("risk_factor.test_risk.distribution", "dichotomous")
 
 
     component = CategoricalRiskComponent("risk_factor."+risk)
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config, dataset_manager=ArtifactManager(artifact))
-    pump_simulation(simulation, iterations=1)
+    base_config.update({'population': {'population_size': 100000}}, layer='override')
+    simulation = initialize_simulation([TestPopulation(), component], input_config=base_config, plugin_config=base_plugins)
+
+    exposure_data = build_table(0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
+                                .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
+    rr_data = build_table(
+        [1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
+    simulation.data.set("risk_factor.test_risk.mediation_factor", None)
+    simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
+    affected_causes = ["test_cause_1", "test_cause_2"]
+    simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.set("risk_factor.test_risk.distribution", "dichotomous")
+
+    simulation.setup()
+    simulation.initialize_simulants()
+
+    simulation.step()
 
     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
-    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                          key_columns=('sex',),
+                                                          parameter_columns=('age', 'year'))
 
     assert np.isclose((simulation.population.population[risk+'_exposure'] == 'cat1').sum()
                       / len(simulation.population.population), 0.5, rtol=0.01)
@@ -218,34 +216,38 @@ def test_CategoricalRiskComponent_dichotomous_case(config):
     assert np.allclose(incidence_rate(unexposed_index), from_yearly(expected_unexposed_value, time_step))
 
 
-def test_CategoricalRiskComponent_polytomous_case(config):
-    time_step = pd.Timedelta(days=30, hours=12)
-    config.time.step_size = 30.5
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    time_step = pd.Timedelta(days=base_config.time.step_size)
 
     risk = "test_risk"
 
-    artifact = MockArtifact()
-    exposure_data = build_table( 0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    artifact.set("risk_factor.test_risk.exposure", exposure_data)
-    rr_data = build_table( [1.03, 1.02, 1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    artifact.set("risk_factor.test_risk.relative_risk", rr_data)
-    artifact.set("risk_factor.test_risk.mediation_factor", None)
-    artifact.set("risk_factor.test_risk.population_attributable_fraction", 1)
-    affected_causes = ["test_cause_1", "test_cause_2"]
-    artifact.set("risk_factor.test_risk.affected_causes", affected_causes)
-    artifact.set("risk_factor.test_risk.distribution", "polytomous")
 
     component = CategoricalRiskComponent("risk_factor."+risk)
+    base_config.update({'population': {'population_size': 100000}}, layer='override')
+    simulation = initialize_simulation([TestPopulation(), component], input_config=base_config, plugin_config=base_plugins)
 
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config, dataset_manager=ArtifactManager(artifact))
-    pump_simulation(simulation, iterations=1)
+    exposure_data = build_table( 0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    rr_data = build_table( [1.03, 1.02, 1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
+        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    affected_causes = ["test_cause_1", "test_cause_2"]
+    simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
+    simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
+    simulation.data.set("risk_factor.test_risk.mediation_factor", None)
+    simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
+    simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.set("risk_factor.test_risk.distribution", "polytomous")
+    simulation.setup()
+    simulation.initialize_simulants()
+
+    simulation.step()
 
     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
-    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                          key_columns=('sex',),
+                                                          parameter_columns=('age', 'year'))
 
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
         assert np.isclose((simulation.population.population[risk+'_exposure'] == category).sum()
@@ -259,27 +261,19 @@ def test_CategoricalRiskComponent_polytomous_case(config):
         assert np.allclose(incidence_rate(exposed_index), from_yearly(expected, time_step), rtol=0.01)
 
 
-def test_ContinuousRiskComponent(get_distribution_mock, config):
-    time_step = pd.Timedelta(days=30, hours=12)
-    config.time.step_size = 30.5
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugins):
+    time_step = pd.Timedelta(days=base_config.time.step_size)
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
 
     risk = "test_risk"
 
-    artifact = MockArtifact()
 
     exposure_data = build_table(0.5, year_start, year_end) \
                     .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    artifact.set("risk_factor.test_risk.exposure", exposure_data)
     rr_data = build_table(1.01, year_start, year_end) \
                     .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    artifact.set("risk_factor.test_risk.relative_risk", rr_data)
-    artifact.set("risk_factor.test_risk.mediation_factor", None)
-    artifact.set("risk_factor.test_risk.population_attributable_fraction", 1)
     affected_causes = ["test_cause_1", "test_cause_2"]
-    artifact.set("risk_factor.test_risk.affected_causes", affected_causes)
-    artifact.set("risk_factor.test_risk.distribution", "ensemble")
 
     tmred = {
             "distribution": 'uniform',
@@ -287,14 +281,12 @@ def test_ContinuousRiskComponent(get_distribution_mock, config):
             "max": 115.0,
             "inverted": False,
     }
-    artifact.set("risk_factor.test_risk.tmred", tmred)
     exposure_parameters = {
             "scale": 10.0,
             "max_rr": 200.0,
             "max_val": 300.0,
             "min_val": 50.0,
     }
-    artifact.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
 
     class Distribution:
         def __init__(self, *_, **__):
@@ -302,7 +294,7 @@ def test_ContinuousRiskComponent(get_distribution_mock, config):
 
         def setup(self, builder):
             data = build_table([130, 0.000001], year_start, year_end, ['age', 'year', 'sex', 'mean', 'std'])
-            self.parameters = builder.lookup(data)
+            self.parameters = builder.lookup.build_table(data)
 
         def ppf(self, propensity):
             params = self.parameters(propensity.index)
@@ -312,11 +304,25 @@ def test_ContinuousRiskComponent(get_distribution_mock, config):
 
     component = ContinuousRiskComponent("risk_factor."+risk)
 
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config, dataset_manager=ArtifactManager(artifact))
-    pump_simulation(simulation, iterations=1)
+    base_config.update({'population': {'population_size': 100000}}, layer='override')
+    simulation = initialize_simulation([TestPopulation(), component], input_config=base_config, plugin_config=base_plugins)
+    simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
+    simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
+    simulation.data.set("risk_factor.test_risk.mediation_factor", None)
+    simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
+    simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.set("risk_factor.test_risk.distribution", "ensemble")
+    simulation.data.set("risk_factor.test_risk.tmred", tmred)
+    simulation.data.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
+    simulation.setup()
+    simulation.initialize_simulants()
+
+    simulation.step()
 
     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
-    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end))
+    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                          key_columns=('sex',),
+                                                          parameter_columns=('age', 'year'))
 
     assert np.allclose(simulation.population.population[risk+'_exposure'], 130, rtol=0.001)
 
@@ -326,24 +332,17 @@ def test_ContinuousRiskComponent(get_distribution_mock, config):
                        from_yearly(expected_value, time_step), rtol=0.001)
 
 
-def test_propensity_effect(get_distribution_mock, config):
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
 
     risk = "test_risk"
-    artifact = MockArtifact()
 
     exposure_data = build_table(0.5, year_start, year_end) \
                     .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    artifact.set("risk_factor.test_risk.exposure", exposure_data)
     rr_data = build_table(1.01, year_start, year_end) \
                     .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    artifact.set("risk_factor.test_risk.relative_risk", rr_data)
-    artifact.set("risk_factor.test_risk.mediation_factor", None)
-    artifact.set("risk_factor.test_risk.population_attributable_fraction", 1)
     affected_causes = ["test_cause_1", "test_cause_2"]
-    artifact.set("risk_factor.test_risk.affected_causes", affected_causes)
-    artifact.set("risk_factor.test_risk.distribution", "ensemble")
 
     tmred = {
             "distribution": 'uniform',
@@ -351,14 +350,12 @@ def test_propensity_effect(get_distribution_mock, config):
             "max": 115.0,
             "inverted": False,
     }
-    artifact.set("risk_factor.test_risk.tmred", tmred)
     exposure_parameters = {
             "scale": 10.0,
             "max_rr": 200.0,
             "max_val": 300.0,
             "min_val": 50.0,
     }
-    artifact.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
 
     class Distribution:
         def __init__(self, *_, **__):
@@ -366,7 +363,7 @@ def test_propensity_effect(get_distribution_mock, config):
 
         def setup(self, builder):
             data = build_table([130, 15], year_start, year_end, ['age', 'year', 'sex', 'mean', 'std'])
-            self.parameters = builder.lookup(data)
+            self.parameters = builder.lookup.build_table(data)
 
         def ppf(self, propensity):
             params = self.parameters(propensity.index)
@@ -376,29 +373,41 @@ def test_propensity_effect(get_distribution_mock, config):
 
     component = ContinuousRiskComponent("risk_factor."+risk)
 
-    simulation = setup_simulation([TestPopulation(), component], 100000, input_config=config, dataset_manager=ArtifactManager(artifact))
+    base_config.update({'population': {'population_size': 100000}}, **metadata(__file__))
+    simulation = initialize_simulation([TestPopulation(), component], input_config=base_config, plugin_config=base_plugins)
+    simulation.data.set("risk_factor.test_risk.tmred", tmred)
+    simulation.data.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
+    simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
+    simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
+    simulation.data.set("risk_factor.test_risk.mediation_factor", None)
+    simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
+    simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.set("risk_factor.test_risk.distribution", "ensemble")
+    simulation.setup()
+    simulation.initialize_simulants()
+
     pop_view = simulation.population.get_view([risk+'_propensity'])
 
     pop_view.update(pd.Series(0.00001, index=simulation.population.population.index))
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     expected_value = norm(loc=130, scale=15).ppf(0.00001)
     assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
 
     pop_view.update(pd.Series(0.5, index=simulation.population.population.index))
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     expected_value = 130
     assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
 
     pop_view.update(pd.Series(0.99999, index=simulation.population.population.index))
-    pump_simulation(simulation, iterations=1)
+    simulation.step()
 
     expected_value = norm(loc=130, scale=15).ppf(0.99999)
     assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
 
 
-def test_correlated_propensity(config):
+def test_correlated_propensity(base_config):
 
     correlation_matrix = pd.DataFrame({
         'high_systolic_blood_pressure':           [1, 0.282213017344475, 0.110525231808424, 0.130475437755401, 0.237914389663941],
@@ -474,14 +483,14 @@ def _fill_in_correlation_matrix(risk_order):
 
 @pytest.mark.skip
 @pytest.mark.slow
-def test_correlated_exposures(config):
+def test_correlated_exposures(base_config, base_plugins):
     from rpy2.robjects import r, pandas2ri, numpy2ri
     pandas2ri.activate()
     numpy2ri.activate()
-    config.population.age_start = 50
-    config.population.age_end = 50
+    base_config.population.age_start = 50
+    base_config.population.age_end = 50
 
-    draw = config.run_configuration.input_draw_number
+    draw = base_config.input_data.input_draw_number
     categorical_risks = ["no_access_to_handwashing_facility," "smoking_prevalence_approach"]
     continuous_risks = ["high_systolic_blood_pressure," "high_total_cholesterol"]
 
@@ -494,12 +503,13 @@ def test_correlated_exposures(config):
     observations = []
     for i in range(100):
         print('running {}'.format(i))
-        config.run_configuration.input_draw_number = i
+        base_config.input_data.input_draw_number = i
         risks = [CategoricalRiskComponent(r, correlated_propensity_factory(draw)) for r in categorical_risks]
         risks += [ContinuousRiskComponent(r, correlated_propensity_factory(draw)) for r in continuous_risks]
-        simulation = setup_simulation([TestPopulation()] + risks, 100000, input_config=config)
+        base_config.update({'population': {'population_size': 100000}}, layer='override')
+        simulation = setup_simulation([TestPopulation()] + risks, base_config, base_plugins)
 
-        pump_simulation(simulation, iterations=1)
+        simulation.step()
         print('simulation done')
 
         r.source('/home/alecwd/Code/cost_effectiveness_misc/03_get_corr_matrix_function.R')
@@ -518,9 +528,9 @@ def test_correlated_exposures(config):
                   <= np.array(observations).std(axis=0)*3)
 
 
-def inputs_mock_factory(config, input_type):
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+def inputs_mock_factory(base_config, input_type):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
 
     def _mock_get_exposure_means(risk_id):
         e = {1: 0.5, 2: 0.25, 3: 0.1, 4: 0.8}[risk_id]
@@ -550,16 +560,16 @@ def inputs_mock_factory(config, input_type):
 
 
 @pytest.mark.skip
-def test_correlated_exposures_synthetic_risks(config):
+def test_correlated_exposures_synthetic_risks(base_config):
     from rpy2.robjects import r, pandas2ri, numpy2ri
     pandas2ri.activate()
     numpy2ri.activate()
-    draw = config.run_configuration.input_draw_number
+    draw = base_config.input_data.input_draw_number
 
     load_risk_corr_mock.return_value = _fill_in_correlation_matrix()
-    get_exposure_mock.side_effect = inputs_mock_factory(config, 'exposure')
-    get_rr_mock.side_effect = inputs_mock_factory(config, 'rr')
-    get_paf_mock.side_effect = inputs_mock_factory(config, 'paf')
+    get_exposure_mock.side_effect = inputs_mock_factory(base_config, 'exposure')
+    get_rr_mock.side_effect = inputs_mock_factory(base_config, 'rr')
+    get_paf_mock.side_effect = inputs_mock_factory(base_config, 'paf')
 
     def loader(builder):
         dist = Interpolation(
@@ -567,7 +577,7 @@ def test_correlated_exposures_synthetic_risks(config):
                 ['sex'],
                 ['age', 'year'],
                 func=lambda parameters: norm(loc=parameters['mean'], scale=parameters['std']).ppf)
-        return builder.lookup(dist)
+        return builder.lookup.build_table(dist)
 
     continuous_1 = ConfigTree({'name': 'continuous_1', 'gbd_risk': 1, 'risk_type': 'continuous',
                                'affected_causes': [], 'tmrl': 112.5, 'scale': 10})
@@ -593,9 +603,9 @@ def test_correlated_exposures_synthetic_risks(config):
     categorical_2_component = CategoricalRiskComponent(categorical_2, correlated_propensity_factory(draw))
     components = [TestPopulation(), continuous_1_component, continuous_2_component,
                   categorical_1_component, categorical_2_component]
-    simulation = setup_simulation(components, 10000, input_config=config)
-
-    pump_simulation(simulation, iterations=1)
+    base_config.update({'population': {'population_size': 100000}}, layer='override')
+    simulation = setup_simulation(components, base_config)
+    simulation.step()
 
     r.source('/home/alecwd/Code/cost_effectiveness_misc/03_get_corr_matrix_function.R')
     pop = simulation.population.population[[c for c in simulation.population.population.columns if 'exposure' in c]]
@@ -618,10 +628,10 @@ def test_correlated_exposures_synthetic_risks(config):
 
 
 @pytest.mark.skip("Old and outdated test.  Needs serious rewrite.")
-def test_make_gbd_risk_effects(config):
-    time_step = config.time.step_size
-    year_start = config.time.start.year
-    year_end = config.time.end.year
+def test_make_gbd_risk_effects(base_config):
+    time_step = base_config.time.step_size
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
 
     # adjusted pafs
     paf = 0.9
@@ -634,7 +644,7 @@ def test_make_gbd_risk_effects(config):
 
     bmi = ContinuousRiskComponent("high_body_mass_index")
 
-    simulation = setup_simulation([TestPopulation(), bmi], input_config=config)
+    simulation = setup_simulation([TestPopulation(), bmi], base_config)
 
     pafs = simulation.values.register_value_producer('acute_hemorrhagic_stroke.paf',
                                                      source=lambda index: [pd.Series(0, index=index)],
@@ -660,7 +670,7 @@ def test_make_gbd_risk_effects(config):
     heart_attack = DiseaseState("heart_attack")
     heart_attack_transition = RateTransition(healthy, heart_attack, get_data_functions={
         'incidence_rate': lambda *args: build_table(.001, year_start, year_end)})
-    simulation = setup_simulation([TestPopulation(), heart_attack_transition, bmi], input_config=config)
+    simulation = setup_simulation([TestPopulation(), heart_attack_transition, bmi], base_config)
     irs = simulation.values.register_rate_producer('heart_attack.incidence_rate')
     base_ir = irs.source(simulation.population.population.index)
 

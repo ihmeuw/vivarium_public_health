@@ -1,4 +1,3 @@
-import os
 import math
 from itertools import product
 
@@ -6,7 +5,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium.test_util import setup_simulation, pump_simulation, build_table, get_randomness
+from vivarium.test_util import build_table, get_randomness, metadata
+from vivarium.interface.testing import initialize_simulation, setup_simulation
 
 import ceam_public_health.population.base_population as bp
 import ceam_public_health.population.data_transformations as dt
@@ -15,20 +15,16 @@ from ceam_public_health.testing.utils import make_uniform_pop_data
 
 @pytest.fixture(scope='function')
 def config(base_config):
-    try:
-        base_config.reset_layer('override', preserve_keys=['input_data.intermediary_data_cache_path',
-                                                           'input_data.auxiliary_data_folder'])
-    except KeyError:
-        pass
-
-    metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
-    base_config.population.set_with_metadata('age_start', 0, **metadata)
-    base_config.population.set_with_metadata('age_end', 110, **metadata)
-    base_config.population.set_with_metadata('use_subregions', False, **metadata)
-    base_config.input_data.set_with_metadata('location', 'Kenya', **metadata)
-    base_config.vivarium.set_with_metadata('dataset_manager', 'ceam_public_health.dataset_manager.ArtifactManager', **metadata)
-    base_config.input_data.set_with_metadata('artifact_path', '/tmp/dummy.hdf', **metadata)
-    base_config.artifact.set_with_metadata('artifact_class', 'ceam_public_health.testing.mock_artifact.MockArtifact', **metadata)
+    base_config.update({
+        'population': {
+            'age_start': 0,
+            'age_end': 110,
+        },
+        'input_data': {
+            'location_id': 180,
+            'use_subregions': False,
+        }
+    }, **metadata(__file__))
     return base_config
 
 
@@ -66,7 +62,7 @@ def make_full_simulants():
     return base_simulants
 
 
-def test_BasePopulation(config, generate_ceam_population_mock):
+def test_BasePopulation(config, base_plugins, generate_ceam_population_mock):
     num_days = 600
     time_step = 100  # Days
     sims = make_full_simulants()
@@ -74,12 +70,12 @@ def test_BasePopulation(config, generate_ceam_population_mock):
 
     generate_ceam_population_mock.return_value = sims
 
-    use_subregions = ('use_subregions' in config.population and config.population.use_subregions)
-
     base_pop = bp.BasePopulation()
 
     components = [base_pop]
-    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    config.update({'population': {'population_size': start_population_size},
+                   'time': {'step_size': time_step}}, layer='override')
+    simulation = setup_simulation(components, input_config=config, plugin_config=base_plugins)
     time_start = simulation.clock.time
 
     pop_structure = simulation.data.load('population.structure', keep_age_group_edges=True)
@@ -104,27 +100,29 @@ def test_BasePopulation(config, generate_ceam_population_mock):
 
     final_ages = simulation.population.population.age + num_days/365
 
-    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    simulation.run_for(duration=pd.Timedelta(days=num_days))
 
     assert np.allclose(simulation.population.population.age, final_ages, atol=0.5/365)  # Within a half of a day.
 
 
-def test_age_out_simulants(config):
+def test_age_out_simulants(config, base_plugins):
     start_population_size = 10000
     num_days = 600
     time_step = 100  # Days
-    config.update({'population': {'age_start': 4,
-                                  'age_end': 4,
-                                  'exit_age': 5, },
-                   'time': {'step_size': time_step}
-                   },
-                  layer='override')
+    config.update({'population': {
+        'population_size': start_population_size,
+        'age_start': 4,
+        'age_end': 4,
+        'exit_age': 5,
+    },
+        'time': {'step_size': time_step}
+    }, layer='override')
     components = [bp.BasePopulation()]
-    simulation = setup_simulation(components, population_size=start_population_size, input_config=config)
+    simulation = setup_simulation(components, input_config=config, plugin_config=base_plugins)
     time_start = simulation.clock.time
 
     assert len(simulation.population.population) == len(simulation.population.population.age.unique())
-    pump_simulation(simulation, time_step_days=time_step, duration=pd.Timedelta(days=num_days))
+    simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
     assert len(pop) == len(pop[pop.alive == 'untracked'])
     exit_after_300_days = pop.exit_time >= time_start + pd.Timedelta(300, unit='D')
@@ -139,11 +137,11 @@ def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
                   'age_end': 120}
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
-    register = lambda *args, **kwargs: None
     sims = make_base_simulants()
     simulant_ids = sims.index
 
-    bp.generate_ceam_population(simulant_ids, creation_time, step_size, age_params, pop_data, r, register)
+    bp.generate_ceam_population(simulant_ids, creation_time, step_size,
+                                age_params, pop_data, r, lambda *args, **kwargs: None)
 
     age_bounds_mock.assert_called_once()
     mock_args = age_bounds_mock.call_args[0]
@@ -162,11 +160,11 @@ def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock)
                   'age_end': 0}
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
-    register = lambda *args, **kwargs: None
     sims = make_base_simulants()
     simulant_ids = sims.index
 
-    bp.generate_ceam_population(simulant_ids, creation_time, step_size, age_params, pop_data, r, register)
+    bp.generate_ceam_population(simulant_ids, creation_time, step_size,
+                                age_params, pop_data, r, lambda *args, **kwargs: None)
 
     initial_age_mock.assert_called_once()
     mock_args = initial_age_mock.call_args[0]
@@ -185,10 +183,10 @@ def test__assign_demography_with_initial_age(config):
     simulants = make_base_simulants()
     initial_age = 20
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
-    register = lambda *args, **kwargs: None
     step_size = pd.Timedelta(days=config.time.step_size)
 
-    simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age, step_size, r, register)
+    simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age,
+                                                       step_size, r, lambda *args, **kwargs: None)
 
     assert len(simulants) == len(simulants.age.unique())
     assert simulants.age.min() > initial_age
@@ -205,10 +203,10 @@ def test__assign_demography_with_initial_age_zero(config):
     simulants = make_base_simulants()
     initial_age = 0
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
-    register = lambda *args, **kwargs: None
     step_size = pd.Timedelta(days=config.time.step_size)
 
-    simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age, step_size, r, register)
+    simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age,
+                                                       step_size, r, lambda *args, **kwargs: None)
 
     assert len(simulants) == len(simulants.age.unique())
     assert simulants.age.min() > initial_age
@@ -225,11 +223,11 @@ def test__assign_demography_with_initial_age_error():
     simulants = make_base_simulants()
     initial_age = 200
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
-    register = lambda *args, **kwargs: None
     step_size = pd.Timedelta(days=1)
 
     with pytest.raises(ValueError):
-        bp._assign_demography_with_initial_age(simulants, pop_data, initial_age, step_size, r, register)
+        bp._assign_demography_with_initial_age(simulants, pop_data, initial_age,
+                                               step_size, r, lambda *args, **kwargs: None)
 
 
 def test__assign_demography_with_age_bounds():
@@ -238,9 +236,9 @@ def test__assign_demography_with_age_bounds():
     simulants = make_base_simulants()
     age_start, age_end = 0, 180
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
-    register = lambda *args, **kwargs: None
 
-    simulants = bp._assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, r, register)
+    simulants = bp._assign_demography_with_age_bounds(simulants, pop_data, age_start,
+                                                      age_end, r, lambda *args, **kwargs: None)
 
     assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, abs_tol=0.01)
 
@@ -262,7 +260,7 @@ def test__assign_demography_withq_age_bounds_error():
     simulants = make_base_simulants()
     age_start, age_end = 110, 120
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
-    register = lambda *args, **kwargs: None
 
     with pytest.raises(ValueError):
-        bp._assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, r, register)
+        bp._assign_demography_with_age_bounds(simulants, pop_data, age_start,
+                                              age_end, r, lambda *args, **kwargs: None)

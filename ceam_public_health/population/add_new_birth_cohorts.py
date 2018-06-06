@@ -49,12 +49,12 @@ class FertilityDeterministic:
                             + self.fractional_new_births)
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
-
-        self.simulant_creator(simulants_to_add,
-                              population_configuration={
-                                  'age_start': 0,
-                                  'age_end': 0,
-                              })
+        if simulants_to_add > 0:
+            self.simulant_creator(simulants_to_add,
+                                  population_configuration={
+                                      'age_start': 0,
+                                      'age_end': 0,
+                                  })
 
 
 class FertilityCrudeBirthRate:
@@ -114,12 +114,12 @@ class FertilityCrudeBirthRate:
         # Assume births occur as a Poisson process
         r = np.random.RandomState(seed=self.randomness.get_seed())
         simulants_to_add = r.poisson(mean_births)
-
-        self.simulant_creator(simulants_to_add,
-                              population_configuration={
-                                  'age_start': 0,
-                                  'age_end': 0,
-                              })
+        if simulants_to_add > 0:
+            self.simulant_creator(simulants_to_add,
+                                  population_configuration={
+                                      'age_start': 0,
+                                      'age_end': 0,
+                                  })
 
     def _get_birth_rate(self, year):
         """Computes a crude birth rate from demographic data in a given year.
@@ -163,8 +163,8 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness.get_stream('fertility')
-        self._asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")[['year', 'age', 'value']]
-        asfr_source = builder.lookup(self._asfr_data, key_columns=(), parameter_columns=('year', 'age',))
+        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")[['year', 'age', 'value']]
+        asfr_source = builder.lookup.build_table(asfr_data, key_columns=(), parameter_columns=('year', 'age',))
         self.asfr = builder.value.register_rate_producer('fertility rate', source=asfr_source)
         self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id'])
         self.simulant_creator = builder.population.get_simulant_creator()
