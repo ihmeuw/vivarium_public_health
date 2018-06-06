@@ -151,17 +151,17 @@ def test_get_newly_dosed_simulants(treatment_schedule):
     tx._schedule['first'] = True
 
     # first dose at 60 days
-    tx._schedule['first_age'].loc[:1999] = 60
+    tx._schedule.loc[:1999, 'first_age'] = 60
 
     # first dose at 75 days
-    tx._schedule['first_age'].loc[2000:3999] = 75
+    tx._schedule.loc[2000:3999, 'first_age'] = 75
 
     # first dose at 90 days
-    tx._schedule['first_age'].loc[4000:] = 90
+    tx._schedule.loc[4000:, 'first_age'] = 90
 
     # second dose True
-    tx._schedule['second'].loc[:2500] = True
-    tx._schedule['second_age'].loc[:2500] = 180
+    tx._schedule.loc[:2500, 'second'] = True
+    tx._schedule.loc[:2500, 'second_age'] = 180
 
     step_size = pd.Timedelta(days=1)
 

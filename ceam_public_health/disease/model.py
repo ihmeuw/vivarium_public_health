@@ -72,7 +72,7 @@ class DiseaseModel(Machine):
 
     @staticmethod
     def assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness):
-        simulants = simulants_df[['age', 'sex']]
+        simulants = simulants_df[['age', 'sex']].copy()
         sequelae, weights = zip(*states.items())
         sequelae += (initial_state,)
         for w in weights:
