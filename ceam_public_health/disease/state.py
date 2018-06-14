@@ -314,9 +314,9 @@ class ExcessMortalityState(DiseaseState):
             Interface to several simulation tools.
         """
         super().setup(builder)
-        get_excess_mortality_func = self._get_data_functions.get('excess_mortality', lambda cause: bbuilder.data.load(f"{self.cause_type}.{cause}.excess_mortality"))
+        get_excess_mortality_func = self._get_data_functions.get('excess_mortality', lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.excess_mortality"))
 
-        self.excess_mortality_data = get_excess_mortality_func(self.cause, builder.configuration)
+        self.excess_mortality_data = get_excess_mortality_func(self.cause, builder)
         excess_mortality_source = builder.lookup.build_table(self.excess_mortality_data)
         self._mortality = builder.value.register_rate_producer(f'{self.state_id}.excess_mortality',
                                                                source=excess_mortality_source)

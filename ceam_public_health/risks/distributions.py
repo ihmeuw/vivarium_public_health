@@ -257,7 +257,7 @@ class Normal(BaseDistribution):
     def setup(self, builder):
         super().setup(builder)
         #FIXME: There should be a better way to defer this
-        self._build_lookup_function = builder.lookup
+        self._build_lookup_function = builder.lookup.build_table
 
     def get_parameters(self):
         dist = self._exposure_sd.merge(self._exposure_mean, on=['year', 'sex', 'age'])

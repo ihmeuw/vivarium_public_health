@@ -25,12 +25,12 @@ class ArtifactManager:
     def setup(self, builder):
         end_time = _get_time_stamp(builder.configuration.time.end)
         start_time = _get_time_stamp(builder.configuration.time.start)
-        draw = builder.configuration.run_configuration.input_draw_number
+        draw = builder.configuration.input_data.input_draw_number
         location = builder.configuration.input_data.location
 
         #NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
         # config file.
-        path_config = builder.configuration.artifact.metadata('path')[0]
+        path_config = builder.configuration.artifact.metadata('path')[-1]
         if path_config['source'] is not None:
             artifact_path = os.path.join(os.path.dirname(path_config['source']), path_config['value'])
         else:

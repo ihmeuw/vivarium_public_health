@@ -13,7 +13,7 @@ class Mortality:
         self._cause_deleted_mortality_data = None
 
         self._root_location = builder.configuration.input_data.location
-        self._build_lookup_handle = builder.lookup
+        self._build_lookup_handle = builder.lookup.build_table
 
         self.csmr = builder.value.register_value_producer('csmr_data', source=list, preferred_combiner=list_combiner)
         self.mortality_rate = builder.value.register_rate_producer('mortality_rate', source=self.mortality_rate_source)
