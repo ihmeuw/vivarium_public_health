@@ -43,7 +43,6 @@ class BasePopulation:
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
 
-
     # TODO: Move most of this docstring to an rst file.
     def generate_base_population(self, pop_data):
         """Creates a population with fundamental demographic and simulation properties.

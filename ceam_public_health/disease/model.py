@@ -10,7 +10,6 @@ from ceam_public_health.disease import (SusceptibleState, ExcessMortalityState, 
                                         RateTransition, ProportionTransition)
 
 
-
 class DiseaseModelError(VivariumError):
     pass
 
@@ -29,7 +28,8 @@ class DiseaseModel(Machine):
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
         if 'csmr' not in self._get_data_functions:
-            self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.cause_specific_mortality")
+            self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(
+                f"{self.cause_type}.{cause}.cause_specific_mortality")
 
     @property
     def condition(self):

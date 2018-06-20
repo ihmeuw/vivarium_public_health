@@ -2,7 +2,7 @@ import pandas as pd
 
 from vivarium.test_util import build_table
 
-from ..dataset_manager import Artifact, ArtifactException
+from ceam_public_health.dataset_manager import Artifact, ArtifactException
 from .utils import make_uniform_pop_data
 
 MOCKERS = {

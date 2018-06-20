@@ -1,19 +1,18 @@
 import math
-from itertools import product
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium.test_util import build_table, get_randomness, metadata
-from vivarium.interface.testing import initialize_simulation, setup_simulation
+from vivarium.test_util import get_randomness, metadata
+from vivarium.interface.interactive import setup_simulation
 
 import ceam_public_health.population.base_population as bp
 import ceam_public_health.population.data_transformations as dt
 from ceam_public_health.testing.utils import make_uniform_pop_data
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def config(base_config):
     base_config.update({
         'population': {
@@ -28,17 +27,17 @@ def config(base_config):
     return base_config
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def generate_ceam_population_mock(mocker):
     return mocker.patch('ceam_public_health.population.base_population.generate_ceam_population')
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def age_bounds_mock(mocker):
     return mocker.patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def initial_age_mock(mocker):
     return mocker.patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
 
