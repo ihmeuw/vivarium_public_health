@@ -21,6 +21,7 @@ def base_config():
 
     return config
 
+
 @pytest.fixture(scope='module')
 def base_plugins():
     config = {'optional': {

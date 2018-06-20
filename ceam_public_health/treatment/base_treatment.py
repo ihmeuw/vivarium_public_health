@@ -52,8 +52,8 @@ class Treatment:
         previous_dose_full_immunity_start = (population[f'{self.name}_previous_dose_event_time']
                                              + self.dose_response['onset_delay'])
         previous_dose_giving_immunity = (received_previous_dose
-                                          & (previous_dose_full_immunity_start <= self.clock())
-                                          & ~current_dose_giving_immunity)
+                                         & (previous_dose_full_immunity_start <= self.clock())
+                                         & ~current_dose_giving_immunity)
 
         dosing_status = pd.DataFrame({'dose': None, 'date': pd.NaT}, index=population.index)
         #  not sure why, but pandas doesn't save the sliced data for two columns at the same time
@@ -103,7 +103,8 @@ class Treatment:
 
         protection = pd.Series(0, index=population.index)
 
-        protection[full_immunity | waning_immunity] = dosing_status.dose[full_immunity|waning_immunity].map(self.protection)
+        protection[full_immunity | waning_immunity] = dosing_status.dose[
+            full_immunity | waning_immunity].map(self.protection)
 
         protection[waning_immunity] *= np.exp(-self.dose_response['waning_rate']*time_in_waning.dt.days)
 

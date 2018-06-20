@@ -2,6 +2,7 @@ from itertools import product
 
 import pandas as pd
 
+
 def make_uniform_pop_data():
     age_bins = [(n, n + 2.5, n + 5) for n in range(0, 100, 5)]
     sexes = ('Male', 'Female', 'Both')

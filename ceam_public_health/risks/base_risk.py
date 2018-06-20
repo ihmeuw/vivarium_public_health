@@ -46,7 +46,6 @@ def correlated_propensity_factory(builder):
             # There's no correlation data for this risk, just pick a uniform random propensity
             return uncorrelated_propensity(population, risk_factor)
 
-
         risk_factor_idx = sorted(correlation_matrices.risk_factor.unique()).index(risk_factor)
         ages = sorted(correlation_matrices.age.unique())
         age_idx = (np.broadcast_to(population.age, (len(ages), len(population))).T
@@ -108,7 +107,6 @@ class ContinuousRiskComponent:
             self.propensity_function = correlated_propensity_factory(builder)
         else:
             self.propensity_function = uncorrelated_propensity
-
 
         self.exposure_distribution = get_distribution(self._risk, self._risk_type, builder)
         builder.components.add_components([self._effects, self.exposure_distribution])

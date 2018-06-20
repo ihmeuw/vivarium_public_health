@@ -60,21 +60,28 @@ class RiskEffect:
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
-        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(f"{self.cause_type}.{cause}.population_attributable_fraction", risk=risk))(self.risk, self.cause, builder)
+        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(
+            f"{self.cause_type}.{cause}.population_attributable_fraction", risk=risk))(self.risk, self.cause, builder)
+
         self.population_attributable_fraction = builder.lookup.build_table(paf_data[['year', 'sex', 'age', 'value']])
         if paf_data.empty:
-            #FIXME: Bailing out because we don't have preloaded data for this cause-risk pair. This should be handled higher up but since it isn't yet I'm just going to skip all the plumbing leaving this as a NOP component
+            #FIXME: Bailing out because we don't have preloaded data for this cause-risk pair.
+            # This should be handled higher up but since it isn't yet I'm just going to
+            # skip all the plumbing leaving this as a NOP component
             return
 
-        rr_data = self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.relative_risk", cause=self.cause))(self.risk, self.cause, builder)[['year', 'parameter', 'sex', 'age', 'value']]
+        rr_data = self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(
+            f"{self.risk_type}.{risk}.relative_risk", cause=self.cause))(self.risk, self.cause, builder)[
+            ['year', 'parameter', 'sex', 'age', 'value']]
 
         rr_data = pd.pivot_table(rr_data, index=['year', 'age', 'sex'],
-                                               columns='parameter', values='value').dropna()
+                                 columns='parameter', values='value').dropna()
         rr_data = rr_data.reset_index()
         self.relative_risk = builder.lookup.build_table(rr_data)
 
         if builder.configuration.risks.apply_mediation:
-            mf = self._get_data_functions.get('mf', lambda risk, cause, builder: builder.data.load(f"{self.risk_type}.{risk}.mediation_factor", cause=self.cause))(self.risk, self.cause, builder)
+            mf = self._get_data_functions.get('mf', lambda risk, cause, builder: builder.data.load(
+                f"{self.risk_type}.{risk}.mediation_factor", cause=self.cause))(self.risk, self.cause, builder)
             if mf is not None and not mf.empty:
                 self.mediation_factor = builder.lookup.build_table(float(mf.value))
             else:
@@ -87,8 +94,8 @@ class RiskEffect:
         self.population_view = builder.population.get_view([self.risk + '_exposure'])
         distribution = builder.data.load(f"{self.risk_type}.{self.risk}.distribution")
         self.is_continuous = distribution in ['lognormal', 'ensemble', 'normal']
-        self.exposure_effect = (continuous_exposure_effect(self.risk, self.risk_type, self.population_view, builder) if self.is_continuous
-                                else categorical_exposure_effect(self.risk, self.population_view))
+        self.exposure_effect = (continuous_exposure_effect(self.risk, self.risk_type, self.population_view, builder)
+                                if self.is_continuous else categorical_exposure_effect(self.risk, self.population_view))
 
     def paf_mf_adjustment(self, index):
         if self.mediation_factor:
@@ -112,4 +119,5 @@ class RiskEffectSet:
         self.risk_type = risk_type
 
     def setup(self, builder):
-        builder.components.add_components([RiskEffect(risk=self.risk, cause=cause, risk_type=self.risk_type) for cause in builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")])
+        builder.components.add_components([RiskEffect(risk=self.risk, cause=cause, risk_type=self.risk_type)for cause
+                                           in builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")])

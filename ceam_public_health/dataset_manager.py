@@ -7,13 +7,14 @@ import pandas as pd
 from tables.nodes import filenode
 
 from vivarium.framework.time import _get_time_stamp
-from vivarium.framework.util import import_by_path
 
 import logging
 _log = logging.getLogger(__name__)
 
+
 class ArtifactException(Exception):
     pass
+
 
 class ArtifactManager:
     configuration_defaults = {
@@ -28,7 +29,7 @@ class ArtifactManager:
         draw = builder.configuration.input_data.input_draw_number
         location = builder.configuration.input_data.location
 
-        #NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
+        # NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
         # config file.
         path_config = builder.configuration.artifact.metadata('path')[-1]
         if path_config['source'] is not None:
@@ -77,7 +78,7 @@ class Artifact:
             except AttributeError:
                 # This isn't a json node so move on
                 pass
-            #TODO: Is there a better way to get the columns without loading  much data?
+            # TODO: Is there a better way to get the columns without loading  much data?
             try:
                 columns = self._hdf.select(group, stop=1).columns
             except KeyError:
@@ -96,13 +97,13 @@ class Artifact:
                         terms.append(f"{column} = {c}")
             columns_to_remove = set(column_filters.keys())
             if "location" not in column_filters and "location" in columns:
-                #TODO I think this is a sign I should be handling queries differently
+                # TODO I think this is a sign I should be handling queries differently
                 terms.append(f"location == {self.location} | location == 'Global'")
                 columns_to_remove.add("location")
             data = pd.read_hdf(self._hdf, group, where=terms if terms else None)
             if not keep_age_group_edges:
                 # TODO: Should probably be using these age group bins rather than the midpoints but for now we use mids
-                columns_to_remove = columns_to_remove | {"age_group_start", "age_group_end"}
+                columns_to_remove |= {"age_group_start", "age_group_end"}
             columns_to_remove = columns_to_remove.intersection(columns)
 
             data = data.drop(columns=columns_to_remove)
@@ -138,6 +139,7 @@ class Artifact:
             for sub_child in getattr(self._hdf._handle.root, child)._v_children:
                 result.write(f"\t{sub_child}\n")
         return result.getvalue()
+
 
 class ArtifactManagerInterface():
     def __init__(self, controller):

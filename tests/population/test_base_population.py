@@ -1,12 +1,11 @@
 import math
-from itertools import product
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium.test_util import build_table, get_randomness, metadata
-from vivarium.interface.testing import initialize_simulation, setup_simulation
+from vivarium.test_util import get_randomness, metadata
+from vivarium.interface.interactive import setup_simulation
 
 import ceam_public_health.population.base_population as bp
 import ceam_public_health.population.data_transformations as dt

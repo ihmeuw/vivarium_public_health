@@ -1,6 +1,3 @@
-from collections import namedtuple
-from unittest.mock import Mock
-
 import pytest
 import numpy as np
 import pandas as pd
@@ -11,7 +8,7 @@ from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium.framework.util import from_yearly
 from vivarium.interpolation import Interpolation
 from vivarium.test_util import build_table, TestPopulation, metadata
-from vivarium.interface.testing import setup_simulation, initialize_simulation
+from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
 from ceam_public_health.disease import RateTransition, DiseaseState, BaseDiseaseState
 from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
@@ -58,12 +55,10 @@ def test_RiskEffect(base_config, base_plugins):
 
     effect = RiskEffect(r, d, effect_data_functions)
 
-
     simulation = initialize_simulation([TestPopulation(), effect], input_config=base_config, plugin_config=base_plugins)
     simulation.data.set("risk_factor.test_risk.distribution", "dichotomuous")
 
     simulation.setup()
-    simulation.initialize_simulants()
 
     effect.exposure_effect = test_function
 
@@ -115,7 +110,6 @@ def test_continuous_exposure_effect(base_config, base_plugins):
 
     tmrel = 0.5 * (tmred["max"] + tmred["min"])
 
-
     components = [TestPopulation(), make_dummy_column(risk+'_exposure', tmrel), exposure_function]
     simulation = initialize_simulation(components, input_config=base_config, plugin_config=base_plugins)
     simulation.data.set("risk_factor.test_risk.distribution", "ensemble")
@@ -123,7 +117,6 @@ def test_continuous_exposure_effect(base_config, base_plugins):
     simulation.data.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
 
     simulation.setup()
-    simulation.initialize_simulants()
 
     rates = pd.Series(0.01, index=simulation.population.population.index)
     rr = pd.Series(1.01, index=simulation.population.population.index)
@@ -172,18 +165,20 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
     base_config.update({'input_data': {'input_draw_number': 1}}, **metadata(__file__))
     risk = "test_risk"
 
-
-
     component = CategoricalRiskComponent("risk_factor."+risk)
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    simulation = initialize_simulation([TestPopulation(), component], input_config=base_config, plugin_config=base_plugins)
+    simulation = initialize_simulation([TestPopulation(), component],
+                                       input_config=base_config, plugin_config=base_plugins)
 
-    exposure_data = build_table(0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
-                                .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    exposure_data = build_table(
+        0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
+    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+
     simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
     rr_data = build_table(
-        [1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+        [1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
+    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+
     simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
     simulation.data.set("risk_factor.test_risk.mediation_factor", None)
     simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
@@ -192,7 +187,6 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
     simulation.data.set("risk_factor.test_risk.distribution", "dichotomous")
 
     simulation.setup()
-    simulation.initialize_simulants()
 
     simulation.step()
 
@@ -223,15 +217,19 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
 
     risk = "test_risk"
 
-
     component = CategoricalRiskComponent("risk_factor."+risk)
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    simulation = initialize_simulation([TestPopulation(), component], input_config=base_config, plugin_config=base_plugins)
+    simulation = initialize_simulation([TestPopulation(), component],
+                                       input_config=base_config, plugin_config=base_plugins)
 
-    exposure_data = build_table( 0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    rr_data = build_table( [1.03, 1.02, 1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']) \
-        .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    exposure_data = build_table(
+        0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']
+    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+
+    rr_data = build_table(
+        [1.03, 1.02, 1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']
+    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+
     affected_causes = ["test_cause_1", "test_cause_2"]
     simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
     simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
@@ -240,7 +238,6 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
     simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
     simulation.data.set("risk_factor.test_risk.distribution", "polytomous")
     simulation.setup()
-    simulation.initialize_simulants()
 
     simulation.step()
 
@@ -268,11 +265,14 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
 
     risk = "test_risk"
 
+    exposure_data = build_table(
+        0.5, year_start, year_end
+    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
 
-    exposure_data = build_table(0.5, year_start, year_end) \
-                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    rr_data = build_table(1.01, year_start, year_end) \
-                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    rr_data = build_table(
+        1.01, year_start, year_end
+    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+
     affected_causes = ["test_cause_1", "test_cause_2"]
 
     tmred = {
@@ -315,7 +315,6 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
     simulation.data.set("risk_factor.test_risk.tmred", tmred)
     simulation.data.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
     simulation.setup()
-    simulation.initialize_simulants()
 
     simulation.step()
 
@@ -338,10 +337,14 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
 
     risk = "test_risk"
 
-    exposure_data = build_table(0.5, year_start, year_end) \
-                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-    rr_data = build_table(1.01, year_start, year_end) \
-                    .melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    exposure_data = build_table(
+        0.5, year_start, year_end
+    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+
+    rr_data = build_table(
+        1.01, year_start, year_end
+    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+
     affected_causes = ["test_cause_1", "test_cause_2"]
 
     tmred = {
@@ -384,7 +387,6 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
     simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
     simulation.data.set("risk_factor.test_risk.distribution", "ensemble")
     simulation.setup()
-    simulation.initialize_simulants()
 
     pop_view = simulation.population.get_view([risk+'_propensity'])
 
@@ -407,7 +409,7 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
     assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
 
 
-def test_correlated_propensity(base_config):
+def test_correlated_propensity(base_config, mocker):
 
     correlation_matrix = pd.DataFrame({
         'high_systolic_blood_pressure':           [1, 0.282213017344475, 0.110525231808424, 0.130475437755401, 0.237914389663941],
@@ -424,7 +426,7 @@ def test_correlated_propensity(base_config):
 
     pop = pd.DataFrame({'age': [30]*100000, 'sex': ['Male']*100000})
 
-    mock_builder = Mock()
+    mock_builder = mocker.Mock()
     mock_builder.configuration.run_configuration.input_draw_number = 0
     mock_builder.data.load.return_value = correlation_matrix
 
@@ -665,6 +667,7 @@ def test_make_gbd_risk_effects(base_config):
         'paf': lambda *args: build_table(0, year_start, year_end),
         'mf': lambda *args: mediation_factor,
     }
+
     bmi = ContinuousRiskComponent("high_body_mass_index")
     healthy = BaseDiseaseState('healthy')
     heart_attack = DiseaseState("heart_attack")

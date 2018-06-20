@@ -1,5 +1,3 @@
-from collections import namedtuple
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -192,7 +190,8 @@ def test_incidence(base_config, base_plugins, disease):
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
-            'incidence_rate': lambda _, builder: builder.data.load(f"sequela.acute_myocardial_infarction_first_2_days.incidence")
+            'incidence_rate': lambda _, builder: builder.data.load(
+                f"sequela.acute_myocardial_infarction_first_2_days.incidence")
         })
     healthy.transition_set.append(transition)
 
@@ -224,7 +223,8 @@ def test_risk_deletion(base_config, base_plugins, disease):
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
-            'incidence_rate': lambda _, builder: builder.data.load(f"sequela.acute_myocardial_infarction_first_2_days.incidence")
+            'incidence_rate': lambda _, builder: builder.data.load(
+                f"sequela.acute_myocardial_infarction_first_2_days.incidence")
         }
     )
     healthy.transition_set.append(transition)

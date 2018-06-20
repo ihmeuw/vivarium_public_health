@@ -2,14 +2,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium.test_util import build_table, TestPopulation, from_yearly, to_yearly
-from vivarium.interface.testing import initialize_simulation
+from vivarium.framework.util import to_yearly
+from vivarium.test_util import build_table, TestPopulation
+from vivarium.interface.interactive import initialize_simulation
 
 from ceam_public_health.treatment import HealthcareAccess
 
 np.random.seed(100)
-
-
 
 
 class Metrics:
@@ -48,10 +47,11 @@ def test_general_access(base_config, base_plugins):
     annual_rate = to_yearly(monthly_rate, step_size)
 
     metrics = Metrics()
-    simulation = initialize_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=base_config, plugin_config=base_plugins)
-    simulation.data.set("healthcare_entity.outpatient_visits.annual_visits", build_table(annual_rate, year_start, year_end, ['age', 'year', 'sex', 'annual_visits']))
+    simulation = initialize_simulation([TestPopulation(), metrics, HealthcareAccess()],
+                                       input_config=base_config, plugin_config=base_plugins)
+    simulation.data.set("healthcare_entity.outpatient_visits.annual_visits",
+                        build_table(annual_rate, year_start, year_end, ['age', 'year', 'sex', 'annual_visits']))
     simulation.setup()
-    simulation.initialize_simulants()
 
     steps_to_take = 10 * 12  # ten years
     effective_person_time = population_size * steps_to_take * (step_size/pd.Timedelta(days=365))  # person-years

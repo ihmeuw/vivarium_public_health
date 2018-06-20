@@ -2,10 +2,8 @@ import numpy as np
 import pandas as pd
 
 from vivarium.test_util import TestPopulation, metadata, build_table
-from vivarium.interface.testing import initialize_simulation, setup_simulation
+from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
-from ceam_public_health.dataset_manager import ArtifactManager
-from ceam_public_health.testing.mock_artifact import MockArtifact
 from ceam_public_health.population import FertilityDeterministic, FertilityCrudeBirthRate, FertilityAgeSpecificRates
 
 
@@ -52,11 +50,11 @@ def test_FertilityCrudeBirthRate(base_config, base_plugins):
     simulation = initialize_simulation(components, base_config, base_plugins)
 
     simulation.data.set("covariate.age_specific_fertility_rate.estimate", 0.01)
-    simulation.data.set("covariate.live_births_by_sex.estimate", build_table(5000, 1990, 2018, ('age', 'year', 'sex', 'mean_value')).query('age == 25').drop('age', 'columns'))
+    simulation.data.set("covariate.live_births_by_sex.estimate",
+                        build_table(5000, 1990, 2018, ('age', 'year', 'sex', 'mean_value')
+                                    ).query('age == 25').drop('age', 'columns'))
 
     simulation.setup()
-    simulation.initialize_simulants()
-
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
@@ -80,14 +78,13 @@ def test_fertility_module(base_config, base_plugins):
         'time': {'step_size': time_step}
     }, layer='override')
 
-
     components = [TestPopulation(), FertilityAgeSpecificRates()]
     simulation = initialize_simulation(components, base_config, base_plugins)
 
-    simulation.data.set("covariate.age_specific_fertility_rate.estimate", build_table(0.05, 1990, 2018).query("sex == 'Female'").drop("sex", "columns"))
+    simulation.data.set("covariate.age_specific_fertility_rate.estimate",
+                        build_table(0.05, 1990, 2018).query("sex == 'Female'").drop("sex", "columns"))
 
     simulation.setup()
-    simulation.initialize_simulants()
 
     time_start = simulation.clock.time
 

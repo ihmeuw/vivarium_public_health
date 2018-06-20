@@ -42,6 +42,7 @@ class BaseDistribution:
         self._exposure_sd = builder.data.load(f"{self._risk_type}.{self._risk}.exposure_standard_deviation")
         #self._exposure_data = exposure_data.merge(exposure_sd_data).set_index(['age', 'sex', 'year'])
 
+
 class Beta(BaseDistribution):
     def get_parameters(self):
         x_max, x_min = get_min_max(self._exposure_mean, self._exposure_sd)
@@ -116,6 +117,7 @@ class Gumbel(BaseDistribution):
     def ppf(self, x):
         loc, scale = self.params
         return stats.gumbel_r(loc=loc, scale=scale).ppf(x)
+
 
 class InverseGamma(BaseDistribution):
     def get_parameters(self):
