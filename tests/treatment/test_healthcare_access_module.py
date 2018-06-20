@@ -4,7 +4,7 @@ import pytest
 
 from vivarium.framework.util import to_yearly
 from vivarium.test_util import build_table, TestPopulation
-from vivarium.interface.interactive import initialize_simulation
+from vivarium.interface import initialize_simulation, setup_simulation
 
 from ceam_public_health.treatment import HealthcareAccess
 
@@ -77,7 +77,7 @@ def test_adherence(base_config, get_annual_visits_mock):
 
     metrics = Metrics()
     base_config.update({'population': {'population_size': n_simulants},
-                   'time': {'step_size': t_step}}, layer='override')
+                        'time': {'step_size': t_step}}, layer='override')
     simulation = setup_simulation([TestPopulation(), metrics, HealthcareAccess()], input_config=base_config)
 
     simulation.take_steps(number_of_steps=2)

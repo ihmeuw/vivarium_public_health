@@ -10,17 +10,17 @@ from ceam_public_health.disease import (BaseDiseaseState, DiseaseState, ExcessMo
                                         RateTransition, DiseaseModel)
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def disease():
     return 'test'
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def assign_cause_mock(mocker):
     return mocker.patch('ceam_public_health.disease.model.DiseaseModel.assign_initial_status_to_simulants')
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def base_data():
     def _set_prevalence(p):
         base_function = dict()
@@ -127,7 +127,7 @@ def test_prevalence_multiple_sequelae(base_config, disease, base_data, test_prev
     error_message = "initial sequela status of simulants should be matched to the prevalence data."
     assert np.allclose([get_test_prevalence(simulation, 'sequela0'),
                         get_test_prevalence(simulation, 'sequela1'),
-                        get_test_prevalence(simulation, 'sequela2')],test_prevalence_level, .02), error_message
+                        get_test_prevalence(simulation, 'sequela2')], test_prevalence_level, .02), error_message
 
 
 def test_prevalence_single_simulant(mocker):

@@ -74,8 +74,10 @@ def set_up_test_parameters(base_config, flu=False, mumps=False, deadly=False):
         deadly = ExcessMortalityState('deadly', get_data_functions=deadly_data_funcs)
         healthy = DiseaseState('healthy', get_data_functions=deadly_data_funcs)
         deadly_model = DiseaseModel('deadly', initial_state=healthy,
-                                    states=[deadly, healthy], get_data_functions={
-                'csmr': lambda _, __: build_table(0.0005, year_start-1, year_end)})
+                                    states=[deadly, healthy],
+                                    get_data_functions={
+                                        'csmr': lambda _, __: build_table(0.0005, year_start-1, year_end)
+                                    })
         components.append(deadly_model)
         components.append(Mortality())
 

@@ -12,7 +12,7 @@ import ceam_public_health.population.data_transformations as dt
 from ceam_public_health.testing.utils import make_uniform_pop_data
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def config(base_config):
     base_config.update({
         'population': {
@@ -27,17 +27,17 @@ def config(base_config):
     return base_config
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def generate_ceam_population_mock(mocker):
     return mocker.patch('ceam_public_health.population.base_population.generate_ceam_population')
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def age_bounds_mock(mocker):
     return mocker.patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def initial_age_mock(mocker):
     return mocker.patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
 

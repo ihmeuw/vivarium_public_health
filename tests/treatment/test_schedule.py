@@ -7,7 +7,7 @@ import numpy as np
 from ceam_public_health.treatment import TreatmentSchedule
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def config(base_config):
     metadata = {'layer': 'override', 'source': os.path.realpath(__file__)}
     base_config.update({
@@ -22,14 +22,14 @@ def config(base_config):
     return base_config
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def builder(mocker, config):
     builder = mocker.MagicMock()
     builder.configuration = config
     return builder
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def treatment_schedule(mocker, builder):
     tx = TreatmentSchedule('test_treatment')
     coverage = dict(first=1, second=0.5)
@@ -119,7 +119,7 @@ def test_when_should_receive_dose(treatment_schedule, mocker):
     tx.population_view.get.return_value = pop
 
     def age_draw_side_effect(index, additional_key):
-        age_draws = [0.00001, 0.25, 0.5, 0.75, 0.99999] # should give ages < min_age and age > max_age
+        age_draws = [0.00001, 0.25, 0.5, 0.75, 0.99999]  # should give ages < min_age and age > max_age
         if len(index) < len(age_draws):
             return pd.Series(age_draws[:index])
 
