@@ -179,7 +179,7 @@ class DiseaseState(BaseDiseaseState):
 
         if (self.cause is None and
                 not set(self._get_data_functions.keys()).issuperset(['disability_weight', 'dwell_time', 'prevalence'])):
-            raise ValueError('If you do not provide a GBD cause from the gbd_mapping, you must supply'
+            raise ValueError('If you do not provide a cause, you must supply'
                              'custom data gathering functions for disability_weight, prevalence, and dwell_time.')
 
     def setup(self, builder):

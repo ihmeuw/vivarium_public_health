@@ -11,11 +11,11 @@ def make_age_bins_column(age_group_id_min, age_group_id_max, builder):
     Parameters
     ----------
     age_group_id_min: int
-        Youngest GBD age group group id to be used in creating the columns
+        Youngest age group group id to be used in creating the columns
         (inclusive)
 
     age_group_id_max: int
-        Oldest GBD age group id to be used in creating the columns (inclusive)
+        Oldest age group id to be used in creating the columns (inclusive)
 
     Returns
     -------
@@ -43,11 +43,11 @@ def make_cols_demographically_specific(col_prefix, age_group_id_min, age_group_i
         clarification)
 
     age_group_id_min: int
-        Youngest GBD age group group id to be used in creating the columns
+        Youngest age group group id to be used in creating the columns
         (inclusive)
 
     age_group_id_max: int
-        Oldest GBD age group id to be used in creating the columns (inclusive)
+        Oldest age group id to be used in creating the columns (inclusive)
 
     Examples
     --------
@@ -76,11 +76,11 @@ def make_age_bin_age_group_max_dict(age_group_id_min, age_group_id_max, builder)
     Parameters
     ----------
     age_group_id_min: int
-        Youngest GBD age group group id to be used in creating the columns
+        Youngest age group group id to be used in creating the columns
         (inclusive)
 
     age_group_id_max: int
-        Oldest GBD age group id to be used in creating the columns (inclusive)
+        Oldest age group id to be used in creating the columns (inclusive)
     """
     age_bins = make_age_bins_column(age_group_id_min, age_group_id_max, builder)
 

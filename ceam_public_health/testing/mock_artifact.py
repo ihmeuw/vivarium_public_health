@@ -57,7 +57,7 @@ MOCKERS = {
 
 class MockArtifact(Artifact):
     def __init__(self):
-        super(MockArtifact, self).__init__()
+        super(MockArtifact, self).__init__("", None, None, 0, "")
         self._is_open = False
         self._overrides = {
                 "risk_factor.correlations.correlations": pd.DataFrame([], columns=["risk_factor", "sex", "age"]),
@@ -83,7 +83,7 @@ class MockArtifact(Artifact):
     def set(self, entity_path, value):
         self._overrides[entity_path] = value
 
-    def open(self, *args, **kwargs):
+    def open(self):
         if not self._is_open:
             self._is_open = True
         else:

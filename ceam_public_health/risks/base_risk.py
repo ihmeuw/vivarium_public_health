@@ -97,8 +97,8 @@ class ContinuousRiskComponent:
         },
     }
 
-    def __init__(self, risk):
-        self._risk_type, self._risk = risk.split('.')
+    def __init__(self, risk_type, risk_name):
+        self._risk_type, self._risk = risk_type, risk_name
         self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
 
     def setup(self, builder):
@@ -140,7 +140,7 @@ class ContinuousRiskComponent:
         self.population_view.update(pd.Series(new_exposure, name=self._risk+'_exposure', index=event.index))
 
     def __repr__(self):
-        return f"ContinuousRiskComponent(_risk= {self._risk})"
+        return f"ContinuousRiskComponent(_risk_type= {self._risk_type}, _risk= {self._risk})"
 
 
 class CategoricalRiskComponent:
@@ -158,8 +158,8 @@ class CategoricalRiskComponent:
         },
     }
 
-    def __init__(self, risk):
-        self._risk_type, self._risk = risk.split('.')
+    def __init__(self, risk_type, risk_name):
+        self._risk_type, self._risk = risk_type, risk_name
         self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
 
     def setup(self, builder):
@@ -219,4 +219,4 @@ class CategoricalRiskComponent:
         self.population_view.update(categories)
 
     def __repr__(self):
-        return f"CategoricalRiskComponent(_risk= {self._risk})"
+        return f"CategoricalRiskComponent(_risk_type= {self._risk_type}, _risk= {self._risk})"

@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 SECONDS_PER_YEAR = 365.25*24*60*60
-# TODO: Incorporate GBD estimates into gestational model (probably as a separate component)
+# TODO: Incorporate better data into gestational model (probably as a separate component)
 PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
 
 
@@ -135,11 +135,11 @@ class FertilityCrudeBirthRate:
             The crude birth rate of the population in the given year in
             births per person per year.
         """
-        population_table = self._population_data[self._population_data.year == year].query("sex == 'Both'")
+        population_table = self._population_data.query("year == @year and sex == 'Both'")
         births = float(self._birth_data.query('sex == "Both"').set_index(['year']).loc[year].mean_value)
 
         if self.exit_age is not None:
-            population = population_table.population[population_table.age < self.exit_age].sum()
+            population = population_table.population.query("age < @self.exit_age").sum()
         else:
             population = population_table.population.sum()
 

@@ -57,7 +57,7 @@ class CalculateIncidence:
 
     def set_flag(self, event):
         """
-        Set the collecting flag to True during GBD years
+        Set the collecting flag to True
         """
         self.collecting = True
         for col in self.susceptible_person_time_cols:

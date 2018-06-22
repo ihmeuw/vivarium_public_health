@@ -158,11 +158,10 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
     time_step = pd.Timedelta(days=base_config.time.step_size)
-    # FIXME: Should not depend on GBD inputs
     base_config.update({'input_data': {'input_draw_number': 1}}, **metadata(__file__))
     risk = "test_risk"
 
-    component = CategoricalRiskComponent("risk_factor."+risk)
+    component = CategoricalRiskComponent("risk_factor", risk)
     base_config.update({'population': {'population_size': 100000}}, layer='override')
     simulation = initialize_simulation([TestPopulation(), component],
                                        input_config=base_config, plugin_config=base_plugins)
@@ -214,7 +213,7 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
 
     risk = "test_risk"
 
-    component = CategoricalRiskComponent("risk_factor."+risk)
+    component = CategoricalRiskComponent("risk_factor", risk)
     base_config.update({'population': {'population_size': 100000}}, layer='override')
     simulation = initialize_simulation([TestPopulation(), component],
                                        input_config=base_config, plugin_config=base_plugins)
@@ -299,7 +298,7 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
 
     get_distribution_mock.side_effect = lambda *args, **kwargs: Distribution(args, kwargs)
 
-    component = ContinuousRiskComponent("risk_factor."+risk)
+    component = ContinuousRiskComponent("risk_factor", risk)
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
     simulation = initialize_simulation([TestPopulation(), component],
@@ -372,7 +371,7 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
 
     get_distribution_mock.side_effect = lambda *args, **kwargs: Distribution(args, kwargs)
 
-    component = ContinuousRiskComponent("risk_factor."+risk)
+    component = ContinuousRiskComponent("risk_factor", risk)
 
     base_config.update({'population': {'population_size': 100000}}, **metadata(__file__))
     simulation = initialize_simulation([TestPopulation(), component],

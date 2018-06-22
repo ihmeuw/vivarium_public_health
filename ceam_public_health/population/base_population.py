@@ -142,7 +142,7 @@ def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
             'alive' : One of 'alive', 'dead', or 'untracked' indicating how the simulation
                 interacts with the simulant.
             'age' : The age of the simulant at the current time step.
-            'location' : The GBD location indicating where the simulant resides.
+            'location' : The location indicating where the simulant resides.
             'sex' : Either 'Male' or 'Female'.  The sex of the simulant.
     """
     simulants = pd.DataFrame({'entrance_time': pd.Series(creation_time, index=simulant_ids),
@@ -267,7 +267,7 @@ def _build_population_data_table(data):
             'age_group_start' : Lower bound of the age group,
             'age_group_end' : Upper bound of the age group,
             'sex' : 'Male' or 'Female',
-            'location' : GBD location,
+            'location' : location,
             'year' : Year,
             'population' : Total population estimate,
             'P(sex, location | age, year)' : Conditional probability of sex and location given age and year,

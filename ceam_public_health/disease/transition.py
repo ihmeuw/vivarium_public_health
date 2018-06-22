@@ -36,7 +36,7 @@ class RateTransition(Transition):
     def rates(self, index):
         base_rates = self.base_rate(index)
         joint_mediated_paf = self.joint_paf(index)
-        # risk-deleted incidence is calculated by taking incidence from GBD and multiplying it by (1 - Joint PAF)
+        # risk-deleted incidence is calculated by taking incidence and multiplying it by (1 - Joint PAF)
         return pd.Series(base_rates.values * (1 - joint_mediated_paf.values), index=index)
 
     def __str__(self):
@@ -55,7 +55,6 @@ class ProportionTransition(Transition):
             raise ValueError('Must supply a proportion function')
         self._proportion_data = get_proportion_func(self.output_state.cause, builder)
         self.proportion = builder.lookup.build_table(self._proportion_data)
-        return super().setup(builder)
 
     def _probability(self, index):
         return self.proportion(index)
