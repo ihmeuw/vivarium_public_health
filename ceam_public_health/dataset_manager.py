@@ -129,14 +129,15 @@ def _setup_filter(columns, column_filters, location, draw):
     default_filters = {
         'draw': draw,
     }
-    default_filters.update(column_filters)
-    column_filters = default_filters
+    column_filters = {**default_filters, **column_filters}
     for column, condition in column_filters.items():
         if column in columns:
             if not isinstance(condition, (list, tuple)):
                 condition = [condition]
             for c in condition:
                 terms.append(f"{column} = {c}")
+        elif column not in default_filters:
+            raise ValueError(f"Filtering by non-existant column '{column}'. Avaliable columns {columns}")
     columns_to_remove = set(column_filters.keys())
     if "location" not in column_filters and "location" in columns:
         # TODO I think this is a sign I should be handling queries differently
