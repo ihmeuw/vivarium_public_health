@@ -36,7 +36,7 @@ class ArtifactManager:
 
     def setup(self, builder):
         end_time = get_time_stamp(builder.configuration.time.end)
-        start_time = _get_time_stamp(builder.configuration.time.start)
+        start_time = get_time_stamp(builder.configuration.time.start)
         draw = builder.configuration.input_data.input_draw_number
         location = builder.configuration.input_data.location
 
