@@ -47,7 +47,6 @@ def test_RiskEffect(base_config, base_plugins):
         'rr': lambda *args: build_table([1.01, 'per_unit'], year_start, year_end,
                                         ('age', 'year', 'sex', 'value', 'parameter')),
         'paf': lambda *args: build_table(0.01, year_start, year_end, ('age', 'year', 'sex', 'value')),
-        'mf': lambda *args: None,
     }
 
     effect = RiskEffect(r, d, effect_data_functions)
@@ -176,7 +175,6 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
     ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
 
     simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
-    simulation.data.set("risk_factor.test_risk.mediation_factor", None)
     simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
     affected_causes = ["test_cause_1", "test_cause_2"]
     simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
@@ -229,7 +227,6 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
     affected_causes = ["test_cause_1", "test_cause_2"]
     simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
     simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
-    simulation.data.set("risk_factor.test_risk.mediation_factor", None)
     simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
     simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
     simulation.data.set("risk_factor.test_risk.distribution", "polytomous")
@@ -305,7 +302,6 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
                                        input_config=base_config, plugin_config=base_plugins)
     simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
     simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
-    simulation.data.set("risk_factor.test_risk.mediation_factor", None)
     simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
     simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
     simulation.data.set("risk_factor.test_risk.distribution", "ensemble")
@@ -380,7 +376,6 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
     simulation.data.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
     simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
     simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
-    simulation.data.set("risk_factor.test_risk.mediation_factor", None)
     simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
     simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
     simulation.data.set("risk_factor.test_risk.distribution", "ensemble")

@@ -20,7 +20,6 @@ MOCKERS = {
             'exposure': 0,
             'exposure_standard_deviation': 0.001,
             'relative_risk': build_table([1, "continuous"], 1990, 2018, ("age", "sex", "year", "value", "parameter")),
-            'mediation_factor': pd.DataFrame({"value": [0]}),
             'tmred': lambda *args, **kwargs: {
                 "distribution": "uniform",
                 "min": 0,
