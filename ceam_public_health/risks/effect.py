@@ -1,10 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from ceam_inputs import get_relative_risk, get_population_attributable_fraction, get_mediation_factor
 
-
-def continuous_exposure_effect(risk, population_view):
+def continuous_exposure_effect(risk, risk_type, population_view, builder):
     """Factory that makes functions which can be used as the exposure_effect for standard continuous risks.
 
     Parameters
@@ -12,10 +10,12 @@ def continuous_exposure_effect(risk, population_view):
     risk : `vivarium.config_tree.ConfigTree`
         The gbd data mapping for the risk.
     """
-    exposure_column = risk.name+'_exposure'
-    tmrel = 0.5 * (risk.tmred.min + risk.tmred.max)
-    max_exposure = risk.exposure_parameters.max_rr
-    scale = risk.exposure_parameters.scale
+    exposure_column = risk+'_exposure'
+    tmred = builder.data.load(f"{risk_type}.{risk}.tmred")
+    tmrel = 0.5 * (tmred["min"] + tmred["max"])
+    exposure_parameters = builder.data.load(f"{risk_type}.{risk}.exposure_parameters")
+    max_exposure = exposure_parameters["max_rr"]
+    scale = exposure_parameters["scale"]
 
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     def inner(rates, rr):
@@ -34,7 +34,7 @@ def categorical_exposure_effect(risk, population_view):
     risk : `vivarium.config_tree.ConfigTree`
         The gbd data mapping for the risk.
     """
-    exposure_column = risk.name+'_exposure'
+    exposure_column = risk+'_exposure'
 
     def inner(rates, rr):
         exposure_ = population_view.get(rr.index)[exposure_column]
@@ -46,68 +46,53 @@ class RiskEffect:
     """RiskEffect objects bundle all the effects that a given risk has on a cause.
     """
 
-    configuration_defaults = {
-        'risks': {
-            'apply_mediation': True,
-        },
-    }
-
-    def __init__(self, risk, cause, get_data_functions=None):
+    def __init__(self, risk, cause, get_data_functions=None, risk_type="risk_factor", cause_type="cause"):
         self.risk = risk
+        self.risk_type = risk_type
         self.cause = cause
+        self.cause_type = cause_type
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
-        self.cause_name = cause.name
-
     def setup(self, builder):
-        get_rr_func = self._get_data_functions.get('rr', get_relative_risk)
-        get_paf_func = self._get_data_functions.get('paf', get_population_attributable_fraction)
-        get_mf_func = self._get_data_functions.get('mf', get_mediation_factor)
+        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(
+            f"{self.cause_type}.{cause}.population_attributable_fraction", risk=risk))(self.risk, self.cause, builder)
 
-        self._rr_data = get_rr_func(self.risk, self.cause, builder.configuration)
+        self.population_attributable_fraction = builder.lookup.build_table(paf_data[['year', 'sex', 'age', 'value']])
+        if paf_data.empty:
+            #FIXME: Bailing out because we don't have preloaded data for this cause-risk pair.
+            # This should be handled higher up but since it isn't yet I'm just going to
+            # skip all the plumbing leaving this as a NOP component
+            return
 
-        if self.risk.distribution in ('dichotomous', 'polytomous'):
-            # TODO: I'm not sure this is the right place to be doing this reshaping. Maybe it should
-            # be in the data_transformations somewhere?
-            self._rr_data = pd.pivot_table(self._rr_data, index=['year', 'age', 'sex'],
-                                           columns='parameter', values='relative_risk').dropna()
-            self._rr_data = self._rr_data.reset_index()
-        else:
-            del self._rr_data['parameter']
+        rr_data = self._get_data_functions.get('rr', lambda risk, cause, builder: builder.data.load(
+            f"{self.risk_type}.{risk}.relative_risk", cause=self.cause))(self.risk, self.cause, builder)[
+            ['year', 'parameter', 'sex', 'age', 'value']]
 
-        self._paf_data = get_paf_func(self.risk, self.cause, builder.configuration)
-        self._mediation_factor = get_mf_func(self.risk, self.cause, builder.configuration)
+        rr_data = pd.pivot_table(rr_data, index=['year', 'age', 'sex'],
+                                 columns='parameter', values='value').dropna()
+        rr_data = rr_data.reset_index()
+        self.relative_risk = builder.lookup.build_table(rr_data)
 
-        self.relative_risk = builder.lookup.build_table(self._rr_data)
-        self.population_attributable_fraction = builder.lookup.build_table(self._paf_data)
 
-        if builder.configuration.risks.apply_mediation:
-            self.mediation_factor = builder.lookup.build_table(self._mediation_factor)
-        else:
-            self.mediation_factor = None
-
-        builder.value.register_value_modifier(f'{self.cause_name}.incidence_rate', modifier=self.incidence_rates)
-        builder.value.register_value_modifier(f'{self.cause_name}.paf', modifier=self.paf_mf_adjustment)
-        self.population_view = builder.population.get_view([self.risk.name + '_exposure'])
-        is_continuous = self.risk.distribution in ['lognormal', 'ensemble', 'normal']
-        self.exposure_effect = (continuous_exposure_effect(self.risk, self.population_view) if is_continuous
-                                else categorical_exposure_effect(self.risk, self.population_view))
-
-    def paf_mf_adjustment(self, index):
-        if self.mediation_factor:
-            return self.population_attributable_fraction(index) * (1 - self.mediation_factor(index))
-        else:
-            return self.population_attributable_fraction(index)
+        builder.value.register_value_modifier(f'{self.cause}.incidence_rate', modifier=self.incidence_rates)
+        self.population_view = builder.population.get_view([self.risk + '_exposure'])
+        distribution = builder.data.load(f"{self.risk_type}.{self.risk}.distribution")
+        self.is_continuous = distribution in ['lognormal', 'ensemble', 'normal']
+        self.exposure_effect = (continuous_exposure_effect(self.risk, self.risk_type, self.population_view, builder)
+                                if self.is_continuous else categorical_exposure_effect(self.risk, self.population_view))
 
     def incidence_rates(self, index, rates):
-        if self.mediation_factor:
-            return self.exposure_effect(rates, self.relative_risk(index).pow(1 - self.mediation_factor(index), axis=0))
-        else:
-            return self.exposure_effect(rates, self.relative_risk(index))
+        return self.exposure_effect(rates, self.relative_risk(index))
 
     def __repr__(self):
         return "RiskEffect(cause= {})".format(self.cause)
 
 
-def make_gbd_risk_effects(risk):
-    return [RiskEffect(risk=risk, cause=cause) for cause in risk.affected_causes]
+class RiskEffectSet:
+    def __init__(self, risk, risk_type="risk_factor"):
+        self.risk = risk
+        self.risk_type = risk_type
+
+    def setup(self, builder):
+        builder.components.add_components([RiskEffect(risk=self.risk, cause=cause, risk_type=self.risk_type)for cause
+                                           in builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")])

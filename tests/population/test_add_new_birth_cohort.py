@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from vivarium.test_util import TestPopulation, metadata
-from vivarium.interface.interactive import setup_simulation
+from vivarium.test_util import TestPopulation, metadata, build_table
+from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
 from ceam_public_health.population import FertilityDeterministic, FertilityCrudeBirthRate, FertilityAgeSpecificRates
 
@@ -34,7 +34,7 @@ def test_FertilityDeterministic(base_config):
             == len(pop.age) - start_population_size), 'expect new simulants'
 
 
-def test_FertilityCrudeBirthRate(base_config):
+def test_FertilityCrudeBirthRate(base_config, base_plugins):
     start_population_size = 10000
     num_days = 100
     time_step = 10  # Days
@@ -47,7 +47,15 @@ def test_FertilityCrudeBirthRate(base_config):
     }, **metadata(__file__))
 
     components = [TestPopulation(), FertilityCrudeBirthRate()]
-    simulation = setup_simulation(components, base_config)
+    simulation = initialize_simulation(components, base_config, base_plugins)
+
+    simulation.data.set("covariate.age_specific_fertility_rate.estimate", 0.01)
+    simulation.data.set("covariate.live_births_by_sex.estimate",
+                        build_table(5000, 1990, 2018, ('age', 'year', 'sex', 'mean_value')
+                                    ).query('age == 25').drop('age', 'columns'))
+
+    simulation.setup()
+
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
 
@@ -58,7 +66,7 @@ def test_FertilityCrudeBirthRate(base_config):
     assert len(pop.age) > start_population_size, 'expect new simulants'
 
 
-def test_fertility_module(base_config):
+def test_fertility_module(base_config, base_plugins):
     start_population_size = 1000
     num_days = 1000
     time_step = 10  # Days
@@ -71,7 +79,13 @@ def test_fertility_module(base_config):
     }, layer='override')
 
     components = [TestPopulation(), FertilityAgeSpecificRates()]
-    simulation = setup_simulation(components, base_config)
+    simulation = initialize_simulation(components, base_config, base_plugins)
+
+    simulation.data.set("covariate.age_specific_fertility_rate.estimate",
+                        build_table(0.05, 1990, 2018).query("sex == 'Female'").drop("sex", "columns"))
+
+    simulation.setup()
+
     time_start = simulation.clock.time
 
     assert 'last_birth_time' in simulation.population.population.columns,\

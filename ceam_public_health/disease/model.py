@@ -9,21 +9,16 @@ from vivarium.framework.state_machine import Machine
 from ceam_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
                                         RateTransition, ProportionTransition)
 
-from ceam_inputs import get_cause_specific_mortality
-
 
 class DiseaseModelError(VivariumError):
     pass
 
 
 class DiseaseModel(Machine):
-    def __init__(self, cause, initial_state=None, get_data_functions=None, **kwargs):
-        if isinstance(cause, str):
-            self.cause = None
-            super().__init__(cause, **kwargs)
-        else:
-            self.cause = cause
-            super().__init__(cause.name, **kwargs)
+    def __init__(self, cause, initial_state=None, get_data_functions=None, cause_type="cause", **kwargs):
+        self.cause = cause
+        self.cause_type = cause_type
+        super().__init__(cause, **kwargs)
 
         if initial_state is not None:
             self.initial_state = initial_state.state_id
@@ -32,10 +27,9 @@ class DiseaseModel(Machine):
 
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
-        if (self.cause is None and
-                not set(self._get_data_functions.keys()).issuperset(['csmr'])):
-            raise ValueError('If you do not provide a GBD cause from the gbd_mapping, you must supply'
-                             'custom data gathering functions for csmr.')
+        if 'csmr' not in self._get_data_functions:
+            self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(
+                f"{self.cause_type}.{cause}.cause_specific_mortality")
 
     @property
     def condition(self):
@@ -44,11 +38,9 @@ class DiseaseModel(Machine):
     def setup(self, builder):
         super().setup(builder)
 
+        self._csmr_data = self._get_data_functions['csmr'](self.cause, builder)
         self.config = builder.configuration
         self._interpolation_order = builder.configuration.interpolation.order
-
-        get_csmr_func = self._get_data_functions.get('csmr', get_cause_specific_mortality)
-        self._csmr_data = get_csmr_func(self.cause, builder.configuration)
 
         builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
         builder.value.register_value_modifier('epidemiological_point_measures', modifier=self.prevalence)
@@ -80,7 +72,7 @@ class DiseaseModel(Machine):
 
     @staticmethod
     def assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness):
-        simulants = simulants_df[['age', 'sex']]
+        simulants = simulants_df[['age', 'sex']].copy()
         sequelae, weights = zip(*states.items())
         sequelae += (initial_state,)
         for w in weights:
@@ -111,7 +103,7 @@ class DiseaseModel(Machine):
         self.population_view.update(condition_column)
 
     def prevalence(self, index, age_groups, sexes, all_locations, duration, cube):
-        root_location = self.config.input_data.location_id
+        root_location = self.config.input_data.location
         pop = self.population_view.manager.population.ix[index].query("alive == 'alive'")
         causes = set(pop[self.condition]) - {state.state_id for state in self.states
                                              if isinstance(state, SusceptibleState)}

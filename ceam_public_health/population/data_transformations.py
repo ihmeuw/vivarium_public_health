@@ -10,34 +10,34 @@ def assign_demographic_proportions(population_data):
     Parameters
     ----------
     population_data : pandas.DataFrame
-        Table with columns 'age', 'sex', 'year', 'location_id', and 'population'
+        Table with columns 'age', 'sex', 'year', 'location', and 'population'
 
     Returns
     -------
     pandas.DataFrame
         Table with the same columns as `population_data` and additionally with columns
-        'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)', and
-        'P(age | year, sex, location_id)' with values calculated from the
+        'P(sex, location, age| year)', 'P(sex, location | age, year)', and
+        'P(age | year, sex, location)' with values calculated from the
         various population levels.
     """
 
-    population_data['P(sex, location_id, age| year)'] = (
+    population_data['P(sex, location, age| year)'] = (
         population_data
             .groupby('year', as_index=False)
             .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
             .reset_index(level=0).population
     )
 
-    population_data['P(sex, location_id | age, year)'] = (
+    population_data['P(sex, location | age, year)'] = (
         population_data
             .groupby(['age', 'year'], as_index=False)
             .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
             .reset_index(level=0).population
     )
 
-    population_data['P(age | year, sex, location_id)'] = (
+    population_data['P(age | year, sex, location)'] = (
         population_data
-            .groupby(['year', 'sex', 'location_id'], as_index=False)
+            .groupby(['year', 'sex', 'location'], as_index=False)
             .apply(lambda sub_pop: sub_pop.population / sub_pop.population.sum())
             .reset_index(level=0).population
     )
@@ -55,8 +55,8 @@ def rescale_binned_proportions(pop_data, age_start, age_end):
     ----------
     pop_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
-        'location_id', 'population', 'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
-        'P(age | year, sex, location_id)'
+        'location', 'population', 'P(sex, location, age| year)', 'P(sex, location | age, year)',
+        'P(age | year, sex, location)'
     age_start : float
         The starting age for the rescaled bins.
     age_end : float
@@ -68,7 +68,7 @@ def rescale_binned_proportions(pop_data, age_start, age_end):
         Table with the same columns as `pop_data` where all bins outside the range
         (age_start, age_end) have been discarded.  If age_start and age_end
         don't fall cleanly on age boundaries, the bins in which they lie are clipped and
-        the 'population', 'P(sex, location_id, age| year)', and 'P(age | year, sex, location_id)'
+        the 'population', 'P(sex, location, age| year)', and 'P(age | year, sex, location)'
         values are rescaled to reflect their smaller representation.
     """
     if age_start > pop_data.age_group_end.max():
@@ -78,8 +78,8 @@ def rescale_binned_proportions(pop_data, age_start, age_end):
     age_end = min(pop_data.age_group_end.max(), age_end) - 1e-8
     pop_data = _add_edge_age_groups(pop_data.copy())
 
-    columns_to_scale = ['P(sex, location_id, age| year)', 'P(age | year, sex, location_id)', 'population']
-    for _, sub_pop in pop_data.groupby(['sex', 'location_id']):
+    columns_to_scale = ['P(sex, location, age| year)', 'P(age | year, sex, location)', 'population']
+    for _, sub_pop in pop_data.groupby(['sex', 'location']):
 
         min_bin = sub_pop[(sub_pop.age_group_start <= age_start) & (age_start < sub_pop.age_group_end)]
         padding_bin = sub_pop[sub_pop.age_group_end == float(min_bin.age_group_start)]
@@ -123,7 +123,7 @@ def _add_edge_age_groups(pop_data):
     -------
     pandas.DataFrame
     """
-    index_cols = ['location_id', 'year', 'sex']
+    index_cols = ['location', 'year', 'sex']
     age_cols = ['age', 'age_group_start', 'age_group_end']
     other_cols = [c for c in pop_data.columns if c not in index_cols + age_cols]
     pop_data = pop_data.set_index(index_cols)
@@ -154,9 +154,9 @@ def _add_edge_age_groups(pop_data):
     upper_bin[other_cols] = 0 * pop_data.loc[pop_data['age_group_end'] == max_valid_age, other_cols]
 
     pop_data = pd.concat([lower_bin, pop_data, upper_bin]).reset_index()
-    pop_data = pop_data.rename(columns={'level_0': 'location_id', 'level_1': 'year', 'level_2': 'sex'})
+    pop_data = pop_data.rename(columns={'level_0': 'location', 'level_1': 'year', 'level_2': 'sex'})
     return pop_data[index_cols + age_cols + other_cols].sort_values(
-        by=['location_id', 'year', 'age']).reset_index(drop=True)
+        by=['location', 'year', 'age']).reset_index(drop=True)
 
 
 AgeValues = namedtuple('AgeValues', ['current', 'young', 'old'])
@@ -171,9 +171,9 @@ def smooth_ages(simulants, population_data, randomness):
     simulants : pandas.DataFrame
         Table with columns 'age', 'sex', and 'location'
     population_data : pandas.DataFrame
-        Table with columns 'age', 'sex', 'year', 'location_id', 'population',
-        'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
-        'P(age | year, sex, location_id)'
+        Table with columns 'age', 'sex', 'year', 'location', 'population',
+        'P(sex, location, age| year)', 'P(sex, location | age, year)',
+        'P(age | year, sex, location)'
     randomness : vivarium.framework.randomness.RandomnessStream
         Source of random number generation within the vivarium common random number framework.
 
@@ -183,7 +183,7 @@ def smooth_ages(simulants, population_data, randomness):
         Table with same columns as `simulants` with ages smoothed out within the age bins.
     """
     simulants = simulants.copy()
-    for (sex, location_id), sub_pop in population_data.groupby(['sex', 'location_id']):
+    for (sex, location), sub_pop in population_data.groupby(['sex', 'location']):
 
         ages = sorted(sub_pop.age.unique())
         younger = [float(sub_pop.loc[sub_pop.age == ages[0], 'age_group_start'])] + ages[:-1]
@@ -195,7 +195,7 @@ def smooth_ages(simulants, population_data, randomness):
             age = AgeValues(*age_set)
 
             has_correct_demography = ((simulants.age == age.current)
-                                      & (simulants.sex == sex) & (simulants.location == location_id))
+                                      & (simulants.sex == sex) & (simulants.location == location))
             affected = simulants[has_correct_demography]
 
             if affected.empty:
@@ -225,9 +225,9 @@ def _get_bins_and_proportions(pop_data, age):
     Parameters
     ----------
     pop_data : pandas.DataFrame
-        Table with columns 'age', 'sex', 'year', 'location_id', 'population',
-        'P(sex, location_id, age| year)', 'P(sex, location_id | age, year)',
-        'P(age | year, sex, location_id)'
+        Table with columns 'age', 'sex', 'year', 'location', 'population',
+        'P(sex, location, age| year)', 'P(sex, location | age, year)',
+        'P(age | year, sex, location)'
     age : AgeValues
         Tuple with values
             (midpoint of current age bin, midpoint of previous age bin, midpoint of next age bin)
@@ -253,8 +253,8 @@ def _get_bins_and_proportions(pop_data, age):
         upper_right = right
 
     # proportion in this bin and the neighboring bins
-    proportion_column = 'P(age | year, sex, location_id)'
-    # Here we make the assumption that P(left < age < right | year, sex, location_id)  = p * (right - left)
+    proportion_column = 'P(age | year, sex, location)'
+    # Here we make the assumption that P(left < age < right | year, sex, location)  = p * (right - left)
     # in order to back out a point estimate for the probability density at the center of the interval.
     # This not the best assumption, but it'll do.
     p_age = float(pop_data.loc[pop_data.age == age.current, proportion_column]/(right - left))
@@ -349,4 +349,4 @@ def get_cause_deleted_mortality(all_cause_mortality, list_of_csmrs):
         if csmr is None:
             continue
         all_cause_mortality = all_cause_mortality.subtract(csmr.set_index(index_cols)).dropna()
-    return all_cause_mortality.reset_index().rename(columns={'rate': 'death_due_to_other_causes'})
+    return all_cause_mortality.reset_index().rename(columns={'value': 'death_due_to_other_causes'})
