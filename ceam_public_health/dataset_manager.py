@@ -16,7 +16,7 @@ class ArtifactException(Exception):
     pass
 
 
-def _parse_artifact_path_config(config):
+def parse_artifact_path_config(config):
     # NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
     # config file.
     path_config = config.artifact.metadata('path')[-1]
@@ -41,7 +41,7 @@ class ArtifactManager:
         location = builder.configuration.input_data.location
 
 
-        artifact_path = _parse_artifact_path_config(builder.configuration)
+        artifact_path = parse_artifact_path_config(builder.configuration)
         self.artifact = Artifact(artifact_path, start_time, end_time, draw, location)
 
         self.artifact.open()
