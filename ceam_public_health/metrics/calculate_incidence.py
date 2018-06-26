@@ -25,16 +25,19 @@ class CalculateIncidence:
     def setup(self, builder):
         self.susceptible_person_time_cols = make_cols_demographically_specific("susceptible_person_time",
                                                                                age_group_id_min=2,
-                                                                               age_group_id_max=21)
+                                                                               age_group_id_max=21,
+                                                                               builder=builder)
         self.event_count_cols = make_cols_demographically_specific("{}_event_count".format(self.disease),
                                                                    age_group_id_min=2,
-                                                                   age_group_id_max=21)
+                                                                   age_group_id_max=21,
+                                                                   builder=builder)
         self.age_bin_age_group_max_dict = make_age_bin_age_group_max_dict(age_group_id_min=2,
-                                                                          age_group_id_max=21)
+                                                                          age_group_id_max=21,
+                                                                          builder=builder)
         builder.value.register_value_modifier('epidemiological_span_measures',
                                               modifier=self.calculate_incidence_measure)
 
-        self.root_location = builder.configuration.input_data.location_id
+        self.root_location = builder.configuration.input_data.location
         self.clock = builder.time.clock()
         columns = [self.disease_col, self.disease_time_col, "exit_time", "age", "sex", "alive"]
         self.population_view = builder.population.get_view(columns)
@@ -54,7 +57,7 @@ class CalculateIncidence:
 
     def set_flag(self, event):
         """
-        Set the collecting flag to True during GBD years
+        Set the collecting flag to True
         """
         self.collecting = True
         for col in self.susceptible_person_time_cols:

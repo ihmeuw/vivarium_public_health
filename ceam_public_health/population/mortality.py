@@ -1,7 +1,5 @@
 import pandas as pd
 
-from ceam_inputs import get_theoretical_minimum_risk_life_expectancy, causes, get_cause_specific_mortality
-
 from vivarium.framework.util import rate_to_probability
 from vivarium.framework.values import list_combiner
 
@@ -11,18 +9,17 @@ from .data_transformations import get_cause_deleted_mortality
 class Mortality:
 
     def setup(self, builder):
-        self._all_cause_mortality_data = get_cause_specific_mortality(causes.all_causes, builder.configuration)
+        self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")
         self._cause_deleted_mortality_data = None
 
-        self._root_location = builder.configuration.input_data.location_id
+        self._root_location = builder.configuration.input_data.location
         self._build_lookup_handle = builder.lookup.build_table
 
         self.csmr = builder.value.register_value_producer('csmr_data', source=list, preferred_combiner=list_combiner)
         self.mortality_rate = builder.value.register_rate_producer('mortality_rate', source=self.mortality_rate_source)
 
-        life_expectancy_data = get_theoretical_minimum_risk_life_expectancy()
-        self.life_expectancy = builder.lookup.build_table(
-            life_expectancy_data, key_columns=[], parameter_columns=('age',))
+        life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
+        self.life_expectancy = builder.lookup.build_table(life_expectancy_data, key_columns=[], parameter_columns=('age',))
 
         self.death_emitter = builder.event.get_emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')
@@ -44,7 +41,8 @@ class Mortality:
         if self._cause_deleted_mortality_data is None:
             csmr_data = self.csmr()
             cause_deleted_mr = get_cause_deleted_mortality(self._all_cause_mortality_data, csmr_data)
-            self._cause_deleted_mortality_data = self._build_lookup_handle(cause_deleted_mr)
+            self._cause_deleted_mortality_data = self._build_lookup_handle(
+                cause_deleted_mr)
 
         return self._cause_deleted_mortality_data(index)
 
@@ -90,7 +88,8 @@ class Mortality:
         metrics['total_population__untracked'] = len(the_untracked)
 
         for (condition, count) in pd.value_counts(the_dead.cause_of_death).to_dict().items():
-            metrics['{}'.format(condition)] = count  # TODO: consider changing name to 'death_by_{condition}' or somesuch
+            # TODO: consider changing name to 'death_by_{condition}' or somesuch
+            metrics['{}'.format(condition)] = count
 
         return metrics
 

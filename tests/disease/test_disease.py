@@ -1,5 +1,3 @@
-from collections import namedtuple
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -8,25 +6,21 @@ from vivarium.framework.util import from_yearly
 from vivarium.test_util import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation
 
-from ceam_inputs import get_incidence, sequelae
-
 from ceam_public_health.disease import (BaseDiseaseState, DiseaseState, ExcessMortalityState,
                                         RateTransition, DiseaseModel)
 
 
-
-@pytest.fixture(scope='function')
+@pytest.fixture
 def disease():
-    Disease = namedtuple('Disease', 'name')
-    return Disease(name='test')
+    return 'test'
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def assign_cause_mock(mocker):
     return mocker.patch('ceam_public_health.disease.model.DiseaseModel.assign_initial_status_to_simulants')
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def base_data():
     def _set_prevalence(p):
         base_function = dict()
@@ -76,14 +70,16 @@ def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     # Move everyone into the event state
     simulation.step()
     event_time = simulation.clock.time
-    assert np.all(simulation.population.population[disease.name] == 'event')
+    assert np.all(simulation.population.population[disease] == 'event')
+
     simulation.step()
     simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    assert np.all(simulation.population.population[disease.name] == 'event')
+    assert np.all(simulation.population.population[disease] == 'event')
+
     simulation.step()
     # Now enough time has passed so people should transition away
-    assert np.all(simulation.population.population[disease.name] == 'sick')
+    assert np.all(simulation.population.population[disease] == 'sick')
     assert np.all(simulation.population.population.event_event_time == pd.to_datetime(event_time))
     assert np.all(simulation.population.population.event_event_count == 1)
 
@@ -131,7 +127,7 @@ def test_prevalence_multiple_sequelae(base_config, disease, base_data, test_prev
     error_message = "initial sequela status of simulants should be matched to the prevalence data."
     assert np.allclose([get_test_prevalence(simulation, 'sequela0'),
                         get_test_prevalence(simulation, 'sequela1'),
-                        get_test_prevalence(simulation, 'sequela2')],test_prevalence_level, .02), error_message
+                        get_test_prevalence(simulation, 'sequela2')], test_prevalence_level, .02), error_message
 
 
 def test_prevalence_single_simulant(mocker):
@@ -148,7 +144,7 @@ def test_prevalence_single_simulant(mocker):
     assert expected.equals(simulants)
 
 
-def test_mortality_rate(base_config, disease):
+def test_mortality_rate(base_config, base_plugins, disease):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
 
@@ -158,8 +154,9 @@ def test_mortality_rate(base_config, disease):
     mort_get_data_funcs = {
         'dwell_time': lambda _, __: pd.Timedelta(days=0),
         'disability_weight': lambda _, __: 0.1,
-        'prevalence': lambda _, __: 1,
-        'excess_mortality': lambda _, __: 0.7,
+        'prevalence': lambda _, __: build_table(0.000001, year_start-1, year_end,
+                                                ['age', 'year', 'sex', 'value']),
+        'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
     }
 
     mortality_state = ExcessMortalityState('sick', get_data_functions=mort_get_data_funcs)
@@ -169,7 +166,7 @@ def test_mortality_rate(base_config, disease):
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, mortality_state],
                          get_data_functions={'csmr': lambda _, __: None})
 
-    simulation = setup_simulation([TestPopulation(), model], base_config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
 
     mortality_rate = simulation.values.register_rate_producer('mortality_rate')
     mortality_rate.source = simulation.tables.build_table(build_table(0.0, year_start, year_end),
@@ -181,7 +178,7 @@ def test_mortality_rate(base_config, disease):
     assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['sick'])
 
 
-def test_incidence(base_config, disease):
+def test_incidence(base_config, base_plugins, disease):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
     time_step = pd.Timedelta(days=base_config.time.step_size)
@@ -193,15 +190,15 @@ def test_incidence(base_config, disease):
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
-            'incidence_rate': lambda _, __: get_incidence(
-                sequelae.acute_myocardial_infarction_first_2_days, base_config)
+            'incidence_rate': lambda _, builder: builder.data.load(
+                f"sequela.acute_myocardial_infarction_first_2_days.incidence")
         })
     healthy.transition_set.append(transition)
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
 
-    simulation = setup_simulation([TestPopulation(), model], base_config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
 
     transition.base_rate = simulation.tables.build_table(build_table(0.7, year_start, year_end),
                                                          key_columns=('sex',),
@@ -215,7 +212,7 @@ def test_incidence(base_config, disease):
                        incidence_rate(simulation.population.population.index), atol=0.00001)
 
 
-def test_risk_deletion(base_config, disease):
+def test_risk_deletion(base_config, base_plugins, disease):
     time_step = base_config.time.step_size
     time_step = pd.Timedelta(days=time_step)
     year_start = base_config.time.start.year
@@ -226,15 +223,16 @@ def test_risk_deletion(base_config, disease):
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
-            'incidence_rate': lambda _, __: get_incidence(
-                sequelae.acute_myocardial_infarction_first_2_days, base_config)}
+            'incidence_rate': lambda _, builder: builder.data.load(
+                f"sequela.acute_myocardial_infarction_first_2_days.incidence")
+        }
     )
     healthy.transition_set.append(transition)
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
 
-    simulation = setup_simulation([TestPopulation(), model], base_config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
 
     base_rate = 0.7
     paf = 0.1

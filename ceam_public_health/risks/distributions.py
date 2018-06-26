@@ -4,11 +4,10 @@ from scipy import stats, optimize, integrate, special
 
 from vivarium.interpolation import Interpolation
 
-from ceam_inputs import get_ensemble_weights
 
-
-def get_min_max(exposure):
+def get_min_max(exposure_mean, exposure_sd):
     # Construct parameters for a lognormal distribution
+    exposure = exposure_mean.merge(exposure_sd).set_index(['age', 'sex', 'year'])
 
     alpha = 1 + exposure['standard_deviation'].values**2/exposure['mean'].values**2
     scale = exposure['mean'].values/np.sqrt(alpha)
@@ -22,73 +21,82 @@ def get_min_max(exposure):
     return x_min, x_max
 
 
-class Beta:
+class BaseDistribution:
+    def __init__(self, risk, risk_type="risk_factor", weights=None):
+        self._risk = risk
+        self._risk_type = risk_type
+        self._weights = weights
+        self._params = None
 
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.scale, self.shape_1, self.shape_2 = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
-        self.x_min = x_min
+    @property
+    def params(self):
+        if self._params is None:
+            self._params = self.get_parameters()
+        return self._params
 
-    @staticmethod
-    def _get_params(exposure_mean, exposure_sd, x_min, x_max):
+    def get_parameters(self):
+        raise NotImplementedError()
+
+    def setup(self, builder):
+        self._exposure_mean = builder.data.load(f"{self._risk_type}.{self._risk}.exposure")
+        self._exposure_sd = builder.data.load(f"{self._risk_type}.{self._risk}.exposure_standard_deviation")
+        #self._exposure_data = exposure_data.merge(exposure_sd_data).set_index(['age', 'sex', 'year'])
+
+
+class Beta(BaseDistribution):
+    def get_parameters(self):
+        x_max, x_min = get_min_max(self._exposure_mean, self._exposure_sd)
         scale = (x_max - x_min)
-        a = 1 / scale * (exposure_mean - x_min)
-        b = (1 / scale * exposure_sd) ** 2
+        a = 1 / scale * (self._exposure_mean - x_min)
+        b = (1 / scale * self._exposure_sd) ** 2
         shape_1 = a ** 2 / b * (1 - a) - a
         shape_2 = a / b * (1 - a) ** 2 + (a - 1)
-        return scale, shape_1, shape_2
+        return scale, shape_1, shape_2, x_min
 
     def pdf(self, x):
-        y = (x - self.x_min)
-        return stats.beta(a=self.shape_1, b=self.shape_2, scale=self.scale).pdf(y)
+        scale, shape_1, shape_2, x_min = self.params
+        y = (x - x_min)
+        return stats.beta(a=shape_1, b=shape_2, scale=scale).pdf(y)
 
     def ppf(self, x):
-        return stats.beta(a=self.shape_1, b=self.shape_2, scale=self.scale).ppf(x)
+        return stats.beta(a=shape_1, b=shape_2, scale=scale).ppf(x)
 
 
-class Exponential:
-
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
-
-    @staticmethod
-    def _get_params(exposure_mean, _, __, ___):
-        return exposure_mean
+class Exponential(BaseDistribution):
+    def get_parameters(self):
+        return self._exposure_mean
 
     def pdf(self, x):
-        return stats.expon(scale=self.scale).pdf(x)
+        scale = self.params
+        return stats.expon(scale=scale).pdf(x)
 
     def ppf(self, x):
-        return stats.expon(scale=self.scale).ppf(x)
+        scale = self.params
+        return stats.expon(scale=scale).ppf(x)
 
 
-class Gamma:
-
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.a, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
-
-    @staticmethod
-    def _get_params(exposure_mean, exposure_sd, _, __):
-        a = (exposure_mean / exposure_sd) ** 2
-        scale = exposure_sd ** 2 / exposure_mean
+class Gamma(BaseDistribution):
+    def get_parameters(self):
+        a = (self._exposure_mean / self._exposure_sd) ** 2
+        scale = self._exposure_sd ** 2 / self._exposure_mean
         return a, scale
 
     def pdf(self, x):
-        return stats.gamma(a=self.a, scale=self.scale).pdf(x)
+        a, scale = self.params
+        return stats.gamma(a=a, scale=scale).pdf(x)
 
     def ppf(self, x):
-        return stats.gamma(a=self.a, scale=self.scale).ppf(x)
+        a, scale = self.params
+        return stats.gamma(a=a, scale=scale).ppf(x)
 
 
-class GeneralizedLogNormal:
+class GeneralizedLogNormal(BaseDistribution):
     """Here for completeness.
 
     The weight for the glnorm distribution is zero for all ensemble modeled risks for 2016.  Which is good, because
     getting the parameters involves running some optimization technique, and I definitely don't want to spend
     time ensuring R's optimization scheme is equivalent to scipy's.  - J.C.
     """
-    def __init__(self, *_):
-        pass
-
     def pdf(self, _):
         return 0
 
@@ -96,52 +104,45 @@ class GeneralizedLogNormal:
         return 0
 
 
-class Gumbel:
-
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.loc, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
-
-    @staticmethod
-    def _get_params(exposure_mean, exposure_sd, _, __):
-        loc = exposure_mean - (np.euler_gamma * np.sqrt(6) / np.pi * exposure_sd)
-        scale = np.sqrt(6) / np.pi * exposure_sd
+class Gumbel(BaseDistribution):
+    def get_parameters(self):
+        loc = self._exposure_mean - (np.euler_gamma * np.sqrt(6) / np.pi * self._exposure_sd)
+        scale = np.sqrt(6) / np.pi * self._exposure_sd
         return loc, scale
 
     def pdf(self, x):
-        return stats.gumbel_r(loc=self.loc, scale=self.scale).pdf(x)
+        loc, scale = self.params
+        return stats.gumbel_r(loc=loc, scale=scale).pdf(x)
 
     def ppf(self, x):
-        return stats.gumbel_r(loc=self.loc, scale=self.scale).ppf(x)
+        loc, scale = self.params
+        return stats.gumbel_r(loc=loc, scale=scale).ppf(x)
 
 
-class InverseGamma:
-
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.a, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
-
-    @staticmethod
-    def _get_params(exposure_mean, exposure_sd, _, __):
-
+class InverseGamma(BaseDistribution):
+    def get_parameters(self):
         def f(guess):
             alpha, beta = np.abs(guess)
             mean_guess = beta / (alpha - 1)
             var_guess = beta ** 2 / ((alpha - 1) ** 2 * (alpha - 2))
-            return (exposure_mean - mean_guess) ** 2 + (exposure_sd ** 2 - var_guess) ** 2
+            return (self._exposure_mean - mean_guess) ** 2 + (self._exposure_sd ** 2 - var_guess) ** 2
 
-        initial_guess = np.array((exposure_mean, exposure_mean * exposure_sd))
+        initial_guess = np.array((self._exposure_mean, self._exposure_mean * self._exposure_sd))
         result = optimize.minimize(f, initial_guess, method='Nelder-Mead')
         assert result.success
 
         return result.x
 
     def pdf(self, x):
-        return stats.invgamma(a=self.a, scale=self.scale).pdf(x)
+        a, scale = self.params
+        return stats.invgamma(a=a, scale=scale).pdf(x)
 
     def ppf(self, x):
-        return stats.invgamma(a=self.a, scale=self.scale).ppf(x)
+        a, scale = self.params
+        return stats.invgamma(a=a, scale=scale).ppf(x)
 
 
-class InverseWeibull:
+class InverseWeibull(BaseDistribution):
 
     def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
         self.c, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
@@ -174,144 +175,127 @@ class InverseWeibull:
         return stats.invweibull(c=self.c, scale=self.scale).ppf(x)
 
 
-class LogLogistic:
-
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.scale, self.c = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
-
-    @staticmethod
-    def _get_params(exposure_mean, exposure_sd, _, __):
+class LogLogistic(BaseDistribution):
+    def get_parameters(self):
         def f(guess):
             a, b = np.abs((guess[0], np.pi / guess[1]))
             mean_guess = a * b / np.sin(b)
             var_guess = a ** 2 * (2 * b / np.sin(2 * b)) - (b ** 2 / np.sin(b) ** 2)
-            return (exposure_mean - mean_guess) ** 2 + (exposure_sd ** 2 - var_guess) ** 2
+            return (self._exposure_mean - mean_guess) ** 2 + (self._exposure_sd ** 2 - var_guess) ** 2
 
-        initial_guess = np.array((exposure_mean, max(2, exposure_mean)))
+        initial_guess = np.array((self._exposure_mean, max(2, self._exposure_mean)))
         result = optimize.minimize(f, initial_guess, method='Nelder-Mead')
         assert result.success
 
         return result.x
 
     def pdf(self, x):
-        return stats.fisk(c=self.c, scale=self.scale).pdf(x)
+        scale, c = self.params
+        return stats.fisk(c=c, scale=scale).pdf(x)
 
     def ppf(self, x):
-        return stats.fisk(c=self.c, scale=self.scale).ppf(x)
+        scale, c = self.params
+        return stats.fisk(c=c, scale=scale).ppf(x)
 
 
-class LogNormal:
-
-    def __init__(self, exposure, x_min, x_max):
-        s, scale = self._get_params(exposure, x_min, x_max)
-        self._parameter_data = pd.DataFrame({'s': s, 'scale': scale}, index=exposure.index).reset_index()
-
+class LogNormal(BaseDistribution):
     def setup(self, builder):
-        self.parameters = builder.lookup.build_table(self._parameter_data)
+        super().setup(builder)
+        #FIXME: There should be a better way to defer this
+        self._build_lookup_function = builder.lookup
 
-    @staticmethod
-    def _get_params(exposure, _, __):
-        exposure_mean, exposure_sd = exposure['mean'].values, exposure['standard_deviation'].values
+    def get_parameters(self):
+        exposure_mean, exposure_sd = self._exposure_mean.values, self._exposure_sd.values
         alpha = 1 + exposure_sd ** 2 / exposure_mean ** 2
         s = np.sqrt(np.log(alpha))
         scale = exposure_mean / np.sqrt(alpha)
-        return s, scale
+        parameters = pd.DataFrame({'s': s, 'scale': scale}, index=self._exposure_mean).reset_index()
+        return self._build_lookup_function(parameters)
 
     def pdf(self, x):
-        params = self.parameters(x.index)
+        params = self.params(x.index)
         return stats.lognorm(s=params['s'], scale=params['scale']).pdf(x)
 
     def ppf(self, propensity):
-        params = self.parameters(propensity.index)
+        params = self.params(propensity.index)
         return stats.lognorm(s=params['s'], scale=params['scale']).ppf(propensity)
 
 
-class MirroredGamma:
-
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.a, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
-        self.x_max = x_max
-
-    @staticmethod
-    def _get_params(exposure_mean, exposure_sd, _, x_max):
-        a = ((x_max - exposure_mean) / exposure_sd) ** 2
-        scale = exposure_sd ** 2 / (x_max - exposure_mean)
-        return a, scale
+class MirroredGamma(BaseDistribution):
+    def get_parameters(self):
+        x_max, x_min = get_min_max(self._exposure_mean, self._exposure_sd)
+        a = ((x_max - self._exposure_mean) / self._exposure_sd) ** 2
+        scale = self._exposure_sd ** 2 / (x_max - self._exposure_mean)
+        return a, scale, x_max
 
     def pdf(self, x):
-        y = self.x_max - x
-        return stats.gamma(a=self.a, scale=self.scale).pdf(y)
+        a, scale, x_max = self.params
+        y = x_max - x
+        return stats.gamma(a=a, scale=scale).pdf(y)
 
     def ppf(self, x):
-        return stats.gamma(a=self.a, scale=self.scale).ppf(x)
+        a, scale, _ = self.params
+        return stats.gamma(a=a, scale=scale).ppf(x)
 
 
-class MirroredGumbel:
-
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.loc, self.scale = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
-        self.x_max = x_max
-
-    @staticmethod
-    def _get_params(exposure_mean, exposure_sd, _, x_max):
-        loc = x_max - exposure_mean - (np.euler_gamma * np.sqrt(6) / np.pi * exposure_sd)
-        scale = np.sqrt(6) / np.pi * exposure_sd
-        return loc, scale
+class MirroredGumbel(BaseDistribution):
+    def get_parameters(self):
+        x_max, x_min = get_min_max(self._exposure_mean, self._exposure_sd)
+        loc = x_max - self._exposure_mean - (np.euler_gamma * np.sqrt(6) / np.pi * self._exposure_sd)
+        scale = np.sqrt(6) / np.pi * self._exposure_sd
+        return loc, scale, x_max
 
     def pdf(self, x):
-        y = self.x_max - x
-        return stats.gumbel_r(loc=self.loc, scale=self.scale).pdf(y)
+        loc, scale, x_max = self.params
+        y = x_max - x
+        return stats.gumbel_r(loc=loc, scale=scale).pdf(y)
 
     def ppf(self, x):
-        return stats.gumbel_r(loc=self.loc, scale=self.scale).ppf(x)
+        loc, scale, _ = self.params
+        return stats.gumbel_r(loc=loc, scale=scale).ppf(x)
 
 
-class Normal:
-
-    def __init__(self, exposure, x_min, x_max):
-        loc, scale = self._get_params(exposure, x_min, x_max)
-        self._parameter_data = pd.DataFrame({'loc': loc, 'scale': scale}, index=exposure.index).reset_index()
-
+class Normal(BaseDistribution):
     def setup(self, builder):
-        self.parameters = builder.lookup.build_table(self._parameter_data)
+        super().setup(builder)
+        #FIXME: There should be a better way to defer this
+        self._build_lookup_function = builder.lookup.build_table
 
-    @staticmethod
-    def _get_params(exposure, _, __):
-        return exposure['mean'], exposure['standard_deviation']
+    def get_parameters(self):
+        dist = self._exposure_sd.merge(self._exposure_mean, on=['year', 'sex', 'age'])
+        dist = dist.rename(columns={'value_x': 'scale', 'value_y': 'loc'})
+        return self._build_lookup_function(dist[["year", "sex", "age", "loc", "scale"]])
 
     def pdf(self, x):
-        params = self.parameters(x.index)
+        params = self.params(x.index)
         return stats.norm(loc=params['loc'], scale=params['scale']).pdf(x)
 
     def ppf(self, propensity):
-        params = self.parameters(propensity.index)
+        params = self.params(propensity.index)
         return stats.norm(loc=params['loc'], scale=params['scale']).ppf(propensity)
 
 
-class Weibull:
-
-    def __init__(self, exposure_mean, exposure_sd, x_min, x_max):
-        self.scale, self.c = self._get_params(exposure_mean, exposure_sd, x_min, x_max)
-
-    @staticmethod
-    def _get_params(exposure_mean, exposure_sd, _, __):
+class Weibull(BaseDistribution):
+    def get_parameters(self):
         def f(guess):
             scale, shape = guess
             mean_guess = scale * special.gamma(1 + 1 / shape)
             var_guess = scale ** 2 * special.gamma(1 + 2 / shape) - special.gamma(1 + 1 / shape) ** 2
-            return (exposure_mean - mean_guess) ** 2 + (exposure_sd ** 2 - var_guess) ** 2
+            return (self._exposure_mean - mean_guess) ** 2 + (self._exposure_sd ** 2 - var_guess) ** 2
 
-        initial_guess = np.array((exposure_mean / exposure_sd, exposure_mean))
+        initial_guess = np.array((self._exposure_mean / self._exposure_sd, self._exposure_mean))
         result = optimize.minimize(f, initial_guess, method='Nelder-Mead')
         assert result.success
 
         return result.x
 
     def pdf(self, x):
-        return stats.weibull_min(c=self.c, scale=self.scale).pdf(x)
+        scale, c = self.params
+        return stats.weibull_min(c=c, scale=scale).pdf(x)
 
     def ppf(self, x):
-        return stats.weibull_min(c=self.c, scale=self.scale).ppf(x)
+        scale, c = self.params
+        return stats.weibull_min(c=c, scale=scale).ppf(x)
 
 
 # FIXME: several of the distributions do not currently work
@@ -331,10 +315,8 @@ class EnsembleDistribution:
                         'norm': Normal,
                         'weibull': Weibull}
 
-    def __init__(self, exposure, weights):
-        self.weights = weights
-        x_min, x_max = get_min_max(exposure)
-        self._distribution = Normal(exposure, x_min, x_max)
+    def __init__(self, risk, risk_type, weights):
+        self._distribution = Normal(risk, risk_type, weights=weights)
 
         # self._distributions = {distribution_name: distribution(exposure_mean, exposure_sd, x_min, x_max)
         #                        for distribution_name, distribution in self.distribution_map}
@@ -351,12 +333,13 @@ class EnsembleDistribution:
         #return np.sum([weight * self._distributions[dist_name].ppf(x) for dist_name, weight in self.weights.items()])
 
 
-def get_distribution(risk, exposure, weights=None):
-    if risk.distribution == 'ensemble':
-        return EnsembleDistribution(exposure, weights)
-    elif risk.distribution == 'lognormal':
-        return LogNormal(exposure, *get_min_max(exposure))
-    elif risk.distribution == 'normal':
-        return Normal(exposure, *get_min_max(exposure))
+def get_distribution(risk, risk_type, builder, weights=None):
+    distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
+    if distribution == 'ensemble':
+        return EnsembleDistribution(risk, risk_type, weights)
+    elif distribution == 'lognormal':
+        return LogNormal(risk, risk_type, exposure)
+    elif distribution == 'normal':
+        return Normal(risk, risk_type, exposure)
     else:
-        raise ValueError(f"Unhandled distribution type {risk.distribution}")
+        raise ValueError(f"Unhandled distribution type {distribution}")

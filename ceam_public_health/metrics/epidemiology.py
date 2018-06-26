@@ -4,8 +4,6 @@ import pandas as pd
 
 from vivarium.framework.util import collapse_nested_dict
 
-from ceam_inputs import get_age_bins
-
 import logging
 
 _log = logging.getLogger(__name__)
@@ -18,7 +16,7 @@ class EpidemiologicalMeasures:
     """
     def setup(self, builder):
         self.run_config = builder.configuration.run_configuration
-        self.age_groups = get_age_bins()
+        self.age_groups = builder.data.load("population.age_bins")
         self.point_measures = builder.value.register_value_producer('epidemiological_point_measures',
                                                                     source=self.base_cube)
         self.span_measures = builder.value.register_value_producer('epidemiological_span_measures',
@@ -50,13 +48,13 @@ class EpidemiologicalMeasures:
 
         if self.collecting:
             year_end = pd.Timestamp(year=self.last_collected_year, month=12, day=31)
-            # On the year following a GBD year, reel the data in
+            # On the following year, reel the data in
             if self.clock() < year_end <= event.time:
                 _log.debug('end collection')
                 self.dump_measures(event.index, self.last_collected_year)
                 self.collecting = False
 
-        if event.time.year % 5 == 0:  # FIXME: If year in list of GBD years
+        if event.time.year % 5 == 0:
             if self.clock() < mid_year <= event.time:
                 # Collect point measures at the midpoint of every gbd year
                 self.dump_measures(event.index, event.time.year, point=True)

@@ -8,7 +8,7 @@ from vivarium.test_util import metadata
 from ceam_public_health.treatment import Treatment
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def config(base_config):
     base_config.update({
         'test_treatment': {
@@ -22,7 +22,7 @@ def config(base_config):
     return base_config
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def test_population():
     tx = Treatment('test_treatment', 'test_cause')
     cols = ['active_dose',
@@ -79,14 +79,14 @@ def test_population():
     return pop
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def builder(mocker, config):
     builder = mocker.MagicMock()
     builder.configuration = config
     return builder
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def treatment(builder):
     tx = Treatment('test_treatment', 'test_cause')
 
@@ -171,12 +171,12 @@ def test_determine_protection(treatment, test_population):
     # First dose waning immunity (time in waning 8 days)
     first_waning_immunity = (test_population['active_dose'] == 'first') & (test_population['immunity'] == 'waning')
     expected_protection[first_waning_immunity] = (tx.protection['first']
-                                                      * np.exp(-tx.dose_response['waning_rate'] * 8))
+                                                  * np.exp(-tx.dose_response['waning_rate'] * 8))
 
     # Second dose waning immunity (time in waning 3 days)
     second_waning_immunity = (test_population['active_dose'] == 'second') & (test_population['immunity'] == 'waning')
     expected_protection[second_waning_immunity] = (tx.protection['second']
-                                                       * np.exp(-tx.dose_response['waning_rate'] * 3))
+                                                   * np.exp(-tx.dose_response['waning_rate'] * 3))
 
     protection = tx.determine_protection(test_population)
 

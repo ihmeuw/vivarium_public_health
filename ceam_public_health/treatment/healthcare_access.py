@@ -7,9 +7,6 @@ from vivarium.framework.event import Event
 from vivarium.framework.randomness import filter_for_probability
 from vivarium.interpolation import Interpolation
 
-from ceam_inputs import (get_healthcare_annual_visits, get_inpatient_visit_costs,
-                         get_outpatient_visit_costs, healthcare_entities)
-
 
 def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
 
@@ -70,18 +67,18 @@ class HealthcareAccess:
 
         interpolation_order = builder.configuration.interpolation.order
         self.hospitalization_cost = defaultdict(float)
-        ip_cost_df = get_inpatient_visit_costs(builder.configuration).rename(columns={'year_id': 'year'})
-        self._hospitalization_cost = Interpolation(ip_cost_df, tuple(), ('year',), order=interpolation_order)
+        self._ip_cost_df = builder.data.load("healthcare_entity.inpatient_visits.cost")
+        self.__hospitalization_cost = None
 
-        cost_df = get_outpatient_visit_costs(builder.configuration)
-        self._appointment_cost = Interpolation(cost_df, tuple(), ('year',), order=interpolation_order)
+        self._op_cost_df = builder.data.load("healthcare_entity.outpatient_visits.cost")
+        self.__appointment_cost = None
 
         self.outpatient_cost = defaultdict(float)
 
         self.general_healthcare_access_emitter = builder.event.get_emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.event.get_emitter('followup_healthcare_access')
 
-        annual_visits = get_healthcare_annual_visits(healthcare_entities.outpatient_visits, builder.configuration)
+        annual_visits = builder.data.load("healthcare_entity.outpatient_visits.annual_visits")
         self.utilization_rate = builder.value.register_rate_producer('healthcare_utilization.rate',
                                                                      source=builder.lookup.build_table(annual_visits))
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
@@ -94,6 +91,19 @@ class HealthcareAccess:
         builder.event.register_listener('time_step', self.general_access)
         builder.event.register_listener('time_step', self.followup_access)
         builder.event.register_listener('hospitalization', self.hospital_access)
+
+    
+    @property
+    def _hospitalization_cost(self):
+        if self.__hospitalization_cost is None:
+            self.__hospitalization_cost = Interpolation(self._ip_cost_df[['year','value']], tuple(), ('year',), order=1)
+        return self.__hospitalization_cost
+
+    @property
+    def _appointment_cost(self):
+        if self.__appointment_cost is None:
+            self.__appointment_cost = Interpolation(self._op_cost_df[['year','value']], tuple(), ('year',), order=1)
+        return self.__appointment_cost
 
     def load_population_columns(self, pop_data):
         population_size = len(pop_data.index)
