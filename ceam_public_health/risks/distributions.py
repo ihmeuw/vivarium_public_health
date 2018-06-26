@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 from scipy import stats, optimize, integrate, special
 
-from vivarium.interpolation import Interpolation
-
 
 def _get_shape_scale(exposure_mean, exposure_sd, func, initial_func):
     """ initial guess from initial func = guess for (shape, scale)
@@ -108,8 +106,6 @@ class Beta(BaseDistribution):
         if process_type == 'pdf_preprocess':
             return data - ranges['x_min']
         elif process_type == 'ppf_postprocess':
-            import pdb;
-            pdb.set_trace()
             return data + ranges['x_max'] - ranges['x_min']
         else:
             return data
@@ -118,6 +114,7 @@ class Beta(BaseDistribution):
 class Exponential(BaseDistribution):
     def _get_params(self, exposure):
         return {'scale': pd.DataFrame(exposure['mean'], index=exposure.index)}
+
 
 class Gamma(BaseDistribution):
     def _get_params(self, exposure):
@@ -157,7 +154,7 @@ class InverseGamma(BaseDistribution):
             alpha, beta = np.abs(guess)
             mean_guess = beta / (alpha - 1)
             var_guess = beta ** 2 / ((alpha - 1) ** 2 * (alpha - 2))
-            return (self._exposure_mean - mean_guess) ** 2 + (self._exposure_sd ** 2 - var_guess) ** 2
+            return (mean - mean_guess) ** 2 + (sd ** 2 - var_guess) ** 2
 
         params = _get_shape_scale(pd.DataFrame(exposure['mean']), pd.DataFrame(exposure['standard_deviation']), f,
                                   lambda m, s: np.array((m, m * s)))
@@ -284,7 +281,6 @@ class EnsembleDistribution:
     distribution_map = {'betasr': (Beta, stats.beta),
                         'exp': (Exponential, stats.expon),
                         'gamma': (Gamma, stats.gamma),
-                        # 'glnorm': GeneralizedLogNormal,
                         'gumbel': (Gumbel, stats.gumbel_r),
                         'invgamma': (InverseGamma, stats.invgamma),
                         'invweibull': (InverseWeibull, stats.invweibull),
@@ -329,7 +325,6 @@ class EnsembleDistribution:
                        self._distributions.keys()])
 
     def ppf(self, x):
-        import pdb; pdb.set_trace()
         return np.sum([self.weights[dist_name] * self._distributions[dist_name].ppf(x) for dist_name in
                        self._distributions.keys()], axis=0)
 
@@ -344,16 +339,25 @@ class EnsembleDistribution:
                            self._distributions.keys()], axis=0)
 
 
-def get_distribution(risk, exposure, weights=None):
-    if risk.distribution == 'ensemble':
-        # for now we do not use invgamma for ldlc
-        if risk.name == 'high_ldl_cholesterol':
+def get_distribution(risk, risk_type, builder):
+    distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
+    exposure_mean = builder.data.load(f"{risk_type}.{risk}.exposure")
+    exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
+    exposure_mean = exposure_mean.rename(index=str, columns={"value": "mean"})
+    exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
+
+    exposure = exposure_mean.merge(exposure_sd).set_index(['age', 'sex', 'year'])
+
+    if distribution == 'ensemble':
+        weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
+        if risk == 'high_ldl_cholesterol':
             weights = weights.drop('invgamma', axis=1)
         return EnsembleDistribution(exposure, weights)
 
-    elif risk.distribution == 'lognormal':
+    # For 2016, we don't have any lognormal/normal risk factor with actual data
+    elif distribution == 'lognormal':
         return LogNormal(exposure, stats.lognorm)
-    elif risk.distribution == 'normal':
+    elif distribution == 'normal':
         return Normal(exposure, stats.norm)
     else:
         raise ValueError(f"Unhandled distribution type {distribution}")
