@@ -37,14 +37,14 @@ class BaseDistribution:
         self._range = self._get_min_max(exposure)
         self._parameter_data = self._get_params(exposure)
         self.distribution = dist
-        self._range_data = {'x_min': pd.DataFrame(self._range['x_min'], index=exposure.index),
+        self._ranges_data = {'x_min': pd.DataFrame(self._range['x_min'], index=exposure.index),
                             'x_max': pd.DataFrame(self._range['x_max'], index=exposure.index)}
 
     def setup(self, builder):
         self.parameters = {name: builder.lookup.build_table(data.reset_index()) for name, data in
                            self._parameter_data.items()}
         self.ranges_data = {name: builder.lookup.build_table(data.reset_index()) for name, data in
-                            self._range_data.items()}
+                            self._ranges_data.items()}
 
     @staticmethod
     def _get_min_max(exposure):
@@ -64,10 +64,11 @@ class BaseDistribution:
         return data
 
     def pdf(self, x):
-        x = self.process(x, "pdf_preprocess")
         params = {name: p(x.index) for name, p in self.parameters.items()}
+        ranges = {name: p(x.index) for name, p in self.ranges_data.items()}
+        x = self.process(x, "pdf_preprocess", ranges)
         pdf = self.distribution(**params).pdf(x)
-        return self.process(pdf, "pdf_postprocess")
+        return self.process(pdf, "pdf_postprocess", ranges)
 
     def ppf(self, x):
         params = {name: p(x.index) for name, p in self.parameters.items()}
@@ -77,16 +78,18 @@ class BaseDistribution:
         return self.process(ppf, "ppf_postprocess", ranges)
 
     def pdf_test(self, x):
-        x = self.process(x, "pdf_preprocess")
         params = self._parameter_data
+        ranges = self._ranges_data
+        x = self.process(x, "pdf_preprocess", ranges)
         pdf = self.distribution(**params).pdf(x)
-        return self.process(pdf, "pdf_postprocess")
+        return self.process(pdf, "pdf_postprocess", ranges)
 
     def ppf_test(self, x):
-        x = self.process(x, "ppf_preprocess")
         params = self._parameter_data
+        ranges = self._ranges_data
+        x = self.process(x, "ppf_preprocess", ranges)
         ppf = self.distribution(**params).ppf(x)
-        return self.process(ppf, "ppf_postprocess")
+        return self.process(ppf, "ppf_postprocess", ranges)
 
 
 class Beta(BaseDistribution):
