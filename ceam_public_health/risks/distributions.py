@@ -38,7 +38,7 @@ class BaseDistribution:
         self._parameter_data = self._get_params(exposure)
         self.distribution = dist
         self._ranges_data = {'x_min': pd.DataFrame(self._range['x_min'], index=exposure.index),
-                            'x_max': pd.DataFrame(self._range['x_max'], index=exposure.index)}
+                             'x_max': pd.DataFrame(self._range['x_max'], index=exposure.index)}
 
     def setup(self, builder):
         self.parameters = {name: builder.lookup.build_table(data.reset_index()) for name, data in
@@ -78,15 +78,20 @@ class BaseDistribution:
         return self.process(ppf, "ppf_postprocess", ranges)
 
     def pdf_test(self, x):
+        """ pdf_test should be only used for validation tests against the R-codes"""
+        data_size = len(x)
         params = self._parameter_data
-        ranges = self._ranges_data
+        ranges = {key: np.repeat(val, data_size) for key, val in self._range.items()}
         x = self.process(x, "pdf_preprocess", ranges)
         pdf = self.distribution(**params).pdf(x)
         return self.process(pdf, "pdf_postprocess", ranges)
 
     def ppf_test(self, x):
+        """ ppf_test should be only used for validation tests """
+        data_size = len(x)
+        group_size = len(self._range['x_min'])
         params = self._parameter_data
-        ranges = self._ranges_data
+        ranges = {key: np.repeat(val, data_size).reshape(group_size, data_size) for key, val in self._range.items()}
         x = self.process(x, "ppf_preprocess", ranges)
         ppf = self.distribution(**params).ppf(x)
         return self.process(ppf, "ppf_postprocess", ranges)
@@ -231,7 +236,7 @@ class MirroredGumbel(BaseDistribution):
         if process_type == 'pdf_preprocess':
             return ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return 1 - data
+            return np.tile(1, data.shape) - data
         elif process_type == 'ppf_postprocess':
             return ranges['x_max'] - data
         else:
@@ -249,7 +254,7 @@ class MirroredGamma(BaseDistribution):
         if process_type == 'pdf_preprocess':
             return ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return 1 - data
+            return np.tile(1, data.shape) - data
         elif process_type == 'ppf_postprocess':
             return ranges['x_max'] - data
         else:
@@ -279,6 +284,7 @@ class Weibull(BaseDistribution):
         except TypeError:
             print('Weibull did not converge!!')
 
+
 class EnsembleDistribution:
 
     distribution_map = {'betasr': (Beta, stats.beta),
@@ -299,9 +305,8 @@ class EnsembleDistribution:
 
     @staticmethod
     def get_valid_distributions(maps, exposure, weights):
-        weights = weights.loc[:, 'exp':'mgumbel']
-        if 'glnorm' in weights:
-            weights = weights.drop('glnorm', axis=1)
+        weights = weights[['betasr', 'exp', 'gamma', 'gumbel', 'invgamma', 'invweibull', 'llogis', 'lnorm', 'mgamma',
+                           'mgumbel', 'norm', 'weibull']]
 
         # weight is all same across the demo groups
         e_weights = weights.iloc[0]
@@ -338,11 +343,13 @@ class EnsembleDistribution:
 
     def ppf_test(self, x):
         with np.errstate(all='warn'):
+
             return np.sum([self.weights[dist_name] * self._distributions[dist_name].ppf_test(x) for dist_name in
                            self._distributions.keys()], axis=0)
 
 
 def get_distribution(risk, risk_type, builder):
+
     distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
     exposure_mean = builder.data.load(f"{risk_type}.{risk}.exposure")
     exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
@@ -353,11 +360,11 @@ def get_distribution(risk, risk_type, builder):
 
     if distribution == 'ensemble':
         weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
+
         if risk == 'high_ldl_cholesterol':
             weights = weights.drop('invgamma', axis=1)
         return EnsembleDistribution(exposure, weights)
 
-    # For 2016, we don't have any lognormal/normal risk factor with actual data
     elif distribution == 'lognormal':
         return LogNormal(exposure, stats.lognorm)
     elif distribution == 'normal':
