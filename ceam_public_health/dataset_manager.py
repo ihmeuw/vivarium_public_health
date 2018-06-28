@@ -141,7 +141,7 @@ def _setup_filter(columns, column_filters, location, draw):
     columns_to_remove = set(column_filters.keys())
     if "location" not in column_filters and "location" in columns:
         # TODO I think this is a sign I should be handling queries differently
-        terms.append(f"location == {location} | location == 'Global'")
+        terms.append(f"location == '{location}' | location == 'Global'")
         columns_to_remove.add("location")
     return terms, columns_to_remove
 
