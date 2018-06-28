@@ -54,8 +54,13 @@ class RiskEffect:
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
-        paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(
-            f"{self.cause_type}.{cause}.population_attributable_fraction", risk=risk))(self.risk, self.cause, builder)
+        #TODO Handle various types better than this. Maybe different kinds of RiskEffect?
+        if self.risk_type == "risk_factor":
+            paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(
+                f"{self.cause_type}.{cause}.population_attributable_fraction", risk=risk))(self.risk, self.cause, builder)
+        else:
+            paf_data = self._get_data_functions.get('paf', lambda risk, cause, builder: builder.data.load(
+                f"{self.risk_type}.{risk}.population_attributable_fraction", cause=cause))(self.risk, self.cause, builder)
 
         self.population_attributable_fraction = builder.lookup.build_table(paf_data[['year', 'sex', 'age', 'value']])
         if paf_data.empty:
@@ -94,5 +99,5 @@ class RiskEffectSet:
         self.risk_type = risk_type
 
     def setup(self, builder):
-        builder.components.add_components([RiskEffect(risk=self.risk, cause=cause, risk_type=self.risk_type)for cause
+        builder.components.add_components([RiskEffect(risk=self.risk, cause=cause, risk_type=self.risk_type) for cause
                                            in builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")])
