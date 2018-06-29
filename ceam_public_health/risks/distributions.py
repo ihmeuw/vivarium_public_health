@@ -305,8 +305,8 @@ class EnsembleDistribution:
 
     @staticmethod
     def get_valid_distributions(maps, exposure, weights):
-        weights = weights[['betasr', 'exp', 'gamma', 'gumbel', 'invgamma', 'invweibull', 'llogis', 'lnorm', 'mgamma',
-                           'mgumbel', 'norm', 'weibull']]
+        weights_cols = list(set(maps.keys()) & set(weights.columns))
+        weights = weights[weights_cols]
 
         # weight is all same across the demo groups
         e_weights = weights.iloc[0]
