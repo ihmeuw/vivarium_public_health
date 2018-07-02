@@ -1,11 +1,18 @@
+from typing import Dict
+
 import numpy as np
 import pandas as pd
 from scipy import stats, optimize, integrate, special
 
 
-def _get_shape_scale(exposure_mean, exposure_sd, func, initial_func):
-    """ initial guess from initial func = guess for (shape, scale)
-        output= (DataFrame(shape), DataFrame(scale))
+def _get_shape_scale(exposure_mean, exposure_sd, func, initial_func) -> Dict[str, pd.DataFrame]:
+    """ It finds the shape parameters of distributions which generates mean/sd close to actual mean/sd
+    Parameters
+    ---------
+    exposure_mean: pd.DataFrame
+    exposure_sd: pd.DataFrame
+    func: the objective function to minimize, arguments (initial guess, mean, sd)
+    initial_func: lambda function to make a guess based on mean/sd
     """
     df_shape = exposure_mean.shape  # exposure_sd should have the same shape
     df_index = exposure_mean.index
@@ -33,10 +40,9 @@ def _get_shape_scale(exposure_mean, exposure_sd, func, initial_func):
 
 
 class BaseDistribution:
-    def __init__(self, exposure, dist):
+    def __init__(self, exposure):
         self._range = self._get_min_max(exposure)
         self._parameter_data = self._get_params(exposure)
-        self.distribution = dist
         self._ranges_data = {'x_min': pd.DataFrame(self._range['x_min'], index=exposure.index),
                              'x_max': pd.DataFrame(self._range['x_max'], index=exposure.index)}
 
@@ -47,7 +53,7 @@ class BaseDistribution:
                             self._ranges_data.items()}
 
     @staticmethod
-    def _get_min_max(exposure):
+    def _get_min_max(exposure: pd.DataFrame):
         exposure_mean, exposure_sd = exposure['mean'], exposure['standard_deviation']
         alpha = 1 + exposure_sd ** 2 / exposure_mean ** 2
         scale = exposure_mean / np.sqrt(alpha)
@@ -56,7 +62,7 @@ class BaseDistribution:
         x_max = stats.lognorm(s=s, scale=scale).ppf(.999)
         return {'x_min': x_min, 'x_max': x_max}
 
-    def _get_params(self, exposure):
+    def _get_params(self, exposure: pd.DataFrame) -> Dict[str, pd.DataFrame]:
         # Should return dict of {param_name: param_dataframe}
         raise NotImplementedError()
 
@@ -98,6 +104,9 @@ class BaseDistribution:
 
 
 class Beta(BaseDistribution):
+
+    distribution = stats.beta
+
     def _get_params(self, exposure):
         exposure_mean, exposure_sd = exposure['mean'], exposure['standard_deviation']
         scale = self._range['x_max'] - self._range['x_min']
@@ -120,11 +129,17 @@ class Beta(BaseDistribution):
 
 
 class Exponential(BaseDistribution):
+
+    distribution = stats.expon
+
     def _get_params(self, exposure):
         return {'scale': pd.DataFrame(exposure['mean'], index=exposure.index)}
 
 
 class Gamma(BaseDistribution):
+
+    distribution = stats.gamma
+
     def _get_params(self, exposure):
         mean, sd = exposure['mean'], exposure['standard_deviation']
         a = (mean / sd) ** 2
@@ -147,7 +162,9 @@ class GeneralizedLogNormal(BaseDistribution):
 
 
 class Gumbel(BaseDistribution):
-    """ Gumbel in R is gumbel_r in scipy """
+
+    distribution = stats.gumbel_r
+
     def _get_params(self, exposure):
         mean, sd = exposure['mean'], exposure['standard_deviation']
         loc = mean - (np.euler_gamma * np.sqrt(6) / np.pi * sd)
@@ -157,6 +174,9 @@ class Gumbel(BaseDistribution):
 
 
 class InverseGamma(BaseDistribution):
+
+    distribution = stats.invgamma
+
     def _get_params(self, exposure):
         def f(guess, mean, sd):
             alpha, beta = np.abs(guess)
@@ -175,6 +195,9 @@ class InverseGamma(BaseDistribution):
 
 
 class InverseWeibull(BaseDistribution):
+
+    distribution = stats.invweibull
+
     def _get_params(self, exposure):
         # moments from  Stat Papers (2011) 52: 591. https://doi.org/10.1007/s00362-009-0271-3
         # it is much faster than using stats.invweibull.mean/var
@@ -195,6 +218,9 @@ class InverseWeibull(BaseDistribution):
 
 
 class LogLogistic(BaseDistribution):
+
+    distribution = stats.burr12
+
     def _get_params(self, exposure):
         def f(guess, mean, sd):
             shape, scale = np.abs(guess)
@@ -215,6 +241,9 @@ class LogLogistic(BaseDistribution):
 
 
 class LogNormal(BaseDistribution):
+
+    distribution = stats.lognorm
+
     def _get_params(self, exposure):
         mean, sd = exposure['mean'], exposure['standard_deviation']
         alpha = 1 + sd ** 2 / mean ** 2
@@ -225,6 +254,9 @@ class LogNormal(BaseDistribution):
 
 
 class MirroredGumbel(BaseDistribution):
+
+    distribution = stats.gumbel_r
+
     def _get_params(self, exposure):
         loc = self._range['x_max'] - exposure['mean'] - (
                     np.euler_gamma * np.sqrt(6) / np.pi * exposure['standard_deviation'])
@@ -244,6 +276,9 @@ class MirroredGumbel(BaseDistribution):
 
 
 class MirroredGamma(BaseDistribution):
+
+    distribution = stats.gamma
+
     def _get_params(self, exposure):
         mean, sd = exposure['mean'], exposure['standard_deviation']
         a = ((self._range['x_max'] - mean) / sd) ** 2
@@ -262,12 +297,18 @@ class MirroredGamma(BaseDistribution):
 
 
 class Normal(BaseDistribution):
+
+    distribution = stats.norm
+
     def _get_params(self, exposure):
         return {'loc': pd.DataFrame(exposure['mean'], index=exposure.index),
                 'scale': pd.DataFrame(exposure['standard_deviation'], index=exposure.index)}
 
 
 class Weibull(BaseDistribution):
+
+    distribution = stats.weibull_min
+
     def _get_params(self, exposure):
         def f(guess, mean, sd):
             shape, scale = np.abs(guess)
@@ -287,43 +328,9 @@ class Weibull(BaseDistribution):
 
 class EnsembleDistribution:
 
-    distribution_map = {'betasr': (Beta, stats.beta),
-                        'exp': (Exponential, stats.expon),
-                        'gamma': (Gamma, stats.gamma),
-                        'gumbel': (Gumbel, stats.gumbel_r),
-                        'invgamma': (InverseGamma, stats.invgamma),
-                        'invweibull': (InverseWeibull, stats.invweibull),
-                        'llogis': (LogLogistic, stats.burr12),
-                        'lnorm': (LogNormal, stats.lognorm),
-                        'mgamma': (MirroredGamma, stats.gamma),
-                        'mgumbel': (MirroredGumbel, stats.gumbel_r),
-                        'norm': (Normal, stats.norm),
-                        'weibull': (Weibull, stats.weibull_min)}
-
-    def __init__(self, exposure, weights):
-        self._distributions, self.weights = self.get_valid_distributions(self.distribution_map, exposure, weights)
-
-    @staticmethod
-    def get_valid_distributions(maps, exposure, weights):
-        weights_cols = list(set(maps.keys()) & set(weights.columns))
-        weights = weights[weights_cols]
-
-        # weight is all same across the demo groups
-        e_weights = weights.iloc[0]
-
-        # make sure that e_weights are properly scaled
-        e_weights = e_weights / np.sum(e_weights)
-        dist = dict()
-
-        # we drop the invweibull if its weight is less than 5 percent
-        if 'invweibull' in e_weights and e_weights['invweibull'] < 0.05:
-            e_weights = e_weights.drop('invweibull')
-            e_weights = e_weights / np.sum(e_weights)
-
-        for dist_name in e_weights.index:
-            dist[dist_name] = maps[dist_name][0](exposure, maps[dist_name][1])
-
-        return dist, e_weights / np.sum(e_weights)
+    def __init__(self, exposure, weights, distribution_map):
+        self.weights = weights
+        self._distributions = {key: distribution_map[key](exposure) for key in distribution_map}
 
     def setup(self, builder):
         builder.components.add_components([self._distributions[dist_name] for dist_name in self._distributions.keys()])
@@ -343,7 +350,6 @@ class EnsembleDistribution:
 
     def ppf_test(self, x):
         with np.errstate(all='warn'):
-
             return np.sum([self.weights[dist_name] * self._distributions[dist_name].ppf_test(x) for dist_name in
                            self._distributions.keys()], axis=0)
 
@@ -360,10 +366,34 @@ def get_distribution(risk, risk_type, builder):
 
     if distribution == 'ensemble':
         weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
+        distribution_map = {'betasr': Beta,
+                            'exp': Exponential,
+                            'gamma': Gamma,
+                            'gumbel': Gumbel,
+                            'invgamma': InverseGamma,
+                            'invweibull': InverseWeibull,
+                            'llogis': LogLogistic,
+                            'lnorm': LogNormal,
+                            'mgamma': MirroredGamma,
+                            'mgumbel': MirroredGumbel,
+                            'norm': Normal,
+                            'weibull': Weibull}
 
         if risk == 'high_ldl_cholesterol':
             weights = weights.drop('invgamma', axis=1)
-        return EnsembleDistribution(exposure, weights)
+
+        # we drop the invweibull if its weight is less than 5 percent
+        if 'invweibull' in weights.columns and np.all(weights['invweibull']< 0.05):
+            weights = weights.drop('invweibull', axis=1)
+
+        weights_cols = list(set(distribution_map.keys()) & set(weights.columns))
+        weights = weights[weights_cols]
+
+        # weight is all same across the demo groups
+        e_weights = weights.iloc[0]
+
+        dist = {d: distribution_map[d] for d in weights_cols}
+        return EnsembleDistribution(exposure, e_weights/np.sum(e_weights), dist)
 
     elif distribution == 'lognormal':
         return LogNormal(exposure, stats.lognorm)
