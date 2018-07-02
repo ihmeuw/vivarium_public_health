@@ -53,7 +53,8 @@ def test_get_distribution(test_risk_factor, mocker):
     expected_weight = initial_weight.drop('invweibull')
     expected_weight = expected_weight/np.sum(expected_weight)
 
-    assert np.allclose(expected_weight, ensemble.weights)
+    for key in expected_weight.keys():
+        assert np.isclose(expected_weight[key], ensemble.weights[key])
 
     # now look into the details of each distribution parameters
     # this is a dictionary of distributions considered for ensemble distribution
