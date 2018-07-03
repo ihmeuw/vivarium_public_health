@@ -5,38 +5,35 @@ import pandas as pd
 from scipy import stats, optimize, integrate, special
 
 
-def _get_shape_scale(exposure_mean, exposure_sd, func, initial_func) -> Dict[str, pd.DataFrame]:
+class NonConvergenceError(Exception):
+    """ Raised when the optimization fails to converge """
+    def __init__(self, message, dist):
+        super().__init__(message)
+        self.dist = dist
+
+
+def _get_optimization_result(exposure, func, initial_func):
     """ It finds the shape parameters of distributions which generates mean/sd close to actual mean/sd
     Parameters
     ---------
-    exposure_mean: pd.DataFrame
-    exposure_sd: pd.DataFrame
+    exposure : pd.DataFrame with 'mean' and 'standard_deviation'
     func: the objective function to minimize, arguments (initial guess, mean, sd)
     initial_func: lambda function to make a guess based on mean/sd
+
+    Returns
+    --------
+    tuples of scipy.optimize.optimize.OptimizeResult
     """
-    df_shape = exposure_mean.shape  # exposure_sd should have the same shape
-    df_index = exposure_mean.index
 
-    shape_cols = ['shape']
-    scale_cols = ['scale']
-
-    mean_matrix, sd_matrix = exposure_mean.values, exposure_sd.values
-    mean, sd = np.ndarray.flatten(mean_matrix), np.ndarray.flatten(sd_matrix)
-    shape, scale = np.empty(len(mean)), np.empty(len(sd))
+    mean, sd = exposure['mean'].values, exposure['standard_deviation'].values
+    results = tuple()
     with np.errstate(all='warn'):
         for i in range(len(mean)):
             initial_guess = initial_func(mean[i], sd[i])
-            try:
-                result = optimize.minimize(func, initial_guess, (mean[i], sd[i],), method='Nelder-Mead',
+            result = optimize.minimize(func, initial_guess, (mean[i], sd[i],), method='Nelder-Mead',
                                            options={'maxiter': 10000})
-                assert result.success
-                shape[i], scale[i] = result.x[0], result.x[1]
-            except AssertionError:
-                print('DID NOT CONVERGE')
-                return None
-
-    return {'shape': pd.DataFrame(shape.reshape(df_shape), columns=shape_cols, index=df_index),
-            'scale': pd.DataFrame(scale.reshape(df_shape), columns=scale_cols, index=df_index)}
+            results += (result,)
+    return results
 
 
 class BaseDistribution:
@@ -69,35 +66,29 @@ class BaseDistribution:
     def process(self, data, process_type, ranges):
         return data
 
-    def pdf(self, x):
-        params = {name: p(x.index) for name, p in self.parameters.items()}
-        ranges = {name: p(x.index) for name, p in self.ranges_data.items()}
+    def pdf(self, x, interpolation=True):
+        if not interpolation:
+            data_size = len(x)
+            params = self._parameter_data
+            ranges = {key: np.repeat(val, data_size) for key, val in self._range.items()}
+        else:
+            params = {name: p(x.index) for name, p in self.parameters.items()}
+            ranges = {name: p(x.index) for name, p in self.ranges_data.items()}
+
         x = self.process(x, "pdf_preprocess", ranges)
         pdf = self.distribution(**params).pdf(x)
         return self.process(pdf, "pdf_postprocess", ranges)
 
-    def ppf(self, x):
-        params = {name: p(x.index) for name, p in self.parameters.items()}
-        ranges = {name: p(x.index) for name, p in self.ranges_data.items()}
-        x = self.process(x, "ppf_preprocess", ranges)
-        ppf = self.distribution(**params).ppf(x)
-        return self.process(ppf, "ppf_postprocess", ranges)
+    def ppf(self, x, interpolation=True):
+        if not interpolation:
+            data_size = len(x)
+            group_size = len(self._range['x_min'])
+            params = self._parameter_data
+            ranges = {key: np.repeat(val, data_size).reshape(group_size, data_size) for key, val in self._range.items()}
+        else:
+            params = {name: p(x.index) for name, p in self.parameters.items()}
+            ranges = {name: p(x.index) for name, p in self.ranges_data.items()}
 
-    def pdf_test(self, x):
-        """ pdf_test should be only used for validation tests against the R-codes"""
-        data_size = len(x)
-        params = self._parameter_data
-        ranges = {key: np.repeat(val, data_size) for key, val in self._range.items()}
-        x = self.process(x, "pdf_preprocess", ranges)
-        pdf = self.distribution(**params).pdf(x)
-        return self.process(pdf, "pdf_postprocess", ranges)
-
-    def ppf_test(self, x):
-        """ ppf_test should be only used for validation tests """
-        data_size = len(x)
-        group_size = len(self._range['x_min'])
-        params = self._parameter_data
-        ranges = {key: np.repeat(val, data_size).reshape(group_size, data_size) for key, val in self._range.items()}
         x = self.process(x, "ppf_preprocess", ranges)
         ppf = self.distribution(**params).ppf(x)
         return self.process(ppf, "ppf_postprocess", ranges)
@@ -184,14 +175,16 @@ class InverseGamma(BaseDistribution):
             var_guess = beta ** 2 / ((alpha - 1) ** 2 * (alpha - 2))
             return (mean - mean_guess) ** 2 + (sd ** 2 - var_guess) ** 2
 
-        params = _get_shape_scale(pd.DataFrame(exposure['mean']), pd.DataFrame(exposure['standard_deviation']), f,
-                                  lambda m, s: np.array((m, m * s)))
+        opt_results = _get_optimization_result(exposure, f, lambda m, s: np.array((m, m * s)))
+        data_size = len(exposure)
         try:
-            shape, scale = np.abs(params['shape']), np.abs(params['scale'])
-            return {'a': shape, 'scale': scale}
+            assert np.all([opt_results[k].success is True for k in range(data_size)])
+            shape = np.abs([opt_results[k].x[0] for k in range(data_size)])
+            scale = np.abs([opt_results[k].x[1] for k in range(data_size)])
+            return {'a': pd.DataFrame(shape, index=exposure.index), 'scale': pd.DataFrame(scale, index=exposure.index)}
 
-        except TypeError:
-            print('InverseGamma did not converge!!')
+        except AssertionError:
+            raise NonConvergenceError('InverseGamma did not converge!!', 'invgamma')
 
 
 class InverseWeibull(BaseDistribution):
@@ -207,14 +200,15 @@ class InverseWeibull(BaseDistribution):
             var_guess = scale ** 2 * special.gamma(1 - 2 / shape) - mean_guess ** 2
             return (mean - mean_guess) ** 2 + (sd ** 2 - var_guess) ** 2
 
-        params = _get_shape_scale(pd.DataFrame(exposure['mean']), pd.DataFrame(exposure['standard_deviation']), f,
-                                  lambda m, s: np.array((max(2.2, s / m), m)))
+        opt_results = _get_optimization_result(exposure, f, lambda m, s: np.array((max(2.2, s / m), m)))
+        data_size = len(exposure)
         try:
-            shape, scale = np.abs(params['shape']), np.abs(params['scale'])
-            return {'c': shape, 'scale': scale}
-
-        except TypeError:
-            print('InverseWeibull did not converge!!')
+            assert np.all([opt_results[k].success is True for k in range(data_size)])
+            shape = np.abs([opt_results[k].x[0] for k in range(data_size)])
+            scale = np.abs([opt_results[k].x[1] for k in range(data_size)])
+            return {'c': pd.DataFrame(shape, index=exposure.index), 'scale': pd.DataFrame(scale, index=exposure.index)}
+        except AssertionError:
+            raise NonConvergenceError('InverseWeibull did not converge!!', 'invweibull')
 
 
 class LogLogistic(BaseDistribution):
@@ -229,15 +223,17 @@ class LogLogistic(BaseDistribution):
             var_guess = scale ** 2 * 2 * b / np.sin(2 * b) - mean_guess ** 2
             return (mean - mean_guess) ** 2 + (sd ** 2 - var_guess) ** 2
 
-        params = _get_shape_scale(pd.DataFrame(exposure['mean']), pd.DataFrame(exposure['standard_deviation']), f,
-                                    lambda m, s: np.array((max(2, m), m)))
+        opt_results = _get_optimization_result(exposure, f, lambda m, s: np.array((max(2, m), m)))
+        data_size =len(exposure)
         try:
-            scale, shape = np.abs(params['scale']), np.abs(params['shape'])
-            return {'c': shape,
+            assert np.all([opt_results[k].success is True for k in range(data_size)])
+            shape = np.abs([opt_results[k].x[0] for k in range(data_size)])
+            scale = np.abs([opt_results[k].x[1] for k in range(data_size)])
+            return {'c': pd.DataFrame(shape, index=exposure.index),
                     'd': pd.DataFrame([1]*len(exposure), index=exposure.index),
-                    'scale': scale}
-        except TypeError:
-            print('LogLogistic did not converge!!')
+                    'scale': pd.DataFrame(scale, index=exposure.index)}
+        except AssertionError:
+            raise NonConvergenceError('LogLogistic did not converge!!', 'llogis')
 
 
 class LogNormal(BaseDistribution):
@@ -316,42 +312,58 @@ class Weibull(BaseDistribution):
             var_guess = scale ** 2 * special.gamma(1 + 2 / shape) - mean_guess ** 2
             return (mean - mean_guess) ** 2 + (sd ** 2 - var_guess) ** 2
 
-        params = _get_shape_scale(pd.DataFrame(exposure['mean']), pd.DataFrame(exposure['standard_deviation']), f,
-                                  lambda m, s: np.array((m, m / s)))
+        opt_results = _get_optimization_result(exposure, f, lambda m, s: np.array((m, m / s)))
+        data_size = len(exposure)
         try:
-            shape, scale = np.abs(params['shape']), np.abs(params['scale'])
-            return {'c': shape, 'scale': scale}
+            assert np.all([opt_results[k].success is True for k in range(data_size)])
+            shape = np.abs([opt_results[k].x[0] for k in range(data_size)])
+            scale = np.abs([opt_results[k].x[1] for k in range(data_size)])
+            return {'c': pd.DataFrame(shape, index=exposure.index), 'scale': pd.DataFrame(scale, index=exposure.index)}
 
-        except TypeError:
-            print('Weibull did not converge!!')
+        except AssertionError:
+            raise NonConvergenceError('Weibull did not converge!!', 'weibull')
 
 
 class EnsembleDistribution:
 
     def __init__(self, exposure, weights, distribution_map):
-        self.weights = weights
-        self._distributions = {key: distribution_map[key](exposure) for key in distribution_map}
+        self.weights, self._distributions = self.get_valid_distributions(exposure, weights, distribution_map)
+
+    @staticmethod
+    def get_valid_distributions(exposure, weights, maps):
+        """
+        :param exposure: pd.DataFrame with columns=['mean', 'standard_deviation']
+        :param weights: pd.Series with distribution key and weights
+        :param maps: dictionary form of distribution key and class
+
+        :return
+        weights: rescaled weigths after dropping non-convergence distribution (pd.Series)
+        dist: subset of maps with converged distributions only
+        """
+        dist = dict()
+        for key in maps:
+            try:
+                dist[key] = maps[key](exposure)
+            except NonConvergenceError as e:
+                if weights[e.dist] > 0.05:
+                    weights = weights.drop(e.dist)
+                else:
+                    # if the weight is larger than 5%, we can't drop the distribution. Re-raise the error.
+                    raise NonConvergenceError(f'Divergent {key} distribution has weights: {100*weights[key]}%', key)
+                pass
+
+        return weights/np.sum(weights), dist
 
     def setup(self, builder):
         builder.components.add_components([self._distributions[dist_name] for dist_name in self._distributions.keys()])
 
-    def pdf(self, x):
-        return np.sum([self.weights[dist_name] * self._distributions[dist_name].pdf(x) for dist_name in
-                       self._distributions.keys()])
-
-    def ppf(self, x):
-        return np.sum([self.weights[dist_name] * self._distributions[dist_name].ppf(x) for dist_name in
+    def pdf(self, x, interpolation=True):
+        return np.sum([self.weights[dist_name] * self._distributions[dist_name].pdf(x, interpolation) for dist_name in
                        self._distributions.keys()], axis=0)
 
-    def pdf_test(self, x):
-        with np.errstate(all='warn'):
-            return np.sum([self.weights[dist_name] * self._distributions[dist_name].pdf_test(x) for dist_name in
-                           self._distributions.keys()], axis=0)
-
-    def ppf_test(self, x):
-        with np.errstate(all='warn'):
-            return np.sum([self.weights[dist_name] * self._distributions[dist_name].ppf_test(x) for dist_name in
-                           self._distributions.keys()], axis=0)
+    def ppf(self, x, interpolation=True):
+        return np.sum([self.weights[dist_name] * self._distributions[dist_name].ppf(x, interpolation) for dist_name in
+                       self._distributions.keys()], axis=0)
 
 
 def get_distribution(risk, risk_type, builder):

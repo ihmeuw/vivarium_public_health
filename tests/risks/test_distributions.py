@@ -124,7 +124,7 @@ def test_get_distribution(test_risk_factor, mocker):
 
     # test ppf function to generate correct numbers
     test_propensity = np.linspace(0.01, 0.99, 10)
-    generated_exposure = ensemble.ppf_test(test_propensity)
+    generated_exposure = ensemble.ppf(test_propensity, interpolation=False)
     expected_exposure = np.array([[6.80974558, 7.95758444, 8.4709367, 8.90777061, 9.33818496,
                                    9.80058963, 10.33772907, 11.02719045, 12.089827, 15.75560794],
                                   [12.62741864, 15.79095391, 17.16011934, 18.29679845, 19.39450681,
