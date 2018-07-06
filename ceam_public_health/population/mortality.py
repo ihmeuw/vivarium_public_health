@@ -33,9 +33,7 @@ class Mortality:
             ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location', 'years_of_life_lost'])
         builder.population.initializes_simulants(self.load_population_columns,
                                                  creates_columns=['cause_of_death', 'years_of_life_lost'])
-
         builder.event.register_listener('time_step', self.mortality_handler, priority=0)
-        builder.event.register_listener('time_step__cleanup', self.untracked_handler)
 
     def mortality_rate_source(self, index):
         if self._cause_deleted_mortality_data is None:
@@ -59,7 +57,8 @@ class Mortality:
 
         if not dead_pop.empty:
             dead_pop['alive'] = pd.Series('dead', index=dead_pop.index).astype(
-                pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))
+                pd.api.types.CategoricalDtype(categories=['alive', 'dead'], ordered=False))
+
             dead_pop['exit_time'] = event.time
 
             dead_pop['years_of_life_lost'] = self.life_expectancy(dead_pop.index)
@@ -68,24 +67,15 @@ class Mortality:
 
             self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death', 'years_of_life_lost']])
 
-    def untracked_handler(self, event):
-        pop = self.population_view.get(event.index, query="alive == 'untracked'")
-        new_untracked = pop.exit_time == event.time
-        pop.loc[new_untracked, 'cause_of_death'] = 'untracked'
-        self.population_view.update(pop)
-
     def metrics(self, index, metrics):
         population = self.population_view.get(index)
         the_living = population[population.alive == 'alive']
         the_dead = population[population.alive == 'dead']
-        the_untracked = population[population.alive == 'untracked']
-
         metrics['deaths'] = len(the_dead)
         metrics['years_of_life_lost'] = self.life_expectancy(the_dead.index).sum()
         metrics['total_population'] = len(population)
         metrics['total_population__living'] = len(the_living)
         metrics['total_population__dead'] = len(the_dead)
-        metrics['total_population__untracked'] = len(the_untracked)
 
         for (condition, count) in pd.value_counts(the_dead.cause_of_death).to_dict().items():
             # TODO: consider changing name to 'death_by_{condition}' or somesuch
@@ -106,8 +96,7 @@ class Mortality:
         now = self.clock()
         window_start = now - duration
 
-        causes_of_death = set(pop.cause_of_death.unique()) - {'not_dead', 'untracked'}
-
+        causes_of_death = set(pop.cause_of_death.unique()) - {'not_dead'}
         for low, high in age_groups:
             for sex in sexes:
                 for location in locations:
