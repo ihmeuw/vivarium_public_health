@@ -57,7 +57,7 @@ class BasePopulation:
         population-level data.  Additionally, the simulants are assigned the simulation properties
         'alive', 'entrance_time', and 'exit_time'.
 
-        The 'alive' parameter is categorical with categories {'alive' and 'dead''}.
+        The 'alive' parameter is alive or dead/
         In general, most simulation components (except for those computing summary statistics)
         ignore simulants if they are not in the 'alive' category. The 'entrance_time' and
         'exit_time' categories simply mark when the simulant enters or leaves the simulation,
@@ -112,11 +112,12 @@ class AgedOutSimulants:
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
     def agedout_handler(self, event):
+
         population = self.population_view.get(event.index)
         max_age = float(self.config.exit_age)
         pop = population[(population['age'] >= max_age) & (population['tracked'] == True)].copy()
         if len(pop) > 0:
-            pop['tracked'] = pd.Series(False, index=pop.index, dtype=bool)
+            pop['tracked'] = pd.Series(False, index=pop.index)
             pop['exit_time'] = event.time
             self.population_view.update(pop)
 
@@ -169,8 +170,7 @@ def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
     """
     simulants = pd.DataFrame({'entrance_time': pd.Series(creation_time, index=simulant_ids),
                               'exit_time': pd.Series(pd.NaT, index=simulant_ids),
-                              'alive': pd.Series('alive', index=simulant_ids).astype(
-                                  pd.api.types.CategoricalDtype(['alive', 'dead'], ordered=False))},
+                              'alive': pd.Series('alive', index=simulant_ids)},
                              index=simulant_ids)
     age_start = float(age_params['age_start'])
     age_end = float(age_params['age_end'])

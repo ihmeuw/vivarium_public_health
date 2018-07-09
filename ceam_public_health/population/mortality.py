@@ -56,8 +56,7 @@ class Mortality:
         dead_pop = prob_df.query('cause_of_death != "no_death"').copy()
 
         if not dead_pop.empty:
-            dead_pop['alive'] = pd.Series('dead', index=dead_pop.index).astype(
-                pd.api.types.CategoricalDtype(categories=['alive', 'dead'], ordered=False))
+            dead_pop['alive'] = pd.Series('dead', index=dead_pop.index)
 
             dead_pop['exit_time'] = event.time
 
@@ -71,9 +70,8 @@ class Mortality:
         population = self.population_view.get(index)
         the_living = population[population.alive == 'alive']
         the_dead = population[population.alive == 'dead']
-        metrics['deaths'] = len(the_dead)
         metrics['years_of_life_lost'] = self.life_expectancy(the_dead.index).sum()
-        metrics['total_population'] = len(population)
+        metrics['total_final_population'] = len(population)
         metrics['total_population__living'] = len(the_living)
         metrics['total_population__dead'] = len(the_dead)
 
@@ -146,7 +144,7 @@ class Mortality:
         return cube
 
     def deaths(self, index, age_groups, sexes, all_locations, duration, cube):
-        pop = self.population_view.get(index, query="alive != 'alive")
+        pop = self.population_view.get(index, query="alive == 'dead'")
 
         if all_locations:
             locations = set(pop.location) | {-1}
