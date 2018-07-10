@@ -139,7 +139,7 @@ class FertilityCrudeBirthRate:
         births = float(self._birth_data.query('sex == "Both"').set_index(['year']).loc[year].mean_value)
 
         if self.exit_age is not None:
-            population = population_table.population.query("age < @self.exit_age").sum()
+            population = population_table.query("age < @self.exit_age").population.sum()
         else:
             population = population_table.population.sum()
 
