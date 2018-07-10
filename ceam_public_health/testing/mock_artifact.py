@@ -17,12 +17,12 @@ MOCKERS = {
         },
         'risk_factor': {
             'distribution': lambda *args, **kwargs: 'ensemble',
-            'exposure': 0,
-            'exposure_standard_deviation': 0.001,
-            'relative_risk': build_table([1, "continuous"], 1990, 2018, ("age", "sex", "year", "value", "parameter")),
+            'exposure': 120,
+            'exposure_standard_deviation': 15,
+            'relative_risk': build_table([1.5, "continuous"], 1990, 2018, ("age", "sex", "year", "value", "parameter")),
             'tmred': lambda *args, **kwargs: {
                 "distribution": "uniform",
-                "min": 0,
+                "min": 80,
                 "max": 100,
                 "inverted": False,
             },
@@ -32,6 +32,7 @@ MOCKERS = {
                 'max_val': 200,
                 'min_val': 0,
             },
+            'ensemble_weights': lambda *args, **kwargs: pd.DataFrame({'norm': 1}, index=[0])
         },
         'sequela': {
             'prevalence': 0,
