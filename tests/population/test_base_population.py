@@ -123,7 +123,7 @@ def test_age_out_simulants(config, base_plugins):
     assert len(simulation.population.population) == len(simulation.population.population.age.unique())
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
-    assert len(pop) == len(pop[pop.tracked == False ])
+    assert len(pop) == len(pop[~pop.tracked])
     exit_after_300_days = pop.exit_time >= time_start + pd.Timedelta(300, unit='D')
     exit_before_400_days = pop.exit_time <= time_start + pd.Timedelta(400, unit='D')
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])

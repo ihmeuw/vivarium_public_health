@@ -71,7 +71,6 @@ class Mortality:
         the_living = population[population.alive == 'alive']
         the_dead = population[population.alive == 'dead']
         metrics['years_of_life_lost'] = self.life_expectancy(the_dead.index).sum()
-        metrics['total_final_population'] = len(population)
         metrics['total_population__living'] = len(the_living)
         metrics['total_population__dead'] = len(the_dead)
 

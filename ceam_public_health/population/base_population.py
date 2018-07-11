@@ -96,7 +96,7 @@ class BasePopulation:
         event : vivarium.framework.population.PopulationEvent
         """
         step_size = event.step_size/pd.Timedelta(seconds=1)
-        population = self.population_view.get(event.index)
+        population = self.population_view.get(event.index, query="alive == 'alive'")
         population['age'] += step_size / SECONDS_PER_YEAR
         self.population_view.update(population)
 
@@ -109,7 +109,7 @@ class AgedOutSimulants:
         self.config = builder.configuration.population
         self.population_view = builder.population.get_view(['age', 'exit_time', 'tracked'])
         builder.event.register_listener('time_step__cleanup', self.agedout_handler)
-        builder.value.register_value_modifier('metrics', modifier=self.metrics)
+
 
     def agedout_handler(self, event):
 
@@ -120,13 +120,6 @@ class AgedOutSimulants:
             pop['tracked'] = pd.Series(False, index=pop.index)
             pop['exit_time'] = event.time
             self.population_view.update(pop)
-
-    def metrics(self, index, metrics):
-        population = self.population_view.get(index)
-        untracked = population[population.tracked == False]
-        metrics['total_population__untracked'] = len(untracked)
-
-        return metrics
 
 
 def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
