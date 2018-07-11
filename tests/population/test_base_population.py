@@ -47,8 +47,7 @@ def make_base_simulants():
     creation_time = pd.Timestamp(1990, 7, 2)
     return pd.DataFrame({'entrance_time': pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
                          'exit_time': pd.Series(pd.NaT, index=simulant_ids),
-                         'alive': pd.Series('alive', index=simulant_ids).astype(
-                             pd.api.types.CategoricalDtype(categories=['alive', 'dead', 'untracked'], ordered=False))},
+                         'alive': pd.Series('alive', index=simulant_ids)},
                         index=simulant_ids)
 
 
@@ -58,6 +57,7 @@ def make_full_simulants():
     base_simulants['sex'] = pd.Series('Male', index=base_simulants.index).astype(
         pd.api.types.CategoricalDtype(categories=['Male', 'Female'], ordered=False))
     base_simulants['age'] = np.random.uniform(0, 100, len(base_simulants))
+    base_simulants['tracked'] = pd.Series(True, index=base_simulants.index)
     return base_simulants
 
 
@@ -123,7 +123,7 @@ def test_age_out_simulants(config, base_plugins):
     assert len(simulation.population.population) == len(simulation.population.population.age.unique())
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.population.population
-    assert len(pop) == len(pop[pop.alive == 'untracked'])
+    assert len(pop) == len(pop[~pop.tracked])
     exit_after_300_days = pop.exit_time >= time_start + pd.Timedelta(300, unit='D')
     exit_before_400_days = pop.exit_time <= time_start + pd.Timedelta(400, unit='D')
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])
