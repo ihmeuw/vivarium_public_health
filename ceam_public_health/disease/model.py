@@ -161,7 +161,7 @@ class DiseaseModel(Machine):
                 elif isinstance(transition, ProportionTransition):
                     dot.edge(state.state_id, transition.output_state.state_id, transition.label(), color='purple')
                 else:
-                    dot.edge(state.state_id, transition.output.state_id, transition.label(), color='black')
+                    dot.edge(state.state_id, transition.output_state.state_id, transition.label(), color='black')
 
             if state.transition_set.allow_null_transition:
                 if hasattr(state, '_dwell_time'):
