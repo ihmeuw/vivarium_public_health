@@ -27,6 +27,7 @@ def parse_artifact_path_config(config):
 
     return artifact_path
 
+
 class ArtifactManager:
     configuration_defaults = {
             'artifact': {
@@ -39,7 +40,6 @@ class ArtifactManager:
         start_time = get_time_stamp(builder.configuration.time.start)
         draw = builder.configuration.input_data.input_draw_number
         location = builder.configuration.input_data.location
-
 
         artifact_path = parse_artifact_path_config(builder.configuration)
         self.artifact = Artifact(artifact_path, start_time, end_time, draw, location)
@@ -75,8 +75,9 @@ class Artifact:
         return self._cache[cache_key]
 
     def _uncached_load(self, entity_path, keep_age_group_edges, column_filters):
-        group = '/'+entity_path.replace('.','/')
-        if not group in self._hdf:
+        group = '/'+entity_path.replace('.', '/')
+
+        if group not in self._hdf:
             raise ArtifactException(f"{group} should be in {self.artifact_path}")
 
         node = self._hdf._handle.get_node(group)
@@ -86,10 +87,8 @@ class Artifact:
             document = json.load(fnode)
             fnode.close()
             return document
-        try:
+        else:
             columns = list(self._hdf.get_node(group).table.colindexes.keys())
-        except KeyError:
-            return None
 
         filter_terms, columns_to_remove = _setup_filter(columns, column_filters, self.location, self.draw)
 
@@ -126,6 +125,7 @@ class Artifact:
             for sub_child in getattr(self._hdf._handle.root, child)._v_children:
                 result.write(f"\t{sub_child}\n")
         return result.getvalue()
+
 
 def _setup_filter(columns, column_filters, location, draw):
     terms = []
