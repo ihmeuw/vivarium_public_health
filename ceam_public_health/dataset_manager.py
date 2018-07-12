@@ -76,7 +76,8 @@ class Artifact:
 
     def _uncached_load(self, entity_path, keep_age_group_edges, column_filters):
         group = '/'+entity_path.replace('.','/')
-        assert group in self._hdf, f'{group} should be in {self.artifact_path}'
+        if not group in self._hdf:
+            raise ArtifactException(f"{group} should be in {self.artifact_path}")
 
         node = self._hdf._handle.get_node(group)
         if "NODE_TYPE" in dir(node._v_attrs) and node.get_attr("NODE_TYPE") == "file":
