@@ -78,8 +78,10 @@ class RiskEffect:
         rr_data = rr_data.reset_index()
         self.relative_risk = builder.lookup.build_table(rr_data)
 
-
         builder.value.register_value_modifier(f'{self.cause}.incidence_rate', modifier=self.incidence_rates)
+        builder.value.register_value_modifier(f'{self.cause}.paf',
+                                              modifier=self.population_attributable_fraction)
+
         self.population_view = builder.population.get_view([self.risk + '_exposure'])
         distribution = builder.data.load(f"{self.risk_type}.{self.risk}.distribution")
         self.is_continuous = distribution in ['lognormal', 'ensemble', 'normal']
@@ -90,7 +92,7 @@ class RiskEffect:
         return self.exposure_effect(rates, self.relative_risk(index))
 
     def __repr__(self):
-        return "RiskEffect(cause= {})".format(self.cause)
+        return f"RiskEffect(risk={self.risk}, cause={self.cause})"
 
 
 class RiskEffectSet:
