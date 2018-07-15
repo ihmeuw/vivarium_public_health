@@ -3,10 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from vivarium.config_tree import ConfigTree
-from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium.framework.util import from_yearly
-from vivarium.interpolation import Interpolation
 from vivarium.test_util import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
@@ -77,6 +74,59 @@ def test_RiskEffect(base_config, base_plugins):
 
     assert np.allclose(rates(simulation.population.population.index), from_yearly(0.0101, time_step))
     assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
+
+
+def test_risk_deletion(base_config, base_plugins, mocker):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    time_step = pd.Timedelta(days=base_config.time.step_size)
+
+    base_rate = 0.01
+    risk_paf = 0.5
+    risk_rr = 1
+
+    rate_data_functions = {
+        'incidence_rate': lambda *args: build_table(0.01, year_start, year_end, ('age', 'year', 'sex', 'value'))
+    }
+
+    effect_data_functions = {
+        'rr': lambda *args: build_table([risk_rr, 'per_unit'], year_start, year_end,
+                                        ('age', 'year', 'sex', 'value', 'parameter')),
+        'paf': lambda *args: build_table(risk_paf, year_start, year_end, ('age', 'year', 'sex', 'value')),
+    }
+
+    def effect_function(rates, _):
+        return rates
+
+    transition = RateTransition(mocker.MagicMock(state_id='susceptible'),
+                                mocker.MagicMock(state_id='infected'), rate_data_functions)
+
+    base_simulation = initialize_simulation([TestPopulation(), transition],
+                                            input_config=base_config, plugin_config=base_plugins)
+    base_simulation.setup()
+
+    incidence = base_simulation.get_value('infected.incidence_rate')
+    joint_paf = base_simulation.get_value('infected.paf')
+
+    # Validate the base case
+    assert np.allclose(incidence(base_simulation.population.population.index), from_yearly(base_rate, time_step))
+    assert np.allclose(joint_paf(base_simulation.population.population.index), 0)
+
+    transition = RateTransition(mocker.MagicMock(state_id='susceptible'),
+                                mocker.MagicMock(state_id='infected'), rate_data_functions)
+    effect = RiskEffect('bad_risk', 'infected', effect_data_functions)
+
+    rf_simulation = initialize_simulation([TestPopulation(), transition, effect],
+                                          input_config=base_config, plugin_config=base_plugins)
+    rf_simulation.setup()
+    effect.exposure_effect = effect_function
+
+    incidence = rf_simulation.get_value('infected.incidence_rate')
+    joint_paf = rf_simulation.get_value('infected.paf')
+
+    assert np.allclose(incidence(rf_simulation.population.population.index),
+                       from_yearly(base_rate * (1 - risk_paf), time_step))
+    assert np.allclose(joint_paf(rf_simulation.population.population.index), risk_paf)
 
 
 def test_continuous_exposure_effect(base_config, base_plugins):
