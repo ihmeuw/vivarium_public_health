@@ -4,7 +4,7 @@ from scipy.stats import multivariate_normal, norm
 
 from vivarium.framework.randomness import random
 
-from ceam_public_health.risks import RiskEffectSet, get_distribution
+from vivarium_public_health.risks import RiskEffectSet, get_distribution
 
 
 def uncorrelated_propensity(population, risk_factor):
@@ -83,7 +83,7 @@ class ContinuousRiskComponent:
     risk : str
         The name of a risk factor
     distribution_loader : callable
-        A function which take a builder and returns a standard CEAM
+        A function which take a builder and returns a standard vivarium
         lookup table which returns distribution data.
     exposure_function : callable
         A function which takes the output of the lookup table created

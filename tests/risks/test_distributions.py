@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ceam_public_health.risks import distributions
+from vivarium_public_health.risks import distributions
 
 @pytest.fixture
 def test_risk_factor(mocker):

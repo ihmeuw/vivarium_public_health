@@ -26,8 +26,8 @@ def base_config():
 def base_plugins():
     config = {'optional': {
                   'data': {
-                      'controller': 'ceam_public_health.testing.mock_artifact.MockArtifact',
-                      'builder_interface': 'ceam_public_health.dataset_manager.ArtifactManagerInterface'
+                      'controller': 'vivarium_public_health.testing.mock_artifact.MockArtifact',
+                      'builder_interface': 'vivarium_public_health.dataset_manager.ArtifactManagerInterface'
                   }
              }
     }

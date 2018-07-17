@@ -6,7 +6,7 @@ import pandas as pd
 
 from vivarium.test_util import get_randomness, build_table
 
-import ceam_public_health.population.data_transformations as dt
+import vivariumn_public_health.population.data_transformations as dt
 
 
 def make_uniform_pop_data():

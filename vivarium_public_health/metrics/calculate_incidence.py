@@ -1,6 +1,6 @@
 import pandas as pd
 
-from ceam_public_health.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
+from vivarium_public_health.util import make_cols_demographically_specific, make_age_bin_age_group_max_dict
 
 
 class CalculateIncidence:

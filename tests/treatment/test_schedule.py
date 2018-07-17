@@ -4,7 +4,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from ceam_public_health.treatment import TreatmentSchedule
+from vivarium_public_health.treatment import TreatmentSchedule
 
 
 @pytest.fixture

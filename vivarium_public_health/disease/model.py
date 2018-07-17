@@ -6,7 +6,7 @@ import numpy as np
 from vivarium import VivariumError
 from vivarium.framework.state_machine import Machine
 
-from ceam_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
+from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
                                         RateTransition, ProportionTransition)
 
 

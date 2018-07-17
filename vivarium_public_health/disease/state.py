@@ -3,7 +3,7 @@ import pandas as pd
 
 from vivarium.framework.state_machine import State, Transient
 
-from ceam_public_health.disease import RateTransition, ProportionTransition
+from vivarium_public_health.disease import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):

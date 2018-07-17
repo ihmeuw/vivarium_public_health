@@ -63,7 +63,7 @@ class FertilityCrudeBirthRate:
     Attributes
     ----------
     randomness : `randomness.RandomStream`
-        A named stream of random numbers bound to CEAM's common
+        A named stream of random numbers bound to vivarium's common
         random number framework.
 
     Notes

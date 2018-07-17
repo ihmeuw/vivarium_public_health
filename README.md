@@ -1,1 +1,1 @@
-# Public Health components for CEAM
+# Public Health components for `vivarium`

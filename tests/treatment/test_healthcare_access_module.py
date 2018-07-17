@@ -6,7 +6,7 @@ from vivarium.framework.util import to_yearly
 from vivarium.test_util import build_table, TestPopulation
 from vivarium.interface import initialize_simulation, setup_simulation
 
-from ceam_public_health.treatment import HealthcareAccess
+from vivarium_public_health.treatment import HealthcareAccess
 
 np.random.seed(100)
 

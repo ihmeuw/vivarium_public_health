@@ -6,8 +6,8 @@ from vivarium.framework.util import from_yearly
 from vivarium.test_util import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation
 
-from ceam_public_health.disease import (BaseDiseaseState, DiseaseState, ExcessMortalityState,
-                                        RateTransition, DiseaseModel)
+from vivarium_public_health.disease import (BaseDiseaseState, DiseaseState, ExcessMortalityState,
+                                            RateTransition, DiseaseModel)
 
 
 @pytest.fixture
@@ -17,7 +17,7 @@ def disease():
 
 @pytest.fixture
 def assign_cause_mock(mocker):
-    return mocker.patch('ceam_public_health.disease.model.DiseaseModel.assign_initial_status_to_simulants')
+    return mocker.patch('vivarium_public_health.disease.model.DiseaseModel.assign_initial_status_to_simulants')
 
 
 @pytest.fixture

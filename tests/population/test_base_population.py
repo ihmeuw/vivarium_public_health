@@ -7,9 +7,9 @@ import pytest
 from vivarium.test_util import get_randomness, metadata
 from vivarium.interface.interactive import setup_simulation
 
-import ceam_public_health.population.base_population as bp
-import ceam_public_health.population.data_transformations as dt
-from ceam_public_health.testing.utils import make_uniform_pop_data
+import vivarium_public_health.population.base_population as bp
+import vivarium_public_health.population.data_transformations as dt
+from vivarium_public_health.testing.utils import make_uniform_pop_data
 
 
 @pytest.fixture
@@ -28,18 +28,18 @@ def config(base_config):
 
 
 @pytest.fixture
-def generate_ceam_population_mock(mocker):
-    return mocker.patch('ceam_public_health.population.base_population.generate_ceam_population')
+def generate_population_mock(mocker):
+    return mocker.patch('vivarium_public_health.population.base_population.generate_population')
 
 
 @pytest.fixture
 def age_bounds_mock(mocker):
-    return mocker.patch('ceam_public_health.population.base_population._assign_demography_with_age_bounds')
+    return mocker.patch('vivarium_public_health.population.base_population._assign_demography_with_age_bounds')
 
 
 @pytest.fixture
 def initial_age_mock(mocker):
-    return mocker.patch('ceam_public_health.population.base_population._assign_demography_with_initial_age')
+    return mocker.patch('vivarium_public_health.population.base_population._assign_demography_with_initial_age')
 
 
 def make_base_simulants():
@@ -61,13 +61,13 @@ def make_full_simulants():
     return base_simulants
 
 
-def test_BasePopulation(config, base_plugins, generate_ceam_population_mock):
+def test_BasePopulation(config, base_plugins, generate_population_mock):
     num_days = 600
     time_step = 100  # Days
     sims = make_full_simulants()
     start_population_size = len(sims)
 
-    generate_ceam_population_mock.return_value = sims
+    generate_population_mock.return_value = sims
 
     base_pop = bp.BasePopulation()
 
@@ -87,9 +87,9 @@ def test_BasePopulation(config, base_plugins, generate_ceam_population_mock):
                   'age_end': config.population.age_end}
     sub_pop = uniform_pop[uniform_pop.year == time_start.year]
 
-    generate_ceam_population_mock.assert_called_once()
+    generate_population_mock.assert_called_once()
     # Get a dictionary of the arguments used in the call
-    mock_args = generate_ceam_population_mock.call_args[1]
+    mock_args = generate_population_mock.call_args[1]
     assert mock_args['creation_time'] == time_start - simulation.clock.step_size
     assert mock_args['age_params'] == age_params
     assert mock_args['population_data'].equals(sub_pop)
@@ -129,7 +129,7 @@ def test_age_out_simulants(config, base_plugins):
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])
 
 
-def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
+def test_generate_population_age_bounds(age_bounds_mock, initial_age_mock):
     creation_time = pd.Timestamp(1990, 7, 2)
     step_size = pd.Timedelta(days=1)
     age_params = {'age_start': 0,
@@ -139,8 +139,8 @@ def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     sims = make_base_simulants()
     simulant_ids = sims.index
 
-    bp.generate_ceam_population(simulant_ids, creation_time, step_size,
-                                age_params, pop_data, r, lambda *args, **kwargs: None)
+    bp.generate_population(simulant_ids, creation_time, step_size,
+                           age_params, pop_data, r, lambda *args, **kwargs: None)
 
     age_bounds_mock.assert_called_once()
     mock_args = age_bounds_mock.call_args[0]
@@ -152,7 +152,7 @@ def test_generate_ceam_population_age_bounds(age_bounds_mock, initial_age_mock):
     initial_age_mock.assert_not_called()
 
 
-def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock):
+def test_generate_population_initial_age(age_bounds_mock, initial_age_mock):
     creation_time = pd.Timestamp(1990, 7, 2)
     step_size = pd.Timedelta(days=1)
     age_params = {'age_start': 0,
@@ -162,8 +162,8 @@ def test_generate_ceam_population_initial_age(age_bounds_mock, initial_age_mock)
     sims = make_base_simulants()
     simulant_ids = sims.index
 
-    bp.generate_ceam_population(simulant_ids, creation_time, step_size,
-                                age_params, pop_data, r, lambda *args, **kwargs: None)
+    bp.generate_population(simulant_ids, creation_time, step_size,
+                           age_params, pop_data, r, lambda *args, **kwargs: None)
 
     initial_age_mock.assert_called_once()
     mock_args = initial_age_mock.call_args[0]

@@ -12,7 +12,7 @@ _log = logging.getLogger(__name__)
 class EpidemiologicalMeasures:
     """ Gathers measures (prevalence, incidence rates, mortality rates, etc)
     from other components in the system and saves them to an HDF file which
-    can be further analyzed. For example by ceam_public_health/scripts/measure_analysis.py
+    can be further analyzed. For example by vivarium_public_health/scripts/measure_analysis.py
     """
     def setup(self, builder):
         self.run_config = builder.configuration.run_configuration

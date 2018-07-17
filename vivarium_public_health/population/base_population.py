@@ -80,13 +80,13 @@ class BasePopulation:
         else:  # pop_data.creation_time.year < self.population_data.year.min():
             sub_pop_data = self.population_data[self.population_data.year == self.population_data.year.min()]
 
-        self.population_view.update(generate_ceam_population(simulant_ids=pop_data.index,
-                                                             creation_time=pop_data.creation_time,
-                                                             step_size=pop_data.creation_window,
-                                                             age_params=age_params,
-                                                             population_data=sub_pop_data,
-                                                             randomness_streams=self.randomness,
-                                                             register_simulants=self.register_simulants))
+        self.population_view.update(generate_population(simulant_ids=pop_data.index,
+                                                        creation_time=pop_data.creation_time,
+                                                        step_size=pop_data.creation_window,
+                                                        age_params=age_params,
+                                                        population_data=sub_pop_data,
+                                                        randomness_streams=self.randomness,
+                                                        register_simulants=self.register_simulants))
 
     def on_time_step(self, event):
         """Ages simulants each time step.
@@ -122,8 +122,8 @@ class AgedOutSimulants:
             self.population_view.update(pop)
 
 
-def generate_ceam_population(simulant_ids, creation_time, step_size, age_params,
-                             population_data, randomness_streams, register_simulants):
+def generate_population(simulant_ids, creation_time, step_size, age_params,
+                        population_data, randomness_streams, register_simulants):
     """Produces a randomly generated set of simulants sampled from the provided `population_data`.
 
     Parameters

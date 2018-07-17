@@ -5,7 +5,7 @@ import numpy as np
 from vivarium.framework.components import ComponentConfigError
 from vivarium.test_util import metadata
 
-from ceam_public_health.treatment import Treatment
+from vivarium_public_health.treatment import Treatment
 
 
 @pytest.fixture

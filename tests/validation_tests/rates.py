@@ -6,7 +6,7 @@ from vivarium.framework.util import from_yearly
 from vivarium.test_util import build_table, TestPopulation
 from vivarium.interface.interactive import setup_simulation
 
-from ceam_public_health.disease import RateTransition, DiseaseModel
+from vivarium_public_health.disease import RateTransition, DiseaseModel
 
 
 def make_model(config, incidence_rate, recovery_rate):

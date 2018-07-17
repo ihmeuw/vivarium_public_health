@@ -3,5 +3,4 @@ scipy
 numpy
 pandas
 pytest
--e git+ssh://git@stash.ihme.washington.edu:7999/cste/ceam_inputs.git#egg=ceam_inputs
 -e git+git://github.com/ihmeuw/vivarium.git#egg=vivarium

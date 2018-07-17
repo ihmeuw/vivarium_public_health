@@ -5,9 +5,9 @@ import pandas as pd
 from vivarium.test_util import build_table, TestPopulation
 from vivarium.interface.interactive import setup_simulation
 
-from ceam_public_health.population import Mortality
-from ceam_public_health.disease import ExcessMortalityState, DiseaseModel, DiseaseState
-from ceam_public_health.metrics import Disability
+from vivarium_public_health.population import Mortality
+from vivarium_public_health.disease import ExcessMortalityState, DiseaseModel, DiseaseState
+from vivarium_public_health.metrics import Disability
 
 
 def set_up_test_parameters(base_config, flu=False, mumps=False, deadly=False):
