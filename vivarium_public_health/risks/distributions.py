@@ -96,9 +96,8 @@ class BaseDistribution:
 
     def pdf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         if not interpolation:
-            data_size = len(x)
             params = self._parameter_data
-            ranges = {key: np.repeat(val, data_size) for key, val in self._range.items()}
+            ranges = self._range
         else:
             params = {name: p(x.index) for name, p in self.parameters.items()}
             ranges = {name: p(x.index) for name, p in self.ranges_data.items()}
@@ -109,10 +108,8 @@ class BaseDistribution:
 
     def ppf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         if not interpolation:
-            data_size = len(x)
-            group_size = len(self._range['x_min'])
             params = self._parameter_data
-            ranges = {key: np.repeat(val, data_size).reshape(group_size, data_size) for key, val in self._range.items()}
+            ranges = self._range
         else:
             params = {name: p(x.index) for name, p in self.parameters.items()}
             ranges = {name: p(x.index) for name, p in self.ranges_data.items()}
