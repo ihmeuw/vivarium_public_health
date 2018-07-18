@@ -384,9 +384,42 @@ class EnsembleDistribution:
                        for name, dist in self._distributions.items()], axis=0)
 
 
-def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistribution, EnsembleDistribution]:
+class CategoricalDistribution:
+    def __init__(self, exposure_data: pd.DataFrame, risk: str):
+        self.exposure_data =  exposure_data
+        self._risk = risk
+
+    def setup(self, builder):
+        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
+                                                              source=builder.lookup.build_table(self.exposure_data))
+
+    def ppf(self, x):
+        exposure = self.exposure(x.index)
+        import pdb; pdb.set_trace()
+        # Get a list of sorted category names (e.g. ['cat1', 'cat2', ..., 'cat9', 'cat10', ...])
+        categories = sorted([column for column in exposure if 'cat' in column])
+        sorted_exposures = exposure[categories]
+        exposure_sum = sorted_exposures.cumsum(axis='columns')
+        # Sometimes all data is 0 for the category exposures.  Set the "no exposure" category to catch this case.
+        exposure_sum[categories[-1]] = 1  # TODO: Something better than this.
+
+        category_index = (exposure_sum.T < x).T.sum('columns')
+
+        return pd.Series(np.array(categories)[category_index], name=self._risk + '_exposure', index=x.index)
+
+
+def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistribution, EnsembleDistribution, CategoricalDistribution]:
 
     distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
+    if distribution == "dichotomous" or distribution == "polytomous":
+        exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
+        exposure_data = pd.pivot_table(exposure_data,
+                                       index=['year', 'age', 'sex'],
+                                       columns='parameter', values='value'
+                                       ).dropna().reset_index()
+
+        return CategoricalDistribution(exposure_data, risk)
+
     exposure_mean = builder.data.load(f"{risk_type}.{risk}.exposure")
     exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
     exposure_mean = exposure_mean.rename(index=str, columns={"value": "mean"})

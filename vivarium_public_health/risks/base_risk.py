@@ -86,58 +86,41 @@ class CategoricalRiskComponent:
         self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
 
     def setup(self, builder):
-        builder.components.add_components([self._effects])
 
         self.propensity_function = uncorrelated_propensity
 
+        self.exposure_distribution = get_distribution(self._risk, self._risk_type, builder)
+        builder.components.add_components([self._effects, self.exposure_distribution])
+        self.randomness = builder.randomness.get_stream(self._risk)
         self.population_view = builder.population.get_view(
             [self._risk+'_propensity', self._risk+'_exposure', 'age', 'sex'])
         builder.population.initializes_simulants(self.load_population_columns,
                                                  creates_columns=[self._risk + '_exposure',
                                                                   self._risk + '_propensity'],
                                                  requires_columns=['age', 'sex'])
-
-        exposure_data = builder.data.load(f"{self._risk_type}.{self._risk}.exposure")
-        exposure_data = pd.pivot_table(exposure_data,
-                                       index=['year', 'age', 'sex'],
-                                       columns='parameter', values='value'
-                                      ).dropna().reset_index()
-
-        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
-                                                              source=builder.lookup.build_table(exposure_data))
-
-        self.randomness = builder.randomness.get_stream(self._risk)
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
+
 
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
-        propensity = self.propensity_function(population, self._risk)
+        propensity =  pd.Series(self.propensity_function(population, self._risk),
+                                 name=self._risk+'_propensity',
+                                 index=pop_data.index)
         exposure = self._get_current_exposure(propensity)
-        self.population_view.update(pd.DataFrame({
-            self._risk+'_propensity': propensity,
-            self._risk+'_exposure': exposure,
-        }))
+        self.population_view.update(propensity)
+        self.population_view.update(pd.Series(exposure,
+                                              name=self._risk + '_exposure',
+                                              index=pop_data.index))
+        import pdb; pdb.set_trace()
 
     def _get_current_exposure(self, propensity):
-        exposure = self.exposure(propensity.index)
-
-        # Get a list of sorted category names (e.g. ['cat1', 'cat2', ..., 'cat9', 'cat10', ...])
-        categories = sorted([column for column in exposure if 'cat' in column])
-        sorted_exposures = exposure[categories]
-        exposure_sum = sorted_exposures.cumsum(axis='columns')
-        # Sometimes all data is 0 for the category exposures.  Set the "no exposure" category to catch this case.
-        exposure_sum[categories[-1]] = 1  # TODO: Something better than this.
-
-        category_index = (exposure_sum.T < propensity).T.sum('columns')
-
-        return pd.Series(np.array(categories)[category_index], name=self._risk+'_exposure', index=propensity.index)
+        return self.exposure_distribution.ppf(propensity)
 
     def update_exposure(self, event):
-        pop = self.population_view.get(event.index)
-
-        propensity = pop[self._risk+'_propensity']
-        categories = self._get_current_exposure(propensity)
-        self.population_view.update(categories)
+        population = self.population_view.get(event.index)
+        new_exposure = self._get_current_exposure(population[self._risk + '_propensity'])
+        import pdb; pdb.set_trace()
+        self.population_view.update(pd.Series(new_exposure, name=self._risk+'_exposure', index=event.index))
 
     def __repr__(self):
         return f"CategoricalRiskComponent(_risk_type= {self._risk_type}, _risk= {self._risk})"
