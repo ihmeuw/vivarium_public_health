@@ -7,15 +7,15 @@ from vivarium.framework.util import from_yearly
 from vivarium.test_util import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
-from vivarium_public_health.disease import RateTransition, DiseaseState, BaseDiseaseState
-from vivarium_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
-from vivarium_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
-                                                correlated_propensity_factory, uncorrelated_propensity)
+from ceam_public_health.disease import RateTransition, DiseaseState, BaseDiseaseState
+from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
+from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
+                                                uncorrelated_propensity)
 
 
 @pytest.fixture
 def get_distribution_mock(mocker):
-    return mocker.patch('vivarium_public_health.risks.base_risk.get_distribution')
+    return mocker.patch('ceam_public_health.risks.base_risk.get_distribution')
 
 
 def make_dummy_column(name, initial_value):
@@ -450,42 +450,6 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
 
     expected_value = norm(loc=130, scale=15).ppf(0.99999)
     assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
-
-
-def test_correlated_propensity(mocker):
-
-    correlation_matrix = pd.DataFrame({
-        'high_systolic_blood_pressure':           [1,        0.28221, 0.11052,  0.13047, 0.23791],
-        'high_body_mass_index':                   [0.28221,  1,       0.09289, -0.11914, 0.21253],
-        'high_total_cholesterol':                 [0.11052,  0.09289, 1,        0.17545, 0.04763],
-        'smoking_prevalence_approach':            [0.13047, -0.11914, 0.17545,  1,       0.07703],
-        'high_fasting_plasma_glucose_continuous': [0.23791,  0.21253, 0.04763,  0.07703,       1],
-        'risk_factor':                ['high_systolic_blood_pressure', 'high_body_mass_index',
-                                       'high_total_cholesterol', 'smoking_prevalence_approach',
-                                       'high_fasting_plasma_glucose_continuous'],
-        })
-    correlation_matrix['age'] = 30
-    correlation_matrix['sex'] = 'Male'
-
-    pop = pd.DataFrame({'age': [30]*100000, 'sex': ['Male']*100000})
-
-    mock_builder = mocker.Mock()
-    mock_builder.configuration.run_configuration.input_draw_number = 0
-    mock_builder.data.load.return_value = correlation_matrix
-
-    propensities = []
-    for risk in [
-            "high_systolic_blood_pressure",
-            "high_body_mass_index",
-            "high_total_cholesterol",
-            "smoking_prevalence_approach",
-            "high_fasting_plasma_glucose_continuous"]:
-        propensities.append(correlated_propensity_factory(mock_builder)(pop, risk))
-
-    matrix = np.corrcoef(np.array(propensities))
-    assert np.allclose(correlation_matrix[['high_systolic_blood_pressure', 'high_body_mass_index',
-                                           'high_total_cholesterol', 'smoking_prevalence_approach',
-                                           'high_fasting_plasma_glucose_continuous']].values, matrix, rtol=0.15)
 
 
 def test_uncorrelated_propensity():
