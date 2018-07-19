@@ -111,7 +111,6 @@ class CategoricalRiskComponent:
         self.population_view.update(pd.Series(exposure,
                                               name=self._risk + '_exposure',
                                               index=pop_data.index))
-        import pdb; pdb.set_trace()
 
     def _get_current_exposure(self, propensity):
         return self.exposure_distribution.ppf(propensity)

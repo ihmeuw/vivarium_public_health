@@ -11,6 +11,8 @@ class NonConvergenceError(Exception):
         super().__init__(message)
         self.dist = dist
 
+class MissingDataError(Exception):
+    pass
 
 def _get_optimization_result(exposure: pd.DataFrame, func: Callable,
                              initial_func: Callable) -> Tuple:
@@ -386,25 +388,29 @@ class EnsembleDistribution:
 
 class CategoricalDistribution:
     def __init__(self, exposure_data: pd.DataFrame, risk: str):
-        self.exposure_data =  exposure_data
+        self.exposure_data = exposure_data
         self._risk = risk
 
     def setup(self, builder):
         self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
                                                               source=builder.lookup.build_table(self.exposure_data))
+    @staticmethod
+    def _get_sorted_categories(data):
+        import re
+        new_keys = lambda key: [int(elem) if elem.isdigit() else elem.lower() for elem in re.split('([0-9]+)', key)]
+        return sorted(data, key=new_keys)
 
     def ppf(self, x):
         exposure = self.exposure(x.index)
-        import pdb; pdb.set_trace()
         # Get a list of sorted category names (e.g. ['cat1', 'cat2', ..., 'cat9', 'cat10', ...])
-        categories = sorted([column for column in exposure if 'cat' in column])
+        categories = self._get_sorted_categories([column for column in exposure if 'cat' in column])
         sorted_exposures = exposure[categories]
+        try:
+            assert np.allclose(1, np.sum(sorted_exposures, axis=1))
+        except AssertionError:
+            raise MissingDataError('All exposure data returned as 0.')
         exposure_sum = sorted_exposures.cumsum(axis='columns')
-        # Sometimes all data is 0 for the category exposures.  Set the "no exposure" category to catch this case.
-        exposure_sum[categories[-1]] = 1  # TODO: Something better than this.
-
         category_index = (exposure_sum.T < x).T.sum('columns')
-
         return pd.Series(np.array(categories)[category_index], name=self._risk + '_exposure', index=x.index)
 
 
