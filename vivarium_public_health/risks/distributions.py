@@ -96,7 +96,7 @@ class BaseDistribution:
         """
         return data
 
-    def pdf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
+    def pdf(self, x: pd.Series, interpolation: bool = True) -> Union[np.ndarray, pd.Series]:
         if not interpolation:
             params = self._parameter_data
             ranges = self._range
@@ -108,7 +108,7 @@ class BaseDistribution:
         pdf = self.distribution(**params).pdf(x)
         return self.process(pdf, "pdf_postprocess", ranges)
 
-    def ppf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
+    def ppf(self, x: pd.Series, interpolation: bool = True) -> Union[np.ndarray, pd.Series]:
         if not interpolation:
             params = self._parameter_data
             ranges = self._range
@@ -119,7 +119,6 @@ class BaseDistribution:
         x = self.process(x, "ppf_preprocess", ranges)
         ppf = self.distribution(**params).ppf(x)
         return self.process(ppf, "ppf_postprocess", ranges)
-
 
 class Beta(BaseDistribution):
 
@@ -278,7 +277,7 @@ class MirroredGumbel(BaseDistribution):
         if process_type == 'pdf_preprocess':
             return ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return np.tile(1, data.shape) - data
+            return 1- data
         elif process_type == 'ppf_postprocess':
             return ranges['x_max'] - data
         else:
@@ -300,7 +299,7 @@ class MirroredGamma(BaseDistribution):
         if process_type == 'pdf_preprocess':
             return ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return np.tile(1, data.shape) - data
+            return 1 - data
         elif process_type == 'ppf_postprocess':
             return ranges['x_max'] - data
         else:

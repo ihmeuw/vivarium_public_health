@@ -7,15 +7,14 @@ from vivarium.framework.util import from_yearly
 from vivarium.test_util import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
-from ceam_public_health.disease import RateTransition, DiseaseState, BaseDiseaseState
-from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
-from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
-                                                uncorrelated_propensity)
+from vivarium_public_health.disease import RateTransition, DiseaseState, BaseDiseaseState
+from vivarium_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
+from vivarium_public_health.risks.base_risk import RiskComponent, uncorrelated_propensity
 
 
 @pytest.fixture
 def get_distribution_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.base_risk.get_distribution')
+    return mocker.patch('vivarium_public_health.risks.base_risk.get_distribution')
 
 
 def make_dummy_column(name, initial_value):
@@ -210,7 +209,7 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
     base_config.update({'input_data': {'input_draw_number': 1}}, **metadata(__file__))
     risk = "test_risk"
 
-    component = CategoricalRiskComponent("risk_factor", risk)
+    component = RiskComponent("risk_factor", risk)
     base_config.update({'population': {'population_size': 100000}}, layer='override')
     simulation = initialize_simulation([TestPopulation(), component],
                                        input_config=base_config, plugin_config=base_plugins)
@@ -261,7 +260,7 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
 
     risk = "test_risk"
 
-    component = CategoricalRiskComponent("risk_factor", risk)
+    component = RiskComponent("risk_factor", risk)
     base_config.update({'population': {'population_size': 100000}}, layer='override')
     simulation = initialize_simulation([TestPopulation(), component],
                                        input_config=base_config, plugin_config=base_plugins)
@@ -345,7 +344,7 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
 
     get_distribution_mock.side_effect = lambda *args, **kwargs: Distribution(args, kwargs)
 
-    component = ContinuousRiskComponent("risk_factor", risk)
+    component = RiskComponent("risk_factor", risk)
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
     simulation = initialize_simulation([TestPopulation(), component],
@@ -417,7 +416,7 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
 
     get_distribution_mock.side_effect = lambda *args, **kwargs: Distribution(args, kwargs)
 
-    component = ContinuousRiskComponent("risk_factor", risk)
+    component = RiskComponent("risk_factor", risk)
 
     base_config.update({'population': {'population_size': 100000}}, **metadata(__file__))
     simulation = initialize_simulation([TestPopulation(), component],
