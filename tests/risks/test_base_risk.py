@@ -10,12 +10,12 @@ from vivarium.interface.interactive import setup_simulation, initialize_simulati
 from vivarium_public_health.disease import RateTransition
 from vivarium_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
 from vivarium_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
-                                                uncorrelated_propensity)
+                                                    uncorrelated_propensity)
 
 
 @pytest.fixture
 def get_distribution_mock(mocker):
-    return mocker.patch('ceam_public_health.risks.base_risk.get_distribution')
+    return mocker.patch('vivarium_public_health.risks.base_risk.get_distribution')
 
 
 def make_dummy_column(name, initial_value):
