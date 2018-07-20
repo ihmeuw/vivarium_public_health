@@ -1,14 +1,14 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import multivariate_normal, norm
 
 from vivarium.framework.randomness import random
 
-from ceam_public_health.risks import RiskEffectSet, get_distribution
+from vivarium_public_health.risks import RiskEffectSet, get_distribution
 
 
 def uncorrelated_propensity(population, risk_factor):
     return random(f"initial_propensity_{risk_factor}", population.index)
+
 
 class ContinuousRiskComponent:
     """A model for a risk factor defined by a continuous value. For example
@@ -27,7 +27,6 @@ class ContinuousRiskComponent:
         by distribution_loader and a propensity value for each simulant
         and returns the current exposure to this risk factor.
     """
-
 
     def __init__(self, risk_type, risk_name):
         self._risk_type, self._risk = risk_type, risk_name

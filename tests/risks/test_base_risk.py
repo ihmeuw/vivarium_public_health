@@ -7,9 +7,9 @@ from vivarium.framework.util import from_yearly
 from vivarium.test_util import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
-from ceam_public_health.disease import RateTransition, DiseaseState, BaseDiseaseState
-from ceam_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
-from ceam_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
+from vivarium_public_health.disease import RateTransition
+from vivarium_public_health.risks.effect import continuous_exposure_effect, categorical_exposure_effect, RiskEffect
+from vivarium_public_health.risks.base_risk import (CategoricalRiskComponent, ContinuousRiskComponent,
                                                 uncorrelated_propensity)
 
 
