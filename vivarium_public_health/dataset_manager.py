@@ -99,7 +99,8 @@ class Artifact:
         columns_to_remove = columns_to_remove.intersection(columns)
 
         data = data.drop(columns=columns_to_remove)
-
+        if data is None:
+            raise ArtifactException(f'{entity_path} is not avaiable. Please check your model.')
         return data
 
     def open(self):
