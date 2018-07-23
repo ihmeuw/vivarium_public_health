@@ -1,4 +1,5 @@
 from typing import Dict, Callable, Tuple, Union
+import re
 
 import numpy as np
 import pandas as pd
@@ -96,7 +97,7 @@ class BaseDistribution:
         """
         return data
 
-    def pdf(self, x: pd.Series, interpolation: bool = True) -> Union[np.ndarray, pd.Series]:
+    def pdf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         if not interpolation:
             params = self._parameter_data
             ranges = self._range
@@ -108,7 +109,7 @@ class BaseDistribution:
         pdf = self.distribution(**params).pdf(x)
         return self.process(pdf, "pdf_postprocess", ranges)
 
-    def ppf(self, x: pd.Series, interpolation: bool = True) -> Union[np.ndarray, pd.Series]:
+    def ppf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         if not interpolation:
             params = self._parameter_data
             ranges = self._range
@@ -376,11 +377,11 @@ class EnsembleDistribution:
     def setup(self, builder):
         builder.components.add_components(self._distributions.values())
 
-    def pdf(self, x: pd.Series, interpolation: bool = True) -> Union[np.ndarray, pd.Series]:
+    def pdf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         return np.sum([self.weights[name] * dist.pdf(x, interpolation)
                        for name, dist in self._distributions.items()], axis=0)
 
-    def ppf(self, x: pd.Series, interpolation: bool = True) -> Union[np.ndarray, pd.Series]:
+    def ppf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         return np.sum([self.weights[name] * dist.ppf(x, interpolation)
                        for name, dist in self._distributions.items()], axis=0)
 
@@ -394,19 +395,15 @@ class CategoricalDistribution:
         self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
                                                               source=builder.lookup.build_table(self.exposure_data))
     @staticmethod
-    def _get_sorted_categories(data):
-        import re
-        new_keys = lambda key: [int(elem) if elem.isdigit() else elem.lower() for elem in re.split('([0-9]+)', key)]
-        return sorted(data, key=new_keys)
+    def _get_natural_sort_key(cat):
+        return [int(elem) if elem.isdigit() else elem.lower() for elem in re.split('([0-9]+)', cat)]
 
     def ppf(self, x):
         exposure = self.exposure(x.index)
         # Get a list of sorted category names (e.g. ['cat1', 'cat2', ..., 'cat9', 'cat10', ...])
-        categories = self._get_sorted_categories([column for column in exposure if 'cat' in column])
+        categories = sorted([column for column in exposure if 'cat' in column], key= self._get_natural_sort_key)
         sorted_exposures = exposure[categories]
-        try:
-            assert np.allclose(1, np.sum(sorted_exposures, axis=1))
-        except AssertionError:
+        if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
             raise MissingDataError('All exposure data returned as 0.')
         exposure_sum = sorted_exposures.cumsum(axis='columns')
         category_index = (exposure_sum.T < x).T.sum('columns')
@@ -416,7 +413,7 @@ class CategoricalDistribution:
 def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistribution, EnsembleDistribution, CategoricalDistribution]:
 
     distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
-    if distribution == "dichotomous" or distribution == "polytomous":
+    if distribution in ["dichotomous", "polytomous"]:
         exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
         exposure_data = pd.pivot_table(exposure_data,
                                        index=['year', 'age', 'sex'],

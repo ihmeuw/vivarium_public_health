@@ -9,7 +9,7 @@ def uncorrelated_propensity(population, risk_factor):
     return random(f"initial_propensity_{risk_factor}", population.index)
 
 
-class RiskComponent:
+class Risk:
     """A model for a risk factor defined by either a continuous or a categorical value. For example,
     (1) high systolic blood pressure as a risk where the SBP is not dichotomized
     into hypotension and normal but is treated as the actual SBP measurement.
@@ -34,10 +34,10 @@ class RiskComponent:
         builder.components.add_components([self._effects, self.exposure_distribution])
         self.randomness = builder.randomness.get_stream(self._risk)
         self.population_view = builder.population.get_view(
-            [self._risk + '_exposure', self._risk + '_propensity', 'age', 'sex'])
+            [f'{self._risk}_exposure', f'{self._risk}_propensity', 'age', 'sex'])
         builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[self._risk + '_exposure',
-                                                                  self._risk + '_propensity'],
+                                                 creates_columns=[f'{self._risk}_exposure',
+                                                                  f'{self._risk}_propensity'],
                                                  requires_columns=['age', 'sex'])
 
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
@@ -45,12 +45,12 @@ class RiskComponent:
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
         propensities = pd.Series(self.propensity_function(population, self._risk),
-                                 name=self._risk + '_propensity',
+                                 name=f'{self._risk}_propensity',
                                  index=pop_data.index)
         self.population_view.update(propensities)
         exposure = self._get_current_exposure(propensities)
         self.population_view.update(pd.Series(exposure,
-                                              name=self._risk + '_exposure',
+                                              name=f'{self._risk}_exposure',
                                               index=pop_data.index))
 
     def _get_current_exposure(self, propensity):
@@ -58,8 +58,8 @@ class RiskComponent:
 
     def update_exposure(self, event):
         population = self.population_view.get(event.index)
-        new_exposure = self._get_current_exposure(population[self._risk + '_propensity'])
-        self.population_view.update(pd.Series(new_exposure, name=self._risk + '_exposure', index=event.index))
+        new_exposure = self._get_current_exposure(population[f'{self._risk}_propensity'])
+        self.population_view.update(pd.Series(new_exposure, name=f'{self._risk}_exposure', index=event.index))
 
     def __repr__(self):
         return f"RiskComponent(_risk_type= {self._risk_type}, _risk= {self._risk})"
