@@ -2,7 +2,7 @@ import os
 
 import pandas as pd
 
-from vivarium.framework.util import collapse_nested_dict
+from vivarium.framework.utilities import collapse_nested_dict
 
 import logging
 

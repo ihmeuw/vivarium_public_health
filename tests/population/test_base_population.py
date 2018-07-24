@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium.test_util import get_randomness, metadata
+from vivarium.testing_utilities import get_randomness, metadata
 from vivarium.interface.interactive import setup_simulation
 
 import vivarium_public_health.population.base_population as bp

@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from vivarium.framework.util import from_yearly
-from vivarium.test_util import build_table, TestPopulation, metadata
+from vivarium.framework.utilities import from_yearly
+from vivarium.testing_utilities import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
 from vivarium_public_health.disease import RateTransition

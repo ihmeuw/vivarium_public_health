@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 from vivarium.framework.components import ComponentConfigError
-from vivarium.test_util import metadata
+from vivarium.testing_utilities import metadata
 
 from vivarium_public_health.treatment import Treatment
 

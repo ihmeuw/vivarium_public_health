@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from vivarium.test_util import build_table, TestPopulation
+from vivarium.testing_utilities import build_table, TestPopulation
 from vivarium.interface.interactive import setup_simulation
 
 from vivarium_public_health.population import Mortality

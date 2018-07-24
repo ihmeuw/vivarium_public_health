@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 
 from vivarium.framework.state_machine import State
-from vivarium.framework.util import from_yearly
-from vivarium.test_util import build_table, TestPopulation
+from vivarium.framework.utilities import from_yearly
+from vivarium.testing_utilities import build_table, TestPopulation
 from vivarium.interface.interactive import setup_simulation
 
 from vivarium_public_health.disease import RateTransition, DiseaseModel

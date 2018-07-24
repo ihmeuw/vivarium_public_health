@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium.framework.util import to_yearly
-from vivarium.test_util import build_table, TestPopulation
+from vivarium.framework.utilities import to_yearly
+from vivarium.testing_utilities import build_table, TestPopulation
 from vivarium.interface import initialize_simulation, setup_simulation
 
 from vivarium_public_health.treatment import HealthcareAccess

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from vivarium.test_util import build_table
+from vivarium.testing_utilities import build_table
 
 from vivarium_public_health.dataset_manager import Artifact, ArtifactException
 from .utils import make_uniform_pop_data

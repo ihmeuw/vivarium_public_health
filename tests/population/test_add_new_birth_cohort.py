@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from vivarium.test_util import TestPopulation, metadata, build_table
+from vivarium.testing_utilities import TestPopulation, metadata, build_table
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
 from vivarium_public_health.population import FertilityDeterministic, FertilityCrudeBirthRate, FertilityAgeSpecificRates

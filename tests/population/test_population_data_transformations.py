@@ -4,7 +4,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from vivarium.test_util import get_randomness, build_table
+from vivarium.testing_utilities import get_randomness, build_table
 
 import vivarium_public_health.population.data_transformations as dt
 

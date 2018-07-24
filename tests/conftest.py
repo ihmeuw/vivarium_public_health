@@ -1,7 +1,7 @@
 import pytest
 
 from vivarium.framework.configuration import build_simulation_configuration
-from vivarium.test_util import metadata
+from vivarium.testing_utilities import metadata
 from vivarium.config_tree import ConfigTree
 
 
