@@ -12,6 +12,9 @@ class NonConvergenceError(Exception):
         self.dist = dist
 
 
+class MissingDataError(Exception):
+    pass
+
 def _get_optimization_result(exposure: pd.DataFrame, func: Callable,
                              initial_func: Callable) -> Tuple:
     """Finds the shape parameters of distributions which generates mean/sd close to actual mean/sd.
@@ -117,7 +120,6 @@ class BaseDistribution:
         x = self.process(x, "ppf_preprocess", ranges)
         ppf = self.distribution(**params).ppf(x)
         return self.process(ppf, "ppf_postprocess", ranges)
-
 
 class Beta(BaseDistribution):
 
@@ -276,7 +278,7 @@ class MirroredGumbel(BaseDistribution):
         if process_type == 'pdf_preprocess':
             return ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return np.tile(1, data.shape) - data
+            return 1- data
         elif process_type == 'ppf_postprocess':
             return ranges['x_max'] - data
         else:
@@ -298,7 +300,7 @@ class MirroredGamma(BaseDistribution):
         if process_type == 'pdf_preprocess':
             return ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return np.tile(1, data.shape) - data
+            return 1 - data
         elif process_type == 'ppf_postprocess':
             return ranges['x_max'] - data
         else:
@@ -375,18 +377,48 @@ class EnsembleDistribution:
     def setup(self, builder):
         builder.components.add_components(self._distributions.values())
 
-    def pdf(self, x: pd.Series, interpolation: bool = True) -> Union[np.ndarray, pd.Series]:
+    def pdf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         return np.sum([self.weights[name] * dist.pdf(x, interpolation)
                        for name, dist in self._distributions.items()], axis=0)
 
-    def ppf(self, x: pd.Series, interpolation: bool = True) -> Union[np.ndarray, pd.Series]:
+    def ppf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         return np.sum([self.weights[name] * dist.ppf(x, interpolation)
                        for name, dist in self._distributions.items()], axis=0)
 
 
-def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistribution, EnsembleDistribution]:
+class CategoricalDistribution:
+    def __init__(self, exposure_data: pd.DataFrame, risk: str):
+        self.exposure_data = exposure_data
+        self._risk = risk
+        self.categories = sorted([column for column in self.exposure_data if 'cat' in column],
+                                 key=lambda column: int(column[3:]))
+
+    def setup(self, builder):
+        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
+                                                              source=builder.lookup.build_table(self.exposure_data))
+
+    def ppf(self, x):
+        exposure = self.exposure(x.index)
+        sorted_exposures = exposure[self.categories]
+        if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
+            raise MissingDataError('All exposure data returned as 0.')
+        exposure_sum = sorted_exposures.cumsum(axis='columns')
+        category_index = (exposure_sum.T < x).T.sum('columns')
+        return pd.Series(np.array(self.categories)[category_index], name=self._risk + '_exposure', index=x.index)
+
+
+def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistribution, EnsembleDistribution, CategoricalDistribution]:
 
     distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
+    if distribution in ["dichotomous", "polytomous"]:
+        exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
+        exposure_data = pd.pivot_table(exposure_data,
+                                       index=['year', 'age', 'sex'],
+                                       columns='parameter', values='value'
+                                       ).dropna().reset_index()
+
+        return CategoricalDistribution(exposure_data, risk)
+
     exposure_mean = builder.data.load(f"{risk_type}.{risk}.exposure")
     exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
     exposure_mean = exposure_mean.rename(index=str, columns={"value": "mean"})

@@ -1,62 +1,49 @@
-import numpy as np
 import pandas as pd
-
-from vivarium.framework.randomness import random
 
 from vivarium_public_health.risks import RiskEffectSet, get_distribution
 
 
-def uncorrelated_propensity(population, risk_factor):
-    return random(f"initial_propensity_{risk_factor}", population.index)
+class Risk:
+    """A model for a risk factor defined by either a continuous or a categorical value. For example,
+    (1) high systolic blood pressure as a risk where the SBP is not dichotomized
+        into hypotension and normal but is treated as the actual SBP measurement.
+    (2) smoking as two categories: current smoker and non-smoker.
 
 
-class ContinuousRiskComponent:
-    """A model for a risk factor defined by a continuous value. For example
-    high systolic blood pressure as a risk where the SBP is not dichotomized
-    into hypotension and normal but is treated as the actual SBP measurement.
-
-    Parameters
-    ----------
-    risk : str
-        The name of a risk factor
-    distribution_loader : callable
-        A function which take a builder and returns a standard CEAM
-        lookup table which returns distribution data.
-    exposure_function : callable
-        A function which takes the output of the lookup table created
-        by distribution_loader and a propensity value for each simulant
-        and returns the current exposure to this risk factor.
-    """
+       Parameters
+       ----------
+       risk_type : str
+           'risk_factor'
+       risk_name : str
+           The name of a risk
+       """
 
     def __init__(self, risk_type, risk_name):
         self._risk_type, self._risk = risk_type, risk_name
         self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
 
     def setup(self, builder):
-
-        self.propensity_function = uncorrelated_propensity
-
         self.exposure_distribution = get_distribution(self._risk, self._risk_type, builder)
         builder.components.add_components([self._effects, self.exposure_distribution])
-        self.randomness = builder.randomness.get_stream(self._risk)
+        self.randomness = builder.randomness.get_stream(f'initial_{self._risk}_propensity')
         self.population_view = builder.population.get_view(
-            [self._risk+'_exposure', self._risk+'_propensity', 'age', 'sex'])
+            [f'{self._risk}_exposure', f'{self._risk}_propensity', 'age', 'sex'])
         builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[self._risk + '_exposure',
-                                                                  self._risk + '_propensity'],
+                                                 creates_columns=[f'{self._risk}_exposure',
+                                                                  f'{self._risk}_propensity'],
                                                  requires_columns=['age', 'sex'])
 
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
 
     def load_population_columns(self, pop_data):
-        population = self.population_view.get(pop_data.index, omit_missing_columns=True)
-        propensities = pd.Series(self.propensity_function(population, self._risk),
-                                 name=self._risk+'_propensity',
+        population = self.population_view.get(pop_data.index, omit_missing_columns=True )
+        propensities = pd.Series(self.randomness.get_draw(population.index),
+                                 name=f'{self._risk}_propensity',
                                  index=pop_data.index)
         self.population_view.update(propensities)
         exposure = self._get_current_exposure(propensities)
         self.population_view.update(pd.Series(exposure,
-                                              name=self._risk+'_exposure',
+                                              name=f'{self._risk}_exposure',
                                               index=pop_data.index))
 
     def _get_current_exposure(self, propensity):
@@ -64,79 +51,8 @@ class ContinuousRiskComponent:
 
     def update_exposure(self, event):
         population = self.population_view.get(event.index)
-        new_exposure = self._get_current_exposure(population[self._risk+'_propensity'])
-        self.population_view.update(pd.Series(new_exposure, name=self._risk+'_exposure', index=event.index))
+        new_exposure = self._get_current_exposure(population[f'{self._risk}_propensity'])
+        self.population_view.update(pd.Series(new_exposure, name=f'{self._risk}_exposure', index=event.index))
 
     def __repr__(self):
-        return f"ContinuousRiskComponent(_risk_type= {self._risk_type}, _risk= {self._risk})"
-
-
-class CategoricalRiskComponent:
-    """A model for a risk factor defined by a dichotomous value. For example
-    smoking as two categories: current smoker and non-smoker.
-    Parameters
-    ----------
-    risk : str
-        The name of a risk
-    """
-
-    def __init__(self, risk_type, risk_name):
-        self._risk_type, self._risk = risk_type, risk_name
-        self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
-
-    def setup(self, builder):
-        builder.components.add_components([self._effects])
-
-        self.propensity_function = uncorrelated_propensity
-
-        self.population_view = builder.population.get_view(
-            [self._risk+'_propensity', self._risk+'_exposure', 'age', 'sex'])
-        builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[self._risk + '_exposure',
-                                                                  self._risk + '_propensity'],
-                                                 requires_columns=['age', 'sex'])
-
-        exposure_data = builder.data.load(f"{self._risk_type}.{self._risk}.exposure")
-        exposure_data = pd.pivot_table(exposure_data,
-                                       index=['year', 'age', 'sex'],
-                                       columns='parameter', values='value'
-                                      ).dropna().reset_index()
-
-        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
-                                                              source=builder.lookup.build_table(exposure_data))
-
-        self.randomness = builder.randomness.get_stream(self._risk)
-        builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
-
-    def load_population_columns(self, pop_data):
-        population = self.population_view.get(pop_data.index, omit_missing_columns=True)
-        propensity = self.propensity_function(population, self._risk)
-        exposure = self._get_current_exposure(propensity)
-        self.population_view.update(pd.DataFrame({
-            self._risk+'_propensity': propensity,
-            self._risk+'_exposure': exposure,
-        }))
-
-    def _get_current_exposure(self, propensity):
-        exposure = self.exposure(propensity.index)
-
-        # Get a list of sorted category names (e.g. ['cat1', 'cat2', ..., 'cat9', 'cat10', ...])
-        categories = sorted([column for column in exposure if 'cat' in column])
-        sorted_exposures = exposure[categories]
-        exposure_sum = sorted_exposures.cumsum(axis='columns')
-        # Sometimes all data is 0 for the category exposures.  Set the "no exposure" category to catch this case.
-        exposure_sum[categories[-1]] = 1  # TODO: Something better than this.
-
-        category_index = (exposure_sum.T < propensity).T.sum('columns')
-
-        return pd.Series(np.array(categories)[category_index], name=self._risk+'_exposure', index=propensity.index)
-
-    def update_exposure(self, event):
-        pop = self.population_view.get(event.index)
-
-        propensity = pop[self._risk+'_propensity']
-        categories = self._get_current_exposure(propensity)
-        self.population_view.update(categories)
-
-    def __repr__(self):
-        return f"CategoricalRiskComponent(_risk_type= {self._risk_type}, _risk= {self._risk})"
+        return f"Risk(_risk_type= {self._risk_type}, _risk= {self._risk})"
