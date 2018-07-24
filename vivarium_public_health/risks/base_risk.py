@@ -6,8 +6,9 @@ from vivarium_public_health.risks import RiskEffectSet, get_distribution
 class Risk:
     """A model for a risk factor defined by either a continuous or a categorical value. For example,
     (1) high systolic blood pressure as a risk where the SBP is not dichotomized
-    into hypotension and normal but is treated as the actual SBP measurement.
+        into hypotension and normal but is treated as the actual SBP measurement.
     (2) smoking as two categories: current smoker and non-smoker.
+
 
        Parameters
        ----------

@@ -6,12 +6,23 @@ from scipy.stats import norm
 from vivarium.test_util import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import initialize_simulation
 
-from vivarium_public_health.risks.base_risk import Risk
 
+from vivarium_public_health.risks.base_risk import Risk
 
 @pytest.fixture
 def get_distribution_mock(mocker):
     return mocker.patch('vivarium_public_health.risks.base_risk.get_distribution')
+
+
+def make_dummy_column(name, initial_value):
+    class _make_dummy_column:
+        def setup(self, builder):
+            self.population_view = builder.population.get_view([name])
+            builder.population.initializes_simulants(self.make_column, creates_columns=[name])
+
+        def make_column(self, pop_data):
+            self.population_view.update(pd.Series(initial_value, index=pop_data.index, name=name))
+    return _make_dummy_column()
 
 
 def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
