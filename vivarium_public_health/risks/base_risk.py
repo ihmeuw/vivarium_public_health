@@ -1,12 +1,6 @@
 import pandas as pd
 
-from vivarium.framework.randomness import random
-
 from vivarium_public_health.risks import RiskEffectSet, get_distribution
-
-
-def uncorrelated_propensity(population, risk_factor):
-    return random(f"initial_propensity_{risk_factor}", population.index)
 
 
 class Risk:
@@ -28,11 +22,9 @@ class Risk:
         self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
 
     def setup(self, builder):
-        self.propensity_function = uncorrelated_propensity
-
         self.exposure_distribution = get_distribution(self._risk, self._risk_type, builder)
         builder.components.add_components([self._effects, self.exposure_distribution])
-        self.randomness = builder.randomness.get_stream(self._risk)
+        self.randomness = builder.randomness.get_stream(f'initial_{self._risk}_propensity')
         self.population_view = builder.population.get_view(
             [f'{self._risk}_exposure', f'{self._risk}_propensity', 'age', 'sex'])
         builder.population.initializes_simulants(self.load_population_columns,
@@ -43,8 +35,8 @@ class Risk:
         builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
 
     def load_population_columns(self, pop_data):
-        population = self.population_view.get(pop_data.index, omit_missing_columns=True)
-        propensities = pd.Series(self.propensity_function(population, self._risk),
+        population = self.population_view.get(pop_data.index, omit_missing_columns=True )
+        propensities = pd.Series(self.randomness.get_draw(population.index),
                                  name=f'{self._risk}_propensity',
                                  index=pop_data.index)
         self.population_view.update(propensities)
@@ -62,4 +54,4 @@ class Risk:
         self.population_view.update(pd.Series(new_exposure, name=f'{self._risk}_exposure', index=event.index))
 
     def __repr__(self):
-        return f"RiskComponent(_risk_type= {self._risk_type}, _risk= {self._risk})"
+        return f"Risk(_risk_type= {self._risk_type}, _risk= {self._risk})"

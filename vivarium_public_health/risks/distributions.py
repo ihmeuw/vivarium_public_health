@@ -1,5 +1,4 @@
 from typing import Dict, Callable, Tuple, Union
-import re
 
 import numpy as np
 import pandas as pd
@@ -11,6 +10,7 @@ class NonConvergenceError(Exception):
     def __init__(self, message: str, dist: str) -> None:
         super().__init__(message)
         self.dist = dist
+
 
 class MissingDataError(Exception):
     pass
@@ -390,24 +390,21 @@ class CategoricalDistribution:
     def __init__(self, exposure_data: pd.DataFrame, risk: str):
         self.exposure_data = exposure_data
         self._risk = risk
+        self.categories = sorted([column for column in self.exposure_data if 'cat' in column],
+                                 key=lambda column: int(column[3:]))
 
     def setup(self, builder):
         self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
                                                               source=builder.lookup.build_table(self.exposure_data))
-    @staticmethod
-    def _get_natural_sort_key(cat):
-        return [int(elem) if elem.isdigit() else elem.lower() for elem in re.split('([0-9]+)', cat)]
 
     def ppf(self, x):
         exposure = self.exposure(x.index)
-        # Get a list of sorted category names (e.g. ['cat1', 'cat2', ..., 'cat9', 'cat10', ...])
-        categories = sorted([column for column in exposure if 'cat' in column], key= self._get_natural_sort_key)
-        sorted_exposures = exposure[categories]
+        sorted_exposures = exposure[self.categories]
         if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
             raise MissingDataError('All exposure data returned as 0.')
         exposure_sum = sorted_exposures.cumsum(axis='columns')
         category_index = (exposure_sum.T < x).T.sum('columns')
-        return pd.Series(np.array(categories)[category_index], name=self._risk + '_exposure', index=x.index)
+        return pd.Series(np.array(self.categories)[category_index], name=self._risk + '_exposure', index=x.index)
 
 
 def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistribution, EnsembleDistribution, CategoricalDistribution]:
