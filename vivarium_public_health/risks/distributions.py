@@ -394,7 +394,7 @@ class CategoricalDistribution:
                                  key=lambda column: int(column[3:]))
 
     def setup(self, builder):
-        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
+        self.exposure = builder.value.register_value_producer(f'{self._risk}.proportion_exposed',
                                                               source=builder.lookup.build_table(self.exposure_data))
 
     def ppf(self, x):

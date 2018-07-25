@@ -25,7 +25,7 @@ def make_dummy_column(name, initial_value):
     return _make_dummy_column()
 
 
-def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
+def test_propensity_effect(get_distribution_mock, base_config, base_plugins, mocker):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
 
@@ -82,23 +82,25 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
     simulation.data.set("risk_factor.test_risk.distribution", "ensemble")
     simulation.setup()
 
-    pop_view = simulation.population.get_view([risk+'_propensity'])
-
-    pop_view.update(pd.Series(0.00001, index=simulation.population.population.index))
+    propensity_pipeline = mocker.Mock()
+    simulation.values.register_value_producer('test_risk_propensity', propensity_pipeline )
+    propensity_pipeline.side_effect = lambda index: pd.Series(0.00001, index)
     simulation.step()
 
     expected_value = norm(loc=130, scale=15).ppf(0.00001)
-    assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
 
-    pop_view.update(pd.Series(0.5, index=simulation.population.population.index))
+    assert np.allclose(component.exposure(simulation.population.population.index), expected_value)
+
+    propensity_pipeline.side_effect = lambda index: pd.Series(0.5, index)
+
     simulation.step()
 
     expected_value = 130
-    assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
+    assert np.allclose(component.exposure(simulation.population.population.index), expected_value)
 
-    pop_view.update(pd.Series(0.99999, index=simulation.population.population.index))
+    propensity_pipeline.side_effect = lambda index: pd.Series(0.99999, index)
     simulation.step()
 
     expected_value = norm(loc=130, scale=15).ppf(0.99999)
-    assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
+    assert np.allclose(component.exposure(simulation.population.population.index), expected_value)
 
