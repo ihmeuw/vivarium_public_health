@@ -7,5 +7,3 @@ tables
 
 pytest
 pytest-mock
-
-sphinx_autodoc_typehints
