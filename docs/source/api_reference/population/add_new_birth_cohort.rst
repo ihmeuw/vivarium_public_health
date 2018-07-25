@@ -1,4 +1,4 @@
-Add New Birth Cohort
-====================
+Add New Birth Cohorts
+=====================
 
-.. automodule:: vivarium_public_health.population.add_new_birth_cohort
+.. automodule:: vivarium_public_health.population.add_new_birth_cohorts
