@@ -1,6 +1,0 @@
-tables
-scipy
-numpy
-pandas
-pytest
--e git+git://github.com/ihmeuw/vivarium.git#egg=vivarium

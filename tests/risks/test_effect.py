@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from vivarium.framework.util import from_yearly
-from vivarium.test_util import build_table, TestPopulation, metadata
+from vivarium.framework.utilities import from_yearly
+from vivarium.testing_utilities import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
 from vivarium_public_health.disease import RateTransition
@@ -26,7 +26,6 @@ def make_dummy_column(name, initial_value):
         def make_column(self, pop_data):
             self.population_view.update(pd.Series(initial_value, index=pop_data.index, name=name))
     return _make_dummy_column()
-
 
 
 def test_RiskEffect(base_config, base_plugins):
@@ -300,7 +299,6 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
         exposed_index = simulation.population.population.index[
             simulation.population.population[risk+'_exposure'] == cat]
         assert np.allclose(incidence_rate(exposed_index), from_yearly(expected, time_step), rtol=0.01)
-
 
 
 def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugins):
