@@ -1,7 +1,8 @@
 Vivarium Public Health
 ======================
 
-This library contains several components for for modelling diseases and their interventions.
+.. image:: https://badge.fury.io/py/vivarium-public-health.svg
+    :target: https://badge.fury.io/py/vivarium-public-health
 
 .. image:: https://travis-ci.org/ihmeuw/vivarium_public_health.svg?branch=develop
     :target: https://travis-ci.org/ihmeuw/vivarium_public_health
@@ -10,6 +11,8 @@ This library contains several components for for modelling diseases and their in
 .. image:: https://readthedocs.org/projects/vivarium/badge/?version=latest
     :target: https://vivarium_public_health.readthedocs.io/en/latest/?badge=latest
     :alt: Latest Docs
+
+This library contains several components for for modelling diseases and their interventions.
 
 You can install ``vivarium_public_health`` from PyPI with pip:
 
