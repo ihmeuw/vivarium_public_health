@@ -25,9 +25,6 @@ class Mortality:
         self.random = builder.randomness.get_stream('mortality_handler')
         self.clock = builder.time.clock()
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
-        builder.value.register_value_modifier('epidemiological_point_measures', modifier=self.deaths)
-        builder.value.register_value_modifier('epidemiological_span_measures',
-                                              modifier=self.calculate_mortality_measure)
 
         self.population_view = builder.population.get_view(
             ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location', 'years_of_life_lost'])
@@ -79,96 +76,3 @@ class Mortality:
             metrics['{}'.format(condition)] = count
 
         return metrics
-
-    def calculate_mortality_measure(self, index, age_groups, sexes, all_locations, duration, cube):
-        pop = self.population_view.get(index)
-        duration_s = duration.total_seconds()
-        years_per_second = 1/pd.Timedelta(days=365).total_seconds()
-
-        if all_locations:
-            locations = set(pop.location) | {-1}
-        else:
-            locations = {-1}
-
-        now = self.clock()
-        window_start = now - duration
-
-        causes_of_death = set(pop.cause_of_death.unique()) - {'not_dead'}
-        for low, high in age_groups:
-            for sex in sexes:
-                for location in locations:
-                    sub_pop = pop.query('age >= @low and age < @high and sex == @sex '
-                                        'and (alive == "alive" or exit_time > @window_start)')
-                    if location >= 0:
-                        sub_pop = sub_pop.query('location == @location')
-
-                    if not sub_pop.empty:
-
-                        birthday = sub_pop.exit_time.fillna(now) - pd.to_timedelta(sub_pop.age, 'Y')
-
-                        time_before_birth = (birthday - window_start).dt.total_seconds().copy()
-                        time_before_birth[time_before_birth < 0] = 0
-                        total_time_before_birth = time_before_birth.sum()
-
-                        time_after_death = (now - sub_pop.exit_time.dropna()).dt.total_seconds().copy()
-                        time_after_death[time_after_death < 0] = 0
-                        time_after_death[time_after_death > duration_s] = duration_s
-                        total_time_after_death = time_after_death.sum()
-
-                        time_in_sim = (duration_s * len(sub_pop)
-                                                          - (total_time_before_birth + total_time_after_death))
-                        time_in_sim *= years_per_second
-                        for cause in causes_of_death:
-                            deaths_in_period = (sub_pop.cause_of_death == cause).sum()
-
-                            cube = cube.append(
-                                pd.DataFrame(
-                                    {'measure': 'mortality', 'age_low': low, 'age_high': high, 'sex': sex,
-                                     'location': location if location >= 0 else self._root_location, 'cause': cause,
-                                     'value': deaths_in_period/time_in_sim, 'sample_size': len(sub_pop)},
-                                    index=[0]
-                                ).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])
-                            )
-
-                        deaths_in_period = len(sub_pop.query('alive == "dead"'))
-
-                        cube = cube.append(
-                            pd.DataFrame(
-                                {'measure': 'mortality', 'age_low': low, 'age_high': high, 'sex': sex,
-                                 'location': location if location >= 0 else self._root_location, 'cause': 'all',
-                                 'value': deaths_in_period/time_in_sim, 'sample_size': len(sub_pop)},
-                                index=[0]
-                            ).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])
-                        )
-        return cube
-
-    def deaths(self, index, age_groups, sexes, all_locations, duration, cube):
-        pop = self.population_view.get(index, query="alive == 'dead'")
-
-        if all_locations:
-            locations = set(pop.location) | {-1}
-        else:
-            locations = {-1}
-
-        now = self.clock()
-        window_start = now - duration
-
-        for low, high in age_groups:
-            for sex in sexes:
-                for location in locations:
-                    sub_pop = pop.query('age > @low and age <= @high and sex == @sex')
-                    sample_size = len(sub_pop)
-                    sub_pop = sub_pop.query('exit_time > @window_start and exit_time <= @now')
-                    if location >= 0:
-                        sub_pop = sub_pop.query('location == @location')
-
-                    cube = cube.append(
-                        pd.DataFrame(
-                            {'measure': 'deaths', 'age_low': low, 'age_high': high, 'sex': sex,
-                             'location': location if location >= 0 else self._root_location, 'cause': 'all',
-                             'value': len(sub_pop), 'sample_size': sample_size},
-                            index=[0]
-                        ).set_index(['measure', 'age_low', 'age_high', 'sex', 'location', 'cause'])
-                    )
-
-        return cube
