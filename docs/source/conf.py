@@ -18,7 +18,7 @@ import os
 import sys
 
 import vivarium_public_health
-assert False, os.path.isfile(vivarium_public_health.__file__)
+assert False, os.listdir('.')
 
 
 about = {}
