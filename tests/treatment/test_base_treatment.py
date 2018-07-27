@@ -75,7 +75,7 @@ def test_population():
                          f'{tx.name}_previous_dose': 'first',
                          f'{tx.name}_previous_dose_event_time': pd.Timestamp('01-01-2005')}, index=range(6000, 7000))
 
-    pop = pd.concat([grp1, grp2, grp3, grp4, grp5, grp6, grp7])
+    pop = pd.concat([grp1, grp2, grp3, grp4, grp5, grp6, grp7], sort=True)
     return pop
 
 
