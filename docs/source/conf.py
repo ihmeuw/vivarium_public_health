@@ -18,19 +18,24 @@ import os
 import sys
 
 import vivarium_public_health
+src_dir = os.path.dirname(vivarium_public_health.__file__)
+
+about = {}
+with open(os.path.join(src_dir, "__about__.py")) as f:
+    exec(f.read(), about)
 
 sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'vivarium_public_health'
-copyright = '2018, Alec Deason, James Collins, Michelle Park, Abraham Flaxman, Everett Mumford, Erika Eldrenkamp'
-author = 'Alec Deason, James Collins, Michelle Park, Abraham Flaxman, Everett Mumford, Erika Eldrenkamp'
+project = about['__title__']
+copyright = f'2018, {about["__author__"]}'
+author = about["__author__"]
 
-# The short X.Y version
-version = ''
-# The full version, including alpha/beta/rc tags
-release = vivarium_public_health.__version__
+# The short X.Y version.
+version = about["__version__"]
+# The full version, including alpha/beta/rc tags.
+release = about["__version__"]
 
 
 # -- General configuration ------------------------------------------------
@@ -119,13 +124,13 @@ html_sidebars = {
 }
 
 
-# -- Options for HTMLHelp output ---------------------------------------------
+# -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'vivarium_public_healthdoc'
+htmlhelp_basename = f'{about["__title__"]}doc'
 
 
-# -- Options for LaTeX output ------------------------------------------------
+# -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
@@ -149,32 +154,31 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'vivarium_public_health.tex', 'vivarium\\_public\\_health Documentation',
-     'Alec Deason, James Collins, Michelle Park, Abraham Flaxman, Everett Mumford, Erika Eldrenkamp', 'manual'),
+    (master_doc, f'{about["__title__"]}.tex', f'{about["__title__"]} Documentation',
+     about["__author__"], 'manual'),
 ]
 
 
-# -- Options for manual page output ------------------------------------------
+# -- Options for manual page output ---------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'vivarium_public_health', 'vivarium_public_health Documentation',
+    (master_doc, f'{about["__title__"]}', f'{about["__title__"]} Documentation',
      [author], 1)
 ]
 
 
-# -- Options for Texinfo output ----------------------------------------------
+# -- Options for Texinfo output -------------------------------------------
 
 # Grouping the document tree into Texinfo files. List of tuples
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'vivarium_public_health', 'vivarium_public_health Documentation',
-     author, 'vivarium_public_health', 'One line description of project.',
+    (master_doc, f'{about["__title__"]}', f'{about["__title__"]} Documentation',
+     author, f'{about["__title__"]}', about["__summary__"],
      'Miscellaneous'),
 ]
-
 
 # Example configuration for intersphinx: refer to the Python standard library.
 # intersphinx_mapping = {'https://docs.python.org/': None}
