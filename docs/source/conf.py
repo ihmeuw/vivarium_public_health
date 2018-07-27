@@ -18,9 +18,9 @@ import os
 import sys
 
 import vivarium_public_health
-src_dir = os.path.dirname(vivarium_public_health.__file__)
+assert False, os.path.isfile(vivarium_public_health.__file__)
 
-assert False, os.getcwd()
+
 about = {}
 with open(os.path.join(src_dir, "__about__.py")) as f:
     exec(f.read(), about)
