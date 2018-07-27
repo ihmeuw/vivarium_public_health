@@ -22,6 +22,7 @@ src_dir = os.path.dirname(vivarium_public_health.__file__)
 
 about = {}
 with open(os.path.join(src_dir, "__about__.py")) as f:
+    print(src_dir)
     exec(f.read(), about)
 
 sys.path.insert(0, os.path.abspath('.'))
