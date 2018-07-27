@@ -21,10 +21,12 @@ import vivarium_public_health
 src_dir = os.path.dirname(vivarium_public_health.__file__)
 
 about = {}
+assert False, src_dir
+
 with open(os.path.join(src_dir, "__about__.py")) as f:
     exec(f.read(), about)
 
-sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
