@@ -8,7 +8,7 @@ Vivarium Public Health
     :target: https://travis-ci.org/ihmeuw/vivarium_public_health
     :alt: Latest Version
 
-.. image:: https://readthedocs.org/projects/vivarium/badge/?version=latest
+.. image:: https://readthedocs.org/projects/vivarium_public_health/badge/?version=latest
     :target: https://vivarium_public_health.readthedocs.io/en/latest/?badge=latest
     :alt: Latest Docs
 
