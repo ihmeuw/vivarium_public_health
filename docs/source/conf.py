@@ -15,13 +15,11 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
 import os
-from pathlib import Path
 import sys
 
 import vivarium_public_health
-p = Path(os.path.dirname(os.path.dirname(vivarium_public_health.__file__)))
-assert False, (p.name, p.is_dir(), p.is_file(), p)
 
+src_dir = os.path.dirname(vivarium_public_health.__file__)
 
 about = {}
 with open(os.path.join(src_dir, "__about__.py")) as f:
