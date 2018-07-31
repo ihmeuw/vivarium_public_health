@@ -1,9 +1,0 @@
-vivarium
-
-numpy
-pandas
-scipy
-tables
-
-pytest
-pytest-mock
