@@ -143,10 +143,21 @@ def _setup_filter(columns, column_filters, location, draw):
             raise ValueError(f"Filtering by non-existant column '{column}'. Avaliable columns {columns}")
     columns_to_remove = set(column_filters.keys())
     if "location" not in column_filters and "location" in columns:
-        # TODO I think this is a sign I should be handling queries differently
-        terms.append(f"location == '{location}' | location == 'Global'")
+        terms.append(get_location_term(location))
         columns_to_remove.add("location")
     return terms, columns_to_remove
+
+
+def get_location_term(location: str):
+    template = "location == {quote_mark}{loc}{quote_mark} | location == {quote_mark}Global{quote_mark}"
+    if "'" in location and '"' in location:  # Because who knows
+        raise NotImplementedError(f"Unhandled location string {location}")
+    elif "'" in location:  # Only because location names are weird
+        quote_mark = '"'
+    else:
+        quote_mark = "'"
+
+    return template.format(quote_mark=quote_mark, loc=location)
 
 
 class ArtifactManagerInterface():
