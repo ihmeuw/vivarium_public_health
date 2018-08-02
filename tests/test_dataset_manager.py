@@ -1,3 +1,5 @@
+import pytest
+
 from vivarium_public_health.dataset_manager import get_location_term, Artifact
 
 
