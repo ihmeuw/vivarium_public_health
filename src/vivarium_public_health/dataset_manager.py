@@ -71,6 +71,8 @@ class Artifact:
             _log.debug("    from cache")
         else:
             self._cache[cache_key] = self._uncached_load(entity_path, keep_age_group_edges, column_filters)
+            if self._cache[cache_key] is None:
+                raise ArtifactException(f"data for {entity_path} is not available. Check your model specification")
 
         return self._cache[cache_key]
 
