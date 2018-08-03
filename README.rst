@@ -12,6 +12,9 @@ Vivarium Public Health
     :target: https://vivarium_public_health.readthedocs.io/en/latest/?badge=latest
     :alt: Latest Docs
 
+.. image:: https://zenodo.org/badge/141212278.svg
+   :target: https://zenodo.org/badge/latestdoi/141212278
+
 This library contains several components for for modelling diseases and their interventions.
 
 You can install ``vivarium_public_health`` from PyPI with pip:
