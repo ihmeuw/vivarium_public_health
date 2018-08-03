@@ -28,6 +28,24 @@ def parse_artifact_path_config(config):
     return artifact_path
 
 
+class EntityKey(str):
+    def __init__(self, entity_key):
+        self._key = entity_key
+        self.type, self.name, self.measure = self._get_entity_elements()
+        self.group_prefix = self._get_prefix()
+
+    def _get_entity_elements(self):
+        _key_list = self.split('.')
+        name = _key_list[1] if len(_key_list) == 3 else ''
+        return _key_list[0], name, _key_list[-1]
+
+    def _get_prefix(self):
+        return '/'+self.type if self.name else '/'
+
+    def to_path(self):
+        return '/' + self.replace('.', '/')
+
+
 class ArtifactManager:
     configuration_defaults = {
             'artifact': {
@@ -47,8 +65,9 @@ class ArtifactManager:
         self.artifact.open()
         builder.event.register_listener('post_setup', lambda _: self.artifact.close())
 
-    def load(self, entity_path, keep_age_group_edges=False, **column_filters):
-        return self.artifact.load(entity_path, keep_age_group_edges, **column_filters)
+    def load(self, entity_k, keep_age_group_edges=False, **column_filters):
+        entity_key = EntityKey(entity_k)
+        return self.artifact.load(entity_key, keep_age_group_edges, **column_filters)
 
 
 class Artifact:
@@ -76,25 +95,26 @@ class Artifact:
 
         return self._cache[cache_key]
 
-    def _uncached_load(self, entity_path, keep_age_group_edges, column_filters):
-        group = '/'+entity_path.replace('.', '/')
+    def _uncached_load(self, entity_key, keep_age_group_edges, column_filters):
 
-        if group not in self._hdf:
-            raise ArtifactException(f"{group} should be in {self.artifact_path}")
+        if entity_key.to_path not in self._hdf:
+            raise ArtifactException(f"{entity_key.to_path()} should be in {self.artifact_path}")
 
-        node = self._hdf._handle.get_node(group)
+        node = self._hdf._handle.get_node(entity_key.to_path())
+
         if "NODE_TYPE" in dir(node._v_attrs) and node.get_attr("NODE_TYPE") == "file":
             # This should be a json encoded document rather than a pandas dataframe
-            fnode = filenode.open_node(self._hdf._handle.get_node(group), 'r')
+            fnode = filenode.open_node(self._hdf._handle.get_node(entity_key.to_path()), 'r')
             document = json.load(fnode)
             fnode.close()
             return document
         else:
-            columns = list(self._hdf.get_node(group).table.colindexes.keys())
+            columns = list(self._hdf.get_node(entity_key.to_path).table.colindexes.keys())
 
         filter_terms, columns_to_remove = _setup_filter(columns, column_filters, self.location, self.draw)
 
-        data = pd.read_hdf(self._hdf, group, where=filter_terms if filter_terms else None)
+        data = pd.read_hdf(self._hdf, entity_key.to_path, where=filter_terms if filter_terms else None)
+
         if not keep_age_group_edges:
             # TODO: Should probably be using these age group bins rather than the midpoints but for now we use mids
             columns_to_remove |= {"age_group_start", "age_group_end"}
@@ -166,5 +186,5 @@ class ArtifactManagerInterface():
     def __init__(self, controller):
         self._controller = controller
 
-    def load(self, entity_path, keep_age_group_edges=False, **column_filters):
-        return self._controller.load(entity_path, keep_age_group_edges, **column_filters)
+    def load(self, entity_key, keep_age_group_edges=False, **column_filters):
+        return self._controller.load(entity_key, keep_age_group_edges, **column_filters)
