@@ -32,7 +32,7 @@ class EntityKey(str):
     def __init__(self, entity_key):
         self._key = entity_key
         self.type, self.name, self.measure = self._get_entity_elements()
-        self.group_prefix = self._get_prefix()
+        self.group_prefix, self.group_name = self._get_prefix()
 
     def _get_entity_elements(self):
         _key_list = self.split('.')
@@ -40,10 +40,13 @@ class EntityKey(str):
         return _key_list[0], name, _key_list[-1]
 
     def _get_prefix(self):
-        return '/'+self.type if self.name else '/'
+        return ('/'+self.type, self.name) if self.name else ('/', self.type)
 
-    def to_path(self):
-        return '/' + self.replace('.', '/')
+    def to_path(self, measure=None):
+        measure = self.measure if not measure else measure
+        if self.name:
+            return self.group_prefix + '/' + self.group_name+'/' + measure
+        return self.group_prefix + self.group_name + '/'+measure
 
 
 class ArtifactManager:
@@ -83,21 +86,21 @@ class Artifact:
 
         self._loading_start_time = None
 
-    def load(self, entity_path, keep_age_group_edges=False, **column_filters):
-        _log.debug(f"loading {entity_path}")
-        cache_key = (entity_path, tuple(sorted(column_filters.items())))
+    def load(self, entity_key, keep_age_group_edges=False, **column_filters):
+        _log.debug(f"loading {entity_key}")
+        cache_key = (entity_key, tuple(sorted(column_filters.items())))
         if cache_key in self._cache:
             _log.debug("    from cache")
         else:
-            self._cache[cache_key] = self._uncached_load(entity_path, keep_age_group_edges, column_filters)
+            self._cache[cache_key] = self._uncached_load(entity_key, keep_age_group_edges, column_filters)
             if self._cache[cache_key] is None:
-                raise ArtifactException(f"data for {entity_path} is not available. Check your model specification")
+                raise ArtifactException(f"data for {entity_key} is not available. Check your model specification")
 
         return self._cache[cache_key]
 
     def _uncached_load(self, entity_key, keep_age_group_edges, column_filters):
 
-        if entity_key.to_path not in self._hdf:
+        if entity_key.to_path() not in self._hdf:
             raise ArtifactException(f"{entity_key.to_path()} should be in {self.artifact_path}")
 
         node = self._hdf._handle.get_node(entity_key.to_path())
@@ -109,11 +112,11 @@ class Artifact:
             fnode.close()
             return document
         else:
-            columns = list(self._hdf.get_node(entity_key.to_path).table.colindexes.keys())
+            columns = list(self._hdf.get_node(entity_key.to_path()).table.colindexes.keys())
 
         filter_terms, columns_to_remove = _setup_filter(columns, column_filters, self.location, self.draw)
 
-        data = pd.read_hdf(self._hdf, entity_key.to_path, where=filter_terms if filter_terms else None)
+        data = pd.read_hdf(self._hdf, entity_key.to_path(), where=filter_terms if filter_terms else None)
 
         if not keep_age_group_edges:
             # TODO: Should probably be using these age group bins rather than the midpoints but for now we use mids
@@ -128,6 +131,7 @@ class Artifact:
         if self._hdf is None:
             self._loading_start_time = datetime.now()
             self._hdf = pd.HDFStore(self.artifact_path, mode='r')
+
         else:
             raise ArtifactException("Opening already open artifact")
 
