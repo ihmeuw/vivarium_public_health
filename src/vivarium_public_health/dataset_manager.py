@@ -29,24 +29,33 @@ def parse_artifact_path_config(config):
 
 
 class EntityKey(str):
-    def __init__(self, entity_key):
-        self._key = entity_key
-        self.type, self.name, self.measure = self._get_entity_elements()
-        self.group_prefix, self.group_name = self._get_prefix()
+    @property
+    def type(self):
+        return self.split('.')[0]
 
-    def _get_entity_elements(self):
-        _key_list = self.split('.')
-        name = _key_list[1] if len(_key_list) == 3 else ''
-        return _key_list[0], name, _key_list[-1]
+    @property
+    def name(self):
+        return self.split('.')[1] if len(self.split('.')) == 3 else ''
 
-    def _get_prefix(self):
-        return ('/'+self.type, self.name) if self.name else ('/', self.type)
+    @property
+    def measure(self):
+        return self.split('.')[-1]
+
+    @property
+    def group_prefix(self):
+        return '/'+self.type if self.name else '/'
+
+    @property
+    def group_name(self):
+        return self.name if self.name else self.type
+
+    @property
+    def group(self):
+        return self.group_prefix + '/' + self.group_name if self.name else self.group_prefix + self.group_name
 
     def to_path(self, measure=None):
         measure = self.measure if not measure else measure
-        if self.name:
-            return self.group_prefix + '/' + self.group_name+'/' + measure
-        return self.group_prefix + self.group_name + '/'+measure
+        return self.group + '/' + measure
 
 
 class ArtifactManager:
