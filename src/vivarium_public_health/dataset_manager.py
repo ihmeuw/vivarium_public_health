@@ -122,9 +122,9 @@ class Artifact:
 
     def summary(self):
         result = io.StringIO()
-        for child in self._hdf._handle.root._v_children:
+        for child in self._hdf.root._v_children:
             result.write(f"{child}\n")
-            for sub_child in getattr(self._hdf._handle.root, child)._v_children:
+            for sub_child in self._hdf.get_node(child)._v_children:
                 result.write(f"\t{sub_child}\n")
         return result.getvalue()
 
