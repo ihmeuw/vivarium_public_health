@@ -82,10 +82,10 @@ class Artifact:
         if group not in self._hdf:
             raise ArtifactException(f"{group} should be in {self.artifact_path}")
 
-        node = self._hdf._handle.get_node(group)
+        node = self._hdf.get_node(group)
         if "NODE_TYPE" in dir(node._v_attrs) and node.get_attr("NODE_TYPE") == "file":
             # This should be a json encoded document rather than a pandas dataframe
-            fnode = filenode.open_node(self._hdf._handle.get_node(group), 'r')
+            fnode = filenode.open_node(self._hdf.get_node(group), 'r')
             document = json.load(fnode)
             fnode.close()
             return document
