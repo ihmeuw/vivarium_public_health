@@ -2,8 +2,10 @@ from datetime import datetime
 import io
 import os.path
 import json
+from typing import Sequence
 
 import pandas as pd
+import tables
 from tables.nodes import filenode
 
 from vivarium.framework.time import get_time_stamp
@@ -103,6 +105,36 @@ class Artifact:
         data = data.drop(columns=columns_to_remove)
 
         return data
+
+    def write(self, key_components: Sequence[str], data):
+        if data is None:
+            pass
+        inner_path = os.path.join(*key_components)
+
+        if isinstance(data, (pd.DataFrame, pd.Series)):
+            if data.empty:
+                raise ValueError("Cannot persist empty dataset")
+            data_columns = {"year", "location", "draw", "cause", "risk"}.intersection(data.columns)
+            with pd.HDFStore(self.artifact_path, complevel=9, format="table") as store:
+                store.put(inner_path, data, format="table", data_columns=data_columns)
+        else:
+            prefix = os.path.join(*key_components[:-2])
+            store = tables.open_file(self.artifact_path, "a")
+            if inner_path in store:
+                store.remove_node(inner_path)
+            try:
+                store.create_group(prefix, key_components[-2], createparents=True)
+            except tables.exceptions.NodeError as e:
+                if "already has a child node" in str(e):
+                    # The parent group already exists, which is fine
+                    pass
+                else:
+                    raise
+
+            fnode = filenode.new_node(store, where=os.path.join(*key_components[:-1]), name=key_components[-1])
+            fnode.write(bytes(json.dumps(data), "utf-8"))
+            fnode.close()
+            store.close()
 
     def open(self):
         if self._hdf is None:
