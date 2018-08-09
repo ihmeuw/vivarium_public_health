@@ -5,6 +5,7 @@ import json
 
 import pandas as pd
 from tables.nodes import filenode
+from tables.earray import EArray
 
 from vivarium.framework.time import get_time_stamp
 
@@ -114,7 +115,7 @@ class Artifact:
 
         node = self._hdf.get_node(entity_key.to_path())
 
-        if isinstance(node, tables.earray.EArray):
+        if isinstance(node, EArray):
             # This should be a json encoded document rather than a pandas dataframe
             fnode = filenode.open_node(node, 'r')
             document = json.load(fnode)
