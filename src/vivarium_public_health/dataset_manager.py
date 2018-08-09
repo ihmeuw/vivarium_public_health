@@ -114,7 +114,7 @@ class Artifact:
 
         node = self._hdf.get_node(entity_key.to_path())
 
-        if "NODE_TYPE" in dir(node._v_attrs) and node.get_attr("NODE_TYPE") == "file":
+        if isinstance(node, tables.earray.EArray):
             # This should be a json encoded document rather than a pandas dataframe
             fnode = filenode.open_node(node, 'r')
             document = json.load(fnode)
