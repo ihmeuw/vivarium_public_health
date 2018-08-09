@@ -77,7 +77,7 @@ class Artifact:
         return self._cache[cache_key]
 
     def _uncached_load(self, entity_path, keep_age_group_edges, column_filters):
-        group = '/'+entity_path.replace('.', '/')
+        group = entity_path.replace('.', '/')
 
         if group not in self._hdf:
             raise ArtifactException(f"{group} should be in {self.artifact_path}")
