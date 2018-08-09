@@ -112,16 +112,16 @@ class Artifact:
         if entity_key.to_path() not in self._hdf:
             raise ArtifactException(f"{entity_key.to_path()} should be in {self.artifact_path}")
 
-        node = self._hdf._handle.get_node(entity_key.to_path())
+        node = self._hdf.get_node(entity_key.to_path())
 
-        if "NODE_TYPE" in dir(node._v_attrs) and node.get_attr("NODE_TYPE") == "file":
+        if isinstance(node, tables.earray.EArray):
             # This should be a json encoded document rather than a pandas dataframe
-            fnode = filenode.open_node(self._hdf._handle.get_node(entity_key.to_path()), 'r')
+            fnode = filenode.open_node(node, 'r')
             document = json.load(fnode)
             fnode.close()
             return document
         else:
-            columns = list(self._hdf.get_node(entity_key.to_path()).table.colindexes.keys())
+            columns = list(node.table.colindexes.keys())
 
         filter_terms, columns_to_remove = _setup_filter(columns, column_filters, self.location, self.draw)
 
@@ -155,9 +155,9 @@ class Artifact:
 
     def summary(self):
         result = io.StringIO()
-        for child in self._hdf._handle.root._v_children:
+        for child in self._hdf.root:
             result.write(f"{child}\n")
-            for sub_child in getattr(self._hdf._handle.root, child)._v_children:
+            for sub_child in child:
                 result.write(f"\t{sub_child}\n")
         return result.getvalue()
 
