@@ -8,8 +8,6 @@ import pandas as pd
 import tables
 from tables.nodes import filenode
 
-from vivarium.framework.time import get_time_stamp
-
 import logging
 _log = logging.getLogger(__name__)
 
@@ -68,15 +66,9 @@ class ArtifactManager:
     }
 
     def setup(self, builder):
-        end_time = get_time_stamp(builder.configuration.time.end)
-        start_time = get_time_stamp(builder.configuration.time.start)
-        draw = builder.configuration.input_data.input_draw_number
-        location = builder.configuration.input_data.location
-
         artifact_path = parse_artifact_path_config(builder.configuration)
-        self.artifact = Artifact(artifact_path, start_time, end_time, draw, location)
-
-        self.artifact.open()
+        column_filter, row_filter = get_default_filter(builder.configuration)
+        self.artifact = Artifact(artifact_path, column_filter, row_filter)
         builder.event.register_listener('post_setup', lambda _: self.artifact.close())
 
     def load(self, entity_k, keep_age_group_edges=False, **column_filters):
@@ -84,17 +76,13 @@ class ArtifactManager:
         return self.artifact.load(entity_key, keep_age_group_edges, **column_filters)
 
 
-class Artifact:
-    def __init__(self, path, start_time, end_time, draw, location):
-        self.artifact_path = path
-        self.start_time = start_time
-        self.end_time = end_time
+class Artifact(pd.HDFStore):
+
+    def __init__(self, path, default_column_filter, default_row_filter, **kwargs):
+        super().__init__(path, **kwargs)
         self.draw = draw
         self.location = location
-
         self._cache = {}
-        self._hdf = None
-
         self._loading_start_time = None
 
     def load(self, entity_key, keep_age_group_edges=False, **column_filters):
@@ -192,6 +180,11 @@ class Artifact:
             for sub_child in getattr(self._hdf._handle.root, child)._v_children:
                 result.write(f"\t{sub_child}\n")
         return result.getvalue()
+
+
+def get_default_filter(configuration):
+    draw = configuration.input_data.input_draw_number
+    location = configuration.input_data.location
 
 
 def _setup_filter(columns, column_filters, location, draw):
