@@ -1,24 +1,37 @@
 from datetime import datetime
 import io
-import os.path
 import json
+import logging
+import os.path
 from typing import Sequence
 
 import pandas as pd
 import tables
 from tables.nodes import filenode
 
-import logging
+from vivarium.config_tree import ConfigTree
+
 _log = logging.getLogger(__name__)
 
 
 class ArtifactException(Exception):
+    """Exception raise for inconsistent use of the data artifact."""
     pass
 
 
-def parse_artifact_path_config(config):
-    # NOTE: The artifact_path may be an absolute path or it may be relative to the location of the
-    # config file.
+def parse_artifact_path_config(config: ConfigTree) -> str:
+    """Gets the path to the data artifact from the simulation configuration.
+
+    Parameters
+    ----------
+    config :
+        The configuration block of the simulation model specification containing the artifact path.
+
+    Returns
+    -------
+        The path to the data artifact.
+    """
+    # NOTE: The artifact_path may be an absolute path or it may be relative to the location of the config file.
     path_config = config.artifact.metadata('path')[-1]
     if path_config['source'] is not None:
         artifact_path = os.path.join(os.path.dirname(path_config['source']), path_config['value'])
@@ -29,31 +42,38 @@ def parse_artifact_path_config(config):
 
 
 class EntityKey(str):
+    """A convenience wrapper around the keys used by the simulation to look up entity data in the artifact."""
     @property
-    def type(self):
+    def type(self) -> str:
+        """The type of the entity represented by the key."""
         return self.split('.')[0]
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """The name of the entity represented by the key"""
         return self.split('.')[1] if len(self.split('.')) == 3 else ''
 
     @property
-    def measure(self):
+    def measure(self) -> str:
+        """The measure associated with the data represented by the key."""
         return self.split('.')[-1]
 
     @property
-    def group_prefix(self):
+    def group_prefix(self) -> str:
+        """The hdf group prefix for the key."""
         return '/'+self.type if self.name else '/'
 
     @property
-    def group_name(self):
+    def group_name(self) -> str:
+        """The hdf group name for the key."""
         return self.name if self.name else self.type
 
     @property
-    def group(self):
+    def group(self) -> str:
+        """The full path to the group for this key."""
         return self.group_prefix + '/' + self.group_name if self.name else self.group_prefix + self.group_name
 
-    def to_path(self, measure=None):
+    def to_path(self, measure: str=None) -> str:
         measure = self.measure if not measure else measure
         return self.group + '/' + measure
 
@@ -67,8 +87,9 @@ class ArtifactManager:
 
     def setup(self, builder):
         artifact_path = parse_artifact_path_config(builder.configuration)
-        column_filter, row_filter = get_default_filter(builder.configuration)
-        self.artifact = Artifact(artifact_path, column_filter, row_filter)
+        default_filter = {'draw': builder.configuration.input_data.input_draw_number,
+                          'location': builder.configuration.input_data.location}
+        self.artifact = Artifact(artifact_path, default_filter)
         builder.event.register_listener('post_setup', lambda _: self.artifact.close())
 
     def load(self, entity_k, keep_age_group_edges=False, **column_filters):
@@ -76,17 +97,19 @@ class ArtifactManager:
         return self.artifact.load(entity_key, keep_age_group_edges, **column_filters)
 
 
-class Artifact(pd.HDFStore):
+class Artifact:
 
-    def __init__(self, path, default_column_filter, default_row_filter, **kwargs):
-        super().__init__(path, **kwargs)
-        self.draw = draw
-        self.location = location
+    def __init__(self, path, default_filter, **kwargs):
+        self.path = path
+        self.default_filter = default_filter
         self._cache = {}
-        self._loading_start_time = None
+
+        self.open()
+        self._loading_start_time = datetime.now()
 
     def load(self, entity_key, keep_age_group_edges=False, **column_filters):
         _log.debug(f"loading {entity_key}")
+
         cache_key = (entity_key, tuple(sorted(column_filters.items())))
         if cache_key in self._cache:
             _log.debug("    from cache")
@@ -100,7 +123,7 @@ class Artifact(pd.HDFStore):
     def _uncached_load(self, entity_key, keep_age_group_edges, column_filters):
 
         if entity_key.to_path() not in self._hdf:
-            raise ArtifactException(f"{entity_key.to_path()} should be in {self.artifact_path}")
+            raise ArtifactException(f"{entity_key.to_path()} should be in {self.path}")
 
         node = self._hdf.get_node(entity_key.to_path())
 
@@ -113,15 +136,10 @@ class Artifact(pd.HDFStore):
         else:
             columns = list(node.table.colindexes.keys())
 
-        filter_terms, columns_to_remove = _setup_filter(columns, column_filters, self.location, self.draw)
+        filter_terms, columns_to_remove = _setup_filter(columns, self.default_filter,
+                                                        column_filters, keep_age_group_edges)
 
         data = pd.read_hdf(self._hdf, entity_key.to_path(), where=filter_terms if filter_terms else None)
-
-        if not keep_age_group_edges:
-            # TODO: Should probably be using these age group bins rather than the midpoints but for now we use mids
-            columns_to_remove |= {"age_group_start", "age_group_end"}
-        columns_to_remove = columns_to_remove.intersection(columns)
-
         data = data.drop(columns=columns_to_remove)
 
         return data
@@ -135,11 +153,11 @@ class Artifact(pd.HDFStore):
             if data.empty:
                 raise ValueError("Cannot persist empty dataset")
             data_columns = {"year", "location", "draw", "cause", "risk"}.intersection(data.columns)
-            with pd.HDFStore(self.artifact_path, complevel=9, format="table") as store:
+            with pd.HDFStore(self.path, complevel=9, format="table") as store:
                 store.put(inner_path, data, format="table", data_columns=data_columns)
         else:
             prefix = os.path.join(*key_components[:-2])
-            store = tables.open_file(self.artifact_path, "a")
+            store = tables.open_file(self.path, "a")
             if inner_path in store:
                 store.remove_node(inner_path)
             try:
@@ -159,7 +177,7 @@ class Artifact(pd.HDFStore):
     def open(self):
         if self._hdf is None:
             self._loading_start_time = datetime.now()
-            self._hdf = pd.HDFStore(self.artifact_path, mode='r')
+            self._hdf = pd.HDFStore(self.path, mode='r')
 
         else:
             raise ArtifactException("Opening already open artifact")
@@ -182,17 +200,10 @@ class Artifact(pd.HDFStore):
         return result.getvalue()
 
 
-def get_default_filter(configuration):
-    draw = configuration.input_data.input_draw_number
-    location = configuration.input_data.location
-
-
-def _setup_filter(columns, column_filters, location, draw):
+def _setup_filter(columns, default_filters, column_filters, keep_age_group_edges):
     terms = []
-    default_filters = {
-        'draw': draw,
-    }
     column_filters = {**default_filters, **column_filters}
+
     for column, condition in column_filters.items():
         if column in columns:
             if not isinstance(condition, (list, tuple)):
@@ -200,11 +211,17 @@ def _setup_filter(columns, column_filters, location, draw):
             for c in condition:
                 terms.append(f"{column} = {c}")
         elif column not in default_filters:
-            raise ValueError(f"Filtering by non-existant column '{column}'. Avaliable columns {columns}")
+            raise ValueError(f"Filtering by non-existent column '{column}'. Available columns {columns}")
+
     columns_to_remove = set(column_filters.keys())
-    if "location" not in column_filters and "location" in columns:
-        terms.append(get_location_term(location))
-        columns_to_remove.add("location")
+    terms.append(get_location_term(column_filters['location']))
+    columns_to_remove.add("location")
+
+    if not keep_age_group_edges:
+        # TODO: Should probably be using these age group bins rather than the midpoints but for now we use mids
+        columns_to_remove |= {"age_group_start", "age_group_end"}
+    columns_to_remove = columns_to_remove.intersection(columns)
+
     return terms, columns_to_remove
 
 
@@ -212,7 +229,7 @@ def get_location_term(location: str):
     template = "location == {quote_mark}{loc}{quote_mark} | location == {quote_mark}Global{quote_mark}"
     if "'" in location and '"' in location:  # Because who knows
         raise NotImplementedError(f"Unhandled location string {location}")
-    elif "'" in location:  # Only because location names are weird
+    elif "'" in location:
         quote_mark = '"'
     else:
         quote_mark = "'"
