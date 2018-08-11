@@ -2,7 +2,7 @@ import pandas as pd
 
 from vivarium.testing_utilities import build_table
 
-from vivarium_public_health.dataset_manager import Artifact, ArtifactException
+from vivarium_public_health.dataset_manager import Artifact, ArtifactException, ArtifactManager, EntityKey
 from .utils import make_uniform_pop_data
 
 MOCKERS = {
@@ -55,33 +55,30 @@ MOCKERS = {
         },
 }
 
+
 class MockArtifact(Artifact):
     def __init__(self):
-        super(MockArtifact, self).__init__("", None, None, 0, "")
+        super().__init__("")
         self._is_open = False
-        self._overrides = {
-                "risk_factor.correlations.correlations": pd.DataFrame([], columns=["risk_factor", "sex", "age"]),
-        }
+        self.mocks = MOCKERS
 
-    def load(self, entity_path, keep_age_group_edges=False, **column_filters):
-        if entity_path in self._overrides:
-            value = self._overrides[entity_path]
+    def load(self, entity_key):
+        if entity_key in self.mocks:
+            value = self.mocks[entity_key]
         else:
-            entity_type, *tail = entity_path.split('.')
-            assert entity_type in MOCKERS
-            assert tail[-1] in MOCKERS[entity_type]
+            assert entity_key.type in self.mocks
+            assert entity_key.measure in self.mocks[entity_key.type]
+            value = self.mocks[entity_key.type][entity_key.measure]
 
-            value = MOCKERS[entity_type][tail[-1]]
-            if not callable(value) and not isinstance(value, (pd.DataFrame, pd.Series)):
+            if callable(value):
+                value = value(entity_key)
+            elif not isinstance(value, (pd.DataFrame, pd.Series)):
                 value = build_table(value, 1990, 2018)
-
-        if callable(value):
-            value = value(entity_path, keep_age_group_edges, **column_filters)
 
         return value
 
-    def set(self, entity_path, value):
-        self._overrides[entity_path] = value
+    def set(self, key, value):
+        self.mocks[key] = value
 
     def open(self):
         if not self._is_open:
@@ -97,3 +94,24 @@ class MockArtifact(Artifact):
 
     def summary(self):
         return "Mock Artifact"
+
+
+class MockArtifactManager(ArtifactManager):
+
+    def __init__(self):
+        self.artifact = self._load_artifact(None, None)
+
+    def setup(self, builder):
+        self.artifact.open()
+        builder.event.register_listener('post_setup', lambda _: self.artifact.close())
+
+    def load(self, entity_key, *args, **kwargs):
+        return self.artifact.load(EntityKey(entity_key))
+
+    def set(self, key, value):
+        self.artifact.set(key, value)
+
+    def _load_artifact(self, artifact_path, base_filter_terms):
+        return MockArtifact()
+
+
