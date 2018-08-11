@@ -1,3 +1,4 @@
+"""This module contains the data artifact"""
 from datetime import datetime
 import io
 import logging
@@ -23,6 +24,7 @@ class Artifact:
         self.path = path
         self.filter_terms = filter_terms
         self._cache = {}
+        self._hdf = None
 
     def load(self, entity_key):
         _log.debug(f"loading {entity_key}")
@@ -52,7 +54,6 @@ class Artifact:
         return data
 
     def write(self, entity_key, data, measure=None):
-        entity_path = entity_key.to_path(measure)
         if data is None:
             pass
         elif isinstance(data, (pd.DataFrame, pd.Series)):
@@ -91,7 +92,6 @@ class Artifact:
         if self._hdf is None:
             self._loading_start_time = datetime.now()
             self._hdf = pd.HDFStore(self.path, mode='r')
-
         else:
             raise ArtifactException("Opening already open artifact")
 
@@ -146,5 +146,16 @@ class EntityKey(str):
         return self.group_prefix + '/' + self.group_name if self.name else self.group_prefix + self.group_name
 
     def to_path(self, measure: str=None) -> str:
+        """Converts this entity key to its hdfstore path.
+
+        Parameters
+        ----------
+        measure :
+            An override for this key's measure, the leaf of the hdfstore path.
+
+        Returns
+        -------
+            The full hdfstore path for this key.
+        """
         measure = self.measure if not measure else measure
         return self.group + '/' + measure
