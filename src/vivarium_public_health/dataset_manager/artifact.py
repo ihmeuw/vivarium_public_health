@@ -25,6 +25,7 @@ class Artifact:
 
         self._hdf = None
         self._cache = {}
+        self._keys = self._build_keys()
 
     def load(self, entity_key):
         _log.debug(f"loading {entity_key}")
@@ -88,19 +89,27 @@ class Artifact:
         fnode.close()
         store.close()
 
-    def open(self, mode):
+    def clear_cache(self):
+        self._cache = {}
+
+    def _open(self, mode):
         if self._hdf is None:
-            self._hdf = pd.HDFStore(self.path, mode='r')
+            self._hdf = tables.open_file(self.path, mode=mode)
         else:
             raise ArtifactException("Opening already open artifact")
 
-    def close(self):
+    def _close(self):
         if self._hdf is not None:
             self._hdf.close()
             self._hdf = None
-            self._cache = {}
         else:
             raise ArtifactException("Closing already closed artifact")
+
+    def _build_keys(self):
+        self._open('r')
+        root = self._hdf.root
+
+
 
     def summary(self):
         result = io.StringIO()
@@ -109,6 +118,23 @@ class Artifact:
             for sub_child in child:
                 result.write(f"\t{sub_child}\n")
         return result.getvalue()
+
+
+def get_keys(root: tables.node.Node, prefix):
+    keys = []
+    for child in root:
+        child_name = get_node_name(child)
+        if isinstance(child, tables.earray.EArray):  # This is the last node
+            keys.append(f'{prefix}.{child_name}')
+        elif isinstance(child, tables.table.Table):  # Parent was the last node
+            keys.append(prefix)
+        else:
+            keys.extend(get_keys(child, f'{prefix}.{child_name}'))
+    return keys
+
+
+
+
 
 
 def get_node_name(node: tables.node.Node):
@@ -156,7 +182,6 @@ class EntityKey(str):
             return EntityKey(f'{self.type}.{self.name}.{measure}')
         else:
             return EntityKey(f'{self.type}.{measure}')
-
 
     def to_path(self, measure: str=None) -> str:
         """Converts this entity key to its hdfstore path.
