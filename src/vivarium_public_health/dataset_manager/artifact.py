@@ -1,5 +1,4 @@
 """This module contains the data artifact"""
-from datetime import datetime
 import io
 import logging
 import json
@@ -23,8 +22,9 @@ class Artifact:
     def __init__(self, path, filter_terms=None):
         self.path = path
         self.filter_terms = filter_terms
-        self._cache = {}
+
         self._hdf = None
+        self._cache = {}
 
     def load(self, entity_key):
         _log.debug(f"loading {entity_key}")
@@ -53,24 +53,24 @@ class Artifact:
             data = pd.read_hdf(self._hdf, entity_key.to_path(), where=self.filter_terms)
         return data
 
-    def write(self, entity_key, data, measure=None):
+    def write(self, entity_key, data):
         if data is None:
             pass
         elif isinstance(data, (pd.DataFrame, pd.Series)):
-            self._write_data_frame(entity_key, measure, data)
+            self._write_data_frame(entity_key, data)
         else:
-            self._write_json_blob(entity_key, measure, data)
+            self._write_json_blob(entity_key, data)
 
-    def _write_data_frame(self, entity_key, measure, data):
-        entity_path = entity_key.to_path(measure)
+    def _write_data_frame(self, entity_key, data):
+        entity_path = entity_key.to_path()
         if data.empty:
             raise ValueError("Cannot persist empty dataset")
         data_columns = Artifact.default_columns.intersection(data.columns)
         with pd.HDFStore(self.path, complevel=9, format="table") as store:
             store.put(entity_path, data, format="table", data_columns=data_columns)
 
-    def _write_json_blob(self, entity_key, measure, data):
-        entity_path = entity_key.to_path(measure)
+    def _write_json_blob(self, entity_key, data):
+        entity_path = entity_key.to_path()
         store = tables.open_file(self.path, "a")
         if entity_path in store:
             store.remove_node(entity_path)
@@ -83,14 +83,13 @@ class Artifact:
             else:
                 raise
 
-        fnode = filenode.new_node(store, where=entity_key.group, name=measure)
+        fnode = filenode.new_node(store, where=entity_key.group, name=entity_key.measure)
         fnode.write(bytes(json.dumps(data), "utf-8"))
         fnode.close()
         store.close()
 
-    def open(self):
+    def open(self, mode):
         if self._hdf is None:
-            self._loading_start_time = datetime.now()
             self._hdf = pd.HDFStore(self.path, mode='r')
         else:
             raise ArtifactException("Opening already open artifact")
@@ -100,7 +99,6 @@ class Artifact:
             self._hdf.close()
             self._hdf = None
             self._cache = {}
-            _log.debug(f"Data loading took at most {datetime.now() - self._loading_start_time} seconds")
         else:
             raise ArtifactException("Closing already closed artifact")
 
@@ -113,8 +111,16 @@ class Artifact:
         return result.getvalue()
 
 
+def get_node_name(node: tables.node.Node):
+    node_string = str(node)
+    node_path = node_string.split()[0]
+    node_name = node_path.split('/')[-1]
+    return node_name
+
+
 class EntityKey(str):
     """A convenience wrapper around the keys used by the simulation to look up entity data in the artifact."""
+
     @property
     def type(self) -> str:
         """The type of the entity represented by the key."""
@@ -144,6 +150,13 @@ class EntityKey(str):
     def group(self) -> str:
         """The full path to the group for this key."""
         return self.group_prefix + '/' + self.group_name if self.name else self.group_prefix + self.group_name
+
+    def with_measure(self, measure: str) -> 'EntityKey':
+        if self.name:
+            return EntityKey(f'{self.type}.{self.name}.{measure}')
+        else:
+            return EntityKey(f'{self.type}.{measure}')
+
 
     def to_path(self, measure: str=None) -> str:
         """Converts this entity key to its hdfstore path.
