@@ -17,6 +17,8 @@ class ArtifactException(Exception):
 
 
 class Artifact:
+    """A convenience wrapper around tables and pd.HDFStore."""
+
     default_columns = {"year", "location", "draw", "cause", "risk"}
 
     def __init__(self, path, filter_terms=None):
@@ -39,10 +41,10 @@ class Artifact:
         return self._cache[entity_key]
 
     def _uncached_load(self, entity_key):
-        if entity_key.to_path() not in self._hdf:
-            raise ArtifactException(f"{entity_key.to_path()} should be in {self.path}")
+        if entity_key.path not in self._hdf:
+            raise ArtifactException(f"{entity_key.path} should be in {self.path}")
 
-        node = self._hdf.get_node(entity_key.to_path())
+        node = self._hdf.get_node(entity_key.path)
 
         if isinstance(node, tables.earray.EArray):
             # This should be a json encoded document rather than a pandas dataframe
@@ -50,7 +52,7 @@ class Artifact:
             data = json.load(fnode)
             fnode.close()
         else:
-            data = pd.read_hdf(self._hdf, entity_key.to_path(), where=self.filter_terms)
+            data = pd.read_hdf(self._hdf, entity_key.path, where=self.filter_terms)
         return data
 
     def write(self, entity_key, data):
@@ -62,7 +64,7 @@ class Artifact:
             self._write_json_blob(entity_key, data)
 
     def _write_data_frame(self, entity_key, data):
-        entity_path = entity_key.to_path()
+        entity_path = entity_key.path
         if data.empty:
             raise ValueError("Cannot persist empty dataset")
         data_columns = Artifact.default_columns.intersection(data.columns)
@@ -70,7 +72,7 @@ class Artifact:
             store.put(entity_path, data, format="table", data_columns=data_columns)
 
     def _write_json_blob(self, entity_key, data):
-        entity_path = entity_key.to_path()
+        entity_path = entity_key.path
         store = tables.open_file(self.path, "a")
         if entity_path in store:
             store.remove_node(entity_path)
@@ -111,13 +113,6 @@ class Artifact:
         return result.getvalue()
 
 
-def get_node_name(node: tables.node.Node):
-    node_string = str(node)
-    node_path = node_string.split()[0]
-    node_name = node_path.split('/')[-1]
-    return node_name
-
-
 class EntityKey(str):
     """A convenience wrapper around the keys used by the simulation to look up entity data in the artifact."""
 
@@ -151,24 +146,19 @@ class EntityKey(str):
         """The full path to the group for this key."""
         return self.group_prefix + '/' + self.group_name if self.name else self.group_prefix + self.group_name
 
-    def with_measure(self, measure: str) -> 'EntityKey':
-        if self.name:
-            return EntityKey(f'{self.type}.{self.name}.{measure}')
-        else:
-            return EntityKey(f'{self.type}.{measure}')
-
-
-    def to_path(self, measure: str=None) -> str:
+    @property
+    def path(self) -> str:
         """Converts this entity key to its hdfstore path.
-
-        Parameters
-        ----------
-        measure :
-            An override for this key's measure, the leaf of the hdfstore path.
 
         Returns
         -------
             The full hdfstore path for this key.
         """
-        measure = self.measure if not measure else measure
-        return self.group + '/' + measure
+        return self.group + '/' + self.measure
+
+    def with_measure(self, measure: str) -> 'EntityKey':
+        """Gets a new entity key with the same type and name but a different measure."""
+        if self.name:
+            return EntityKey(f'{self.type}.{self.name}.{measure}')
+        else:
+            return EntityKey(f'{self.type}.{measure}')
