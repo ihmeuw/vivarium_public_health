@@ -1,7 +1,9 @@
 """This module contains the data artifact"""
+from collections import defaultdict
 import io
 import logging
 import json
+from typing import List, Dict
 
 import pandas as pd
 import tables
@@ -26,6 +28,10 @@ class Artifact:
         self._hdf = None
         self._cache = {}
         self._keys = self._build_keys()
+
+    @property
+    def keys(self):
+        return self._keys
 
     def load(self, entity_key):
         _log.debug(f"loading {entity_key}")
@@ -107,9 +113,9 @@ class Artifact:
 
     def _build_keys(self):
         self._open('r')
-        root = self._hdf.root
-
-
+        keys = get_keys(self._hdf.root)
+        self._close()
+        return keys
 
     def summary(self):
         result = io.StringIO()
@@ -119,8 +125,25 @@ class Artifact:
                 result.write(f"\t{sub_child}\n")
         return result.getvalue()
 
+    def __contains__(self, item: str):
+        return EntityKey(item) in self.keys
 
-def get_keys(root: tables.node.Node, prefix):
+    def __repr__(self):
+        return f"Artifact(keys={self.keys})"
+
+    def __str__(self):
+        key_tree = to_tree(self.keys)
+        out = "Artifact containing the following keys:\n"
+        for root, children in key_tree.items():
+            out += f'{root}\n'
+            for child, grandchildren in children.items():
+                out += f'\t{child}\n'
+                for grandchild in grandchildren:
+                    out += f'\t\t{grandchild}\n'
+        return out
+
+
+def get_keys(root: tables.node.Node, prefix: str=''):
     keys = []
     for child in root:
         child_name = get_node_name(child)
@@ -129,19 +152,11 @@ def get_keys(root: tables.node.Node, prefix):
         elif isinstance(child, tables.table.Table):  # Parent was the last node
             keys.append(prefix)
         else:
-            keys.extend(get_keys(child, f'{prefix}.{child_name}'))
+            new_prefix = f'{prefix}.{child_name}' if prefix else child_name
+            keys.extend(get_keys(child, new_prefix))
+    # Clean up some weird meta groups that get written with dataframes.
+    keys = [EntityKey(k) for k in keys if '.meta.' not in k]
     return keys
-
-
-
-
-
-
-def get_node_name(node: tables.node.Node):
-    node_string = str(node)
-    node_path = node_string.split()[0]
-    node_name = node_path.split('/')[-1]
-    return node_name
 
 
 class EntityKey(str):
@@ -197,3 +212,26 @@ class EntityKey(str):
         """
         measure = self.measure if not measure else measure
         return self.group + '/' + measure
+
+    def __eq__(self, other: 'EntityKey') -> bool:
+        return isinstance(other, EntityKey) and str(self) == str(other)
+
+    def __repr__(self) -> str:
+        return f'EntityKey({str(self)})'
+
+
+def to_tree(keys: List[EntityKey]) -> Dict[str, Dict[str, List[str]]]:
+    out = defaultdict(lambda: defaultdict(list))
+    for k in keys:
+        if k.name:
+            out[k.type][k.name].append(k.measure)
+        else:
+            out[k.type][k.measure] = []
+    return out
+
+
+def get_node_name(node: tables.node.Node):
+    node_string = str(node)
+    node_path = node_string.split()[0]
+    node_name = node_path.split('/')[-1]
+    return node_name
