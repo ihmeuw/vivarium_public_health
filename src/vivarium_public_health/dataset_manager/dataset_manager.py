@@ -126,8 +126,11 @@ def _subset_rows(data: pd.DataFrame, **column_filters: _Filter) -> pd.DataFrame:
         if column in data.columns:
             if not isinstance(condition, (list, tuple)):
                 condition = [condition]
+            mask = pd.Series(False, index=data.index)
             for c in condition:
-                data = data.loc[f"{column} == {c}", :]
+                mask |= data[f"{column}"] == c
+            row_indexer = data[mask].index
+            data = data.loc[row_indexer, :]
 
     return data
 

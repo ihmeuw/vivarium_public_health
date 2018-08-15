@@ -21,7 +21,7 @@ def test_subset_rows():
     assert filtered_data.equals(data[(data.color == 'red') & (data.number == 3)])
 
     filtered_data = _subset_rows(data, color='red', number=[2, 3])
-    assert filtered_data.equals(data[(data.color == 'red') & ((data.number == 3) | (data.number == 3))])
+    assert filtered_data.equals(data[(data.color == 'red') & ((data.number == 2) | (data.number == 3))])
 
 
 def test_subset_columns():
