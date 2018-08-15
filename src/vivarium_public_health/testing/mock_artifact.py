@@ -80,30 +80,13 @@ class MockArtifact(Artifact):
     def set(self, key, value):
         self.mocks[key] = value
 
-    def open(self):
-        if not self._is_open:
-            self._is_open = True
-        else:
-            raise ArtifactException("Opening already open artifact")
 
-    def close(self):
-        if self._is_open:
-            self._is_open = False
-        else:
-            raise ArtifactException("Closing already closed artifact")
-
-    def summary(self):
-        return "Mock Artifact"
 
 
 class MockArtifactManager(ArtifactManager):
 
     def __init__(self):
         self.artifact = self._load_artifact(None, None)
-
-    def setup(self, builder):
-        self.artifact.open()
-        builder.event.register_listener('post_setup', lambda _: self.artifact.close())
 
     def load(self, entity_key, *args, **kwargs):
         return self.artifact.load(EntityKey(entity_key))

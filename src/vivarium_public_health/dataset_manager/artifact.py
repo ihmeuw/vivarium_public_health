@@ -1,14 +1,14 @@
-"""This module contains the data artifact"""
+"""This module provides tools for interacting with data artifacts.
+
+A data artifact is a hdf archive on disk intended to package up all data relevant
+to a particular simulation. This module provides a class to wrap that hdf file for
+convenient access and inspection.
+"""
 from collections import defaultdict
-import io
 import logging
-import json
-from typing import List, Dict
+from typing import List, Dict, Any
 
-import pandas as pd
-import tables
-from tables.nodes import filenode
-
+from vivarium_public_health.dataset_manager import hdf
 
 _log = logging.getLogger(__name__)
 
@@ -19,113 +19,113 @@ class ArtifactException(Exception):
 
 
 class Artifact:
-    """A convenience wrapper around tables and pd.HDFStore."""
+    """An interface for interacting with ``vivarium`` hdf artifacts."""
 
-    default_columns = {"year", "location", "draw", "cause", "risk"}
+    def __init__(self, path: str, filter_terms: List[str]=None):
+        """
+        Parameters
+        ----------
+        path :
+            The path to the hdf artifact.
+        filter_terms :
+            A set of terms suitable for usage with the ``where`` kwarg for ``pd.read_hdf``
+        """
 
-    def __init__(self, path, filter_terms=None):
         self.path = path
         self.filter_terms = filter_terms
 
-        self._hdf = None
         self._cache = {}
-        self._keys = self._build_keys()
+        self._keys = [EntityKey(k) for k in hdf.get_keys(self.path)]
 
     @property
-    def keys(self):
+    def keys(self) -> List['EntityKey']:
+        """A list of all the keys contained within the artifact."""
         return self._keys
 
-    def load(self, entity_key):
-        _log.debug(f"loading {entity_key}")
+    def load(self, entity_key: 'EntityKey') -> Any:
+        """Loads the data associated with provided EntityKey.
 
-        if entity_key in self._cache:
-            _log.debug("    from cache")
-        else:
-            self._cache[entity_key] = self._uncached_load(entity_key)
-            if self._cache[entity_key] is None:
-                raise ArtifactException(f"data for {entity_key} is not available. Check your model specification")
+        Parameters
+        ----------
+        entity_key :
+            The key associated with the expected data.
+
+        Returns
+        -------
+            The expected data. Will either be a standard Python object or a
+            ``pandas`` series or dataframe.
+
+        Raises
+        ------
+        ArtifactException :
+            If the provided key is not in the artifact.
+        """
+        if entity_key not in self.keys:
+            raise ArtifactException(f"{entity_key} should be in {self.path}.")
+
+        if entity_key not in self._cache:
+            data = hdf.load(self.path, entity_key, self.filter_terms)
+
+            assert data is not None, f"Data for {entity_key} is not available. Check your model specification."
+
+            self._cache[entity_key] = data
 
         return self._cache[entity_key]
 
-    def _uncached_load(self, entity_key):
-        if entity_key.path not in self._hdf:
-            raise ArtifactException(f"{entity_key.path} should be in {self.path}")
+    def write(self, entity_key: 'EntityKey', data: Any):
+        """Writes the provided data into the artifact and binds it to the provided key.
 
-        node = self._hdf.get_node(entity_key.path)
+        Parameters
+        ----------
+        entity_key :
+            The key associated with the provided data.
+        data :
+            The data to write. Accepted formats are ``pandas`` Series or DataFrames
+            or standard python types and containers.
 
-        if isinstance(node, tables.earray.EArray):
-            # This should be a json encoded document rather than a pandas dataframe
-            fnode = filenode.open_node(node, 'r')
-            data = json.load(fnode)
-            fnode.close()
-        else:
-            data = pd.read_hdf(self._hdf, entity_key.path, where=self.filter_terms)
-        return data
-
-    def write(self, entity_key, data):
-        if data is None:
+        Raises
+        ------
+        ArtifactException :
+            If the provided key already exists in the artifact.
+        """
+        if entity_key in self.keys:
+            raise ArtifactException(f'{entity_key} already in artifact.')
+        elif data is None:
             pass
-        elif isinstance(data, (pd.DataFrame, pd.Series)):
-            self._write_data_frame(entity_key, data)
         else:
-            self._write_json_blob(entity_key, data)
+            self._keys.append(entity_key)
+            self._cache[entity_key] = data
+            hdf.write(self.path, entity_key, data)
 
-    def _write_data_frame(self, entity_key, data):
-        entity_path = entity_key.path
-        if data.empty:
-            raise ValueError("Cannot persist empty dataset")
-        data_columns = Artifact.default_columns.intersection(data.columns)
-        with pd.HDFStore(self.path, complevel=9, format="table") as store:
-            store.put(entity_path, data, format="table", data_columns=data_columns)
+    def remove(self, entity_key: 'EntityKey'):
+        """Removes data associated with the provided key from the artifact.
 
-    def _write_json_blob(self, entity_key, data):
-        entity_path = entity_key.path
-        store = tables.open_file(self.path, "a")
-        if entity_path in store:
-            store.remove_node(entity_path)
-        try:
-            store.create_group(entity_key.group_prefix, entity_key.group_name, createparents=True)
-        except tables.exceptions.NodeError as e:
-            if "already has a child node" in str(e):
-                # The parent group already exists, which is fine
-                pass
-            else:
-                raise
+        Parameters
+        ----------
+        entity_key :
+            The key associated with the data to remove.
 
-        fnode = filenode.new_node(store, where=entity_key.group, name=entity_key.measure)
-        fnode.write(bytes(json.dumps(data), "utf-8"))
-        fnode.close()
-        store.close()
+        Raises
+        ------
+        ArtifactException :
+            If the key is not present in the artifact."""
+        if entity_key not in self.keys:
+            raise ArtifactException(f'Trying to remove non-existent key {entity_key} from artifact.')
+
+        self._keys.remove(entity_key)
+        if entity_key in self._cache:
+            self._cache.pop(entity_key)
+        hdf.remove(self.path, entity_key)
 
     def clear_cache(self):
+        """Clears the artifact's cache.
+
+        The artifact will cache data in memory to improve performance for repeat access.
+        """
         self._cache = {}
 
-    def _open(self, mode):
-        if self._hdf is None:
-            self._hdf = tables.open_file(self.path, mode=mode)
-        else:
-            raise ArtifactException("Opening already open artifact")
-
-    def _close(self):
-        if self._hdf is not None:
-            self._hdf.close()
-            self._hdf = None
-        else:
-            raise ArtifactException("Closing already closed artifact")
-
-    def _build_keys(self):
-        self._open('r')
-        keys = get_keys(self._hdf.root)
-        self._close()
-        return keys
-
-    def summary(self):
-        result = io.StringIO()
-        for child in self._hdf.root:
-            result.write(f"{child}\n")
-            for sub_child in child:
-                result.write(f"\t{sub_child}\n")
-        return result.getvalue()
+    def __iter__(self):
+        return iter(self.keys)
 
     def __contains__(self, item: str):
         return EntityKey(item) in self.keys
@@ -134,7 +134,7 @@ class Artifact:
         return f"Artifact(keys={self.keys})"
 
     def __str__(self):
-        key_tree = to_tree(self.keys)
+        key_tree = _to_tree(self.keys)
         out = "Artifact containing the following keys:\n"
         for root, children in key_tree.items():
             out += f'{root}\n'
@@ -147,6 +147,13 @@ class Artifact:
 
 class EntityKey(str):
     """A convenience wrapper around the keys used by the simulation to look up entity data in the artifact."""
+
+    def __init__(self, key):
+        elements = [e for e in key.split('.') if e]
+        if len(elements) not in [2, 3] or len(key.split('.')) != len(elements):
+            raise ValueError(f'Invalid format for EntityKey: {key}. '
+                             'Acceptable formats are "type.name.measure" and "type.measure"')
+        super().__init__()
 
     @property
     def type(self) -> str:
@@ -194,7 +201,11 @@ class EntityKey(str):
         Parameters
         ----------
         measure :
+            The measure to replace this key's measure with.
 
+        Returns
+        -------
+            A new EntityKey with the updated measure.
         """
         if self.name:
             return EntityKey(f'{self.type}.{self.name}.{measure}')
@@ -204,28 +215,14 @@ class EntityKey(str):
     def __eq__(self, other: 'EntityKey') -> bool:
         return isinstance(other, EntityKey) and str(self) == str(other)
 
+    def __hash__(self):
+        return hash(str(self))
+
     def __repr__(self) -> str:
         return f'EntityKey({str(self)})'
 
 
-def get_keys(root: tables.node.Node, prefix: str=''):
-    keys = []
-    for child in root:
-        child_name = get_node_name(child)
-        if isinstance(child, tables.earray.EArray):  # This is the last node
-            keys.append(f'{prefix}.{child_name}')
-        elif isinstance(child, tables.table.Table):  # Parent was the last node
-            keys.append(prefix)
-        else:
-            new_prefix = f'{prefix}.{child_name}' if prefix else child_name
-            keys.extend(get_keys(child, new_prefix))
-
-    # Clean up some weird meta groups that get written with dataframes.
-    keys = [EntityKey(k) for k in keys if '.meta.' not in k]
-    return keys
-
-
-def to_tree(keys: List[EntityKey]) -> Dict[str, Dict[str, List[str]]]:
+def _to_tree(keys: List[EntityKey]) -> Dict[str, Dict[str, List[str]]]:
     out = defaultdict(lambda: defaultdict(list))
     for k in keys:
         if k.name:
@@ -233,10 +230,3 @@ def to_tree(keys: List[EntityKey]) -> Dict[str, Dict[str, List[str]]]:
         else:
             out[k.type][k.measure] = []
     return out
-
-
-def get_node_name(node: tables.node.Node):
-    node_string = str(node)
-    node_path = node_string.split()[0]
-    node_name = node_path.split('/')[-1]
-    return node_name
