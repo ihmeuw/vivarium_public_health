@@ -80,15 +80,19 @@ class MockArtifact():
         self.mocks[entity_key] = data
 
 
-
-
 class MockArtifactManager(ArtifactManager):
+
+    def __init__(self):
+        self.artifact = self._load_artifact(None)
+
+    def setup(self, builder):
+        pass
 
     def load(self, entity_key, *args, **kwargs):
         return self.artifact.load(EntityKey(entity_key))
 
     def write(self, entity_key, data):
-        self.artifact.write(entity_key, data)
+        self.artifact.write(EntityKey(entity_key), data)
 
     def _load_artifact(self, _):
         return MockArtifact()

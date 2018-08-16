@@ -48,7 +48,7 @@ def test_RiskEffect(base_config, base_plugins):
     effect = RiskEffect(r, d, effect_data_functions)
 
     simulation = initialize_simulation([TestPopulation(), effect], input_config=base_config, plugin_config=base_plugins)
-    simulation.data.set("risk_factor.test_risk.distribution", "dichotomuous")
+    simulation.data.write("risk_factor.test_risk.distribution", "dichotomuous")
 
     simulation.setup()
 
@@ -157,9 +157,9 @@ def test_continuous_exposure_effect(base_config, base_plugins):
 
     components = [TestPopulation(), make_dummy_column(risk+'_exposure', tmrel), exposure_function]
     simulation = initialize_simulation(components, input_config=base_config, plugin_config=base_plugins)
-    simulation.data.set("risk_factor.test_risk.distribution", "ensemble")
-    simulation.data.set("risk_factor.test_risk.tmred", tmred)
-    simulation.data.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
+    simulation.data.write("risk_factor.test_risk.distribution", "ensemble")
+    simulation.data.write("risk_factor.test_risk.tmred", tmred)
+    simulation.data.write("risk_factor.test_risk.exposure_parameters", exposure_parameters)
 
     simulation.setup()
 
@@ -219,16 +219,16 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
         0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
     ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
 
-    simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
+    simulation.data.write("risk_factor.test_risk.exposure", exposure_data)
     rr_data = build_table(
         [1.01, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
     ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
 
-    simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
-    simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
+    simulation.data.write("risk_factor.test_risk.relative_risk", rr_data)
+    simulation.data.write("risk_factor.test_risk.population_attributable_fraction", 1)
     affected_causes = ["test_cause_1", "test_cause_2"]
-    simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
-    simulation.data.set("risk_factor.test_risk.distribution", "dichotomous")
+    simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
 
     simulation.setup()
 
@@ -275,11 +275,11 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
     ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
 
     affected_causes = ["test_cause_1", "test_cause_2"]
-    simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
-    simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
-    simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
-    simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
-    simulation.data.set("risk_factor.test_risk.distribution", "polytomous")
+    simulation.data.write("risk_factor.test_risk.exposure", exposure_data)
+    simulation.data.write("risk_factor.test_risk.relative_risk", rr_data)
+    simulation.data.write("risk_factor.test_risk.population_attributable_fraction", 1)
+    simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.write("risk_factor.test_risk.distribution", "polytomous")
     simulation.setup()
 
     simulation.step()
@@ -350,13 +350,13 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
     base_config.update({'population': {'population_size': 100000}}, layer='override')
     simulation = initialize_simulation([TestPopulation(), component],
                                        input_config=base_config, plugin_config=base_plugins)
-    simulation.data.set("risk_factor.test_risk.exposure", exposure_data)
-    simulation.data.set("risk_factor.test_risk.relative_risk", rr_data)
-    simulation.data.set("risk_factor.test_risk.population_attributable_fraction", 1)
-    simulation.data.set("risk_factor.test_risk.affected_causes", affected_causes)
-    simulation.data.set("risk_factor.test_risk.distribution", "ensemble")
-    simulation.data.set("risk_factor.test_risk.tmred", tmred)
-    simulation.data.set("risk_factor.test_risk.exposure_parameters", exposure_parameters)
+    simulation.data.write("risk_factor.test_risk.exposure", exposure_data)
+    simulation.data.write("risk_factor.test_risk.relative_risk", rr_data)
+    simulation.data.write("risk_factor.test_risk.population_attributable_fraction", 1)
+    simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.write("risk_factor.test_risk.distribution", "ensemble")
+    simulation.data.write("risk_factor.test_risk.tmred", tmred)
+    simulation.data.write("risk_factor.test_risk.exposure_parameters", exposure_parameters)
     simulation.setup()
 
     simulation.step()
