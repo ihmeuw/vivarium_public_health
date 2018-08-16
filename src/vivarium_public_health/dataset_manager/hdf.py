@@ -1,14 +1,30 @@
 """A convenience wrapper around tables and pd.HDFStore."""
 import json
+import typing
+from typing import Any
 
 import pandas as pd
 import tables
 from tables.nodes import filenode
 
+if typing.TYPE_CHECKING:
+    from vivarium_public_health.dataset_manager import EntityKey
+
 DEFAULT_COLUMNS = {"year", "location", "draw", "cause", "risk"}
 
 
-def write(path, entity_key, data):
+def write(path: str, entity_key: EntityKey, data: Any):
+    """Writes data to the hdf file at the given path to the given key.
+
+    Parameters
+    ----------
+    path :
+        The path to the hdf file to write to.
+    entity_key :
+        A representation of the internal hdf path where we want to write the data.
+    data :
+        The data to write
+    """
     if isinstance(data, (pd.DataFrame, pd.Series)):
         _write_data_frame(path, entity_key, data)
     else:
@@ -16,6 +32,23 @@ def write(path, entity_key, data):
 
 
 def load(path, entity_key, filter_terms):
+    """Loads data from an hdf file.
+
+    Parameters
+    ----------
+    path : str
+        The path to the hdf file to load the data from.
+    entity_key : EntityKey
+        A representation of the internal hdf path where the data is located.
+    filter_terms : List[str]
+        A list of terms used to filter the data formatted in a way that is
+        suitable for use with the `where` argument of `pd.read_hdf`.
+
+    Returns
+    -------
+    Any :
+        The data stored at the the given key in the hdf file.
+    """
     file = tables.open_file(path, mode='r')
     node = file.get_node(entity_key.path)
 
@@ -32,20 +65,41 @@ def load(path, entity_key, filter_terms):
 
 
 def remove(path, entity_key):
+    """Removes a piece of data from an hdf file.
+
+    Parameters
+    ----------
+    path : str
+        The path to the hdf file to remove the data from.
+    entity_key : EntityKey
+        A representation of the internal hdf path where the data is located.
+    """
     with tables.open_file(path, mode='a') as file:
         file.remove_node(entity_key.path, recursive=True)
 
 
 def get_keys(path):
+    """Gets key representation of all paths in an hdf file.
+
+    Parameters
+    ----------
+    path : str
+        The path to the hdf file.
+
+    Returns
+    -------
+    List[str] :
+        A list of key representations of the internal paths in the hdf.
+    """
     with tables.open_file(path, mode='r') as file:
         keys = _get_keys(file.root)
     return keys
 
 
-def _write_json_blob(self, entity_key, data):
+def _write_json_blob(path, entity_key, data):
         entity_path = entity_key.path
 
-        with tables.open_file(self.path, "a") as store:
+        with tables.open_file(path, "a") as store:
             if entity_path in store:
                 store.remove_node(entity_path)
             try:
