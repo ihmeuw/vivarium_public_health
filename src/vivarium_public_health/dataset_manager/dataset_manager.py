@@ -1,5 +1,5 @@
 """A vivarium plugin for managing complex data."""
-import os.path
+from pathlib import Path
 from typing import Union, Sequence
 
 import pandas as pd
@@ -78,7 +78,7 @@ class ArtifactManager:
         -------
             An interface to the data artifact.
         """
-        artifact_path = _parse_artifact_path_config(configuration)
+        artifact_path = parse_artifact_path_config(configuration)
         draw = configuration.input_data.input_draw_number,
         location = configuration.input_data.location
         base_filter_terms = [f'draw == {draw}', _get_location_term(location)]
@@ -158,8 +158,11 @@ def _get_location_term(location: str) -> str:
     return template.format(quote_mark=quote_mark, loc=location)
 
 
-def _parse_artifact_path_config(config: ConfigTree) -> str:
+def parse_artifact_path_config(config: ConfigTree) -> str:
     """Gets the path to the data artifact from the simulation configuration.
+
+    The path specified in the configuration may be absolute or it may be relative
+    to the location of the configuration file.
 
     Parameters
     ----------
@@ -170,12 +173,17 @@ def _parse_artifact_path_config(config: ConfigTree) -> str:
     -------
         The path to the data artifact.
     """
-    # NOTE: The artifact_path may be an absolute path or it may be relative to the location of the config file.
-    path_config = config.input_data.metadata('artifact_path')[-1]
-    if path_config['source'] is not None:
-        artifact_path = os.path.join(os.path.dirname(path_config['source']), path_config['value'])
-    else:
-        artifact_path = path_config['value']
+    path = Path(config.input_data.artifact_path)
 
-    return artifact_path
+    if not path.is_absolute():
+
+        path_config = config.input_data.metadata('artifact_path')[-1]
+        if path_config['source'] is None:
+            raise ValueError("Insufficient information provided to find artifact.")
+        path = Path(path_config['source']).parent.joinpath(path)
+
+    if not path.exists():
+        raise FileNotFoundError(f"Cannot find artifact at path {path}")
+
+    return str(path)
 

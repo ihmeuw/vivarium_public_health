@@ -1,9 +1,11 @@
+from pathlib import Path
 import random
 
 import pytest
-from vivarium.testing_utilities import build_table
+from vivarium.testing_utilities import build_table, metadata
 
-from vivarium_public_health.dataset_manager.dataset_manager import _subset_rows, _subset_columns, _get_location_term
+from vivarium_public_health.dataset_manager.dataset_manager import (_subset_rows, _subset_columns, _get_location_term,
+                                                                    parse_artifact_path_config)
 
 
 def test_subset_rows_extra_filters():
@@ -47,3 +49,41 @@ def test_location_term():
     assert _get_location_term("Kenya") == "location == 'Kenya' | location == 'Global'"
     with pytest.raises(NotImplementedError):
         _get_location_term("W'eird \"location\"")
+
+
+def test_parse_artifact_path_config(base_config):
+    artifact_path = Path(__file__).parent / 'artifact.hdf'
+    base_config.update({'input_data': {'artifact_path': str(artifact_path)}}, **metadata(str(Path('/'))))
+
+    assert parse_artifact_path_config(base_config) == str(artifact_path)
+
+
+def test_parse_artifact_path_relative_no_source(base_config):
+    artifact_path = './artifact.hdf'
+    base_config.update({'input_data': {'artifact_path': str(artifact_path)}}, {})
+
+    with pytest.raises(ValueError):
+        parse_artifact_path_config(base_config)
+
+
+def test_parse_artifact_path_relative(base_config):
+    base_config.update({'input_data': {'artifact_path': './artifact.hdf'}}, **metadata(__file__))
+
+    assert parse_artifact_path_config(base_config) == str(Path(__file__).parent / 'artifact.hdf')
+
+
+def test_parse_artifact_path_config_fail(base_config):
+    artifact_path = Path(__file__).parent / 'not_an_artifact.hdf'
+    base_config.update({'input_data': {'artifact_path': str(artifact_path)}}, **metadata(str(Path('/'))))
+
+    with pytest.raises(FileNotFoundError):
+        parse_artifact_path_config(base_config)
+
+
+def test_parse_artifact_path_config_fail_relative(base_config):
+    base_config.update({'input_data': {'artifact_path': './not_an_artifact.hdf'}}, **metadata(__file__))
+
+    with pytest.raises(FileNotFoundError):
+        parse_artifact_path_config(base_config)
+
+
