@@ -15,10 +15,23 @@ DEFAULT_COLUMNS = {"year", "location", "draw", "cause", "risk"}
 
 
 def touch(path: str, append: bool):
+    """Creates an hdf file if necessary or errors if trying to append to a non-existent file.
+
+    Parameters
+    ----------
+    path :
+        The string path to the hdf file.
+    append :
+        Whether or not we want to append to an existing file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If attempting to append to a non-existent file."""
     path = Path(path)
     if append and not path.exists():
-        raise ValueError("You indicated you want to append to an existing artifact "
-                         f"at {path} but no such artifact exists.")
+        raise FileNotFoundError("You indicated you want to append to an existing artifact "
+                                f"at {path} but no such artifact exists.")
     elif not append:
         tables.open_file(str(path), mode='w', title=path.name)
 
