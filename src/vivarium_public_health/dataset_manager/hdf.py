@@ -1,5 +1,6 @@
 """A convenience wrapper around tables and pd.HDFStore."""
 import json
+from pathlib import Path
 import typing
 from typing import Any, List, Optional
 
@@ -11,6 +12,15 @@ if typing.TYPE_CHECKING:
     from vivarium_public_health.dataset_manager import EntityKey
 
 DEFAULT_COLUMNS = {"year", "location", "draw", "cause", "risk"}
+
+
+def touch(path: str, append: bool):
+    path = Path(path)
+    if append and not path.exists():
+        raise ValueError("You indicated you want to append to an existing artifact "
+                         f"at {path} but no such artifact exists.")
+    elif not append:
+        tables.open_file(str(path), mode='w', title=path.name)
 
 
 def write(path: str, entity_key: 'EntityKey', data: Any):

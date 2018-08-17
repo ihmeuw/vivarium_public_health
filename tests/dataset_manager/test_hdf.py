@@ -9,9 +9,7 @@ import tables
 from tables.nodes import filenode
 from vivarium.testing_utilities import build_table
 
-from vivarium_public_health.dataset_manager import EntityKey
-from vivarium_public_health.dataset_manager.hdf import (write, load, remove, get_keys, _write_json_blob,
-                                                        _write_data_frame, _get_keys, _get_node_name)
+from vivarium_public_health.dataset_manager import EntityKey, hdf
 
 
 @pytest.fixture
@@ -42,10 +40,17 @@ def hdf_file_path(tmpdir):
     return str(p)
 
 
+@pytest.fixture
+def hdf_file(hdf_file_path):
+    with tables.open_file(hdf_file_path, mode='r') as file:
+        yield file
+
+
 _KEYS = ['population.age_bins',
          'population.structure',
          'population.theoretical_minimum_risk_life_expectancy',
          'cause.all_causes.restrictions']
+
 
 @pytest.fixture
 def hdf_keys():
@@ -55,12 +60,6 @@ def hdf_keys():
 @pytest.fixture(params=_KEYS)
 def hdf_key(request):
     return request.param
-
-
-@pytest.fixture
-def hdf_file(hdf_file_path):
-    with tables.open_file(hdf_file_path, mode='r') as file:
-        yield file
 
 
 @pytest.fixture(params=['totally.new.thing', 'other.new_thing', 'cause.sort_of_new', 'cause.also.new',
@@ -74,24 +73,48 @@ def json_data(request):
     return request.param
 
 
+def test_touch_no_file(mocker):
+    path = Path('not/an/existing/path.hdf')
+    tables_mock = mocker.patch("vivarium_public_health.dataset_manager.hdf.tables")
+
+    hdf.touch(path, False)
+    tables_mock.open_file.assert_called_once_with(str(path), mode='w', title=path.name)
+    tables_mock.reset_mock()
+
+    with pytest.raises(ValueError):
+        hdf.touch(path, True)
+
+
+def test_touch_existing_file(hdf_file_path, mocker):
+    path = Path(hdf_file_path)
+    tables_mock = mocker.patch("vivarium_public_health.dataset_manager.hdf.tables")
+
+    hdf.touch(path, False)
+    tables_mock.open_file.assert_called_once_with(str(path), mode='w', title=path.name)
+    tables_mock.reset_mock()
+
+    hdf.touch(path, True)
+    tables_mock.open_file.assert_not_called()
+
+
 def test_write_df(hdf_file_path, mock_key, mocker):
     df_mock = mocker.patch('vivarium_public_health.dataset_manager.hdf._write_data_frame')
     data = pd.DataFrame(np.random.random((10, 3)), columns=['a', 'b', 'c'], index=range(10))
 
-    write(hdf_file_path, mock_key, data)
+    hdf.write(hdf_file_path, mock_key, data)
 
     df_mock.assert_called_once_with(hdf_file_path, mock_key, data)
 
 
 def test_write_json(hdf_file_path, mock_key, json_data, mocker):
     json_mock = mocker.patch('vivarium_public_health.dataset_manager.hdf._write_json_blob')
-    write(hdf_file_path, mock_key, json_data)
+    hdf.write(hdf_file_path, mock_key, json_data)
     json_mock.assert_called_once_with(hdf_file_path, mock_key, json_data)
 
 
 def test_load(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
-    data = load(hdf_file_path, key, filter_terms=None)
+    data = hdf.load(hdf_file_path, key, filter_terms=None)
     if 'restrictions' in key:
         assert isinstance(data, dict)
     else:
@@ -100,17 +123,17 @@ def test_load(hdf_file_path, hdf_key):
 
 def test_remove(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
-    remove(hdf_file_path, key)
+    hdf.remove(hdf_file_path, key)
     with tables.open_file(hdf_file_path, mode='r') as file:
         assert key.path not in file
 
 
 def test_get_keys(hdf_file_path, hdf_keys):
-    assert sorted(get_keys(hdf_file_path)) == sorted(hdf_keys)
+    assert sorted(hdf.get_keys(hdf_file_path)) == sorted(hdf_keys)
 
 
 def test_write_json_blob(hdf_file_path, mock_key, json_data):
-    _write_json_blob(hdf_file_path, mock_key, json_data)
+    hdf._write_json_blob(hdf_file_path, mock_key, json_data)
 
     with tables.open_file(hdf_file_path, mode='r') as file:
         node = file.get_node(mock_key.path)
@@ -124,7 +147,7 @@ def test_write_empty_data_frame(hdf_file_path):
     data = pd.DataFrame(columns=('age', 'year', 'sex', 'draw', 'location', 'value'))
 
     with pytest.raises(ValueError):
-        _write_data_frame(hdf_file_path, key, data)
+        hdf._write_data_frame(hdf_file_path, key, data)
 
 
 def test_write_data_frame(hdf_file_path):
@@ -132,7 +155,7 @@ def test_write_data_frame(hdf_file_path):
     data = build_table([lambda *args, **kwargs: random.choice([0, 1]), "Kenya", 1],
                        2005, 2010, columns=('age', 'year', 'sex', 'draw', 'location', 'value'))
 
-    _write_data_frame(hdf_file_path, key, data)
+    hdf._write_data_frame(hdf_file_path, key, data)
 
     written_data = pd.read_hdf(hdf_file_path, key.path)
     assert written_data.equals(data)
@@ -143,9 +166,9 @@ def test_write_data_frame(hdf_file_path):
 
 
 def test_get_keys_private(hdf_file, hdf_keys):
-    assert sorted(_get_keys(hdf_file.root)) == sorted(hdf_keys)
+    assert sorted(hdf._get_keys(hdf_file.root)) == sorted(hdf_keys)
 
 
 def test_get_node_name(hdf_file, hdf_key):
     key = EntityKey(hdf_key)
-    assert _get_node_name(hdf_file.get_node(key.path)) == key.measure
+    assert hdf._get_node_name(hdf_file.get_node(key.path)) == key.measure
