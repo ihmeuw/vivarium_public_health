@@ -4,7 +4,7 @@ import random
 import pytest
 from vivarium.testing_utilities import build_table, metadata
 
-from vivarium_public_health.dataset_manager.dataset_manager import (_subset_rows, _subset_columns, _get_location_term,
+from vivarium_public_health.dataset_manager.dataset_manager import (_subset_rows, _subset_columns, get_location_term,
                                                                     parse_artifact_path_config)
 
 
@@ -45,10 +45,10 @@ def test_subset_columns():
 
 
 def test_location_term():
-    assert _get_location_term("Cote d'Ivoire") == 'location == "Cote d\'Ivoire" | location == "Global"'
-    assert _get_location_term("Kenya") == "location == 'Kenya' | location == 'Global'"
+    assert get_location_term("Cote d'Ivoire") == 'location == "Cote d\'Ivoire" | location == "Global"'
+    assert get_location_term("Kenya") == "location == 'Kenya' | location == 'Global'"
     with pytest.raises(NotImplementedError):
-        _get_location_term("W'eird \"location\"")
+        get_location_term("W'eird \"location\"")
 
 
 def test_parse_artifact_path_config(base_config):

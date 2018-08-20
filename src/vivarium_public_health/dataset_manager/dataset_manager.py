@@ -81,7 +81,7 @@ class ArtifactManager:
         artifact_path = parse_artifact_path_config(configuration)
         draw = configuration.input_data.input_draw_number,
         location = configuration.input_data.location
-        base_filter_terms = [f'draw == {draw}', _get_location_term(location)]
+        base_filter_terms = [f'draw == {draw}', get_location_term(location)]
         return Artifact(artifact_path, base_filter_terms)
 
     def load(self, entity_key: str, keep_age_group_edges: bool=False, **column_filters: _Filter):
@@ -104,10 +104,10 @@ class ArtifactManager:
             The data associated with the given key filtered down to the requested subset.
         """
         data = self.artifact.load(entity_key)
-        return _filter_data(data, keep_age_group_edges, **column_filters)
+        return filter_data(data, keep_age_group_edges, **column_filters)
 
 
-def _filter_data(data: pd.DataFrame, keep_age_group_edges: bool, **column_filters: _Filter) -> pd.DataFrame:
+def filter_data(data: pd.DataFrame, keep_age_group_edges: bool, **column_filters: _Filter) -> pd.DataFrame:
     """Uses the provided column filters and age_group conditions to subset the raw data."""
     data = _subset_rows(data, **column_filters)
     data = _subset_columns(data, keep_age_group_edges, **column_filters)
@@ -144,9 +144,9 @@ def _subset_columns(data: pd.DataFrame, keep_age_group_edges: bool, **column_fil
     return data.drop(columns=columns_to_remove)
 
 
-def _get_location_term(location: str) -> str:
+def get_location_term(location: str) -> str:
     """Generates a location filter term from a location name."""
-    template = "location == {quote_mark}{loc}{quote_mark} | location == {quote_mark}Global{quote_mark}"
+    template = "(location == {quote_mark}{loc}{quote_mark}) | (location == {quote_mark}Global{quote_mark})"
     if "'" in location and '"' in location:  # Because who knows
         raise NotImplementedError(f"Unhandled location string {location}")
     elif "'" in location:
