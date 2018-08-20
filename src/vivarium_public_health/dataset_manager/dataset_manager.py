@@ -146,7 +146,7 @@ def _subset_columns(data: pd.DataFrame, keep_age_group_edges: bool, **column_fil
 
 def get_location_term(location: str) -> str:
     """Generates a location filter term from a location name."""
-    template = "(location == {quote_mark}{loc}{quote_mark}) | (location == {quote_mark}Global{quote_mark})"
+    template = "location == {quote_mark}{loc}{quote_mark} | location == {quote_mark}Global{quote_mark}"
     if "'" in location and '"' in location:  # Because who knows
         raise NotImplementedError(f"Unhandled location string {location}")
     elif "'" in location:
