@@ -82,6 +82,7 @@ def test_artifact_load_key_has_no_data(hdf_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'no_data.key'
+    ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
 
@@ -89,7 +90,7 @@ def test_artifact_load_key_has_no_data(hdf_mock):
         a.load(key)
 
     assert f"Data for {key} is not available. Check your model specification." == str(err_info.value)
-    assert hdf_mock.load.called_once_with(path, EntityKey(key), filter_terms)
+    assert hdf_mock.load.called_once_with(path, ekey, filter_terms)
     assert a._cache == {}
 
 
@@ -100,16 +101,17 @@ def test_artifact_load(hdf_mock, keys_mock):
     a = Artifact(path, filter_terms)
 
     for key in keys_mock:
+        ekey = EntityKey(key)
         if key == 'no_data.key':
             continue
 
-        assert EntityKey(key) not in a._cache
+        assert ekey not in a._cache
 
         result = a.load(key)
 
-        assert hdf_mock.load.called_once_with(path, key, filter_terms)
-        assert key in a._cache
-        assert a._cache[EntityKey(key)] == 'data'
+        assert hdf_mock.load.called_once_with(path, ekey, filter_terms)
+        assert ekey in a._cache
+        assert a._cache[ekey] == 'data'
         assert result == 'data'
 
         hdf_mock.load.reset_mock()
@@ -119,6 +121,7 @@ def test_artifact_write_duplicate_key(hdf_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'population.structure'
+    ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
 
@@ -126,8 +129,9 @@ def test_artifact_write_duplicate_key(hdf_mock):
         a.write(key, "data")
 
     assert f'{key} already in artifact.' == str(err_info.value)
-    assert key in a.keys
-    assert EntityKey(key) not in a._cache
+    assert key in a
+    assert ekey in a.keys
+    assert ekey not in a._cache
     hdf_mock.write.assert_not_called()
 
 
@@ -135,15 +139,16 @@ def test_artifact_write_no_data(hdf_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'new.key'
+    ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
 
-    assert key not in a.keys
+    assert ekey not in a.keys
 
     a.write(key, None)
 
-    assert key not in a.keys
-    assert EntityKey(key) not in a._cache
+    assert ekey not in a.keys
+    assert ekey not in a._cache
     hdf_mock.write.assert_not_called()
 
 
@@ -151,35 +156,37 @@ def test_artifact_write(hdf_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'new.key'
+    ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
 
-    assert key not in a.keys
+    assert ekey not in a.keys
 
     a.write(key, "data")
 
-    assert key in a.keys
-    assert EntityKey(key) in a._cache
-    assert a._cache[EntityKey(key)] == "data"
-    hdf_mock.write.assert_called_once_with(path, EntityKey(key), "data")
+    assert ekey in a.keys
+    assert ekey in a._cache
+    assert a._cache[ekey] == "data"
+    hdf_mock.write.assert_called_once_with(path, ekey, "data")
 
 
 def test_remove_bad_key(hdf_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'non_existent.key'
+    ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
 
-    assert key not in a.keys
-    assert EntityKey(key) not in a._cache
+    assert ekey not in a.keys
+    assert ekey not in a._cache
 
     with pytest.raises(ArtifactException) as err_info:
         a.remove(key)
 
     assert f'Trying to remove non-existent key {key} from artifact.' == str(err_info.value)
-    assert key not in a.keys
-    assert EntityKey(key) not in a._cache
+    assert ekey not in a.keys
+    assert ekey not in a._cache
     hdf_mock.remove.assert_not_called()
 
 
@@ -187,48 +194,51 @@ def test_remove_no_cache(hdf_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'population.structure'
+    ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
 
-    assert key in a.keys
-    assert EntityKey(key) not in a._cache
+    assert ekey in a.keys
+    assert ekey not in a._cache
 
     a.remove(key)
 
-    assert key not in a.keys
-    assert EntityKey(key) not in a._cache
-    hdf_mock.remove.assert_called_once_with(path, EntityKey(key))
+    assert ekey not in a.keys
+    assert ekey not in a._cache
+    hdf_mock.remove.assert_called_once_with(path, ekey)
 
 
 def test_remove(hdf_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'population.structure'
+    ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
-    a._cache[EntityKey(key)] = 'data'
+    a._cache[ekey] = 'data'
 
-    assert key in a.keys
-    assert EntityKey(key) in a._cache
+    assert ekey in a.keys
+    assert ekey in a._cache
 
     a.remove(key)
 
-    assert key not in a.keys
-    assert EntityKey(key) not in a._cache
-    hdf_mock.remove.assert_called_once_with(path, EntityKey(key))
+    assert ekey not in a.keys
+    assert ekey not in a._cache
+    hdf_mock.remove.assert_called_once_with(path, ekey)
 
 
 def test_clear_cache(hdf_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'population.structure'
+    ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
     a.clear_cache()
 
     assert a._cache == {}
 
-    a._cache[EntityKey(key)] = 'data'
+    a._cache[ekey] = 'data'
     a.clear_cache()
 
     assert a._cache == {}
