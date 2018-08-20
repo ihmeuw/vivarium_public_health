@@ -6,7 +6,7 @@ import pandas as pd
 from vivarium.config_tree import ConfigTree
 from vivarium.framework.engine import Builder
 
-from vivarium_public_health.dataset_manager import Artifact, EntityKey
+from vivarium_public_health.dataset_manager import Artifact
 
 
 _Filter = Union[str, int, Sequence[int], Sequence[str]]
@@ -103,7 +103,6 @@ class ArtifactManager:
         -------
             The data associated with the given key filtered down to the requested subset.
         """
-        entity_key = EntityKey(entity_key)
         data = self.artifact.load(entity_key)
         return _filter_data(data, keep_age_group_edges, **column_filters)
 

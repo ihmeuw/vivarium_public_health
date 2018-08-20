@@ -42,7 +42,7 @@ class Artifact:
         """A list of all the keys contained within the artifact."""
         return self._keys
 
-    def load(self, entity_key: 'EntityKey') -> Any:
+    def load(self, entity_key: str) -> Any:
         """Loads the data associated with provided EntityKey.
 
         Parameters
@@ -60,6 +60,7 @@ class Artifact:
         ArtifactException :
             If the provided key is not in the artifact.
         """
+        entity_key = EntityKey(entity_key)
         if entity_key not in self.keys:
             raise ArtifactException(f"{entity_key} should be in {self.path}.")
 
@@ -72,7 +73,7 @@ class Artifact:
 
         return self._cache[entity_key]
 
-    def write(self, entity_key: 'EntityKey', data: Any):
+    def write(self, entity_key: str, data: Any):
         """Writes the provided data into the artifact and binds it to the provided key.
 
         Parameters
@@ -88,6 +89,7 @@ class Artifact:
         ArtifactException :
             If the provided key already exists in the artifact.
         """
+        entity_key = EntityKey(entity_key)
         if entity_key in self.keys:
             raise ArtifactException(f'{entity_key} already in artifact.')
         elif data is None:
@@ -97,7 +99,7 @@ class Artifact:
             self._cache[entity_key] = data
             hdf.write(self.path, entity_key, data)
 
-    def remove(self, entity_key: 'EntityKey'):
+    def remove(self, entity_key: str):
         """Removes data associated with the provided key from the artifact.
 
         Parameters
@@ -109,6 +111,7 @@ class Artifact:
         ------
         ArtifactException :
             If the key is not present in the artifact."""
+        entity_key = EntityKey(entity_key)
         if entity_key not in self.keys:
             raise ArtifactException(f'Trying to remove non-existent key {entity_key} from artifact.')
 
