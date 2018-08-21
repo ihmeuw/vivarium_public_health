@@ -85,7 +85,7 @@ def test_touch_no_file(mocker):
         hdf.touch(path, True)
 
 
-def test_touch_exists_but_not_file(hdf_file_path, mocker):
+def test_touch_exists_but_not_file(hdf_file_path):
     path = Path(hdf_file_path).parent
 
     with pytest.raises(FileNotFoundError):
