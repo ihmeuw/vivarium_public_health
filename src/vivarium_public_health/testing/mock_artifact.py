@@ -2,7 +2,7 @@ import pandas as pd
 
 from vivarium.testing_utilities import build_table
 
-from vivarium_public_health.dataset_manager import Artifact, ArtifactException, ArtifactManager, EntityKey
+from vivarium_public_health.dataset_manager import ArtifactManager, EntityKey
 from .utils import make_uniform_pop_data
 
 MOCKERS = {
@@ -56,10 +56,9 @@ MOCKERS = {
 }
 
 
-class MockArtifact(Artifact):
+class MockArtifact():
+
     def __init__(self):
-        super().__init__("")
-        self._is_open = False
         self.mocks = MOCKERS
 
     def load(self, entity_key):
@@ -77,41 +76,25 @@ class MockArtifact(Artifact):
 
         return value
 
-    def set(self, key, value):
-        self.mocks[key] = value
-
-    def open(self):
-        if not self._is_open:
-            self._is_open = True
-        else:
-            raise ArtifactException("Opening already open artifact")
-
-    def close(self):
-        if self._is_open:
-            self._is_open = False
-        else:
-            raise ArtifactException("Closing already closed artifact")
-
-    def summary(self):
-        return "Mock Artifact"
+    def write(self, entity_key, data):
+        self.mocks[entity_key] = data
 
 
 class MockArtifactManager(ArtifactManager):
 
     def __init__(self):
-        self.artifact = self._load_artifact(None, None)
+        self.artifact = self._load_artifact(None)
 
     def setup(self, builder):
-        self.artifact.open()
-        builder.event.register_listener('post_setup', lambda _: self.artifact.close())
+        pass
 
     def load(self, entity_key, *args, **kwargs):
         return self.artifact.load(EntityKey(entity_key))
 
-    def set(self, key, value):
-        self.artifact.set(key, value)
+    def write(self, entity_key, data):
+        self.artifact.write(EntityKey(entity_key), data)
 
-    def _load_artifact(self, artifact_path, base_filter_terms):
+    def _load_artifact(self, _):
         return MockArtifact()
 
 

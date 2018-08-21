@@ -49,8 +49,8 @@ def test_general_access(base_config, base_plugins):
     metrics = Metrics()
     simulation = initialize_simulation([TestPopulation(), metrics, HealthcareAccess()],
                                        input_config=base_config, plugin_config=base_plugins)
-    simulation.data.set("healthcare_entity.outpatient_visits.annual_visits",
-                        build_table(annual_rate, year_start, year_end, ['age', 'year', 'sex', 'annual_visits']))
+    simulation.data.write("healthcare_entity.outpatient_visits.annual_visits",
+                          build_table(annual_rate, year_start, year_end, ['age', 'year', 'sex', 'annual_visits']))
     simulation.setup()
 
     steps_to_take = 10 * 12  # ten years

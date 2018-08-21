@@ -9,4 +9,4 @@ recursive-include docs *
 prune docs/_build
 
 recursive-include src/vivarium_public_health *.py *.yaml
-recursive-include tests *.py *txt *.yaml
+recursive-include tests *.py *txt *.yaml *.hdf

@@ -49,10 +49,10 @@ def test_FertilityCrudeBirthRate(base_config, base_plugins):
     components = [TestPopulation(), FertilityCrudeBirthRate()]
     simulation = initialize_simulation(components, base_config, base_plugins)
 
-    simulation.data.set("covariate.age_specific_fertility_rate.estimate", 0.01)
-    simulation.data.set("covariate.live_births_by_sex.estimate",
-                        build_table(5000, 1990, 2018, ('age', 'year', 'sex', 'mean_value')
-                                    ).query('age == 25').drop('age', 'columns'))
+    simulation.data.write("covariate.age_specific_fertility_rate.estimate", 0.01)
+    simulation.data.write("covariate.live_births_by_sex.estimate",
+                          build_table(5000, 1990, 2018, ('age', 'year', 'sex', 'mean_value')
+                                      ).query('age == 25').drop('age', 'columns'))
 
     simulation.setup()
 
@@ -81,8 +81,8 @@ def test_fertility_module(base_config, base_plugins):
     components = [TestPopulation(), FertilityAgeSpecificRates()]
     simulation = initialize_simulation(components, base_config, base_plugins)
 
-    simulation.data.set("covariate.age_specific_fertility_rate.estimate",
-                        build_table(0.05, 1990, 2018).query("sex == 'Female'").drop("sex", "columns"))
+    simulation.data.write("covariate.age_specific_fertility_rate.estimate",
+                          build_table(0.05, 1990, 2018).query("sex == 'Female'").drop("sex", "columns"))
 
     simulation.setup()
 
