@@ -29,7 +29,8 @@ def touch(path: str, append: bool):
     FileNotFoundError
         If attempting to append to a non-existent file."""
     path = Path(path)
-    if append and not path.exists():
+
+    if append and not path.is_file():
         raise FileNotFoundError("You indicated you want to append to an existing artifact "
                                 f"at {path} but no such artifact exists.")
     elif not append:

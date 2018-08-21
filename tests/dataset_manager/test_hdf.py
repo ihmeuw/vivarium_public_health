@@ -85,6 +85,13 @@ def test_touch_no_file(mocker):
         hdf.touch(path, True)
 
 
+def test_touch_exists_but_not_file(hdf_file_path, mocker):
+    path = Path(hdf_file_path).parent
+
+    with pytest.raises(FileNotFoundError):
+        hdf.touch(path, True)
+
+
 def test_touch_existing_file(hdf_file_path, mocker):
     path = Path(hdf_file_path)
     tables_mock = mocker.patch("vivarium_public_health.dataset_manager.hdf.tables")
