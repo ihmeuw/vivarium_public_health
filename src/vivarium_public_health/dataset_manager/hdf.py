@@ -37,7 +37,7 @@ def touch(path: str, append: bool):
     elif not append:
         f = tables.open_file(str(path), mode='w')
         f.close()
-        while f.isopen():
+        while f.isopen:
             time.sleep(.1)
 
 
