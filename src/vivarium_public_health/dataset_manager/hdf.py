@@ -34,7 +34,8 @@ def touch(path: str, append: bool):
         raise FileNotFoundError("You indicated you want to append to an existing artifact "
                                 f"at {path} but no such artifact exists.")
     elif not append:
-        tables.open_file(str(path), mode='w', title=path.name)
+        f = tables.open_file(str(path), mode='w', title=path.name)
+        f.close()
 
 
 def write(path: str, entity_key: 'EntityKey', data: Any):
