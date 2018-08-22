@@ -1,6 +1,7 @@
 """A convenience wrapper around tables and pd.HDFStore."""
 import json
 from pathlib import Path
+import time
 import typing
 from typing import Any, List, Optional
 
@@ -34,7 +35,10 @@ def touch(path: str, append: bool):
         raise FileNotFoundError("You indicated you want to append to an existing artifact "
                                 f"at {path} but no such artifact exists.")
     elif not append:
-        path.open('w').close()
+        f = path.open('a+')
+        f.close()
+        while not f.closed:
+            time.sleep(.1)
 
 
 def write(path: str, entity_key: 'EntityKey', data: Any):
