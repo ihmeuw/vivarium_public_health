@@ -73,16 +73,15 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
     -------
         The data stored at the the given key in the hdf file.
     """
-    file = tables.open_file(path, mode='r')
-    node = file.get_node(entity_key.path)
+    with tables.open_file(path, mode='r') as file:
+        node = file.get_node(entity_key.path)
 
-    if isinstance(node, tables.earray.EArray):
-        # This should be a json encoded document rather than a pandas dataframe
-        with filenode.open_node(node, 'r') as file_node:
-            data = json.load(file_node)
-        file.close()
-    else:
-        data = pd.read_hdf(path, entity_key.path, where=filter_terms)
+        if isinstance(node, tables.earray.EArray):
+            # This should be a json encoded document rather than a pandas dataframe
+            with filenode.open_node(node, 'r') as file_node:
+                data = json.load(file_node)
+        else:
+            data = pd.read_hdf(path, entity_key.path, where=filter_terms)
 
     return data
 
