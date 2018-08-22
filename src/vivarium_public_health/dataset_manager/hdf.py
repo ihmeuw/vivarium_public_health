@@ -35,9 +35,9 @@ def touch(path: str, append: bool):
         raise FileNotFoundError("You indicated you want to append to an existing artifact "
                                 f"at {path} but no such artifact exists.")
     elif not append:
-        f = path.open('a+')
+        f = tables.open_file(str(path), mode='w')
         f.close()
-        while not f.closed:
+        while f.isopen():
             time.sleep(.1)
 
 
