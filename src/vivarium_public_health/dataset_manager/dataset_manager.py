@@ -79,7 +79,7 @@ class ArtifactManager:
             An interface to the data artifact.
         """
         artifact_path = parse_artifact_path_config(configuration)
-        draw = configuration.input_data.input_draw_number,
+        draw = configuration.input_data.input_draw_number
         location = configuration.input_data.location
         base_filter_terms = [f'draw == {draw}', get_location_term(location)]
         return Artifact(artifact_path, base_filter_terms)
