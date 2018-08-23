@@ -14,26 +14,29 @@ if typing.TYPE_CHECKING:
 DEFAULT_COLUMNS = {"year", "location", "draw", "cause", "risk"}
 
 
-def touch(path: str, append: bool):
-    """Creates an hdf file if necessary or errors if trying to append to a non-existent file.
+def touch(path: str, overwrite: bool):
+    """Creates an hdf file or wipes an existing file if necessary.
+
+    If overwrite is false and the hdf file exists, touch will do nothing.
+    If the file does not exist, touch will create it. If overwrite is true
+    and a file exists, it will be destroyed and re-created empty.
 
     Parameters
     ----------
     path :
         The string path to the hdf file.
-    append :
-        Whether or not we want to append to an existing file.
+    overwrite :
+        Whether an existing artifact should be overwritten
+    """
 
-    Raises
-    ------
-    FileNotFoundError
-        If attempting to append to a non-existent file."""
     path = Path(path)
 
-    if append and not path.is_file():
-        raise FileNotFoundError("You indicated you want to append to an existing artifact "
-                                f"at {path} but no such artifact exists.")
-    elif not append:
+    if path.is_file() and overwrite:
+        path.unlink()
+        with tables.open_file(str(path), mode='w'):
+            pass
+
+    if not path.is_file():
         with tables.open_file(str(path), mode='w'):
             pass
 
