@@ -78,7 +78,7 @@ def test_touch_no_file(mocker):
     tables_mock = mocker.patch("vivarium_public_health.dataset_manager.hdf.tables")
 
     hdf.touch(path, False)
-    tables_mock.open_file.assert_called_once_with(str(path), mode='w', title=path.name)
+    tables_mock.open_file.assert_called_once_with(str(path), mode='w')
     tables_mock.reset_mock()
 
     with pytest.raises(FileNotFoundError):
@@ -97,7 +97,7 @@ def test_touch_existing_file(hdf_file_path, mocker):
     tables_mock = mocker.patch("vivarium_public_health.dataset_manager.hdf.tables")
 
     hdf.touch(path, False)
-    tables_mock.open_file.assert_called_once_with(str(path), mode='w', title=path.name)
+    tables_mock.open_file.assert_called_once_with(str(path), mode='w')
     tables_mock.reset_mock()
 
     hdf.touch(path, True)
