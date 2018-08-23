@@ -6,11 +6,14 @@ Authors
 - Michelle Park <hpark3@uw.edu>
 - Abraham Flaxman <abie@uw.edu>
 - Everett Mumford <emumford@uw.edu>
-- Erika Eldrenkamp
+- Erika Eldrenkamp <eeldren@uw.edu>
+- Cody Horst <chorst@uw.edu>
+- Zachary Dingels <dingelsz@uw.edu>
 
 Current Maintainers
 -------------------
 
 - James Collins <collijk@uw.edu>
 - Michelle Park <hpark3@uw.edu>
+- Cody Horst <chorst@uw.edu>
 - Abraham Flaxman <abie@uw.edu>
