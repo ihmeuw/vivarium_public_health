@@ -38,7 +38,6 @@ def touch(path: str, append: bool):
     if path.is_file() and append:
         pass
     if path.is_file() and not append:
-        path.unlink()
         with tables.open_file(str(path), mode='w'):
             pass
     elif not path.is_file() and append:
