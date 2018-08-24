@@ -17,9 +17,9 @@ DEFAULT_COLUMNS = {"year", "location", "draw", "cause", "risk"}
 def touch(path: str, append: bool):
     """Creates an hdf file or wipes an existing file if necessary.
 
-    If overwrite is false and the hdf file exists, touch will do nothing.
-    If the file does not exist, touch will create it. If overwrite is true
-    and a file exists, it will be destroyed and re-created empty.
+    If the file exists and append is not true, the existing file
+    will be destroyed. If the file exists and append is true, touch
+    will do nothing.
 
     Parameters
     ----------
