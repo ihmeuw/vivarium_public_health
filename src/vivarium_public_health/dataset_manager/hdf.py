@@ -44,7 +44,8 @@ def touch(path: str, append: bool):
         if append:
             raise FileNotFoundError("You indicated you want to append to "
                                     f"an existing artifact at {path} but no "
-                                    "such artifact exists.")
+                                    "such artifact exists. remove --append if "
+                                    "you wish to create a new artifact.")
         else:
             with tables.open_file(str(path), mode='w'):
                 pass
