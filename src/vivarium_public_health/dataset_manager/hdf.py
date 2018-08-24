@@ -35,20 +35,20 @@ def touch(path: str, append: bool):
 
     path = Path(path)
 
+    if path.is_file() and append:
+        pass
     if path.is_file() and not append:
         path.unlink()
         with tables.open_file(str(path), mode='w'):
             pass
-
-    if not path.is_file():
-        if append:
-            raise FileNotFoundError("You indicated you want to append to "
-                                    f"an existing artifact at {path} but no "
-                                    "such artifact exists. remove --append if "
-                                    "you wish to create a new artifact.")
-        else:
-            with tables.open_file(str(path), mode='w'):
-                pass
+    elif not path.is_file() and append:
+        raise FileNotFoundError("You indicated you want to append to "
+                                f"an existing artifact at {path} but no "
+                                "such artifact exists. remove --append if "
+                                "you wish to create a new artifact.")
+    else:
+        with tables.open_file(str(path), mode='w'):
+            pass
 
 
 def write(path: str, entity_key: 'EntityKey', data: Any):
