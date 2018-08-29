@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import typing
 from typing import Any, List, Optional
+import re
 
 import pandas as pd
 import tables
@@ -89,11 +90,25 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
             with filenode.open_node(node, 'r') as file_node:
                 data = json.load(file_node)
         else:
-            filter_columns = dict((i.split()[0], i) for i in filter_terms)
-            existing_filter_terms = [filter_columns[i] for i in set(node.table.colnames).intersection(filter_columns)]
-            data = pd.read_hdf(path, entity_key.path, where=existing_filter_terms)
+            if filter_terms:
+                filter_terms = _get_valid_filters(filter_terms, node.table.colnames)
+            data = pd.read_hdf(path, entity_key.path, where=filter_terms)
 
         return data
+
+
+def _get_valid_filters(filter_terms, colnames):
+    valid_filters = []
+    for term in filter_terms:
+        # first strip out all the parentheses - the where in read_hdf requires all references to be valid
+        term = re.sub('[()]', '', term)
+        # then split each condition out
+        term = re.split('[&|]', term)
+        # get the unique columns referenced by this term
+        term_columns = set([i.split()[0] for i in term])
+        if term_columns <= set(colnames):
+            valid_filters.append(term)
+    return valid_filters
 
 
 def remove(path: str, entity_key: 'EntityKey'):
