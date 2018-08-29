@@ -96,21 +96,6 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
 
         return data
 
-
-def _get_valid_filters(filter_terms, colnames):
-    valid_filters = []
-    for term in filter_terms:
-        # first strip out all the parentheses - the where in read_hdf requires all references to be valid
-        term = re.sub('[()]', '', term)
-        # then split each condition out
-        term = re.split('[&|]', term)
-        # get the unique columns referenced by this term
-        term_columns = set([i.split()[0] for i in term])
-        if term_columns <= set(colnames):
-            valid_filters.append(term)
-    return valid_filters
-
-
 def remove(path: str, entity_key: 'EntityKey'):
     """Removes a piece of data from an hdf file.
 
@@ -195,3 +180,31 @@ def _get_node_name(node: tables.node.Node) -> str:
     node_path = node_string.split()[0]
     node_name = node_path.split('/')[-1]
     return node_name
+
+
+def _get_valid_filters(filter_terms, colnames):
+    """Removes any filter terms referencing non-existent columns
+
+    Parameters
+    ----------
+    filter_terms :
+        A list of terms formatted so as to be used in the `where` argument of
+        `pd.read_hdf`
+    colnames :
+        A list of column names present in the data that will be filtered
+
+    Returns
+    -------
+        The list of valid filter terms (terms that do not reference any column
+        not existing in the data)
+    """
+    for term in filter_terms:
+        # first strip out all the parentheses - the where in read_hdf requires all references to be valid
+        t = re.sub('[()]', '', term)
+        # then split each condition out
+        t = re.split('[&|]', t)
+        # get the unique columns referenced by this term
+        term_columns = set([i.split()[0] for i in t])
+        if not term_columns.issubset(colnames):
+            filter_terms.remove(term)
+    return filter_terms
