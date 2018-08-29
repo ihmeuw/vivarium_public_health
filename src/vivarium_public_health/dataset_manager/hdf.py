@@ -91,6 +91,8 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
                 data = json.load(file_node)
         else:
             filter_terms = _get_valid_filter_terms(filter_terms, node.table.colnames)
+            if not filter_terms:
+                filter_terms = None
             data = pd.read_hdf(path, entity_key.path, where=filter_terms)
 
         return data
