@@ -74,7 +74,8 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
         A representation of the internal hdf path where the data is located.
     filter_terms :
         A list of terms used to filter the data formatted in a way that is
-        suitable for use with the `where` argument of `pd.read_hdf`.
+        suitable for use with the `where` argument of `pd.read_hdf`. Only
+        filters applying to existing columns in the data are used.
 
     Returns
     -------
@@ -88,9 +89,11 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
             with filenode.open_node(node, 'r') as file_node:
                 data = json.load(file_node)
         else:
-            data = pd.read_hdf(path, entity_key.path, where=filter_terms)
+            filter_columns = dict((i.split()[0], i) for i in filter_terms)
+            existing_filter_terms = [filter_columns[i] for i in set(node.table.colnames).intersection(filter_columns)]
+            data = pd.read_hdf(path, entity_key.path, where=existing_filter_terms)
 
-    return data
+        return data
 
 
 def remove(path: str, entity_key: 'EntityKey'):
