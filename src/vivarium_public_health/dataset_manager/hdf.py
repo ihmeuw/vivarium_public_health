@@ -90,8 +90,7 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
             with filenode.open_node(node, 'r') as file_node:
                 data = json.load(file_node)
         else:
-            if filter_terms:
-                filter_terms = _get_valid_filters(filter_terms, node.table.colnames)
+            filter_terms = _get_valid_filter_terms(filter_terms, node.table.colnames)
             data = pd.read_hdf(path, entity_key.path, where=filter_terms)
 
         return data
@@ -182,7 +181,7 @@ def _get_node_name(node: tables.node.Node) -> str:
     return node_name
 
 
-def _get_valid_filters(filter_terms, colnames):
+def _get_valid_filter_terms(filter_terms, colnames):
     """Removes any filter terms referencing non-existent columns
 
     Parameters
