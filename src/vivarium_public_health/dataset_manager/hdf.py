@@ -195,7 +195,8 @@ def _get_valid_filter_terms(filter_terms, colnames):
     Returns
     -------
         The list of valid filter terms (terms that do not reference any column
-        not existing in the data)
+        not existing in the data). Returns none if the list is empty because
+        the `where` argument doesn't like empty lists.
     """
     if not filter_terms:
         return None
@@ -208,4 +209,4 @@ def _get_valid_filter_terms(filter_terms, colnames):
         term_columns = set([i.split()[0] for i in t])
         if not term_columns.issubset(colnames):
             filter_terms.remove(term)
-    return filter_terms
+    return filter_terms if filter_terms else None
