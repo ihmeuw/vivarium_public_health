@@ -101,10 +101,11 @@ class ArtifactManager:
 
         Returns
         -------
-            The data associated with the given key filtered down to the requested subset.
+            The data associated with the given key, filtered down to the requested subset
+            if the data is a dataframe.
         """
         data = self.artifact.load(entity_key)
-        return filter_data(data, keep_age_group_edges, **column_filters)
+        return filter_data(data, keep_age_group_edges, **column_filters) if isinstance(data, pd.DataFrame) else data
 
 
 def filter_data(data: pd.DataFrame, keep_age_group_edges: bool, **column_filters: _Filter) -> pd.DataFrame:
