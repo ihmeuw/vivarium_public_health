@@ -179,3 +179,55 @@ def test_get_keys_private(hdf_file, hdf_keys):
 def test_get_node_name(hdf_file, hdf_key):
     key = EntityKey(hdf_key)
     assert hdf._get_node_name(hdf_file.get_node(key.path)) == key.measure
+
+
+def test_get_valid_filter_terms_all_invalid(hdf_key, hdf_file):
+    node = hdf_file.get_node(EntityKey(hdf_key).path)
+    if not isinstance(node, tables.earray.EArray):
+        columns = node.table.colnames
+        invalid_filter_terms = _construct_no_valid_filters(columns)
+        assert hdf._get_valid_filter_terms(invalid_filter_terms, columns) is None
+
+
+def test_get_valid_filter_terms_all_valid(hdf_key, hdf_file):
+    node = hdf_file.get_node(EntityKey(hdf_key).path)
+    if not isinstance(node, tables.earray.EArray):
+        columns = node.table.colnames
+        valid_filter_terms = _construct_all_valid_filters(columns)
+        assert set(hdf._get_valid_filter_terms(valid_filter_terms, columns)) == set(valid_filter_terms)
+
+
+def test_get_valid_filter_terms_some_valid(hdf_key, hdf_file):
+    node = hdf_file.get_node(EntityKey(hdf_key).path)
+    if not isinstance(node, tables.earray.EArray):
+        columns = node.table.colnames
+        invalid_filter_terms = _construct_no_valid_filters(columns)
+        valid_filter_terms = _construct_all_valid_filters(columns)
+        all_terms = invalid_filter_terms + valid_filter_terms
+        result = hdf._get_valid_filter_terms(all_terms, columns)
+        assert set(result) == set(valid_filter_terms)
+
+
+def test_get_valid_filter_terms_no_terms():
+    assert hdf._get_valid_filter_terms(None, []) is None
+
+
+def _construct_no_valid_filters(columns):
+    fake_cols = [c[1:] for c in columns] # strip out the first char to make a list of all fake cols
+    terms = [c + '=0' for c in fake_cols]
+    return _complicate_terms_to_parse(terms)
+
+
+def _construct_all_valid_filters(columns):
+    terms = [c + '=0' for c in columns] # assume c is numeric - we won't actually apply filter
+    return _complicate_terms_to_parse(terms)
+
+
+def _complicate_terms_to_parse(terms):
+    n_terms = len(terms)
+    if n_terms > 1:
+        # throw in some parens and ifs/ands
+        term_1 = '(' + ' & '.join(terms[:(n_terms//2+n_terms % 2)]) + ')'
+        term_2 = '(' + ' | '.join(terms[(n_terms//2+n_terms % 2):]) + ')'
+        terms = [term_1, term_2] + terms
+    return ['(' + t + ')' for t in terms]
