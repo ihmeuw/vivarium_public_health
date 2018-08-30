@@ -200,7 +200,7 @@ def _get_valid_filter_terms(filter_terms, colnames):
     """
     if not filter_terms:
         return None
-    terms = filter_terms.copy()
+    valid_terms = filter_terms.copy()
     for term in filter_terms:
         # first strip out all the parentheses - the where in read_hdf requires all references to be valid
         t = re.sub('[()]', '', term)
@@ -209,5 +209,5 @@ def _get_valid_filter_terms(filter_terms, colnames):
         # get the unique columns referenced by this term
         term_columns = set([i.split()[0] for i in t])
         if not term_columns.issubset(colnames):
-            terms.remove(term)
-    return terms if terms else None
+            valid_terms.remove(term)
+    return valid_terms if valid_terms else None
