@@ -252,20 +252,6 @@ def test_clear_cache(hdf_mock):
     assert a._cache == {}
 
 
-def test_artifact_load_full():
-    path = str(Path(__file__).parent / 'artifact.hdf')
-    filter_terms = ['location == Global', 'draw == 10', 'fake_filter']
-
-    a = Artifact(path, filter_terms)
-
-    for key in _KEYS:
-        result = a.load(key)
-        if 'restrictions' in EntityKey(key):
-            assert isinstance(result, dict)
-        else:
-            assert isinstance(result, pd.DataFrame)
-
-
 def test_loading_key_leaves_filters_unchanged():
     # loading each key will drop the fake_filter from filter_terms for that key
     # make sure that artifact's filter terms stay the same though
