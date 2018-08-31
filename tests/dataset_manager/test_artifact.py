@@ -96,7 +96,7 @@ def test_artifact_load_key_has_no_data(hdf_mock):
 
 def test_artifact_load(hdf_mock, keys_mock):
     path = '/place/with/artifact.hdf'
-    filter_terms = ['location == Global', 'draw == 10']
+    filter_terms = ['location == Global', 'draw == 10', 'fake_filter in [1, 2]']
 
     a = Artifact(path, filter_terms)
 
