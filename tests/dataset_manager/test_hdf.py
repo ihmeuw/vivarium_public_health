@@ -214,7 +214,7 @@ def test_get_valid_filter_terms_no_terms():
 
 def _construct_no_valid_filters(columns):
     fake_cols = [c[1:] for c in columns] # strip out the first char to make a list of all fake cols
-    terms = [c + '=0' for c in fake_cols]
+    terms = [c + ' <= 0' for c in fake_cols]
     return _complicate_terms_to_parse(terms)
 
 
