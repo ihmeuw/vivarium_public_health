@@ -128,6 +128,26 @@ def test_load(hdf_file_path, hdf_key):
         assert isinstance(data, pd.DataFrame)
 
 
+def test_load_with_invalid_filters(hdf_file_path, hdf_key):
+    key = EntityKey(hdf_key)
+    data = hdf.load(hdf_file_path, key, filter_terms=["fake_filter==0"])
+    if 'restrictions' in key:
+        assert isinstance(data, dict)
+    else:
+        assert isinstance(data, pd.DataFrame)
+
+
+def test_load_with_valid_filters(hdf_file_path, hdf_key):
+    key = EntityKey(hdf_key)
+    data = hdf.load(hdf_file_path, key, filter_terms=["year == 2006"])
+    if 'restrictions' in key:
+        assert isinstance(data, dict)
+    else:
+        assert isinstance(data, pd.DataFrame)
+        if 'year' in data.columns:
+            assert set(data.year) == {2006}
+
+
 def test_remove(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
     hdf.remove(hdf_file_path, key)
