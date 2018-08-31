@@ -1,4 +1,6 @@
 import pytest
+import pandas as pd
+from pathlib import Path
 
 from vivarium_public_health.dataset_manager.artifact import Artifact, ArtifactException, EntityKey, _to_tree
 
@@ -38,6 +40,12 @@ def hdf_mock(mocker, keys_mock):
     mock.load.side_effect = mock_load
 
     return mock
+
+# keys in test artifact
+_KEYS = ['population.age_bins',
+         'population.structure',
+         'population.theoretical_minimum_risk_life_expectancy',
+         'cause.all_causes.restrictions']
 
 
 def test_artifact_creation(hdf_mock, keys_mock):
@@ -96,7 +104,7 @@ def test_artifact_load_key_has_no_data(hdf_mock):
 
 def test_artifact_load(hdf_mock, keys_mock):
     path = '/place/with/artifact.hdf'
-    filter_terms = ['location == Global', 'draw == 10', 'fake_filter in [1, 2]']
+    filter_terms = ['location == Global', 'draw == 10']
 
     a = Artifact(path, filter_terms)
 
@@ -242,6 +250,33 @@ def test_clear_cache(hdf_mock):
     a.clear_cache()
 
     assert a._cache == {}
+
+
+def test_artifact_load_full():
+    path = str(Path(__file__).parent / 'artifact.hdf')
+    filter_terms = ['location == Global', 'draw == 10', 'fake_filter']
+
+    a = Artifact(path, filter_terms)
+
+    for key in _KEYS:
+        result = a.load(key)
+        if 'restrictions' in EntityKey(key):
+            assert isinstance(result, dict)
+        else:
+            assert isinstance(result, pd.DataFrame)
+
+
+def test_loading_key_leaves_filters_unchanged():
+    # loading each key will drop the fake_filter from filter_terms for that key
+    # make sure that artifact's filter terms stay the same though
+    path = str(Path(__file__).parent / 'artifact.hdf')
+    filter_terms = ['location == Global', 'draw == 10', 'fake_filter']
+
+    a = Artifact(path, filter_terms)
+
+    for key in _KEYS:
+        a.load(key)
+        assert a.filter_terms == filter_terms
 
 
 def test_EntityKey_init_failure():

@@ -95,6 +95,7 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
 
         return data
 
+
 def remove(path: str, entity_key: 'EntityKey'):
     """Removes a piece of data from an hdf file.
 
