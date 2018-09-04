@@ -1,11 +1,27 @@
 from pathlib import Path
 import random
+import pandas as pd
 
 import pytest
 from vivarium.testing_utilities import build_table, metadata
 
 from vivarium_public_health.dataset_manager.dataset_manager import (_subset_rows, _subset_columns, get_location_term,
-                                                                    parse_artifact_path_config)
+                                                                    parse_artifact_path_config, ArtifactManager)
+@pytest.fixture()
+def artifact_mock(mocker):
+    mock = mocker.patch('vivarium_public_health.dataset_manager.dataset_manager.Artifact')
+
+    def mock_load(key):
+        if key == 'string_data.key':
+            return 'string_data'
+        elif key == 'df_data.key':
+            return pd.DataFrame()
+        else:
+            return None
+
+    mock.load.side_effect = mock_load
+
+    return mock
 
 
 def test_subset_rows_extra_filters():
@@ -86,4 +102,21 @@ def test_parse_artifact_path_config_fail_relative(base_config):
     with pytest.raises(FileNotFoundError):
         parse_artifact_path_config(base_config)
 
+
+def test_load_with_string_data(artifact_mock):
+    am = ArtifactManager()
+    am.artifact = artifact_mock
+    assert am.load('string_data.key') == 'string_data'
+
+
+def test_load_with_no_data(artifact_mock):
+    am = ArtifactManager()
+    am.artifact = artifact_mock
+    assert am.load('no_data.key') is None
+
+
+def test_load_with_df_data(artifact_mock):
+    am = ArtifactManager()
+    am.artifact = artifact_mock
+    assert isinstance(am.load('df_data.key'), pd.DataFrame)
 
