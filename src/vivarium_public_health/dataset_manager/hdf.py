@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import typing
 from typing import Any, List, Optional
+import re
 
 import pandas as pd
 import tables
@@ -74,7 +75,8 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
         A representation of the internal hdf path where the data is located.
     filter_terms :
         A list of terms used to filter the data formatted in a way that is
-        suitable for use with the `where` argument of `pd.read_hdf`.
+        suitable for use with the `where` argument of `pd.read_hdf`. Only
+        filters applying to existing columns in the data are used.
 
     Returns
     -------
@@ -88,9 +90,10 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
             with filenode.open_node(node, 'r') as file_node:
                 data = json.load(file_node)
         else:
+            filter_terms = _get_valid_filter_terms(filter_terms, node.table.colnames)
             data = pd.read_hdf(path, entity_key.path, where=filter_terms)
 
-    return data
+        return data
 
 
 def remove(path: str, entity_key: 'EntityKey'):
@@ -177,3 +180,35 @@ def _get_node_name(node: tables.node.Node) -> str:
     node_path = node_string.split()[0]
     node_name = node_path.split('/')[-1]
     return node_name
+
+
+def _get_valid_filter_terms(filter_terms, colnames):
+    """Removes any filter terms referencing non-existent columns
+
+    Parameters
+    ----------
+    filter_terms :
+        A list of terms formatted so as to be used in the `where` argument of
+        `pd.read_hdf`
+    colnames :
+        A list of column names present in the data that will be filtered
+
+    Returns
+    -------
+        The list of valid filter terms (terms that do not reference any column
+        not existing in the data). Returns none if the list is empty because
+        the `where` argument doesn't like empty lists.
+    """
+    if not filter_terms:
+        return None
+    valid_terms = filter_terms.copy()
+    for term in filter_terms:
+        # first strip out all the parentheses - the where in read_hdf requires all references to be valid
+        t = re.sub('[()]', '', term)
+        # then split each condition out
+        t = re.split('[&|]', t)
+        # get the unique columns referenced by this term
+        term_columns = set([re.split('[<=>\s]', i.strip())[0] for i in t])
+        if not term_columns.issubset(colnames):
+            valid_terms.remove(term)
+    return valid_terms if valid_terms else None
