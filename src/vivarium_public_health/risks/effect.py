@@ -95,6 +95,19 @@ class RiskEffect:
         return f"RiskEffect(risk={self.risk}, cause={self.cause})"
 
 
+class IndirectEffect:
+    def __init__(self, risk, affected_entity, get_data_functions=None, risk_type="coverage_gap", affected_entity_type="risk_factor"):
+        self.risk = risk
+        self.risk_type = risk_type
+        self.affected_entity = affected_entity
+        self.affected_entity_type = affected_entity_type
+        self._get_data_functions = get_data_functions if get_data_functions is not None else {}
+
+    def setup(self, builder):
+        paf_data = self._get_data_functions.get('paf', lambda risk, affected_entity, builder: builder.data.load(
+                f"{self.cause_type}.{cause}.population_attributable_fraction", risk=risk))(self.risk, self.cause, builder)
+
+
 class RiskEffectSet:
     def __init__(self, risk, risk_type="risk_factor"):
         self.risk = risk

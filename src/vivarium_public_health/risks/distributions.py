@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats, optimize, special
 
+from vivarium.framework.values import list_combiner, joint_value_post_processor
 
 class NonConvergenceError(Exception):
     """ Raised when the optimization fails to converge """
@@ -386,7 +387,7 @@ class EnsembleDistribution:
                        for name, dist in self._distributions.items()], axis=0)
 
 
-class CategoricalDistribution:
+class PolytomousDistribution:
     def __init__(self, exposure_data: pd.DataFrame, risk: str):
         self.exposure_data = exposure_data
         self._risk = risk
@@ -407,7 +408,36 @@ class CategoricalDistribution:
         return pd.Series(np.array(self.categories)[category_index], name=self._risk + '_exposure', index=x.index)
 
 
-def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistribution, EnsembleDistribution, CategoricalDistribution]:
+class DichotomousDistribution:
+    def __init__(self, exposure_data: pd.DataFrame, risk: str):
+        self.exposure_data = exposure_data
+        self._risk = risk
+
+    def setup(self, builder):
+        self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure',
+                                                                         source=builder.lookup.build_table(self.exposure_data))
+        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
+                                                               source=lambda index: [pd.Series(0, index=index)],
+                                                               preferred_combiner=list_combiner,
+                                                               preferred_post_processor=joint_value_post_processor)
+
+    def ppf(self, x):
+        base_exposure = self.exposure_proportion(x.index)
+        if not np.allclose(1, np.sum(base_exposure, axis=1)):
+            raise MissingDataError('All exposure data returned as 0.')
+        base_exposure = base_exposure['cat1']
+
+        # delete the effects from any coverage_gap affecting this risk
+        risk_deleted_exposure = base_exposure.values * (1 - self.joint_paf(x.index).values)
+        if np.all(self.joint_paf(x.index)):
+            risk_deleted_exposure /= self.joint_paf(x.index).values
+        exposure = pd.Series(risk_deleted_exposure, index=x.index)
+        exposed = x < exposure
+        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
+
+
+def get_distribution(risk: str, risk_type: str, builder) -> \
+        Union[BaseDistribution, EnsembleDistribution, PolytomousDistribution, DichotomousDistribution]:
 
     distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
     if distribution in ["dichotomous", "polytomous"]:
@@ -417,7 +447,8 @@ def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistributi
                                        columns='parameter', values='value'
                                        ).dropna().reset_index()
 
-        return CategoricalDistribution(exposure_data, risk)
+        return DichotomousDistribution(exposure_data, risk) if distribution == 'dichotomous' \
+            else PolytomousDistribution(exposure_data, risk)
 
     exposure_mean = builder.data.load(f"{risk_type}.{risk}.exposure")
     exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
