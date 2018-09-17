@@ -425,14 +425,15 @@ class DichotomousDistribution:
         base_exposure = self.exposure_proportion(x.index)
         if not np.allclose(1, np.sum(base_exposure, axis=1)):
             raise MissingDataError('All exposure data returned as 0.')
-        base_exposure = base_exposure['cat1']
 
+        base_exposure = base_exposure['cat1'].values
+        joint_paf = self.joint_paf(x.index).values
         # delete the effects from any coverage_gap affecting this risk
-        risk_deleted_exposure = base_exposure.values * (1 - self.joint_paf(x.index).values)
-        if np.all(self.joint_paf(x.index)):
-            risk_deleted_exposure /= self.joint_paf(x.index).values
-        exposure = pd.Series(risk_deleted_exposure, index=x.index)
-        exposed = x < exposure
+        risk_deleted_exposure = base_exposure * (1 - joint_paf)
+
+        # rescale it so that the sum should be 1
+        rescaled_exposure = np.where(joint_paf == 0, risk_deleted_exposure, risk_deleted_exposure/joint_paf)
+        exposed = x < pd.Series(rescaled_exposure, index=x.index)
         return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
 
 

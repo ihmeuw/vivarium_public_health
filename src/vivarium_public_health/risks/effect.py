@@ -96,7 +96,8 @@ class RiskEffect:
 
 
 class IndirectEffect:
-    def __init__(self, risk, affected_entity, get_data_functions=None, risk_type="coverage_gap", affected_entity_type="risk_factor"):
+    def __init__(self, risk, affected_entity, get_data_functions=None, risk_type="coverage_gap",
+                 affected_entity_type="risk_factor"):
         self.risk = risk
         self.risk_type = risk_type
         self.affected_entity = affected_entity
@@ -104,15 +105,49 @@ class IndirectEffect:
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
-        paf_data = self._get_data_functions.get('paf', lambda risk, affected_entity, builder: builder.data.load(
-                f"{self.cause_type}.{cause}.population_attributable_fraction", risk=risk))(self.risk, self.cause, builder)
+        paf_data = self._get_data_functions.get('paf', lambda builder: builder.data.load(
+            f"{self.risk_type}.{self.risk}.population_attributable_fraction"))(builder)
+        paf_data = paf_data[paf_data[f'{self.affected_entity_type}'] == self.affected_entity]
+        self.population_attributable_fraction = builder.lookup.build_table(paf_data[['year', 'sex', 'age', 'value']])
+
+        rr_data = self._get_data_functions.get('rr', lambda builder: builder.data.load(
+            f"{self.risk_type}.{self.risk}.relative_risk"))(builder)
+
+        rr_data = rr_data[['year', 'parameter', 'sex', 'age', 'value']][
+            rr_data[f'{self.affected_entity_type}'] == self.affected_entity]
+
+        rr_data = pd.pivot_table(rr_data, index=['year', 'age', 'sex'],
+                                 columns='parameter', values='value').dropna()
+        rr_data = rr_data.reset_index()
+        self.relative_risk = builder.lookup.build_table(rr_data)
+        self.exposure = builder.value.get_value(f'{self.affected_entity}.exposure')
+        import pdb;
+        pdb.set_trace()
+        builder.value.register_value_modifier(f'{self.affected_entity}.exposure', modifier=self.exposure_proportions)
+        builder.value.register_value_modifier(f'{self.affected_entity}.paf',
+                                              modifier=self.population_attributable_fraction)
+        self.exposure_effect = categorical_exposure_effect(self.affected_entity, self.exposure)
+
+    def exposure_proportions(self, index, rates):
+        import pdb; pdb.set_trace()
+        return rates * self.relative_risk(index)
 
 
 class RiskEffectSet:
-    def __init__(self, risk, risk_type="risk_factor"):
+    def __init__(self, risk, risk_type):
         self.risk = risk
         self.risk_type = risk_type
 
     def setup(self, builder):
-        builder.components.add_components([RiskEffect(risk=self.risk, cause=cause, risk_type=self.risk_type) for cause
-                                           in builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")])
+
+        if self.risk_type == 'risk_factor':
+            builder.components.add_components([RiskEffect(risk=self.risk, cause=cause, risk_type=self.risk_type) for cause
+                                               in builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")])
+        else:
+            builder.components.add_components([IndirectEffect(risk=self.risk, affected_entity=risk,
+                                                              affected_entity_type='risk_factor') for risk
+                                               in builder.data.load(f"{self.risk_type}.{self.risk}.affected_risk_factors")])
+
+            builder.components.add_components([IndirectEffect(risk=self.risk, affected_entity=cause,
+                                                              affected_entity_type='cause') for cause
+                                               in builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")])
