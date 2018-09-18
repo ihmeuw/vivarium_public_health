@@ -108,6 +108,7 @@ class IndirectEffect:
         paf_data = self._get_data_functions.get('paf', lambda builder: builder.data.load(
             f"{self.risk_type}.{self.risk}.population_attributable_fraction"))(builder)
         paf_data = paf_data[paf_data[f'{self.affected_entity_type}'] == self.affected_entity]
+
         self.population_attributable_fraction = builder.lookup.build_table(paf_data[['year', 'sex', 'age', 'value']])
 
         rr_data = self._get_data_functions.get('rr', lambda builder: builder.data.load(
@@ -117,20 +118,18 @@ class IndirectEffect:
             rr_data[f'{self.affected_entity_type}'] == self.affected_entity]
 
         rr_data = pd.pivot_table(rr_data, index=['year', 'age', 'sex'],
-                                 columns='parameter', values='value').dropna()
-        rr_data = rr_data.reset_index()
+                                 columns='parameter', values='value').dropna().reset_index()
+
         self.relative_risk = builder.lookup.build_table(rr_data)
         self.exposure = builder.value.get_value(f'{self.affected_entity}.exposure')
-        import pdb;
-        pdb.set_trace()
         builder.value.register_value_modifier(f'{self.affected_entity}.exposure', modifier=self.exposure_proportions)
         builder.value.register_value_modifier(f'{self.affected_entity}.paf',
                                               modifier=self.population_attributable_fraction)
         self.exposure_effect = categorical_exposure_effect(self.affected_entity, self.exposure)
 
     def exposure_proportions(self, index, rates):
-        import pdb; pdb.set_trace()
-        return rates * self.relative_risk(index)
+        rates *= self.relative_risk(index)['cat1']
+        return rates
 
 
 class RiskEffectSet:

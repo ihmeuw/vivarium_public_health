@@ -122,6 +122,7 @@ class BaseDistribution:
         ppf = self.distribution(**params).ppf(x)
         return self.process(ppf, "ppf_postprocess", ranges)
 
+
 class Beta(BaseDistribution):
 
     distribution = stats.beta
@@ -410,30 +411,25 @@ class PolytomousDistribution:
 
 class DichotomousDistribution:
     def __init__(self, exposure_data: pd.DataFrame, risk: str):
-        self.exposure_data = exposure_data
+        self.exposure_data = exposure_data.drop('cat2', axis=1)
         self._risk = risk
 
     def setup(self, builder):
+        self._base_exposure = builder.lookup.build_table(self.exposure_data)
         self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure',
-                                                                         source=builder.lookup.build_table(self.exposure_data))
+                                                                         source=self.exposure)
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
                                                                source=lambda index: [pd.Series(0, index=index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
 
+    def exposure(self, index):
+        base_exposure = self._base_exposure(index).values
+        joint_paf = self.joint_paf(index).values
+        return base_exposure * (1-joint_paf)
+
     def ppf(self, x):
-        base_exposure = self.exposure_proportion(x.index)
-        if not np.allclose(1, np.sum(base_exposure, axis=1)):
-            raise MissingDataError('All exposure data returned as 0.')
-
-        base_exposure = base_exposure['cat1'].values
-        joint_paf = self.joint_paf(x.index).values
-        # delete the effects from any coverage_gap affecting this risk
-        risk_deleted_exposure = base_exposure * (1 - joint_paf)
-
-        # rescale it so that the sum should be 1
-        rescaled_exposure = np.where(joint_paf == 0, risk_deleted_exposure, risk_deleted_exposure/joint_paf)
-        exposed = x < pd.Series(rescaled_exposure, index=x.index)
+        exposed = x < self.exposure_proportion(x.index)
         return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
 
 
