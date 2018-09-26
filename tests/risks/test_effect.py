@@ -28,7 +28,7 @@ def make_dummy_column(name, initial_value):
     return _make_dummy_column()
 
 
-def test_RiskEffect(base_config, base_plugins):
+def test_RiskEffect(base_config, base_plugins, mocker):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
     time_step = pd.Timedelta(days=base_config.time.step_size)
@@ -39,6 +39,7 @@ def test_RiskEffect(base_config, base_plugins):
 
     r = 'test_risk'
     d = 'test_cause'
+    rf = Risk('risk_factor', r)
     effect_data_functions = {
         'rr': lambda *args: build_table([1.01, 'per_unit'], year_start, year_end,
                                         ('age', 'year', 'sex', 'value', 'parameter')),
@@ -48,7 +49,9 @@ def test_RiskEffect(base_config, base_plugins):
     effect = RiskEffect(r, d, effect_data_functions)
 
     simulation = initialize_simulation([TestPopulation(), effect], input_config=base_config, plugin_config=base_plugins)
+
     simulation.data.write("risk_factor.test_risk.distribution", "dichotomuous")
+    simulation.values.register_value_producer("test_risk_exposure", mocker.Mock())
 
     simulation.setup()
 
@@ -117,6 +120,10 @@ def test_risk_deletion(base_config, base_plugins, mocker):
 
     rf_simulation = initialize_simulation([TestPopulation(), transition, effect],
                                           input_config=base_config, plugin_config=base_plugins)
+
+    rf_simulation.data.write("risk_factor.bad_risk.distribution", "dichotomuous")
+    rf_simulation.values.register_value_producer("bad_risk_exposure", mocker.Mock())
+
     rf_simulation.setup()
     effect.exposure_effect = effect_function
 
@@ -128,7 +135,7 @@ def test_risk_deletion(base_config, base_plugins, mocker):
     assert np.allclose(joint_paf(rf_simulation.population.population.index), risk_paf)
 
 
-def test_continuous_exposure_effect(base_config, base_plugins):
+def test_continuous_exposure_effect(base_config, base_plugins, mocker):
     risk = "test_risk"
     tmred = {
             "distribution": 'uniform',
@@ -143,15 +150,21 @@ def test_continuous_exposure_effect(base_config, base_plugins):
             "min_val": 50.0,
     }
 
+    tmrel = 0.5 * (tmred["max"] + tmred["min"])
+    risk_effect = mocker.Mock()
+    risk_effect._exposure.side_effect = lambda index: pd.Series(tmrel, index=index)
+
     class exposure_function_wrapper:
 
         def setup(self, builder):
             self.population_view = builder.population.get_view([risk+'_exposure'])
-            self.exposure_function = continuous_exposure_effect(risk, "risk_factor", self.population_view, builder)
+            self.exposure_function = continuous_exposure_effect(risk, "risk_factor", risk_effect._exposure, builder)
 
         def __call__(self, *args, **kwargs):
             return self.exposure_function(*args, **kwargs)
+
     exposure_function = exposure_function_wrapper()
+    components = [TestPopulation(), exposure_function]
 
     tmrel = 0.5 * (tmred["max"] + tmred["min"])
 
@@ -168,27 +181,28 @@ def test_continuous_exposure_effect(base_config, base_plugins):
 
     assert np.all(exposure_function(rates, rr) == 0.01)
 
-    simulation.population.get_view([risk+'_exposure']).update(
-        pd.Series(tmrel + 50, index=simulation.population.population.index))
+    risk_effect._exposure.side_effect = lambda index: pd.Series(tmrel + 50, index=index)
 
     expected_value = 0.01 * (1.01 ** (((tmrel + 50) - tmrel) / exposure_parameters["scale"]))
 
     assert np.allclose(exposure_function(rates, rr), expected_value)
 
 
-def test_categorical_exposure_effect(base_config):
+def test_categorical_exposure_effect(base_config, mocker):
     risk = "test_risk"
+    risk_effect = mocker.Mock()
+    risk_effect.risk = risk
+    risk_effect._exposure.side_effect = lambda index: pd.Series(['cat2'] * len(index), index=index)
 
     class exposure_function_wrapper:
         def setup(self, builder):
-            self.population_view = builder.population.get_view([risk + '_exposure'])
-            self.exposure_function = categorical_exposure_effect(risk, self.population_view)
+            self.exposure_function = categorical_exposure_effect(risk_effect._exposure)
 
         def __call__(self, *args, **kwargs):
             return self.exposure_function(*args, **kwargs)
 
     exposure_function = exposure_function_wrapper()
-    components = [TestPopulation(), make_dummy_column(risk+'_exposure', 'cat2'), exposure_function]
+    components = [TestPopulation(), exposure_function]
     simulation = setup_simulation(components, input_config=base_config)
 
     rates = pd.Series(0.01, index=simulation.population.population.index)
@@ -196,11 +210,9 @@ def test_categorical_exposure_effect(base_config):
 
     assert np.all(exposure_function(rates, rr) == 0.01)
 
-    simulation.population.get_view([risk+'_exposure']).update(
-        pd.Series('cat1', index=simulation.population.population.index))
+    risk_effect._exposure.side_effect = lambda index: pd.Series(['cat1'] * len(index), index=index)
 
     assert np.allclose(exposure_function(rates, rr), 0.0101)
-
 
 
 def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
@@ -239,16 +251,14 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
                                                           key_columns=('sex',),
                                                           parameter_columns=('age', 'year'))
 
-    assert np.isclose((simulation.population.population[risk+'_exposure'] == 'cat1').sum()
-                      / len(simulation.population.population), 0.5, rtol=0.01)
+    categories = simulation.values.get_value('test_risk_exposure')(simulation.population.population.index)
+    assert np.isclose(categories.value_counts()['cat1'] / len(simulation.population.population), 0.5, rtol=0.01)
 
     expected_exposed_value = 0.01 * 1.01
     expected_unexposed_value = 0.01
 
-    exposed_index = simulation.population.population.index[
-        simulation.population.population[risk+'_exposure'] == 'cat1']
-    unexposed_index = simulation.population.population.index[
-        simulation.population.population[risk+'_exposure'] == 'cat2']
+    exposed_index = categories[categories == 'cat1'].index
+    unexposed_index = categories[categories == 'cat2'].index
 
     assert np.allclose(incidence_rate(exposed_index), from_yearly(expected_exposed_value, time_step))
     assert np.allclose(incidence_rate(unexposed_index), from_yearly(expected_unexposed_value, time_step))
@@ -289,15 +299,15 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
                                                           key_columns=('sex',),
                                                           parameter_columns=('age', 'year'))
 
+    categories = simulation.values.get_value('test_risk_exposure')(simulation.population.population.index)
+
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
-        assert np.isclose((simulation.population.population[risk+'_exposure'] == category).sum()
-                          / len(simulation.population.population), 0.25, rtol=0.02)
+        assert np.isclose(categories.value_counts()[category] / len(simulation.population.population), 0.25, rtol=0.02)
 
     expected_exposed_value = 0.01 * np.array([1.02, 1.03, 1.01])
 
     for cat, expected in zip(['cat1', 'cat2', 'cat3', 'cat4'], expected_exposed_value):
-        exposed_index = simulation.population.population.index[
-            simulation.population.population[risk+'_exposure'] == cat]
+        exposed_index = categories[categories == cat].index
         assert np.allclose(incidence_rate(exposed_index), from_yearly(expected, time_step), rtol=0.01)
 
 
@@ -366,9 +376,87 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
                                                           key_columns=('sex',),
                                                           parameter_columns=('age', 'year'))
 
-    assert np.allclose(simulation.population.population[risk+'_exposure'], 130, rtol=0.001)
+    exposure = simulation.values.get_value('test_risk_exposure')
+    assert np.allclose(exposure(simulation.population.population.index), 130, rtol=0.001)
 
     expected_value = 0.01 * (1.01**((130 - 112) / 10))
 
     assert np.allclose(incidence_rate(simulation.population.population.index),
                        from_yearly(expected_value, time_step), rtol=0.001)
+
+
+def test_IndirectEffect_dichotomous(base_config, base_plugins):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    affected_risk = Risk('risk_factor', 'test_risk')
+    rf_exposed = 0.4
+
+    rf_exposure_data = build_table([rf_exposed, 1-rf_exposed], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']).melt(
+        id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+
+    base_config.update({'population': {'population_size': 100000}}, layer='override')
+    """
+    # start with the only risk factor without indirect effect from coverage_gap
+    simulation = initialize_simulation([TestPopulation(), affected_risk],
+                                       input_config=base_config, plugin_config=base_plugins)
+
+    simulation.data.write("risk_factor.test_risk.exposure", rf_exposure_data)
+    simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
+    simulation.data.write("risk_factor.test_risk.affected_causes", [])
+    simulation.setup()
+
+    pop = simulation.population.population
+    exposure = simulation.values.get_value('test_risk_risk_exposure')
+    assert np.isclose(rf_exposed, exposure(pop.index).value_counts()['cat1']/len(pop), rtol=0.01)
+    """
+    # add the coverage gap which should change the exposure of test risk
+    coverage_gap = Risk('coverage_gap', 'test_coverage_gap')
+    simulation = initialize_simulation([TestPopulation(), affected_risk, coverage_gap],
+                                       input_config=base_config, plugin_config=base_plugins)
+
+    cg_exposed = 0.6
+    cg_exposure_data = build_table([cg_exposed, 1-cg_exposed], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
+                                   ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+
+    rr = 2
+    rr_data = build_table([rr, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']).melt(
+        id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    rr_data['risk_factor'] = 'test_risk'
+
+    # paf is (sum(exposure(category)*rr(category) -1 )/ (sum(exposure(category)* rr(category)
+    paf = (rr * cg_exposed + (1-cg_exposed) - 1) / (rr * cg_exposed + (1-cg_exposed))
+
+    paf_data = build_table(paf, year_start, year_end,
+                           ['age', 'year', 'sex', 'population_attributable_fraction']).melt(
+        id_vars=('age', 'year', 'sex'), var_name='population_attributable_fraction', value_name='value')
+    paf_data['risk_factor'] = 'test_risk'
+
+    simulation.data.write("risk_factor.test_risk.exposure", rf_exposure_data)
+    simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
+    simulation.data.write("risk_factor.test_risk.affected_causes", [])
+    simulation.data.write("coverage_gap.test_coverage_gap.exposure", cg_exposure_data)
+    simulation.data.write("coverage_gap.test_coverage_gap.distribution", "dichotomous")
+    simulation.data.write("coverage_gap.test_coverage_gap.relative_risk", rr_data)
+    simulation.data.write("coverage_gap.test_coverage_gap.affected_risk_factors", ['test_risk'])
+    simulation.data.write("coverage_gap.test_coverage_gap.affected_causes", [])
+    simulation.data.write("coverage_gap.test_coverage_gap.population_attributable_fraction", paf_data)
+
+    simulation.setup()
+
+    pop = simulation.population.population
+    rf_exposure = simulation.values.get_value('test_risk_risk_exposure')(pop.index)
+
+    # proportion of simulants exposed to each category of affected risk stays same
+    assert np.isclose(rf_exposed, rf_exposure.value_counts()['cat1']/len(pop), rtol=0.01)
+
+    # compute relative risk to test whether it matches with the given relative risk
+    cg_exposure = simulation.values.get_value('test_coverage_gap_risk_exposure')(pop.index)
+
+    cg_exposed = cg_exposure == 'cat1'
+    rf_exposed = rf_exposure == 'cat1'
+
+    affected_by_cg = rf_exposed & cg_exposed
+    not_affected_by_cg = rf_exposed & ~cg_exposed
+
+    computed_rr = (len(pop[affected_by_cg])/len(pop[cg_exposed])) / (len(pop[not_affected_by_cg])/len(pop[~cg_exposed]))
+    assert np.isclose(computed_rr, rr, rtol=0.01)
