@@ -96,7 +96,6 @@ class Artifact:
             pass
         else:
             self._keys.append(entity_key)
-            self._cache[entity_key] = data
             hdf.write(self.path, entity_key, data)
 
     def remove(self, entity_key: str):
