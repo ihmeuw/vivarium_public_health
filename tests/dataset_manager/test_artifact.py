@@ -173,8 +173,7 @@ def test_artifact_write(hdf_mock):
     a.write(key, "data")
 
     assert ekey in a.keys
-    assert ekey in a._cache
-    assert a._cache[ekey] == "data"
+    assert ekey not in a._cache
     hdf_mock.write.assert_called_once_with(path, ekey, "data")
 
 
