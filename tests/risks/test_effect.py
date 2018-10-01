@@ -51,7 +51,7 @@ def test_RiskEffect(base_config, base_plugins, mocker):
     simulation = initialize_simulation([TestPopulation(), effect], input_config=base_config, plugin_config=base_plugins)
 
     simulation.data.write("risk_factor.test_risk.distribution", "dichotomuous")
-    simulation.values.register_value_producer("test_risk_exposure", mocker.Mock())
+    simulation.values.register_value_producer("test_risk_risk_exposure", mocker.Mock())
 
     simulation.setup()
 
@@ -122,7 +122,7 @@ def test_risk_deletion(base_config, base_plugins, mocker):
                                           input_config=base_config, plugin_config=base_plugins)
 
     rf_simulation.data.write("risk_factor.bad_risk.distribution", "dichotomuous")
-    rf_simulation.values.register_value_producer("bad_risk_exposure", mocker.Mock())
+    rf_simulation.values.register_value_producer("bad_risk_risk_exposure", mocker.Mock())
 
     rf_simulation.setup()
     effect.exposure_effect = effect_function
@@ -251,7 +251,7 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
                                                           key_columns=('sex',),
                                                           parameter_columns=('age', 'year'))
 
-    categories = simulation.values.get_value('test_risk_exposure')(simulation.population.population.index)
+    categories = simulation.values.get_value('test_risk_risk_exposure')(simulation.population.population.index)
     assert np.isclose(categories.value_counts()['cat1'] / len(simulation.population.population), 0.5, rtol=0.01)
 
     expected_exposed_value = 0.01 * 1.01
@@ -299,7 +299,7 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
                                                           key_columns=('sex',),
                                                           parameter_columns=('age', 'year'))
 
-    categories = simulation.values.get_value('test_risk_exposure')(simulation.population.population.index)
+    categories = simulation.values.get_value('test_risk_risk_exposure')(simulation.population.population.index)
 
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
         assert np.isclose(categories.value_counts()[category] / len(simulation.population.population), 0.25, rtol=0.02)
@@ -376,7 +376,7 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
                                                           key_columns=('sex',),
                                                           parameter_columns=('age', 'year'))
 
-    exposure = simulation.values.get_value('test_risk_exposure')
+    exposure = simulation.values.get_value('test_risk_risk_exposure')
     assert np.allclose(exposure(simulation.population.population.index), 130, rtol=0.001)
 
     expected_value = 0.01 * (1.01**((130 - 112) / 10))
@@ -395,7 +395,7 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
         id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    """
+
     # start with the only risk factor without indirect effect from coverage_gap
     simulation = initialize_simulation([TestPopulation(), affected_risk],
                                        input_config=base_config, plugin_config=base_plugins)
@@ -408,7 +408,7 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
     pop = simulation.population.population
     exposure = simulation.values.get_value('test_risk_risk_exposure')
     assert np.isclose(rf_exposed, exposure(pop.index).value_counts()['cat1']/len(pop), rtol=0.01)
-    """
+
     # add the coverage gap which should change the exposure of test risk
     coverage_gap = Risk('coverage_gap', 'test_coverage_gap')
     simulation = initialize_simulation([TestPopulation(), affected_risk, coverage_gap],

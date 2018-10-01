@@ -150,6 +150,6 @@ class RiskEffectSet:
                                                               affected_entity_type='risk_factor') for risk
                                                in builder.data.load(f"{self.risk_type}.{self.risk}.affected_risk_factors")])
 
-            builder.components.add_components([IndirectEffect(risk=self.risk, affected_entity=cause,
-                                                              affected_entity_type='cause') for cause
+            builder.components.add_components([RiskEffect(risk=self.risk, cause=cause, risk_type=self.risk_type) for cause
                                                in builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")])
+
