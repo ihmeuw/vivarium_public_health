@@ -98,7 +98,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     healthy_state = BaseDiseaseState('healthy')
 
     mort_get_data_funcs = {
-        'dwell_time': lambda _, __: pd.Timedelta(days=28),
+        'dwell_time': lambda _, __: pd.Timedelta(days=14),
         'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
     }
 
@@ -118,19 +118,20 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     assert np.all(simulation.population.population[disease] == 'event')
 
     simulation.step()
-    simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
     assert np.all(simulation.population.population[disease] == 'event')
 
     simulation.step()
 
-    # Make sure some people have died and enough time has passed so living people should transition away
-    assert ((simulation.population.population['alive'] == 'alive').sum() ==
-           (simulation.population.population[disease] == 'sick').sum())
+    # Make sure some people have died and remained in event state
+    assert (simulation.population.population['alive'] == 'alive').sum() < pop_size
+
     assert ((simulation.population.population['alive'] == 'dead').sum() ==
             (simulation.population.population[disease] == 'event').sum())
-    assert (simulation.population.population['alive'] == 'alive').sum() < pop_size
-    assert set(simulation.population.population[disease].unique()) == set(['event', 'sick'])
+
+    # enough time has passed so living people should transition away to sick
+    assert ((simulation.population.population['alive'] == 'alive').sum() ==
+           (simulation.population.population[disease] == 'sick').sum())
 
 
 
