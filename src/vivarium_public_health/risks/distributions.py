@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats, optimize, special
 
+from vivarium.framework.values import list_combiner, joint_value_post_processor
 
 class NonConvergenceError(Exception):
     """ Raised when the optimization fails to converge """
@@ -49,7 +50,8 @@ class BaseDistribution:
 
     distribution = None
 
-    def __init__(self, exposure: pd.DataFrame):
+    def __init__(self, exposure: pd.DataFrame, risk: str):
+        self._risk = risk
         self._range = self._get_min_max(exposure)
         self._parameter_data = self._get_params(exposure)
         self._ranges_data = {'x_min': pd.DataFrame(self._range['x_min'], index=exposure.index),
@@ -60,6 +62,7 @@ class BaseDistribution:
                            self._parameter_data.items()}
         self.ranges_data = {name: builder.lookup.build_table(data.reset_index()) for name, data in
                             self._ranges_data.items()}
+
 
     @staticmethod
     def _get_min_max(exposure: pd.DataFrame) -> Dict[str, np.ndarray]:
@@ -120,6 +123,7 @@ class BaseDistribution:
         x = self.process(x, "ppf_preprocess", ranges)
         ppf = self.distribution(**params).ppf(x)
         return self.process(ppf, "ppf_postprocess", ranges)
+
 
 class Beta(BaseDistribution):
 
@@ -262,6 +266,18 @@ class LogNormal(BaseDistribution):
                 'scale': pd.DataFrame(scale, index=exposure.index)}
 
 
+class LogNormalSimulation(LogNormal):
+    def setup(self, builder):
+        super().setup(builder)
+        self.propensity = builder.value.get_value(f'{self._risk}_propensity')
+        self.exposure = builder.value.register_value_producer(f'{self._risk}_exposure', source=self.exposure)
+        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf', source=lambda index: [pd.Series(0,
+                                                                                                          index=index)])
+    def exposure(self, index):
+        propensities = self.propensity(index)
+        return self.ppf(propensities)
+
+
 class MirroredGumbel(BaseDistribution):
 
     distribution = stats.gumbel_r
@@ -316,6 +332,19 @@ class Normal(BaseDistribution):
                 'scale': pd.DataFrame(exposure['standard_deviation'], index=exposure.index)}
 
 
+class NormalSimulation(Normal):
+    def setup(self, builder):
+        super().setup(builder)
+        self.propensity = builder.value.get_value(f'{self._risk}_propensity')
+        self.exposure = builder.value.register_value_producer(f'{self._risk}_exposure', source=self.exposure)
+        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf', source=lambda index: [pd.Series(0,
+                                                                                                          index=index)])
+
+    def exposure(self, index):
+        propensities = self.propensity(index)
+        return self.ppf(propensities)
+
+
 class Weibull(BaseDistribution):
 
     distribution = stats.weibull_min
@@ -341,11 +370,11 @@ class Weibull(BaseDistribution):
 class EnsembleDistribution:
     """Represents an arbitrary distribution as a weighted sum of several concrete distribution types."""
 
-    def __init__(self, exposure, weights, distribution_map):
+    def __init__(self, exposure, weights, distribution_map, risk):
+        self._risk = risk
         self.weights, self._distributions = self.get_valid_distributions(exposure, weights, distribution_map)
 
-    @staticmethod
-    def get_valid_distributions(exposure: pd.DataFrame, weights: pd.Series,
+    def get_valid_distributions(self, exposure: pd.DataFrame, weights: pd.Series,
                                 distribution_map: Dict) -> Tuple[np.ndarray, Dict]:
         """Produces a distribution that filters out non convergence errors and rescales weights appropriately.
 
@@ -365,7 +394,7 @@ class EnsembleDistribution:
         dist = dict()
         for key in distribution_map:
             try:
-                dist[key] = distribution_map[key](exposure)
+                dist[key] = distribution_map[key](exposure, self._risk)
             except NonConvergenceError as e:
                 if weights[e.dist] > 0.05:
                     weights = weights.drop(e.dist)
@@ -376,6 +405,10 @@ class EnsembleDistribution:
 
     def setup(self, builder):
         builder.components.add_components(self._distributions.values())
+        self.propensity = builder.value.get_value(f'{self._risk}_propensity')
+        self.exposure = builder.value.register_value_producer(f'{self._risk}_exposure', source=self.exposure)
+        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
+                                                               source=lambda index: [pd.Series(0,index=index)])
 
     def pdf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         return np.sum([self.weights[name] * dist.pdf(x, interpolation)
@@ -385,8 +418,12 @@ class EnsembleDistribution:
         return np.sum([self.weights[name] * dist.ppf(x, interpolation)
                        for name, dist in self._distributions.items()], axis=0)
 
+    def exposure(self, index):
+        propensities = self.propensity(index)
+        return self.ppf(propensities)
 
-class CategoricalDistribution:
+
+class PolytomousDistribution:
     def __init__(self, exposure_data: pd.DataFrame, risk: str):
         self.exposure_data = exposure_data
         self._risk = risk
@@ -407,7 +444,33 @@ class CategoricalDistribution:
         return pd.Series(np.array(self.categories)[category_index], name=self._risk + '_exposure', index=x.index)
 
 
-def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistribution, EnsembleDistribution, CategoricalDistribution]:
+class DichotomousDistribution:
+    def __init__(self, exposure_data: pd.DataFrame, risk: str):
+        self.exposure_data = exposure_data.drop('cat2', axis=1)
+        self._risk = risk
+
+    def setup(self, builder):
+        self._base_exposure = builder.lookup.build_table(self.exposure_data)
+        self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure',
+                                                                         source=self.exposure)
+        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
+                                                               source=lambda index: [pd.Series(0, index=index)],
+                                                               preferred_combiner=list_combiner,
+                                                               preferred_post_processor=joint_value_post_processor)
+
+    def exposure(self, index):
+        base_exposure = self._base_exposure(index).values
+        joint_paf = self.joint_paf(index).values
+        return base_exposure * (1-joint_paf)
+
+    def ppf(self, x):
+        exposed = x < self.exposure_proportion(x.index)
+
+        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
+
+
+def get_distribution(risk: str, risk_type: str, builder) -> \
+        Union[BaseDistribution, EnsembleDistribution, PolytomousDistribution, DichotomousDistribution]:
 
     distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
     if distribution in ["dichotomous", "polytomous"]:
@@ -417,7 +480,8 @@ def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistributi
                                        columns='parameter', values='value'
                                        ).dropna().reset_index()
 
-        return CategoricalDistribution(exposure_data, risk)
+        return DichotomousDistribution(exposure_data, risk) if distribution == 'dichotomous' \
+            else PolytomousDistribution(exposure_data, risk)
 
     exposure_mean = builder.data.load(f"{risk_type}.{risk}.exposure")
     exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
@@ -454,11 +518,11 @@ def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistributi
         e_weights = weights.iloc[0]
         dist = {d: distribution_map[d] for d in weights_cols}
 
-        return EnsembleDistribution(exposure, e_weights/np.sum(e_weights), dist)
+        return EnsembleDistribution(exposure, e_weights/np.sum(e_weights), dist, risk)
 
     elif distribution == 'lognormal':
-        return LogNormal(exposure)
+        return LogNormalSimulation(exposure, risk)
     elif distribution == 'normal':
-        return Normal(exposure)
+        return NormalSimulation(exposure, risk)
     else:
         raise ValueError(f"Unhandled distribution type {distribution}")
