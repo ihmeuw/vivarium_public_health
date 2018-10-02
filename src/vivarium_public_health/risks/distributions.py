@@ -6,6 +6,7 @@ from scipy import stats, optimize, special
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 
+
 class NonConvergenceError(Exception):
     """ Raised when the optimization fails to converge """
     def __init__(self, message: str, dist: str) -> None:
@@ -15,6 +16,7 @@ class NonConvergenceError(Exception):
 
 class MissingDataError(Exception):
     pass
+
 
 def _get_optimization_result(exposure: pd.DataFrame, func: Callable,
                              initial_func: Callable) -> Tuple:
@@ -53,6 +55,7 @@ class BaseDistribution:
     def __init__(self, exposure: pd.DataFrame, risk: str):
         self._risk = risk
         self._range = self._get_min_max(exposure)
+        self.exposure_data = exposure
         self._parameter_data = self._get_params(exposure)
         self._ranges_data = {'x_min': pd.DataFrame(self._range['x_min'], index=exposure.index),
                              'x_max': pd.DataFrame(self._range['x_max'], index=exposure.index)}
@@ -76,6 +79,9 @@ class BaseDistribution:
         return {'x_min': x_min, 'x_max': x_max}
 
     def _get_params(self, exposure: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+        raise NotImplementedError()
+
+    def _get_exposure_params(self, index):
         raise NotImplementedError()
 
     def process(self, data: Union[np.ndarray, pd.Series], process_type: str,
@@ -269,13 +275,18 @@ class LogNormal(BaseDistribution):
 class LogNormalSimulation(LogNormal):
     def setup(self, builder):
         super().setup(builder)
-        self.propensity = builder.value.get_value(f'{self._risk}_propensity')
-        self.exposure = builder.value.register_value_producer(f'{self._risk}_exposure', source=self.exposure)
+        self._exposure_params = {name: builder.lookup.build_table(data.reset_index()) for name, data in
+                                 self.exposure_data.items()}
+        self.exposure_params = builder.value.register_value_producer(f'{self._risk}_exposure_parameters',
+                                                              source=self._get_exposure_params)
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf', source=lambda index: [pd.Series(0,
                                                                                                           index=index)])
-    def exposure(self, index):
-        propensities = self.propensity(index)
-        return self.ppf(propensities)
+
+    def _get_exposure_params(self, index):
+        params = {'mean': self._exposure_params['mean'](index),
+                  'standard_deviation': self._exposure_params['standard_deviation'](index)}
+
+        return pd.DataFrame(params, index=index)
 
 
 class MirroredGumbel(BaseDistribution):
@@ -335,14 +346,18 @@ class Normal(BaseDistribution):
 class NormalSimulation(Normal):
     def setup(self, builder):
         super().setup(builder)
-        self.propensity = builder.value.get_value(f'{self._risk}_propensity')
-        self.exposure = builder.value.register_value_producer(f'{self._risk}_exposure', source=self.exposure)
+        self._exposure_params = {name: builder.lookup.build_table(data.reset_index()) for name, data in
+                                 self.exposure_data.items()}
+        self.exposure_params = builder.value.register_value_producer(f'{self._risk}_exposure_parameters',
+                                                                     source=self._get_exposure_params)
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf', source=lambda index: [pd.Series(0,
                                                                                                           index=index)])
 
-    def exposure(self, index):
-        propensities = self.propensity(index)
-        return self.ppf(propensities)
+    def _get_exposure_params(self, index):
+        params = {'mean': self._exposure_params['mean'](index),
+                  'standard_deviation': self._exposure_params['standard_deviation'](index)}
+
+        return pd.DataFrame(params, index=index)
 
 
 class Weibull(BaseDistribution):
@@ -371,6 +386,7 @@ class EnsembleDistribution:
     """Represents an arbitrary distribution as a weighted sum of several concrete distribution types."""
 
     def __init__(self, exposure, weights, distribution_map, risk):
+        self.exposure_data = exposure
         self._risk = risk
         self.weights, self._distributions = self.get_valid_distributions(exposure, weights, distribution_map)
 
@@ -405,8 +421,10 @@ class EnsembleDistribution:
 
     def setup(self, builder):
         builder.components.add_components(self._distributions.values())
-        self.propensity = builder.value.get_value(f'{self._risk}_propensity')
-        self.exposure = builder.value.register_value_producer(f'{self._risk}_exposure', source=self.exposure)
+        self._exposure_params = {name: builder.lookup.build_table(data.reset_index()) for name, data in
+                                 self.exposure_data.items()}
+        self.exposure_params = builder.value.register_value_producer(f'{self._risk}_exposure_parameters',
+                                                                     source=self._get_exposure_params)
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
                                                                source=lambda index: [pd.Series(0,index=index)])
 
@@ -418,9 +436,11 @@ class EnsembleDistribution:
         return np.sum([self.weights[name] * dist.ppf(x, interpolation)
                        for name, dist in self._distributions.items()], axis=0)
 
-    def exposure(self, index):
-        propensities = self.propensity(index)
-        return self.ppf(propensities)
+    def _get_exposure_params(self, index):
+        params = {'mean': self._exposure_params['mean'](index),
+                  'standard_deviation': self._exposure_params['standard_deviation'](index)}
+
+        return pd.DataFrame(params, index=index)
 
 
 class PolytomousDistribution:
@@ -431,11 +451,15 @@ class PolytomousDistribution:
                                  key=lambda column: int(column[3:]))
 
     def setup(self, builder):
-        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
-                                                              source=builder.lookup.build_table(self.exposure_data))
+        self.exposure_proportion = builder.value.register_value_producer(
+            f'{self._risk}.exposure', source=builder.lookup.build_table(self.exposure_data))
+        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
+                                                               source=lambda index: [pd.Series(0, index=index)],
+                                                               preferred_combiner=list_combiner,
+                                                               preferred_post_processor=joint_value_post_processor)
 
     def ppf(self, x):
-        exposure = self.exposure(x.index)
+        exposure = self.exposure_proportion(x.index)
         sorted_exposures = exposure[self.categories]
         if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
             raise MissingDataError('All exposure data returned as 0.')
