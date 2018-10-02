@@ -66,7 +66,6 @@ class BaseDistribution:
         self.ranges_data = {name: builder.lookup.build_table(data.reset_index()) for name, data in
                             self._ranges_data.items()}
 
-
     @staticmethod
     def _get_min_max(exposure: pd.DataFrame) -> Dict[str, np.ndarray]:
         """Gets the upper and lower bounds of the distribution support."""
@@ -277,7 +276,7 @@ class LogNormalSimulation(LogNormal):
         super().setup(builder)
         self._exposure_params = {name: builder.lookup.build_table(data.reset_index()) for name, data in
                                  self.exposure_data.items()}
-        self.exposure_params = builder.value.register_value_producer(f'{self._risk}_exposure_parameters',
+        self.exposure_params = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
                                                               source=self._get_exposure_params)
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf', source=lambda index: [pd.Series(0,
                                                                                                           index=index)])
@@ -348,7 +347,7 @@ class NormalSimulation(Normal):
         super().setup(builder)
         self._exposure_params = {name: builder.lookup.build_table(data.reset_index()) for name, data in
                                  self.exposure_data.items()}
-        self.exposure_params = builder.value.register_value_producer(f'{self._risk}_exposure_parameters',
+        self.exposure_params = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
                                                                      source=self._get_exposure_params)
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf', source=lambda index: [pd.Series(0,
                                                                                                           index=index)])
@@ -386,7 +385,6 @@ class EnsembleDistribution:
     """Represents an arbitrary distribution as a weighted sum of several concrete distribution types."""
 
     def __init__(self, exposure, weights, distribution_map, risk):
-        self.exposure_data = exposure
         self._risk = risk
         self.weights, self._distributions = self.get_valid_distributions(exposure, weights, distribution_map)
 
@@ -421,12 +419,8 @@ class EnsembleDistribution:
 
     def setup(self, builder):
         builder.components.add_components(self._distributions.values())
-        self._exposure_params = {name: builder.lookup.build_table(data.reset_index()) for name, data in
-                                 self.exposure_data.items()}
-        self.exposure_params = builder.value.register_value_producer(f'{self._risk}_exposure_parameters',
+        self.exposure_params = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
                                                                      source=self._get_exposure_params)
-        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
-                                                               source=lambda index: [pd.Series(0,index=index)])
 
     def pdf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
         return np.sum([self.weights[name] * dist.pdf(x, interpolation)
@@ -437,10 +431,7 @@ class EnsembleDistribution:
                        for name, dist in self._distributions.items()], axis=0)
 
     def _get_exposure_params(self, index):
-        params = {'mean': self._exposure_params['mean'](index),
-                  'standard_deviation': self._exposure_params['standard_deviation'](index)}
-
-        return pd.DataFrame(params, index=index)
+        raise NotImplementedError('We do not have a good way to do this for the ensemble distribution')
 
 
 class PolytomousDistribution:
@@ -452,7 +443,7 @@ class PolytomousDistribution:
 
     def setup(self, builder):
         self.exposure_proportion = builder.value.register_value_producer(
-            f'{self._risk}.exposure', source=builder.lookup.build_table(self.exposure_data))
+            f'{self._risk}.exposure_parameters', source=builder.lookup.build_table(self.exposure_data))
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
                                                                source=lambda index: [pd.Series(0, index=index)],
                                                                preferred_combiner=list_combiner,
@@ -475,7 +466,7 @@ class DichotomousDistribution:
 
     def setup(self, builder):
         self._base_exposure = builder.lookup.build_table(self.exposure_data)
-        self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure',
+        self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
                                                                          source=self.exposure)
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
                                                                source=lambda index: [pd.Series(0, index=index)],

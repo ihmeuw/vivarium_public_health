@@ -27,11 +27,12 @@ class Risk:
         builder.components.add_components([self._effects, self.exposure_distribution])
         self.randomness = builder.randomness.get_stream(f'initial_{self._risk}_propensity')
         self._propensity = pd.Series()
-        self.propensity = builder.value.register_value_producer(f'{self._risk}_propensity',
+        self.propensity = builder.value.register_value_producer(f'{self._risk}.propensity',
                                                                 source=lambda index: self._propensity[index])
-        self.exposure = builder.value.register_value_producer(f'{self._risk}_risk_exposure', source=self.get_current_exposure)
+        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure', source=self.get_current_exposure)
         builder.population.initializes_simulants(self.on_initialize_simulants,
-                                                 creates_columns=[f'{self._risk}_propensity'])
+                                                 creates_columns=[f'{self._risk}_'
+                                                                  f'.propensity'])
 
     def on_initialize_simulants(self, pop_data):
         self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))
