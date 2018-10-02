@@ -260,7 +260,7 @@ class DiseaseState(BaseDiseaseState):
         iterable of ints
             A filtered index of the simulants.
         """
-        population = self.population_view.get(index)
+        population = self.population_view.get(index, query='alive == "alive"')
         # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
         if self.track_events:
             state_exit_time = population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')

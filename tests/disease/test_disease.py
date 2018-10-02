@@ -8,6 +8,7 @@ from vivarium.interface.interactive import setup_simulation
 
 from vivarium_public_health.disease import (BaseDiseaseState, DiseaseState, ExcessMortalityState,
                                             RateTransition, DiseaseModel)
+from vivarium_public_health.population import Mortality
 
 
 @pytest.fixture
@@ -82,6 +83,56 @@ def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     assert np.all(simulation.population.population[disease] == 'sick')
     assert np.all(simulation.population.population.event_event_time == pd.to_datetime(event_time))
     assert np.all(simulation.population.population.event_event_count == 1)
+
+
+def test_dwell_time_with_mortality(base_config, base_plugins, disease):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+
+    time_step = 10
+    pop_size = 100
+    base_config.update({
+        'time': {'step_size': time_step},
+        'population': {'population_size': pop_size}
+    }, **metadata(__file__))
+    healthy_state = BaseDiseaseState('healthy')
+
+    mort_get_data_funcs = {
+        'dwell_time': lambda _, __: pd.Timedelta(days=14),
+        'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
+    }
+
+    mortality_state = ExcessMortalityState('event', get_data_functions=mort_get_data_funcs)
+    done_state = BaseDiseaseState('sick')
+
+    healthy_state.add_transition(mortality_state)
+    mortality_state.add_transition(done_state)
+
+    model = DiseaseModel(disease, initial_state=healthy_state, states=[healthy_state, mortality_state, done_state],
+                         get_data_functions={'csmr': lambda _, __: None})
+    mortality = Mortality()
+    simulation = setup_simulation([TestPopulation(), model, mortality], base_config, base_plugins)
+
+    # Move everyone into the event state
+    simulation.step()
+    assert np.all(simulation.population.population[disease] == 'event')
+
+    simulation.step()
+    # Not enough time has passed for people to move out of the event state, so they should all still be there
+    assert np.all(simulation.population.population[disease] == 'event')
+
+    simulation.step()
+
+    # Make sure some people have died and remained in event state
+    assert (simulation.population.population['alive'] == 'alive').sum() < pop_size
+
+    assert ((simulation.population.population['alive'] == 'dead').sum() ==
+            (simulation.population.population[disease] == 'event').sum())
+
+    # enough time has passed so living people should transition away to sick
+    assert ((simulation.population.population['alive'] == 'alive').sum() ==
+           (simulation.population.population[disease] == 'sick').sum())
+
 
 
 @pytest.mark.parametrize('test_prevalence_level', [0, 0.35, 1])
