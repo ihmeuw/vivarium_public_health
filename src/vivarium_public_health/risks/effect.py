@@ -86,7 +86,7 @@ class RiskEffect:
 
         distribution = builder.data.load(f"{self.risk_type}.{self.risk}.distribution")
         self.is_continuous = distribution in ['lognormal', 'ensemble', 'normal']
-        self._exposure = builder.value.get_value(f'{self.risk}_risk_exposure')
+        self._exposure = builder.value.get_value(f'{self.risk}.exposure')
         self.exposure_effect = (continuous_exposure_effect(self.risk, self.risk_type, self._exposure, builder)
                                 if self.is_continuous else categorical_exposure_effect(self._exposure))
 
