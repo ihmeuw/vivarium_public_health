@@ -2,15 +2,16 @@ import numpy as np
 import pandas as pd
 
 
-def continuous_exposure_effect(risk, risk_type, population_view, builder):
+def continuous_exposure_effect(risk, risk_type, exposure_pipeline, builder):
     """Factory that makes functions which can be used as the exposure_effect for standard continuous risks.
 
     Parameters
     ----------
     risk : `vivarium.config_tree.ConfigTree`
         The gbd data mapping for the risk.
+    risk_type: risk_factor or CoverageGap
+    exposure_pipeline: value pipeline for the risk exposure
     """
-    exposure_column = risk+'_exposure'
     tmred = builder.data.load(f"{risk_type}.{risk}.tmred")
     tmrel = 0.5 * (tmred["min"] + tmred["max"])
     exposure_parameters = builder.data.load(f"{risk_type}.{risk}.exposure_parameters")
@@ -19,25 +20,26 @@ def continuous_exposure_effect(risk, risk_type, population_view, builder):
 
     # FIXME: Exposure, TMRL, and Scale values should be part of the values pipeline system.
     def inner(rates, rr):
-        exposure = np.minimum(population_view.get(rr.index)[exposure_column].values, max_exposure)
+        exposure = np.minimum(exposure_pipeline(rr.index), max_exposure)
         relative_risk = np.maximum(rr.values**((exposure - tmrel) / scale), 1)
         return rates * relative_risk
 
     return inner
 
 
-def categorical_exposure_effect(risk, population_view):
+def categorical_exposure_effect(exposure_pipeline):
     """Factory that makes functions which can be used as the exposure_effect for binary categorical risks
 
     Parameters
     ----------
     risk : `vivarium.config_tree.ConfigTree`
         The gbd data mapping for the risk.
+    exposure_pipeline: value pipeline for the risk exposure
     """
-    exposure_column = risk+'_exposure'
 
     def inner(rates, rr):
-        exposure_ = population_view.get(rr.index)[exposure_column]
+        exposure_ = exposure_pipeline(rr.index)
+
         return rates * (rr.lookup(exposure_.index, exposure_))
     return inner
 
@@ -82,11 +84,11 @@ class RiskEffect:
         builder.value.register_value_modifier(f'{self.cause}.paf',
                                               modifier=self.population_attributable_fraction)
 
-        self.population_view = builder.population.get_view([self.risk + '_exposure'])
         distribution = builder.data.load(f"{self.risk_type}.{self.risk}.distribution")
         self.is_continuous = distribution in ['lognormal', 'ensemble', 'normal']
-        self.exposure_effect = (continuous_exposure_effect(self.risk, self.risk_type, self.population_view, builder)
-                                if self.is_continuous else categorical_exposure_effect(self.risk, self.population_view))
+        self._exposure = builder.value.get_value(f'{self.risk}.exposure')
+        self.exposure_effect = (continuous_exposure_effect(self.risk, self.risk_type, self._exposure, builder)
+                                if self.is_continuous else categorical_exposure_effect(self._exposure))
 
     def incidence_rates(self, index, rates):
         return self.exposure_effect(rates, self.relative_risk(index))

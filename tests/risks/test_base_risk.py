@@ -9,10 +9,6 @@ from vivarium.interface.interactive import initialize_simulation
 
 from vivarium_public_health.risks.base_risk import Risk
 
-@pytest.fixture
-def get_distribution_mock(mocker):
-    return mocker.patch('vivarium_public_health.risks.base_risk.get_distribution')
-
 
 def make_dummy_column(name, initial_value):
     class _make_dummy_column:
@@ -25,7 +21,7 @@ def make_dummy_column(name, initial_value):
     return _make_dummy_column()
 
 
-def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
+def test_propensity_effect(mocker, base_config, base_plugins):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
 
@@ -66,6 +62,7 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
             params = self.parameters(propensity.index)
             return norm(loc=params['mean'], scale=params['std']).ppf(propensity)
 
+    get_distribution_mock = mocker.patch('vivarium_public_health.risks.base_risk.get_distribution')
     get_distribution_mock.side_effect = lambda *args, **kwargs: Distribution(args, kwargs)
 
     component = Risk("risk_factor", risk)
@@ -82,23 +79,27 @@ def test_propensity_effect(get_distribution_mock, base_config, base_plugins):
     simulation.data.write("risk_factor.test_risk.distribution", "ensemble")
     simulation.setup()
 
-    pop_view = simulation.population.get_view([risk+'_propensity'])
+    component.propensity = mocker.Mock()
 
-    pop_view.update(pd.Series(0.00001, index=simulation.population.population.index))
     simulation.step()
 
-    expected_value = norm(loc=130, scale=15).ppf(0.00001)
-    assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
+    component.propensity.return_value = pd.Series(0.00001, simulation.population.population.index)
 
-    pop_view.update(pd.Series(0.5, index=simulation.population.population.index))
+    expected_value = norm(loc=130, scale=15).ppf(0.00001)
+
+    assert np.allclose(component.exposure(simulation.population.population.index), expected_value)
+
+    component.propensity.return_value = pd.Series(0.5, simulation.population.population.index)
+
     simulation.step()
 
     expected_value = 130
-    assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
+    assert np.allclose(component.exposure(simulation.population.population.index), expected_value)
 
-    pop_view.update(pd.Series(0.99999, index=simulation.population.population.index))
+    component.propensity.return_value = pd.Series(0.99999, simulation.population.population.index)
     simulation.step()
 
     expected_value = norm(loc=130, scale=15).ppf(0.99999)
-    assert np.allclose(simulation.population.population[risk+'_exposure'], expected_value)
+    assert np.allclose(component.exposure(simulation.population.population.index), expected_value)
+
 
