@@ -79,24 +79,24 @@ def test_propensity_effect(mocker, base_config, base_plugins):
     simulation.data.write("risk_factor.test_risk.distribution", "ensemble")
     simulation.setup()
 
-    propensity_pipeline = mocker.Mock()
-    simulation.values.register_value_producer('test_risk_propensity', propensity_pipeline)
-    propensity_pipeline.side_effect = lambda index: pd.Series(0.00001, index)
+    component.propensity = mocker.Mock()
 
     simulation.step()
+
+    component.propensity.return_value = pd.Series(0.00001, simulation.population.population.index)
 
     expected_value = norm(loc=130, scale=15).ppf(0.00001)
 
     assert np.allclose(component.exposure(simulation.population.population.index), expected_value)
 
-    propensity_pipeline.side_effect = lambda index: pd.Series(0.5, index)
+    component.propensity.return_value = pd.Series(0.5, simulation.population.population.index)
 
     simulation.step()
 
     expected_value = 130
     assert np.allclose(component.exposure(simulation.population.population.index), expected_value)
 
-    propensity_pipeline.side_effect = lambda index: pd.Series(0.99999, index)
+    component.propensity.return_value = pd.Series(0.99999, simulation.population.population.index)
     simulation.step()
 
     expected_value = norm(loc=130, scale=15).ppf(0.99999)
