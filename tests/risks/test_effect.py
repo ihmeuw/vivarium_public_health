@@ -58,13 +58,15 @@ def test_RiskEffect(base_config, base_plugins):
     rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
     rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                  key_columns=('sex',),
-                                                 parameter_columns=('age', 'year'))
+                                                 parameter_columns=('age', 'year'),
+                                                 value_columns=None)
 
     # This one should not
     other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate')
     other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                        key_columns=('sex',),
-                                                       parameter_columns=('age', 'year'))
+                                                       parameter_columns=('age', 'year'),
+                                                       value_columns=None)
 
     assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step))
     assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
@@ -237,7 +239,8 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                           key_columns=('sex',),
-                                                          parameter_columns=('age', 'year'))
+                                                          parameter_columns=('age', 'year'),
+                                                          value_columns=None)
 
     assert np.isclose((simulation.population.population[risk+'_exposure'] == 'cat1').sum()
                       / len(simulation.population.population), 0.5, rtol=0.01)
@@ -287,7 +290,8 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                           key_columns=('sex',),
-                                                          parameter_columns=('age', 'year'))
+                                                          parameter_columns=('age', 'year'),
+                                                          value_columns=None)
 
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
         assert np.isclose((simulation.population.population[risk+'_exposure'] == category).sum()
@@ -364,7 +368,8 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                           key_columns=('sex',),
-                                                          parameter_columns=('age', 'year'))
+                                                          parameter_columns=('age', 'year'),
+                                                          value_columns=None)
 
     assert np.allclose(simulation.population.population[risk+'_exposure'], 130, rtol=0.001)
 
