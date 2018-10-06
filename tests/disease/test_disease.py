@@ -52,7 +52,7 @@ def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     base_config.update({
         'time': {'step_size': time_step},
         'population': {'population_size': 10}
-    }, **metadata(__file__))
+    }, layer='override')
 
     healthy_state = BaseDiseaseState('healthy')
     data_function = base_data(0)
@@ -94,7 +94,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     base_config.update({
         'time': {'step_size': time_step},
         'population': {'population_size': pop_size}
-    }, **metadata(__file__))
+    }, layer='override')
     healthy_state = BaseDiseaseState('healthy')
 
     mort_get_data_funcs = {
@@ -149,7 +149,7 @@ def test_prevalence_single_state_with_migration(base_config, disease, base_data,
     sick = DiseaseState('sick', get_data_functions=base_data(test_prevalence_level))
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
-    base_config.update({'population': {'population_size': 50000}}, **metadata(__file__))
+    base_config.update({'population': {'population_size': 50000}}, layer='override')
     simulation = setup_simulation([TestPopulation(), model], base_config)
     error_message = "initial status of simulants should be matched to the prevalence data."
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, 0.01), error_message
@@ -173,7 +173,7 @@ def test_prevalence_multiple_sequelae(base_config, disease, base_data, test_prev
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]],
                          get_data_functions={'csmr': lambda _, __: None})
-    base_config.update({'population': {'population_size': 100000}}, **metadata(__file__))
+    base_config.update({'population': {'population_size': 100000}}, layer='override')
     simulation = setup_simulation([TestPopulation(), model], base_config)
     error_message = "initial sequela status of simulants should be matched to the prevalence data."
     assert np.allclose([get_test_prevalence(simulation, 'sequela0'),
