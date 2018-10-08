@@ -5,7 +5,6 @@ import pandas as pd
 
 from vivarium.framework.event import Event
 from vivarium.framework.randomness import filter_for_probability
-from vivarium.interpolation import Interpolation
 
 
 def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
@@ -68,10 +67,12 @@ class HealthcareAccess:
         interpolation_order = builder.configuration.interpolation.order
         self.hospitalization_cost = defaultdict(float)
         self._ip_cost_df = builder.data.load("healthcare_entity.inpatient_visits.cost")
-        self.__hospitalization_cost = None
+        self.__hospitalization_cost = builder.lookup.build_table(self._ip_cost_df[['year', 'value']],
+                                                                 tuple(), ('year',))
 
         self._op_cost_df = builder.data.load("healthcare_entity.outpatient_visits.cost")
-        self.__appointment_cost = None
+        self.__appointment_cost = builder.lookup.build_table(self._op_cost_df[['year', 'value']],
+                                                             tuple(), ('year',))
 
         self.outpatient_cost = defaultdict(float)
 
@@ -95,14 +96,10 @@ class HealthcareAccess:
     
     @property
     def _hospitalization_cost(self):
-        if self.__hospitalization_cost is None:
-            self.__hospitalization_cost = Interpolation(self._ip_cost_df[['year','value']], tuple(), ('year',), order=1)
         return self.__hospitalization_cost
 
     @property
     def _appointment_cost(self):
-        if self.__appointment_cost is None:
-            self.__appointment_cost = Interpolation(self._op_cost_df[['year','value']], tuple(), ('year',), order=1)
         return self.__appointment_cost
 
     def load_population_columns(self, pop_data):
@@ -152,8 +149,8 @@ class HealthcareAccess:
         self.population_view.update(population.healthcare_visits)
 
         year = event.time.year
-        self.cost_by_year[year] += len(index) * self._appointment_cost(year=[year])[0]
-        self.outpatient_cost[year] += len(index) * self._appointment_cost(year=[year])[0]
+        self.cost_by_year[year] += self._appointment_cost(index).sum()
+        self.outpatient_cost[year] += self._appointment_cost(index).sum()
 
     def followup_access(self, event):
         # determine population due for a follow-up appointment
@@ -180,14 +177,14 @@ class HealthcareAccess:
         self.population_view.update(population.healthcare_visits)
 
         year = event.time.year
-        self.cost_by_year[year] += len(affected_population) * self._appointment_cost(year=[year])[0]
-        self.outpatient_cost[year] += len(affected_population) * self._appointment_cost(year=[year])[0]
+        self.cost_by_year[year] += self._appointment_cost(affected_population.index).sum()
+        self.outpatient_cost[year] += self._appointment_cost(affected_population.index).sum()
 
     def hospital_access(self, event):
         year = event.time.year
         self.hospitalization_count += len(event.index)
-        self.hospitalization_cost[year] += len(event.index) * self._hospitalization_cost(year=[year])[0]
-        self.cost_by_year[year] += len(event.index) * self._hospitalization_cost(year=[year])[0]
+        self.hospitalization_cost[year] += self._hospitalization_cost(event.index).sum()
+        self.cost_by_year[year] +=  self._hospitalization_cost(event.index).sum()
 
     def metrics(self, index, metrics):
         metrics['healthcare_access_cost'] = sum(self.cost_by_year.values())
