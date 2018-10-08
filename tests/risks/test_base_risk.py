@@ -31,11 +31,15 @@ def test_propensity_effect(mocker, base_config, base_plugins):
         0.5, year_start, year_end
     ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
 
-    rr_data = build_table(
-        1.01, year_start, year_end
-    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
-
     affected_causes = ["test_cause_1", "test_cause_2"]
+
+    rr_data = []
+    for cause in affected_causes:
+        rr_data.append(
+            build_table([1.01, 'continuous', cause], year_start, year_end,
+                        ('age', 'year', 'sex', 'value', 'parameter', 'cause'))
+        )
+    rr_data = pd.concat(rr_data)
 
     tmred = {
             "distribution": 'uniform',
@@ -76,11 +80,12 @@ def test_propensity_effect(mocker, base_config, base_plugins):
     simulation.data.write("risk_factor.test_risk.relative_risk", rr_data)
     simulation.data.write("risk_factor.test_risk.population_attributable_fraction", 1)
     simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.write("risk_factor.test_risk.affected_risk_factors", [])
     simulation.data.write("risk_factor.test_risk.distribution", "ensemble")
     simulation.setup()
 
     propensity_pipeline = mocker.Mock()
-    simulation.values.register_value_producer('test_risk_propensity', propensity_pipeline)
+    simulation.values.register_value_producer('test_risk.propensity', propensity_pipeline)
     propensity_pipeline.side_effect = lambda index: pd.Series(0.00001, index)
 
     simulation.step()

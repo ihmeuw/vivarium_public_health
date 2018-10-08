@@ -396,7 +396,7 @@ class PolytomousDistribution:
                                  key=lambda column: int(column[3:]))
 
     def setup(self, builder):
-        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
+        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
                                                               source=builder.lookup.build_table(self.exposure_data))
 
     def ppf(self, x):
@@ -416,7 +416,7 @@ class DichotomousDistribution:
 
     def setup(self, builder):
         self._base_exposure = builder.lookup.build_table(self.exposure_data)
-        self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure',
+        self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
                                                                          source=self.exposure)
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
                                                                source=lambda index: [pd.Series(0, index=index)],
