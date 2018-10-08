@@ -18,7 +18,6 @@ class BasePopulation:
             'age_start': 0,
             'age_end': 125,
             'exit_age': None,
-            'population_size': 100,
         }
     }
 
