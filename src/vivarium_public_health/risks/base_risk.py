@@ -26,33 +26,19 @@ class Risk:
         self.exposure_distribution = get_distribution(self._risk, self._risk_type, builder)
         builder.components.add_components([self._effects, self.exposure_distribution])
         self.randomness = builder.randomness.get_stream(f'initial_{self._risk}_propensity')
-        self.population_view = builder.population.get_view(
-            [f'{self._risk}_exposure', f'{self._risk}_propensity', 'age', 'sex'])
-        builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[f'{self._risk}_exposure',
-                                                                  f'{self._risk}_propensity'],
-                                                 requires_columns=['age', 'sex'])
+        self._propensity = pd.Series()
+        self.propensity = builder.value.register_value_producer(f'{self._risk}.propensity',
+                                                                source=lambda index: self._propensity[index])
+        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
+                                                              source=self.get_current_exposure)
+        builder.population.initializes_simulants(self.on_initialize_simulants)
 
-        builder.event.register_listener('time_step__prepare', self.update_exposure, priority=8)
+    def on_initialize_simulants(self, pop_data):
+        self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))
 
-    def load_population_columns(self, pop_data):
-        population = self.population_view.get(pop_data.index, omit_missing_columns=True )
-        propensities = pd.Series(self.randomness.get_draw(population.index),
-                                 name=f'{self._risk}_propensity',
-                                 index=pop_data.index)
-        self.population_view.update(propensities)
-        exposure = self._get_current_exposure(propensities)
-        self.population_view.update(pd.Series(exposure,
-                                              name=f'{self._risk}_exposure',
-                                              index=pop_data.index))
-
-    def _get_current_exposure(self, propensity):
+    def get_current_exposure(self, index):
+        propensity = self.propensity(index)
         return self.exposure_distribution.ppf(propensity)
-
-    def update_exposure(self, event):
-        population = self.population_view.get(event.index)
-        new_exposure = self._get_current_exposure(population[f'{self._risk}_propensity'])
-        self.population_view.update(pd.Series(new_exposure, name=f'{self._risk}_exposure', index=event.index))
 
     def __repr__(self):
         return f"Risk(_risk_type= {self._risk_type}, _risk= {self._risk})"

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats, optimize, special
 
+from vivarium.framework.values import list_combiner, joint_value_post_processor
 
 class NonConvergenceError(Exception):
     """ Raised when the optimization fails to converge """
@@ -14,6 +15,7 @@ class NonConvergenceError(Exception):
 
 class MissingDataError(Exception):
     pass
+
 
 def _get_optimization_result(exposure: pd.DataFrame, func: Callable,
                              initial_func: Callable) -> Tuple:
@@ -121,6 +123,7 @@ class BaseDistribution:
         ppf = self.distribution(**params).ppf(x)
         return self.process(ppf, "ppf_postprocess", ranges)
 
+
 class Beta(BaseDistribution):
 
     distribution = stats.beta
@@ -138,13 +141,14 @@ class Beta(BaseDistribution):
         return params
 
     def process(self, data: Union[np.ndarray, pd.Series], process_type: str,
-                ranges: Dict[str, np.ndarray]) -> Union[np.ndarray, pd.Series]:
+                ranges: Dict[str, np.ndarray]) -> np.array:
         if process_type == 'pdf_preprocess':
-            return data - ranges['x_min']
+            value = data - ranges['x_min']
         elif process_type == 'ppf_postprocess':
-            return data + ranges['x_max'] - ranges['x_min']
+            value = data + ranges['x_max'] - ranges['x_min']
         else:
-            return super().process(data, process_type, ranges)
+            value = super().process(data, process_type, ranges)
+        return np.array(value)
 
 
 class Exponential(BaseDistribution):
@@ -274,15 +278,16 @@ class MirroredGumbel(BaseDistribution):
                 'scale': pd.DataFrame(scale, index=exposure.index)}
 
     def process(self, data: Union[np.ndarray, pd.Series], process_type: str,
-                ranges: Dict[str, np.ndarray]) -> Union[np.ndarray, pd.Series]:
+                ranges: Dict[str, np.ndarray]) -> np.ndarray:
         if process_type == 'pdf_preprocess':
-            return ranges['x_max'] - data
+            value = ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return 1- data
+            value = 1 - data
         elif process_type == 'ppf_postprocess':
-            return ranges['x_max'] - data
+            value = ranges['x_max'] - data
         else:
-            return super().process(data, process_type, ranges)
+            value = super().process(data, process_type, ranges)
+        return np.array(value)
 
 
 class MirroredGamma(BaseDistribution):
@@ -296,15 +301,16 @@ class MirroredGamma(BaseDistribution):
         return {'a': pd.DataFrame(a, index=exposure.index), 'scale': pd.DataFrame(scale, index=exposure.index)}
 
     def process(self, data: Union[np.ndarray, pd.Series], process_type: str,
-                ranges: Dict[str, np.ndarray]) -> Union[np.ndarray, pd.Series]:
+                ranges: Dict[str, np.ndarray]) -> np.ndarray:
         if process_type == 'pdf_preprocess':
-            return ranges['x_max'] - data
+            value = ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return 1 - data
+            value = 1 - data
         elif process_type == 'ppf_postprocess':
-            return ranges['x_max'] - data
+            value = ranges['x_max'] - data
         else:
-            return super().process(data, process_type, ranges)
+            value = super().process(data, process_type, ranges)
+        return np.array(value)
 
 
 class Normal(BaseDistribution):
@@ -382,11 +388,16 @@ class EnsembleDistribution:
                        for name, dist in self._distributions.items()], axis=0)
 
     def ppf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
-        return np.sum([self.weights[name] * dist.ppf(x, interpolation)
-                       for name, dist in self._distributions.items()], axis=0)
+        if not x.empty:
+            exposures = []
+            for name, dist in self._distributions.items():
+                exposures.append(self.weights[name] * dist.ppf(x, interpolation))
+            return np.sum(exposures, axis=0)
+        else:
+            return np.array([])
 
 
-class CategoricalDistribution:
+class PolytomousDistribution:
     def __init__(self, exposure_data: pd.DataFrame, risk: str):
         self.exposure_data = exposure_data
         self._risk = risk
@@ -394,7 +405,7 @@ class CategoricalDistribution:
                                  key=lambda column: int(column[3:]))
 
     def setup(self, builder):
-        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
+        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
                                                               source=builder.lookup.build_table(self.exposure_data))
 
     def ppf(self, x):
@@ -407,7 +418,33 @@ class CategoricalDistribution:
         return pd.Series(np.array(self.categories)[category_index], name=self._risk + '_exposure', index=x.index)
 
 
-def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistribution, EnsembleDistribution, CategoricalDistribution]:
+class DichotomousDistribution:
+    def __init__(self, exposure_data: pd.DataFrame, risk: str):
+        self.exposure_data = exposure_data.drop('cat2', axis=1)
+        self._risk = risk
+
+    def setup(self, builder):
+        self._base_exposure = builder.lookup.build_table(self.exposure_data)
+        self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
+                                                                         source=self.exposure)
+        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
+                                                               source=lambda index: [pd.Series(0, index=index)],
+                                                               preferred_combiner=list_combiner,
+                                                               preferred_post_processor=joint_value_post_processor)
+
+    def exposure(self, index):
+        base_exposure = self._base_exposure(index).values
+        joint_paf = self.joint_paf(index).values
+        return base_exposure * (1-joint_paf)
+
+    def ppf(self, x):
+        exposed = x < self.exposure_proportion(x.index)
+
+        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
+
+
+def get_distribution(risk: str, risk_type: str, builder) -> \
+        Union[BaseDistribution, EnsembleDistribution, PolytomousDistribution, DichotomousDistribution]:
 
     distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
     if distribution in ["dichotomous", "polytomous"]:
@@ -417,7 +454,8 @@ def get_distribution(risk: str, risk_type: str, builder) -> Union[BaseDistributi
                                        columns='parameter', values='value'
                                        ).dropna().reset_index()
 
-        return CategoricalDistribution(exposure_data, risk)
+        return DichotomousDistribution(exposure_data, risk) if distribution == 'dichotomous' \
+            else PolytomousDistribution(exposure_data, risk)
 
     exposure_mean = builder.data.load(f"{risk_type}.{risk}.exposure")
     exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
