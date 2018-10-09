@@ -16,6 +16,7 @@ class NonConvergenceError(Exception):
 class MissingDataError(Exception):
     pass
 
+
 def _get_optimization_result(exposure: pd.DataFrame, func: Callable,
                              initial_func: Callable) -> Tuple:
     """Finds the shape parameters of distributions which generates mean/sd close to actual mean/sd.
@@ -140,13 +141,14 @@ class Beta(BaseDistribution):
         return params
 
     def process(self, data: Union[np.ndarray, pd.Series], process_type: str,
-                ranges: Dict[str, np.ndarray]) -> Union[np.ndarray, pd.Series]:
+                ranges: Dict[str, np.ndarray]) -> np.array:
         if process_type == 'pdf_preprocess':
-            return data - ranges['x_min']
+            value = data - ranges['x_min']
         elif process_type == 'ppf_postprocess':
-            return data + ranges['x_max'] - ranges['x_min']
+            value = data + ranges['x_max'] - ranges['x_min']
         else:
-            return super().process(data, process_type, ranges)
+            value = super().process(data, process_type, ranges)
+        return np.array(value)
 
 
 class Exponential(BaseDistribution):
@@ -276,15 +278,16 @@ class MirroredGumbel(BaseDistribution):
                 'scale': pd.DataFrame(scale, index=exposure.index)}
 
     def process(self, data: Union[np.ndarray, pd.Series], process_type: str,
-                ranges: Dict[str, np.ndarray]) -> Union[np.ndarray, pd.Series]:
+                ranges: Dict[str, np.ndarray]) -> np.ndarray:
         if process_type == 'pdf_preprocess':
-            return ranges['x_max'] - data
+            value = ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return 1- data
+            value = 1 - data
         elif process_type == 'ppf_postprocess':
-            return ranges['x_max'] - data
+            value = ranges['x_max'] - data
         else:
-            return super().process(data, process_type, ranges)
+            value = super().process(data, process_type, ranges)
+        return np.array(value)
 
 
 class MirroredGamma(BaseDistribution):
@@ -298,15 +301,16 @@ class MirroredGamma(BaseDistribution):
         return {'a': pd.DataFrame(a, index=exposure.index), 'scale': pd.DataFrame(scale, index=exposure.index)}
 
     def process(self, data: Union[np.ndarray, pd.Series], process_type: str,
-                ranges: Dict[str, np.ndarray]) -> Union[np.ndarray, pd.Series]:
+                ranges: Dict[str, np.ndarray]) -> np.ndarray:
         if process_type == 'pdf_preprocess':
-            return ranges['x_max'] - data
+            value = ranges['x_max'] - data
         elif process_type == 'ppf_preprocess':
-            return 1 - data
+            value = 1 - data
         elif process_type == 'ppf_postprocess':
-            return ranges['x_max'] - data
+            value = ranges['x_max'] - data
         else:
-            return super().process(data, process_type, ranges)
+            value = super().process(data, process_type, ranges)
+        return np.array(value)
 
 
 class Normal(BaseDistribution):
@@ -384,8 +388,13 @@ class EnsembleDistribution:
                        for name, dist in self._distributions.items()], axis=0)
 
     def ppf(self, x: pd.Series, interpolation: bool=True) -> Union[np.ndarray, pd.Series]:
-        return np.sum([self.weights[name] * dist.ppf(x, interpolation)
-                       for name, dist in self._distributions.items()], axis=0)
+        if not x.empty:
+            exposures = []
+            for name, dist in self._distributions.items():
+                exposures.append(self.weights[name] * dist.ppf(x, interpolation))
+            return np.sum(exposures, axis=0)
+        else:
+            return np.array([])
 
 
 class PolytomousDistribution:
