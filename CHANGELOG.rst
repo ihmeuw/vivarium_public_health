@@ -1,3 +1,10 @@
+**0.8.4 - 10/09/18**
+
+ - Fix bug that caused dead people to still experience disease transitions.
+ - Switch risk components to use pipelines for exposure/propensity
+ - Cleaned up return types from distribution.ppf
+ - Added indirect effects
+
 **0.8.3 - 09/27/18**
 
  - Remove caching from artifact writes as it causes bugs.
