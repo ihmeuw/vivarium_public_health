@@ -449,12 +449,21 @@ def get_distribution(risk: str, risk_type: str, builder) -> \
     distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
     if distribution in ["dichotomous", "polytomous"]:
         exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
+        # to avoid MemoryError, pull off the mid and right edge columns and do the pivot with only left edge
+        mapping = exposure_data[['sex','year', 'year_start', 'year_end',
+                                 'age', 'age_group_start', 'age_group_end']].drop_duplicates()
         exposure_data = pd.pivot_table(exposure_data,
-                                       index=['year', 'year_start', 'year_end',
-                                              'age', 'age_group_start', 'age_group_end',
-                                              'sex'],
+                                       index=['year_start','age_group_start', 'sex'],
                                        columns='parameter', values='value'
                                        ).dropna().reset_index()
+        # merge back on the other edges
+        idx = exposure_data.index
+        exposure_data = exposure_data.set_index(['year_start', 'age_group_start', 'sex'], drop=False)
+        mapping = mapping.set_index(['year_start', 'age_group_start', 'sex'], drop=False)
+
+        exposure_data[['year', 'year_end', 'age', 'age_group_end']] = mapping[['year', 'year_end', 'age', 'age_group_end']]
+
+        exposure_data = exposure_data.set_index(idx)
 
         return DichotomousDistribution(exposure_data, risk) if distribution == 'dichotomous' \
             else PolytomousDistribution(exposure_data, risk)
