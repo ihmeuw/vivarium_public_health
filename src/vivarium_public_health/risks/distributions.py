@@ -450,7 +450,9 @@ def get_distribution(risk: str, risk_type: str, builder) -> \
     if distribution in ["dichotomous", "polytomous"]:
         exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
         exposure_data = pd.pivot_table(exposure_data,
-                                       index=['year', 'age', 'sex'],
+                                       index=['year', 'year_start', 'year_end',
+                                              'age', 'age_group_start', 'age_group_end',
+                                              'sex'],
                                        columns='parameter', values='value'
                                        ).dropna().reset_index()
 
@@ -462,7 +464,8 @@ def get_distribution(risk: str, risk_type: str, builder) -> \
     exposure_mean = exposure_mean.rename(index=str, columns={"value": "mean"})
     exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
 
-    exposure = exposure_mean.merge(exposure_sd).set_index(['age', 'sex', 'year'])
+    exposure = exposure_mean.merge(exposure_sd).set_index(['year', 'year_start', 'year_end',
+                                                           'age', 'age_group_start', 'age_group_end', 'sex'])
 
     if distribution == 'ensemble':
         weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
