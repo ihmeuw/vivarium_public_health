@@ -10,9 +10,11 @@ class TreatmentSchedule:
         self._schedule = pd.DataFrame()
 
     def setup(self, builder):
+
         coverages = self._get_coverage(builder)
         self.dose_coverages = {
-            dose: builder.lookup.build_table(dose_coverage, key_columns=(), parameter_columns=('year',))
+            dose: builder.lookup.build_table(dose_coverage, key_columns=(),
+                                             parameter_columns=[('year', 'year_start', 'year_end')])
             for dose, dose_coverage in coverages.items()
         }
         self.doses = builder.configuration[self.name].doses
