@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from vivarium_public_health.util import pivot_age_sex_year_binned
 
 
 def get_exposure_effect(builder, risk, risk_type):
@@ -82,9 +83,7 @@ class RiskEffect:
                          'age_group_start', 'age_group_end', 'year_start', 'year_end']
         rr_data = rr_data.loc[row_filter, column_filter]
 
-        rr_data = pd.pivot_table(rr_data, index=['year', 'age', 'sex', 'age_group_start',
-                                                 'age_group_end', 'year_start', 'year_end'], columns='parameter', values='value')
-        return rr_data.dropna().reset_index()
+        return pivot_age_sex_year_binned(rr_data, 'parameter', 'value')
 
 
 class DirectEffect(RiskEffect):

@@ -91,3 +91,36 @@ def make_age_bin_age_group_max_dict(age_group_id_min, age_group_id_max, builder)
                          key=operator.itemgetter(1))
 
     return sorted_dict
+
+
+def pivot_age_sex_year_binned(data, columns, values):
+    """
+    Pivots data around age, sex, and year using the start edges of age and year bins
+    to avoid memory errors. After pivoting, reattaches the other bin edges.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Data to be pivoted
+
+    columns : str
+        Column name to be passed as 'columns' arg in pivot
+
+    values : str
+        Column name to be passed as 'values' arg in pivot
+    """
+    # to avoid MemoryError, pull off the mid and right edge columns and do the pivot with only left edge
+    mapping = data[['sex', 'year', 'year_start', 'year_end',
+                    'age', 'age_group_start', 'age_group_end']].drop_duplicates()
+    exposure_data = pd.pivot_table(data,
+                                   index=['year_start', 'age_group_start', 'sex'],
+                                   columns=columns, values=values
+                                   ).dropna().reset_index()
+    # merge back on the other edges
+    idx = data.index
+    data = data.set_index(['year_start', 'age_group_start', 'sex'], drop=False)
+    mapping = mapping.set_index(['year_start', 'age_group_start', 'sex'], drop=False)
+
+    data[['year', 'year_end', 'age', 'age_group_end']] = mapping[['year', 'year_end', 'age', 'age_group_end']]
+
+    return data.set_index(idx)
