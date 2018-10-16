@@ -112,10 +112,8 @@ def pivot_age_sex_year_binned(data, columns, values):
     # to avoid MemoryError, pull off the mid and right edge columns and do the pivot with only left edge
     mapping = data[['sex', 'year', 'year_start', 'year_end',
                     'age', 'age_group_start', 'age_group_end']].drop_duplicates()
-    exposure_data = pd.pivot_table(data,
-                                   index=['year_start', 'age_group_start', 'sex'],
-                                   columns=columns, values=values
-                                   ).dropna().reset_index()
+    data = pd.pivot_table(data, index=['year_start', 'age_group_start', 'sex'],
+                          columns=columns, values=values).dropna().reset_index()
     # merge back on the other edges
     idx = data.index
     data = data.set_index(['year_start', 'age_group_start', 'sex'], drop=False)
