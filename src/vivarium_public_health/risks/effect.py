@@ -69,7 +69,7 @@ class RiskEffect:
             paf_data = builder.data.load(f"{prefix}.population_attributable_fraction")
 
         paf_data = paf_data[paf_data[filter_name] == filter]
-        return paf_data[['year', 'sex', 'age', 'value']]
+        return paf_data[['year', 'sex', 'age', 'value', 'age_group_start', 'age_group_end', 'year_start', 'year_end']]
 
     def _get_rr_data(self, builder):
         if 'rr' in self._get_data_functions:
@@ -78,10 +78,12 @@ class RiskEffect:
             rr_data = builder.data.load(f"{self.risk_type}.{self.risk}.relative_risk")
 
         row_filter = rr_data[f'{self.affected_entity_type}'] == self.affected_entity
-        column_filter = ['year', 'parameter', 'sex', 'age', 'value']
+        column_filter = ['year', 'parameter', 'sex', 'age', 'value',
+                         'age_group_start', 'age_group_end', 'year_start', 'year_end']
         rr_data = rr_data.loc[row_filter, column_filter]
 
-        rr_data = pd.pivot_table(rr_data, index=['year', 'age', 'sex'], columns='parameter', values='value')
+        rr_data = pd.pivot_table(rr_data, index=['year', 'age', 'sex', 'age_group_start',
+                                                 'age_group_end', 'year_start', 'year_end'], columns='parameter', values='value')
         return rr_data.dropna().reset_index()
 
 
