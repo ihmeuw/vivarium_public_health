@@ -61,14 +61,16 @@ def test_RiskEffect(base_config, base_plugins, mocker):
     rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
     rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                  key_columns=('sex',),
-                                                 parameter_columns=('age', 'year'),
+                                                 parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                    ('year', 'year_start', 'year_end')],
                                                  value_columns=None)
 
     # This one should not
     other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate')
     other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                        key_columns=('sex',),
-                                                       parameter_columns=('age', 'year'),
+                                                       parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                          ('year', 'year_start', 'year_end')],
                                                        value_columns=None)
 
     assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step))
@@ -273,7 +275,8 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
         rr_data.append(
             build_table(
                 [1.01, 1, cause], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cause']
-            ).melt(id_vars=('age', 'year', 'sex', 'cause'), var_name='parameter', value_name='value')
+            ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+                            'year_end', 'sex', 'cause'), var_name='parameter', value_name='value')
         )
     rr_data = pd.concat(rr_data)
 
@@ -282,6 +285,7 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
 
     simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
     simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
+    simulation.data.write("risk_factor.test_risk.affected_risk_factors", [])
 
     simulation.setup()
 
@@ -290,7 +294,8 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                           key_columns=('sex',),
-                                                          parameter_columns=('age', 'year'),
+                                                          parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                             ('year', 'year_start', 'year_end')],
                                                           value_columns=None)
 
     categories = simulation.values.get_value('test_risk.exposure')(simulation.population.population.index)
@@ -328,7 +333,8 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
         rr_data.append(
             build_table([1.03, 1.02, 1.01, 1, cause], year_start, year_end,
                         ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4', 'cause']
-                        ).melt(id_vars=('age', 'year', 'sex', 'cause'), var_name='parameter', value_name='value')
+                        ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+                            'year_end', 'sex', 'cause'), var_name='parameter', value_name='value')
         )
     rr_data = pd.concat(rr_data)
 
@@ -344,7 +350,8 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                           key_columns=('sex',),
-                                                          parameter_columns=('age', 'year'),
+                                                          parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                             ('year', 'year_start', 'year_end')],
                                                           value_columns=None)
 
     categories = simulation.values.get_value('test_risk.exposure')(simulation.population.population.index)
@@ -376,7 +383,8 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
     for cause in affected_causes:
         rr_data.append(
             build_table([1.01, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause'],
-                        ).melt(id_vars=('age', 'year', 'sex', 'cause'), var_name='parameter', value_name='value')
+                        ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+                            'year_end', 'sex', 'cause'), var_name='parameter', value_name='value')
         )
     rr_data = pd.concat(rr_data)
 
@@ -426,7 +434,8 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
     incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
                                                           key_columns=('sex',),
-                                                          parameter_columns=('age', 'year'),
+                                                          parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                             ('year', 'year_start', 'year_end')],
                                                           value_columns=None)
 
     exposure = simulation.values.get_value('test_risk.exposure')
@@ -476,7 +485,8 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
     rr = 2
     rr_data = build_table(
         [rr, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
-    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    ).melt(id_vars=('age', 'age_group_start', 'age_group_end',
+                    'year', 'year_start', 'year_end', 'sex'), var_name='parameter', value_name='value')
 
     rr_data['risk_factor'] = 'test_risk'
 
@@ -485,7 +495,8 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
 
     paf_data = build_table(
         paf, year_start, year_end, ['age', 'year', 'sex', 'population_attributable_fraction']
-    ).melt(id_vars=('age', 'year', 'sex'), var_name='population_attributable_fraction', value_name='value')
+    ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+                    'year_end', 'sex'), var_name='population_attributable_fraction', value_name='value')
 
     paf_data['risk_factor'] = 'test_risk'
 
