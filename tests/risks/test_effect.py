@@ -279,9 +279,9 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
 
     simulation.data.write("risk_factor.test_risk.relative_risk", rr_data)
     simulation.data.write("risk_factor.test_risk.population_attributable_fraction", 1)
-
     simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
     simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
+    simulation.data.write("risk_factor.test_risk.affected_risk_factors", [])
 
     simulation.setup()
 
@@ -336,6 +336,7 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
     simulation.data.write("risk_factor.test_risk.relative_risk", rr_data)
     simulation.data.write("risk_factor.test_risk.population_attributable_fraction", 1)
     simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.write("risk_factor.test_risk.affected_risk_factors", [])
     simulation.data.write("risk_factor.test_risk.distribution", "polytomous")
     simulation.setup()
 
@@ -416,6 +417,7 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
     simulation.data.write("risk_factor.test_risk.relative_risk", rr_data)
     simulation.data.write("risk_factor.test_risk.population_attributable_fraction", 1)
     simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
+    simulation.data.write("risk_factor.test_risk.affected_risk_factors", [])
     simulation.data.write("risk_factor.test_risk.distribution", "ensemble")
     simulation.data.write("risk_factor.test_risk.tmred", tmred)
     simulation.data.write("risk_factor.test_risk.exposure_parameters", exposure_parameters)
@@ -456,6 +458,7 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
     simulation.data.write("risk_factor.test_risk.exposure", rf_exposure_data)
     simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
     simulation.data.write("risk_factor.test_risk.affected_causes", [])
+    simulation.data.write("risk_factor.test_risk.affected_risk_factors", [])
 
     simulation.setup()
 
@@ -492,6 +495,7 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
     simulation.data.write("risk_factor.test_risk.exposure", rf_exposure_data)
     simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
     simulation.data.write("risk_factor.test_risk.affected_causes", [])
+    simulation.data.write("risk_factor.test_risk.affected_risk_factors", [])
     simulation.data.write("coverage_gap.test_coverage_gap.exposure", cg_exposure_data)
     simulation.data.write("coverage_gap.test_coverage_gap.distribution", "dichotomous")
     simulation.data.write("coverage_gap.test_coverage_gap.relative_risk", rr_data)
