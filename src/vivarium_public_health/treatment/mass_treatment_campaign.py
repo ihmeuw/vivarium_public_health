@@ -27,10 +27,22 @@ class MassTreatmentCampaign:
                 },
             },
             'dose_age_range': {
-                'first': (270, 360),
-                'second': (450, 513),
-                'booster': (1080, 1440),
-                'catchup': (1080, 1440),
+                'first': {
+                    'start': 270,
+                    'end': 360,
+                },
+                'second': {
+                    'start': 450,
+                    'end': 513,
+                },
+                'booster': {
+                    'start': 1080,
+                    'end': 1440,
+                },
+                'catchup': {
+                    'start': 1080,
+                    'end': 1440,
+                },
             },
             'coverage_proportion': {
                 'second': 0.8,
