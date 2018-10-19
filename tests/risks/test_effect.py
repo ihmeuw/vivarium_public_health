@@ -265,7 +265,8 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins):
 
     exposure_data = build_table(
         0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
-    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    ).melt(id_vars=('age', 'age_group_start', 'age_group_end',
+                    'year', 'year_start', 'year_end', 'sex'), var_name='parameter', value_name='value')
 
     simulation.data.write("risk_factor.test_risk.exposure", exposure_data)
 
@@ -325,7 +326,8 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins):
 
     exposure_data = build_table(
         0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']
-    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+                    'year_end', 'sex'), var_name='parameter', value_name='value')
 
     affected_causes = ["test_cause_1", "test_cause_2"]
     rr_data = []
@@ -456,7 +458,8 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
 
     rf_exposure_data = build_table(
         [rf_exposed, 1-rf_exposed], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
-    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+                    'year_end', 'sex'), var_name='parameter', value_name='value')
 
     # start with the only risk factor without indirect effect from coverage_gap
     simulation = initialize_simulation([TestPopulation(), affected_risk],
@@ -480,7 +483,8 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
     cg_exposed = 0.6
     cg_exposure_data = build_table(
         [cg_exposed, 1-cg_exposed], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
-    ).melt(id_vars=('age', 'year', 'sex'), var_name='parameter', value_name='value')
+    ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+                    'year_end', 'sex',), var_name='parameter', value_name='value')
 
     rr = 2
     rr_data = build_table(
