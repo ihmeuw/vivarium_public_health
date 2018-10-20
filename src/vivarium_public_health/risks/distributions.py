@@ -443,60 +443,99 @@ class DichotomousDistribution:
         return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
 
 
-def get_distribution(risk: str, risk_type: str, builder) -> \
-        Union[BaseDistribution, EnsembleDistribution, PolytomousDistribution, DichotomousDistribution]:
+class RebinPolytomousDistribution(DichotomousDistribution):
+    pass
 
-    distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
-    if distribution in ["dichotomous", "polytomous"]:
-        exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
-        exposure_data = pd.pivot_table(exposure_data,
-                                       index=['year', 'age', 'sex'],
-                                       columns='parameter', values='value'
-                                       ).dropna().reset_index()
 
-        return DichotomousDistribution(exposure_data, risk) if distribution == 'dichotomous' \
-            else PolytomousDistribution(exposure_data, risk)
+def should_rebin(risk, config):
+    return (risk in config) and ('rebin' in config[risk]) and (config[risk].rebin)
 
-    exposure_mean = builder.data.load(f"{risk_type}.{risk}.exposure")
-    exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
-    exposure_mean = exposure_mean.rename(index=str, columns={"value": "mean"})
-    exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
 
-    exposure = exposure_mean.merge(exposure_sd).set_index(['age', 'sex', 'year'])
+def reshape_exposure_data(data):
+    return pd.pivot_table(data,
+                          index=['year', 'age', 'sex'],
+                          columns='parameter', values='value'
+                          ).dropna().reset_index()
 
-    if distribution == 'ensemble':
-        weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
-        distribution_map = {'betasr': Beta,
-                            'exp': Exponential,
-                            'gamma': Gamma,
-                            'gumbel': Gumbel,
-                            'invgamma': InverseGamma,
-                            'invweibull': InverseWeibull,
-                            'llogis': LogLogistic,
-                            'lnorm': LogNormal,
-                            'mgamma': MirroredGamma,
-                            'mgumbel': MirroredGumbel,
-                            'norm': Normal,
-                            'weibull': Weibull}
 
-        if risk == 'high_ldl_cholesterol':
-            weights = weights.drop('invgamma', axis=1)
+def rebin_exposure_data(data):
+    unexposed = sorted([c for c in data['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
+    df = data.groupby(['year', 'age', 'sex'])
+    assert np.isclose(df.value.sum(), 1)
+    new_df = []
+    for _, sub_df in df:
+        g = sub_df.copy()
+        g['unexposed'] = g[g.parameter==unexposed].value
+        g['exposed'] = 1-g['unexposed']
+        new_df.append(g)
+    new_df = pd.concat(new_df).dropna()
+    new_df.drop(['value', 'parameter'], axis=1, inplace=True)
+    new_df.rename(columns={'exposed': 'cat1', 'unexposed': 'cat2'}, inplace=True)
+    return new_df
 
-        if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
-            weights = weights.drop('invweibull', axis=1)
 
-        weights_cols = list(set(distribution_map.keys()) & set(weights.columns))
-        weights = weights[weights_cols]
+def get_distribution(risk: str, risk_type: str, builder):
 
-        # weight is all same across the demo groups
-        e_weights = weights.iloc[0]
-        dist = {d: distribution_map[d] for d in weights_cols}
+    distribution_type = builder.data.load(f"{risk_type}.{risk}.distribution")
+    exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
 
-        return EnsembleDistribution(exposure, e_weights/np.sum(e_weights), dist)
+    if distribution_type == "dichotomous":
+        exposure_data = reshape_exposure_data(exposure_data)
+        distribution = DichotomousDistribution(exposure_data, risk)
 
-    elif distribution == 'lognormal':
-        return LogNormal(exposure)
-    elif distribution == 'normal':
-        return Normal(exposure)
+    elif distribution_type == 'polytomous':
+        rebin = should_rebin(risk, builder.configuration)
+
+        if rebin:
+            exposure_data = rebin_exposure_data(exposure_data)
+            exposure_data = reshape_exposure_data(exposure_data)
+            distribution = RebinPolytomousDistribution(exposure_data, risk)
+        else:
+            exposure_data = reshape_exposure_data(exposure_data)
+            distribution = PolytomousDistribution(exposure_data, risk)
+
+    elif distribution_type in ['normal', 'lognormal', 'ensemble']:
+        exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
+        exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
+        exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
+
+        exposure = exposure_data.merge(exposure_sd).set_index(['age', 'sex', 'year'])
+
+        if distribution_type == 'normal':
+            distribution = Normal(exposure)
+
+        elif distribution_type == 'lognormal':
+            distribution = LogNormal(exposure)
+        else:
+            weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
+            distribution_map = {'betasr': Beta,
+                                'exp': Exponential,
+                                'gamma': Gamma,
+                                'gumbel': Gumbel,
+                                'invgamma': InverseGamma,
+                                'invweibull': InverseWeibull,
+                                'llogis': LogLogistic,
+                                'lnorm': LogNormal,
+                                'mgamma': MirroredGamma,
+                                'mgumbel': MirroredGumbel,
+                                'norm': Normal,
+                                'weibull': Weibull}
+
+            if risk == 'high_ldl_cholesterol':
+                weights = weights.drop('invgamma', axis=1)
+
+            if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
+                weights = weights.drop('invweibull', axis=1)
+
+            weights_cols = list(set(distribution_map.keys()) & set(weights.columns))
+            weights = weights[weights_cols]
+
+            # weight is all same across the demo groups
+            e_weights = weights.iloc[0]
+            dist = {d: distribution_map[d] for d in weights_cols}
+
+            distribution = EnsembleDistribution(exposure, e_weights/np.sum(e_weights), dist)
     else:
-        raise ValueError(f"Unhandled distribution type {distribution}")
+        raise NotImplementedError(f"Unhandled distribution type {distribution}")
+
+    return distribution
