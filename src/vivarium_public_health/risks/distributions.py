@@ -460,18 +460,19 @@ def reshape_exposure_data(data):
 
 def rebin_exposure_data(data):
     unexposed = sorted([c for c in data['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
-    df = data.groupby(['year', 'age', 'sex'])
-    assert np.isclose(df.value.sum(), 1)
-    new_df = []
-    for _, sub_df in df:
-        g = sub_df.copy()
-        g['unexposed'] = g[g.parameter==unexposed].value
-        g['exposed'] = 1-g['unexposed']
-        new_df.append(g)
-    new_df = pd.concat(new_df).dropna()
-    new_df.drop(['value', 'parameter'], axis=1, inplace=True)
-    new_df.rename(columns={'exposed': 'cat1', 'unexposed': 'cat2'}, inplace=True)
-    return new_df
+    middle_cats = set(data['parameter']) - {unexposed} - {'cat1'}
+    data['sex'] = data['sex'].astype(object)
+    df = data.groupby(['year', 'age', 'sex'], as_index=False)
+    assert np.allclose(df['value'].sum().value, 1)
+
+    def rebin(g):
+        to_drop = g['parameter'].isin(middle_cats)
+        g.drop(g[to_drop].index, inplace=True)
+        g[g.parameter == 'cat1'].value = 1 - g[g.parameter == unexposed].loc[:, 'value'].values
+        return g
+
+    df = df.apply(rebin).reset_index()
+    return df.replace(unexposed, 'cat2')
 
 
 def get_distribution(risk: str, risk_type: str, builder):
