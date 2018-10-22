@@ -484,7 +484,11 @@ def get_distribution(risk: str, risk_type: str, builder):
         distribution = DichotomousDistribution(exposure_data, risk)
 
     elif distribution_type == 'polytomous':
+        SPECIAL = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
         rebin = should_rebin(risk, builder.configuration)
+
+        if rebin and risk in SPECIAL:
+            raise NotImplementedError(f'{risk} cannot be rebinned at this point')
 
         if rebin:
             exposure_data = rebin_exposure_data(exposure_data)
