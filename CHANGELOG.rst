@@ -1,3 +1,9 @@
+**0.8.5 - 10/23/18**
+
+ - Update mass treatment campaign configuration for easier distributed runs.
+ - Fix leaking global state in mock artifact.
+ - Correctly implement order 0 interpolation.
+
 **0.8.4 - 10/09/18**
 
  - Fix bug that caused dead people to still experience disease transitions.
