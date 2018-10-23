@@ -77,7 +77,7 @@ class TreatmentSchedule:
         population = self.population_view.get(simulant_data.index)
         age_draw = self.randomness.get_draw(population.index, additional_key=f'{dose}_age')
 
-        min_age, max_age = self.dose_ages[dose]
+        min_age, max_age = self.dose_ages[dose]['start'], self.dose_ages[dose]['end']
         mean_age = (min_age + max_age) / 2
         age_std_dev = (mean_age - min_age) / 3
 

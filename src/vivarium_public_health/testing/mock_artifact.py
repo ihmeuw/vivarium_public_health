@@ -62,7 +62,7 @@ MOCKERS = {
 class MockArtifact():
 
     def __init__(self):
-        self.mocks = MOCKERS
+        self.mocks = MOCKERS.copy()
 
     def load(self, entity_key):
         if entity_key in self.mocks:

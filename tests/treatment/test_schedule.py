@@ -14,8 +14,14 @@ def config(base_config):
         'test_treatment': {
             'doses': ['first', 'second'],
             'dose_age_range': {
-                'first': (60, 90),
-                'second': (180, 180)
+                'first': {
+                    'start': 60,
+                    'end': 90,
+                },
+                'second': {
+                    'start': 180,
+                    'end': 180,
+                },
             },
         }
     }, **metadata)
@@ -130,13 +136,13 @@ def test_when_should_receive_dose(treatment_schedule, mocker):
 
     # any ages outsider [min_age, max_age] should be pushed inside of the ranage.
     age_at_first_dose = tx._determine_when_should_receive_dose('first', pop)
-    assert min(age_at_first_dose) == tx.dose_ages['first'][0] * 1.01
-    assert max(age_at_first_dose) == tx.dose_ages['first'][1] * 0.99
+    assert min(age_at_first_dose) == tx.dose_ages['first']['start'] * 1.01
+    assert max(age_at_first_dose) == tx.dose_ages['first']['end'] * 0.99
 
     # min_age and max_age are same, should be all equal to a single age
     age_at_second_dose = tx._determine_when_should_receive_dose('second', pop)
-    assert min(age_at_second_dose) == tx.dose_ages['second'][0]
-    assert max(age_at_second_dose) == tx.dose_ages['second'][1]
+    assert min(age_at_second_dose) == tx.dose_ages['second']['start']
+    assert max(age_at_second_dose) == tx.dose_ages['second']['end']
 
 
 def test_get_newly_dosed_simulants(treatment_schedule):
