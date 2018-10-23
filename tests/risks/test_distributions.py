@@ -10,10 +10,12 @@ def test_risk_factor(mocker):
     test_rf = mocker.MagicMock()
     test_rf.test_risk = dict()
     test_rf.test_risk['distribution'] = 'ensemble'
-    exposure_mean = pd.DataFrame({'year': [1990]*4, 'sex': [1]*4,
-                                  'age': [2, 3, 4, 5], 'value': [10, 20, 30, 40]})
-    exposure_sd = pd.DataFrame({'year': [1990]*4, 'sex': [1]*4,
-                                'age': [2, 3, 4, 5], 'value': [1, 3, 5, 7]})
+    exposure_mean = pd.DataFrame({'year': [1990]*4, 'year_start': [1990]*4, 'year_end': [1992]*4, 'sex': [1]*4,
+                                  'age': [2, 3, 4, 5], 'age_group_start': [2, 3, 4, 5], 'age_group_end': [3, 4, 5, 6],
+                                  'value': [10, 20, 30, 40]})
+    exposure_sd = pd.DataFrame({'year': [1990]*4, 'year_start': [1990]*4, 'year_end': [1992]*4, 'sex': [1]*4,
+                                'age': [2, 3, 4, 5], 'age_group_start': [2, 3, 4, 5], 'age_group_end': [3, 4, 5, 6],
+                                'value': [1, 3, 5, 7]})
     weights = {'betasr': 0.1, 'exp': 0.1, 'gamma': 0.1, 'gumbel': 0.1, 'invgamma': 0.1,
                'llogis': 0.1,  'lnorm': 0.1, 'mgamma': 0.1,  'mgumbel': 0.1,
                'norm': 0.03, 'invweibull': 0.03, 'weibull': 0.04}

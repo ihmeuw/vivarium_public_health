@@ -17,7 +17,7 @@ class ArtifactManagerInterface:
     def __init__(self, controller):
         self._controller = controller
 
-    def load(self, entity_key: str, keep_age_group_edges: bool=False, **column_filters: _Filter) -> pd.DataFrame:
+    def load(self, entity_key: str, keep_age_group_edges: bool=True, **column_filters: _Filter) -> pd.DataFrame:
         """Loads data associated with a formatted entity key.
 
         The provided entity key must be of the form
@@ -84,7 +84,7 @@ class ArtifactManager:
         base_filter_terms = [f'draw == {draw}', get_location_term(location)]
         return Artifact(artifact_path, base_filter_terms)
 
-    def load(self, entity_key: str, keep_age_group_edges: bool=False, **column_filters: _Filter):
+    def load(self, entity_key: str, keep_age_group_edges: bool=True, **column_filters: _Filter):
         """Loads data associated with the given entity key.
 
         Parameters

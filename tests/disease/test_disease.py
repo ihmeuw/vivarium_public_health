@@ -222,7 +222,8 @@ def test_mortality_rate(base_config, base_plugins, disease):
     mortality_rate = simulation.values.register_rate_producer('mortality_rate')
     mortality_rate.source = simulation.tables.build_table(build_table(0.0, year_start, year_end),
                                                           key_columns=('sex',),
-                                                          parameter_columns=('age', 'year'),
+                                                          parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                             ('year', 'year_start', 'year_end')],
                                                           value_columns=None)
 
     simulation.step()
@@ -254,7 +255,8 @@ def test_incidence(base_config, base_plugins, disease):
 
     transition.base_rate = simulation.tables.build_table(build_table(0.7, year_start, year_end),
                                                          key_columns=('sex',),
-                                                         parameter_columns=('age', 'year'),
+                                                         parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                            ('year', 'year_start', 'year_end')],
                                                          value_columns=None)
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
@@ -291,7 +293,8 @@ def test_risk_deletion(base_config, base_plugins, disease):
     paf = 0.1
     transition.base_rate = simulation.tables.build_table(build_table(base_rate, year_start, year_end),
                                                          key_columns=('sex',),
-                                                         parameter_columns=('age', 'year'),
+                                                         parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                            ('year', 'year_start', 'year_end')],
                                                          value_columns=None)
 
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
@@ -299,7 +302,8 @@ def test_risk_deletion(base_config, base_plugins, disease):
     simulation.values.register_value_modifier(
         'sick.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end),
                                                            key_columns=('sex',),
-                                                           parameter_columns=('age', 'year'),
+                                                           parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                              ('year', 'year_start', 'year_end')],
                                                            value_columns=None))
 
     simulation.step()

@@ -5,6 +5,7 @@ import pandas as pd
 from scipy import stats, optimize, special
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
+from vivarium_public_health.util import pivot_age_sex_year_binned
 
 class NonConvergenceError(Exception):
     """ Raised when the optimization fails to converge """
@@ -504,7 +505,8 @@ def get_distribution(risk: str, risk_type: str, builder):
         exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
         exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
 
-        exposure = exposure_data.merge(exposure_sd).set_index(['age', 'sex', 'year'])
+        exposure = exposure_data.merge(exposure_sd).set_index(['year', 'year_start', 'year_end',
+                                                               'age', 'age_group_start', 'age_group_end', 'sex'])
 
         if distribution_type == 'normal':
             distribution = Normal(exposure)
