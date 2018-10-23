@@ -19,7 +19,8 @@ class Mortality:
         self.mortality_rate = builder.value.register_rate_producer('mortality_rate', source=self.mortality_rate_source)
 
         life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
-        self.life_expectancy = builder.lookup.build_table(life_expectancy_data, key_columns=[], parameter_columns=('age',))
+        self.life_expectancy = builder.lookup.build_table(life_expectancy_data, key_columns=[],
+                                                          parameter_columns=[('age','age_group_start', 'age_group_end')])
 
         self.death_emitter = builder.event.get_emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')

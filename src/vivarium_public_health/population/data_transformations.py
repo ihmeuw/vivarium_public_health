@@ -343,10 +343,11 @@ def _compute_ages(uniform_rv, start, height, slope, normalization):
 
 
 def get_cause_deleted_mortality(all_cause_mortality, list_of_csmrs):
-    index_cols = ['age', 'sex', 'year']
+    index_cols = ['age', 'age_group_start', 'age_group_end', 'sex', 'year', 'year_start', 'year_end']
     all_cause_mortality = all_cause_mortality.set_index(index_cols).copy()
     for csmr in list_of_csmrs:
         if csmr is None:
             continue
         all_cause_mortality = all_cause_mortality.subtract(csmr.set_index(index_cols)).dropna()
+
     return all_cause_mortality.reset_index().rename(columns={'value': 'death_due_to_other_causes'})

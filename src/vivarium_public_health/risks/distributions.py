@@ -5,6 +5,7 @@ import pandas as pd
 from scipy import stats, optimize, special
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
+from vivarium_public_health.util import pivot_age_sex_year_binned
 
 class NonConvergenceError(Exception):
     """ Raised when the optimization fails to converge """
@@ -449,10 +450,8 @@ def get_distribution(risk: str, risk_type: str, builder) -> \
     distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
     if distribution in ["dichotomous", "polytomous"]:
         exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
-        exposure_data = pd.pivot_table(exposure_data,
-                                       index=['year', 'age', 'sex'],
-                                       columns='parameter', values='value'
-                                       ).dropna().reset_index()
+
+        exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
 
         return DichotomousDistribution(exposure_data, risk) if distribution == 'dichotomous' \
             else PolytomousDistribution(exposure_data, risk)
@@ -462,7 +461,8 @@ def get_distribution(risk: str, risk_type: str, builder) -> \
     exposure_mean = exposure_mean.rename(index=str, columns={"value": "mean"})
     exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
 
-    exposure = exposure_mean.merge(exposure_sd).set_index(['age', 'sex', 'year'])
+    exposure = exposure_mean.merge(exposure_sd).set_index(['year', 'year_start', 'year_end',
+                                                           'age', 'age_group_start', 'age_group_end', 'sex'])
 
     if distribution == 'ensemble':
         weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
