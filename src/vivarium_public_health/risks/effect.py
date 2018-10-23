@@ -26,6 +26,18 @@ def get_exposure_effect(builder, risk, risk_type):
     return exposure_effect
 
 
+def should_rebin(risk, config):
+    return (risk in config) and ('rebin' in config[risk]) and (config[risk].rebin)
+
+
+def rebin_rr_data(rr, exposure):
+    unexposed = sorted([c for c in rr['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
+    middle_cats = set(rr['parameter']) - {unexposed} - {'cat1'}
+    rr['sex'] = rr['sex'].astype(object)
+    exposure['sex'] = exposure['sex'].astype(object)
+    rr_df = rr.groupby(['year', 'age', 'sex'], as_index=False)
+
+
 class RiskEffect:
 
     def __init__(self, risk, affected_entity, risk_type, affected_entity_type, get_data_functions=None):
@@ -42,7 +54,6 @@ class RiskEffect:
     def setup(self, builder):
         paf_data = self._get_paf_data(builder)
         rr_data = self._get_rr_data(builder)
-
         self.population_attributable_fraction = builder.lookup.build_table(paf_data)
         self.relative_risk = builder.lookup.build_table(rr_data)
 
@@ -80,6 +91,12 @@ class RiskEffect:
         row_filter = rr_data[f'{self.affected_entity_type}'] == self.affected_entity
         column_filter = ['year', 'parameter', 'sex', 'age', 'value']
         rr_data = rr_data.loc[row_filter, column_filter]
+
+        if should_rebin(self.risk, builder.configuration):
+            exposure_data = builder.data.load(f"{self.risk_type}.{self.risk}.exposure")
+            exposure_data = exposure_data.loc[:, column_filter]
+            exposure_data = exposure_data[exposure_data['year'].isin(rr_data.year.unique())]
+            rr_data = rebin_rr_data(rr_data, exposure_data)
 
         rr_data = pd.pivot_table(rr_data, index=['year', 'age', 'sex'], columns='parameter', values='value')
         return rr_data.dropna().reset_index()
