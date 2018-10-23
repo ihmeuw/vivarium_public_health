@@ -1,7 +1,6 @@
 import numpy as np
-import pandas as pd
 from vivarium_public_health.util import pivot_age_sex_year_binned
-
+from vivarium_public_health.risks.distributions import should_rebin
 
 def get_exposure_effect(builder, risk, risk_type):
     distribution = builder.data.load(f'{risk_type}.{risk}.distribution')
@@ -25,10 +24,6 @@ def get_exposure_effect(builder, risk, risk_type):
             return rates * (rr.lookup(exposure.index, exposure))
 
     return exposure_effect
-
-
-def should_rebin(risk, config):
-    return (risk in config) and ('rebin' in config[risk]) and (config[risk].rebin)
 
 
 def rebin_rr_data(rr, exposure):

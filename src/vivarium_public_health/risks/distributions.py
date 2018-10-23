@@ -482,7 +482,7 @@ def get_distribution(risk: str, risk_type: str, builder):
     exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
 
     if distribution_type == "dichotomous":
-        exposure_data = reshape_exposure_data(exposure_data)
+        exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
         distribution = DichotomousDistribution(exposure_data, risk)
 
     elif distribution_type == 'polytomous':
@@ -494,10 +494,10 @@ def get_distribution(risk: str, risk_type: str, builder):
 
         if rebin:
             exposure_data = rebin_exposure_data(exposure_data)
-            exposure_data = reshape_exposure_data(exposure_data)
+            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
             distribution = RebinPolytomousDistribution(exposure_data, risk)
         else:
-            exposure_data = reshape_exposure_data(exposure_data)
+            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
             distribution = PolytomousDistribution(exposure_data, risk)
 
     elif distribution_type in ['normal', 'lognormal', 'ensemble']:
