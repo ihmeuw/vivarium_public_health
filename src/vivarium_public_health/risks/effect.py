@@ -32,11 +32,29 @@ def should_rebin(risk, config):
 
 
 def rebin_rr_data(rr, exposure):
+    df = exposure.set_index(['year', 'parameter', 'age', 'sex']).join(
+         rr.set_index(['year', 'parameter', 'age', 'sex']), lsuffix='_e', rsuffix='_r')
+    df = df.reset_index().groupby(['year', 'age', 'sex'], as_index=False)
+
     unexposed = sorted([c for c in rr['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
     middle_cats = set(rr['parameter']) - {unexposed} - {'cat1'}
     rr['sex'] = rr['sex'].astype(object)
     exposure['sex'] = exposure['sex'].astype(object)
-    rr_df = rr.groupby(['year', 'age', 'sex'], as_index=False)
+
+    def rebin_rr(g):
+        g['weighted_rr']=g['value_e']*g['value_r']
+        x = g['weighted_r'].sum()-g.loc[g.parameter == unexposed, 'weighted_r']
+        x /= g['value_e'].sum()-g.loc[g.parameter == unexposed, 'value_e'].values
+        to_drop = g['parameter'].isin(middle_cats)
+        g.drop(g[to_drop].index, inplace=True)
+        g.drop(['value_e', 'value_r', 'weighted_r'], axis=1, inplace=True)
+        g['value'] = x.iloc[0]
+        g.loc[g.parameter == unexposed, 'value'] = 1.0
+        g['value'].fillna(0, inplace=True)
+        return g
+
+    df = df.apply(rebin_rr).reindex.loc[:, ['year', 'age', 'sex', 'parameter', 'value']]
+    return df.replace(unexposed, 'cat2')
 
 
 class RiskEffect:
@@ -99,7 +117,6 @@ class RiskEffect:
             exposure_data = exposure_data.loc[:, column_filter]
             exposure_data = exposure_data[exposure_data['year'].isin(rr_data.year.unique())]
             rr_data = rebin_rr_data(rr_data, exposure_data)
-
 
         return pivot_age_sex_year_binned(rr_data, 'parameter', 'value')
 
