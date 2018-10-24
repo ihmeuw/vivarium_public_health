@@ -181,16 +181,14 @@ def test_prevalence_multiple_sequelae(base_config, disease, base_data, test_prev
                         get_test_prevalence(simulation, 'sequela2')], test_prevalence_level, .02), error_message
 
 
-def test_prevalence_single_simulant(mocker):
+def test_prevalence_single_simulant():
     # pandas has a bug on the case of single element with non-zero index; this test is to catch that case
     test_index = [20]
     initial_state = 'healthy'
     simulants_df = pd.DataFrame({'sex': 'Female', 'age': 3, 'sex_id': 2.0}, index=test_index)
     states = {'sick': pd.Series(1, index=test_index)}
-    randomness = mocker.Mock()
-    randomness.get_draws.side_effect = lambda index: pd.Series(0.5, index=index)
     simulants = DiseaseModel.assign_initial_status_to_simulants(simulants_df, states, initial_state,
-                                                                randomness.get_draws(test_index))
+                                                                pd.Series(0.5, index=test_index))
     expected = simulants_df[['age', 'sex']]
     expected['condition_state'] = 'sick'
     assert expected.equals(simulants)
