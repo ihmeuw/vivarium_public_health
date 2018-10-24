@@ -8,6 +8,7 @@ from vivarium.framework.state_machine import Machine
 
 from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
                                         RateTransition, ProportionTransition)
+from vivarium.framework.randomness import _set_residual_probability, _normalize_shape
 
 
 class DiseaseModelError(VivariumError):
@@ -51,6 +52,10 @@ class DiseaseModel(Machine):
                                                  requires_columns=['age', 'sex'])
         self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
 
+        self._propensity = pd.Series()
+        self.propensity = builder.value.register_value_producer(f'{self.cause}_prevalence.propensity',
+                                                                source=lambda index: self._propensity[index])
+
         builder.event.register_listener('time_step', self.time_step_handler)
         builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
 
@@ -70,19 +75,33 @@ class DiseaseModel(Machine):
         return self._csmr_data
 
     @staticmethod
-    def assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness):
+    def assign_initial_status_to_simulants(simulants_df, states, initial_state, propensities):
         simulants = simulants_df[['age', 'sex']].copy()
         sequelae, weights = zip(*states.items())
         sequelae += (initial_state,)
         for w in weights:
             w.reset_index(inplace=True, drop=True)
         weights += ((1 - np.sum(weights, axis=0)),)
-        simulants.loc[:, 'condition_state'] = randomness.choice(simulants.index, sequelae,
-                                                                np.array(weights).T)
+
+        weights = np.array(weights).T
+
+        # manually calculate the assigned initial states based in order to use passed propensities
+        weights = _set_residual_probability(_normalize_shape(weights, simulants.index))
+        weights = weights/weights.sum(axis=1, keepdims=True)
+
+        weights_bins = np.cumsum(weights, axis=1)
+
+        choice_index = (propensities.values[np.newaxis].T > weights_bins).sum(axis=1)
+
+        initial_states = pd.Series(np.array(sequelae)[choice_index], index=simulants.index)
+        simulants.loc[:, 'condition_state'] = initial_states
+
         return simulants
 
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
+
+        self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))
 
         assert self.initial_state in {s.state_id for s in self.states}
 
@@ -93,8 +112,8 @@ class DiseaseModel(Machine):
             # only do this if there are states in the model that supply prevalence data
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
 
-            condition_column = self.assign_initial_status_to_simulants(population, state_map,
-                                                                       self.initial_state, self.randomness)
+            condition_column = self.assign_initial_status_to_simulants(population, state_map, self.initial_state,
+                                                                       self.propensity(population.index))
 
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
         else:
