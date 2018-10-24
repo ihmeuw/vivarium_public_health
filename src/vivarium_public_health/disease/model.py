@@ -82,16 +82,13 @@ class DiseaseModel(Machine):
             w.reset_index(inplace=True, drop=True)
         weights += ((1 - np.sum(weights, axis=0)),)
 
-        weights = np.array(weights).T
-
         # manually calculate the assigned initial states in order to use propensities
+        weights = np.array(weights).T
         weights = weights/weights.sum(axis=1, keepdims=True)
-
         weights_bins = np.cumsum(weights, axis=1)
-
         choice_index = (propensities.values[np.newaxis].T > weights_bins).sum(axis=1)
-
         initial_states = pd.Series(np.array(sequelae)[choice_index], index=simulants.index)
+
         simulants.loc[:, 'condition_state'] = initial_states
 
         return simulants
