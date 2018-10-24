@@ -8,7 +8,6 @@ from vivarium.framework.state_machine import Machine
 
 from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
                                         RateTransition, ProportionTransition)
-from vivarium.framework.randomness import _set_residual_probability, _normalize_shape
 
 
 class DiseaseModelError(VivariumError):
@@ -86,7 +85,6 @@ class DiseaseModel(Machine):
         weights = np.array(weights).T
 
         # manually calculate the assigned initial states in order to use propensities
-        weights = _set_residual_probability(_normalize_shape(weights, simulants.index))
         weights = weights/weights.sum(axis=1, keepdims=True)
 
         weights_bins = np.cumsum(weights, axis=1)
