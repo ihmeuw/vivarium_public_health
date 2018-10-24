@@ -85,7 +85,7 @@ class DiseaseModel(Machine):
 
         weights = np.array(weights).T
 
-        # manually calculate the assigned initial states based in order to use passed propensities
+        # manually calculate the assigned initial states in order to use propensities
         weights = _set_residual_probability(_normalize_shape(weights, simulants.index))
         weights = weights/weights.sum(axis=1, keepdims=True)
 
