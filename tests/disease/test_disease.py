@@ -188,8 +188,9 @@ def test_prevalence_single_simulant(mocker):
     simulants_df = pd.DataFrame({'sex': 'Female', 'age': 3, 'sex_id': 2.0}, index=test_index)
     states = {'sick': pd.Series(1, index=test_index)}
     randomness = mocker.Mock()
-    randomness.choice.side_effect = lambda index, _, __: pd.Series('sick', index=index)
-    simulants = DiseaseModel.assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness)
+    randomness.get_draws.side_effect = lambda index: pd.Series(0.5, index=index)
+    simulants = DiseaseModel.assign_initial_status_to_simulants(simulants_df, states, initial_state,
+                                                                randomness.get_draws(test_index))
     expected = simulants_df[['age', 'sex']]
     expected['condition_state'] = 'sick'
     assert expected.equals(simulants)
