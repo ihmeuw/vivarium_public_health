@@ -452,24 +452,19 @@ def should_rebin(risk, config):
     return (risk in config) and ('rebin' in config[risk]) and (config[risk].rebin)
 
 
-def reshape_exposure_data(data):
-    return pd.pivot_table(data,
-                          index=['year', 'age', 'sex'],
-                          columns='parameter', values='value'
-                          ).dropna().reset_index()
-
-
 def rebin_exposure_data(data):
     unexposed = sorted([c for c in data['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
     middle_cats = set(data['parameter']) - {unexposed} - {'cat1'}
     data['sex'] = data['sex'].astype(object)
     df = data.groupby(['year', 'age', 'sex'], as_index=False)
+    import pdb; pdb.set_trace()
     assert np.allclose(df['value'].sum().value, 1)
 
     def rebin(g):
+        import pdb; pdb.set_trace()
         to_drop = g['parameter'].isin(middle_cats)
         g.drop(g[to_drop].index, inplace=True)
-        g[g.parameter == 'cat1'].value = 1 - g[g.parameter == unexposed].loc[:, 'value'].values
+        g.loc[g.parameter == 'cat1', 'value'] = 1 - g[g.parameter == unexposed].loc[:, 'value'].values
         return g
 
     df = df.apply(rebin).reset_index()

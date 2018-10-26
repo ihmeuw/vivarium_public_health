@@ -2,7 +2,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from vivarium.framework.configuration import build_simulation_configuration
+from vivarium.testing_utilities import build_table
 from vivarium_public_health.risks import distributions
+
 
 @pytest.fixture
 def test_risk_factor(mocker):
@@ -164,3 +167,41 @@ def test_individual_distribution(exposure_idx):
     for dist in expected.keys():
         for params in expected[dist].keys():
             assert np.isclose(expected[dist][params][exposure_idx], generated[dist][params])
+
+
+def test_should_rebin():
+    test_config = build_simulation_configuration()
+    test_config['population'] = {'population_size': 100}
+    assert not distributions.should_rebin('test_risk', test_config)
+
+    test_config['test_risk'] = {}
+    assert not distributions.should_rebin('test_risk', test_config)
+
+    test_config['test_risk'].rebin = False
+    assert not distributions.should_rebin('test_risk', test_config)
+
+    test_config['test_risk']['rebin'] = True
+    assert distributions.should_rebin('test_risk', test_config)
+
+
+def test_rebin_exposure():
+    cats = ['cat1', 'cat2', 'cat3', 'cat4']
+    years = [2010, 2011, 2012, 2013]
+    age = [1, 2, 3, 4, 5]
+    wrong_values = [0.1, 0.1, 0.1, 0.1]
+
+    wrong_df = []
+    for cat, value in cats
+    # so total rows will be 4 * 2 * 4 * 5
+    test_df = pd.DataFrame({'age': age * 32, 'sex': ['Male']*80 + ['Female']*80, 'year': years * 40, 'value': wrong_values * 40,
+                            'parameter': cats * 40})
+    with pytest.raises(AssertionError):
+        distributions.rebin_exposure_data(test_df)
+
+    values = [0.1, 0.2, 0.3, 0.4]
+    test_df.loc[:, 'value'] = values * 40
+
+    # after rebin total rows will be 2 * 2 * 4 * 5
+    expected = pd.DataFrame({'age': age * 16, 'sex': ['Male']*40 + ['Female']*40, 'year': years * 20, 'value': [0.6, 0.4] * 40,
+                             'parameter': ['cat1', 'cat2']*40})
+    assert distributions.rebin_exposure_data(test_df).isequal(expected)

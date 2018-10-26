@@ -27,9 +27,10 @@ def get_exposure_effect(builder, risk, risk_type):
 
 
 def rebin_rr_data(rr, exposure):
-    df = exposure.set_index(['year', 'parameter', 'age', 'sex']).join(
-         rr.set_index(['year', 'parameter', 'age', 'sex']), lsuffix='_e', rsuffix='_r')
-    df = df.reset_index().groupby(['year', 'age', 'sex'], as_index=False)
+    df = exposure.merge(rr, on=['year', 'parameter', 'age', 'sex', 'age_group_start', 'age_group_end',
+                                'year_start', 'year_end'])
+
+    df = df.groupby(['year', 'age', 'sex'], as_index=False)
 
     unexposed = sorted([c for c in rr['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
     middle_cats = set(rr['parameter']) - {unexposed} - {'cat1'}
@@ -37,18 +38,20 @@ def rebin_rr_data(rr, exposure):
     exposure['sex'] = exposure['sex'].astype(object)
 
     def rebin_rr(g):
-        g['weighted_rr']=g['value_e']*g['value_r']
-        x = g['weighted_r'].sum()-g.loc[g.parameter == unexposed, 'weighted_r']
-        x /= g['value_e'].sum()-g.loc[g.parameter == unexposed, 'value_e'].values
+        # value_x = exposure, value_y = rr
+        g['weighted_rr'] = g['value_x']*g['value_y']
+        x = g['weighted_rr'].sum()-g.loc[g.parameter == unexposed, 'weighted_rr']
+        x /= g['value_x'].sum()-g.loc[g.parameter == unexposed, 'value_x'].values
         to_drop = g['parameter'].isin(middle_cats)
         g.drop(g[to_drop].index, inplace=True)
-        g.drop(['value_e', 'value_r', 'weighted_r'], axis=1, inplace=True)
+        g.drop(['value_x', 'value_y', 'weighted_rr'], axis=1, inplace=True)
         g['value'] = x.iloc[0]
         g.loc[g.parameter == unexposed, 'value'] = 1.0
         g['value'].fillna(0, inplace=True)
         return g
 
-    df = df.apply(rebin_rr).reindex.loc[:, ['year', 'age', 'sex', 'parameter', 'value']]
+    df = df.apply(rebin_rr).reset_index().loc[:, ['year', 'parameter', 'sex', 'age', 'value', 'age_group_start',
+                                                  'age_group_end', 'year_start', 'year_end']]
     return df.replace(unexposed, 'cat2')
 
 
