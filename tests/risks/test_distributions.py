@@ -186,22 +186,33 @@ def test_should_rebin():
 
 def test_rebin_exposure():
     cats = ['cat1', 'cat2', 'cat3', 'cat4']
-    years = [2010, 2011, 2012, 2013]
-    age = [1, 2, 3, 4, 5]
+    year_start = 2010
+    year_end = 2013
+
     wrong_values = [0.1, 0.1, 0.1, 0.1]
 
     wrong_df = []
-    for cat, value in cats
-    # so total rows will be 4 * 2 * 4 * 5
-    test_df = pd.DataFrame({'age': age * 32, 'sex': ['Male']*80 + ['Female']*80, 'year': years * 40, 'value': wrong_values * 40,
-                            'parameter': cats * 40})
+    for cat, value in zip(cats, wrong_values):
+        wrong_df.append(build_table([cat, value], year_start, year_end, ('age','year', 'sex', 'parameter', 'value')))
+    wrong_df = pd.concat(wrong_df)
+
     with pytest.raises(AssertionError):
-        distributions.rebin_exposure_data(test_df)
+        distributions.rebin_exposure_data(wrong_df)
 
     values = [0.1, 0.2, 0.3, 0.4]
-    test_df.loc[:, 'value'] = values * 40
+    test_df = []
+    for cat, value in zip(cats, values):
+        test_df.append(build_table([cat, value], year_start, year_end, ('age','year', 'sex', 'parameter', 'value')))
+    test_df = pd.concat(test_df)
 
-    # after rebin total rows will be 2 * 2 * 4 * 5
-    expected = pd.DataFrame({'age': age * 16, 'sex': ['Male']*40 + ['Female']*40, 'year': years * 20, 'value': [0.6, 0.4] * 40,
-                             'parameter': ['cat1', 'cat2']*40})
-    assert distributions.rebin_exposure_data(test_df).isequal(expected)
+    expected = []
+
+    for cat, value in zip (['cat1', 'cat2'], [0.6, 0.4]):
+        expected.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
+
+    expected = pd.concat(expected)[:, ['age', 'year', 'sex', 'parameter', 'vaelu']]
+    rebinned = distributions.rebin_exposure_data(test_df).loc[:, expected.columns]
+
+    import pdb; pdb.set_trace()
+
+    assert expected.set_index(['age', 'year', 'sex', 'parameter']).value.equals(rebinned.set_index(['age', 'year', 'sex', 'parameter']).value)

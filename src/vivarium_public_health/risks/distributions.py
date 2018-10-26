@@ -457,13 +457,13 @@ def rebin_exposure_data(data):
     middle_cats = set(data['parameter']) - {unexposed} - {'cat1'}
     data['sex'] = data['sex'].astype(object)
     df = data.groupby(['year', 'age', 'sex'], as_index=False)
-    import pdb; pdb.set_trace()
     assert np.allclose(df['value'].sum().value, 1)
 
     def rebin(g):
-        import pdb; pdb.set_trace()
+        g.reset_index(inplace=True)
         to_drop = g['parameter'].isin(middle_cats)
         g.drop(g[to_drop].index, inplace=True)
+
         g.loc[g.parameter == 'cat1', 'value'] = 1 - g[g.parameter == unexposed].loc[:, 'value'].values
         return g
 
