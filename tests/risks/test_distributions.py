@@ -210,9 +210,10 @@ def test_rebin_exposure():
     for cat, value in zip (['cat1', 'cat2'], [0.6, 0.4]):
         expected.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
 
-    expected = pd.concat(expected)[:, ['age', 'year', 'sex', 'parameter', 'vaelu']]
+    expected = pd.concat(expected).loc[:, ['age', 'year', 'sex', 'parameter', 'value']]
     rebinned = distributions.rebin_exposure_data(test_df).loc[:, expected.columns]
+    expected = expected.set_index(['age', 'year','sex'])
+    rebinned = rebinned.set_index(['age', 'year', 'sex'])
 
-    import pdb; pdb.set_trace()
-
-    assert expected.set_index(['age', 'year', 'sex', 'parameter']).value.equals(rebinned.set_index(['age', 'year', 'sex', 'parameter']).value)
+    assert np.allclose(expected.value[expected.parameter == 'cat1'], rebinned.value[rebinned.parameter=='cat1'])
+    assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])
