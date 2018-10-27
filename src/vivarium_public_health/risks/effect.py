@@ -1,6 +1,9 @@
 import numpy as np
+import pandas as pd
+
 from vivarium_public_health.util import pivot_age_sex_year_binned
 from vivarium_public_health.risks.distributions import should_rebin
+
 
 def get_exposure_effect(builder, risk, risk_type):
     distribution = builder.data.load(f'{risk_type}.{risk}.distribution')
@@ -26,7 +29,16 @@ def get_exposure_effect(builder, risk, risk_type):
     return exposure_effect
 
 
-def rebin_rr_data(rr, exposure):
+def rebin_rr_data(rr: pd.DataFrame, exposure: pd.DataFrame) -> pd.DataFrame:
+    """ When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
+        For the exposed categories of relative risk (after rebinning) should be the weighted sum of relative risk
+        of those categories where weights are relative proportions of exposure of those categories.
+
+        For example, if cat1, cat2, cat3 are exposed categories and cat4 is unexposed with exposure [0.1,0.2,0.3,0.4],
+        for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
+        (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
+    """
+
     df = exposure.merge(rr, on=['year', 'parameter', 'age', 'sex', 'age_group_start', 'age_group_end',
                                 'year_start', 'year_end'])
 

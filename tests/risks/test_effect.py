@@ -8,7 +8,7 @@ from vivarium.testing_utilities import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
 from vivarium_public_health.disease import RateTransition
-from vivarium_public_health.risks.effect import DirectEffect, get_exposure_effect
+from vivarium_public_health.risks.effect import DirectEffect, get_exposure_effect, rebin_rr_data
 from vivarium_public_health.risks.base_risk import Risk
 
 
@@ -536,3 +536,38 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
 
     computed_rr = (len(pop[affected_by_cg])/len(pop[cg_exposed])) / (len(pop[not_affected_by_cg])/len(pop[~cg_exposed]))
     assert np.isclose(computed_rr, rr, rtol=0.01)
+
+
+def test_rebin_relative_risk():
+    cats = ['cat1', 'cat2', 'cat3', 'cat4']
+    year_start = 2008
+    year_end = 2015
+
+    exposure_data = [0.3, 0.1, 0.1, 0.5]
+
+    exposure = []
+    for cat, value in zip(cats, exposure_data):
+        exposure.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
+    exposure = pd.concat(exposure)
+
+    rr_data = [3, 2.5, 2, 1]
+
+    rr = []
+    for cat, value in zip(cats, rr_data):
+        rr.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
+    rr = pd.concat(rr)
+
+    expected = []
+
+    # expected rr should be weighted by exposure : for rebinned cat1 : (0.3 * 3 + 0.1 * 2.5 + 0.1* 2)/ (0.3+0.1+0.1)
+    for cat, value in zip(['cat1', 'cat2'], [(0.3 * 3 + 0.1 * 2.5 + 0.1* 2)/ (0.3+0.1+0.1), 1]):
+        expected.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
+
+    expected = pd.concat(expected).loc[:, ['age', 'year', 'sex', 'parameter', 'value']]
+
+    rebinned = rebin_rr_data(rr, exposure).loc[:, expected.columns]
+    expected = expected.set_index(['age', 'year', 'sex'])
+    rebinned = rebinned.set_index(['age', 'year', 'sex'])
+
+    assert np.allclose(expected.value[expected.parameter == 'cat1'], rebinned.value[rebinned.parameter == 'cat1'])
+    assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])

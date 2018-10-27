@@ -5,6 +5,7 @@ import pandas as pd
 from scipy import stats, optimize, special
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
+from vivarium.config_tree import ConfigTree
 from vivarium_public_health.util import pivot_age_sex_year_binned
 
 class NonConvergenceError(Exception):
@@ -448,11 +449,15 @@ class RebinPolytomousDistribution(DichotomousDistribution):
     pass
 
 
-def should_rebin(risk, config):
+def should_rebin(risk: str, config: ConfigTree) -> bool:
+    """ Check the configuration whether to rebin the polytomous risk """
+
     return (risk in config) and ('rebin' in config[risk]) and (config[risk].rebin)
 
 
-def rebin_exposure_data(data):
+def rebin_exposure_data(data: pd.DataFrame) -> pd.DataFrame:
+    """ Rebin the polytomous risk and have only cat1/cat2 exposure data """
+
     unexposed = sorted([c for c in data['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
     middle_cats = set(data['parameter']) - {unexposed} - {'cat1'}
     data['sex'] = data['sex'].astype(object)
