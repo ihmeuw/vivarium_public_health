@@ -72,7 +72,7 @@ def test_individual_distribution(i, mean, sd):
     e = pd.DataFrame({'mean': mean, 'standard_deviation': sd}, index=[0])
 
     # Beta
-    beta = d.Beta(e)
+    beta = distributions.Beta(e)
 
     generated['betasr'] = beta._parameter_data
     expected['betasr'] = dict()
@@ -209,7 +209,7 @@ def test_rebin_exposure():
         expected.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
 
     expected = pd.concat(expected).loc[:, ['age', 'year', 'sex', 'parameter', 'value']]
-    rebinned = d.rebin_exposure_data(test_df).loc[:, expected.columns]
+    rebinned = distributions.rebin_exposure_data(test_df).loc[:, expected.columns]
     expected = expected.set_index(['age', 'year','sex'])
     rebinned = rebinned.set_index(['age', 'year', 'sex'])
 
@@ -285,5 +285,4 @@ def test_get_distribution_polytomous_risk_rebinned(mocker):
 
     assert type(test_d) == type(Polytomous_d)
     assert test_d._risk == Polytomous_d._risk
-    assert test_d.categories == Polytomous_d.categories
     assert test_d.exposure_data.equals(Polytomous_d.exposure_data)
