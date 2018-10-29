@@ -1,8 +1,7 @@
 import numpy as np
-import pandas as pd
 
 from vivarium_public_health.util import pivot_age_sex_year_binned
-from vivarium_public_health.risks.distributions import should_rebin
+from .data_transformation import should_rebin, rebin_rr_data
 
 
 def get_exposure_effect(builder, risk, risk_type):
@@ -27,44 +26,6 @@ def get_exposure_effect(builder, risk, risk_type):
             return rates * (rr.lookup(exposure.index, exposure))
 
     return exposure_effect
-
-
-def rebin_rr_data(rr: pd.DataFrame, exposure: pd.DataFrame) -> pd.DataFrame:
-    """ When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
-        For the exposed categories of relative risk (after rebinning) should be the weighted sum of relative risk
-        of those categories where weights are relative proportions of exposure of those categories.
-
-        For example, if cat1, cat2, cat3 are exposed categories and cat4 is unexposed with exposure [0.1,0.2,0.3,0.4],
-        for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
-        (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
-    """
-
-    df = exposure.merge(rr, on=['year', 'parameter', 'age', 'sex', 'age_group_start', 'age_group_end',
-                                'year_start', 'year_end'])
-
-    df = df.groupby(['year', 'age', 'sex'], as_index=False)
-
-    unexposed = sorted([c for c in rr['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
-    middle_cats = set(rr['parameter']) - {unexposed} - {'cat1'}
-    rr['sex'] = rr['sex'].astype(object)
-    exposure['sex'] = exposure['sex'].astype(object)
-
-    def rebin_rr(g):
-        # value_x = exposure, value_y = rr
-        g['weighted_rr'] = g['value_x']*g['value_y']
-        x = g['weighted_rr'].sum()-g.loc[g.parameter == unexposed, 'weighted_rr']
-        x /= g['value_x'].sum()-g.loc[g.parameter == unexposed, 'value_x'].values
-        to_drop = g['parameter'].isin(middle_cats)
-        g.drop(g[to_drop].index, inplace=True)
-        g.drop(['value_x', 'value_y', 'weighted_rr'], axis=1, inplace=True)
-        g['value'] = x.iloc[0]
-        g.loc[g.parameter == unexposed, 'value'] = 1.0
-        g['value'].fillna(0, inplace=True)
-        return g
-
-    df = df.apply(rebin_rr).reset_index().loc[:, ['year', 'parameter', 'sex', 'age', 'value', 'age_group_start',
-                                                  'age_group_end', 'year_start', 'year_end']]
-    return df.replace(unexposed, 'cat2')
 
 
 class RiskEffect:
@@ -131,7 +92,6 @@ class RiskEffect:
         return pivot_age_sex_year_binned(rr_data, 'parameter', 'value')
 
 
-
 class DirectEffect(RiskEffect):
 
     @property
@@ -162,4 +122,3 @@ class RiskEffectSet:
         ]
 
         builder.components.add_components(direct_effects + indirect_effects)
-

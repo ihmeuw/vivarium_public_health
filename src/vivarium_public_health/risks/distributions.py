@@ -5,8 +5,9 @@ import pandas as pd
 from scipy import stats, optimize, special
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
-from vivarium.config_tree import ConfigTree
 from vivarium_public_health.util import pivot_age_sex_year_binned
+from .data_transformation import should_rebin, rebin_exposure_data
+
 
 class NonConvergenceError(Exception):
     """ Raised when the optimization fails to converge """
@@ -447,33 +448,6 @@ class DichotomousDistribution:
 
 class RebinPolytomousDistribution(DichotomousDistribution):
     pass
-
-
-def should_rebin(risk: str, config: ConfigTree) -> bool:
-    """ Check the configuration whether to rebin the polytomous risk """
-
-    return (risk in config) and ('rebin' in config[risk]) and (config[risk].rebin)
-
-
-def rebin_exposure_data(data: pd.DataFrame) -> pd.DataFrame:
-    """ Rebin the polytomous risk and have only cat1/cat2 exposure data """
-
-    unexposed = sorted([c for c in data['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
-    middle_cats = set(data['parameter']) - {unexposed} - {'cat1'}
-    data['sex'] = data['sex'].astype(object)
-    df = data.groupby(['year', 'age', 'sex'], as_index=False)
-    assert np.allclose(df['value'].sum().value, 1)
-
-    def rebin(g):
-        g.reset_index(inplace=True)
-        to_drop = g['parameter'].isin(middle_cats)
-        g.drop(g[to_drop].index, inplace=True)
-
-        g.loc[g.parameter == 'cat1', 'value'] = 1 - g[g.parameter == unexposed].loc[:, 'value'].values
-        return g
-
-    df = df.apply(rebin).reset_index()
-    return df.replace(unexposed, 'cat2')
 
 
 def get_distribution(risk: str, risk_type: str, builder):
