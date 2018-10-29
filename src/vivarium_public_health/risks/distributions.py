@@ -6,6 +6,8 @@ from scipy import stats, optimize, special
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium_public_health.util import pivot_age_sex_year_binned
+from .data_transformation import should_rebin, rebin_exposure_data
+
 
 class NonConvergenceError(Exception):
     """ Raised when the optimization fails to converge """
@@ -444,59 +446,77 @@ class DichotomousDistribution:
         return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
 
 
-def get_distribution(risk: str, risk_type: str, builder) -> \
-        Union[BaseDistribution, EnsembleDistribution, PolytomousDistribution, DichotomousDistribution]:
+class RebinPolytomousDistribution(DichotomousDistribution):
+    pass
 
-    distribution = builder.data.load(f"{risk_type}.{risk}.distribution")
-    if distribution in ["dichotomous", "polytomous"]:
-        exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
 
+def get_distribution(risk: str, risk_type: str, builder):
+
+    distribution_type = builder.data.load(f"{risk_type}.{risk}.distribution")
+    exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
+
+    if distribution_type == "dichotomous":
         exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
+        distribution = DichotomousDistribution(exposure_data, risk)
 
-        return DichotomousDistribution(exposure_data, risk) if distribution == 'dichotomous' \
-            else PolytomousDistribution(exposure_data, risk)
+    elif distribution_type == 'polytomous':
+        SPECIAL = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
+        rebin = should_rebin(risk, builder.configuration)
 
-    exposure_mean = builder.data.load(f"{risk_type}.{risk}.exposure")
-    exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
-    exposure_mean = exposure_mean.rename(index=str, columns={"value": "mean"})
-    exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
+        if rebin and risk in SPECIAL:
+            raise NotImplementedError(f'{risk} cannot be rebinned at this point')
 
-    exposure = exposure_mean.merge(exposure_sd).set_index(['year', 'year_start', 'year_end',
-                                                           'age', 'age_group_start', 'age_group_end', 'sex'])
+        if rebin:
+            exposure_data = rebin_exposure_data(exposure_data)
+            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
+            distribution = RebinPolytomousDistribution(exposure_data, risk)
+        else:
+            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
+            distribution = PolytomousDistribution(exposure_data, risk)
 
-    if distribution == 'ensemble':
-        weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
-        distribution_map = {'betasr': Beta,
-                            'exp': Exponential,
-                            'gamma': Gamma,
-                            'gumbel': Gumbel,
-                            'invgamma': InverseGamma,
-                            'invweibull': InverseWeibull,
-                            'llogis': LogLogistic,
-                            'lnorm': LogNormal,
-                            'mgamma': MirroredGamma,
-                            'mgumbel': MirroredGumbel,
-                            'norm': Normal,
-                            'weibull': Weibull}
+    elif distribution_type in ['normal', 'lognormal', 'ensemble']:
+        exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
+        exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
+        exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
 
-        if risk == 'high_ldl_cholesterol':
-            weights = weights.drop('invgamma', axis=1)
+        exposure = exposure_data.merge(exposure_sd).set_index(['year', 'year_start', 'year_end',
+                                                               'age', 'age_group_start', 'age_group_end', 'sex'])
 
-        if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
-            weights = weights.drop('invweibull', axis=1)
+        if distribution_type == 'normal':
+            distribution = Normal(exposure)
 
-        weights_cols = list(set(distribution_map.keys()) & set(weights.columns))
-        weights = weights[weights_cols]
+        elif distribution_type == 'lognormal':
+            distribution = LogNormal(exposure)
+        else:
+            weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
+            distribution_map = {'betasr': Beta,
+                                'exp': Exponential,
+                                'gamma': Gamma,
+                                'gumbel': Gumbel,
+                                'invgamma': InverseGamma,
+                                'invweibull': InverseWeibull,
+                                'llogis': LogLogistic,
+                                'lnorm': LogNormal,
+                                'mgamma': MirroredGamma,
+                                'mgumbel': MirroredGumbel,
+                                'norm': Normal,
+                                'weibull': Weibull}
 
-        # weight is all same across the demo groups
-        e_weights = weights.iloc[0]
-        dist = {d: distribution_map[d] for d in weights_cols}
+            if risk == 'high_ldl_cholesterol':
+                weights = weights.drop('invgamma', axis=1)
 
-        return EnsembleDistribution(exposure, e_weights/np.sum(e_weights), dist)
+            if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
+                weights = weights.drop('invweibull', axis=1)
 
-    elif distribution == 'lognormal':
-        return LogNormal(exposure)
-    elif distribution == 'normal':
-        return Normal(exposure)
+            weights_cols = list(set(distribution_map.keys()) & set(weights.columns))
+            weights = weights[weights_cols]
+
+            # weight is all same across the demo groups
+            e_weights = weights.iloc[0]
+            dist = {d: distribution_map[d] for d in weights_cols}
+
+            distribution = EnsembleDistribution(exposure, e_weights/np.sum(e_weights), dist)
     else:
-        raise ValueError(f"Unhandled distribution type {distribution}")
+        raise NotImplementedError(f"Unhandled distribution type {distribution}")
+
+    return distribution

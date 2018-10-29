@@ -1,6 +1,7 @@
 import numpy as np
-import pandas as pd
+
 from vivarium_public_health.util import pivot_age_sex_year_binned
+from .data_transformation import should_rebin, rebin_rr_data
 
 
 def get_exposure_effect(builder, risk, risk_type):
@@ -43,7 +44,6 @@ class RiskEffect:
     def setup(self, builder):
         paf_data = self._get_paf_data(builder)
         rr_data = self._get_rr_data(builder)
-
         self.population_attributable_fraction = builder.lookup.build_table(paf_data)
         self.relative_risk = builder.lookup.build_table(rr_data)
 
@@ -83,6 +83,12 @@ class RiskEffect:
                          'age_group_start', 'age_group_end', 'year_start', 'year_end']
         rr_data = rr_data.loc[row_filter, column_filter]
 
+        if should_rebin(self.risk, builder.configuration):
+            exposure_data = builder.data.load(f"{self.risk_type}.{self.risk}.exposure")
+            exposure_data = exposure_data.loc[:, column_filter]
+            exposure_data = exposure_data[exposure_data['year'].isin(rr_data.year.unique())]
+            rr_data = rebin_rr_data(rr_data, exposure_data)
+
         return pivot_age_sex_year_binned(rr_data, 'parameter', 'value')
 
 
@@ -116,4 +122,3 @@ class RiskEffectSet:
         ]
 
         builder.components.add_components(direct_effects + indirect_effects)
-

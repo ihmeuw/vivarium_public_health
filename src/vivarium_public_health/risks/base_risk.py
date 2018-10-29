@@ -17,6 +17,7 @@ class Risk:
        risk_name : str
            The name of a risk
        """
+    configuration_defaults = {}
 
     def __init__(self, risk_type, risk_name):
         self._risk_type, self._risk = risk_type, risk_name

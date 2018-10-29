@@ -2,28 +2,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from vivarium.framework.configuration import build_simulation_configuration
+from vivarium.testing_utilities import build_table
 from vivarium_public_health.risks import distributions
+from vivarium_public_health.util import pivot_age_sex_year_binned
 
-@pytest.fixture
-def test_risk_factor(mocker):
-
-    test_rf = mocker.MagicMock()
-    test_rf.test_risk = dict()
-    test_rf.test_risk['distribution'] = 'ensemble'
-    exposure_mean = pd.DataFrame({'year': [1990]*4, 'year_start': [1990]*4, 'year_end': [1992]*4, 'sex': [1]*4,
-                                  'age': [2, 3, 4, 5], 'age_group_start': [2, 3, 4, 5], 'age_group_end': [3, 4, 5, 6],
-                                  'value': [10, 20, 30, 40]})
-    exposure_sd = pd.DataFrame({'year': [1990]*4, 'year_start': [1990]*4, 'year_end': [1992]*4, 'sex': [1]*4,
-                                'age': [2, 3, 4, 5], 'age_group_start': [2, 3, 4, 5], 'age_group_end': [3, 4, 5, 6],
-                                'value': [1, 3, 5, 7]})
-    weights = {'betasr': 0.1, 'exp': 0.1, 'gamma': 0.1, 'gumbel': 0.1, 'invgamma': 0.1,
-               'llogis': 0.1,  'lnorm': 0.1, 'mgamma': 0.1,  'mgumbel': 0.1,
-               'norm': 0.03, 'invweibull': 0.03, 'weibull': 0.04}
-    ensemble_weights = pd.DataFrame(weights, index=[0])
-    test_rf.test_risk['exposure']= exposure_mean
-    test_rf.test_risk['exposure_standard_deviation'] = exposure_sd
-    test_rf.test_risk['ensemble_weights'] = ensemble_weights
-    return test_rf.test_risk
 
 def test_get_min_max():
     test_exposure = pd.DataFrame({'mean': [5, 10, 20, 50, 100], 'standard_deviation': [1, 3, 5, 10, 15]}, index=range(5))
@@ -36,38 +19,57 @@ def test_get_min_max():
     assert np.allclose(test['x_max'], expected['x_max'])
 
 
-def test_get_distribution(test_risk_factor, mocker):
-    builder = mocker.MagicMock()
-    builder.data.load.side_effect = lambda args: test_risk_factor[args.split('.')[-1]]
+def test_get_distribution_ensemble_risk(mocker):
 
-    # just keep the start weight that we provide to make a test ensemble object
-    initial_weight = test_risk_factor['ensemble_weights'].iloc[0]
-    ensemble = distributions.get_distribution('test_risk', 'test_risk_factor', builder)
+    ensemble_mean = []
+    ensemble_sd = []
+    for m,s in zip([10, 20, 30, 40], [1, 3, 5, 7]):
+        ensemble_mean.append(build_table(m, 1990, 1992, ('age','year', 'sex', 'parameter', 'value')))
+        ensemble_sd.append(build_table(s, 1990, 1992, ('age', 'year', 'sex', 'parameter', 'value')))
+
+    ensemble_weights = {'betasr': 0.1, 'exp': 0.1, 'gamma': 0.1, 'gumbel': 0.1, 'invgamma': 0.1, 'llogis': 0.1,
+                        'lnorm': 0.1, 'mgamma': 0.1,  'mgumbel': 0.1, 'norm': 0.03, 'invweibull': 0.03, 'weibull': 0.04}
+
+    cols = ('age', 'year', 'sex')
+    weights = []
+    for k, v in ensemble_weights.items():
+        cols += (k,)
+        weights.append(v)
+
+    ensemble_mean = pd.concat(ensemble_mean)
+    ensemble_sd = pd.concat(ensemble_sd)
+    ensemble_w = build_table(weights, 1990, 1992, cols)
+
+    mock_data = {'distribution': 'ensemble', 'exposure': ensemble_mean, 'exposure_standard_deviation': ensemble_sd,
+                 'ensemble_weights': ensemble_w}
+
+    builder = mocker.MagicMock()
+    builder.data.load.side_effect = lambda _: mock_data.get(_.split('.')[-1])
+
+    e = distributions.get_distribution('risk_factor', 'test_risk', builder)
 
     # check whether we start with correct weight
-    assert np.isclose(np.sum(initial_weight), 1)
+    assert np.isclose(np.sum(e.weights.sum()), 1)
 
-    # then check whether it properly drops 'invweibull' and rescale it
-    assert np.isclose(np.sum(ensemble.weights), 1)
-    assert 'invweibull' not in ensemble.weights
-    assert 'invweibull' not in ensemble._distributions
+    assert 'invweibull' not in e.weights
+    assert 'invweibull' not in e._distributions
 
-    expected_weight = initial_weight.drop('invweibull')
-    expected_weight = expected_weight/np.sum(expected_weight)
+    ensemble_weights.pop('invweibull')
 
-    for key in expected_weight.keys():
-        assert np.isclose(expected_weight[key], ensemble.weights[key])
+    for k,v in ensemble_weights.items():
+        ensemble_weights[k] = v/sum(ensemble_weights.values())
+        np.isclose(ensemble_weights[k], e.weights[k])
 
 
-@pytest.mark.parametrize('exposure_idx', [0, 1, 2, 3])
-def test_individual_distribution(exposure_idx):
-    exposure_level = [(10, 1), (20, 3), (30, 5), (40, 7)]
+# NOTE: This test is to ensure that our math to find the parameters for each distribution is correct.
+exposure_levels = [(0, 10, 1), (1, 20, 3), (2, 30, 5), (3, 40, 7)]
+@pytest.mark.parametrize('i, mean, sd', exposure_levels)
+def test_individual_distribution(i, mean, sd):
     expected = dict()
     generated = dict()
     # now look into the details of each distribution parameters
     # this is a dictionary of distributions considered for ensemble distribution
-    m, s = exposure_level[exposure_idx]
-    e = pd.DataFrame({'mean': m, 'standard_deviation': s}, index=[0])
+    e = pd.DataFrame({'mean': mean, 'standard_deviation': sd}, index=[0])
 
     # Beta
     beta = distributions.Beta(e)
@@ -127,7 +129,6 @@ def test_individual_distribution(exposure_idx):
     expected['lnorm']['s'] = [0.099751, 0.149166, 0.165526, 0.173682]
     expected['lnorm']['scale'] = [9.950372, 19.778727, 29.591818, 39.401219]
 
-
     # MirroredGumbel
     mgumbel = distributions.MirroredGumbel(e)
     generated['mgumbel'] = mgumbel._parameter_data
@@ -163,4 +164,125 @@ def test_individual_distribution(exposure_idx):
 
     for dist in expected.keys():
         for params in expected[dist].keys():
-            assert np.isclose(expected[dist][params][exposure_idx], generated[dist][params])
+            assert np.isclose(expected[dist][params][i], generated[dist][params])
+
+
+def test_should_rebin():
+    test_config = build_simulation_configuration()
+    test_config['population'] = {'population_size': 100}
+    assert not distributions.should_rebin('test_risk', test_config)
+
+    test_config['test_risk'] = {}
+    assert not distributions.should_rebin('test_risk', test_config)
+
+    test_config['test_risk'].rebin = False
+    assert not distributions.should_rebin('test_risk', test_config)
+
+    test_config['test_risk']['rebin'] = True
+    assert distributions.should_rebin('test_risk', test_config)
+
+
+def test_rebin_exposure():
+    cats = ['cat1', 'cat2', 'cat3', 'cat4']
+    year_start = 2010
+    year_end = 2013
+
+    wrong_values = [0.1, 0.1, 0.1, 0.1]
+
+    wrong_df = []
+    for cat, value in zip(cats, wrong_values):
+        wrong_df.append(build_table([cat, value], year_start, year_end, ('age','year', 'sex', 'parameter', 'value')))
+    wrong_df = pd.concat(wrong_df)
+
+    with pytest.raises(AssertionError):
+        distributions.rebin_exposure_data(wrong_df)
+
+    values = [0.1, 0.2, 0.3, 0.4]
+    test_df = []
+    for cat, value in zip(cats, values):
+        test_df.append(build_table([cat, value], year_start, year_end, ('age','year', 'sex', 'parameter', 'value')))
+    test_df = pd.concat(test_df)
+
+    expected = []
+
+    for cat, value in zip (['cat1', 'cat2'], [0.6, 0.4]):
+        expected.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
+
+    expected = pd.concat(expected).loc[:, ['age', 'year', 'sex', 'parameter', 'value']]
+    rebinned = distributions.rebin_exposure_data(test_df).loc[:, expected.columns]
+    expected = expected.set_index(['age', 'year','sex'])
+    rebinned = rebinned.set_index(['age', 'year', 'sex'])
+
+    assert np.allclose(expected.value[expected.parameter == 'cat1'], rebinned.value[rebinned.parameter=='cat1'])
+    assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])
+
+
+def test_get_distribution_dichotomous_risk(mocker):
+
+    test_exposure = []
+    for cat, value in zip(['cat1', 'cat2'], [0.2, 0.8]):
+        test_exposure.append(build_table([cat, value], 2000, 2005, ('age', 'year', 'sex', 'parameter', 'value')))
+
+    test_exposure = pd.concat(test_exposure)
+    mock_data = {'exposure': test_exposure, 'distribution': 'dichotomous'}
+
+    builder = mocker.MagicMock()
+    builder.data.load.side_effect = lambda _: mock_data.get(_.split('.')[-1])
+
+    test_d = distributions.get_distribution('dichotomous_risk', 'risk_factor', builder)
+    Dichotomous_d = distributions.DichotomousDistribution(pivot_age_sex_year_binned(test_exposure, 'parameter', 'value'),
+                                                          'dichotomous_risk')
+
+    assert type(test_d) == type(Dichotomous_d)
+    assert test_d._risk == Dichotomous_d._risk
+    assert test_d.exposure_data.equals(Dichotomous_d.exposure_data)
+
+
+def test_get_distribution_polytomous_risk(mocker):
+
+    test_exposure = []
+    for cat, value in zip(['cat1', 'cat2', 'cat3', 'cat4'], [0.2, 0.3, 0.1, 0.4]):
+        test_exposure.append(build_table([cat, value], 2000, 2005, ('age', 'year', 'sex', 'parameter', 'value')))
+
+    test_exposure = pd.concat(test_exposure)
+    mock_data = {'exposure': test_exposure, 'distribution': 'polytomous'}
+
+    builder = mocker.MagicMock()
+    builder.data.load.side_effect = lambda _: mock_data.get(_.split('.')[-1])
+
+    test_d = distributions.get_distribution('polytomous_risk', 'risk_factor', builder)
+    Polytomous_d = distributions.PolytomousDistribution(pivot_age_sex_year_binned(test_exposure, 'parameter', 'value'),
+                                                        'polytomous_risk')
+
+    assert type(test_d) == type(Polytomous_d)
+    assert test_d._risk == Polytomous_d._risk
+    assert test_d.categories == Polytomous_d.categories
+    assert test_d.exposure_data.equals(Polytomous_d.exposure_data)
+
+
+def test_get_distribution_polytomous_risk_rebinned(mocker):
+    rebin_mock = mocker.patch('vivarium_public_health.risks.distributions.should_rebin')
+    rebin_mock.return_value = True
+    test_exposure = []
+    for cat, value in zip(['cat1', 'cat2', 'cat3', 'cat4'], [0.2, 0.3, 0.1, 0.4]):
+        test_exposure.append(build_table([cat, value], 2000, 2005, ('age', 'year', 'sex', 'parameter', 'value')))
+
+    test_exposure = pd.concat(test_exposure)
+    mock_data = {'exposure': test_exposure, 'distribution': 'polytomous'}
+
+    builder = mocker.MagicMock()
+    builder.data.load.side_effect = lambda _: mock_data.get(_.split('.')[-1])
+
+    test_d = distributions.get_distribution('polytomous_risk', 'risk_factor', builder)
+
+    rebinned_exposure = []
+    for cat, value in zip(['cat1', 'cat2'], [0.6, 0.4]):
+        rebinned_exposure.append(build_table([cat, value], 2000, 2005, ('age', 'year', 'sex', 'parameter', 'value')))
+    rebinned_exposure = pd.concat(rebinned_exposure)
+
+    Polytomous_d = distributions.RebinPolytomousDistribution(pivot_age_sex_year_binned(rebinned_exposure, 'parameter',
+                                                                                       'value'),'polytomous_risk')
+
+    assert type(test_d) == type(Polytomous_d)
+    assert test_d._risk == Polytomous_d._risk
+    assert test_d.exposure_data.equals(Polytomous_d.exposure_data)
