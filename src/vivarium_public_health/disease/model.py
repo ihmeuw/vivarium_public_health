@@ -147,5 +147,5 @@ class DiseaseModel(Machine):
 
     def metrics(self, index, metrics):
         population = self.population_view.get(index, query="alive == 'alive'")
-        metrics[self.condition + '_count'] = (population[self.condition] != 'susceptible_to_' + self.condition).sum()
+        metrics[self.condition + '_current_count'] = (population[self.condition] != 'susceptible_to_' + self.condition).sum()
         return metrics
