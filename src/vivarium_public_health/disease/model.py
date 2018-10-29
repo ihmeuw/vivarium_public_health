@@ -52,7 +52,7 @@ class DiseaseModel(Machine):
         self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
 
         self._propensity = pd.Series()
-        self.propensity = builder.value.register_value_producer(f'{self.cause}_prevalence.propensity',
+        self.propensity = builder.value.register_value_producer(f'{self.cause}.prevalence_propensity',
                                                                 source=lambda index: self._propensity[index])
 
         builder.event.register_listener('time_step', self.time_step_handler)
@@ -73,6 +73,9 @@ class DiseaseModel(Machine):
     def get_csmr(self):
         return self._csmr_data
 
+    def get_state_map(self, pop_index):
+        return
+
     @staticmethod
     def assign_initial_status_to_simulants(simulants_df, states, initial_state, propensities):
         simulants = simulants_df[['age', 'sex']].copy()
@@ -84,7 +87,7 @@ class DiseaseModel(Machine):
 
         # manually calculate the assigned initial states in order to use propensities
         weights = np.array(weights).T
-        weights = weights/weights.sum(axis=1, keepdims=True)
+        weights = weights/weights.sum(axis=1, keepdims=True) # this ensures that the sum is 1 but we already made that by assigning the last col is 1 - sum of the others
         weights_bins = np.cumsum(weights, axis=1)
         choice_index = (propensities.values[np.newaxis].T > weights_bins).sum(axis=1)
         initial_states = pd.Series(np.array(sequelae)[choice_index], index=simulants.index)
