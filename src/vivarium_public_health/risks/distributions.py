@@ -6,7 +6,7 @@ from distributions import base_distributions
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium_public_health.util import pivot_age_sex_year_binned
 from .data_transformation import should_rebin, rebin_exposure_data
-
+from functools import partial
 
 class MissingDataError(Exception):
     pass
@@ -120,35 +120,46 @@ def get_distribution(risk: str, risk_type: str, builder):
             distribution = SimulationDistribution(exposure, base_distributions.LogNormal)
 
         else:
-            # weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
-            # distribution_map = {'betasr': BetaSimulation,
-            #                     'exp': ExponentialSimulation,
-            #                     'gamma': GammaSimulation,
-            #                     'gumbel': GumbelSimulation,
-            #                     'invgamma': InverseGammaSimulation,
-            #                     'invweibull': InverseWeibullSimulation,
-            #                     'llogis': LogLogisticSimulation,
-            #                     'lnorm': LogNormalSimulation,
-            #                     'mgamma': MirroredGammaSimulation,
-            #                     'mgumbel': MirroredGumbelSimulation,
-            #                     'norm': NormalSimulation,
-            #                     'weibull': WeibullSimulation}
-            #
-            # if risk == 'high_ldl_cholesterol':
-            #     weights = weights.drop('invgamma', axis=1)
-            #
-            # if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
-            #     weights = weights.drop('invweibull', axis=1)
-            #
-            # weights_cols = list(set(distribution_map.keys()) & set(weights.columns))
-            # weights = weights[weights_cols]
-            #
-            # # weight is all same across the demo groups
-            # e_weights = weights.iloc[0]
-            # dist = {d: distribution_map[d] for d in weights_cols}
-            #
-            # distribution = EnsembleSimulation(exposure, e_weights/np.sum(e_weights), dist)
-            distribution = None
+            weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
+            distribution_map = {'betasr': partial(SimulationDistribution,
+                                                  distribution=base_distributions.Beta),
+                                'exp': partial(SimulationDistribution,
+                                               distribution=base_distributions.Exponential),
+                                'gamma': partial(SimulationDistribution,
+                                                 distribution=base_distributions.Gamma),
+                                'gumbel': partial(SimulationDistribution,
+                                                  distribution=base_distributions.Gumbel),
+                                'invgamma': partial(SimulationDistribution,
+                                                    distribution=base_distributions.InverseGamma),
+                                'invweibull': partial(SimulationDistribution,
+                                                      distribution=base_distributions.InverseWeibull),
+                                'llogis': partial(SimulationDistribution,
+                                                  distribution=base_distributions.LogLogistic),
+                                'lnorm': partial(SimulationDistribution,
+                                                 distribution=base_distributions.LogNormal),
+                                'mgamma': partial(SimulationDistribution,
+                                                  distribution=base_distributions.MirroredGamma),
+                                'mgumbel': partial(SimulationDistribution,
+                                                   distribution=base_distributions.MirroredGumbel),
+                                'norm': partial(SimulationDistribution,
+                                                distribution=base_distributions.Normal),
+                                'weibull': partial(SimulationDistribution,
+                                                   distribution=base_distributions.Weibull)}
+
+            if risk == 'high_ldl_cholesterol':
+                weights = weights.drop('invgamma', axis=1)
+
+            if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
+                weights = weights.drop('invweibull', axis=1)
+
+            weights_cols = list(set(distribution_map.keys()) & set(weights.columns))
+            weights = weights[weights_cols]
+
+            # weight is all same across the demo groups
+            e_weights = weights.iloc[0]
+            dist = {d: distribution_map[d] for d in weights_cols}
+
+            distribution = EnsembleSimulation(exposure, e_weights/np.sum(e_weights), dist)
 
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution}")
