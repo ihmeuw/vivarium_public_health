@@ -22,6 +22,7 @@ if __name__ == "__main__":
         'pandas',
         'scipy',
         'tables',
+        'distributions',
     ]
 
     test_requirements = [
