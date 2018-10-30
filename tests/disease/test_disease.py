@@ -186,8 +186,9 @@ def test_prevalence_single_simulant():
     test_index = [20]
     initial_state = 'healthy'
     simulants_df = pd.DataFrame({'sex': 'Female', 'age': 3, 'sex_id': 2.0}, index=test_index)
-    states = {'sick': pd.Series(1, index=test_index)}
-    simulants = DiseaseModel.assign_initial_status_to_simulants(simulants_df, states, initial_state,
+    state_names = ['sick', 'healthy']
+    weights = np.array([[1, 1]])
+    simulants = DiseaseModel.assign_initial_status_to_simulants(simulants_df, state_names, weights,
                                                                 pd.Series(0.5, index=test_index))
     expected = simulants_df[['age', 'sex']]
     expected['condition_state'] = 'sick'

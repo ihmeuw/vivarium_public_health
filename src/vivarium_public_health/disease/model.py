@@ -73,24 +73,31 @@ class DiseaseModel(Machine):
     def get_csmr(self):
         return self._csmr_data
 
-    def get_state_map(self, pop_index):
-        return
+    def get_state_weights(self, pop_index):
+        states = [s for s in self.states if hasattr(s, 'prevalence_data') and s.prevalence_data is not None]
 
-    @staticmethod
-    def assign_initial_status_to_simulants(simulants_df, states, initial_state, propensities):
-        simulants = simulants_df[['age', 'sex']].copy()
-        sequelae, weights = zip(*states.items())
-        sequelae += (initial_state,)
+        if not states:
+            return states, None
+
+        weights = [s.prevalence_data(pop_index) for s in states]
         for w in weights:
             w.reset_index(inplace=True, drop=True)
-        weights += ((1 - np.sum(weights, axis=0)),)
+        weights += ((1 - np.sum(weights, axis=0)), )
 
-        # manually calculate the assigned initial states in order to use propensities
         weights = np.array(weights).T
-        weights = weights/weights.sum(axis=1, keepdims=True) # this ensures that the sum is 1 but we already made that by assigning the last col is 1 - sum of the others
         weights_bins = np.cumsum(weights, axis=1)
+
+        state_names = [s.state_id for s in states] + [self.initial_state]
+
+        return state_names, weights_bins
+
+
+    @staticmethod
+    def assign_initial_status_to_simulants(simulants_df, state_names, weights_bins, propensities):
+        simulants = simulants_df[['age', 'sex']].copy()
+
         choice_index = (propensities.values[np.newaxis].T > weights_bins).sum(axis=1)
-        initial_states = pd.Series(np.array(sequelae)[choice_index], index=simulants.index)
+        initial_states = pd.Series(np.array(state_names)[choice_index], index=simulants.index)
 
         simulants.loc[:, 'condition_state'] = initial_states
 
@@ -103,14 +110,13 @@ class DiseaseModel(Machine):
 
         assert self.initial_state in {s.state_id for s in self.states}
 
-        state_map = {s.state_id: s.prevalence_data(pop_data.index) for s in self.states
-                     if hasattr(s, 'prevalence_data') and s.prevalence_data is not None}
+        state_names, weights_bins = self.get_state_weights(pop_data.index)
 
-        if state_map and not population.empty:
+        if state_names and not population.empty:
             # only do this if there are states in the model that supply prevalence data
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
 
-            condition_column = self.assign_initial_status_to_simulants(population, state_map, self.initial_state,
+            condition_column = self.assign_initial_status_to_simulants(population, state_names, weights_bins,
                                                                        self.propensity(population.index))
 
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
