@@ -73,7 +73,7 @@ def test_individual_distribution(i, mean, sd):
     e = pd.DataFrame({'mean': mean, 'standard_deviation': sd}, index=[0])
 
     # Beta
-    beta = distributions.Beta(e)
+    beta = base_distributions.Beta(e)
 
     generated['betasr'] = beta._parameter_data
     expected['betasr'] = dict()
@@ -82,7 +82,7 @@ def test_individual_distribution(i, mean, sd):
     expected['betasr']['b'] = [4.8479, 5.113158, 5.197285, 5.238462]
 
     # Exponential
-    exp = distributions.Exponential(e)
+    exp = base_distributions.Exponential(e)
     generated['exp'] = exp._parameter_data
 
     expected['exp'] = dict()
@@ -90,7 +90,7 @@ def test_individual_distribution(i, mean, sd):
 
 
     # Gamma
-    gamma = distributions.Gamma(e)
+    gamma = base_distributions.Gamma(e)
     generated['gamma'] = gamma._parameter_data
 
     expected['gamma'] = dict()
@@ -98,7 +98,7 @@ def test_individual_distribution(i, mean, sd):
     expected['gamma']['scale'] = [0.1, 0.45, 0.833333, 1.225]
 
     # Gumbel
-    gumbel = distributions.Gumbel(e)
+    gumbel = base_distributions.Gumbel(e)
     generated['gumbel'] = gumbel._parameter_data
 
     expected['gumbel'] = dict()
@@ -106,7 +106,7 @@ def test_individual_distribution(i, mean, sd):
     expected['gumbel']['scale'] = [0.779697, 2.339090, 3.898484, 5.457878]
 
     # InverseGamma
-    invgamma = distributions.InverseGamma(e)
+    invgamma = base_distributions.InverseGamma(e)
     generated['invgamma'] = invgamma._parameter_data
 
     expected['invgamma'] = dict()
@@ -114,7 +114,7 @@ def test_individual_distribution(i, mean, sd):
     expected['invgamma']['scale'] = [1010.000013, 908.888853, 1110.000032, 1346.122489]
 
     # LogLogistic
-    llogis = distributions.LogLogistic(e)
+    llogis = base_distributions.LogLogistic(e)
     generated['llogis'] = llogis._parameter_data
 
     expected['llogis'] = dict()
@@ -123,7 +123,7 @@ def test_individual_distribution(i, mean, sd):
     expected['llogis']['scale'] = [9.950669, 19.781677, 29.598399, 39.411819]
 
     # LogNormal
-    lnorm = distributions.LogNormal(e)
+    lnorm = base_distributions.LogNormal(e)
     generated['lnorm'] = lnorm._parameter_data
 
     expected['lnorm'] = dict()
@@ -131,7 +131,7 @@ def test_individual_distribution(i, mean, sd):
     expected['lnorm']['scale'] = [9.950372, 19.778727, 29.591818, 39.401219]
 
     # MirroredGumbel
-    mgumbel = distributions.MirroredGumbel(e)
+    mgumbel = base_distributions.MirroredGumbel(e)
     generated['mgumbel'] = mgumbel._parameter_data
 
     expected['mgumbel'] = dict()
@@ -139,7 +139,7 @@ def test_individual_distribution(i, mean, sd):
     expected['mgumbel']['scale'] = [0.779697,2.339090,3.898484, 5.457878]
 
     # MirroredGamma
-    mgamma = distributions.MirroredGamma(e)
+    mgamma = base_distributions.MirroredGamma(e)
     generated['mgamma'] = mgamma._parameter_data
 
     expected['mgamma'] = dict()
@@ -148,7 +148,7 @@ def test_individual_distribution(i, mean, sd):
 
 
     # Normal
-    norm = distributions.Normal(e)
+    norm = base_distributions.Normal(e)
     generated['norm'] = norm._parameter_data
 
     expected['norm'] = dict()
@@ -156,7 +156,7 @@ def test_individual_distribution(i, mean, sd):
     expected['norm']['scale'] = [1, 3, 5, 7]
 
     # Weibull
-    weibull = distributions.Weibull(e)
+    weibull = base_distributions.Weibull(e)
     generated['weibull'] = weibull._parameter_data
 
     expected['weibull'] = dict()
