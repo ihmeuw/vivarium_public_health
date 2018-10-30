@@ -18,31 +18,65 @@ class EnsembleSimulation(base_distributions.EnsembleDistribution):
 
 
 class SimulationDistribution:
+    _distribution = None
 
-    def __init__(self, distribution_type, data):
+    def __init__(self, data):
         self.data = data
-        if distribution_type == 'normal':
-            self._distribution = base_distributions.Normal(data)
-        elif distribution_type == 'lognormal':
-            self._distribution = base_distributions.LogNormal(data)
-        else:
-            raise NotImplementedError(f'SimulationDistributions are only supported for normal and lognormal,'
-                                      f'distributions. You specified {distribution_type}')
 
     def setup(self, builder):
-        self.parameters = {name: builder.lookup.build_table(data.reset_index())
-                           for name, data in self._distribution._parameter_data.items()}
-        ranges = {'x_min': pd.DataFrame(self._distribution._range['x_min'], index=self.data.index),
-                             'x_max': pd.DataFrame(self._distribution._range['x_max'], index=self.data.index)}
-        self.ranges_data = {name: builder.lookup.build_table(data.reset_index()) for name, data in ranges.items()}
+        self.data = builder.lookup.build_table(self.data.reset_index(drop=False))
+
+    def ppf(self, p):
+        data = self.data(p.index)
+        return self._distribution(data).ppf(p)
 
 
-    def ppf(self, pop):
-        params = {name: p(pop.index) for name, p in self.parameters.items()}
-        ranges = {name: r(pop.index) for name, r in self.ranges_data.items()}
-        self._distribution._parameter_data = params
-        self._distribution._range = ranges
-        return self._distribution.ppf(pop)
+class BetaSimulation(SimulationDistribution):
+    _distribution = base_distributions.Beta
+
+
+class ExponentialSimulation(SimulationDistribution):
+    _distribution = base_distributions.Exponential
+
+
+class GammaSimulation(SimulationDistribution):
+    _distribution = base_distributions.Gamma
+
+
+class GumbelSimulation(SimulationDistribution):
+    _distribution = base_distributions.Gumbel
+
+
+class InverseGammaSimulation(SimulationDistribution):
+    _distribution = base_distributions.InverseGamma
+
+
+class InverseWeibullSimulation(SimulationDistribution):
+    _distribution = base_distributions.InverseWeibull
+
+
+class LogLogisticSimulation(SimulationDistribution):
+    _distribution = base_distributions.LogLogistic
+
+
+class LogNormalSimulation(SimulationDistribution):
+    _distribution = base_distributions.LogNormal
+
+
+class MirroredGumbelSimulation(SimulationDistribution):
+    _distribution = base_distributions.MirroredGumbel
+
+
+class MirroredGammaSimulation(SimulationDistribution):
+    _distribution = base_distributions.MirroredGamma
+
+
+class NormalSimulation(SimulationDistribution):
+    _distribution = base_distributions.Normal
+
+
+class WeibullSimulation(SimulationDistribution):
+    _distribution = base_distributions.Weibull
 
 
 class PolytomousDistribution:
@@ -127,20 +161,26 @@ def get_distribution(risk: str, risk_type: str, builder):
         exposure = exposure_data.merge(exposure_sd).set_index(['year', 'year_start', 'year_end',
                                                                'age', 'age_group_start', 'age_group_end', 'sex'])
 
-        if distribution_type == 'ensemble':
+        if distribution_type == 'normal':
+            distribution = NormalSimulation(exposure)
+
+        elif distribution_type == 'lognormal':
+            distribution = LogNormalSimulation(exposure)
+
+        else:
             weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
-            distribution_map = {'betasr': base_distributions.Beta,
-                                'exp': base_distributions.Exponential,
-                                'gamma': base_distributions.Gamma,
-                                'gumbel': base_distributions.Gumbel,
-                                'invgamma': base_distributions.InverseGamma,
-                                'invweibull': base_distributions.InverseWeibull,
-                                'llogis': base_distributions.LogLogistic,
-                                'lnorm': base_distributions.LogNormal,
-                                'mgamma': base_distributions.MirroredGamma,
-                                'mgumbel': base_distributions.MirroredGumbel,
-                                'norm': base_distributions.Normal,
-                                'weibull': base_distributions.Weibull}
+            distribution_map = {'betasr': BetaSimulation,
+                                'exp': ExponentialSimulation,
+                                'gamma': GammaSimulation,
+                                'gumbel': GumbelSimulation,
+                                'invgamma': InverseGammaSimulation,
+                                'invweibull': InverseWeibullSimulation,
+                                'llogis': LogLogisticSimulation,
+                                'lnorm': LogNormalSimulation,
+                                'mgamma': MirroredGammaSimulation,
+                                'mgumbel': MirroredGumbelSimulation,
+                                'norm': NormalSimulation,
+                                'weibull': WeibullSimulation}
 
             if risk == 'high_ldl_cholesterol':
                 weights = weights.drop('invgamma', axis=1)
@@ -156,9 +196,6 @@ def get_distribution(risk: str, risk_type: str, builder):
             dist = {d: distribution_map[d] for d in weights_cols}
 
             distribution = EnsembleSimulation(exposure, e_weights/np.sum(e_weights), dist)
-
-        else:
-            distribution = SimulationDistribution(distribution_type, exposure)
 
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution}")
