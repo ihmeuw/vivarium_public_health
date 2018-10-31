@@ -51,6 +51,10 @@ class DiseaseModel(Machine):
                                                  requires_columns=['age', 'sex'])
         self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
 
+        self._propensity = pd.Series()
+        self.propensity = builder.value.register_value_producer(f'{self.cause}.prevalence_propensity',
+                                                                source=lambda index: self._propensity[index])
+
         builder.event.register_listener('time_step', self.time_step_handler)
         builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
 
@@ -69,32 +73,51 @@ class DiseaseModel(Machine):
     def get_csmr(self):
         return self._csmr_data
 
-    @staticmethod
-    def assign_initial_status_to_simulants(simulants_df, states, initial_state, randomness):
-        simulants = simulants_df[['age', 'sex']].copy()
-        sequelae, weights = zip(*states.items())
-        sequelae += (initial_state,)
+    def get_state_weights(self, pop_index):
+        states = [s for s in self.states if hasattr(s, 'prevalence_data') and s.prevalence_data is not None]
+
+        if not states:
+            return states, None
+
+        weights = [s.prevalence_data(pop_index) for s in states]
         for w in weights:
             w.reset_index(inplace=True, drop=True)
-        weights += ((1 - np.sum(weights, axis=0)),)
-        simulants.loc[:, 'condition_state'] = randomness.choice(simulants.index, sequelae,
-                                                                np.array(weights).T)
+        weights += ((1 - np.sum(weights, axis=0)), )
+
+        weights = np.array(weights).T
+        weights_bins = np.cumsum(weights, axis=1)
+
+        state_names = [s.state_id for s in states] + [self.initial_state]
+
+        return state_names, weights_bins
+
+
+    @staticmethod
+    def assign_initial_status_to_simulants(simulants_df, state_names, weights_bins, propensities):
+        simulants = simulants_df[['age', 'sex']].copy()
+
+        choice_index = (propensities.values[np.newaxis].T > weights_bins).sum(axis=1)
+        initial_states = pd.Series(np.array(state_names)[choice_index], index=simulants.index)
+
+        simulants.loc[:, 'condition_state'] = initial_states
+
         return simulants
 
     def load_population_columns(self, pop_data):
         population = self.population_view.get(pop_data.index, omit_missing_columns=True)
 
+        self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))
+
         assert self.initial_state in {s.state_id for s in self.states}
 
-        state_map = {s.state_id: s.prevalence_data(pop_data.index) for s in self.states
-                     if hasattr(s, 'prevalence_data') and s.prevalence_data is not None}
+        state_names, weights_bins = self.get_state_weights(pop_data.index)
 
-        if state_map and not population.empty:
+        if state_names and not population.empty:
             # only do this if there are states in the model that supply prevalence data
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
 
-            condition_column = self.assign_initial_status_to_simulants(population, state_map,
-                                                                       self.initial_state, self.randomness)
+            condition_column = self.assign_initial_status_to_simulants(population, state_names, weights_bins,
+                                                                       self.propensity(population.index))
 
             condition_column = condition_column.rename(columns={'condition_state': self.condition})
         else:
