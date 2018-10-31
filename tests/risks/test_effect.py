@@ -382,12 +382,14 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
     affected_causes = ["test_cause_1", "test_cause_2"]
 
     rr_data = []
+    paf_data = []
     for cause in affected_causes:
         rr_data.append(
             build_table([1.01, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause'],
                         ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
                             'year_end', 'sex', 'cause'), var_name='parameter', value_name='value')
         )
+        paf_data.append()
     rr_data = pd.concat(rr_data)
 
     tmred = {
@@ -402,6 +404,8 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
             "max_val": 300.0,
             "min_val": 50.0,
     }
+
+    paf_data = build_table(1, year_start, year_end, ['age', 'sex', 'year', 'vlaue'])
 
     class Distribution:
         def __init__(self, *_, **__):
@@ -424,7 +428,7 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
                                        input_config=base_config, plugin_config=base_plugins)
     simulation.data.write("risk_factor.test_risk.exposure", exposure_data)
     simulation.data.write("risk_factor.test_risk.relative_risk", rr_data)
-    simulation.data.write("risk_factor.test_risk.population_attributable_fraction", 1)
+    simulation.data.write("risk_factor.test_risk.population_attributable_fraction", paf_data)
     simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
     simulation.data.write("risk_factor.test_risk.affected_risk_factors", [])
     simulation.data.write("risk_factor.test_risk.distribution", "ensemble")
