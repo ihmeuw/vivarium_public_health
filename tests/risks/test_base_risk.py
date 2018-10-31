@@ -34,12 +34,18 @@ def test_propensity_effect(mocker, base_config, base_plugins):
     affected_causes = ["test_cause_1", "test_cause_2"]
 
     rr_data = []
+    paf_data = []
     for cause in affected_causes:
         rr_data.append(
             build_table([1.01, 'continuous', cause], year_start, year_end,
                         ('age', 'year', 'sex', 'value', 'parameter', 'cause'))
         )
+        paf_data.append(
+            build_table([1, 'continuous', cause], year_start, year_end,
+                        ('age', 'year', 'sex', 'value', 'parameter', 'cause'))
+        )
     rr_data = pd.concat(rr_data)
+    paf_data = pd.concat(paf_data)
 
     tmred = {
             "distribution": 'uniform',
@@ -78,7 +84,7 @@ def test_propensity_effect(mocker, base_config, base_plugins):
     simulation.data.write("risk_factor.test_risk.exposure_parameters", exposure_parameters)
     simulation.data.write("risk_factor.test_risk.exposure", exposure_data)
     simulation.data.write("risk_factor.test_risk.relative_risk", rr_data)
-    simulation.data.write("risk_factor.test_risk.population_attributable_fraction", 1)
+    simulation.data.write("risk_factor.test_risk.population_attributable_fraction", paf_data)
     simulation.data.write("risk_factor.test_risk.affected_causes", affected_causes)
     simulation.data.write("risk_factor.test_risk.affected_risk_factors", [])
     simulation.data.write("risk_factor.test_risk.distribution", "ensemble")
