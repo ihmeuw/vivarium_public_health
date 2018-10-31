@@ -62,14 +62,13 @@ class RiskEffect:
             filter_name, filter = self.affected_entity_type, self.affected_entity
             paf_data = paf_data[paf_data[filter_name] == filter]
         else:
-            exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
-            rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
-            rr = rr[rr[self.affected_entity_type] == self.affected_entity]
             distribution = builder.data.load(f'{self.risk_type}.{self.risk}.distribution')
-
-            if distribution in ['c', 'lognormal', 'ensemble']:
+            if distribution in ['normal', 'lognormal', 'ensemble']:
                 paf_data = builder.data.load(f'{self.risk_type}.{self.risk}.population_attributable_fraction')
             else:
+                exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
+                rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
+                rr = rr[rr[self.affected_entity_type] == self.affected_entity]
                 paf_data = get_paf_data(exposure, rr)
 
         paf_data = paf_data[['year', 'sex', 'age', 'value', 'cause', 'age_group_start', 'age_group_end', 'year_start',

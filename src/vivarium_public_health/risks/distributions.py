@@ -441,8 +441,7 @@ class DichotomousDistribution:
         return base_exposure * (1-joint_paf)
 
     def ppf(self, x):
-        exposed = x < self.exposur
-        e_proportion(x.index)
+        exposed = x < self.exposure_proportion(x.index)
 
         return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
 
