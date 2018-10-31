@@ -8,6 +8,7 @@ from vivarium_public_health.util import pivot_age_sex_year_binned
 from .data_transformation import should_rebin, rebin_exposure_data
 from functools import partial
 
+
 class MissingDataError(Exception):
     pass
 
@@ -18,7 +19,8 @@ class EnsembleSimulation(base_distributions.EnsembleDistribution):
 
 
 class SimulationDistribution:
-    def __init__(self, data, distribution):
+    def __init__(self, data=None, params=None, mean=None, std_dev=None,
+                 distribution=None):
         self.distribution = distribution
         self._parameters = base_distributions.get_params(data, self.distribution)
 
@@ -28,7 +30,7 @@ class SimulationDistribution:
 
     def ppf(self, x):
         params = {name: p(x.index) for name, p in self.parameters.items()}
-        return self.distribution(params).ppf(x)
+        return self.distribution(params=params).ppf(x)
 
 
 class PolytomousDistribution:
@@ -114,10 +116,10 @@ def get_distribution(risk: str, risk_type: str, builder):
                                                                'age', 'age_group_start', 'age_group_end', 'sex'])
 
         if distribution_type == 'normal':
-            distribution = SimulationDistribution(exposure, base_distributions.Normal)
+            distribution = SimulationDistribution(data=exposure, distribution=base_distributions.Normal)
 
         elif distribution_type == 'lognormal':
-            distribution = SimulationDistribution(exposure, base_distributions.LogNormal)
+            distribution = SimulationDistribution(data=exposure, distribution=base_distributions.LogNormal)
 
         else:
             weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
@@ -159,7 +161,7 @@ def get_distribution(risk: str, risk_type: str, builder):
             e_weights = weights.iloc[0]
             dist = {d: distribution_map[d] for d in weights_cols}
 
-            distribution = EnsembleSimulation(exposure, e_weights/np.sum(e_weights), dist)
+            distribution = EnsembleSimulation(e_weights/np.sum(e_weights), dist, data=exposure)
 
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution}")
