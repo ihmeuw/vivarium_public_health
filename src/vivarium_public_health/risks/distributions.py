@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from distributions import base_distributions
+from risk_distributions import risk_distributions
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 from vivarium_public_health.util import pivot_age_sex_year_binned
@@ -13,7 +13,7 @@ class MissingDataError(Exception):
     pass
 
 
-class EnsembleSimulation(base_distributions.EnsembleDistribution):
+class EnsembleSimulation(risk_distributions.EnsembleDistribution):
     def setup(self, builder):
         builder.components.add_components(self._distributions.values())
 
@@ -22,7 +22,7 @@ class SimulationDistribution:
     def __init__(self, data=None, params=None, mean=None, std_dev=None,
                  distribution=None):
         self.distribution = distribution
-        self._parameters = base_distributions.get_params(data, self.distribution)
+        self._parameters = distribution.get_params(data)
 
     def setup(self, builder):
         self.parameters = {name: builder.lookup.build_table(data.reset_index())
@@ -116,37 +116,37 @@ def get_distribution(risk: str, risk_type: str, builder):
                                                                'age', 'age_group_start', 'age_group_end', 'sex'])
 
         if distribution_type == 'normal':
-            distribution = SimulationDistribution(data=exposure, distribution=base_distributions.Normal)
+            distribution = SimulationDistribution(data=exposure, distribution=risk_distributions.Normal)
 
         elif distribution_type == 'lognormal':
-            distribution = SimulationDistribution(data=exposure, distribution=base_distributions.LogNormal)
+            distribution = SimulationDistribution(data=exposure, distribution=risk_distributions.LogNormal)
 
         else:
             weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
             distribution_map = {'betasr': partial(SimulationDistribution,
-                                                  distribution=base_distributions.Beta),
+                                                  distribution=risk_distributions.Beta),
                                 'exp': partial(SimulationDistribution,
-                                               distribution=base_distributions.Exponential),
+                                               distribution=risk_distributions.Exponential),
                                 'gamma': partial(SimulationDistribution,
-                                                 distribution=base_distributions.Gamma),
+                                                 distribution=risk_distributions.Gamma),
                                 'gumbel': partial(SimulationDistribution,
-                                                  distribution=base_distributions.Gumbel),
+                                                  distribution=risk_distributions.Gumbel),
                                 'invgamma': partial(SimulationDistribution,
-                                                    distribution=base_distributions.InverseGamma),
+                                                    distribution=risk_distributions.InverseGamma),
                                 'invweibull': partial(SimulationDistribution,
-                                                      distribution=base_distributions.InverseWeibull),
+                                                      distribution=risk_distributions.InverseWeibull),
                                 'llogis': partial(SimulationDistribution,
-                                                  distribution=base_distributions.LogLogistic),
+                                                  distribution=risk_distributions.LogLogistic),
                                 'lnorm': partial(SimulationDistribution,
-                                                 distribution=base_distributions.LogNormal),
+                                                 distribution=risk_distributions.LogNormal),
                                 'mgamma': partial(SimulationDistribution,
-                                                  distribution=base_distributions.MirroredGamma),
+                                                  distribution=risk_distributions.MirroredGamma),
                                 'mgumbel': partial(SimulationDistribution,
-                                                   distribution=base_distributions.MirroredGumbel),
+                                                   distribution=risk_distributions.MirroredGumbel),
                                 'norm': partial(SimulationDistribution,
-                                                distribution=base_distributions.Normal),
+                                                distribution=risk_distributions.Normal),
                                 'weibull': partial(SimulationDistribution,
-                                                   distribution=base_distributions.Weibull)}
+                                                   distribution=risk_distributions.Weibull)}
 
             if risk == 'high_ldl_cholesterol':
                 weights = weights.drop('invgamma', axis=1)
