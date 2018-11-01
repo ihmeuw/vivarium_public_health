@@ -60,20 +60,22 @@ class RiskEffect:
         filter_name, filter = self.affected_entity_type, self.affected_entity
         if 'paf' in self._get_data_functions:
             paf_data = self._get_data_functions['paf'](builder)
-            paf_data = paf_data[paf_data[filter_name] == filter]
+
         else:
             distribution = builder.data.load(f'{self.risk_type}.{self.risk}.distribution')
             if distribution in ['normal', 'lognormal', 'ensemble']:
                 paf_data = builder.data.load(f'{self.risk_type}.{self.risk}.population_attributable_fraction')
-                paf_data = paf_data[paf_data[filter_name] == filter]
+
             else:
                 exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
                 rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
                 rr = rr[rr[filter_name] == filter]
                 paf_data = get_paf_data(exposure, rr)
 
+        paf_data = paf_data[paf_data[filter_name] == filter]
         paf_data = paf_data.loc[:, ['year', 'sex', 'age', 'value', self.affected_entity_type, 'age_group_start', 'age_group_end',
                                     'year_start', 'year_end']]
+
         return pivot_age_sex_year_binned(paf_data, self.affected_entity_type, 'value')
 
     def _get_rr_data(self, builder):
