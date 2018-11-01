@@ -18,7 +18,7 @@ MOCKERS = {
             'distribution': lambda *args, **kwargs: 'ensemble',
             'exposure': 120,
             'exposure_standard_deviation': 15,
-            'relative_risk': build_table([1.5, "nomarl", "test_cause"], 1990, 2018,
+            'relative_risk': build_table([1.5, "continuous", "test_cause"], 1990, 2018,
                                          ("age", "sex", "year", "value", "parameter", "cause")),
             'population_attributable_fraction': build_table([1, "test_cause_1"], 1990, 2018,
                                                             ("age", "sex", "year", "value", "cause")),
