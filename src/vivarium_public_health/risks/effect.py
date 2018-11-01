@@ -71,9 +71,9 @@ class RiskEffect:
                 rr = rr[rr[self.affected_entity_type] == self.affected_entity]
                 paf_data = get_paf_data(exposure, rr)
 
-        paf_data = paf_data[['year', 'sex', 'age', 'value', 'cause', 'age_group_start', 'age_group_end', 'year_start',
-                             'year_end']]
-        return pivot_age_sex_year_binned(paf_data, 'cause', 'value')
+        paf_data = paf_data.loc[:, ['year', 'sex', 'age', 'value', self.affected_entity_type, 'age_group_start', 'age_group_end',
+                                    'year_start', 'year_end']]
+        return pivot_age_sex_year_binned(paf_data, self.affected_entity_type, 'value')
 
     def _get_rr_data(self, builder):
         if 'rr' in self._get_data_functions:

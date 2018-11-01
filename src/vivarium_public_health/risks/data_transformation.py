@@ -78,7 +78,7 @@ def get_paf_data(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
     df = df.groupby(['age', 'sex', 'year'], as_index=False)
 
     def compute_paf(g):
-        to_drop = g['parameter']!='cat1'
+        to_drop = g['parameter'] != 'cat1'
         tmp = g['value_x'] * g['value_y']
         tmp = tmp.sum()
         g.drop(g[to_drop].index, inplace=True)

@@ -57,6 +57,41 @@ def test_rebin_exposure():
     assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])
 
 
+def test_rebin_relative_risk():
+    cats = ['cat1', 'cat2', 'cat3', 'cat4']
+    year_start = 2008
+    year_end = 2015
+
+    exposure_data = [0.3, 0.1, 0.1, 0.5]
+
+    exposure = []
+    for cat, value in zip(cats, exposure_data):
+        exposure.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
+    exposure = pd.concat(exposure)
+
+    rr_data = [3, 2.5, 2, 1]
+
+    rr = []
+    for cat, value in zip(cats, rr_data):
+        rr.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
+    rr = pd.concat(rr)
+
+    expected = []
+
+    # expected rr should be weighted by exposure : for rebinned cat1 : (0.3 * 3 + 0.1 * 2.5 + 0.1* 2)/ (0.3+0.1+0.1)
+    for cat, value in zip(['cat1', 'cat2'], [(0.3 * 3 + 0.1 * 2.5 + 0.1 * 2) / (0.3+0.1+0.1), 1]):
+        expected.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
+
+    expected = pd.concat(expected).loc[:, ['age', 'year', 'sex', 'parameter', 'value']]
+
+    rebinned = rebin_rr_data(rr, exposure).loc[:, expected.columns]
+    expected = expected.set_index(['age', 'year', 'sex'])
+    rebinned = rebinned.set_index(['age', 'year', 'sex'])
+
+    assert np.allclose(expected.value[expected.parameter == 'cat1'], rebinned.value[rebinned.parameter == 'cat1'])
+    assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])
+
+
 def test_get_paf_data():
     cats = ['cat1', 'cat2', 'cat3', 'cat4']
     e_values = [0.1, 0.2, 0.3, 0.4]

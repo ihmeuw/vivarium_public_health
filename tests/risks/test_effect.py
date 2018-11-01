@@ -389,8 +389,9 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
                         ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
                             'year_end', 'sex', 'cause'), var_name='parameter', value_name='value')
         )
-        paf_data.append()
+        paf_data.append(build_table([1, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause']))
     rr_data = pd.concat(rr_data)
+    paf_data = pd.concat(paf_data)
 
     tmred = {
             "distribution": 'uniform',
@@ -405,7 +406,6 @@ def test_ContinuousRiskComponent(get_distribution_mock, base_config, base_plugin
             "min_val": 50.0,
     }
 
-    paf_data = build_table(1, year_start, year_end, ['age', 'sex', 'year', 'vlaue'])
 
     class Distribution:
         def __init__(self, *_, **__):
@@ -542,36 +542,3 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins):
     assert np.isclose(computed_rr, rr, rtol=0.01)
 
 
-def test_rebin_relative_risk():
-    cats = ['cat1', 'cat2', 'cat3', 'cat4']
-    year_start = 2008
-    year_end = 2015
-
-    exposure_data = [0.3, 0.1, 0.1, 0.5]
-
-    exposure = []
-    for cat, value in zip(cats, exposure_data):
-        exposure.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
-    exposure = pd.concat(exposure)
-
-    rr_data = [3, 2.5, 2, 1]
-
-    rr = []
-    for cat, value in zip(cats, rr_data):
-        rr.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
-    rr = pd.concat(rr)
-
-    expected = []
-
-    # expected rr should be weighted by exposure : for rebinned cat1 : (0.3 * 3 + 0.1 * 2.5 + 0.1* 2)/ (0.3+0.1+0.1)
-    for cat, value in zip(['cat1', 'cat2'], [(0.3 * 3 + 0.1 * 2.5 + 0.1* 2)/ (0.3+0.1+0.1), 1]):
-        expected.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
-
-    expected = pd.concat(expected).loc[:, ['age', 'year', 'sex', 'parameter', 'value']]
-
-    rebinned = rebin_rr_data(rr, exposure).loc[:, expected.columns]
-    expected = expected.set_index(['age', 'year', 'sex'])
-    rebinned = rebinned.set_index(['age', 'year', 'sex'])
-
-    assert np.allclose(expected.value[expected.parameter == 'cat1'], rebinned.value[rebinned.parameter == 'cat1'])
-    assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])
