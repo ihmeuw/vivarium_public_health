@@ -86,7 +86,6 @@ class FertilityCrudeBirthRate:
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
         self.simulant_creator = builder.population.get_simulant_creator()
         self.extrapolate = builder.configuration.interpolation.extrapolate
-        self.simulation_ends = builder.configuration.time.end.year
         builder.event.register_listener('time_step', self.add_new_birth_cohort)
 
 
@@ -141,7 +140,7 @@ class FertilityCrudeBirthRate:
 
         query_year = year
         most_recent_data_year = min(max(self._population_data.year), max(self._birth_data.year))
-        if self.simulation_ends > most_recent_data_year:
+        if year > most_recent_data_year:
             if not self.extrapolate:
                 raise ValueError('You need to set extrapolate=True to run simulation for the future years')
 
