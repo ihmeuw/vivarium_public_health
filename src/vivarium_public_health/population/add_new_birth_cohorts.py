@@ -138,7 +138,6 @@ class FertilityCrudeBirthRate:
             births per person per year.
         """
 
-        query_year = year
         most_recent_data_year = min(max(self._population_data.year), max(self._birth_data.year))
         if year > most_recent_data_year:
             if not self.extrapolate:
@@ -146,10 +145,10 @@ class FertilityCrudeBirthRate:
 
             # FIXME: Here we fix the futre birthrate to be same as the most available data. Fix it when we have
             # a better idea
-            query_year = most_recent_data_year
+            year = most_recent_data_year
 
-        population_table = self._population_data.query("year == @query_year and sex == 'Both'")
-        births = float(self._birth_data.query('sex == "Both"').set_index(['year']).loc[query_year].mean_value)
+        population_table = self._population_data.query("year == @year and sex == 'Both'")
+        births = float(self._birth_data.query('sex == "Both"').set_index(['year']).loc[year].mean_value)
 
         if self.exit_age is not None:
             population = population_table.query("age < @self.exit_age").population.sum()
