@@ -106,3 +106,17 @@ view the underlying storage structure, let's cover how to actually retrieve data
 
     art = Artifact('../../../tests/dataset_manager/artifact.hdf')
     art.load(str(art.keys[0]))
+
+.. testcode::
+    :hide:
+
+    from vivarium_public_health.dataset_manager import Artifact
+
+    art = Artifact('../../../tests/dataset_manager/artifact.hdf')
+    art.load(str(art.keys[0]))
+
+Writing data
+------------
+To write new data to an artifact, use the :func:`~vivarium_public_health.dataset_manager.artifact.Artifact.write` method,
+passing the full key (in the string representation we saw above of type.name.measure or type.measure) and the data you wish
+to store.
