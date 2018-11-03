@@ -57,7 +57,7 @@ class RiskEffect:
         return self.exposure_effect(target, self.relative_risk(index))
 
     def _get_paf_data(self, builder):
-        filter_name, filter = self.affected_entity_type, self.affected_entity
+        filter_name, filter_term = self.affected_entity_type, self.affected_entity
         if 'paf' in self._get_data_functions:
             paf_data = self._get_data_functions['paf'](builder)
 
@@ -69,10 +69,10 @@ class RiskEffect:
             else:
                 exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
                 rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
-                rr = rr[rr[filter_name] == filter]
+                rr = rr[rr[filter_name] == filter_term]
                 paf_data = get_paf_data(exposure, rr)
 
-        paf_data = paf_data[paf_data[filter_name] == filter]
+        paf_data = paf_data[paf_data[filter_name] == filter_term]
         paf_data = paf_data.loc[:, ['year', 'sex', 'age', 'value', self.affected_entity_type, 'age_group_start', 'age_group_end',
                                     'year_start', 'year_end']]
 

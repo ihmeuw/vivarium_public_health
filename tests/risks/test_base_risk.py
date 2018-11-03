@@ -1,15 +1,15 @@
-
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
+import pytest
 
 from vivarium.testing_utilities import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import initialize_simulation
 
-
 from vivarium_public_health.risks.base_risk import Risk
 
 
+@pytest.fixture
 def make_dummy_column(name, initial_value):
     class _make_dummy_column:
         def setup(self, builder):
@@ -19,6 +19,7 @@ def make_dummy_column(name, initial_value):
         def make_column(self, pop_data):
             self.population_view.update(pd.Series(initial_value, index=pop_data.index, name=name))
     return _make_dummy_column()
+
 
 
 def test_propensity_effect(mocker, base_config, base_plugins):

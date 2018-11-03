@@ -8,7 +8,7 @@ from vivarium.testing_utilities import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import initialize_simulation
 
 from vivarium_public_health.disease import RateTransition
-from vivarium_public_health.risks.effect import DirectEffect, get_exposure_effect, rebin_rr_data
+from vivarium_public_health.risks.effect import DirectEffect, get_exposure_effect
 from vivarium_public_health.risks.base_risk import Risk
 
 
