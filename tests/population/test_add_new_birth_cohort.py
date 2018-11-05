@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 import pandas as pd
 
@@ -48,10 +49,8 @@ def test_FertilityCrudeBirthRate(base_config, base_plugins):
 
     components = [TestPopulation(), FertilityCrudeBirthRate()]
     simulation = initialize_simulation(components, base_config, base_plugins)
-
-    simulation.data.write("covariate.age_specific_fertility_rate.estimate", 0.01)
     simulation.data.write("covariate.live_births_by_sex.estimate",
-                          build_table(5000, 1990, 2018, ('age', 'year', 'sex', 'mean_value')
+                          build_table(5000, 1990, 2016, ('age', 'year', 'sex', 'mean_value')
                                       ).query('age == 25').drop('age', 'columns'))
 
     simulation.setup()
@@ -64,6 +63,50 @@ def test_FertilityCrudeBirthRate(base_config, base_plugins):
 
     # TODO: Write a more rigorous test.
     assert len(pop.age) > start_population_size, 'expect new simulants'
+
+    base_config.update({
+        'interpolation': {
+            'extrapolate': False
+        },
+        'time': {
+            'start': {'year': 2016},
+            'end': {'year': 2020},
+            'step_size': 30,
+        },
+    })
+
+    simulation = initialize_simulation(components, base_config, base_plugins)
+    simulation.data.write("covariate.live_births_by_sex.estimate",
+                          build_table(500, 1990, 2016, ('age', 'year', 'sex', 'mean_value')
+                                      ).query('age == 25').drop('age', 'columns'))
+    simulation.setup()
+    with pytest.raises(ValueError):
+        simulation.take_steps(6)
+
+    base_config.update({
+        'interpolation': {
+            'extrapolate': True
+        },
+        'time': {
+            'start': {'year': 2016},
+            'end': {'year': 2026},
+            'step_size': 365,
+        },
+    })
+
+    simulation = initialize_simulation(components, base_config, base_plugins)
+    simulation.data.write("covariate.live_births_by_sex.estimate",
+                          build_table(500, 1990, 2016, ('age', 'year', 'sex', 'mean_value')
+                                      ).query('age == 25').drop('age', 'columns'))
+    simulation.setup()
+    birth_rate = []
+    pop = []
+    for i in range(10):
+        pop.append(len(simulation.population.population))
+        simulation.take_steps()
+        birth_rate.append((len(simulation.population.population)-pop[-1])/pop[-1])
+    given_birth_rate = 0.0625  # 500 / 8000 (population data from mock_artifact)
+    np.testing.assert_allclose(birth_rate, given_birth_rate, atol=0.01)
 
 
 def test_fertility_module(base_config, base_plugins):
