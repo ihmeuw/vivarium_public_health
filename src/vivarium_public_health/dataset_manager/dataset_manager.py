@@ -38,9 +38,6 @@ class ArtifactManagerInterface:
         ----------
         entity_key :
             The key associated with the expected data.
-        keep_age_group_edges :
-            A flag that says whether the data should come back with the edges of
-            the age bins in addition to the the age group midpoints.
         column_filters :
             Filters that subset the data by a categorical column and then remove the
             column from the raw data. They are supplied as keyword arguments to the
@@ -50,7 +47,7 @@ class ArtifactManagerInterface:
         -------
             The data associated with the given key filtered down to the requested subset.
         """
-        return self._controller.load(entity_key, keep_age_group_edges, **column_filters)
+        return self._controller.load(entity_key, **column_filters)
 
 
 class ArtifactManager:
@@ -84,16 +81,13 @@ class ArtifactManager:
         base_filter_terms = [f'draw == {draw}', get_location_term(location)]
         return Artifact(artifact_path, base_filter_terms)
 
-    def load(self, entity_key: str, keep_age_group_edges: bool=True, **column_filters: _Filter):
+    def load(self, entity_key: str, **column_filters: _Filter):
         """Loads data associated with the given entity key.
 
         Parameters
         ----------
         entity_key :
             The key associated with the expected data.
-        keep_age_group_edges :
-            A flag that says whether the data should come back with the edges of
-            the age bins in addition to the the age group midpoints.
         column_filters :
             Filters that subset the data by a categorical column and then remove the
             column from the raw data. They are supplied as keyword arguments to the
@@ -105,13 +99,13 @@ class ArtifactManager:
             if the data is a dataframe.
         """
         data = self.artifact.load(entity_key)
-        return filter_data(data, keep_age_group_edges, **column_filters) if isinstance(data, pd.DataFrame) else data
+        return filter_data(data, **column_filters) if isinstance(data, pd.DataFrame) else data
 
 
-def filter_data(data: pd.DataFrame, keep_age_group_edges: bool, **column_filters: _Filter) -> pd.DataFrame:
+def filter_data(data: pd.DataFrame, **column_filters: _Filter) -> pd.DataFrame:
     """Uses the provided column filters and age_group conditions to subset the raw data."""
     data = _subset_rows(data, **column_filters)
-    data = _subset_columns(data, keep_age_group_edges, **column_filters)
+    data = _subset_columns(data, **column_filters)
     return data
 
 
@@ -135,12 +129,9 @@ def _subset_rows(data: pd.DataFrame, **column_filters: _Filter) -> pd.DataFrame:
     return data
 
 
-def _subset_columns(data: pd.DataFrame, keep_age_group_edges: bool, **column_filters) -> pd.DataFrame:
+def _subset_columns(data: pd.DataFrame, **column_filters) -> pd.DataFrame:
     """Filters out unwanted columns and default columns from the data using provided filters."""
     columns_to_remove = set(list(column_filters.keys()) + ['draw', 'location'])
-    if not keep_age_group_edges:
-        columns_to_remove |= {"age_group_start", "age_group_end"}
-
     columns_to_remove = columns_to_remove.intersection(data.columns)
     return data.drop(columns=columns_to_remove)
 
