@@ -27,7 +27,7 @@ class MorbidityMortality:
         builder.event.register_listener('collect_metrics', self.on_collect_metrics)
         builder.event.register_listener('simulation_end', self.write_output)
         self.tables = []
-        self.table_cols = ['age', 'sex', 'year',
+        self.table_cols = ['sex', 'age', 'year',
                            'bau_yld_rate', 'bau_mortality_rate',
                            'int_yld_rate', 'int_mortality_rate']
 
@@ -93,7 +93,7 @@ class Disease:
         builder.event.register_listener('simulation_end', self.write_output)
 
         self.tables = []
-        self.table_cols = ['age', 'sex', 'year',
+        self.table_cols = ['sex', 'age', 'year',
                            'bau_incidence', 'int_incidence',
                            'bau_prevalence', 'int_prevalence']
         self.clock = builder.time.clock()
