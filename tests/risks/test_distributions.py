@@ -5,19 +5,7 @@ import pytest
 from vivarium.framework.configuration import build_simulation_configuration
 from vivarium.testing_utilities import build_table
 from vivarium_public_health.risks import distributions
-from risk_distributions import risk_distributions
 from vivarium_public_health.util import pivot_age_sex_year_binned
-
-
-def test_get_min_max():
-    test_exposure = pd.DataFrame({'mean': [5, 10, 20, 50, 100], 'standard_deviation': [1, 3, 5, 10, 15]}, index=range(5))
-    expected = dict()
-    expected['x_min'] = np.array([2.6586837, 3.86641019, 9.06608812, 26.58683698, 62.37010755])
-    expected['x_max'] = np.array([9.0414898, 23.72824267, 41.5251411, 90.41489799, 156.80510239])
-    test = risk_distributions.BaseDistribution._get_min_max(test_exposure)
-
-    assert np.allclose(test['x_min'], expected['x_min'])
-    assert np.allclose(test['x_max'], expected['x_max'])
 
 
 def test_get_distribution_ensemble_risk(mocker):

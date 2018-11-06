@@ -14,23 +14,48 @@ class MissingDataError(Exception):
 
 
 class EnsembleSimulation(risk_distributions.EnsembleDistribution):
+
     def setup(self, builder):
         builder.components.add_components(self._distributions.values())
 
+    @classmethod
+    def get_distribution_map(cls):
+        return {'betasr': partial(SimulationDistribution,
+                                  distribution=risk_distributions.Beta),
+                'exp': partial(SimulationDistribution,
+                               distribution=risk_distributions.Exponential),
+                'gamma': partial(SimulationDistribution,
+                                 distribution=risk_distributions.Gamma),
+                'gumbel': partial(SimulationDistribution,
+                                  distribution=risk_distributions.Gumbel),
+                'invgamma': partial(SimulationDistribution,
+                                    distribution=risk_distributions.InverseGamma),
+                'invweibull': partial(SimulationDistribution,
+                                      distribution=risk_distributions.InverseWeibull),
+                'llogis': partial(SimulationDistribution,
+                                  distribution=risk_distributions.LogLogistic),
+                'lnorm': partial(SimulationDistribution,
+                                 distribution=risk_distributions.LogNormal),
+                'mgamma': partial(SimulationDistribution,
+                                  distribution=risk_distributions.MirroredGamma),
+                'mgumbel': partial(SimulationDistribution,
+                                   distribution=risk_distributions.MirroredGumbel),
+                'norm': partial(SimulationDistribution,
+                                distribution=risk_distributions.Normal),
+                'weibull': partial(SimulationDistribution,
+                                   distribution=risk_distributions.Weibull)}
+
 
 class SimulationDistribution:
-    def __init__(self, data=None, params=None, mean=None, std_dev=None,
-                 distribution=None):
+    def __init__(self, mean, sd, distribution=None):
         self.distribution = distribution
-        self._parameters = distribution.get_params(data)
+        self._parameters = distribution.get_params(mean, sd)
 
     def setup(self, builder):
-        self.parameters = {name: builder.lookup.build_table(data.reset_index())
-                           for name, data in self._parameters.items()}
+        self.parameters = builder.lookup.build_table(self._parameters.reset_index())
 
     def ppf(self, x):
-        params = {name: p(x.index) for name, p in self.parameters.items()}
-        return self.distribution(params=params).ppf(x)
+        return self.distribution(params=self.parameters(x.index)).ppf(x)
 
 
 class PolytomousDistribution:
@@ -112,41 +137,20 @@ def get_distribution(risk: str, risk_type: str, builder):
         exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
         exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
 
+        # merge to make sure we have matching mean and standard deviation
         exposure = exposure_data.merge(exposure_sd).set_index(['year', 'year_start', 'year_end',
                                                                'age', 'age_group_start', 'age_group_end', 'sex'])
 
         if distribution_type == 'normal':
-            distribution = SimulationDistribution(data=exposure, distribution=risk_distributions.Normal)
+            distribution = SimulationDistribution(mean=exposure['mean'], sd=exposure['standard_deviation'],
+                                                  distribution=risk_distributions.Normal)
 
         elif distribution_type == 'lognormal':
-            distribution = SimulationDistribution(data=exposure, distribution=risk_distributions.LogNormal)
+            distribution = SimulationDistribution(mean=exposure['mean'], sd=exposure['standard_deviation'],
+                                                  distribution=risk_distributions.LogNormal)
 
         else:
             weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
-            distribution_map = {'betasr': partial(SimulationDistribution,
-                                                  distribution=risk_distributions.Beta),
-                                'exp': partial(SimulationDistribution,
-                                               distribution=risk_distributions.Exponential),
-                                'gamma': partial(SimulationDistribution,
-                                                 distribution=risk_distributions.Gamma),
-                                'gumbel': partial(SimulationDistribution,
-                                                  distribution=risk_distributions.Gumbel),
-                                'invgamma': partial(SimulationDistribution,
-                                                    distribution=risk_distributions.InverseGamma),
-                                'invweibull': partial(SimulationDistribution,
-                                                      distribution=risk_distributions.InverseWeibull),
-                                'llogis': partial(SimulationDistribution,
-                                                  distribution=risk_distributions.LogLogistic),
-                                'lnorm': partial(SimulationDistribution,
-                                                 distribution=risk_distributions.LogNormal),
-                                'mgamma': partial(SimulationDistribution,
-                                                  distribution=risk_distributions.MirroredGamma),
-                                'mgumbel': partial(SimulationDistribution,
-                                                   distribution=risk_distributions.MirroredGumbel),
-                                'norm': partial(SimulationDistribution,
-                                                distribution=risk_distributions.Normal),
-                                'weibull': partial(SimulationDistribution,
-                                                   distribution=risk_distributions.Weibull)}
 
             if risk == 'high_ldl_cholesterol':
                 weights = weights.drop('invgamma', axis=1)
@@ -154,14 +158,10 @@ def get_distribution(risk: str, risk_type: str, builder):
             if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
                 weights = weights.drop('invweibull', axis=1)
 
-            weights_cols = list(set(distribution_map.keys()) & set(weights.columns))
-            weights = weights[weights_cols]
-
             # weight is all same across the demo groups
-            e_weights = weights.iloc[0]
-            dist = {d: distribution_map[d] for d in weights_cols}
+            e_weights = weights.head(1)
 
-            distribution = EnsembleSimulation(e_weights/np.sum(e_weights), dist, data=exposure)
+            distribution = EnsembleSimulation(e_weights, mean=exposure['mean'], sd=exposure['standard_deviation'])
 
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution}")
