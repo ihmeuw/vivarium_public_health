@@ -28,7 +28,7 @@ class BasePopulation:
     def on_time_step(self, event):
         pop = self.population_view.get(event.index, query='tracked == True')
         pop['age'] += 1
-        pop.loc[pop.age > self.max_age, 'tracked'] = False
+        pop.loc[pop.age >= self.max_age, 'tracked'] = False
         self.population_view.update(pop)
 
 
