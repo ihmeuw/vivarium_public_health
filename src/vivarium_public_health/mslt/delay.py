@@ -1,6 +1,8 @@
 """Provide components to represent delayed effects."""
 import pandas as pd
 
+from . import add_year_column
+
 
 class DelayedRisk:
     """
@@ -119,12 +121,28 @@ class DelayedRisk:
 
         # Load the disease-specific relative risks for each exposure bin.
         dis_rr_data = builder.data.load(f'risk_factor.{self.name}.disease_relative_risk')
+        key_columns = ['age', 'sex', 'year']
         self.dis_rr = {}
         for disease in diseases:
-            if disease not in dis_rr_data:
+            dis_columns = [c for c in dis_rr_data.columns
+                           if c.startswith(disease)]
+            dis_keys = [c for c in dis_rr_data.columns
+                        if c in key_columns]
+            if not dis_columns or not dis_keys:
                 msg = 'No {} relative risks for disease {}'
                 raise ValueError(msg.format(self.name, disease))
-            rr_data = dis_rr_data[disease]
+            rr_data = dis_rr_data[dis_keys + dis_columns]
+            dis_prefix = '{}_'.format(disease)
+            bau_prefix = '{}.'.format(self.name)
+            int_prefix = '{}_intervention.'.format(self.name)
+            bau_col = {c: c.replace(dis_prefix, bau_prefix).replace('post_', '')
+                       for c in dis_columns}
+            int_col = {c: c.replace(dis_prefix, int_prefix).replace('post_', '')
+                       for c in dis_columns}
+            for column in dis_columns:
+                rr_data[int_col[column]] = rr_data[column]
+            rr_data = rr_data.rename(columns=bau_col)
+            rr_data = add_year_column(builder, rr_data)
             self.dis_rr[disease] = builder.lookup.build_table(rr_data)
 
         # Add a handler to create the exposure bin columns.
