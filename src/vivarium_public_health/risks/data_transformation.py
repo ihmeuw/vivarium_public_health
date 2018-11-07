@@ -67,3 +67,26 @@ def rebin_rr_data(rr: pd.DataFrame, exposure: pd.DataFrame) -> pd.DataFrame:
     df = df.apply(rebin_rr).reset_index().loc[:, ['year', 'parameter', 'sex', 'age', 'value', 'age_group_start',
                                                   'age_group_end', 'year_start', 'year_end']]
     return df.replace(unexposed, 'cat2')
+
+
+def get_paf_data(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
+
+    years = rr.year.unique()
+    ex = ex[ex['year'].isin(years)]
+    key_cols = ['sex', 'age', 'parameter', 'year', 'year_start', 'year_end', 'age_group_start', 'age_group_end']
+    df = ex.merge(rr, on=key_cols)
+    df = df.groupby(['age', 'sex', 'year'], as_index=False)
+
+    def compute_paf(g):
+        to_drop = g['parameter'] != 'cat1'
+        tmp = g['value_x'] * g['value_y']
+        tmp = tmp.sum()
+        g.drop(g[to_drop].index, inplace=True)
+        g.drop(['parameter', 'value_x', 'value_y'], axis=1, inplace=True)
+        g['value'] = (tmp-1)/tmp
+        return g
+
+    paf = df.apply(compute_paf).reset_index()
+    paf = paf.replace(-np.inf, 0)  # Rows with zero exposure.
+
+    return paf
