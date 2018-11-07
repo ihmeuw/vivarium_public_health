@@ -18,32 +18,9 @@ class EnsembleSimulation(risk_distributions.EnsembleDistribution):
     def setup(self, builder):
         builder.components.add_components(self._distributions.values())
 
-    @classmethod
-    def get_distribution_map(cls):
-        return {'betasr': partial(SimulationDistribution,
-                                  distribution=risk_distributions.Beta),
-                'exp': partial(SimulationDistribution,
-                               distribution=risk_distributions.Exponential),
-                'gamma': partial(SimulationDistribution,
-                                 distribution=risk_distributions.Gamma),
-                'gumbel': partial(SimulationDistribution,
-                                  distribution=risk_distributions.Gumbel),
-                'invgamma': partial(SimulationDistribution,
-                                    distribution=risk_distributions.InverseGamma),
-                'invweibull': partial(SimulationDistribution,
-                                      distribution=risk_distributions.InverseWeibull),
-                'llogis': partial(SimulationDistribution,
-                                  distribution=risk_distributions.LogLogistic),
-                'lnorm': partial(SimulationDistribution,
-                                 distribution=risk_distributions.LogNormal),
-                'mgamma': partial(SimulationDistribution,
-                                  distribution=risk_distributions.MirroredGamma),
-                'mgumbel': partial(SimulationDistribution,
-                                   distribution=risk_distributions.MirroredGumbel),
-                'norm': partial(SimulationDistribution,
-                                distribution=risk_distributions.Normal),
-                'weibull': partial(SimulationDistribution,
-                                   distribution=risk_distributions.Weibull)}
+    def get_distribution_map(self):
+        dist_map = super().get_distribution_map()
+        return {dist_name: partial(SimulationDistribution, distribution=dist) for dist_name, dist in dist_map.items()}
 
 
 class SimulationDistribution:
