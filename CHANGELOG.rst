@@ -1,4 +1,10 @@
-**0.8.6 - 11/5/18**
+**0.8.7 - 11/07/18**
+
+    - Switch to calculating pafs on the fly for non-continuous risks.
+    - Adding components for mslt.
+    - Pulled out distributions into separate package.
+
+**0.8.6 - 11/05/18**
 
  - Extend interactive api to package up data artifact manager in standard sims.
  - Exposed disease prevalence propensity as a pipeline
