@@ -71,7 +71,9 @@ class BasePopulation:
 
         age_params = {'age_start': pop_data.user_data.get('age_start', self.config.age_start),
                       'age_end': pop_data.user_data.get('age_end', self.config.age_end)}
-
+        import pdb
+        pdb.set_trace()
+        # FIXME: this logic only works if population_data has data for every year - in the case where there's only data for (1990, 1995, 2000) and creation_time is 1997, it will use 1990 data
         if pop_data.creation_time.year in self.population_data.year.unique():
             sub_pop_data = self.population_data[self.population_data.year == pop_data.creation_time.year]
         elif pop_data.creation_time.year > self.population_data.year.max():

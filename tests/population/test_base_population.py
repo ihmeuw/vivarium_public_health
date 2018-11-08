@@ -73,7 +73,7 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
 
     components = [base_pop]
     config.update({'population': {'population_size': start_population_size},
-                   'time': {'step_size': time_step}}, layer='override')
+                   'time': {'step_size': time_step, 'start': {'year': 1997}, 'end': {'year': 1998}}}, layer='override')
     simulation = setup_simulation(components, input_config=config, plugin_config=base_plugins)
     time_start = simulation.clock.time
 
