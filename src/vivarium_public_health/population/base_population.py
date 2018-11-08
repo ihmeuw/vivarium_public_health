@@ -254,11 +254,13 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
 
     # Assign a demographically accurate age, location, and sex distribution.
     sub_pop_data = pop_data[(pop_data.age_group_start >= age_start) & (pop_data.age_group_end <= age_end)]
-    choices = sub_pop_data.set_index(['age', 'sex', 'location'])['P(sex, location, age| year)'].reset_index()
+    choices = (sub_pop_data.set_index(['age_group_start', 'age_group_end', 'sex', 'location'])
+               ['P(sex, location, age | year)'].reset_index())
     decisions = randomness_streams['bin_selection'].choice(simulants.index,
                                                            choices=choices.index,
-                                                           p=choices['P(sex, location, age| year)'])
-    simulants['age'] = choices.loc[decisions, 'age'].values
+                                                           p=choices['P(sex, location, age | year)'])
+    # assign age to left bin edge because smoothing redistributes within bins
+    simulants['age'] = choices.loc[decisions, 'age_group_start'].values
     simulants['sex'] = choices.loc[decisions, 'sex'].values
     simulants['location'] = choices.loc[decisions, 'location'].values
     simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing'])
