@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 from .data_transformations import assign_demographic_proportions, rescale_binned_proportions, smooth_ages
 
@@ -44,6 +45,16 @@ class BasePopulation:
         if self.config.exit_age is not None:
             builder.components.add_components([AgedOutSimulants()])
 
+    @staticmethod
+    def select_sub_population_data(reference_population_data, year):
+        if year in reference_population_data.year.unique():
+            sub_pop_data = reference_population_data[reference_population_data.year == pop_data.creation_time.year]
+        elif year > reference_population_data.year.max():
+            sub_pop_data = reference_population_data[reference_population_data.year == reference_population_data.year.max()]
+        else:  # pop_data.creation_time.year < reference_population_data.year.min():
+            sub_pop_data = reference_population_data[reference_population_data.year == reference_population_data.year.min()]
+
+        return sub_pop_data
 
     # TODO: Move most of this docstring to an rst file.
     def generate_base_population(self, pop_data):
@@ -72,12 +83,7 @@ class BasePopulation:
         age_params = {'age_start': pop_data.user_data.get('age_start', self.config.age_start),
                       'age_end': pop_data.user_data.get('age_end', self.config.age_end)}
 
-        if pop_data.creation_time.year in self.population_data.year.unique():
-            sub_pop_data = self.population_data[self.population_data.year == pop_data.creation_time.year]
-        elif pop_data.creation_time.year > self.population_data.year.max():
-            sub_pop_data = self.population_data[self.population_data.year == self.population_data.year.max()]
-        else:  # pop_data.creation_time.year < self.population_data.year.min():
-            sub_pop_data = self.population_data[self.population_data.year == self.population_data.year.min()]
+        sub_pop_data = self.select_sub_population_data(self.population_data, pop_data.creation_time.year)
 
         self.population_view.update(generate_population(simulant_ids=pop_data.index,
                                                         creation_time=pop_data.creation_time,
