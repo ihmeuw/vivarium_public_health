@@ -34,7 +34,6 @@ class BaseDiseaseState(State):
         self.clock = builder.time.clock()
 
         columns = [self._model, 'alive']
-
         columns += [self.event_time_column, self.event_count_column]
 
         self.population_view = builder.population.get_view(columns)
@@ -171,7 +170,6 @@ class DiseaseState(BaseDiseaseState):
             The name of a column to track the number of times this state was entered.
         side_effect_function : callable, optional
             A function to be called when this state is entered.
-        track_events : bool, optional
         """
         super().__init__(cause, **kwargs)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
@@ -200,7 +198,7 @@ class DiseaseState(BaseDiseaseState):
 
         disability_weight_data = get_disability_weight_func(self.cause, builder)
         self.prevalence_data = builder.lookup.build_table(get_prevalence_func(self.cause, builder))
-        self._dwell_time = pd.Timedelta(days=10) # get_dwell_time_func(self.cause, builder)
+        self._dwell_time = get_dwell_time_func(self.cause, builder)
         self.randomness = builder.randomness.get_stream('prevalence_event_time')
 
         if isinstance(disability_weight_data, pd.DataFrame):
@@ -220,25 +218,24 @@ class DiseaseState(BaseDiseaseState):
                                                                 source=builder.lookup.build_table(self._dwell_time))
 
     def load_population_columns(self, pop_data):
-        self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series(pd.NaT, index=pop_data.index),
-                                                  self.event_count_column: pd.Series(0, index=pop_data.index)},
-                                                 index=pop_data.index))
-
+        super().load_population_columns(pop_data)
         simulants_with_condition = self.population_view.get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
-        if np.all(self.dwell_time(simulants_with_condition.index)) > 0:
-            infected_at = self.dwell_time(simulants_with_condition.index) * \
-                         self.randomness.get_draw(simulants_with_condition.index)
-            infected_at = self.clock() - pd.to_timedelta(infected_at, unit='D')
+
+        if not simulants_with_condition.empty:
+            infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
+                                                                      self.randomness.get_draw, self.dwell_time)
             infected_at.name = self.event_time_column
             self.population_view.update(infected_at)
 
-        for transition in self.transition_set:
-            if transition.start_active:
-                transition.set_active(pop_data.index)
-
     @staticmethod
-    def assign_event_time_for_the_prevalent_case():
+    def _assign_event_time_for_prevalent_cases(pop_data, current_time, randomness_func, dwell_time_func):
+        if np.any(dwell_time_func(pop_data.index)) > 0:
+            if not np.all(dwell_time_func(pop_data.index)) > 0:
+                raise ValueError(f'Dwell time has both zero and non-zero values')
 
+            infected_at = dwell_time_func(pop_data.index) * randomness_func(pop_data.index)
+            infected_at = current_time - pd.to_timedelta(infected_at, unit='D')
+            return infected_at
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -282,7 +279,9 @@ class DiseaseState(BaseDiseaseState):
             A filtered index of the simulants.
         """
         population = self.population_view.get(index, query='alive == "alive"')
-        if self._dwell_time > 0:
+        if np.any(self.dwell_time(index)) > 0:
+            if not np.all(self.dwell_time(index)) > 0:
+                    raise ValueError(f'Dwell time for the {self.state_id} has both zero and non-zero values')
             state_exit_time = population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
             return population.loc[state_exit_time <= event_time].index
         else:
