@@ -62,11 +62,13 @@ def make_full_simulants():
 
 
 def test_select_sub_population_data():
-    data = pd.DataFrame({'year': [1990, 1995, 2000, 2005], 'population': [100, 110, 120, 130]})
+    data = pd.DataFrame({'year_start': [1990, 1995, 2000, 2005],
+                         'year_end': [1995, 2000, 2005, 2010],
+                         'population': [100, 110, 120, 130]})
 
     sub_pop = bp.BasePopulation.select_sub_population_data(data, 1997)
 
-    assert sub_pop.year.values.item() == 1995
+    assert sub_pop.year_start.values.item() == 1995
 
 
 def test_BasePopulation(config, base_plugins, generate_population_mock):
@@ -81,11 +83,11 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
 
     components = [base_pop]
     config.update({'population': {'population_size': start_population_size},
-                   'time': {'step_size': time_step, 'start': {'year': 1997}, 'end': {'year': 1998}}}, layer='override')
+                   'time': {'step_size': time_step}}, layer='override')
     simulation = setup_simulation(components, input_config=config, plugin_config=base_plugins)
     time_start = simulation.clock.time
 
-    pop_structure = simulation.data.load('population.structure', keep_age_group_edges=True)
+    pop_structure = simulation.data.load('population.structure')
     pop_structure['location'] = simulation.configuration.input_data.location
     uniform_pop = dt.assign_demographic_proportions(pop_structure)
 
@@ -93,7 +95,7 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
 
     age_params = {'age_start': config.population.age_start,
                   'age_end': config.population.age_end}
-    sub_pop = uniform_pop[uniform_pop.year == time_start.year]
+    sub_pop = bp.BasePopulation.select_sub_population_data(uniform_pop, time_start.year)
 
     generate_population_mock.assert_called_once()
     # Get a dictionary of the arguments used in the call
