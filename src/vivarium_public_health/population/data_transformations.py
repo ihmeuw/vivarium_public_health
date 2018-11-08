@@ -78,7 +78,7 @@ def rescale_binned_proportions(pop_data, age_start, age_end):
     age_end = min(pop_data.age_group_end.max(), age_end) - 1e-8
     pop_data = _add_edge_age_groups(pop_data.copy())
 
-    columns_to_scale = ['P(sex, location, age| year)', 'P(age | year, sex, location)', 'population']
+    columns_to_scale = ['P(sex, location, age | year)', 'P(age | year, sex, location)', 'population']
     for _, sub_pop in pop_data.groupby(['sex', 'location']):
 
         min_bin = sub_pop[(sub_pop.age_group_start <= age_start) & (age_start < sub_pop.age_group_end)]
@@ -123,8 +123,8 @@ def _add_edge_age_groups(pop_data):
     -------
     pandas.DataFrame
     """
-    index_cols = ['location', 'year', 'sex']
-    age_cols = ['age', 'age_group_start', 'age_group_end']
+    index_cols = ['location', 'year_start', 'year_end', 'sex']
+    age_cols = ['age_group_start', 'age_group_end']
     other_cols = [c for c in pop_data.columns if c not in index_cols + age_cols]
     pop_data = pop_data.set_index(index_cols)
 
@@ -132,11 +132,9 @@ def _add_edge_age_groups(pop_data):
     min_valid_age = pop_data['age_group_start'].min()
     # This bin width needs to be the same as the lowest bin.
     min_pad_age = min_valid_age - (pop_data['age_group_end'].min() - min_valid_age)
-    min_pad_age_midpoint = (min_valid_age + min_pad_age) * 0.5
 
     lower_bin = pd.DataFrame({'age_group_start': min_pad_age,
-                              'age_group_end': min_valid_age,
-                              'age': min_pad_age_midpoint}, index=pop_data.index.unique())
+                              'age_group_end': min_valid_age}, index=pop_data.index.unique())
     lower_bin[other_cols] = pop_data.loc[pop_data['age_group_start'] == min_valid_age, other_cols]
 
     # For the upper bin, we want our interpolation to go to zero.
@@ -145,18 +143,14 @@ def _add_edge_age_groups(pop_data):
     # Since for the 2016 round the maximum age is 125, we're assuming almost no one lives past that age,
     # so we make this bin 1 week.  A more robust technique for this would be better.
     max_pad_age = max_valid_age + 7/365
-    max_pad_age_midpoint = (max_valid_age + max_pad_age) * 0.5
 
     upper_bin = pd.DataFrame({'age_group_start': max_valid_age,
-                              'age_group_end': max_pad_age,
-                              'age': max_pad_age_midpoint}, index=pop_data.index.unique())
+                              'age_group_end': max_pad_age}, index=pop_data.index.unique())
     # We're doing the multiplication to ensure we get the correct data shape and index.
     upper_bin[other_cols] = 0 * pop_data.loc[pop_data['age_group_end'] == max_valid_age, other_cols]
 
     pop_data = pd.concat([lower_bin, pop_data, upper_bin]).reset_index()
-    pop_data = pop_data.rename(columns={'level_0': 'location', 'level_1': 'year', 'level_2': 'sex'})
-    return pop_data[index_cols + age_cols + other_cols].sort_values(
-        by=['location', 'year', 'age']).reset_index(drop=True)
+    return pop_data[index_cols + age_cols + other_cols].sort_values(by=['location', 'year_start', 'age_group_start'])
 
 
 AgeValues = namedtuple('AgeValues', ['current', 'young', 'old'])
@@ -172,7 +166,7 @@ def smooth_ages(simulants, population_data, randomness):
         Table with columns 'age', 'sex', and 'location'
     population_data : pandas.DataFrame
         Table with columns 'age', 'sex', 'year', 'location', 'population',
-        'P(sex, location, age| year)', 'P(sex, location | age, year)',
+        'P(sex, location, age | year)', 'P(sex, location | age, year)',
         'P(age | year, sex, location)'
     randomness : vivarium.framework.randomness.RandomnessStream
         Source of random number generation within the vivarium common random number framework.
