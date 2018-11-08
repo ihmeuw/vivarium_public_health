@@ -48,7 +48,7 @@ MOCKERS = {
             'population_attributable_fraction': 1,
         },
         'healthcare_entity': {
-            'cost': build_table(0, 1990, 2018).query('sex=="Both" and age==27').drop('sex', 'columns'),
+            'cost': build_table(0, 1990, 2018).query('sex=="Both" and age_group_start==27').drop('sex', 'columns'),
             'annual_visits': 0,
         },
         'population': {
