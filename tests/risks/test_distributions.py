@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from vivarium.framework.configuration import build_simulation_configuration
 from vivarium.testing_utilities import build_table
 from vivarium_public_health.risks import distributions
 from vivarium_public_health.util import pivot_age_sex_year_binned
