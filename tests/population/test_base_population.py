@@ -188,7 +188,7 @@ def test_generate_population_initial_age(age_bounds_mock, initial_age_mock):
 
 def test__assign_demography_with_initial_age(config):
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
-    pop_data = pop_data[pop_data.year == 1990]
+    pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     initial_age = 20
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
@@ -208,7 +208,7 @@ def test__assign_demography_with_initial_age(config):
 
 def test__assign_demography_with_initial_age_zero(config):
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
-    pop_data = pop_data[pop_data.year == 1990]
+    pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     initial_age = 0
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
@@ -228,7 +228,7 @@ def test__assign_demography_with_initial_age_zero(config):
 
 def test__assign_demography_with_initial_age_error():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
-    pop_data = pop_data[pop_data.year == 1990]
+    pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     initial_age = 200
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
@@ -241,7 +241,7 @@ def test__assign_demography_with_initial_age_error():
 
 def test__assign_demography_with_age_bounds():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
-    pop_data = pop_data[pop_data.year == 1990]
+    pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     age_start, age_end = 0, 180
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
