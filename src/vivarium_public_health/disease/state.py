@@ -1,5 +1,6 @@
 """A toolbox for modeling diseases as state machines."""
 import pandas as pd
+import numpy as np
 
 from vivarium.framework.state_machine import State, Transient
 
@@ -7,8 +8,7 @@ from vivarium_public_health.disease import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):
-    def __init__(self, cause, name_prefix=None, side_effect_function=None,
-                 track_events=True, cause_type="cause", **kwargs):
+    def __init__(self, cause, name_prefix=None, side_effect_function=None, cause_type="cause", **kwargs):
         self.cause = cause
         self.cause_type = cause_type
         cause_name = name_prefix + cause if name_prefix else cause
@@ -16,7 +16,6 @@ class BaseDiseaseState(State):
 
         self.side_effect_function = side_effect_function
 
-        self.track_events = track_events
         self.event_time_column = self.state_id + '_event_time'
         self.event_count_column = self.state_id + '_event_count'
 
@@ -35,12 +34,13 @@ class BaseDiseaseState(State):
         self.clock = builder.time.clock()
 
         columns = [self._model, 'alive']
-        if self.track_events:
-            columns += [self.event_time_column, self.event_count_column]
+
+        columns += [self.event_time_column, self.event_count_column]
 
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[self.event_time_column, self.event_count_column])
+                                                 creates_columns=[self.event_time_column, self.event_count_column],
+                                                 requires_columns=[self._model])
 
         builder.value.register_value_modifier('metrics', self.metrics)
 
@@ -54,11 +54,11 @@ class BaseDiseaseState(State):
         event_time : pandas.Timestamp
             The time at which this transition occurs.
         """
-        if self.track_events:
-            pop = self.population_view.get(index)
-            pop[self.event_time_column] = event_time
-            pop[self.event_count_column] += 1
-            self.population_view.update(pop)
+
+        pop = self.population_view.get(index)
+        pop[self.event_time_column] = event_time
+        pop[self.event_count_column] += 1
+        self.population_view.update(pop)
 
         if self.side_effect_function is not None:
             self.side_effect_function(index, event_time)
@@ -71,10 +71,10 @@ class BaseDiseaseState(State):
         event : `vivarium.framework.population.PopulationEvent`
             An event signaling the creation of new simulants.
         """
-        if self.track_events:
-            self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series(pd.NaT, index=pop_data.index),
-                                                      self.event_count_column: pd.Series(0, index=pop_data.index)},
-                                                     index=pop_data.index))
+
+        self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series(pd.NaT, index=pop_data.index),
+                                                  self.event_count_column: pd.Series(0, index=pop_data.index)},
+                                                 index=pop_data.index))
 
         for transition in self.transition_set:
             if transition.start_active:
@@ -107,9 +107,9 @@ class BaseDiseaseState(State):
         -------
         `pandas.DataFrame`
             The metrics table updated to reflect new simulation state."""
-        if self.track_events:
-            population = self.population_view.get(index)
-            metrics[self.event_count_column] = population[self.event_count_column].sum()
+
+        population = self.population_view.get(index)
+        metrics[self.event_count_column] = population[self.event_count_column].sum()
         return metrics
 
 
@@ -200,7 +200,8 @@ class DiseaseState(BaseDiseaseState):
 
         disability_weight_data = get_disability_weight_func(self.cause, builder)
         self.prevalence_data = builder.lookup.build_table(get_prevalence_func(self.cause, builder))
-        self._dwell_time = get_dwell_time_func(self.cause, builder)
+        self._dwell_time = pd.Timedelta(days=10) # get_dwell_time_func(self.cause, builder)
+        self.randomness = builder.randomness.get_stream('prevalence_event_time')
 
         if isinstance(disability_weight_data, pd.DataFrame):
             self._disability_weight = builder.lookup.build_table(float(disability_weight_data.value))
@@ -212,12 +213,32 @@ class DiseaseState(BaseDiseaseState):
 
         if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
             self.transition_set.allow_null_transition = True
-            self.track_events = True
 
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
         self.dwell_time = builder.value.register_value_producer(f'{self.state_id}.dwell_time',
                                                                 source=builder.lookup.build_table(self._dwell_time))
+
+    def load_population_columns(self, pop_data):
+        self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series(pd.NaT, index=pop_data.index),
+                                                  self.event_count_column: pd.Series(0, index=pop_data.index)},
+                                                 index=pop_data.index))
+
+        simulants_with_condition = self.population_view.get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
+        if np.all(self.dwell_time(simulants_with_condition.index)) > 0:
+            infected_at = self.dwell_time(simulants_with_condition.index) * \
+                         self.randomness.get_draw(simulants_with_condition.index)
+            infected_at = self.clock() - pd.to_timedelta(infected_at, unit='D')
+            infected_at.name = self.event_time_column
+            self.population_view.update(infected_at)
+
+        for transition in self.transition_set:
+            if transition.start_active:
+                transition.set_active(pop_data.index)
+
+    @staticmethod
+    def assign_event_time_for_the_prevalent_case():
+
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -261,8 +282,7 @@ class DiseaseState(BaseDiseaseState):
             A filtered index of the simulants.
         """
         population = self.population_view.get(index, query='alive == "alive"')
-        # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
-        if self.track_events:
+        if self._dwell_time > 0:
             state_exit_time = population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
             return population.loc[state_exit_time <= event_time].index
         else:
