@@ -21,21 +21,21 @@ def assign_demographic_proportions(population_data):
         various population levels.
     """
 
-    population_data['P(sex, location, age_group_start, age_group_end | year_start, year_end)'] = (
+    population_data['P(sex, location, age | year)'] = (
         population_data
             .groupby(['year_start', 'year_end'], as_index=False)
             .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
             .reset_index(level=0).population
     )
 
-    population_data['P(sex, location | age_group_start, age_group_end, year_start, year_end)'] = (
+    population_data['P(sex, location | age, year)'] = (
         population_data
             .groupby(['age_group_start', 'age_group_end', 'year_start', 'year_end'], as_index=False)
             .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
             .reset_index(level=0).population
     )
 
-    population_data['P(age_group_start, age_group_end | year_start, year_end, sex, location)'] = (
+    population_data['P(age | year, sex, location)'] = (
         population_data
             .groupby(['year_start', 'year_end', 'sex', 'location'], as_index=False)
             .apply(lambda sub_pop: sub_pop.population / sub_pop.population.sum())
