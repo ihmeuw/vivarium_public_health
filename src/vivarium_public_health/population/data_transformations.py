@@ -179,9 +179,9 @@ def smooth_ages(simulants, population_data, randomness):
     simulants = simulants.copy()
     for (sex, location), sub_pop in population_data.groupby(['sex', 'location']):
 
-        ages = sorted(sub_pop.age.unique())
-        younger = [float(sub_pop.loc[sub_pop.age == ages[0], 'age_group_start'])] + ages[:-1]
-        older = ages[1:] + [float(sub_pop.loc[sub_pop.age == ages[-1], 'age_group_end'])]
+        ages = sorted(sub_pop.age_group_start.unique())
+        younger = [float(sub_pop.loc[sub_pop.age_group_start == ages[0], 'age_group_start'])] + ages[:-1]
+        older = ages[1:] + [float(sub_pop.loc[sub_pop.age_group_start == ages[-1], 'age_group_end'])]
 
         uniform_all = randomness.get_draw(simulants.index, additional_key='smooth_ages')
 
@@ -234,15 +234,15 @@ def _get_bins_and_proportions(pop_data, age):
         The `AgeValues` tuple has values
             (proportion of pop in current bin, proportion of pop in previous bin, proportion of pop in next bin)
     """
-    left = float(pop_data.loc[pop_data.age == age.current, 'age_group_start'])
-    right = float(pop_data.loc[pop_data.age == age.current, 'age_group_end'])
+    left = float(pop_data.loc[pop_data.age_group_end == age.current, 'age_group_start'])
+    right = float(pop_data.loc[pop_data.age_group_start == age.current, 'age_group_end'])
 
-    if not pop_data.loc[pop_data.age == age.young, 'age_group_start'].empty:
-        lower_left = float(pop_data.loc[pop_data.age == age.young, 'age_group_start'])
+    if not pop_data.loc[pop_data.age_group_start == age.young, 'age_group_start'].empty:
+        lower_left = float(pop_data.loc[pop_data.age_group_start == age.young, 'age_group_start'])
     else:
         lower_left = left
-    if not pop_data.loc[pop_data.age == age.old, 'age_group_end'].empty:
-        upper_right = float(pop_data.loc[pop_data.age == age.old, 'age_group_end'])
+    if not pop_data.loc[pop_data.age_group_start == age.old, 'age_group_end'].empty:
+        upper_right = float(pop_data.loc[pop_data.age_group_start == age.old, 'age_group_end'])
     else:
         upper_right = right
 
@@ -251,9 +251,9 @@ def _get_bins_and_proportions(pop_data, age):
     # Here we make the assumption that P(left < age < right | year, sex, location)  = p * (right - left)
     # in order to back out a point estimate for the probability density at the center of the interval.
     # This not the best assumption, but it'll do.
-    p_age = float(pop_data.loc[pop_data.age == age.current, proportion_column]/(right - left))
-    p_young = float(pop_data.loc[pop_data.age == age.young, proportion_column]/(left - lower_left)) if age.young != left else p_age
-    p_old = float(pop_data.loc[pop_data.age == age.old, proportion_column]/(upper_right - right)) if age.old != right else 0
+    p_age = float(pop_data.loc[pop_data.age_group_start == age.current, proportion_column]/(right - left))
+    p_young = float(pop_data.loc[pop_data.age_group_start == age.young, proportion_column]/(left - lower_left)) if left != lower_left else 0
+    p_old = float(pop_data.loc[pop_data.age_group_start == age.old, proportion_column]/(upper_right - right)) if upper_right != right else 0
 
     return EndpointValues(left, right), AgeValues(p_age, p_young, p_old)
 

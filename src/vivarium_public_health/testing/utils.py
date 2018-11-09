@@ -4,10 +4,10 @@ import pandas as pd
 
 
 def make_uniform_pop_data():
-    age_bins = [(n, n + 2.5, n + 5) for n in range(0, 100, 5)]
+    age_bins = [(n, n + 2.5, n + 5) for n in range(0, 15, 5)]
     sexes = ('Male', 'Female', 'Both')
-    years = [(1990, 1995), (1995, 2000), (2000, 2005), (2005, 2010)]
-    locations = (1, 2)
+    years = [(1990, 1995), (1995, 2000),]  # (2000, 2005), (2005, 2010)]
+    locations = (1, )  # 2)
 
     age_bins, sexes, years, locations = zip(*product(age_bins, sexes, years, locations))
     mins, ages, maxes = zip(*age_bins)

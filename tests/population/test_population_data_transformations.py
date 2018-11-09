@@ -5,27 +5,8 @@ import numpy as np
 import pandas as pd
 
 from vivarium.testing_utilities import get_randomness, build_table
-
+from vivarium_public_health.testing.utils import make_uniform_pop_data
 import vivarium_public_health.population.data_transformations as dt
-
-
-def make_uniform_pop_data():
-    age_bins = [(n, n+2.5, n+5) for n in range(0, 100, 5)]
-    sexes = ('Male', 'Female', 'Both')
-    years = (1990, 1995, 2000, 2005)
-    locations = (1, 2)
-
-    age_bins, sexes, years, locations = zip(*product(age_bins, sexes, years, locations))
-    mins, ages, maxes = zip(*age_bins)
-    pop = pd.DataFrame({'age': ages,
-                        'age_group_start': mins,
-                        'age_group_end': maxes,
-                        'sex': sexes,
-                        'year': years,
-                        'location': locations,
-                        'population': [100]*len(ages)})
-    pop.loc[pop.sex == 'Both', 'population'] = 200
-    return pop
 
 
 def test_assign_demographic_proportions():
@@ -79,10 +60,10 @@ def test_rescale_binned_proportions_age_bin_edges():
 
 def test_smooth_ages():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
-    pop_data = pop_data[pop_data.year == 1990]
-    simulants = pd.DataFrame({'age': [22.5]*10000 + [52.5]*10000,
-                              'sex': ['Male', 'Female']*10000,
-                              'location': [1, 2]*10000})
+    pop_data = pop_data[pop_data.year_start == 1990]
+    simulants = pd.DataFrame({'age': [0]*5 + [5]*5,
+                              'sex': ['Male', 'Female']*5,
+                              'location': [1]*10})
     randomness = get_randomness()
     smoothed_simulants = dt.smooth_ages(simulants, pop_data, randomness)
 
