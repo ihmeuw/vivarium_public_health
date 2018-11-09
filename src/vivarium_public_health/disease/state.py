@@ -199,7 +199,7 @@ class DiseaseState(BaseDiseaseState):
         disability_weight_data = get_disability_weight_func(self.cause, builder)
         self.prevalence_data = builder.lookup.build_table(get_prevalence_func(self.cause, builder))
         self._dwell_time = get_dwell_time_func(self.cause, builder)
-        self.randomness = builder.randomness.get_stream('prevalence_event_time')
+        self.randomness = builder.randomness.get_stream(f'{self.state_id}_prevalence_event_time')
 
         if isinstance(disability_weight_data, pd.DataFrame):
             self._disability_weight = builder.lookup.build_table(float(disability_weight_data.value))
