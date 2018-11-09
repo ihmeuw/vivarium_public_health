@@ -221,21 +221,19 @@ class DiseaseState(BaseDiseaseState):
         super().load_population_columns(pop_data)
         simulants_with_condition = self.population_view.get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
 
-        if not simulants_with_condition.empty:
+        if not simulants_with_condition.empty and np.any(self.dwell_time(simulants_with_condition)) > 0:
             infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
                                                                       self.randomness.get_draw, self.dwell_time)
             infected_at.name = self.event_time_column
             self.population_view.update(infected_at)
 
     @staticmethod
-    def _assign_event_time_for_prevalent_cases(pop_data, current_time, randomness_func, dwell_time_func):
-        if np.any(dwell_time_func(pop_data.index)) > 0:
-            if not np.all(dwell_time_func(pop_data.index)) > 0:
-                raise ValueError(f'Dwell time has both zero and non-zero values')
-
-            infected_at = dwell_time_func(pop_data.index) * randomness_func(pop_data.index)
-            infected_at = current_time - pd.to_timedelta(infected_at, unit='D')
-            return infected_at
+    def _assign_event_time_for_prevalent_cases(infected, current_time, randomness_func, dwell_time_func):
+        if not np.all(dwell_time_func(infected.index)) > 0:
+            raise ValueError(f'Dwell time has both zero and non-zero values')
+        infected_at = dwell_time_func(infected.index) * randomness_func(infected.index)
+        infected_at = current_time - pd.to_timedelta(infected_at, unit='D')
+        return infected_at
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':

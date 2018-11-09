@@ -317,8 +317,14 @@ def test_risk_deletion(base_config, base_plugins, disease):
 def test__assign_event_time_for_prevalent_cases():
     pop_data = pd.DataFrame(index=range(100))
     random_func = lambda index: pd.Series(0.4, index=index)
-    dwell_time_func = lambda index: pd.Series(10, index=index)
     current_time = pd.Timestamp(2017, 1, 10, 12)
+
+    bad_dwell_time = pd.Series([0, 10] * 50, index=range(100))
+    bad_dwell_time_func = lambda index: bad_dwell_time.loc[index]
+    dwell_time_func = lambda index: pd.Series(10, index=index)
+
+    with pytest.raises(ValueError):
+        DiseaseState._assign_event_time_for_prevalent_cases(pop_data, current_time, random_func, bad_dwell_time_func)
 
     expected = pd.Series(pd.Timestamp(2017, 1, 6, 12), index=pop_data.index)
     what_we_get = DiseaseState._assign_event_time_for_prevalent_cases(pop_data, current_time, random_func, dwell_time_func)
