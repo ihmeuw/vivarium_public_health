@@ -223,15 +223,15 @@ class DiseaseState(BaseDiseaseState):
         super().load_population_columns(pop_data)
         simulants_with_condition = self.population_view.get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
         if not simulants_with_condition.empty:
-            # if modelers did not specify the dwell time
-            if np.all(self.dwell_time(simulants_with_condition.index)) == 0:
+            # if modelers did not specify the dwell time but there's remission rate available
+            if np.all(self.dwell_time(simulants_with_condition.index)) == 0 and self.remission.source:
                 infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
                                                                           self.randomness_prevalence.get_draw,
                                                                           self.remission, True)
             else:
                 infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
                                                                           self.randomness_prevalence.get_draw,
-                                                                          self.dwell_time)
+                                                                      self.dwell_time)
             infected_at.name = self.event_time_column
             self.population_view.update(infected_at)
 
