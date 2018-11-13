@@ -61,6 +61,14 @@ def make_full_simulants():
     return base_simulants
 
 
+def test_select_sub_population_data():
+    data = pd.DataFrame({'year': [1990, 1995, 2000, 2005], 'population': [100, 110, 120, 130]})
+
+    sub_pop = bp.BasePopulation.select_sub_population_data(data, 1997)
+
+    assert sub_pop.year.values.item() == 1995
+
+
 def test_BasePopulation(config, base_plugins, generate_population_mock):
     num_days = 600
     time_step = 100  # Days
