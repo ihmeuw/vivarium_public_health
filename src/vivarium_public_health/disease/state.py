@@ -199,7 +199,7 @@ class DiseaseState(BaseDiseaseState):
         disability_weight_data = get_disability_weight_func(self.cause, builder)
         self.prevalence_data = builder.lookup.build_table(get_prevalence_func(self.cause, builder))
         self._dwell_time = get_dwell_time_func(self.cause, builder)
-        self.randomness = builder.randomness.get_stream(f'{self.state_id}_prevalence_event_time')
+        self.randomness = builder.randomness.get_stream(f'determine_event_time_of_{self.state_id}_prevalent_cases')
 
         if isinstance(disability_weight_data, pd.DataFrame):
             self._disability_weight = builder.lookup.build_table(float(disability_weight_data.value))
@@ -214,24 +214,29 @@ class DiseaseState(BaseDiseaseState):
 
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
+
+        self.remission = builder.value.get_value(f'{self.state_id}.remission_rate')
         self.dwell_time = builder.value.register_value_producer(f'{self.state_id}.dwell_time',
                                                                 source=builder.lookup.build_table(self._dwell_time))
 
     def load_population_columns(self, pop_data):
         super().load_population_columns(pop_data)
         simulants_with_condition = self.population_view.get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
-
-        if not simulants_with_condition.empty and np.any(self.dwell_time(simulants_with_condition)) > 0:
-            infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
-                                                                      self.randomness.get_draw, self.dwell_time)
+        if not simulants_with_condition.empty:
+            # if modelers did not specify the dwell time
+            if np.all(self.dwell_time(simulants_with_condition.index)) == 0:
+                infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
+                                                                          self.randomness.get_draw, self.remission, True)
+            else:
+                infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
+                                                                          self.randomness.get_draw, self.dwell_time)
             infected_at.name = self.event_time_column
             self.population_view.update(infected_at)
 
     @staticmethod
-    def _assign_event_time_for_prevalent_cases(infected, current_time, randomness_func, dwell_time_func):
-        if not np.all(dwell_time_func(infected.index)) > 0:
-            raise ValueError(f'Dwell time has both zero and non-zero values')
-        infected_at = dwell_time_func(infected.index) * randomness_func(infected.index)
+    def _assign_event_time_for_prevalent_cases(infected, current_time, randomness_func, dwell_time_func, remission=False):
+        dwell_time = 1 / dwell_time_func(infected.index) if remission else dwell_time_func(infected.index)
+        infected_at = dwell_time * randomness_func(infected.index)
         infected_at = current_time - pd.to_timedelta(infected_at, unit='D')
         return infected_at
 
@@ -278,8 +283,6 @@ class DiseaseState(BaseDiseaseState):
         """
         population = self.population_view.get(index, query='alive == "alive"')
         if np.any(self.dwell_time(index)) > 0:
-            if not np.all(self.dwell_time(index)) > 0:
-                    raise ValueError(f'Dwell time for the {self.state_id} has both zero and non-zero values')
             state_exit_time = population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
             return population.loc[state_exit_time <= event_time].index
         else:

@@ -319,14 +319,16 @@ def test__assign_event_time_for_prevalent_cases():
     random_func = lambda index: pd.Series(0.4, index=index)
     current_time = pd.Timestamp(2017, 1, 10, 12)
 
-    bad_dwell_time = pd.Series([0, 10] * 50, index=range(100))
-    bad_dwell_time_func = lambda index: bad_dwell_time.loc[index]
+    remission_func = lambda index: pd.Series(0.2, index=index)
+
+    # 1/0.2 = 5, 5*0.4 = 2 ; 2 days before the current time
+    expected = pd.Series(pd.Timestamp(2017, 1, 8, 12), index=pop_data.index)
+    assert expected.equals(DiseaseState._assign_event_time_for_prevalent_cases(pop_data, current_time, random_func,
+                                                                              remission_func, True))
+
     dwell_time_func = lambda index: pd.Series(10, index=index)
-
-    with pytest.raises(ValueError):
-        DiseaseState._assign_event_time_for_prevalent_cases(pop_data, current_time, random_func, bad_dwell_time_func)
-
+    # 10* 0.4 = 4 ; 4 days before the current time
     expected = pd.Series(pd.Timestamp(2017, 1, 6, 12), index=pop_data.index)
-    what_we_get = DiseaseState._assign_event_time_for_prevalent_cases(pop_data, current_time, random_func, dwell_time_func)
 
-    assert expected.equals(what_we_get)
+    assert expected.equals(DiseaseState._assign_event_time_for_prevalent_cases(pop_data, current_time, random_func,
+                                                                               dwell_time_func))
