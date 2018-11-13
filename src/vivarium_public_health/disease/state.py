@@ -215,7 +215,6 @@ class DiseaseState(BaseDiseaseState):
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
 
-        self.remission = builder.value.get_value(f'{self.state_id}.remission_rate')
         self.dwell_time = builder.value.register_value_producer(f'{self.state_id}.dwell_time',
                                                                 source=builder.lookup.build_table(self._dwell_time))
 
@@ -223,21 +222,15 @@ class DiseaseState(BaseDiseaseState):
         super().load_population_columns(pop_data)
         simulants_with_condition = self.population_view.get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
         if not simulants_with_condition.empty:
-            # if modelers did not specify the dwell time but there's remission rate available
-            if np.all(self.dwell_time(simulants_with_condition.index)) == 0 and self.remission.source:
-                infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
-                                                                          self.randomness_prevalence.get_draw,
-                                                                          self.remission, True)
-            else:
-                infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
-                                                                          self.randomness_prevalence.get_draw,
+            infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
+                                                                      self.randomness_prevalence.get_draw,
                                                                       self.dwell_time)
             infected_at.name = self.event_time_column
             self.population_view.update(infected_at)
 
     @staticmethod
-    def _assign_event_time_for_prevalent_cases(infected, current_time, randomness_func, dwell_time_func, remission=False):
-        dwell_time = 1 / dwell_time_func(infected.index) if remission else dwell_time_func(infected.index)
+    def _assign_event_time_for_prevalent_cases(infected, current_time, randomness_func, dwell_time_func):
+        dwell_time = dwell_time_func(infected.index)
         infected_at = dwell_time * randomness_func(infected.index)
         infected_at = current_time - pd.to_timedelta(infected_at, unit='D')
         return infected_at
