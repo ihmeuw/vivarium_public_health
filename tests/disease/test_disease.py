@@ -26,7 +26,7 @@ def base_data():
     def _set_prevalence(p):
         base_function = dict()
         base_function['disability_weight'] = lambda _, __: 0
-        base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=0)
+        base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=1)
         base_function['prevalence'] = lambda _, __: p
         return base_function
     return _set_prevalence

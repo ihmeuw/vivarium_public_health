@@ -199,7 +199,7 @@ class DiseaseState(BaseDiseaseState):
         disability_weight_data = get_disability_weight_func(self.cause, builder)
         self.prevalence_data = builder.lookup.build_table(get_prevalence_func(self.cause, builder))
         self._dwell_time = get_dwell_time_func(self.cause, builder)
-        self.randomness = builder.randomness.get_stream(f'determine_event_time_of_{self.state_id}_prevalent_cases')
+        self.randomness_prevalence = builder.randomness.get_stream(f'{self.state_id}_prevalent_cases')
 
         if isinstance(disability_weight_data, pd.DataFrame):
             self._disability_weight = builder.lookup.build_table(float(disability_weight_data.value))
@@ -226,10 +226,12 @@ class DiseaseState(BaseDiseaseState):
             # if modelers did not specify the dwell time
             if np.all(self.dwell_time(simulants_with_condition.index)) == 0:
                 infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
-                                                                          self.randomness.get_draw, self.remission, True)
+                                                                          self.randomness_prevalence.get_draw,
+                                                                          self.remission, True)
             else:
                 infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
-                                                                          self.randomness.get_draw, self.dwell_time)
+                                                                          self.randomness_prevalence.get_draw,
+                                                                          self.dwell_time)
             infected_at.name = self.event_time_column
             self.population_view.update(infected_at)
 
