@@ -32,7 +32,7 @@ class Artifact:
         """
 
         self.path = path
-        self.filter_terms = filter_terms
+        self._filter_terms = filter_terms
 
         self._cache = {}
         self._keys = [EntityKey(k) for k in hdf.get_keys(self.path)]
@@ -65,7 +65,7 @@ class Artifact:
             raise ArtifactException(f"{entity_key} should be in {self.path}.")
 
         if entity_key not in self._cache:
-            data = hdf.load(self.path, entity_key, self.filter_terms)
+            data = hdf.load(self.path, entity_key, self._filter_terms)
 
             assert data is not None, f"Data for {entity_key} is not available. Check your model specification."
 
