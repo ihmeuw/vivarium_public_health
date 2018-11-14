@@ -5,18 +5,12 @@ import numpy as np
 import pandas as pd
 
 from vivarium.testing_utilities import get_randomness, build_table
-from vivarium_public_health.testing import utils
+from vivarium_public_health.testing.utils import make_uniform_pop_data
 import vivarium_public_health.population.data_transformations as dt
 
 
-def make_uniform_pop_data():
-    data = utils.make_uniform_pop_data()
-    # dt functions all assume midpoint has already been calculated in base_population so do that here
-    data['age'] = data.apply(lambda row: (row['age_group_start'] + row['age_group_end']) / 2, axis=1)
-    return data
-
 def test_assign_demographic_proportions():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
 
     assert pop_data[pop_data.sex == 'Both'].empty
 
@@ -30,7 +24,7 @@ def test_assign_demographic_proportions():
 
 
 def test_rescale_binned_proportions_full_range():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     pop_data = pop_data[pop_data.year_start == 1990]
 
     pop_data_scaled = dt.rescale_binned_proportions(pop_data, age_start=0, age_end=100)
@@ -40,7 +34,7 @@ def test_rescale_binned_proportions_full_range():
 
 
 def test_rescale_binned_proportions_clipped_ends():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     pop_data = pop_data[pop_data.year_start == 1990]
     scale = len(pop_data.location.unique()) * len(pop_data.sex.unique())
 
@@ -53,7 +47,7 @@ def test_rescale_binned_proportions_clipped_ends():
 
 
 def test_rescale_binned_proportions_age_bin_edges():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     pop_data = pop_data[pop_data.year_start == 1990]
 
     # Test edge case where age_start/age_end fall on age bin boundaries.
@@ -65,7 +59,7 @@ def test_rescale_binned_proportions_age_bin_edges():
 
 
 def test_smooth_ages():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     pop_data = pop_data[pop_data.year_start == 1990]
     simulants = pd.DataFrame({'age': [22.5]*10000 + [52.5]*10000,
                               'sex': ['Male', 'Female']*10000,
@@ -79,7 +73,7 @@ def test_smooth_ages():
 
 
 def test__get_bins_and_proportions_with_youngest_bin():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     pop_data = pop_data[(pop_data.year_start == 1990) & (pop_data.location == 1) & (pop_data.sex == 'Male')]
     age = dt.AgeValues(current=2.5, young=0, old=7.5)
     endpoints, proportions = dt._get_bins_and_proportions(pop_data, age)
@@ -92,7 +86,7 @@ def test__get_bins_and_proportions_with_youngest_bin():
 
 
 def test__get_bins_and_proportions_with_oldest_bin():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     pop_data = pop_data[(pop_data.year_start == 1990) & (pop_data.location == 1) & (pop_data.sex == 'Male')]
     age = dt.AgeValues(current=97.5, young=92.5, old=100)
     endpoints, proportions = dt._get_bins_and_proportions(pop_data, age)
@@ -105,7 +99,7 @@ def test__get_bins_and_proportions_with_oldest_bin():
 
 
 def test__get_bins_and_proportions_with_middle_bin():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data())
+    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     pop_data = pop_data[(pop_data.year_start == 1990) & (pop_data.location == 1) & (pop_data.sex == 'Male')]
     age = dt.AgeValues(current=22.5, young=17.5, old=27.5)
     endpoints, proportions = dt._get_bins_and_proportions(pop_data, age)
