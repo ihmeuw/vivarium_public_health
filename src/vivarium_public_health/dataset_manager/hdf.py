@@ -12,7 +12,7 @@ from tables.nodes import filenode
 if typing.TYPE_CHECKING:
     from vivarium_public_health.dataset_manager import EntityKey
 
-DEFAULT_COLUMNS = {"year", "location", "draw", "cause", "risk"}
+DEFAULT_COLUMNS = {"year_start", "year_end", "location", "draw", "cause", "risk"}
 
 
 def touch(path: str, append: bool):
