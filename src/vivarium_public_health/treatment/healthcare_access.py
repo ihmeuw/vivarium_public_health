@@ -67,11 +67,11 @@ class HealthcareAccess:
         interpolation_order = builder.configuration.interpolation.order
         self.hospitalization_cost = defaultdict(float)
         self._ip_cost_df = builder.data.load("healthcare_entity.inpatient_visits.cost")
-        self.__hospitalization_cost = builder.lookup.build_table(self._ip_cost_df[['year', 'year_start', 'year_end', 'value']],
+        self.__hospitalization_cost = builder.lookup.build_table(self._ip_cost_df[['year_start', 'year_end', 'value']],
                                                                  tuple(), [('year', 'year_start', 'year_end')])
 
         self._op_cost_df = builder.data.load("healthcare_entity.outpatient_visits.cost")
-        self.__appointment_cost = builder.lookup.build_table(self._op_cost_df[['year', 'year_start', 'year_end', 'value']],
+        self.__appointment_cost = builder.lookup.build_table(self._op_cost_df[['year_start', 'year_end', 'value']],
                                                              tuple(), [('year', 'year_start', 'year_end')])
 
         self.outpatient_cost = defaultdict(float)
