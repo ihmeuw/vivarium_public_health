@@ -47,9 +47,9 @@ class BasePopulation:
 
     @staticmethod
     def select_sub_population_data(reference_population_data, year):
-        reference_years = sorted(set(reference_population_data.year_start))
+        reference_years = sorted(set(reference_population_data.year))
         ref_year_index = np.digitize(year, reference_years).item()-1
-        return reference_population_data[reference_population_data.year_start == reference_years[ref_year_index]]
+        return reference_population_data[reference_population_data.year == reference_years[ref_year_index]]
 
     # TODO: Move most of this docstring to an rst file.
     def generate_base_population(self, pop_data):
@@ -254,13 +254,11 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
 
     # Assign a demographically accurate age, location, and sex distribution.
     sub_pop_data = pop_data[(pop_data.age_group_start >= age_start) & (pop_data.age_group_end <= age_end)]
-    choices = (sub_pop_data.set_index(['age_group_start', 'age_group_end', 'sex', 'location'])
-               ['P(sex, location, age | year)'].reset_index())
+    choices = sub_pop_data.set_index(['age', 'sex', 'location'])['P(sex, location, age| year)'].reset_index()
     decisions = randomness_streams['bin_selection'].choice(simulants.index,
                                                            choices=choices.index,
-                                                           p=choices['P(sex, location, age | year)'])
-    # assign age to left bin edge because smoothing redistributes within bins
-    simulants['age'] = choices.loc[decisions, 'age_group_start'].values
+                                                           p=choices['P(sex, location, age| year)'])
+    simulants['age'] = choices.loc[decisions, 'age'].values
     simulants['sex'] = choices.loc[decisions, 'sex'].values
     simulants['location'] = choices.loc[decisions, 'location'].values
     simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing'])
