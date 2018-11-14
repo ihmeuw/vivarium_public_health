@@ -1,6 +1,7 @@
 """This module contains several components that  model birth rates."""
 import pandas as pd
 import numpy as np
+from vivarium_public_health.population.base_population import load_population_structure
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate better data into gestational model (probably as a separate component)
@@ -77,7 +78,7 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-        self._population_data = builder.data.load("population.structure")
+        self._population_data = load_population_structure(builder)
         self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
         if 'exit_age' in builder.configuration.population:
             self.exit_age = builder.configuration.population.exit_age

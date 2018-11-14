@@ -37,7 +37,7 @@ class BasePopulation:
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
-        source_population_structure = builder.data.load("population.structure", keep_age_group_edges=True)
+        source_population_structure = load_population_structure(builder)
         source_population_structure['location'] = input_config.location
         self.population_data = _build_population_data_table(source_population_structure)
 
@@ -289,6 +289,11 @@ def _build_population_data_table(data):
             'P(sex, location, age | year)' : Conditional probability of sex, location, and age given year,
             'P(age | year, sex, location)' : Conditional probability of age given year, sex, and location.
     """
+    return assign_demographic_proportions(data)
+
+
+def load_population_structure(builder):
+    data = builder.data.load("population.structure")
     # create an age column which is the midpoint of the age group
     data['age'] = data.apply(lambda row: (row['age_group_start'] + row['age_group_end']) / 2, axis=1)
-    return assign_demographic_proportions(data)
+    return data
