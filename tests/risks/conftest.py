@@ -35,7 +35,7 @@ def continuous_risk():
     for cause in affected_causes:
         rr_data.append(
             build_table([1.01, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause'],
-                        ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+                        ).melt(id_vars=('age_group_start', 'age_group_end', 'year_start',
                                         'year_end', 'sex', 'cause'), var_name='parameter', value_name='value')
         )
         paf_data.append(build_table([1, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause']))
@@ -77,8 +77,8 @@ def dichotomous_risk():
     risk_data = dict()
     exposure_data = build_table(
         0.5, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
-    ).melt(id_vars=('age', 'age_group_start', 'age_group_end',
-                    'year', 'year_start', 'year_end', 'sex'), var_name='parameter', value_name='value')
+    ).melt(id_vars=('age_group_start', 'age_group_end',
+                    'year_start', 'year_end', 'sex'), var_name='parameter', value_name='value')
 
     affected_causes = ["test_cause_1", "test_cause_2"]
     rr_data = []
@@ -87,7 +87,7 @@ def dichotomous_risk():
         rr_data.append(
             build_table(
                 [1.01, 1, cause], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cause']
-            ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+            ).melt(id_vars=('age_group_start', 'age_group_end', 'year_start',
                             'year_end', 'sex', 'cause'), var_name='parameter', value_name='value')
         )
         paf_data.append(build_table([1, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause']))
@@ -112,8 +112,8 @@ def polytomous_risk():
     risk_data = dict()
     exposure_data = build_table(
         0.25, year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4']
-    ).melt(id_vars=('age', 'age_group_start', 'age_group_end',
-                    'year', 'year_start', 'year_end', 'sex'), var_name='parameter', value_name='value')
+    ).melt(id_vars=('age_group_start', 'age_group_end',
+                    'year_start', 'year_end', 'sex'), var_name='parameter', value_name='value')
 
     affected_causes = ["test_cause_1", "test_cause_2"]
     rr_data = []
@@ -122,7 +122,7 @@ def polytomous_risk():
         rr_data.append(
             build_table(
                 [1.03, 1.02, 1.01, 1, cause], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2', 'cat3', 'cat4', 'cause']
-            ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+            ).melt(id_vars=('age_group_start', 'age_group_end', 'year_start',
                             'year_end', 'sex', 'cause'), var_name='parameter', value_name='value')
         )
         paf_data.append(build_table([1, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause']))
@@ -148,7 +148,7 @@ def coverage_gap():
     cg_exposed = 0.6
     cg_exposure_data = build_table(
         [cg_exposed, 1 - cg_exposed], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
-    ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+    ).melt(id_vars=('age_group_start', 'age_group_end', 'year_start',
                     'year_end', 'sex',), var_name='parameter', value_name='value')
 
 
@@ -156,15 +156,15 @@ def coverage_gap():
     rr = 2
     rr_data = build_table(
         [rr, 1], year_start, year_end, ['age', 'year', 'sex', 'cat1', 'cat2']
-    ).melt(id_vars=('age', 'age_group_start', 'age_group_end',
-                    'year', 'year_start', 'year_end', 'sex'), var_name='parameter', value_name='value')
+    ).melt(id_vars=('age_group_start', 'age_group_end',
+                    'year_start', 'year_end', 'sex'), var_name='parameter', value_name='value')
 
     # paf is (sum(exposure(category)*rr(category) -1 )/ (sum(exposure(category)* rr(category)
     paf = (rr * cg_exposed + (1 - cg_exposed) - 1) / (rr * cg_exposed + (1 - cg_exposed))
 
     paf_data = build_table(
         paf, year_start, year_end, ['age', 'year', 'sex', 'population_attributable_fraction']
-    ).melt(id_vars=('age', 'age_group_start', 'age_group_end', 'year', 'year_start',
+    ).melt(id_vars=('age_group_start', 'age_group_end', 'year_start',
                     'year_end', 'sex'), var_name='population_attributable_fraction', value_name='value')
 
     paf_data['risk_factor'] = 'test_risk'
