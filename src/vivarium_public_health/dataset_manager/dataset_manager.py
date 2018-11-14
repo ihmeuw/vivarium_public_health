@@ -1,6 +1,7 @@
 """A vivarium plugin for managing complex data."""
 from pathlib import Path
 from typing import Union, Sequence
+import re
 
 import pandas as pd
 from vivarium.config_tree import ConfigTree
@@ -59,6 +60,7 @@ class ArtifactManager:
     configuration_defaults = {
         'input_data': {
             'artifact_path': None,
+            'artifact_filter_terms': None
         }
     }
 
@@ -81,6 +83,7 @@ class ArtifactManager:
         artifact_path = parse_artifact_path_config(configuration)
         draw = configuration.input_data.input_draw_number
         location = configuration.input_data.location
+        config_filter_terms = configuration.input_data.artifact_filter_terms
         base_filter_terms = [f'draw == {draw}', get_location_term(location)]
         return Artifact(artifact_path, base_filter_terms)
 
@@ -104,7 +107,7 @@ class ArtifactManager:
             The data associated with the given key, filtered down to the requested subset
             if the data is a dataframe.
         """
-        data = self.artifact.load(entity_key)
+        data = _config_filter(self.artifact.load(entity_key), self.config_filter_terms)
         return filter_data(data, keep_age_group_edges, **column_filters) if isinstance(data, pd.DataFrame) else data
 
 
@@ -113,6 +116,18 @@ def filter_data(data: pd.DataFrame, keep_age_group_edges: bool, **column_filters
     data = _subset_rows(data, **column_filters)
     data = _subset_columns(data, keep_age_group_edges, **column_filters)
     return data
+
+def _config_filter(data: pd.DataFrame, config_filter_terms: str) -> pd.DataFrame:
+    if config_filter_terms is not None:
+        return None
+
+
+def _parse_config_filter(data_columns, config_filter_terms):
+    ind_terms = re.split('[()]', config_filter_terms)
+
+        #re.split('[&|]').split(' and ').split(' or ')  # now we have a list of each term
+    filter_columns = [re.split()]
+
 
 
 def _subset_rows(data: pd.DataFrame, **column_filters: _Filter) -> pd.DataFrame:
