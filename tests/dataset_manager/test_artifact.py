@@ -55,7 +55,7 @@ def test_artifact_creation(hdf_mock, keys_mock):
     a = Artifact(path)
 
     assert a.path == path
-    assert a.filter_terms is None
+    assert a._filter_terms is None
     assert a._cache == {}
     assert a.keys == [EntityKey(k) for k in keys_mock]
     hdf_mock.get_keys.assert_called_once_with(path)
@@ -65,7 +65,7 @@ def test_artifact_creation(hdf_mock, keys_mock):
     a = Artifact(path, filter_terms)
 
     assert a.path == path
-    assert a.filter_terms == filter_terms
+    assert a._filter_terms == filter_terms
     assert a._cache == {}
     assert a.keys == [EntityKey(k) for k in keys_mock]
     hdf_mock.get_keys.assert_called_once_with(path)
@@ -261,7 +261,7 @@ def test_loading_key_leaves_filters_unchanged():
 
     for key in _KEYS:
         a.load(key)
-        assert a.filter_terms == filter_terms
+        assert a._filter_terms == filter_terms
 
 
 def test_EntityKey_init_failure():
