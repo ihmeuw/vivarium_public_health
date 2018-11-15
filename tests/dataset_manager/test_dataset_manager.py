@@ -121,6 +121,7 @@ def test_load_with_no_data(artifact_mock):
 def test_load_with_df_data(artifact_mock):
     am = ArtifactManager()
     am.artifact = artifact_mock
+    am.config_filter_term = None
     assert isinstance(am.load('df_data.key'), pd.DataFrame)
 
 
