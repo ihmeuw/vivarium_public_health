@@ -1,8 +1,15 @@
+**0.8.8 - 11/15/18**
+
+ - Fix bug in population age generation.
+ - Assign initial event time for prevalent cases of disease with a dwell time.
+ - Set up artifact filter terms.
+ - Remove mean year and age columns.
+
 **0.8.7 - 11/07/18**
 
-    - Switch to calculating pafs on the fly for non-continuous risks.
-    - Adding components for mslt.
-    - Pulled out distributions into separate package.
+ - Switch to calculating pafs on the fly for non-continuous risks.
+ - Adding components for mslt.
+ - Pulled out distributions into separate package.
 
 **0.8.6 - 11/05/18**
 
