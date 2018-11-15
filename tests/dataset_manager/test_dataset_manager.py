@@ -7,7 +7,7 @@ from vivarium.testing_utilities import build_table, metadata
 
 from vivarium_public_health.dataset_manager.dataset_manager import (_subset_rows, _subset_columns, get_location_term,
                                                                     parse_artifact_path_config, ArtifactManager,
-                                                                    filter_data)
+                                                                    _config_filter)
 @pytest.fixture()
 def artifact_mock(mocker):
     mock = mocker.patch('vivarium_public_health.dataset_manager.dataset_manager.Artifact')
@@ -126,15 +126,15 @@ def test_load_with_df_data(artifact_mock):
     assert isinstance(am.load('df_data.key'), pd.DataFrame)
 
 
-def test_filter_data_with_config_filter_term():
+def test__config_filter():
     df = pd.DataFrame({'year': range(1990, 2000, 1), 'color': ['red', 'yellow']*5})
-    filtered = filter_data(df, False, 'year in [1992, 1995]')
+    filtered = +_config_filter(df, 'year in [1992, 1995]')
 
     assert set(filtered.year) == {1992, 1995}
 
 
-def test_filter_data_config_filter_on_nonexistent_column():
+def test__config_filter_on_nonexistent_column():
     df = pd.DataFrame({'year': range(1990, 2000, 1), 'color': ['red', 'yellow']*5})
-    filtered = filter_data(df, False, 'fake_col in [1992, 1995]')
+    filtered = _config_filter(df, 'fake_col in [1992, 1995]')
 
     assert df.equals(filtered)
