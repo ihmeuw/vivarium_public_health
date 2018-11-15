@@ -42,6 +42,10 @@ class Artifact:
         """A list of all the keys contained within the artifact."""
         return self._keys
 
+    @property
+    def filter_terms(self) -> List[str]:
+        return self._filter_terms
+
     def load(self, entity_key: str) -> Any:
         """Loads the data associated with provided EntityKey.
 
