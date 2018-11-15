@@ -51,7 +51,8 @@ def test_FertilityCrudeBirthRate(base_config, base_plugins):
     simulation = initialize_simulation(components, base_config, base_plugins)
     simulation.data.write("covariate.live_births_by_sex.estimate",
                           build_table(5000, 1990, 2016, ('age', 'year', 'sex', 'mean_value')
-                                      ).query('age == 25').drop('age', 'columns'))
+                                      ).query('age_group_start == 25').drop(['age_group_start',
+                                                                            'age_group_end'], 'columns'))
 
     simulation.setup()
 
@@ -78,7 +79,8 @@ def test_FertilityCrudeBirthRate(base_config, base_plugins):
     simulation = initialize_simulation(components, base_config, base_plugins)
     simulation.data.write("covariate.live_births_by_sex.estimate",
                           build_table(500, 1990, 2016, ('age', 'year', 'sex', 'mean_value')
-                                      ).query('age == 25').drop('age', 'columns'))
+                                      ).query('age_group_start == 25').drop(['age_group_start',
+                                                                            'age_group_end'], 'columns'))
     simulation.setup()
     with pytest.raises(ValueError):
         simulation.take_steps(6)
@@ -97,7 +99,8 @@ def test_FertilityCrudeBirthRate(base_config, base_plugins):
     simulation = initialize_simulation(components, base_config, base_plugins)
     simulation.data.write("covariate.live_births_by_sex.estimate",
                           build_table(500, 1990, 2016, ('age', 'year', 'sex', 'mean_value')
-                                      ).query('age == 25').drop('age', 'columns'))
+                                      ).query('age_group_start == 25').drop(['age_group_start',
+                                                                            'age_group_end'], 'columns'))
     simulation.setup()
     birth_rate = []
     pop = []

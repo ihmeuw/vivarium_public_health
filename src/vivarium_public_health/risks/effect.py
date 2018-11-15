@@ -73,7 +73,7 @@ class RiskEffect:
                 paf_data = get_paf_data(exposure, rr)
 
         paf_data = paf_data[paf_data[filter_name] == filter_term]
-        paf_data = paf_data.loc[:, ['year', 'sex', 'age', 'value', self.affected_entity_type, 'age_group_start', 'age_group_end',
+        paf_data = paf_data.loc[:, ['sex', 'value', self.affected_entity_type, 'age_group_start', 'age_group_end',
                                     'year_start', 'year_end']]
 
         return pivot_age_sex_year_binned(paf_data, self.affected_entity_type, 'value')
@@ -85,14 +85,13 @@ class RiskEffect:
             rr_data = builder.data.load(f"{self.risk_type}.{self.risk}.relative_risk")
 
         row_filter = rr_data[f'{self.affected_entity_type}'] == self.affected_entity
-        column_filter = ['year', 'parameter', 'sex', 'age', 'value',
-                         'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        column_filter = ['parameter', 'sex', 'value', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
         rr_data = rr_data.loc[row_filter, column_filter]
 
         if should_rebin(self.risk, builder.configuration):
             exposure_data = builder.data.load(f"{self.risk_type}.{self.risk}.exposure")
             exposure_data = exposure_data.loc[:, column_filter]
-            exposure_data = exposure_data[exposure_data['year'].isin(rr_data.year.unique())]
+            exposure_data = exposure_data[exposure_data['year_start'].isin(rr_data.year_start.unique())]
             rr_data = rebin_rr_data(rr_data, exposure_data)
 
         return pivot_age_sex_year_binned(rr_data, 'parameter', 'value')

@@ -23,21 +23,21 @@ def assign_demographic_proportions(population_data):
 
     population_data['P(sex, location, age| year)'] = (
         population_data
-            .groupby('year', as_index=False)
+            .groupby('year_start', as_index=False)
             .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
             .reset_index(level=0).population
     )
 
     population_data['P(sex, location | age, year)'] = (
         population_data
-            .groupby(['age', 'year'], as_index=False)
+            .groupby(['age', 'year_start'], as_index=False)
             .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
             .reset_index(level=0).population
     )
 
     population_data['P(age | year, sex, location)'] = (
         population_data
-            .groupby(['year', 'sex', 'location'], as_index=False)
+            .groupby(['year_start', 'sex', 'location'], as_index=False)
             .apply(lambda sub_pop: sub_pop.population / sub_pop.population.sum())
             .reset_index(level=0).population
     )
@@ -123,7 +123,7 @@ def _add_edge_age_groups(pop_data):
     -------
     pandas.DataFrame
     """
-    index_cols = ['location', 'year', 'sex']
+    index_cols = ['location', 'year_start', 'year_end', 'sex']
     age_cols = ['age', 'age_group_start', 'age_group_end']
     other_cols = [c for c in pop_data.columns if c not in index_cols + age_cols]
     pop_data = pop_data.set_index(index_cols)
@@ -154,9 +154,11 @@ def _add_edge_age_groups(pop_data):
     upper_bin[other_cols] = 0 * pop_data.loc[pop_data['age_group_end'] == max_valid_age, other_cols]
 
     pop_data = pd.concat([lower_bin, pop_data, upper_bin]).reset_index()
-    pop_data = pop_data.rename(columns={'level_0': 'location', 'level_1': 'year', 'level_2': 'sex'})
+
+    pop_data = pop_data.rename(columns={'level_0': 'location', 'level_1': 'year_start',
+                                        'level_2': 'year_end', 'level_3': 'sex'})
     return pop_data[index_cols + age_cols + other_cols].sort_values(
-        by=['location', 'year', 'age']).reset_index(drop=True)
+        by=['location', 'year_start', 'year_end', 'age']).reset_index(drop=True)
 
 
 AgeValues = namedtuple('AgeValues', ['current', 'young', 'old'])
@@ -343,7 +345,7 @@ def _compute_ages(uniform_rv, start, height, slope, normalization):
 
 
 def get_cause_deleted_mortality(all_cause_mortality, list_of_csmrs):
-    index_cols = ['age', 'age_group_start', 'age_group_end', 'sex', 'year', 'year_start', 'year_end']
+    index_cols = ['age_group_start', 'age_group_end', 'sex', 'year_start', 'year_end']
     all_cause_mortality = all_cause_mortality.set_index(index_cols).copy()
     for csmr in list_of_csmrs:
         if csmr is None:

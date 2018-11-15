@@ -115,8 +115,8 @@ def get_distribution(risk: str, risk_type: str, builder):
         exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
 
         # merge to make sure we have matching mean and standard deviation
-        exposure = exposure_data.merge(exposure_sd).set_index(['year', 'year_start', 'year_end',
-                                                               'age', 'age_group_start', 'age_group_end', 'sex'])
+        exposure = exposure_data.merge(exposure_sd).set_index(['year_start', 'year_end',
+                                                               'age_group_start', 'age_group_end', 'sex'])
 
         if distribution_type == 'normal':
             distribution = SimulationDistribution(mean=exposure['mean'], sd=exposure['standard_deviation'],

@@ -48,13 +48,13 @@ MOCKERS = {
             'population_attributable_fraction': 1,
         },
         'healthcare_entity': {
-            'cost': build_table(0, 1990, 2018).query('sex=="Both" and age==27').drop('sex', 'columns'),
+            'cost': build_table(0, 1990, 2018).query('sex=="Both" and age_group_start==27').drop('sex', 'columns'),
             'annual_visits': 0,
         },
         'population': {
             'structure': make_uniform_pop_data(),
             'theoretical_minimum_risk_life_expectancy': build_table(98.0, 1990, 1990).query('sex=="Both"')\
-                .filter(['age', 'age_group_start', 'age_group_end', 'value'])
+                .filter(['age_group_start', 'age_group_end', 'value'])
         },
 }
 

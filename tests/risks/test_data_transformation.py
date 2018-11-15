@@ -1,5 +1,3 @@
-import numpy as np
-
 import pytest
 
 from vivarium.testing_utilities import build_table
@@ -45,8 +43,8 @@ def test_rebin_exposure(initial, rebin):
     expected = make_test_data_table(rebin)
 
     rebinned = rebin_exposure_data(test_df).loc[:, expected.columns]
-    expected = expected.set_index(['age', 'year', 'sex'])
-    rebinned = rebinned.set_index(['age', 'year', 'sex'])
+    expected = expected.set_index(['age_group_start', 'year_start', 'sex'])
+    rebinned = rebinned.set_index(['age_group_start', 'year_start', 'sex'])
 
     assert np.allclose(expected.value[expected.parameter == 'cat1'], rebinned.value[rebinned.parameter == 'cat1'])
     assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])
@@ -61,8 +59,8 @@ def test_rebin_relative_risk(e, rr, rebin):
     expected = make_test_data_table(rebin)
 
     rebinned = rebin_rr_data(relative_risk, exposure).loc[:, expected.columns]
-    expected = expected.set_index(['age', 'year', 'sex'])
-    rebinned = rebinned.set_index(['age', 'year', 'sex'])
+    expected = expected.set_index(['age_group_start', 'year_start', 'sex'])
+    rebinned = rebinned.set_index(['age_group_start', 'year_start', 'sex'])
 
     assert np.allclose(expected.value[expected.parameter == 'cat1'], rebinned.value[rebinned.parameter == 'cat1'])
     assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])
@@ -70,12 +68,12 @@ def test_rebin_relative_risk(e, rr, rebin):
 
 test_data = [([0.1, 0.2, 0.3, 0.4], [4, 3, 2, 1], [0.5]), ([0.3, 0.6, 0.1], [20, 10, 1], [11.1/12.1])]
 @pytest.mark.parametrize('e, rr, paf', test_data)
-def test_get_paf_data( e, rr, paf):
+def test_get_paf_data(e, rr, paf):
     exposure = make_test_data_table(e)
     RR = make_test_data_table(rr)
     expected = make_test_data_table(paf)
 
-    key_cols =['age', 'year', 'sex']
+    key_cols =['age_group_start', 'year_start', 'sex']
     get_paf = get_paf_data(exposure, RR)[key_cols + ['value']].set_index(key_cols)
 
     assert np.allclose(expected.value, get_paf.value)

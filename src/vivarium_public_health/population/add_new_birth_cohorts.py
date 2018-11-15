@@ -1,6 +1,7 @@
 """This module contains several components that  model birth rates."""
 import pandas as pd
 import numpy as np
+from vivarium_public_health.population.base_population import load_population_structure
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate better data into gestational model (probably as a separate component)
@@ -77,7 +78,7 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-        self._population_data = builder.data.load("population.structure")
+        self._population_data = load_population_structure(builder)
         self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
         if 'exit_age' in builder.configuration.population:
             self.exit_age = builder.configuration.population.exit_age
@@ -138,7 +139,7 @@ class FertilityCrudeBirthRate:
             births per person per year.
         """
 
-        most_recent_data_year = min(max(self._population_data.year), max(self._birth_data.year))
+        most_recent_data_year = min(max(self._population_data.year_start), max(self._birth_data.year_start))
         if year > most_recent_data_year:
             if not self.extrapolate:
                 raise ValueError('You need to set extrapolate=True to run simulation for the future years')
@@ -147,8 +148,8 @@ class FertilityCrudeBirthRate:
             # a better idea
             year = most_recent_data_year
 
-        population_table = self._population_data.query("year == @year and sex == 'Both'")
-        births = float(self._birth_data.query('sex == "Both"').set_index(['year']).loc[year].mean_value)
+        population_table = self._population_data.query("year_start == @year and sex == 'Both'")
+        births = float(self._birth_data.query('sex == "Both"').set_index(['year_start']).loc[year].mean_value)
 
         if self.exit_age is not None:
             population = population_table.query("age < @self.exit_age").population.sum()
@@ -175,8 +176,8 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness.get_stream('fertility')
-        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")[['year', 'year_start', 'year_end',
-                                                                                         'age', 'age_group_start',
+        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")[['year_start', 'year_end',
+                                                                                         'age_group_start',
                                                                                          'age_group_end', 'value']]
         asfr_source = builder.lookup.build_table(asfr_data, key_columns=(),
                                                  parameter_columns=[('age', 'age_group_start', 'age_group_end'),
