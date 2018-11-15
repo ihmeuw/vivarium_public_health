@@ -125,9 +125,10 @@ def filter_data(data: pd.DataFrame, keep_age_group_edges: bool,
 
 
 def _config_filter(data, config_filter_term):
-    filter_column = re.split('[<=>]', config_filter_term.split()[0])[0]
-    if filter_column in data.columns:
-        data = data.query(config_filter_term)
+    if config_filter_term:
+        filter_column = re.split('[<=>]', config_filter_term.split()[0])[0]
+        if filter_column in data.columns:
+            data = data.query(config_filter_term)
     return data
 
 
