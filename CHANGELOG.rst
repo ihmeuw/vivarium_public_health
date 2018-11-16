@@ -1,3 +1,7 @@
+**0.8.9 - 11/15/18**
+
+ - Update documentation dependencies.
+
 **0.8.8 - 11/15/18**
 
  - Fix bug in population age generation.
