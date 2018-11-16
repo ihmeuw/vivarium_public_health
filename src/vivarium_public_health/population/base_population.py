@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 from .data_transformations import assign_demographic_proportions, rescale_binned_proportions, smooth_ages
 
@@ -36,7 +37,7 @@ class BasePopulation:
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
-        source_population_structure = builder.data.load("population.structure", keep_age_group_edges=True)
+        source_population_structure = load_population_structure(builder)
         source_population_structure['location'] = input_config.location
         self.population_data = _build_population_data_table(source_population_structure)
 
@@ -44,6 +45,11 @@ class BasePopulation:
         if self.config.exit_age is not None:
             builder.components.add_components([AgedOutSimulants()])
 
+    @staticmethod
+    def select_sub_population_data(reference_population_data, year):
+        reference_years = sorted(set(reference_population_data.year_start))
+        ref_year_index = np.digitize(year, reference_years).item()-1
+        return reference_population_data[reference_population_data.year_start == reference_years[ref_year_index]]
 
     # TODO: Move most of this docstring to an rst file.
     def generate_base_population(self, pop_data):
@@ -72,12 +78,7 @@ class BasePopulation:
         age_params = {'age_start': pop_data.user_data.get('age_start', self.config.age_start),
                       'age_end': pop_data.user_data.get('age_end', self.config.age_end)}
 
-        if pop_data.creation_time.year in self.population_data.year.unique():
-            sub_pop_data = self.population_data[self.population_data.year == pop_data.creation_time.year]
-        elif pop_data.creation_time.year > self.population_data.year.max():
-            sub_pop_data = self.population_data[self.population_data.year == self.population_data.year.max()]
-        else:  # pop_data.creation_time.year < self.population_data.year.min():
-            sub_pop_data = self.population_data[self.population_data.year == self.population_data.year.min()]
+        sub_pop_data = self.select_sub_population_data(self.population_data, pop_data.creation_time.year)
 
         self.population_view.update(generate_population(simulant_ids=pop_data.index,
                                                         creation_time=pop_data.creation_time,
@@ -289,3 +290,10 @@ def _build_population_data_table(data):
             'P(age | year, sex, location)' : Conditional probability of age given year, sex, and location.
     """
     return assign_demographic_proportions(data)
+
+
+def load_population_structure(builder):
+    data = builder.data.load("population.structure")
+    # create an age column which is the midpoint of the age group
+    data['age'] = data.apply(lambda row: (row['age_group_start'] + row['age_group_end']) / 2, axis=1)
+    return data

@@ -1,3 +1,28 @@
+**0.8.9 - 11/15/18**
+
+ - Update documentation dependencies.
+
+**0.8.8 - 11/15/18**
+
+ - Fix bug in population age generation.
+ - Assign initial event time for prevalent cases of disease with a dwell time.
+ - Set up artifact filter terms.
+ - Remove mean year and age columns.
+
+**0.8.7 - 11/07/18**
+
+ - Switch to calculating pafs on the fly for non-continuous risks.
+ - Adding components for mslt.
+ - Pulled out distributions into separate package.
+
+**0.8.6 - 11/05/18**
+
+ - Extend interactive api to package up data artifact manager in standard sims.
+ - Exposed disease prevalence propensity as a pipeline
+ - Added logic to rebin polytomous risks to dichotomous risks.
+ - Cleaned up confusing naming in metrics pipelines.
+ - Allow open cohorts to extrapolate birth rate data into the future.
+
 **0.8.5 - 10/23/18**
 
  - Update mass treatment campaign configuration for easier distributed runs.

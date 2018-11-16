@@ -110,8 +110,7 @@ def pivot_age_sex_year_binned(data, columns, values):
         Column name to be passed as 'values' arg in pivot
     """
     # to avoid MemoryError, pull off the mid and right edge columns and do the pivot with only left edge
-    mapping = data[['sex', 'year', 'year_start', 'year_end',
-                    'age', 'age_group_start', 'age_group_end']].drop_duplicates()
+    mapping = data[['sex', 'year_start', 'year_end', 'age_group_start', 'age_group_end']].drop_duplicates()
     data = pd.pivot_table(data, index=['year_start', 'age_group_start', 'sex'],
                           columns=columns, values=values).dropna().reset_index()
     # merge back on the other edges
@@ -119,6 +118,6 @@ def pivot_age_sex_year_binned(data, columns, values):
     data = data.set_index(['year_start', 'age_group_start', 'sex'], drop=False)
     mapping = mapping.set_index(['year_start', 'age_group_start', 'sex'], drop=False)
 
-    data[['year', 'year_end', 'age', 'age_group_end']] = mapping[['year', 'year_end', 'age', 'age_group_end']]
+    data[['year_end', 'age_group_end']] = mapping[['year_end', 'age_group_end']]
 
     return data.set_index(idx)

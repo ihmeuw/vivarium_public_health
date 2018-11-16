@@ -16,7 +16,7 @@ def rebin_exposure_data(data: pd.DataFrame) -> pd.DataFrame:
     unexposed = sorted([c for c in data['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
     middle_cats = set(data['parameter']) - {unexposed} - {'cat1'}
     data['sex'] = data['sex'].astype(object)
-    df = data.groupby(['year', 'age', 'sex'], as_index=False)
+    df = data.groupby(['year_start', 'year_end', 'age_group_start', 'age_group_end', 'sex'], as_index=False)
     assert np.allclose(df['value'].sum().value, 1)
 
     def rebin(g):
@@ -41,10 +41,10 @@ def rebin_rr_data(rr: pd.DataFrame, exposure: pd.DataFrame) -> pd.DataFrame:
         (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
     """
 
-    df = exposure.merge(rr, on=['year', 'parameter', 'age', 'sex', 'age_group_start', 'age_group_end',
+    df = exposure.merge(rr, on=['parameter', 'sex', 'age_group_start', 'age_group_end',
                                 'year_start', 'year_end'])
 
-    df = df.groupby(['year', 'age', 'sex'], as_index=False)
+    df = df.groupby(['year_start', 'year_end', 'age_group_start', 'age_group_end', 'sex'], as_index=False)
 
     unexposed = sorted([c for c in rr['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
     middle_cats = set(rr['parameter']) - {unexposed} - {'cat1'}
@@ -64,6 +64,29 @@ def rebin_rr_data(rr: pd.DataFrame, exposure: pd.DataFrame) -> pd.DataFrame:
         g['value'].fillna(0, inplace=True)
         return g
 
-    df = df.apply(rebin_rr).reset_index().loc[:, ['year', 'parameter', 'sex', 'age', 'value', 'age_group_start',
+    df = df.apply(rebin_rr).reset_index().loc[:, ['parameter', 'sex', 'value', 'age_group_start',
                                                   'age_group_end', 'year_start', 'year_end']]
     return df.replace(unexposed, 'cat2')
+
+
+def get_paf_data(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
+
+    years = rr.year_start.unique()
+    ex = ex[ex['year_start'].isin(years)]
+    key_cols = ['sex', 'parameter', 'year_start', 'year_end', 'age_group_start', 'age_group_end']
+    df = ex.merge(rr, on=key_cols)
+    df = df.groupby(['age_group_start', 'age_group_end', 'sex', 'year_start', 'year_end'], as_index=False)
+
+    def compute_paf(g):
+        to_drop = g['parameter'] != 'cat1'
+        tmp = g['value_x'] * g['value_y']
+        tmp = tmp.sum()
+        g.drop(g[to_drop].index, inplace=True)
+        g.drop(['parameter', 'value_x', 'value_y'], axis=1, inplace=True)
+        g['value'] = (tmp-1)/tmp
+        return g
+
+    paf = df.apply(compute_paf).reset_index()
+    paf = paf.replace(-np.inf, 0)  # Rows with zero exposure.
+
+    return paf

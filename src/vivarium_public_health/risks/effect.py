@@ -1,7 +1,7 @@
 import numpy as np
 
 from vivarium_public_health.util import pivot_age_sex_year_binned
-from .data_transformation import should_rebin, rebin_rr_data
+from .data_transformation import should_rebin, rebin_rr_data, get_paf_data
 
 
 def get_exposure_effect(builder, risk, risk_type):
@@ -57,20 +57,26 @@ class RiskEffect:
         return self.exposure_effect(target, self.relative_risk(index))
 
     def _get_paf_data(self, builder):
+        filter_name, filter_term = self.affected_entity_type, self.affected_entity
         if 'paf' in self._get_data_functions:
             paf_data = self._get_data_functions['paf'](builder)
-            filter_name, filter = self.affected_entity_type, self.affected_entity
-        else:
-            if self.risk_type == "risk_factor":
-                prefix = f"{self.affected_entity_type}.{self.affected_entity}"
-                filter_name, filter = self.risk_type, self.risk
-            else:
-                prefix = f"{self.risk_type}.{self.risk}"
-                filter_name, filter = self.affected_entity_type, self.affected_entity
-            paf_data = builder.data.load(f"{prefix}.population_attributable_fraction")
 
-        paf_data = paf_data[paf_data[filter_name] == filter]
-        return paf_data[['year', 'sex', 'age', 'value', 'age_group_start', 'age_group_end', 'year_start', 'year_end']]
+        else:
+            distribution = builder.data.load(f'{self.risk_type}.{self.risk}.distribution')
+            if distribution in ['normal', 'lognormal', 'ensemble']:
+                paf_data = builder.data.load(f'{self.risk_type}.{self.risk}.population_attributable_fraction')
+
+            else:
+                exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
+                rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
+                rr = rr[rr[filter_name] == filter_term]
+                paf_data = get_paf_data(exposure, rr)
+
+        paf_data = paf_data[paf_data[filter_name] == filter_term]
+        paf_data = paf_data.loc[:, ['sex', 'value', self.affected_entity_type, 'age_group_start', 'age_group_end',
+                                    'year_start', 'year_end']]
+
+        return pivot_age_sex_year_binned(paf_data, self.affected_entity_type, 'value')
 
     def _get_rr_data(self, builder):
         if 'rr' in self._get_data_functions:
@@ -79,14 +85,13 @@ class RiskEffect:
             rr_data = builder.data.load(f"{self.risk_type}.{self.risk}.relative_risk")
 
         row_filter = rr_data[f'{self.affected_entity_type}'] == self.affected_entity
-        column_filter = ['year', 'parameter', 'sex', 'age', 'value',
-                         'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        column_filter = ['parameter', 'sex', 'value', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
         rr_data = rr_data.loc[row_filter, column_filter]
 
         if should_rebin(self.risk, builder.configuration):
             exposure_data = builder.data.load(f"{self.risk_type}.{self.risk}.exposure")
             exposure_data = exposure_data.loc[:, column_filter]
-            exposure_data = exposure_data[exposure_data['year'].isin(rr_data.year.unique())]
+            exposure_data = exposure_data[exposure_data['year_start'].isin(rr_data.year_start.unique())]
             rr_data = rebin_rr_data(rr_data, exposure_data)
 
         return pivot_age_sex_year_binned(rr_data, 'parameter', 'value')

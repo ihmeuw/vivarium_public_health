@@ -26,7 +26,7 @@ def base_data():
     def _set_prevalence(p):
         base_function = dict()
         base_function['disability_weight'] = lambda _, __: 0
-        base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=0)
+        base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=1)
         base_function['prevalence'] = lambda _, __: p
         return base_function
     return _set_prevalence
@@ -312,3 +312,16 @@ def test_risk_deletion(base_config, base_plugins, disease):
 
     assert np.allclose(from_yearly(expected_rate, time_step),
                        incidence_rate(simulation.population.population.index), atol=0.00001)
+
+
+def test__assign_event_time_for_prevalent_cases():
+    pop_data = pd.DataFrame(index=range(100))
+    random_func = lambda index: pd.Series(0.4, index=index)
+    current_time = pd.Timestamp(2017, 1, 10, 12)
+
+    dwell_time_func = lambda index: pd.Series(10, index=index)
+    # 10* 0.4 = 4 ; 4 days before the current time
+    expected = pd.Series(pd.Timestamp(2017, 1, 6, 12), index=pop_data.index)
+
+    assert expected.equals(DiseaseState._assign_event_time_for_prevalent_cases(pop_data, current_time, random_func,
+                                                                               dwell_time_func))

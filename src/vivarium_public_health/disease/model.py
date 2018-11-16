@@ -100,7 +100,6 @@ class DiseaseModel(Machine):
         initial_states = pd.Series(np.array(state_names)[choice_index], index=simulants.index)
 
         simulants.loc[:, 'condition_state'] = initial_states
-
         return simulants
 
     def load_population_columns(self, pop_data):
