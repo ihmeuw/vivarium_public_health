@@ -129,7 +129,7 @@ class Artifact:
         Parameters
         ----------
         entity_key :
-            The key associated with the provided data.
+            The key for which the data should be overwritten.
         data :
             The data to write. Accepted formats are ``pandas`` Series or DataFrames
             or standard python types and containers.
@@ -137,8 +137,11 @@ class Artifact:
         Raises
         ------
         ArtifactException :
-            If the provided key already exists in the artifact.
+            If the provided key does not already exist in the artifact.
         """
+        e_key = EntityKey(entity_key)
+        if e_key not in self.keys:
+            raise ArtifactException(f'Trying to replace non-existent key {e_key} in artifact.')
         self.remove(entity_key)
         self.write(entity_key, data)
 
