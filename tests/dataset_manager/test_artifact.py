@@ -264,6 +264,39 @@ def test_loading_key_leaves_filters_unchanged():
         assert a.filter_terms == filter_terms
 
 
+def test_replace(hdf_mock):
+    path = '/place/with/artifact.hdf'
+    filter_terms = ['location == Global', 'draw == 10']
+    key = 'new.key'
+    ekey = EntityKey(key)
+
+    a = Artifact(path, filter_terms)
+
+    assert ekey not in a.keys
+
+    a.write(key, "data")
+
+    a.replace(key, "new_data")
+    hdf_mock.remove.assert_called_with(path, ekey)
+    hdf_mock.write.assert_called_with(path, ekey, "new_data")
+
+    assert ekey in a.keys
+
+
+def test_replace_nonexistent_key(hdf_mock):
+    path = '/place/with/artifact.hdf'
+    filter_terms = ['location == Global', 'draw == 10']
+    key = 'new.key'
+    ekey = EntityKey(key)
+
+    a = Artifact(path, filter_terms)
+
+    assert ekey not in a.keys
+
+    with pytest.raises(ArtifactException):
+        a.replace(key, "new_data")
+
+
 def test_EntityKey_init_failure():
     bad_keys = ['hello', 'a.b.c.d', '', '.', '.coconut', 'a.', 'a..c']
 
