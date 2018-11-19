@@ -26,19 +26,22 @@ in our artifact. We'll use our test artifact to illustrate:
     art = Artifact('../../../tests/dataset_manager/artifact.hdf')
     print(art)
 
+
 Now we have an :class:`~vivarium_public_health.dataset_manager.artifact.Artifact` object, which we can use to interact
 with the data stored in the hdf file with which we created it.
 
 Optionally, we can specify filter terms on the artifact when we create it, which will be applied to filter all data
-that we load out of the artifact. For example, if we were only interested in data for ages over 5, we could add a filter
-term to our artifact that would filter all data with an ``age`` column.
+that we load out of the artifact. For example, if we were only interested in data for years after 2005, we could add a
+filter term to our artifact that would filter all data with a ``year`` column.
 
 .. code-block:: python
 
     from vivarium_public_health.dataset_manager import Artifact
 
-    art = Artifact('../../../tests/dataset_manager/artifact.hdf', filter_terms=['age > 5'])
+    art = Artifact('../../../tests/dataset_manager/artifact.hdf', filter_terms=['year > 2005'])
     print(art)
+
+Note that the keys in the artifact are unchanged. The filter terms only affect data when it is loaded out of the artifact.
 
 .. testcode::
     :hide:
@@ -50,24 +53,19 @@ term to our artifact that would filter all data with an ``age`` column.
 
 Artifacts store data under keys. Each key is of the form ``<type>.<name>.<measure>``, e.g.,
 "cause.all_causes.restrictions" or ``<type>.<measure>``, e.g., "population.structure." To view all keys in an
-artifact, use the :attribute:`~vivarium_public_health.dataset_manager.artifact.Artifact.keys` attribute of the
+artifact, use the `~vivarium_public_health.dataset_manager.artifact.Artifact.keys` attribute of the
 artifact:
 
 .. code-block:: python
 
-    from vivarium_public_health.dataset_manager import Artifact
-
-    art = Artifact('../../../tests/dataset_manager/artifact.hdf')
     art.keys
+
 
 What we get back is a list of :class:`~vivarium_public_health.dataset_manager.artifact.EntityKey` objects. We can
 access the individual components of each key via attributes, like so:
 
 .. code-block:: python
 
-    from vivarium_public_health.dataset_manager import Artifact
-
-    art = Artifact('../../../tests/dataset_manager/artifact.hdf')
     key = art.keys[0]
     print(key.type)
     print(key.name)
@@ -88,9 +86,6 @@ And the string representation of the key (helpful for writing/removing data as w
 
 .. code-block:: python
 
-    from vivarium_public_health.dataset_manager import Artifact
-
-    art = Artifact('../../../tests/dataset_manager/artifact.hdf')
     key = art.keys[0]
     str(key)
 
@@ -102,9 +97,6 @@ view the underlying storage structure, let's cover how to actually retrieve data
 
 .. code-block:: python
 
-    from vivarium_public_health.dataset_manager import Artifact
-
-    art = Artifact('../../../tests/dataset_manager/artifact.hdf')
     art.load(str(art.keys[0]))
 
 .. testcode::
@@ -120,3 +112,33 @@ Writing data
 To write new data to an artifact, use the :func:`~vivarium_public_health.dataset_manager.artifact.Artifact.write` method,
 passing the full key (in the string representation we saw above of type.name.measure or type.measure) and the data you wish
 to store.
+
+.. code-block:: python
+
+    new_data = ['United States', 'Washington', 'California']
+
+    art.write('locations.names', new_data)
+
+    if 'locations.names' in art:
+        print('Successfully Added!')
+
+
+.. testcode::
+    :hide:
+
+    art.remove('locations.names'
+
+
+Removing data
+-------------
+
+Like :func:`~vivarium_public_health.dataset_manager.artifact.Artifact.load` and :func:`~vivarium_public_health.dataset_manager.artifact.Artifact.write`,
+:func:`~vivarium_public_health.dataset_manager.artifact.Artifact.remove` is based on keys. Pass the name of the key
+you wish to remove, and it will be deleted from the artifact and the underlying hdf file.
+
+.. code-block:: python
+
+    art.remove('locations.names')
+
+    if not 'locations.names' in art:
+        print('Successfully Deleted!')
