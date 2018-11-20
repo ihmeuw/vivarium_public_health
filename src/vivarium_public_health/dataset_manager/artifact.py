@@ -123,6 +123,28 @@ class Artifact:
             self._cache.pop(entity_key)
         hdf.remove(self.path, entity_key)
 
+    def replace(self, entity_key: str, data: Any):
+        """Replaces the data in the artifact at the provided key with the prov.
+
+        Parameters
+        ----------
+        entity_key :
+            The key for which the data should be overwritten.
+        data :
+            The data to write. Accepted formats are ``pandas`` Series or DataFrames
+            or standard python types and containers.
+
+        Raises
+        ------
+        ArtifactException :
+            If the provided key does not already exist in the artifact.
+        """
+        e_key = EntityKey(entity_key)
+        if e_key not in self.keys:
+            raise ArtifactException(f'Trying to replace non-existent key {e_key} in artifact.')
+        self.remove(entity_key)
+        self.write(entity_key, data)
+
     def clear_cache(self):
         """Clears the artifact's cache.
 

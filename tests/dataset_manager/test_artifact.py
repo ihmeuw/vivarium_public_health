@@ -1,5 +1,5 @@
 import pytest
-import pandas as pd
+from unittest.mock import call
 from pathlib import Path
 
 from vivarium_public_health.dataset_manager.artifact import Artifact, ArtifactException, EntityKey, _to_tree
@@ -262,6 +262,39 @@ def test_loading_key_leaves_filters_unchanged():
     for key in _KEYS:
         a.load(key)
         assert a.filter_terms == filter_terms
+
+
+def test_replace(hdf_mock):
+    path = '/place/with/artifact.hdf'
+    filter_terms = ['location == Global', 'draw == 10']
+    key = 'new.key'
+    ekey = EntityKey(key)
+
+    a = Artifact(path, filter_terms)
+
+    assert ekey not in a.keys
+
+    a.write(key, "data")
+
+    a.replace(key, "new_data")
+    hdf_mock.remove.assert_called_once_with(path, ekey)
+    hdf_mock.write.assert_has_calls([call(path, ekey, "data"), call(path, ekey, "new_data")])
+
+    assert ekey in a.keys
+
+
+def test_replace_nonexistent_key(hdf_mock):
+    path = '/place/with/artifact.hdf'
+    filter_terms = ['location == Global', 'draw == 10']
+    key = 'new.key'
+    ekey = EntityKey(key)
+
+    a = Artifact(path, filter_terms)
+
+    assert ekey not in a.keys
+
+    with pytest.raises(ArtifactException):
+        a.replace(key, "new_data")
 
 
 def test_EntityKey_init_failure():
