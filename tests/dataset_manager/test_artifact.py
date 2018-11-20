@@ -1,5 +1,5 @@
 import pytest
-import pandas as pd
+from unittest.mock import call
 from pathlib import Path
 
 from vivarium_public_health.dataset_manager.artifact import Artifact, ArtifactException, EntityKey, _to_tree
@@ -277,8 +277,8 @@ def test_replace(hdf_mock):
     a.write(key, "data")
 
     a.replace(key, "new_data")
-    hdf_mock.remove.assert_called_with(path, ekey)
-    hdf_mock.write.assert_called_with(path, ekey, "new_data")
+    hdf_mock.remove.assert_called_once_with(path, ekey)
+    hdf_mock.write.assert_has_calls([call(path, ekey, "data"), call(path, ekey, "new_data")])
 
     assert ekey in a.keys
 
