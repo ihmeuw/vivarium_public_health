@@ -127,8 +127,7 @@ def test_fertility_module(base_config, base_plugins):
     components = [TestPopulation(), FertilityAgeSpecificRates()]
     simulation = initialize_simulation(components, base_config, base_plugins)
 
-    asfr_data = build_table(0.05, 1990, 2018).query("sex == 'Female'")\
-        .drop("sex", "columns").rename(columns={'value': 'mean_value'})
+    asfr_data = build_table(0.05, 1990, 2018).rename(columns={'value': 'mean_value'})
     simulation.data.write("covariate.age_specific_fertility_rate.estimate", asfr_data)
 
     simulation.setup()
