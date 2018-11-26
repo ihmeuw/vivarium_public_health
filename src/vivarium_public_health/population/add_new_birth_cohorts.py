@@ -178,7 +178,7 @@ class FertilityAgeSpecificRates:
         self.randomness = builder.randomness.get_stream('fertility')
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")[['year_start', 'year_end',
                                                                                          'age_group_start',
-                                                                                         'age_group_end', 'value']]
+                                                                                         'age_group_end', 'mean_value']]
         asfr_source = builder.lookup.build_table(asfr_data, key_columns=(),
                                                  parameter_columns=[('age', 'age_group_start', 'age_group_end'),
                                                                     ('year', 'year_start', 'year_end')],)
