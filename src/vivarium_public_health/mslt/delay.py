@@ -58,9 +58,6 @@ class DelayedRisk:
                affects:
                    # This is where the affected diseases should be listed.
                    stroke:
-               # For now, apply a constant PIF to incidence and/or remission.
-               incidence_pif: 0.95
-               remission_pif: 1.05
     """
 
     def __init__(self, name, bin_years=20):
@@ -80,10 +77,6 @@ class DelayedRisk:
         handlers and rate modifiers, and setting up the population view.
         """
         self.config = builder.configuration
-
-        # NOTE: for now, apply a constant PIF to incidence and remission.
-        self.incidence_pif = self.config[self.name].incidence_pif
-        self.remission_pif = self.config[self.name].remission_pif
 
         # Load the initial prevalence.
         prev_data = builder.data.load(f'risk_factor.{self.name}.prevalence')
@@ -140,7 +133,8 @@ class DelayedRisk:
             int_col = {c: c.replace(dis_prefix, int_prefix).replace('post_', '')
                        for c in dis_columns}
             for column in dis_columns:
-                rr_data[int_col[column]] = rr_data[column]
+                # NOTE: avoid SettingWithCopyWarning
+                rr_data.loc[:, int_col[column]] = rr_data[column]
             rr_data = rr_data.rename(columns=bau_col)
             rr_data = add_year_column(builder, rr_data)
             self.dis_rr[disease] = builder.lookup.build_table(rr_data)
@@ -226,9 +220,8 @@ class DelayedRisk:
         acmr = self.acm_rate(idx)
         inc_rate = self.incidence(idx)
         rem_rate = self.remission(idx)
-        # NOTE: for now, apply a constant PIF to the incidence rate.
-        int_inc_rate = self.int_incidence(idx) * self.incidence_pif
-        int_rem_rate = self.int_remission(idx) * self.remission_pif
+        int_inc_rate = self.int_incidence(idx)
+        int_rem_rate = self.int_remission(idx)
 
         # Calculate the survival rate for each bin.
         pop = self.population_view.get(idx)

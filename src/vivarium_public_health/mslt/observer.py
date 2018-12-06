@@ -153,7 +153,7 @@ class AdjustedPYandLE:
         view_cols = ['age', 'sex', 'population', 'bau_population']
         # TODO: ugly hack, can't extract mortality rate when initialising
         #       simulants unless the diseases have already been initialised.
-        extra_cols = ['chd_S']
+        extra_cols = ['CHD_S']
         # extra_cols = []
         req_cols = view_cols + extra_cols
         builder.population.initializes_simulants(self.on_initialize,
