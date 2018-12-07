@@ -51,7 +51,7 @@ class Risk:
         elif distribution_type in ['normal', 'lognormal', 'ensemble']:
             kwargs['exposure_standard_deviation'] = builder.data.load(f"{self._risk_type}.{self._risk}.exposure_standard_deviation")
             if distribution_type == "ensemble":
-                kwargs['weight'] = builder.data.load(f'risk_factor.{self._risk}.ensemble_weights')
+                kwargs['weights'] = builder.data.load(f'risk_factor.{self._risk}.ensemble_weights')
 
         return get_distribution(self._risk, distribution_type, exposure_data, **kwargs)
 
