@@ -6,7 +6,7 @@ from vivarium.testing_utilities import build_table, TestPopulation
 from vivarium.interface.interactive import initialize_simulation
 
 from vivarium_public_health.disease import RateTransition
-from vivarium_public_health.risks.effect import DirectEffect, RiskEffect, IndirectEffect
+from vivarium_public_health.risks.effect import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 
 
@@ -28,7 +28,7 @@ def test_RiskEffect(base_config, base_plugins, mocker):
         'paf': lambda *args: build_table([0.01, d], year_start, year_end, ('age', 'year', 'sex', 'value', 'cause')),
     }
 
-    effect = DirectEffect(r, d, 'risk_factor', 'cause', effect_data_functions)
+    effect = RiskEffect('risk_factor', r, 'cause', d, 'incidence_rate', effect_data_functions)
 
     simulation = initialize_simulation([TestPopulation(), effect], input_config=base_config, plugin_config=base_plugins)
 
@@ -103,7 +103,7 @@ def test_risk_deletion(base_config, base_plugins, mocker):
 
     transition = RateTransition(mocker.MagicMock(state_id='susceptible'),
                                 mocker.MagicMock(state_id='infected'), rate_data_functions)
-    effect = DirectEffect('bad_risk', 'infected', 'risk_factor', 'cause', effect_data_functions)
+    effect = RiskEffect('risk_factor', 'bad_risk', 'cause', 'infected', 'incidence_rate', effect_data_functions)
 
     rf_simulation = initialize_simulation([TestPopulation(), transition, effect],
                                           input_config=base_config, plugin_config=base_plugins)
