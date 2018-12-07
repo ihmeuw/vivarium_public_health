@@ -85,18 +85,18 @@ class RebinPolytomousDistribution(DichotomousDistribution):
     pass
 
 
-def get_distribution(risk: str, risk_type: str, builder):
-
-    distribution_type = builder.data.load(f"{risk_type}.{risk}.distribution")
-    exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
+def get_distribution(risk: str, distribution_type: str, exposure_data: pd.DataFrame, **data):
 
     if distribution_type == "dichotomous":
         exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
         distribution = DichotomousDistribution(exposure_data, risk)
 
     elif distribution_type == 'polytomous':
+        if "configuration" not in data:
+            raise ValueError("Polytomous distribution requires the configuration")
+
         SPECIAL = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
-        rebin = should_rebin(risk, builder.configuration)
+        rebin = should_rebin(risk, data['configuration'])
 
         if rebin and risk in SPECIAL:
             raise NotImplementedError(f'{risk} cannot be rebinned at this point')
@@ -110,7 +110,10 @@ def get_distribution(risk: str, risk_type: str, builder):
             distribution = PolytomousDistribution(exposure_data, risk)
 
     elif distribution_type in ['normal', 'lognormal', 'ensemble']:
-        exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
+        if "exposure_standard_deviation" not in data:
+            raise ValueError("Normal, lognormal and ensemble distributions require an exposure standard deviation")
+
+        exposure_sd = data['exposure_standard_deviation']
         exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
         exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
 
@@ -127,7 +130,10 @@ def get_distribution(risk: str, risk_type: str, builder):
                                                   distribution=risk_distributions.LogNormal)
 
         else:
-            weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
+            if "weights" not in data:
+                raise ValueError("Ensemble distributions require weights.")
+
+            weights = data['weights']
 
             if risk == 'high_ldl_cholesterol':
                 weights = weights.drop('invgamma', axis=1)
@@ -141,6 +147,6 @@ def get_distribution(risk: str, risk_type: str, builder):
             distribution = EnsembleSimulation(e_weights, mean=exposure['mean'], sd=exposure['standard_deviation'])
 
     else:
-        raise NotImplementedError(f"Unhandled distribution type {distribution}")
+        raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
 
     return distribution
