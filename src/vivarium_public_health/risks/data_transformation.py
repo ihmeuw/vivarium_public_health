@@ -90,3 +90,29 @@ def get_paf_data(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
     paf = paf.replace(-np.inf, 0)  # Rows with zero exposure.
 
     return paf
+
+
+def exposure_from_covariate(config_name: str, builder) -> pd.DataFrame:
+    """For use with DummyRisk component. config_name is the covariate name (or
+    1 - covariate name) specified in configuration to use for exposure.
+    """
+    cn = config_name.split('-')
+    if cn[0].rstrip() == '1':
+        cov = cn[1].lstrip()
+    else:
+        cov = config_name
+
+    data = builder.data.load(f'covariate.{cov}.estimate')
+    data = data.drop(['lower_value', 'upper_value'], axis='columns')
+    data = data.rename(columns={'mean_value': 'value'})
+
+    if cn[0].rstrip() == '1':
+        data['value'] = data.value.apply(lambda x: 1-x)
+
+    data['parameter'] = 'cat1'
+
+    cat2 = data.copy()
+    cat2['parameter'] = 'cat2'
+    cat2['value'] = cat2.value.apply(lambda x: 1-x)
+
+    return data.append(cat2)
