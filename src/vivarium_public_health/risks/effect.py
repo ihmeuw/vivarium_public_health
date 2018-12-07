@@ -4,30 +4,6 @@ from vivarium_public_health.util import pivot_age_sex_year_binned
 from .data_transformation import should_rebin, rebin_rr_data, get_paf_data
 
 
-def get_exposure_effect(builder, risk, risk_type):
-    distribution = builder.data.load(f'{risk_type}.{risk}.distribution')
-    risk_exposure = builder.value.get_value(f'{risk}.exposure')
-
-    if distribution in ['normal', 'lognormal', 'ensemble']:
-        tmred = builder.data.load(f"{risk_type}.{risk}.tmred")
-        tmrel = 0.5 * (tmred["min"] + tmred["max"])
-        exposure_parameters = builder.data.load(f"{risk_type}.{risk}.exposure_parameters")
-        max_exposure = exposure_parameters["max_rr"]
-        scale = exposure_parameters["scale"]
-
-        def exposure_effect(rates, rr):
-            exposure = np.minimum(risk_exposure(rr.index), max_exposure)
-            relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
-            return rates * relative_risk
-    else:
-
-        def exposure_effect(rates, rr):
-            exposure = risk_exposure(rr.index)
-            return rates * (rr.lookup(exposure.index, exposure))
-
-    return exposure_effect
-
-
 class RiskEffect:
 
     def __init__(self, risk, affected_entity, risk_type, affected_entity_type, get_data_functions=None):
@@ -47,7 +23,7 @@ class RiskEffect:
         self.population_attributable_fraction = builder.lookup.build_table(paf_data)
         self.relative_risk = builder.lookup.build_table(rr_data)
 
-        self.exposure_effect = get_exposure_effect(builder, self.risk, self.risk_type)
+        self.exposure_effect = self.get_exposure_effect(builder, self.risk, self.risk_type)
 
         builder.value.register_value_modifier(f'{self.affected_entity}.{self.target}', modifier=self.adjust_target)
         builder.value.register_value_modifier(f'{self.affected_entity}.paf',
@@ -95,6 +71,30 @@ class RiskEffect:
             rr_data = rebin_rr_data(rr_data, exposure_data)
 
         return pivot_age_sex_year_binned(rr_data, 'parameter', 'value')
+
+    @staticmethod
+    def get_exposure_effect(builder, risk, risk_type):
+        distribution = builder.data.load(f'{risk_type}.{risk}.distribution')
+        risk_exposure = builder.value.get_value(f'{risk}.exposure')
+
+        if distribution in ['normal', 'lognormal', 'ensemble']:
+            tmred = builder.data.load(f"{risk_type}.{risk}.tmred")
+            tmrel = 0.5 * (tmred["min"] + tmred["max"])
+            exposure_parameters = builder.data.load(f"{risk_type}.{risk}.exposure_parameters")
+            max_exposure = exposure_parameters["max_rr"]
+            scale = exposure_parameters["scale"]
+
+            def exposure_effect(rates, rr):
+                exposure = np.minimum(risk_exposure(rr.index), max_exposure)
+                relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
+                return rates * relative_risk
+        else:
+
+            def exposure_effect(rates, rr):
+                exposure = risk_exposure(rr.index)
+                return rates * (rr.lookup(exposure.index, exposure))
+
+        return exposure_effect
 
 
 class DirectEffect(RiskEffect):

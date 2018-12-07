@@ -6,7 +6,7 @@ from vivarium.testing_utilities import build_table, TestPopulation
 from vivarium.interface.interactive import initialize_simulation
 
 from vivarium_public_health.disease import RateTransition
-from vivarium_public_health.risks.effect import DirectEffect, get_exposure_effect, IndirectEffect
+from vivarium_public_health.risks.effect import DirectEffect, RiskEffect, IndirectEffect
 from vivarium_public_health.risks.base_risk import Risk
 
 
@@ -128,7 +128,7 @@ def test_continuous_exposure_effect(mocker, base_config, base_plugins, continuou
     class exposure_function_wrapper:
 
         def setup(self, builder):
-            self.exposure_function = get_exposure_effect(builder, 'test_risk', 'risk_factor')
+            self.exposure_function = RiskEffect.get_exposure_effect(builder, 'test_risk', 'risk_factor')
 
         def __call__(self, *args, **kwargs):
             return self.exposure_function(*args, **kwargs)
@@ -166,7 +166,7 @@ def test_categorical_exposure_effect(base_config, base_plugins, mocker):
 
     class exposure_function_wrapper:
         def setup(self, builder):
-            self.exposure_function = get_exposure_effect(builder, 'test_risk', 'risk_factor')
+            self.exposure_function = RiskEffect.get_exposure_effect(builder, 'test_risk', 'risk_factor')
 
         def __call__(self, *args, **kwargs):
             return self.exposure_function(*args, **kwargs)
