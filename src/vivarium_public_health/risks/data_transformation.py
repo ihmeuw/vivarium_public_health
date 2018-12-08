@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 
 from vivarium.config_tree import ConfigTree
+from vivarium_inputs import core
+from vivarium_inputs.utilities import normalize_for_simulation, get_age_group_bins_from_age_group_id
+import itertools
 
 
 def should_rebin(risk: str, config: ConfigTree) -> bool:
@@ -116,3 +119,25 @@ def exposure_from_covariate(config_name: str, builder) -> pd.DataFrame:
     cat2['value'] = cat2.value.apply(lambda x: 1-x)
 
     return data.append(cat2)
+
+
+def rel_risk_from_config_value(value, year_start, year_end) -> pd.DataFrame:
+    years = range(year_start, year_end+1)
+    age_group_ids = core.get_age_bins().age_group_id
+    sexes = ['Male', 'Female']
+
+    list_of_lists = [years, age_group_ids, sexes]
+    data = pd.DataFrame(list(itertools.product(*list_of_lists)), columns=['year_id', 'age_group_id', 'sex'])
+
+    data = get_age_group_bins_from_age_group_id(normalize_for_simulation(data))
+
+    cat1 = data.copy()
+    cat1['parameter'] = 'cat1'
+    cat1['value'] = value
+
+    cat2 = data.copy()
+    cat2['parameter'] = 'cat2'
+    cat2['value'] = 1
+
+    return cat1.append(cat2)
+
