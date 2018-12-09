@@ -78,6 +78,10 @@ class DelayedRisk:
         """
         self.config = builder.configuration
 
+        # Read in the delay duration from the configuration, if present.
+        if 'delay' in self.config[self.name]:
+            self.bin_years = int(self.config[self.name]['delay'])
+
         # Load the initial prevalence.
         prev_data = builder.data.load(f'risk_factor.{self.name}.prevalence')
         self.initial_prevalence = builder.lookup.build_table(prev_data)
@@ -170,7 +174,11 @@ class DelayedRisk:
 
         The intervention bin names take the form ``"name_intervention.X"``.
         """
-        bins = ['no', 'yes'] + [str(s) for s in range(self.bin_years + 2)]
+        if self.bin_years == 0:
+            delay_bins = [str(0)]
+        else:
+            delay_bins = [str(s) for s in range(self.bin_years + 2)]
+        bins = ['no', 'yes'] + delay_bins
         bau_bins = ['{}.{}'.format(self.name, bin) for bin in bins]
         int_bins = ['{}_intervention.{}'.format(self.name, bin) for bin in bins]
         all_bins = bau_bins + int_bins
@@ -236,7 +244,7 @@ class DelayedRisk:
         # Note that the order of evaluation matters.
         suffixes = ['', '_intervention']
         # First, accumulate the final post-exposure bin.
-        for suffix in suffixes:
+        for suffix in suffixes and self.bin_years > 0:
             accum_col = '{}{}.{}'.format(self.name, suffix, self.bin_years + 1)
             from_col = '{}{}.{}'.format(self.name, suffix, self.bin_years)
             pop[accum_col] += pop[from_col]
