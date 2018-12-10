@@ -20,7 +20,7 @@ class Risk:
        """
     configuration_defaults = {}
 
-    def __init__(self, risk_type, risk_name):
+    def __init__(self, risk_type: str, risk_name: str):
         self._risk_type, self._risk = risk_type, risk_name
 
     def setup(self, builder):
@@ -86,7 +86,7 @@ class DummyRisk(Risk):
         }
     }
 
-    def __init__(self, risk_type, risk_name):
+    def __init__(self, risk_type: str, risk_name: str):
         super().__init__(risk_type, risk_name)
         self._risk_type, self._risk = risk_type, risk_name
         self.configuration_defaults = {f'{self._risk}': DummyRisk.configuration_defaults['dummy_risk']}
