@@ -62,10 +62,25 @@ class Risk:
 
 
 class DummyRisk(Risk):
-    """"""
+    """A model for a risk factor defined by either a continuous or a categorical value. For example,
+    (1) high systolic blood pressure as a risk where the SBP is not dichotomized
+        into hypotension and normal but is treated as the actual SBP measurement.
+    (2) smoking as two categories: current smoker and non-smoker.
+
+    The difference between this component and the Risk component is the source of the data. This Dummy
+    Risk derives data from the configuration file itself. This data can be an integer/float of the
+    desired exposure level, or a string covariate name that is intended to be used as a proxy.
+
+    Parameters
+    ----------
+    risk_type : str
+       'risk_factor'
+    risk_name : str
+       The name of a risk
+    """
 
     configuration_defaults = {
-        "risk_name": {
+        "dummy_risk": {
             "exposure": "1.0",
             "distribution": "dichotomous"
         }
@@ -74,17 +89,17 @@ class DummyRisk(Risk):
     def __init__(self, risk_type, risk_name):
         super().__init__(risk_type, risk_name)
         self._risk_type, self._risk = risk_type, risk_name
-        self.configuration_defaults = {f"risk_name": {"exposure": 1.0, "distribution": "dichotomous"}}
+        self.configuration_defaults = {f'{self._risk}': DummyRisk.configuration_defaults['dummy_risk']}
 
     def _get_distribution(self, builder):
 
-        # Check to make sure distribution config is not set
         if builder.configuration[self._risk]['distribution'] != "dichotomous":
-            raise ValueError("Specified a bad distribution")
+            raise ValueError("A Dummy Risk must have a dichotomous distribution.")
 
         exposure_data = build_exp_data_from_config(builder, self._risk)
         distribution_type = builder.configuration[self._risk]['distribution']
-        get_distribution(self._risk, distribution_type, exposure_data)
+
+        return get_distribution(self._risk, distribution_type, exposure_data)
 
     def __repr__(self):
         return f"DummyRisk(_risk_type={self._risk_type}, _risk={self._risk}"
