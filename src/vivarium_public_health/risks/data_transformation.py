@@ -152,8 +152,8 @@ def build_exp_data_from_config(builder, risk):
             raise ValueError(f"The specified value for {risk} exposure should be in the range [0, 1]. "
                              f"You specified {exp_value}")
 
-        exp_data = exposure_rr_from_config_value(exp_value, builder.configuration.year_start,
-                                                 builder.configuration.year_end, 'exposure')
+        exp_data = exposure_rr_from_config_value(exp_value, builder.configuration.time.start.year,
+                                                 builder.configuration.time.end.year, 'exposure')
     else:
         raise TypeError(f"You may only specify a value for {risk} exposure that is the "
                         f"name of a covariate or a single value. You specified {exp_value}.")
