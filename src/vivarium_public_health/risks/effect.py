@@ -1,7 +1,8 @@
 import numpy as np
 
 from vivarium_public_health.util import pivot_age_sex_year_binned
-from .data_transformation import should_rebin, rebin_rr_data, get_paf_data
+from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data, exposure_from_covariate,
+                                  build_exp_data_from_config, exposure_rr_from_config_value)
 
 
 class RiskEffect:
@@ -113,4 +114,60 @@ class RiskEffectSet:
         builder.components.add_components(direct_effects + indirect_effects)
 
 
+class DummyRiskEffect(RiskEffect):
+
+    configuration_defaults = {
+        'effect_of_risk_on_entity': {
+            'incidence_rate': 2,
+            'exposure_parameters': 2,
+        }
+    }
+
+    # TODO: do we want to allow get_data_functions for dummyriskeffect?
+    def __init__(self, risk_type, risk, affected_entity_type, affected_entity, target):
+        super().__init__(risk_type, risk, affected_entity_type, affected_entity, target)
+        self.configuration_defaults = {f'effect_of_{self.risk}_on_{self.affected_entity}':
+                                       DummyRiskEffect.configuration_defaults['effect_of_risk_on_entity']}
+
+    def _get_paf_data(self, builder):
+        exposure = builder.configuration[self.risk]['exposure']
+        if isinstance(exposure, str):
+            exposure = exposure_from_covariate(exposure, builder)
+
+        rr = self._build_rr_data_from_config(builder)
+
+        paf_data = get_paf_data(exposure, rr)
+
+        paf_data = paf_data.loc[:, ['sex', 'value', self.affected_entity_type, 'age_group_start', 'age_group_end',
+                                    'year_start', 'year_end']]
+
+        return pivot_age_sex_year_binned(paf_data, self.affected_entity_type, 'value')
+
+    def _build_rr_data_from_config(self, builder):
+        rr_config_key = f'effect_of_{self.risk}_on_{self.affected_entity}'
+        rr_value = builder.configuration[rr_config_key][self.target]
+
+        if not isinstance(rr_value, (int, float)):
+            raise TypeError(f"You may only specify a single numeric value for relative risk of {rr_config_key} "
+                            f"in the configuration. You supplied {rr_value}.")
+        if rr_value < 1 or rr_value > 100:
+            raise ValueError(f"The specified value for {rr_config_key} should be in the range [1, 100]. "
+                             f"You specified {rr_value}")
+
+        rr_data = exposure_rr_from_config_value(rr_value, builder.configuration.time.start.year,
+                                                builder.configuration.time.end.year, 'relative_risk')
+        return rr_data
+
+    def _get_rr_data(self, builder):
+        return pivot_age_sex_year_binned(self._build_rr_data_from_config(builder), 'parameter', 'value')
+
+    @staticmethod
+    def get_exposure_effect(builder, risk, risk_type):
+        risk_exposure = build_exp_data_from_config(builder, risk)
+
+        def exposure_effect(rates, rr):
+            exposure = risk_exposure(rr.index)
+            return rates * (rr.lookup(exposure.index, exposure))
+
+        return exposure_effect
 
