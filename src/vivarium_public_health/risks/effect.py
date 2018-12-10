@@ -24,7 +24,7 @@ class RiskEffect:
         self.exposure_effect = self.get_exposure_effect(builder, self.risk, self.risk_type)
 
         builder.value.register_value_modifier(f'{self.affected_entity}.{self.target}', modifier=self.adjust_target)
-        builder.value.register_value_modifier(f'{self.affected_entity}.paf',
+        builder.value.register_value_modifier(f'{self.affected_entity}.{self.target}.paf',
                                               modifier=self.population_attributable_fraction)
 
     def adjust_target(self, index, target):
@@ -123,7 +123,6 @@ class DummyRiskEffect(RiskEffect):
         }
     }
 
-    # TODO: do we want to allow get_data_functions for dummyriskeffect?
     def __init__(self, risk_type, risk, affected_entity_type, affected_entity, target):
         super().__init__(risk_type, risk, affected_entity_type, affected_entity, target)
         self.configuration_defaults = {f'effect_of_{self.risk}_on_{self.affected_entity}':
