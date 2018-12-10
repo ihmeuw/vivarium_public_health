@@ -62,14 +62,19 @@ class Risk:
 
 
 class DummyRisk(Risk):
-    """A model for a risk factor defined by either a continuous or a categorical value. For example,
-    (1) high systolic blood pressure as a risk where the SBP is not dichotomized
-        into hypotension and normal but is treated as the actual SBP measurement.
-    (2) smoking as two categories: current smoker and non-smoker.
+    """A model for a dochotomous risk factor defined by an exposure level or a proxy covariate. For example,
+    (1) smoking as two categories: current smoker and non-smoker.
 
-    The difference between this component and the Risk component is the source of the data. This Dummy
-    Risk derives data from the configuration file itself. This data can be an integer/float of the
-    desired exposure level, or a string covariate name that is intended to be used as a proxy.
+    The difference between this component and the Risk component is the source of the data and the constrained
+    distribution type. This Dummy Risk derives data from the configuration file itself. This data can be an
+    integer or float expressing the desired exposure level or a covariate name that is intended to be used as
+    a proxy. For example, for a dummy risk named "dummy_risk", the configuration could look like this:
+    (1) configuration:
+            dummy_risk:
+                exposure: 1.0
+    (2) configuration:
+            dummy_risk:
+                exposure: proxy_covariate
 
     Parameters
     ----------
