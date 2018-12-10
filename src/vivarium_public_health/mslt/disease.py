@@ -53,7 +53,7 @@ class AcuteDisease:
         return yld_rate + delta
 
 
-class Disease:
+class OldDisease:
 
     def __init__(self, name, simple_eqns=False):
         self.name = name
@@ -256,7 +256,7 @@ class Disease:
         return new_C
 
 
-class Disease2:
+class Disease:
     """
     A modified version of the Disease class, which is intended to be more
     efficient and decrease the simulation time.
