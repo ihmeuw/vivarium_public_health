@@ -133,6 +133,7 @@ class DummyRiskEffect(RiskEffect):
         exposure = build_exp_data_from_config(builder, self.risk)
 
         rr = self._build_rr_data_from_config(builder)
+        rr[self.affected_entity_type] = self.affected_entity
 
         paf_data = get_paf_data(exposure, rr)
 
@@ -161,7 +162,7 @@ class DummyRiskEffect(RiskEffect):
 
     @staticmethod
     def get_exposure_effect(builder, risk, risk_type):
-        risk_exposure = build_exp_data_from_config(builder, risk)
+        risk_exposure = builder.value.get_value(f'{risk}.exposure')
 
         def exposure_effect(rates, rr):
             exposure = risk_exposure(rr.index)
