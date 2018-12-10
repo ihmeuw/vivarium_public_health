@@ -1,18 +1,34 @@
 import numpy as np
 
 from vivarium_public_health.util import pivot_age_sex_year_binned
-from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data, exposure_from_covariate,
-                                  build_exp_data_from_config, exposure_rr_from_config_value)
+from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data, build_exp_data_from_config,
+                                  exposure_rr_from_config_value)
+
+
+def _split_risk_from_type(full_risk: str):
+    """Expecting risk to specified as type.name (where type is singular.
+    Splitting out type and name."""
+    split = full_risk.split('.')
+    if len(split) != 2:
+        raise ValueError(f"You must specify the risk as <risk_type.risk_name>. You specified {full_risk}.")
+    return split[0], split[1]
+
+
+def _split_target_from_type_entity(full_target: str):
+    """Expecting affected entity to be specified as type.name.target (where type is singular.
+    Splitting out type, name, and target. """
+    split = full_target.split('.')
+    if len(split) != 3:
+        raise ValueError(f"You must specify the target as <affected_entity_type.affected_entity_name.target_pipeline>. "
+                         f"You specified {full_target}.")
+    return split[0], split[1], split[2]
 
 
 class RiskEffect:
 
-    def __init__(self, risk_type, risk, affected_entity_type, affected_entity, target, get_data_functions=None):
-        self.risk = risk
-        self.risk_type = risk_type
-        self.affected_entity = affected_entity
-        self.affected_entity_type = affected_entity_type
-        self.target = target
+    def __init__(self, full_risk, full_target, get_data_functions=None):
+        self.risk_type, self.risk = _split_risk_from_type(full_risk)
+        self.affected_entity_type, self.affected_entity, self.target = _split_target_from_type_entity(full_target)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
@@ -95,25 +111,6 @@ class RiskEffect:
         return exposure_effect
 
 
-class RiskEffectSet:
-    def __init__(self, risk, risk_type):
-        self.risk = risk
-        self.risk_type = risk_type
-
-    def setup(self, builder):
-        affected_causes = builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")
-        affected_risks = builder.data.load(f"{self.risk_type}.{self.risk}.affected_risk_factors")
-
-        direct_effects = [
-            RiskEffect(self.risk_type, self.risk, 'cause', cause, 'incidence_rate') for cause in affected_causes
-        ]
-        indirect_effects = [
-            RiskEffect(self.risk_type, self.risk, 'risk_factor', affected_risk, 'exposure_parameters') for affected_risk in affected_risks
-        ]
-
-        builder.components.add_components(direct_effects + indirect_effects)
-
-
 class DummyRiskEffect(RiskEffect):
 
     configuration_defaults = {
@@ -123,8 +120,8 @@ class DummyRiskEffect(RiskEffect):
         }
     }
 
-    def __init__(self, risk_type, risk, affected_entity_type, affected_entity, target):
-        super().__init__(risk_type, risk, affected_entity_type, affected_entity, target)
+    def __init__(self, full_risk, full_target):
+        super().__init__(full_risk, full_target)
         self.configuration_defaults = {f'effect_of_{self.risk}_on_{self.affected_entity}':
                                        DummyRiskEffect.configuration_defaults['effect_of_risk_on_entity']}
 

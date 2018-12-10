@@ -28,7 +28,7 @@ def test_RiskEffect(base_config, base_plugins, mocker):
         'paf': lambda *args: build_table([0.01, d], year_start, year_end, ('age', 'year', 'sex', 'value', 'cause')),
     }
 
-    effect = RiskEffect('risk_factor', r, 'cause', d, 'incidence_rate', effect_data_functions)
+    effect = RiskEffect(f'risk_factor.{r}', f'cause.{d}.incidence_rate', effect_data_functions)
 
     simulation = initialize_simulation([TestPopulation(), effect], input_config=base_config, plugin_config=base_plugins)
 
@@ -95,7 +95,7 @@ def test_risk_deletion(base_config, base_plugins, mocker):
     base_simulation.setup()
 
     incidence = base_simulation.get_value('infected.incidence_rate')
-    joint_paf = base_simulation.get_value('infected.paf')
+    joint_paf = base_simulation.get_value('infected.incidence_rate.paf')
 
     # Validate the base case
     assert np.allclose(incidence(base_simulation.population.population.index), from_yearly(base_rate, time_step))
@@ -103,7 +103,7 @@ def test_risk_deletion(base_config, base_plugins, mocker):
 
     transition = RateTransition(mocker.MagicMock(state_id='susceptible'),
                                 mocker.MagicMock(state_id='infected'), rate_data_functions)
-    effect = RiskEffect('risk_factor', 'bad_risk', 'cause', 'infected', 'incidence_rate', effect_data_functions)
+    effect = RiskEffect(f'risk_factor.bad_risk', f'cause.infected.incidence_rate', effect_data_functions)
 
     rf_simulation = initialize_simulation([TestPopulation(), transition, effect],
                                           input_config=base_config, plugin_config=base_plugins)
@@ -115,7 +115,7 @@ def test_risk_deletion(base_config, base_plugins, mocker):
     effect.exposure_effect = effect_function
 
     incidence = rf_simulation.get_value('infected.incidence_rate')
-    joint_paf = rf_simulation.get_value('infected.paf')
+    joint_paf = rf_simulation.get_value('infected.incidence_rate.paf')
 
     assert np.allclose(incidence(rf_simulation.population.population.index),
                        from_yearly(base_rate * (1 - risk_paf), time_step))
@@ -202,7 +202,9 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins, di
     affected_causes = risk_data['affected_causes']
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    simulation = initialize_simulation([TestPopulation(), risk],
+    risk_effects = [RiskEffect(f'risk_factor.{risk}', f'cause.{ac}.incidence_rate') for ac in affected_causes]
+
+    simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
                                        input_config=base_config, plugin_config=base_plugins)
     for key, value in risk_data.items():
         simulation.data.write(f'risk_factor.test_risk.{key}', value)
