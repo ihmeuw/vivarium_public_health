@@ -1,6 +1,7 @@
 import pandas as pd
 
-from vivarium_public_health.risks import RiskEffectSet, get_distribution
+from vivarium_public_health.risks import get_distribution
+from vivarium_public_health.risks.data_transformation import build_exp_data_from_config
 
 
 class Risk:
@@ -21,11 +22,10 @@ class Risk:
 
     def __init__(self, risk_type, risk_name):
         self._risk_type, self._risk = risk_type, risk_name
-        self._effects = self._get_risk_effect_set()
 
     def setup(self, builder):
         self.exposure_distribution = self._get_distribution(builder)
-        builder.components.add_components([self._effects, self.exposure_distribution])
+        builder.components.add_components([self.exposure_distribution])
         self.randomness = builder.randomness.get_stream(f'initial_{self._risk}_propensity')
         self._propensity = pd.Series()
         self.propensity = builder.value.register_value_producer(f'{self._risk}.propensity',
@@ -33,11 +33,6 @@ class Risk:
         self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
                                                               source=self.get_current_exposure)
         builder.population.initializes_simulants(self.on_initialize_simulants)
-
-    def _get_risk_effect_set(self):
-        """A wrapper to isolate builder init"""
-        # TODO: Stick in kate's dummy component
-        return RiskEffectSet(self._risk, risk_type=self._risk_type)
 
     def _get_distribution(self, builder):
         """A wrapper to isolate builder from setup"""
@@ -64,3 +59,32 @@ class Risk:
 
     def __repr__(self):
         return f"Risk(_risk_type= {self._risk_type}, _risk= {self._risk})"
+
+
+class DummyRisk(Risk):
+    """"""
+
+    configuration_defaults = {
+        "risk_name": {
+            "exposure": "1.0",
+            "distribution": "dichotomous"
+        }
+    }
+
+    def __init__(self, risk_type, risk_name):
+        super().__init__(risk_type, risk_name)
+        self._risk_type, self._risk = risk_type, risk_name
+        self.configuration_defaults = {f"risk_name": {"exposure": 1.0, "distribution": "dichotomous"}}
+
+    def _get_distribution(self, builder):
+
+        # Check to make sure distribution config is not set
+        if builder.configuration[self._risk]['distribution'] != "dichotomous":
+            raise ValueError("Specified a bad distribution")
+
+        exposure_data = build_exp_data_from_config(builder, self._risk)
+        distribution_type = builder.configuration[self._risk]['distribution']
+        get_distribution(self._risk, distribution_type, exposure_data)
+
+    def __repr__(self):
+        return f"DummyRisk(_risk_type={self._risk_type}, _risk={self._risk}"
