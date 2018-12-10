@@ -121,7 +121,7 @@ def exposure_from_covariate(config_name: str, builder) -> pd.DataFrame:
     return data.append(cat2)
 
 
-def rel_risk_from_config_value(value, year_start, year_end) -> pd.DataFrame:
+def exposure_rr_from_config_value(value, year_start, year_end, measure) -> pd.DataFrame:
     years = range(year_start, year_end+1)
     age_group_ids = core.get_age_bins().age_group_id
     sexes = ['Male', 'Female']
@@ -137,7 +137,24 @@ def rel_risk_from_config_value(value, year_start, year_end) -> pd.DataFrame:
 
     cat2 = data.copy()
     cat2['parameter'] = 'cat2'
-    cat2['value'] = 1
+    cat2['value'] = 1 - value if measure == 'exposure' else 1
 
     return cat1.append(cat2)
 
+
+def build_exp_data_from_config(builder, risk):
+    exp_value = builder.configuration[risk]['exposure']
+
+    if isinstance(exp_value, str):
+        exp_data = exposure_from_covariate(exp_value, builder)
+    elif isinstance(exp_value, (int, float)):
+        if exp_value < 0 or exp_value > 1:
+            raise ValueError(f"The specified value for {risk} exposure should be in the range [0, 1]. "
+                             f"You specified {exp_value}")
+
+        exp_data = exposure_rr_from_config_value(exp_value, builder.configuration.year_start,
+                                                 builder.configuration.year_end, 'exposure')
+    else:
+        raise TypeError(f"You may only specify a value for {risk} exposure that is the "
+                        f"name of a covariate or a single value. You specified {exp_value}.")
+    return exp_data
