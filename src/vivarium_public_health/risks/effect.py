@@ -123,7 +123,6 @@ class DummyRiskEffect(RiskEffect):
         }
     }
 
-    # TODO: do we want to allow get_data_functions for dummyriskeffect?
     def __init__(self, risk_type, risk, affected_entity_type, affected_entity, target):
         super().__init__(risk_type, risk, affected_entity_type, affected_entity, target)
         self.configuration_defaults = {f'effect_of_{self.risk}_on_{self.affected_entity}':
