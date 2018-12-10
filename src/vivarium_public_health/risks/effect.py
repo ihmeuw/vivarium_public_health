@@ -130,9 +130,7 @@ class DummyRiskEffect(RiskEffect):
                                        DummyRiskEffect.configuration_defaults['effect_of_risk_on_entity']}
 
     def _get_paf_data(self, builder):
-        exposure = builder.configuration[self.risk]['exposure']
-        if isinstance(exposure, str):
-            exposure = exposure_from_covariate(exposure, builder)
+        exposure = build_exp_data_from_config(builder, self.risk)
 
         rr = self._build_rr_data_from_config(builder)
 
