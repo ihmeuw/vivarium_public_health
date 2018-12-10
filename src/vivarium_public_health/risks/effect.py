@@ -24,7 +24,7 @@ class RiskEffect:
         self.exposure_effect = self.get_exposure_effect(builder, self.risk, self.risk_type)
 
         builder.value.register_value_modifier(f'{self.affected_entity}.{self.target}', modifier=self.adjust_target)
-        builder.value.register_value_modifier(f'{self.affected_entity}.paf',
+        builder.value.register_value_modifier(f'{self.affected_entity}.{self.target}.paf',
                                               modifier=self.population_attributable_fraction)
 
     def adjust_target(self, index, target):
