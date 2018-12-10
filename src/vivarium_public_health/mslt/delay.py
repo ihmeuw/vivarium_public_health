@@ -244,10 +244,11 @@ class DelayedRisk:
         # Note that the order of evaluation matters.
         suffixes = ['', '_intervention']
         # First, accumulate the final post-exposure bin.
-        for suffix in suffixes and self.bin_years > 0:
-            accum_col = '{}{}.{}'.format(self.name, suffix, self.bin_years + 1)
-            from_col = '{}{}.{}'.format(self.name, suffix, self.bin_years)
-            pop[accum_col] += pop[from_col]
+        if self.bin_years > 0:
+            for suffix in suffixes:
+                accum_col = '{}{}.{}'.format(self.name, suffix, self.bin_years + 1)
+                from_col = '{}{}.{}'.format(self.name, suffix, self.bin_years)
+                pop[accum_col] += pop[from_col]
         # Then increase time since exposure for all other post-exposure bins.
         for n_years in reversed(range(self.bin_years)):
             for suffix in suffixes:
