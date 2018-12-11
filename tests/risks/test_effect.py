@@ -200,9 +200,9 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins, di
     time_step = pd.Timedelta(days=base_config.time.step_size)
     risk, risk_data = dichotomous_risk
     affected_causes = risk_data['affected_causes']
+    risk_effects = [RiskEffect(f'risk_factor.{risk._risk}', f'cause.{ac}.incidence_rate') for ac in affected_causes]
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    risk_effects = [RiskEffect(f'risk_factor.{risk}', f'cause.{ac}.incidence_rate') for ac in affected_causes]
 
     simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
                                        input_config=base_config, plugin_config=base_plugins)
@@ -235,8 +235,10 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins, pol
     risk, risk_data = polytomous_risk
     affected_causes = risk_data['affected_causes']
 
+    risk_effects = [RiskEffect(f'risk_factor.{risk._risk}', f'cause.{ac}.incidence_rate') for ac in affected_causes]
+
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    simulation = initialize_simulation([TestPopulation(), risk],
+    simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
                                        input_config=base_config, plugin_config=base_plugins)
 
     for key, value in risk_data.items():
@@ -268,9 +270,10 @@ def test_ContinuousRiskComponent(continuous_risk, base_config, base_plugins):
     time_step = pd.Timedelta(days=base_config.time.step_size)
     risk, risk_data = continuous_risk
     risk_data['exposure_standard_deviation'] = build_table(0.0001, year_start, year_end, ('age', 'year', 'sex', 'value'))
+    risk_effects = [RiskEffect(f'risk_factor.{risk._risk}', f'cause.{ac}.incidence_rate') for ac in risk_data['affected_causes']]
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    simulation = initialize_simulation([TestPopulation(), risk],
+    simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
                                        input_config=base_config, plugin_config=base_plugins)
     for key, value in risk_data.items():
         simulation.data.write(f'risk_factor.test_risk.{key}', value)
@@ -318,7 +321,10 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins, dichotomous_risk,
     assert np.isclose(rf_exposed, exposure(pop.index).value_counts()['cat1']/len(pop), rtol=0.01)
 
     # add the coverage gap which should change the exposure of test risk
-    simulation = initialize_simulation([TestPopulation(), affected_risk, coverage_gap],
+    risk_effects = [RiskEffect(f'coverage_gap.{coverage_gap._risk}',
+                               f'risk_factor.{rf}.exposure_parameters') for rf in cg_data['affected_risk_factors']]
+
+    simulation = initialize_simulation([TestPopulation(), affected_risk, coverage_gap] + risk_effects,
                                        input_config=base_config, plugin_config=base_plugins)
 
     for key, value in risk_data.items():
