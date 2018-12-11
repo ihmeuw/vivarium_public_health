@@ -10,7 +10,7 @@ from vivarium_public_health.risks.effect import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 
 
-def test_RiskEffect(base_config, base_plugins, mocker):
+def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
     time_step = pd.Timedelta(days=base_config.time.step_size)
@@ -298,7 +298,7 @@ def test_ContinuousRiskComponent(continuous_risk, base_config, base_plugins):
                        from_yearly(expected_value, time_step), rtol=0.001)
 
 
-def test_IndirectEffect_dichotomous(base_config, base_plugins, dichotomous_risk, coverage_gap):
+def test_exposure_params_risk_effect_dichotomous(base_config, base_plugins, dichotomous_risk, coverage_gap):
     affected_risk, risk_data = dichotomous_risk
     coverage_gap, cg_data = coverage_gap
     rf_exposed = 0.5
