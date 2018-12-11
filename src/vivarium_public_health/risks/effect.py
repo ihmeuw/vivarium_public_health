@@ -2,7 +2,7 @@ import numpy as np
 
 from vivarium_public_health.util import pivot_age_sex_year_binned
 from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data, build_exp_data_from_config,
-                                  exposure_rr_from_config_value)
+                                  build_rr_data_from_config)
 
 
 def _split_risk_from_type(full_risk: str):
@@ -128,7 +128,7 @@ class DummyRiskEffect(RiskEffect):
     def _get_paf_data(self, builder):
         exposure = build_exp_data_from_config(builder, self.risk)
 
-        rr = self._build_rr_data_from_config(builder)
+        rr = build_rr_data_from_config(builder, self.risk, self.affected_entity, self.target)
         rr[self.affected_entity_type] = self.affected_entity
 
         paf_data = get_paf_data(exposure, rr)
@@ -138,23 +138,9 @@ class DummyRiskEffect(RiskEffect):
 
         return pivot_age_sex_year_binned(paf_data, self.affected_entity_type, 'value')
 
-    def _build_rr_data_from_config(self, builder):
-        rr_config_key = f'effect_of_{self.risk}_on_{self.affected_entity}'
-        rr_value = builder.configuration[rr_config_key][self.target]
-
-        if not isinstance(rr_value, (int, float)):
-            raise TypeError(f"You may only specify a single numeric value for relative risk of {rr_config_key} "
-                            f"in the configuration. You supplied {rr_value}.")
-        if rr_value < 1 or rr_value > 100:
-            raise ValueError(f"The specified value for {rr_config_key} should be in the range [1, 100]. "
-                             f"You specified {rr_value}")
-
-        rr_data = exposure_rr_from_config_value(rr_value, builder.configuration.time.start.year,
-                                                builder.configuration.time.end.year, 'relative_risk')
-        return rr_data
-
     def _get_rr_data(self, builder):
-        return pivot_age_sex_year_binned(self._build_rr_data_from_config(builder), 'parameter', 'value')
+        return pivot_age_sex_year_binned(build_rr_data_from_config(builder, self.risk, self.affected_entity,
+                                                                   self.target), 'parameter', 'value')
 
     @staticmethod
     def get_exposure_effect(builder, risk, risk_type):

@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 
 from vivarium.config_tree import ConfigTree
-from vivarium_inputs import core
-from vivarium_inputs.utilities import normalize_for_simulation, get_age_group_bins_from_age_group_id
 import itertools
 
 
@@ -121,15 +119,18 @@ def exposure_from_covariate(config_name: str, builder) -> pd.DataFrame:
     return data.append(cat2)
 
 
-def exposure_rr_from_config_value(value, year_start, year_end, measure) -> pd.DataFrame:
+def exposure_rr_from_config_value(value, year_start, year_end, measure, age_groups=None) -> pd.DataFrame:
     years = range(year_start, year_end+1)
-    age_group_ids = core.get_age_bins().age_group_id
+    if age_groups is None:
+        age_groups = pd.DataFrame({'age_group_start': range(0, 140), 'age_group_end': range(1, 141)})
     sexes = ['Male', 'Female']
 
-    list_of_lists = [years, age_group_ids, sexes]
-    data = pd.DataFrame(list(itertools.product(*list_of_lists)), columns=['year_id', 'age_group_id', 'sex'])
+    list_of_lists = [years, age_groups.age_group_start, sexes]
+    data = pd.DataFrame(list(itertools.product(*list_of_lists)), columns=['year_start', 'age_group_start', 'sex'])
+    data['year_end'] = data.year_start.apply(lambda x: x+1)
 
-    data = get_age_group_bins_from_age_group_id(normalize_for_simulation(data))
+    age_groups = age_groups.set_index('age_group_start')
+    data['age_group_end'] = data.age_group_start.apply(lambda x: age_groups.age_group_end[x])
 
     cat1 = data.copy()
     cat1['parameter'] = 'cat1'
@@ -158,3 +159,24 @@ def build_exp_data_from_config(builder, risk):
         raise TypeError(f"You may only specify a value for {risk} exposure that is the "
                         f"name of a covariate or a single value. You specified {exp_value}.")
     return exp_data
+
+
+def build_rr_data_from_config(builder, risk, affected_entity, target):
+    rr_config_key = f'effect_of_{risk}_on_{affected_entity}'
+    rr_value = builder.configuration[rr_config_key][target]
+
+    if not isinstance(rr_value, (int, float)):
+        raise TypeError(f"You may only specify a single numeric value for relative risk of {rr_config_key} "
+                        f"in the configuration. You supplied {rr_value}.")
+    if rr_value < 1 or rr_value > 100:
+        raise ValueError(f"The specified value for {rr_config_key} should be in the range [1, 100]. "
+                         f"You specified {rr_value}")
+
+    # if exposure is a covariate, we need to match the age groups to ensure merges work out
+    age_groups = None
+    exp = builder.configuration[risk]['exposure']
+    if isinstance(exp, str):
+        age_groups = exposure_from_covariate(exp)[['age_group_start', 'age_group_end']].drop_duplicates()
+    rr_data = exposure_rr_from_config_value(rr_value, builder.configuration.time.start.year,
+                                            builder.configuration.time.end.year, 'relative_risk', age_groups)
+    return rr_data
