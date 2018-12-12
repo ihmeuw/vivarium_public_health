@@ -370,7 +370,7 @@ def test_DummyRiskEffect(base_config, base_plugins):
 
     # make sure our dummy exposure value is being properly used
     exp = simulation.values.get_value('test_risk.exposure')(simulation.population.population.index)
-    assert(exp.isin(['cat1']).all())
+    assert((exp == 'cat1').all())
 
     # This one should be affected by our DummyRiskEffect
     rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
