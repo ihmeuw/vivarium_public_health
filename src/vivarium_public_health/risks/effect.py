@@ -6,7 +6,7 @@ from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data, bui
 
 
 def _split_risk_from_type(full_risk: str):
-    """Expecting risk to specified as type.name (where type is singular.
+    """Expecting risk to specified as type.name (where type is singular).
     Splitting out type and name."""
     split = full_risk.split('.')
     if len(split) != 2:
@@ -15,7 +15,7 @@ def _split_risk_from_type(full_risk: str):
 
 
 def _split_target_from_type_entity(full_target: str):
-    """Expecting affected entity to be specified as type.name.target (where type is singular.
+    """Expecting affected entity to be specified as type.name.target (where type is singular).
     Splitting out type, name, and target. """
     split = full_target.split('.')
     if len(split) != 3:
