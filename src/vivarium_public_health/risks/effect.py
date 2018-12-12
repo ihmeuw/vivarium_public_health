@@ -2,33 +2,46 @@ import numpy as np
 
 from vivarium_public_health.util import pivot_age_sex_year_binned
 from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data, build_exp_data_from_config,
-                                  build_rr_data_from_config)
-
-
-def _split_risk_from_type(full_risk: str):
-    """Expecting risk to specified as type.name (where type is singular).
-    Splitting out type and name."""
-    split = full_risk.split('.')
-    if len(split) != 2:
-        raise ValueError(f"You must specify the risk as <risk_type.risk_name>. You specified {full_risk}.")
-    return split[0], split[1]
-
-
-def _split_target_from_type_entity(full_target: str):
-    """Expecting affected entity to be specified as type.name.target (where type is singular).
-    Splitting out type, name, and target. """
-    split = full_target.split('.')
-    if len(split) != 3:
-        raise ValueError(f"You must specify the target as <affected_entity_type.affected_entity_name.target_pipeline>. "
-                         f"You specified {full_target}.")
-    return split[0], split[1], split[2]
-
+                                  build_rr_data_from_config, split_risk_from_type, split_target_from_type_entity)
 
 class RiskEffect:
+    """A component to model the impact of a risk factor on the target rate of
+    some affected entity.
 
-    def __init__(self, full_risk, full_target, get_data_functions=None):
-        self.risk_type, self.risk = _split_risk_from_type(full_risk)
-        self.affected_entity_type, self.affected_entity, self.target = _split_target_from_type_entity(full_target)
+        Attributes
+        ----------
+        risk_type :
+            'risk_factor' or 'coverage_gap'
+        risk :
+            The name of the risk factor
+        affected_entity_type :
+            The type of the entity affected by the risk factor, e.g., 'cause'
+        affected_entity :
+            The name of the entity affected by the risk factor
+        _get_data_functions :
+            Optional functions to be used to retrieve paf and rr data
+
+        """
+    def __init__(self, full_risk: str, full_target: str, get_data_functions: dict=None):
+        """
+
+        Parameters
+        ----------
+        full_risk :
+            Type and name of risk factor, supplied in the form
+            "<risk_type>.<risk_name>" where risk_type should be singular (e.g.,
+            risk_factor instead of risk_factors).
+        full_target :
+            Type, name, and target rate of entity to be affected by risk factor,
+            supplied in the form "<entity_type>.<entity_name>.<target_rate>"
+            where entity_type should be singular (e.g., cause instead of causes).
+        get_data_functions :
+            Optional mapping of measure name to function to retrieve paf and rr
+            data instead of reading from builder.data.
+
+        """
+        self.risk_type, self.risk = split_risk_from_type(full_risk)
+        self.affected_entity_type, self.affected_entity, self.target = split_target_from_type_entity(full_target)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
@@ -112,6 +125,27 @@ class RiskEffect:
 
 
 class DummyRiskEffect(RiskEffect):
+    """A component to model the impact of a risk factor on the target rate of
+    some affected entity based only on data supplied in the model configuration.
+
+    For a risk factor name 'dummy_risk' that affects the exposure of a risk
+    named 'affected_risk', the configuration would look like:
+
+    configuration:
+        effect_of_dummy_risk_on_affected_risk:
+            exposure_parameters: 2
+
+        Attributes
+        ----------
+        risk_type :
+            'risk_factor' or 'coverage_gap'
+        risk :
+            The name of the risk factor
+        affected_entity_type :
+            The type of the entity affected by the risk factor, e.g., 'cause'
+        affected_entity :
+            The name of the entity affected by the risk factor
+        """
 
     configuration_defaults = {
         'effect_of_risk_on_entity': {
@@ -120,7 +154,7 @@ class DummyRiskEffect(RiskEffect):
         }
     }
 
-    def __init__(self, full_risk, full_target):
+    def __init__(self, full_risk: str, full_target: str):
         super().__init__(full_risk, full_target)
         self.configuration_defaults = {f'effect_of_{self.risk}_on_{self.affected_entity}':
                                        DummyRiskEffect.configuration_defaults['effect_of_risk_on_entity']}
