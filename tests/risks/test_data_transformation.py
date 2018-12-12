@@ -77,3 +77,43 @@ def test_get_paf_data(e, rr, paf):
     get_paf = get_paf_data(exposure, RR)[key_cols + ['value']].set_index(key_cols)
 
     assert np.allclose(expected.value, get_paf.value)
+
+
+def test_exposure_rr_from_config_value_rr():
+    exp_val = 0.5
+    year_start = 2010
+    year_end = 2011
+    age_groups = pd.DataFrame({'age_group_start': [0, 0.5, 1, 5], 'age_group_end': [0.5, 1, 5, 6]})
+
+    df_age_specific = exposure_rr_from_config_value(exp_val, year_start, year_end, 'relative_risk', age_groups)
+
+    assert age_groups.equals(df_age_specific[['age_group_start', 'age_group_end']]
+                             .drop_duplicates().reset_index(drop=True))
+    assert (df_age_specific.loc[df_age_specific.parameter == 'cat1', 'value'] == exp_val).all()
+    assert (df_age_specific.loc[df_age_specific.parameter == 'cat2', 'value'] == 1).all()
+
+    df_no_age_spec = exposure_rr_from_config_value(exp_val, year_start, year_end, 'relative_risk')
+
+    assert set(df_no_age_spec.age_group_start) == set(range(0, 140))
+    assert (df_no_age_spec.loc[df_no_age_spec.parameter == 'cat1', 'value'] == exp_val).all()
+    assert (df_no_age_spec.loc[df_no_age_spec.parameter == 'cat2', 'value'] == 1).all()
+
+
+def test_exposure_rr_from_config_value_exp():
+    exp_val = 0.75
+    year_start = 2010
+    year_end = 2011
+    age_groups = pd.DataFrame({'age_group_start': [0, 0.5, 1, 5], 'age_group_end': [0.5, 1, 5, 6]})
+
+    df_age_specific = exposure_rr_from_config_value(exp_val, year_start, year_end, 'exposure', age_groups)
+
+    assert age_groups.equals(df_age_specific[['age_group_start', 'age_group_end']]
+                             .drop_duplicates().reset_index(drop=True))
+    assert (df_age_specific.loc[df_age_specific.parameter == 'cat1', 'value'] == exp_val).all()
+    assert (df_age_specific.loc[df_age_specific.parameter == 'cat2', 'value'] == 1 - exp_val).all()
+
+    df_no_age_spec = exposure_rr_from_config_value(exp_val, year_start, year_end, 'exposure')
+
+    assert set(df_no_age_spec.age_group_start) == set(range(0, 140))
+    assert (df_no_age_spec.loc[df_no_age_spec.parameter == 'cat1', 'value'] == exp_val).all()
+    assert (df_no_age_spec.loc[df_no_age_spec.parameter == 'cat2', 'value'] == (1 - exp_val)).all()
