@@ -180,3 +180,22 @@ def build_rr_data_from_config(builder, risk, affected_entity, target):
     rr_data = exposure_rr_from_config_value(rr_value, builder.configuration.time.start.year,
                                             builder.configuration.time.end.year, 'relative_risk', age_groups)
     return rr_data
+
+
+def split_risk_from_type(full_risk: str):
+    """Expecting risk to specified as type.name (where type is singular).
+    Splitting out type and name."""
+    split = full_risk.split('.')
+    if len(split) != 2:
+        raise ValueError(f"You must specify the risk as <risk_type.risk_name>. You specified {full_risk}.")
+    return split[0], split[1]
+
+
+def split_target_from_type_entity(full_target: str):
+    """Expecting affected entity to be specified as type.name.target (where type is singular).
+    Splitting out type, name, and target. """
+    split = full_target.split('.')
+    if len(split) != 3:
+        raise ValueError(f"You must specify the target as <affected_entity_type.affected_entity_name.target_pipeline>. "
+                         f"You specified {full_target}.")
+    return split[0], split[1], split[2]

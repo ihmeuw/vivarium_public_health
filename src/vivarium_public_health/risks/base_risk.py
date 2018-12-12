@@ -1,7 +1,7 @@
 import pandas as pd
 
 from vivarium_public_health.risks import get_distribution
-from vivarium_public_health.risks.data_transformation import build_exp_data_from_config
+from vivarium_public_health.risks.data_transformation import build_exp_data_from_config, split_risk_from_type
 
 
 class Risk:
@@ -11,17 +11,17 @@ class Risk:
     (2) smoking as two categories: current smoker and non-smoker.
 
 
-       Parameters
+       Attributes
        ----------
        risk_type : str
-           'risk_factor'
+           'risk_factor' or 'coverage_gap'
        risk_name : str
            The name of a risk
        """
     configuration_defaults = {}
 
-    def __init__(self, risk_type: str, risk_name: str):
-        self._risk_type, self._risk = risk_type, risk_name
+    def __init__(self, full_risk: str):
+        self._risk_type, self._risk = split_risk_from_type(full_risk)
 
     def setup(self, builder):
         self.exposure_distribution = self._get_distribution(builder)
@@ -62,7 +62,7 @@ class Risk:
 
 
 class DummyRisk(Risk):
-    """A model for a dochotomous risk factor defined by an exposure level or a proxy covariate. For example,
+    """A model for a dichotomous risk factor defined by an exposure level or a proxy covariate. For example,
     (1) smoking as two categories: current smoker and non-smoker.
 
     The difference between this component and the Risk component is the source of the data and the constrained
@@ -76,7 +76,7 @@ class DummyRisk(Risk):
             dummy_risk:
                 exposure: proxy_covariate
 
-    Parameters
+    Attributes
     ----------
     risk_type : str
        'risk_factor'
@@ -86,14 +86,13 @@ class DummyRisk(Risk):
 
     configuration_defaults = {
         "dummy_risk": {
-            "exposure": "1.0",
+            "exposure": 1,
             "distribution": "dichotomous"
         }
     }
 
-    def __init__(self, risk_type: str, risk_name: str):
-        super().__init__(risk_type, risk_name)
-        self._risk_type, self._risk = risk_type, risk_name
+    def __init__(self, full_risk: str):
+        super().__init__(full_risk)
         self.configuration_defaults = {f'{self._risk}': DummyRisk.configuration_defaults['dummy_risk']}
 
     def _get_distribution(self, builder):

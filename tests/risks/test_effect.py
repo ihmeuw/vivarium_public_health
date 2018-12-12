@@ -21,7 +21,7 @@ def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
 
     r = 'test_risk'
     d = 'test_cause'
-    rf = Risk('risk_factor', r)
+    rf = Risk(f'risk_factor.{r}')
     effect_data_functions = {
         'rr': lambda *args: build_table([1.01, 'per_unit', d], year_start, year_end,
                                         ('age', 'year', 'sex', 'value', 'parameter', 'cause')),
@@ -305,7 +305,7 @@ def test_exposure_params_risk_effect_dichotomous(base_config, base_plugins, dich
     rr = 2 # rr between cg/affected_risk
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    affected_risk = Risk('risk_factor', 'test_risk')
+    affected_risk = Risk('risk_factor.test_risk')
 
     # start with the only risk factor without indirect effect from coverage_gap
     simulation = initialize_simulation([TestPopulation(), affected_risk],
@@ -355,7 +355,7 @@ def test_exposure_params_risk_effect_dichotomous(base_config, base_plugins, dich
 
 
 def test_DummyRiskEffect(base_config, base_plugins):
-    dummy_risk = DummyRisk("risk_factor", "test_risk")
+    dummy_risk = DummyRisk("risk_factor.test_risk")
     dummy_effect = DummyRiskEffect("risk_factor.test_risk", "cause.test_cause.incidence_rate")
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
