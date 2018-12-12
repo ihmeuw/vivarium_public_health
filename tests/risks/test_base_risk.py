@@ -30,7 +30,7 @@ def test_propensity_effect(propensity, mocker, continuous_risk, base_config, bas
 
 
 def test_DummyRisk(base_config, base_plugins):
-    exposure_level = 1
+    exposure_level = 0.8  # default is one
     dummy_risk = DummyRisk("risk_factor.test_risk")
     base_config.update({'test_risk': {'exposure': exposure_level}}, layer='override')
 
@@ -40,7 +40,9 @@ def test_DummyRisk(base_config, base_plugins):
 
     # Make sure dummy exposure is being used
     exp = simulation.values.get_value('test_risk.exposure')(simulation.population.population.index)
-    assert((exp == 'cat1').all())
+    exposed_proportion = (exp == 'cat1').sum() / len(exp)
+    assert np.isclose(exposed_proportion, exposure_level, atol=0.005)  # population is 1000
+
     # Make sure value was correctly pulled from config
     sim_exposure_level = simulation.values.get_value('test_risk.exposure_parameters')(simulation.population.population.index)
     assert np.all(sim_exposure_level == exposure_level)
