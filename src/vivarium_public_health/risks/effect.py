@@ -4,6 +4,7 @@ from vivarium_public_health.util import pivot_age_sex_year_binned
 from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data, build_exp_data_from_config,
                                   build_rr_data_from_config, split_risk_from_type, split_target_from_type_entity)
 
+
 class RiskEffect:
     """A component to model the impact of a risk factor on the target rate of
     some affected entity.
