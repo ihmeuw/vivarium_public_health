@@ -11,13 +11,12 @@ class Risk:
     (2) smoking as two categories: current smoker and non-smoker.
 
 
-       Attributes
-       ----------
-       risk_type : str
-           'risk_factor' or 'coverage_gap'
-       risk_name : str
-           The name of a risk
-       """
+    Parameters
+    ----------
+    full_risk : str
+        the type and name of a risk, specified as "type.name". Type is singular.
+    """
+
     configuration_defaults = {}
 
     def __init__(self, full_risk: str):
@@ -62,12 +61,12 @@ class Risk:
 
 
 class DummyRisk(Risk):
-    """A model for a dichotomous risk factor defined by an exposure level or a proxy covariate. For example,
-    (1) smoking as two categories: current smoker and non-smoker.
+    """A model for a dichotomous risk factor defined by an exposure level or a proxy covariate. For example, smoking as
+    two categories: current smoker and non-smoker.
 
-    The difference between this component and the Risk component is the source of the data and the constrained
-    distribution type. This Dummy Risk derives data from the configuration file itself. This data can be an
-    integer or float expressing the desired exposure level or a covariate name that is intended to be used as
+    The difference between this component and the Risk component is the source of the data and the distribution type
+    being constrained to "dichotomous." This Dummy Risk derives data from the configuration file itself. This data can
+    be an integer or float expressing the desired exposure level or a covariate name that is intended to be used as
     a proxy. For example, for a dummy risk named "dummy_risk", the configuration could look like this:
     (1) configuration:
             dummy_risk:
@@ -76,12 +75,10 @@ class DummyRisk(Risk):
             dummy_risk:
                 exposure: proxy_covariate
 
-    Attributes
+    Parameters
     ----------
-    risk_type : str
-       'risk_factor'
-    risk_name : str
-       The name of a risk
+    full_risk: str
+        the type and name of a risk, specified as "type.name". Type is singular.
     """
 
     configuration_defaults = {
