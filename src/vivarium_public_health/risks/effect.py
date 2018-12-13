@@ -19,30 +19,28 @@ class RiskEffect:
             The type of the entity affected by the risk factor, e.g., 'cause'
         affected_entity :
             The name of the entity affected by the risk factor
-        _get_data_functions :
-            Optional functions to be used to retrieve paf and rr data
 
         """
-    def __init__(self, full_risk: str, full_target: str, get_data_functions: dict=None):
+    def __init__(self, risk: str, target: str, get_data_functions: dict=None):
         """
 
         Parameters
         ----------
-        full_risk :
+        risk :
             Type and name of risk factor, supplied in the form
-            "<risk_type>.<risk_name>" where risk_type should be singular (e.g.,
+            "risk_type.risk_name" where risk_type should be singular (e.g.,
             risk_factor instead of risk_factors).
-        full_target :
+        target :
             Type, name, and target rate of entity to be affected by risk factor,
-            supplied in the form "<entity_type>.<entity_name>.<target_rate>"
+            supplied in the form "entity_type.entity_name.measure"
             where entity_type should be singular (e.g., cause instead of causes).
         get_data_functions :
             Optional mapping of measure name to function to retrieve paf and rr
             data instead of reading from builder.data.
 
         """
-        self.risk_type, self.risk = split_risk_from_type(full_risk)
-        self.affected_entity_type, self.affected_entity, self.target = split_target_from_type_entity(full_target)
+        self.risk_type, self.risk = split_risk_from_type(risk)
+        self.affected_entity_type, self.affected_entity, self.target = split_target_from_type_entity(target)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):

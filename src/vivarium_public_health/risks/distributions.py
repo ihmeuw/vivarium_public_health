@@ -92,9 +92,6 @@ def get_distribution(risk: str, distribution_type: str, exposure_data: pd.DataFr
         distribution = DichotomousDistribution(exposure_data, risk)
 
     elif distribution_type == 'polytomous':
-        if "configuration" not in data:
-            raise ValueError("Polytomous distribution requires the configuration")
-
         SPECIAL = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
         rebin = should_rebin(risk, data['configuration'])
 
@@ -110,9 +107,6 @@ def get_distribution(risk: str, distribution_type: str, exposure_data: pd.DataFr
             distribution = PolytomousDistribution(exposure_data, risk)
 
     elif distribution_type in ['normal', 'lognormal', 'ensemble']:
-        if "exposure_standard_deviation" not in data:
-            raise ValueError("Normal, lognormal and ensemble distributions require an exposure standard deviation")
-
         exposure_sd = data['exposure_standard_deviation']
         exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
         exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
@@ -130,9 +124,6 @@ def get_distribution(risk: str, distribution_type: str, exposure_data: pd.DataFr
                                                   distribution=risk_distributions.LogNormal)
 
         else:
-            if "weights" not in data:
-                raise ValueError("Ensemble distributions require weights.")
-
             weights = data['weights']
 
             if risk == 'high_ldl_cholesterol':

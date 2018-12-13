@@ -20,8 +20,8 @@ class Risk:
        """
     configuration_defaults = {}
 
-    def __init__(self, full_risk: str):
-        self._risk_type, self._risk = split_risk_from_type(full_risk)
+    def __init__(self, risk: str):
+        self._risk_type, self._risk = split_risk_from_type(risk)
 
     def setup(self, builder):
         self.exposure_distribution = self._get_distribution(builder)

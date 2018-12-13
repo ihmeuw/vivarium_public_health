@@ -97,7 +97,7 @@ def split_risk_from_type(full_risk: str):
     Splitting out type and name."""
     split = full_risk.split('.')
     if len(split) != 2:
-        raise ValueError(f"You must specify the risk as <risk_type.risk_name>. You specified {full_risk}.")
+        raise ValueError(f'You must specify the risk as "risk_type.risk_name". You specified {full_risk}.')
     return split[0], split[1]
 
 
@@ -106,6 +106,6 @@ def split_target_from_type_entity(full_target: str):
     Splitting out type, name, and target. """
     split = full_target.split('.')
     if len(split) != 3:
-        raise ValueError(f"You must specify the target as <affected_entity_type.affected_entity_name.target_pipeline>. "
-                         f"You specified {full_target}.")
+        raise ValueError(f'You must specify the target as "affected_entity_type.affected_entity_name.affected_measure".'
+                         f'You specified {full_target}.')
     return split[0], split[1], split[2]
