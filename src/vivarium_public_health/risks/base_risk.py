@@ -1,7 +1,7 @@
 import pandas as pd
 
 from vivarium_public_health.risks import get_distribution
-from vivarium_public_health.risks.data_transformation import build_exp_data_from_config, split_risk_from_type
+from vivarium_public_health.risks.data_transformation import split_risk_from_type
 
 
 class Risk:
@@ -59,51 +59,3 @@ class Risk:
 
     def __repr__(self):
         return f"Risk(_risk_type= {self._risk_type}, _risk= {self._risk})"
-
-
-class DummyRisk(Risk):
-    """A model for a dichotomous risk factor defined by an exposure level or a proxy covariate. For example,
-    (1) smoking as two categories: current smoker and non-smoker.
-
-    The difference between this component and the Risk component is the source of the data and the constrained
-    distribution type. This Dummy Risk derives data from the configuration file itself. This data can be an
-    integer or float expressing the desired exposure level or a covariate name that is intended to be used as
-    a proxy. For example, for a dummy risk named "dummy_risk", the configuration could look like this:
-    (1) configuration:
-            dummy_risk:
-                exposure: 1.0
-    (2) configuration:
-            dummy_risk:
-                exposure: proxy_covariate
-
-    Attributes
-    ----------
-    risk_type : str
-       'risk_factor'
-    risk_name : str
-       The name of a risk
-    """
-
-    configuration_defaults = {
-        "dummy_risk": {
-            "exposure": 1,
-            "distribution": "dichotomous"
-        }
-    }
-
-    def __init__(self, full_risk: str):
-        super().__init__(full_risk)
-        self.configuration_defaults = {f'{self._risk}': DummyRisk.configuration_defaults['dummy_risk']}
-
-    def _get_distribution(self, builder):
-
-        if builder.configuration[self._risk]['distribution'] != "dichotomous":
-            raise ValueError("A Dummy Risk must have a dichotomous distribution.")
-
-        exposure_data = build_exp_data_from_config(builder, self._risk)
-        distribution_type = builder.configuration[self._risk]['distribution']
-
-        return get_distribution(self._risk, distribution_type, exposure_data)
-
-    def __repr__(self):
-        return f"DummyRisk(_risk_type={self._risk_type}, _risk={self._risk}"

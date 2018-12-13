@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 
 from vivarium.config_tree import ConfigTree
-import itertools
 
 
 def should_rebin(risk: str, config: ConfigTree) -> bool:
@@ -91,95 +90,6 @@ def get_paf_data(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
     paf = paf.replace(-np.inf, 0)  # Rows with zero exposure.
 
     return paf
-
-
-def exposure_from_covariate(config_name: str, builder) -> pd.DataFrame:
-    """For use with DummyRisk component. config_name is the covariate name (or
-    1 - covariate name) specified in configuration to use for exposure.
-    """
-    cn = config_name.split('-')
-    if cn[0].rstrip() == '1':
-        cov = cn[1].lstrip()
-    else:
-        cov = config_name
-
-    data = builder.data.load(f'covariate.{cov}.estimate')
-    data = data.drop(['lower_value', 'upper_value'], axis='columns')
-    data = data.rename(columns={'mean_value': 'value'})
-
-    if cn[0].rstrip() == '1':
-        data['value'] = data.value.apply(lambda x: 1-x)
-
-    data['parameter'] = 'cat1'
-
-    cat2 = data.copy()
-    cat2['parameter'] = 'cat2'
-    cat2['value'] = cat2.value.apply(lambda x: 1-x)
-
-    return data.append(cat2)
-
-
-def exposure_rr_from_config_value(value, year_start, year_end, measure, age_groups=None) -> pd.DataFrame:
-    years = range(year_start, year_end+1)
-    if age_groups is None:
-        age_groups = pd.DataFrame({'age_group_start': range(0, 140), 'age_group_end': range(1, 141)})
-    sexes = ['Male', 'Female']
-
-    list_of_lists = [years, age_groups.age_group_start, sexes]
-    data = pd.DataFrame(list(itertools.product(*list_of_lists)), columns=['year_start', 'age_group_start', 'sex'])
-    data['year_end'] = data.year_start.apply(lambda x: x+1)
-
-    age_groups = age_groups.set_index('age_group_start')
-    data['age_group_end'] = data.age_group_start.apply(lambda x: age_groups.age_group_end[x])
-
-    cat1 = data.copy()
-    cat1['parameter'] = 'cat1'
-    cat1['value'] = value
-
-    cat2 = data.copy()
-    cat2['parameter'] = 'cat2'
-    cat2['value'] = 1 - value if measure == 'exposure' else 1
-
-    return cat1.append(cat2)
-
-
-def build_exp_data_from_config(builder, risk):
-    exp_value = builder.configuration[risk]['exposure']
-
-    if isinstance(exp_value, str):
-        exp_data = exposure_from_covariate(exp_value, builder)
-    elif isinstance(exp_value, (int, float)):
-        if exp_value < 0 or exp_value > 1:
-            raise ValueError(f"The specified value for {risk} exposure should be in the range [0, 1]. "
-                             f"You specified {exp_value}")
-
-        exp_data = exposure_rr_from_config_value(exp_value, builder.configuration.time.start.year,
-                                                 builder.configuration.time.end.year, 'exposure')
-    else:
-        raise TypeError(f"You may only specify a value for {risk} exposure that is the "
-                        f"name of a covariate or a single value. You specified {exp_value}.")
-    return exp_data
-
-
-def build_rr_data_from_config(builder, risk, affected_entity, target):
-    rr_config_key = f'effect_of_{risk}_on_{affected_entity}'
-    rr_value = builder.configuration[rr_config_key][target]
-
-    if not isinstance(rr_value, (int, float)):
-        raise TypeError(f"You may only specify a single numeric value for relative risk of {rr_config_key} "
-                        f"in the configuration. You supplied {rr_value}.")
-    if rr_value < 1 or rr_value > 100:
-        raise ValueError(f"The specified value for {rr_config_key} should be in the range [1, 100]. "
-                         f"You specified {rr_value}")
-
-    # if exposure is a covariate, we need to match the age groups to ensure merges work out
-    age_groups = None
-    exp = builder.configuration[risk]['exposure']
-    if isinstance(exp, str):
-        age_groups = exposure_from_covariate(exp)[['age_group_start', 'age_group_end']].drop_duplicates()
-    rr_data = exposure_rr_from_config_value(rr_value, builder.configuration.time.start.year,
-                                            builder.configuration.time.end.year, 'relative_risk', age_groups)
-    return rr_data
 
 
 def split_risk_from_type(full_risk: str):

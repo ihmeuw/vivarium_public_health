@@ -1,8 +1,8 @@
 import numpy as np
 
 from vivarium_public_health.util import pivot_age_sex_year_binned
-from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data, build_exp_data_from_config,
-                                  build_rr_data_from_config, split_risk_from_type, split_target_from_type_entity)
+from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data,
+                                  split_risk_from_type, split_target_from_type_entity)
 
 
 class RiskEffect:
@@ -123,67 +123,3 @@ class RiskEffect:
                 return rates * (rr.lookup(exposure.index, exposure))
 
         return exposure_effect
-
-
-class DummyRiskEffect(RiskEffect):
-    """A component to model the impact of a risk factor on the target rate of
-    some affected entity based only on data supplied in the model configuration.
-
-    For a risk factor name 'dummy_risk' that affects the exposure of a risk
-    named 'affected_risk', the configuration would look like:
-
-    configuration:
-        effect_of_dummy_risk_on_affected_risk:
-            exposure_parameters: 2
-
-        Attributes
-        ----------
-        risk_type :
-            'risk_factor' or 'coverage_gap'
-        risk :
-            The name of the risk factor
-        affected_entity_type :
-            The type of the entity affected by the risk factor, e.g., 'cause'
-        affected_entity :
-            The name of the entity affected by the risk factor
-        """
-
-    configuration_defaults = {
-        'effect_of_risk_on_entity': {
-            'incidence_rate': 2,
-            'exposure_parameters': 2,
-        }
-    }
-
-    def __init__(self, full_risk: str, full_target: str):
-        super().__init__(full_risk, full_target)
-        self.configuration_defaults = {f'effect_of_{self.risk}_on_{self.affected_entity}':
-                                       DummyRiskEffect.configuration_defaults['effect_of_risk_on_entity']}
-
-    def _get_paf_data(self, builder):
-        exposure = build_exp_data_from_config(builder, self.risk)
-
-        rr = build_rr_data_from_config(builder, self.risk, self.affected_entity, self.target)
-        rr[self.affected_entity_type] = self.affected_entity
-
-        paf_data = get_paf_data(exposure, rr)
-
-        paf_data = paf_data.loc[:, ['sex', 'value', self.affected_entity_type, 'age_group_start', 'age_group_end',
-                                    'year_start', 'year_end']]
-
-        return pivot_age_sex_year_binned(paf_data, self.affected_entity_type, 'value')
-
-    def _get_rr_data(self, builder):
-        return pivot_age_sex_year_binned(build_rr_data_from_config(builder, self.risk, self.affected_entity,
-                                                                   self.target), 'parameter', 'value')
-
-    @staticmethod
-    def get_exposure_effect(builder, risk, risk_type):
-        risk_exposure = builder.value.get_value(f'{risk}.exposure')
-
-        def exposure_effect(rates, rr):
-            exposure = risk_exposure(rr.index)
-            return rates * (rr.lookup(exposure.index, exposure))
-
-        return exposure_effect
-
