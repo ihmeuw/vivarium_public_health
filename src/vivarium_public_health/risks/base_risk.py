@@ -11,13 +11,12 @@ class Risk:
     (2) smoking as two categories: current smoker and non-smoker.
 
 
-       Attributes
-       ----------
-       risk_type : str
-           'risk_factor' or 'coverage_gap'
-       risk_name : str
-           The name of a risk
-       """
+    Parameters
+    ----------
+    risk : str
+        the type and name of a risk, specified as "type.name". Type is singular.
+    """
+
     configuration_defaults = {}
 
     def __init__(self, risk: str):
@@ -78,7 +77,7 @@ class DummyRisk(Risk):
 
     Parameters
     ----------
-    full_risk: str
+    risk: str
         the type and name of a risk, specified as "type.name". Type is singular.
     """
 
@@ -89,8 +88,8 @@ class DummyRisk(Risk):
         }
     }
 
-    def __init__(self, full_risk: str):
-        super().__init__(full_risk)
+    def __init__(self, risk: str):
+        super().__init__(risk)
         self.configuration_defaults = {f'{self._risk}': DummyRisk.configuration_defaults['dummy_risk']}
 
     def _get_distribution(self, builder):

@@ -153,8 +153,8 @@ class DummyRiskEffect(RiskEffect):
         }
     }
 
-    def __init__(self, full_risk: str, full_target: str):
-        super().__init__(full_risk, full_target)
+    def __init__(self, risk: str, target: str):
+        super().__init__(risk, target)
         self.configuration_defaults = {f'effect_of_{self.risk}_on_{self.affected_entity}':
                                        DummyRiskEffect.configuration_defaults['effect_of_risk_on_entity']}
 
