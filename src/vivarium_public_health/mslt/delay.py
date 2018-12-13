@@ -317,5 +317,5 @@ class DelayedRisk:
         mean_int_rr = rr_values[int_cols].sum(axis=1)
 
         # Calculate the disease incidence PIF for the intervention scenario.
-        pif = mean_int_rr / mean_bau_rr
+        pif = (mean_bau_rr - mean_int_rr) / mean_bau_rr
         return incidence_rate * pif
