@@ -300,7 +300,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 
     simulation.values.register_value_modifier(
-        'sick.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end),
+        'sick.incidence_rate.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end),
                                                            key_columns=('sex',),
                                                            parameter_columns=[('age', 'age_group_start', 'age_group_end'),
                                                                               ('year', 'year_start', 'year_end')],

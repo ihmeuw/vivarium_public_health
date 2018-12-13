@@ -14,7 +14,7 @@ class RateTransition(Transition):
         rate_data, pipeline_name = self._get_rate_data(builder)
         self.base_rate = builder.lookup.build_table(rate_data)
         self.effective_rate = builder.value.register_rate_producer(pipeline_name, source=self.rates)
-        self.joint_paf = builder.value.register_value_producer(f'{self.output_state.state_id}.paf',
+        self.joint_paf = builder.value.register_value_producer(f'{self.output_state.state_id}.incidence_rate.paf',
                                                                source=lambda index: [pd.Series(0, index=index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)

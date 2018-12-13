@@ -8,7 +8,7 @@ from vivarium_public_health.risks import distributions
 from vivarium_public_health.util import pivot_age_sex_year_binned
 
 
-def test_get_distribution_ensemble_risk(mocker):
+def test_get_distribution_ensemble_risk():
 
     ensemble_mean = []
     ensemble_sd = []
@@ -25,17 +25,13 @@ def test_get_distribution_ensemble_risk(mocker):
         cols += (k,)
         weights.append(v)
 
+    distribution = 'ensemble'
     ensemble_mean = pd.concat(ensemble_mean)
     ensemble_sd = pd.concat(ensemble_sd)
     ensemble_w = build_table(weights, 1990, 1992, cols)
 
-    mock_data = {'distribution': 'ensemble', 'exposure': ensemble_mean, 'exposure_standard_deviation': ensemble_sd,
-                 'ensemble_weights': ensemble_w}
-
-    builder = mocker.MagicMock()
-    builder.data.load.side_effect = lambda _: mock_data.get(_.split('.')[-1])
-
-    e = distributions.get_distribution('risk_factor', 'test_risk', builder)
+    kwargs = {"exposure_standard_deviation": ensemble_sd, "weights": ensemble_w}
+    e = distributions.get_distribution('risk_factor', distribution, ensemble_mean, **kwargs)
 
     # check whether we start with correct weight
     assert np.isclose(np.sum(e.weights.sum()), 1)
@@ -101,19 +97,16 @@ def test_rebin_exposure():
     assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])
 
 
-def test_get_distribution_dichotomous_risk(mocker):
+def test_get_distribution_dichotomous_risk():
 
     test_exposure = []
     for cat, value in zip(['cat1', 'cat2'], [0.2, 0.8]):
         test_exposure.append(build_table([cat, value], 2000, 2005, ('age', 'year', 'sex', 'parameter', 'value')))
 
+    distribution = 'dichotomous'
     test_exposure = pd.concat(test_exposure)
-    mock_data = {'exposure': test_exposure, 'distribution': 'dichotomous'}
 
-    builder = mocker.MagicMock()
-    builder.data.load.side_effect = lambda _: mock_data.get(_.split('.')[-1])
-
-    test_d = distributions.get_distribution('dichotomous_risk', 'risk_factor', builder)
+    test_d = distributions.get_distribution('dichotomous_risk', distribution, test_exposure)
     Dichotomous_d = distributions.DichotomousDistribution(pivot_age_sex_year_binned(test_exposure, 'parameter', 'value'),
                                                           'dichotomous_risk')
 
@@ -123,18 +116,18 @@ def test_get_distribution_dichotomous_risk(mocker):
 
 
 def test_get_distribution_polytomous_risk(mocker):
+    rebin_mock = mocker.patch('vivarium_public_health.risks.distributions.should_rebin')
+    rebin_mock.return_value = False
 
     test_exposure = []
     for cat, value in zip(['cat1', 'cat2', 'cat3', 'cat4'], [0.2, 0.3, 0.1, 0.4]):
         test_exposure.append(build_table([cat, value], 2000, 2005, ('age', 'year', 'sex', 'parameter', 'value')))
 
+
+    distribution = "polytomous"
     test_exposure = pd.concat(test_exposure)
-    mock_data = {'exposure': test_exposure, 'distribution': 'polytomous'}
-
-    builder = mocker.MagicMock()
-    builder.data.load.side_effect = lambda _: mock_data.get(_.split('.')[-1])
-
-    test_d = distributions.get_distribution('polytomous_risk', 'risk_factor', builder)
+    kwargs = {'configuration': None}
+    test_d = distributions.get_distribution('polytomous_risk', distribution, test_exposure, **kwargs)
     Polytomous_d = distributions.PolytomousDistribution(pivot_age_sex_year_binned(test_exposure, 'parameter', 'value'),
                                                         'polytomous_risk')
 
@@ -147,17 +140,15 @@ def test_get_distribution_polytomous_risk(mocker):
 def test_get_distribution_polytomous_risk_rebinned(mocker):
     rebin_mock = mocker.patch('vivarium_public_health.risks.distributions.should_rebin')
     rebin_mock.return_value = True
+
     test_exposure = []
     for cat, value in zip(['cat1', 'cat2', 'cat3', 'cat4'], [0.2, 0.3, 0.1, 0.4]):
         test_exposure.append(build_table([cat, value], 2000, 2005, ('age', 'year', 'sex', 'parameter', 'value')))
 
+    distribution = "polytomous"
     test_exposure = pd.concat(test_exposure)
-    mock_data = {'exposure': test_exposure, 'distribution': 'polytomous'}
-
-    builder = mocker.MagicMock()
-    builder.data.load.side_effect = lambda _: mock_data.get(_.split('.')[-1])
-
-    test_d = distributions.get_distribution('polytomous_risk', 'risk_factor', builder)
+    kwargs = {"configuration": None}
+    test_d = distributions.get_distribution('polytomous_risk', distribution, test_exposure, **kwargs)
 
     rebinned_exposure = []
     for cat, value in zip(['cat1', 'cat2'], [0.6, 0.4]):

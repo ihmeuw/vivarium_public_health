@@ -27,5 +27,3 @@ def test_propensity_effect(propensity, mocker, continuous_risk, base_config, bas
 
     assert np.allclose(rf.exposure(sim.population.population.index), expected_value)
 
-
-

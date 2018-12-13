@@ -1,6 +1,7 @@
 import pandas as pd
 
-from vivarium_public_health.risks import RiskEffectSet, get_distribution
+from vivarium_public_health.risks import get_distribution
+from vivarium_public_health.risks.data_transformation import split_risk_from_type
 
 
 class Risk:
@@ -10,22 +11,21 @@ class Risk:
     (2) smoking as two categories: current smoker and non-smoker.
 
 
-       Parameters
+       Attributes
        ----------
        risk_type : str
-           'risk_factor'
+           'risk_factor' or 'coverage_gap'
        risk_name : str
            The name of a risk
        """
     configuration_defaults = {}
 
-    def __init__(self, risk_type, risk_name):
-        self._risk_type, self._risk = risk_type, risk_name
-        self._effects = RiskEffectSet(self._risk, risk_type=self._risk_type)
+    def __init__(self, risk: str):
+        self._risk_type, self._risk = split_risk_from_type(risk)
 
     def setup(self, builder):
-        self.exposure_distribution = get_distribution(self._risk, self._risk_type, builder)
-        builder.components.add_components([self._effects, self.exposure_distribution])
+        self.exposure_distribution = self._get_distribution(builder)
+        builder.components.add_components([self.exposure_distribution])
         self.randomness = builder.randomness.get_stream(f'initial_{self._risk}_propensity')
         self._propensity = pd.Series()
         self.propensity = builder.value.register_value_producer(f'{self._risk}.propensity',
@@ -33,6 +33,22 @@ class Risk:
         self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure',
                                                               source=self.get_current_exposure)
         builder.population.initializes_simulants(self.on_initialize_simulants)
+
+    def _get_distribution(self, builder):
+        """A wrapper to isolate builder from setup"""
+
+        distribution_type = builder.data.load(f"{self._risk_type}.{self._risk}.distribution")
+        exposure_data = builder.data.load(f"{self._risk_type}.{self._risk}.exposure")
+
+        kwargs = {}
+        if distribution_type == "polytomous":
+            kwargs['configuration'] = builder.configuration
+        elif distribution_type in ['normal', 'lognormal', 'ensemble']:
+            kwargs['exposure_standard_deviation'] = builder.data.load(f"{self._risk_type}.{self._risk}.exposure_standard_deviation")
+            if distribution_type == "ensemble":
+                kwargs['weights'] = builder.data.load(f'risk_factor.{self._risk}.ensemble_weights')
+
+        return get_distribution(self._risk, distribution_type, exposure_data, **kwargs)
 
     def on_initialize_simulants(self, pop_data):
         self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))

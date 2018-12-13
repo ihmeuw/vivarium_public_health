@@ -65,7 +65,7 @@ class DichotomousDistribution:
         self._base_exposure = builder.lookup.build_table(self.exposure_data)
         self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
                                                                          source=self.exposure)
-        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.paf',
+        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.exposure_parameters.paf',
                                                                source=lambda index: [pd.Series(0, index=index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
@@ -85,10 +85,7 @@ class RebinPolytomousDistribution(DichotomousDistribution):
     pass
 
 
-def get_distribution(risk: str, risk_type: str, builder):
-
-    distribution_type = builder.data.load(f"{risk_type}.{risk}.distribution")
-    exposure_data = builder.data.load(f"{risk_type}.{risk}.exposure")
+def get_distribution(risk: str, distribution_type: str, exposure_data: pd.DataFrame, **data):
 
     if distribution_type == "dichotomous":
         exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
@@ -96,7 +93,7 @@ def get_distribution(risk: str, risk_type: str, builder):
 
     elif distribution_type == 'polytomous':
         SPECIAL = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
-        rebin = should_rebin(risk, builder.configuration)
+        rebin = should_rebin(risk, data['configuration'])
 
         if rebin and risk in SPECIAL:
             raise NotImplementedError(f'{risk} cannot be rebinned at this point')
@@ -110,7 +107,7 @@ def get_distribution(risk: str, risk_type: str, builder):
             distribution = PolytomousDistribution(exposure_data, risk)
 
     elif distribution_type in ['normal', 'lognormal', 'ensemble']:
-        exposure_sd = builder.data.load(f"{risk_type}.{risk}.exposure_standard_deviation")
+        exposure_sd = data['exposure_standard_deviation']
         exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
         exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
 
@@ -127,7 +124,7 @@ def get_distribution(risk: str, risk_type: str, builder):
                                                   distribution=risk_distributions.LogNormal)
 
         else:
-            weights = builder.data.load(f'risk_factor.{risk}.ensemble_weights')
+            weights = data['weights']
 
             if risk == 'high_ldl_cholesterol':
                 weights = weights.drop('invgamma', axis=1)
@@ -141,6 +138,6 @@ def get_distribution(risk: str, risk_type: str, builder):
             distribution = EnsembleSimulation(e_weights, mean=exposure['mean'], sd=exposure['standard_deviation'])
 
     else:
-        raise NotImplementedError(f"Unhandled distribution type {distribution}")
+        raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
 
     return distribution

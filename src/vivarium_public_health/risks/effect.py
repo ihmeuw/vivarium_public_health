@@ -1,45 +1,47 @@
 import numpy as np
 
 from vivarium_public_health.util import pivot_age_sex_year_binned
-from .data_transformation import should_rebin, rebin_rr_data, get_paf_data
-
-
-def get_exposure_effect(builder, risk, risk_type):
-    distribution = builder.data.load(f'{risk_type}.{risk}.distribution')
-    risk_exposure = builder.value.get_value(f'{risk}.exposure')
-
-    if distribution in ['normal', 'lognormal', 'ensemble']:
-        tmred = builder.data.load(f"{risk_type}.{risk}.tmred")
-        tmrel = 0.5 * (tmred["min"] + tmred["max"])
-        exposure_parameters = builder.data.load(f"{risk_type}.{risk}.exposure_parameters")
-        max_exposure = exposure_parameters["max_rr"]
-        scale = exposure_parameters["scale"]
-
-        def exposure_effect(rates, rr):
-            exposure = np.minimum(risk_exposure(rr.index), max_exposure)
-            relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
-            return rates * relative_risk
-    else:
-
-        def exposure_effect(rates, rr):
-            exposure = risk_exposure(rr.index)
-            return rates * (rr.lookup(exposure.index, exposure))
-
-    return exposure_effect
+from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data,
+                                  split_risk_from_type, split_target_from_type_entity)
 
 
 class RiskEffect:
+    """A component to model the impact of a risk factor on the target rate of
+    some affected entity.
 
-    def __init__(self, risk, affected_entity, risk_type, affected_entity_type, get_data_functions=None):
-        self.risk = risk
-        self.risk_type = risk_type
-        self.affected_entity = affected_entity
-        self.affected_entity_type = affected_entity_type
+        Attributes
+        ----------
+        risk_type :
+            'risk_factor' or 'coverage_gap'
+        risk :
+            The name of the risk factor
+        affected_entity_type :
+            The type of the entity affected by the risk factor, e.g., 'cause'
+        affected_entity :
+            The name of the entity affected by the risk factor
+
+        """
+    def __init__(self, risk: str, target: str, get_data_functions: dict=None):
+        """
+
+        Parameters
+        ----------
+        risk :
+            Type and name of risk factor, supplied in the form
+            "risk_type.risk_name" where risk_type should be singular (e.g.,
+            risk_factor instead of risk_factors).
+        target :
+            Type, name, and target rate of entity to be affected by risk factor,
+            supplied in the form "entity_type.entity_name.measure"
+            where entity_type should be singular (e.g., cause instead of causes).
+        get_data_functions :
+            Optional mapping of measure name to function to retrieve paf and rr
+            data instead of reading from builder.data.
+
+        """
+        self.risk_type, self.risk = split_risk_from_type(risk)
+        self.affected_entity_type, self.affected_entity, self.target = split_target_from_type_entity(target)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
-
-    @property
-    def target(self):
-        raise NotImplementedError()
 
     def setup(self, builder):
         paf_data = self._get_paf_data(builder)
@@ -47,10 +49,10 @@ class RiskEffect:
         self.population_attributable_fraction = builder.lookup.build_table(paf_data)
         self.relative_risk = builder.lookup.build_table(rr_data)
 
-        self.exposure_effect = get_exposure_effect(builder, self.risk, self.risk_type)
+        self.exposure_effect = self.get_exposure_effect(builder, self.risk, self.risk_type)
 
         builder.value.register_value_modifier(f'{self.affected_entity}.{self.target}', modifier=self.adjust_target)
-        builder.value.register_value_modifier(f'{self.affected_entity}.paf',
+        builder.value.register_value_modifier(f'{self.affected_entity}.{self.target}.paf',
                                               modifier=self.population_attributable_fraction)
 
     def adjust_target(self, index, target):
@@ -96,34 +98,26 @@ class RiskEffect:
 
         return pivot_age_sex_year_binned(rr_data, 'parameter', 'value')
 
+    @staticmethod
+    def get_exposure_effect(builder, risk, risk_type):
+        distribution = builder.data.load(f'{risk_type}.{risk}.distribution')
+        risk_exposure = builder.value.get_value(f'{risk}.exposure')
 
-class DirectEffect(RiskEffect):
+        if distribution in ['normal', 'lognormal', 'ensemble']:
+            tmred = builder.data.load(f"{risk_type}.{risk}.tmred")
+            tmrel = 0.5 * (tmred["min"] + tmred["max"])
+            exposure_parameters = builder.data.load(f"{risk_type}.{risk}.exposure_parameters")
+            max_exposure = exposure_parameters["max_rr"]
+            scale = exposure_parameters["scale"]
 
-    @property
-    def target(self):
-        return 'incidence_rate'
+            def exposure_effect(rates, rr):
+                exposure = np.minimum(risk_exposure(rr.index), max_exposure)
+                relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
+                return rates * relative_risk
+        else:
 
+            def exposure_effect(rates, rr):
+                exposure = risk_exposure(rr.index)
+                return rates * (rr.lookup(exposure.index, exposure))
 
-class IndirectEffect(RiskEffect):
-    @property
-    def target(self):
-        return 'exposure_parameters'
-
-
-class RiskEffectSet:
-    def __init__(self, risk, risk_type):
-        self.risk = risk
-        self.risk_type = risk_type
-
-    def setup(self, builder):
-        affected_causes = builder.data.load(f"{self.risk_type}.{self.risk}.affected_causes")
-        affected_risks = builder.data.load(f"{self.risk_type}.{self.risk}.affected_risk_factors")
-
-        direct_effects = [
-            DirectEffect(self.risk, cause, self.risk_type, 'cause') for cause in affected_causes
-        ]
-        indirect_effects = [
-            IndirectEffect(self.risk, affected_risk, self.risk_type, 'risk_factor') for affected_risk in affected_risks
-        ]
-
-        builder.components.add_components(direct_effects + indirect_effects)
+        return exposure_effect

@@ -66,7 +66,7 @@ def continuous_risk():
     risk_data['exposure_parameters'] = exposure_parameters
     risk_data['distribution'] = 'normal'
 
-    return Risk("risk_factor", risk), risk_data
+    return Risk(f"risk_factor.{risk}"), risk_data
 
 
 @pytest.fixture(scope='module')
@@ -101,7 +101,7 @@ def dichotomous_risk():
     incidence_rate = build_table(0.01, year_start, year_end)
     risk_data['incidence_rate'] = incidence_rate
     risk_data['distribution'] = 'dichotomous'
-    return Risk('risk_factor', risk), risk_data
+    return Risk(f'risk_factor.{risk}'), risk_data
 
 
 @pytest.fixture(scope='module')
@@ -136,7 +136,7 @@ def polytomous_risk():
     incidence_rate = build_table(0.01, year_start, year_end)
     risk_data['incidence_rate'] = incidence_rate
     risk_data['distribution'] = 'polytomous'
-    return Risk('risk_factor', risk), risk_data
+    return Risk(f'risk_factor.{risk}'), risk_data
 
 
 @pytest.fixture(scope='module')
@@ -176,4 +176,4 @@ def coverage_gap():
     cg_data['affected_causes'] = []
     cg_data['affected_risk_factors'] = ['test_risk']
     cg_data['distribution'] = 'dichotomous'
-    return Risk('coverage_gap', cg) , cg_data
+    return Risk(f'coverage_gap.{cg}') , cg_data

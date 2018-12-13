@@ -6,11 +6,11 @@ from vivarium.testing_utilities import build_table, TestPopulation
 from vivarium.interface.interactive import initialize_simulation
 
 from vivarium_public_health.disease import RateTransition
-from vivarium_public_health.risks.effect import DirectEffect, get_exposure_effect, IndirectEffect
+from vivarium_public_health.risks.effect import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 
 
-def test_RiskEffect(base_config, base_plugins, mocker):
+def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
     time_step = pd.Timedelta(days=base_config.time.step_size)
@@ -21,18 +21,18 @@ def test_RiskEffect(base_config, base_plugins, mocker):
 
     r = 'test_risk'
     d = 'test_cause'
-    rf = Risk('risk_factor', r)
+    rf = Risk(f'risk_factor.{r}')
     effect_data_functions = {
         'rr': lambda *args: build_table([1.01, 'per_unit', d], year_start, year_end,
                                         ('age', 'year', 'sex', 'value', 'parameter', 'cause')),
         'paf': lambda *args: build_table([0.01, d], year_start, year_end, ('age', 'year', 'sex', 'value', 'cause')),
     }
 
-    effect = DirectEffect(r, d, 'risk_factor', 'cause', effect_data_functions)
+    effect = RiskEffect(f'risk_factor.{r}', f'cause.{d}.incidence_rate', effect_data_functions)
 
     simulation = initialize_simulation([TestPopulation(), effect], input_config=base_config, plugin_config=base_plugins)
 
-    simulation.data.write("risk_factor.test_risk.distribution", "dichotomuous")
+    simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
     simulation.values.register_value_producer("test_risk.exposure", mocker.Mock())
 
     simulation.setup()
@@ -95,7 +95,7 @@ def test_risk_deletion(base_config, base_plugins, mocker):
     base_simulation.setup()
 
     incidence = base_simulation.get_value('infected.incidence_rate')
-    joint_paf = base_simulation.get_value('infected.paf')
+    joint_paf = base_simulation.get_value('infected.incidence_rate.paf')
 
     # Validate the base case
     assert np.allclose(incidence(base_simulation.population.population.index), from_yearly(base_rate, time_step))
@@ -103,7 +103,7 @@ def test_risk_deletion(base_config, base_plugins, mocker):
 
     transition = RateTransition(mocker.MagicMock(state_id='susceptible'),
                                 mocker.MagicMock(state_id='infected'), rate_data_functions)
-    effect = DirectEffect('bad_risk', 'infected', 'risk_factor', 'cause', effect_data_functions)
+    effect = RiskEffect(f'risk_factor.bad_risk', f'cause.infected.incidence_rate', effect_data_functions)
 
     rf_simulation = initialize_simulation([TestPopulation(), transition, effect],
                                           input_config=base_config, plugin_config=base_plugins)
@@ -115,7 +115,7 @@ def test_risk_deletion(base_config, base_plugins, mocker):
     effect.exposure_effect = effect_function
 
     incidence = rf_simulation.get_value('infected.incidence_rate')
-    joint_paf = rf_simulation.get_value('infected.paf')
+    joint_paf = rf_simulation.get_value('infected.incidence_rate.paf')
 
     assert np.allclose(incidence(rf_simulation.population.population.index),
                        from_yearly(base_rate * (1 - risk_paf), time_step))
@@ -128,7 +128,7 @@ def test_continuous_exposure_effect(mocker, base_config, base_plugins, continuou
     class exposure_function_wrapper:
 
         def setup(self, builder):
-            self.exposure_function = get_exposure_effect(builder, 'test_risk', 'risk_factor')
+            self.exposure_function = RiskEffect.get_exposure_effect(builder, 'test_risk', 'risk_factor')
 
         def __call__(self, *args, **kwargs):
             return self.exposure_function(*args, **kwargs)
@@ -166,7 +166,7 @@ def test_categorical_exposure_effect(base_config, base_plugins, mocker):
 
     class exposure_function_wrapper:
         def setup(self, builder):
-            self.exposure_function = get_exposure_effect(builder, 'test_risk', 'risk_factor')
+            self.exposure_function = RiskEffect.get_exposure_effect(builder, 'test_risk', 'risk_factor')
 
         def __call__(self, *args, **kwargs):
             return self.exposure_function(*args, **kwargs)
@@ -200,9 +200,11 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins, di
     time_step = pd.Timedelta(days=base_config.time.step_size)
     risk, risk_data = dichotomous_risk
     affected_causes = risk_data['affected_causes']
+    risk_effects = [RiskEffect(f'risk_factor.{risk._risk}', f'cause.{ac}.incidence_rate') for ac in affected_causes]
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    simulation = initialize_simulation([TestPopulation(), risk],
+
+    simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
                                        input_config=base_config, plugin_config=base_plugins)
     for key, value in risk_data.items():
         simulation.data.write(f'risk_factor.test_risk.{key}', value)
@@ -233,8 +235,10 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins, pol
     risk, risk_data = polytomous_risk
     affected_causes = risk_data['affected_causes']
 
+    risk_effects = [RiskEffect(f'risk_factor.{risk._risk}', f'cause.{ac}.incidence_rate') for ac in affected_causes]
+
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    simulation = initialize_simulation([TestPopulation(), risk],
+    simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
                                        input_config=base_config, plugin_config=base_plugins)
 
     for key, value in risk_data.items():
@@ -266,9 +270,10 @@ def test_ContinuousRiskComponent(continuous_risk, base_config, base_plugins):
     time_step = pd.Timedelta(days=base_config.time.step_size)
     risk, risk_data = continuous_risk
     risk_data['exposure_standard_deviation'] = build_table(0.0001, year_start, year_end, ('age', 'year', 'sex', 'value'))
+    risk_effects = [RiskEffect(f'risk_factor.{risk._risk}', f'cause.{ac}.incidence_rate') for ac in risk_data['affected_causes']]
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    simulation = initialize_simulation([TestPopulation(), risk],
+    simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
                                        input_config=base_config, plugin_config=base_plugins)
     for key, value in risk_data.items():
         simulation.data.write(f'risk_factor.test_risk.{key}', value)
@@ -293,14 +298,14 @@ def test_ContinuousRiskComponent(continuous_risk, base_config, base_plugins):
                        from_yearly(expected_value, time_step), rtol=0.001)
 
 
-def test_IndirectEffect_dichotomous(base_config, base_plugins, dichotomous_risk, coverage_gap):
+def test_exposure_params_risk_effect_dichotomous(base_config, base_plugins, dichotomous_risk, coverage_gap):
     affected_risk, risk_data = dichotomous_risk
     coverage_gap, cg_data = coverage_gap
     rf_exposed = 0.5
     rr = 2 # rr between cg/affected_risk
 
     base_config.update({'population': {'population_size': 100000}}, layer='override')
-    affected_risk = Risk('risk_factor', 'test_risk')
+    affected_risk = Risk('risk_factor.test_risk')
 
     # start with the only risk factor without indirect effect from coverage_gap
     simulation = initialize_simulation([TestPopulation(), affected_risk],
@@ -316,7 +321,10 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins, dichotomous_risk,
     assert np.isclose(rf_exposed, exposure(pop.index).value_counts()['cat1']/len(pop), rtol=0.01)
 
     # add the coverage gap which should change the exposure of test risk
-    simulation = initialize_simulation([TestPopulation(), affected_risk, coverage_gap],
+    risk_effects = [RiskEffect(f'coverage_gap.{coverage_gap._risk}',
+                               f'risk_factor.{rf}.exposure_parameters') for rf in cg_data['affected_risk_factors']]
+
+    simulation = initialize_simulation([TestPopulation(), affected_risk, coverage_gap] + risk_effects,
                                        input_config=base_config, plugin_config=base_plugins)
 
     for key, value in risk_data.items():
@@ -344,5 +352,3 @@ def test_IndirectEffect_dichotomous(base_config, base_plugins, dichotomous_risk,
 
     computed_rr = (len(pop[affected_by_cg])/len(pop[cg_exposed])) / (len(pop[not_affected_by_cg])/len(pop[~cg_exposed]))
     assert np.isclose(computed_rr, rr, rtol=0.01)
-
-
