@@ -6,8 +6,8 @@ from vivarium.testing_utilities import build_table, TestPopulation
 from vivarium.interface.interactive import initialize_simulation
 
 from vivarium_public_health.disease import RateTransition
-from vivarium_public_health.risks.effect import RiskEffect
-from vivarium_public_health.risks.base_risk import Risk
+from vivarium_public_health.risks.effect import RiskEffect, DummyRiskEffect
+from vivarium_public_health.risks.base_risk import Risk, DummyRisk
 
 
 def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
@@ -352,3 +352,41 @@ def test_exposure_params_risk_effect_dichotomous(base_config, base_plugins, dich
 
     computed_rr = (len(pop[affected_by_cg])/len(pop[cg_exposed])) / (len(pop[not_affected_by_cg])/len(pop[~cg_exposed]))
     assert np.isclose(computed_rr, rr, rtol=0.01)
+
+
+def test_DummyRiskEffect(base_config, base_plugins):
+    dummy_risk = DummyRisk("risk_factor.test_risk")
+    dummy_effect = DummyRiskEffect("risk_factor.test_risk", "cause.test_cause.incidence_rate")
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    time_step = pd.Timedelta(days=base_config.time.step_size)
+
+    base_config.update({'test_risk': {'exposure': 1}}, layer='override')
+    base_config.update({'effect_of_test_risk_on_test_cause': {'incidence_rate': 50}})
+    simulation = initialize_simulation([TestPopulation(), dummy_risk, dummy_effect],
+                                       input_config=base_config, plugin_config=base_plugins)
+
+    simulation.setup()
+
+    # make sure our dummy exposure value is being properly used
+    exp = simulation.values.get_value('test_risk.exposure')(simulation.population.population.index)
+    assert((exp == 'cat1').all())
+
+    # This one should be affected by our DummyRiskEffect
+    rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
+    rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                 key_columns=('sex',),
+                                                 parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                    ('year', 'year_start', 'year_end')],
+                                                 value_columns=None)
+
+    # This one should not
+    other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate')
+    other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
+                                                       key_columns=('sex',),
+                                                       parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+                                                                          ('year', 'year_start', 'year_end')],
+                                                       value_columns=None)
+
+    assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step)*50)
+    assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
