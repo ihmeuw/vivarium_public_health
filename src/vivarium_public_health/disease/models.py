@@ -22,7 +22,6 @@ def get_aggregate_disability_weight(cause: str, builder):
         float
     """
     sequelae = builder.data.load(f"cause.{cause}.sequelae")
-    # TODO: Must merge, can't group b/c of year start and end
     aggregate_dw = None
     for s in sequelae:
         prevalence = builder.data.load(f"sequela.{s}.prevalence")
@@ -50,7 +49,6 @@ class SI:
         self.cause = cause
 
     def setup(self, builder):
-        # TODO: Are we sure about this? Do we neversupport morbidity + mortality ?
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
 
         healthy = SusceptibleState(self.cause)
