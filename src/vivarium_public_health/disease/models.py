@@ -1,8 +1,9 @@
 import pandas as pd
 
-from vivarium_inputs.utilities import DataMissingError
 from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, RecoveredState,
                                             DiseaseState, DiseaseModel)
+from vivarium_inputs.utilities import DataMissingError
+from vivarium_public_health.dataset_manager.artifact import ArtifactException
 
 
 def get_aggregate_disability_weight(cause: str, builder):
@@ -20,21 +21,27 @@ def get_aggregate_disability_weight(cause: str, builder):
     -------
         float
     """
-    aggregate_dw = 0.0
     sequelae = builder.data.load(f"cause.{cause}.sequelae")
+    # TODO: Must merge, can't group b/c of year start and end
+    aggregate_dw = None
     for s in sequelae:
-
         prevalence = builder.data.load(f"sequela.{s}.prevalence")
+        prevalence.drop(['sequela_id'], axis=1, inplace=True)
         try:
             disability_weight = builder.data.load(f"sequela.{s}.disability_weight")
             assert disability_weight.shape[0] == 1
-            disability_weight = disability_weight.value
-        except DataMissingError:
+            disability_weight = float(disability_weight.value)
+        except (DataMissingError, ArtifactException):
             disability_weight = 0.0
-        aggregate_dw = prevalence.copy()
-        aggregate_dw['value'] *= disability_weight
+        prevalence['value'] *= disability_weight
+        prevalence.set_index(['sex', 'age_group_start', 'age_group_end',
+                              'year_start', 'year_end'], inplace=True)
+        if aggregate_dw is None:
+            aggregate_dw = prevalence.copy()
+        else:
+            aggregate_dw += prevalence
 
-    return aggregate_dw
+    return aggregate_dw.reset_index()
 
 
 class SI:
