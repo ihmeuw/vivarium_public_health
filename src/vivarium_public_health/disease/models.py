@@ -27,9 +27,12 @@ def get_aggregate_disability_weight(cause: str, builder):
         prevalence = builder.data.load(f"sequela.{s}.prevalence")
         try:
             disability_weight = builder.data.load(f"sequela.{s}.disability_weight")
+            assert disability_weight.shape[0] == 1
+            disability_weight = disability_weight.value
         except DataMissingError:
             disability_weight = 0.0
-        aggregate_dw += (prevalence * disability_weight)
+        aggregate_dw = prevalence.copy()
+        aggregate_dw['value'] *= disability_weight
 
     return aggregate_dw
 
