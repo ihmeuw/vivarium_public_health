@@ -29,7 +29,7 @@ class DiseaseModel(Machine):
 
         if 'csmr' not in self._get_data_functions:
             self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(
-                f"{self.cause_type}.{cause}.cause_specific_mortality")
+                f"{self.cause_type}.{cause}.cause_specific_mortality", future=builder.configuration.forecast)
 
     @property
     def condition(self):
