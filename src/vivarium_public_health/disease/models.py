@@ -27,7 +27,7 @@ def get_aggregate_disability_weight(cause: str, builder):
         prevalence = builder.data.load(f"sequela.{s}.prevalence")
         try:
             disability_weight = builder.data.load(f"sequela.{s}.disability_weight")
-        except vivarium_inputs.utilities.DataMissingError:
+        except DataMissingError:
             disability_weight = 0.0
         aggregate_dw += (prevalence * disability_weight)
 
@@ -168,7 +168,7 @@ class neonatal:
         if only_morbid:
             with_condition = DiseaseState(self.cause,
                                           get_data_functions={'disability_weight': get_aggregate_disability_weight})
-            get_data_functions['csmr'] = lambda: _, __: None
+            get_data_functions['csmr'] = lambda _, __: None
         else:
             with_condition = ExcessMortalityState(self.cause,
                                                   get_data_functions={'disability_weight': get_aggregate_disability_weight})
