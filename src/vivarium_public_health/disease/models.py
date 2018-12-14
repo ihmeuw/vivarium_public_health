@@ -124,7 +124,7 @@ class SIS_fixed_duration:
     def __init__(self, cause, duration):
         self.cause = cause
         if not isinstance(duration, pd.Timedelta):
-            duration = pd.Timedelta(days=float(duration) // 1, hours=float(duration) % 1)
+            self.duration = pd.Timedelta(days=float(duration) // 1, hours=float(duration) % 1)
         else:
             self.duration = duration
 
@@ -157,7 +157,7 @@ class neonatal:
     def __init__(self, cause):
         self.cause = cause
 
-    def setup(self):
+    def setup(self, builder):
 
         only_morbid = builder.data.load(f'cause.{self.cause}.restricitons')['yld_only']
 
@@ -178,7 +178,7 @@ class neonatal:
         # healthy.add_transition(with_condition, source_data_type='rate')
         # with_condition.add_transition(healthy, source_data_type='rate')
 
-        builder.components.add_components([DiseaseModel(cause, states=[healthy, with_condition])])
+        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, with_condition])])
 
 
 
