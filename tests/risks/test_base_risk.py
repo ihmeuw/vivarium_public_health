@@ -6,7 +6,7 @@ from scipy.stats import norm
 
 from vivarium.testing_utilities import TestPopulation, metadata
 from vivarium.interface.interactive import initialize_simulation
-from vivarium_public_health.risks.base_risk import DummyRisk
+from vivarium_public_health.risks.base_risk import Risk
 
 
 @pytest.mark.parametrize('propensity', [0.00001, 0.5, 0.99])
@@ -29,9 +29,9 @@ def test_propensity_effect(propensity, mocker, continuous_risk, base_config, bas
     assert np.allclose(rf.exposure(sim.population.population.index), expected_value)
 
 
-def test_DummyRisk(base_config, base_plugins):
+def test_Risk_config_data(base_config, base_plugins):
     exposure_level = 0.8  # default is one
-    dummy_risk = DummyRisk("risk_factor.test_risk")
+    dummy_risk = Risk("risk_factor.test_risk")
     base_config.update({'test_risk': {'exposure': exposure_level}}, layer='override')
 
     simulation = initialize_simulation([TestPopulation(), dummy_risk],

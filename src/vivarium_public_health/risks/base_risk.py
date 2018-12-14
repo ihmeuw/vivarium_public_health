@@ -9,18 +9,26 @@ class Risk:
     (1) high systolic blood pressure as a risk where the SBP is not dichotomized
         into hypotension and normal but is treated as the actual SBP measurement.
     (2) smoking as two categories: current smoker and non-smoker.
-
-
-    Parameters
-    ----------
-    risk : str
-        the type and name of a risk, specified as "type.name". Type is singular.
     """
 
-    configuration_defaults = {}
+    configuration_defaults = {
+        "dummy_risk": {
+            "exposure": 'data',
+            "distribution": 'dichotomous'
+        }
+    }
 
     def __init__(self, risk: str):
+        """
+
+        Parameters
+        ----------
+        risk : str
+            the type and name of a risk, specified as "type.name". Type is singular.
+
+        """
         self._risk_type, self._risk = split_risk_from_type(risk)
+        self.configuration_defaults = {f'{self._risk}': Risk.configuration_defaults['dummy_risk']}
 
     def setup(self, builder):
         self.exposure_distribution = self._get_distribution(builder)
@@ -35,17 +43,24 @@ class Risk:
 
     def _get_distribution(self, builder):
         """A wrapper to isolate builder from setup"""
-
-        distribution_type = builder.data.load(f"{self._risk_type}.{self._risk}.distribution")
-        exposure_data = builder.data.load(f"{self._risk_type}.{self._risk}.exposure")
-
         kwargs = {}
-        if distribution_type == "polytomous":
-            kwargs['configuration'] = builder.configuration
-        elif distribution_type in ['normal', 'lognormal', 'ensemble']:
-            kwargs['exposure_standard_deviation'] = builder.data.load(f"{self._risk_type}.{self._risk}.exposure_standard_deviation")
-            if distribution_type == "ensemble":
-                kwargs['weights'] = builder.data.load(f'risk_factor.{self._risk}.ensemble_weights')
+        if builder.configuration[self._risk]['exposure'] != 'data':
+            if builder.configuration[self._risk]['distribution'] != "dichotomous":
+                raise ValueError("A Dummy Risk must have a dichotomous distribution.")
+
+            exposure_data = build_exp_data_from_config(builder, self._risk)
+            distribution_type = builder.configuration[self._risk]['distribution']
+
+        else:
+            distribution_type = builder.data.load(f"{self._risk_type}.{self._risk}.distribution")
+            exposure_data = builder.data.load(f"{self._risk_type}.{self._risk}.exposure")
+
+            if distribution_type == "polytomous":
+                kwargs['configuration'] = builder.configuration
+            elif distribution_type in ['normal', 'lognormal', 'ensemble']:
+                kwargs['exposure_standard_deviation'] = builder.data.load(f"{self._risk_type}.{self._risk}.exposure_standard_deviation")
+                if distribution_type == "ensemble":
+                    kwargs['weights'] = builder.data.load(f'risk_factor.{self._risk}.ensemble_weights')
 
         return get_distribution(self._risk, distribution_type, exposure_data, **kwargs)
 
@@ -58,49 +73,3 @@ class Risk:
 
     def __repr__(self):
         return f"Risk(_risk_type= {self._risk_type}, _risk= {self._risk})"
-
-
-class DummyRisk(Risk):
-    """A model for a dichotomous risk factor defined by an exposure level or a proxy covariate. For example, smoking as
-    two categories: current smoker and non-smoker.
-
-    The difference between this component and the Risk component is the source of the data and the distribution type
-    being constrained to "dichotomous." This Dummy Risk derives data from the configuration file itself. This data can
-    be an integer or float expressing the desired exposure level or a covariate name that is intended to be used as
-    a proxy. For example, for a dummy risk named "dummy_risk", the configuration could look like this:
-    (1) configuration:
-            dummy_risk:
-                exposure: 1.0
-    (2) configuration:
-            dummy_risk:
-                exposure: proxy_covariate
-
-    Parameters
-    ----------
-    risk: str
-        the type and name of a risk, specified as "type.name". Type is singular.
-    """
-
-    configuration_defaults = {
-        "dummy_risk": {
-            "exposure": 1,
-            "distribution": "dichotomous"
-        }
-    }
-
-    def __init__(self, risk: str):
-        super().__init__(risk)
-        self.configuration_defaults = {f'{self._risk}': DummyRisk.configuration_defaults['dummy_risk']}
-
-    def _get_distribution(self, builder):
-
-        if builder.configuration[self._risk]['distribution'] != "dichotomous":
-            raise ValueError("A Dummy Risk must have a dichotomous distribution.")
-
-        exposure_data = build_exp_data_from_config(builder, self._risk)
-        distribution_type = builder.configuration[self._risk]['distribution']
-
-        return get_distribution(self._risk, distribution_type, exposure_data)
-
-    def __repr__(self):
-        return f"DummyRisk(_risk_type={self._risk_type}, _risk={self._risk}"
