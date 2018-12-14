@@ -57,7 +57,8 @@ class ArtifactManager:
     configuration_defaults = {
         'input_data': {
             'artifact_path': None,
-            'artifact_filter_term': None
+            'artifact_filter_term': None,
+            'forecast': False
         }
     }
 
