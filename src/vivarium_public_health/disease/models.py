@@ -6,20 +6,20 @@ from vivarium_inputs.utilities import DataMissingError
 from vivarium_public_health.dataset_manager.artifact import ArtifactException
 
 
-def get_aggregate_disability_weight(cause: str, builder):
+def get_aggregate_disability_weight(cause: str, builder) -> pd.DataFrame:
     """Calculates the cause-level disability weight as the sum of the causes's sequelae's disability weights
     weighted by their prevalences.
 
     Parameters
     ----------
-    cause: str
+    cause:
         A cause name
     builder:
         A vivarium builder object
 
     Returns
     -------
-        float
+        The cause-level disability weight, varying by year, age and sex.
     """
     sequelae = builder.data.load(f"cause.{cause}.sequelae")
     aggregate_dw = None
