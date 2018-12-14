@@ -170,7 +170,7 @@ class neonatal:
 
     def setup(self, builder):
 
-        only_morbid = builder.data.load(f'cause.{self.cause}.restricitons')['yld_only']
+        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
 
         healthy = SusceptibleState(self.cause)
         healthy.allow_self_transitions()
