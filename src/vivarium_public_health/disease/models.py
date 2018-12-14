@@ -79,8 +79,8 @@ class SIR:
         get_data_functions = {}
         if only_morbid:
             infected = DiseaseState(self.cause,
-                                    get_data_functions={'disability_weights': get_aggregate_disability_weight})
-            get_data_functions['csmr'] = lambda _, __: None
+                                    get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
             infected = ExcessMortalityState(self.cause,
                                             get_data_functions={'disability_weight': get_aggregate_disability_weight})
@@ -92,7 +92,8 @@ class SIR:
         healthy.add_transition(infected, source_data_type='rate')
         infected.add_transition(recovered, source_data_type='rate')
 
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected, recovered])])
+        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected, recovered],
+                                                        get_data_functions=get_data_functions)])
 
 
 class SIS:
@@ -109,8 +110,8 @@ class SIS:
         get_data_functions = {}
         if only_morbid:
             infected = DiseaseState(self.cause,
-                                    get_data_functions={'disability_weights': get_aggregate_disability_weight})
-            get_data_functions['csmr'] = lambda _, __: None
+                                    get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
             infected = ExcessMortalityState(self.cause,
                                             get_data_functions={'disability_weight': get_aggregate_disability_weight})
@@ -119,7 +120,8 @@ class SIS:
         healthy.add_transition(infected, source_data_type='rate')
         infected.add_transition(healthy, source_data_type='rate')
 
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected])])
+        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected],
+                                                        get_data_functions=get_data_functions)])
 
 
 class SIS_fixed_duration:
@@ -142,7 +144,7 @@ class SIS_fixed_duration:
             infected = DiseaseState(self.cause,
                                     get_data_functions={'disability_weight': get_aggregate_disability_weight,
                                                         'dwell_time': lambda _, __: self.duration})
-            get_data_functions['csmr'] = lambda _, __: None
+            get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
             infected = ExcessMortalityState(self.cause,
                                             get_data_functions={'disability_weight': get_aggregate_disability_weight,
@@ -152,7 +154,8 @@ class SIS_fixed_duration:
         healthy.add_transition(infected, source_data_type='rate')
         infected.add_transition(healthy)
 
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected])])
+        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected],
+                                                        get_data_functions=get_data_functions)])
 
 
 class neonatal:
@@ -171,7 +174,7 @@ class neonatal:
         if only_morbid:
             with_condition = DiseaseState(self.cause,
                                           get_data_functions={'disability_weight': get_aggregate_disability_weight})
-            get_data_functions['csmr'] = lambda _, __: None
+            get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
             with_condition = ExcessMortalityState(self.cause,
                                                   get_data_functions={'disability_weight': get_aggregate_disability_weight})
@@ -181,7 +184,8 @@ class neonatal:
         # healthy.add_transition(with_condition, source_data_type='rate')
         # with_condition.add_transition(healthy, source_data_type='rate')
 
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, with_condition])])
+        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, with_condition],
+                                                        get_data_functions=get_data_functions)])
 
 
 
