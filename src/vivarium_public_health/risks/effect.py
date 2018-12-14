@@ -7,7 +7,17 @@ from .data_transformation import (should_rebin, rebin_rr_data, get_paf_data, bui
 
 class RiskEffect:
     """A component to model the impact of a risk factor on the target rate of
-    some affected entity. """
+    some affected entity. This component can source data either from
+    builder.data or from parameters supplied in the configuration.
+
+    For a risk named 'risk' that affects 'affected_risk' and 'affected_cause',
+    the configuration would look like:
+
+    configuration:
+        effect_of_risk_on_affected_risk:
+            exposure_parameters: 2
+            incidence_rate: 10
+    """
 
     configuration_defaults = {
         'effect_of_risk_on_entity': {
