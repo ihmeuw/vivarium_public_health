@@ -25,7 +25,6 @@ def assign_cause_mock(mocker):
 def base_data():
     def _set_prevalence(p):
         base_function = dict()
-        base_function['disability_weight'] = lambda _, __: 0
         base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=1)
         base_function['prevalence'] = lambda _, __: p
         return base_function
@@ -45,6 +44,9 @@ def get_test_prevalence(simulation, key):
 
 
 def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+
     time_step = 10
     assign_cause_mock.side_effect = lambda population, *args: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
@@ -57,6 +59,7 @@ def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     healthy_state = BaseDiseaseState('healthy')
     data_function = base_data(0)
     data_function['dwell_time'] = lambda _, __: pd.Timedelta(days=28)
+    data_function['disability_weight'] = lambda _, __: build_table(0.0, year_start-1, year_end)
     event_state = DiseaseState('event', get_data_functions=data_function)
     done_state = BaseDiseaseState('sick')
 
@@ -100,6 +103,8 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     mort_get_data_funcs = {
         'dwell_time': lambda _, __: pd.Timedelta(days=14),
         'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
+        'disability_weight': lambda _, __: build_table(0.0, year_start-1, year_end) # this will get called because
+                                                                                    # EMState extends Disease state
     }
 
     mortality_state = ExcessMortalityState('event', get_data_functions=mort_get_data_funcs)
@@ -132,7 +137,6 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     # enough time has passed so living people should transition away to sick
     assert ((simulation.population.population['alive'] == 'alive').sum() ==
            (simulation.population.population[disease] == 'sick').sum())
-
 
 
 @pytest.mark.parametrize('test_prevalence_level', [0, 0.35, 1])
