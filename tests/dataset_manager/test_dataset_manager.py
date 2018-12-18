@@ -12,7 +12,7 @@ from vivarium_public_health.dataset_manager.dataset_manager import (_subset_rows
 def artifact_mock(mocker):
     mock = mocker.patch('vivarium_public_health.dataset_manager.dataset_manager.Artifact')
 
-    def mock_load(key):
+    def mock_load(key, _):
         if key == 'string_data.key':
             return 'string_data'
         elif key == 'df_data.key':

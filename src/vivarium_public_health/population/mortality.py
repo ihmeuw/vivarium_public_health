@@ -9,7 +9,8 @@ from .data_transformations import get_cause_deleted_mortality
 class Mortality:
 
     def setup(self, builder):
-        self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")
+        self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality",
+                                                           future=builder.configuration.input_data.forecast)
         self._cause_deleted_mortality_data = None
 
         self._root_location = builder.configuration.input_data.location
