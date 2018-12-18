@@ -6,43 +6,6 @@ from vivarium_inputs.utilities import DataMissingError
 from vivarium_public_health.dataset_manager.artifact import ArtifactException
 
 
-def get_aggregate_disability_weight(cause: str, builder) -> pd.DataFrame:
-    """Calculates the cause-level disability weight as the sum of the causes's sequelae's disability weights
-    weighted by their prevalences.
-
-    Parameters
-    ----------
-    cause:
-        A cause name
-    builder:
-        A vivarium builder object
-
-    Returns
-    -------
-        The cause-level disability weight, varying by year, age and sex.
-    """
-    sequelae = builder.data.load(f"cause.{cause}.sequelae")
-    aggregate_dw = None
-    for s in sequelae:
-        prevalence = builder.data.load(f"sequela.{s}.prevalence")
-        prevalence.drop(['sequela_id'], axis=1, inplace=True)
-        try:
-            disability_weight = builder.data.load(f"sequela.{s}.disability_weight")
-            assert disability_weight.shape[0] == 1
-            disability_weight = float(disability_weight.value)
-        except (DataMissingError, ArtifactException):
-            disability_weight = 0.0
-        prevalence['value'] *= disability_weight
-        prevalence.set_index(['sex', 'age_group_start', 'age_group_end',
-                              'year_start', 'year_end'], inplace=True)
-        if aggregate_dw is None:
-            aggregate_dw = prevalence.copy()
-        else:
-            aggregate_dw += prevalence
-
-    return aggregate_dw.reset_index()
-
-
 class SI:
 
     def __init__(self, cause: str):
@@ -56,12 +19,11 @@ class SI:
 
         get_data_functions = {}
         if only_morbid:
-            infected = DiseaseState(self.cause,
-                                    get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            infected = DiseaseState(self.cause)
+                                   
             get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
-            infected = ExcessMortalityState(self.cause,
-                                            get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            infected = ExcessMortalityState(self.cause) 
         infected.allow_self_transitions()
 
         healthy.add_transition(infected, source_data_type='rate')
@@ -83,12 +45,11 @@ class SIR:
 
         get_data_functions = {}
         if only_morbid:
-            infected = DiseaseState(self.cause,
-                                    get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            infected = DiseaseState(self.cause)
             get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
-            infected = ExcessMortalityState(self.cause,
-                                            get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            infected = ExcessMortalityState(self.cause)
+
         infected.allow_self_transitions()
 
         recovered = RecoveredState(self.cause)
@@ -114,12 +75,11 @@ class SIS:
 
         get_data_functions = {}
         if only_morbid:
-            infected = DiseaseState(self.cause,
-                                    get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            infected = DiseaseState(self.cause)
             get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
-            infected = ExcessMortalityState(self.cause,
-                                            get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            infected = ExcessMortalityState(self.cause)
+
         infected.allow_self_transitions()
 
         healthy.add_transition(infected, source_data_type='rate')
@@ -147,13 +107,11 @@ class SIS_fixed_duration:
         get_data_functions = {}
         if only_morbid:
             infected = DiseaseState(self.cause,
-                                    get_data_functions={'disability_weight': get_aggregate_disability_weight,
-                                                        'dwell_time': lambda _, __: self.duration})
+                                    get_data_functions={'dwell_time': lambda _, __: self.duration})
             get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
             infected = ExcessMortalityState(self.cause,
-                                            get_data_functions={'disability_weight': get_aggregate_disability_weight,
-                                                                'dwell_time': lambda _, __: self.duration})
+                                            get_data_functions={'dwell_time': lambda _, __: self.duration})
         infected.allow_self_transitions()
 
         healthy.add_transition(infected, source_data_type='rate')
@@ -177,12 +135,10 @@ class neonatal:
 
         get_data_functions = {}
         if only_morbid:
-            with_condition = DiseaseState(self.cause,
-                                          get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            with_condition = DiseaseState(self.cause)
             get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
-            with_condition = ExcessMortalityState(self.cause,
-                                                  get_data_functions={'disability_weight': get_aggregate_disability_weight})
+            with_condition = ExcessMortalityState(self.cause)
         with_condition.allow_self_transitions()
 
         # TODO: some neonatal causes (e.g. sepsis) have incidence and remission at least at the MEID level
