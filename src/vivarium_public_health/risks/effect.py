@@ -23,6 +23,7 @@ class RiskEffect:
         'effect_of_risk_on_entity': {
             'incidence_rate': 'data',
             'exposure_parameters': 'data',
+            'excess_mortality': 'data',
         }
     }
 
@@ -88,11 +89,13 @@ class RiskEffect:
             else:
                 distribution = builder.data.load(f'{self.risk_type}.{self.risk}.distribution')
                 if distribution in ['normal', 'lognormal', 'ensemble']:
-                    paf_data = builder.data.load(f'{self.risk_type}.{self.risk}.population_attributable_fraction')
+                    paf_data = builder.data.load(f'{self.risk_type}.{self.risk}.population_attributable_fraction',
+                                                 mortality=(self.target == 'excess_mortality'))
 
                 else:
                     exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
-                    rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
+                    rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk',
+                                           mortality=(self.target == 'excess_mortality'))
                     rr = rr[rr[filter_name] == filter_term]
                     paf_data = get_paf_data(exposure, rr)
 
@@ -110,7 +113,8 @@ class RiskEffect:
             if 'rr' in self._get_data_functions:
                 rr_data = self._get_data_functions['rr'](builder)
             else:
-                rr_data = builder.data.load(f"{self.risk_type}.{self.risk}.relative_risk")
+                rr_data = builder.data.load(f"{self.risk_type}.{self.risk}.relative_risk",
+                                            mortality=(self.target == 'excess_mortality'))
 
             row_filter = rr_data[f'{self.affected_entity_type}'] == self.affected_entity
             column_filter = ['parameter', 'sex', 'value', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
