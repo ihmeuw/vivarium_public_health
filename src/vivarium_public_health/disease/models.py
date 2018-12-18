@@ -20,7 +20,6 @@ class SI:
         get_data_functions = {}
         if only_morbid:
             infected = DiseaseState(self.cause)
-                                   
             get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
         else:
             infected = ExcessMortalityState(self.cause) 
