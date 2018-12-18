@@ -79,7 +79,8 @@ class FertilityCrudeBirthRate:
     """
     def setup(self, builder):
         self._population_data = load_population_structure(builder)
-        self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
+        self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
+                                             future=builder.configuration.input_data.forecast)
         if 'exit_age' in builder.configuration.population:
             self.exit_age = builder.configuration.population.exit_age
         else:
@@ -176,7 +177,8 @@ class FertilityAgeSpecificRates:
         """
 
         self.randomness = builder.randomness.get_stream('fertility')
-        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
+        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate",
+                                      future=builder.configuration.input_data.forecast)
         asfr_data = asfr_data[asfr_data.sex == 'Female'][['year_start', 'year_end',
                                                           'age_group_start', 'age_group_end', 'mean_value']]
         asfr_source = builder.lookup.build_table(asfr_data, key_columns=(),
