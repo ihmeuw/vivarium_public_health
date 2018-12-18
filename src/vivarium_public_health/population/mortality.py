@@ -74,8 +74,6 @@ class Mortality:
         metrics['total_population__dead'] = len(the_dead)
 
         for (condition, count) in pd.value_counts(the_dead.cause_of_death).to_dict().items():
-            if condition == "death_due_to_other_causes":
-                condition = "other_causes"
             metrics['death_due_to_{}'.format(condition)] = count
 
         return metrics
