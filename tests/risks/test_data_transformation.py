@@ -117,3 +117,4 @@ def test_exposure_rr_from_config_value_exp():
     assert set(df_no_age_spec.age_group_start) == set(range(0, 140))
     assert (df_no_age_spec.loc[df_no_age_spec.parameter == 'cat1', 'value'] == exp_val).all()
     assert (df_no_age_spec.loc[df_no_age_spec.parameter == 'cat2', 'value'] == (1 - exp_val)).all()
+

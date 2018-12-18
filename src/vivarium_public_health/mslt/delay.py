@@ -58,9 +58,6 @@ class DelayedRisk:
                affects:
                    # This is where the affected diseases should be listed.
                    stroke:
-               # For now, apply a constant PIF to incidence and/or remission.
-               incidence_pif: 0.95
-               remission_pif: 1.05
     """
 
     def __init__(self, name, bin_years=20):
@@ -81,9 +78,9 @@ class DelayedRisk:
         """
         self.config = builder.configuration
 
-        # NOTE: for now, apply a constant PIF to incidence and remission.
-        self.incidence_pif = self.config[self.name].incidence_pif
-        self.remission_pif = self.config[self.name].remission_pif
+        # Read in the delay duration from the configuration, if present.
+        if 'delay' in self.config[self.name]:
+            self.bin_years = int(self.config[self.name]['delay'])
 
         # Load the initial prevalence.
         prev_data = builder.data.load(f'risk_factor.{self.name}.prevalence')
@@ -140,7 +137,8 @@ class DelayedRisk:
             int_col = {c: c.replace(dis_prefix, int_prefix).replace('post_', '')
                        for c in dis_columns}
             for column in dis_columns:
-                rr_data[int_col[column]] = rr_data[column]
+                # NOTE: avoid SettingWithCopyWarning
+                rr_data.loc[:, int_col[column]] = rr_data[column]
             rr_data = rr_data.rename(columns=bau_col)
             rr_data = add_year_column(builder, rr_data)
             self.dis_rr[disease] = builder.lookup.build_table(rr_data)
@@ -176,7 +174,11 @@ class DelayedRisk:
 
         The intervention bin names take the form ``"name_intervention.X"``.
         """
-        bins = ['no', 'yes'] + [str(s) for s in range(self.bin_years + 2)]
+        if self.bin_years == 0:
+            delay_bins = [str(0)]
+        else:
+            delay_bins = [str(s) for s in range(self.bin_years + 2)]
+        bins = ['no', 'yes'] + delay_bins
         bau_bins = ['{}.{}'.format(self.name, bin) for bin in bins]
         int_bins = ['{}_intervention.{}'.format(self.name, bin) for bin in bins]
         all_bins = bau_bins + int_bins
@@ -226,9 +228,8 @@ class DelayedRisk:
         acmr = self.acm_rate(idx)
         inc_rate = self.incidence(idx)
         rem_rate = self.remission(idx)
-        # NOTE: for now, apply a constant PIF to the incidence rate.
-        int_inc_rate = self.int_incidence(idx) * self.incidence_pif
-        int_rem_rate = self.int_remission(idx) * self.remission_pif
+        int_inc_rate = self.int_incidence(idx)
+        int_rem_rate = self.int_remission(idx)
 
         # Calculate the survival rate for each bin.
         pop = self.population_view.get(idx)
@@ -243,10 +244,11 @@ class DelayedRisk:
         # Note that the order of evaluation matters.
         suffixes = ['', '_intervention']
         # First, accumulate the final post-exposure bin.
-        for suffix in suffixes:
-            accum_col = '{}{}.{}'.format(self.name, suffix, self.bin_years + 1)
-            from_col = '{}{}.{}'.format(self.name, suffix, self.bin_years)
-            pop[accum_col] += pop[from_col]
+        if self.bin_years > 0:
+            for suffix in suffixes:
+                accum_col = '{}{}.{}'.format(self.name, suffix, self.bin_years + 1)
+                from_col = '{}{}.{}'.format(self.name, suffix, self.bin_years)
+                pop[accum_col] += pop[from_col]
         # Then increase time since exposure for all other post-exposure bins.
         for n_years in reversed(range(self.bin_years)):
             for suffix in suffixes:
@@ -315,5 +317,5 @@ class DelayedRisk:
         mean_int_rr = rr_values[int_cols].sum(axis=1)
 
         # Calculate the disease incidence PIF for the intervention scenario.
-        pif = mean_int_rr / mean_bau_rr
+        pif = (mean_bau_rr - mean_int_rr) / mean_bau_rr
         return incidence_rate * pif
