@@ -26,7 +26,7 @@ def test_propensity_effect(propensity, mocker, continuous_risk, base_config, bas
 
     expected_value = norm(loc=130, scale=15).ppf(propensity)
 
-    assert np.allclose(rf.exposure(sim.population._population.index), expected_value)
+    assert np.allclose(rf.exposure(sim.get_population().index), expected_value)
 
 
 def test_Risk_config_data(base_config, base_plugins):
@@ -39,10 +39,10 @@ def test_Risk_config_data(base_config, base_plugins):
     simulation.setup()
 
     # Make sure dummy exposure is being used
-    exp = simulation.values.get_value('test_risk.exposure')(simulation.population._population.index)
+    exp = simulation.values.get_value('test_risk.exposure')(simulation.get_population().index)
     exposed_proportion = (exp == 'cat1').sum() / len(exp)
     assert np.isclose(exposed_proportion, exposure_level, atol=0.005)  # population is 1000
 
     # Make sure value was correctly pulled from config
-    sim_exposure_level = simulation.values.get_value('test_risk.exposure_parameters')(simulation.population._population.index)
+    sim_exposure_level = simulation.values.get_value('test_risk.exposure_parameters')(simulation.get_population().index)
     assert np.all(sim_exposure_level == exposure_level)

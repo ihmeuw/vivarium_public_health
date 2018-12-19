@@ -37,8 +37,8 @@ def get_test_prevalence(simulation, key):
     Helper function to calculate the prevalence for the given state(key)
     """
     try:
-        simulants_status_counts = simulation.population._population.test.value_counts().to_dict()
-        result = float(simulants_status_counts[key] / simulation.population._population.test.size)
+        simulants_status_counts = simulation.get_population().test.value_counts().to_dict()
+        result = float(simulants_status_counts[key] / simulation.get_population().test.size)
     except KeyError:
         result = 0
     return result
@@ -71,18 +71,18 @@ def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     # Move everyone into the event state
     simulation.step()
     event_time = simulation.clock.time
-    assert np.all(simulation.population._population[disease] == 'event')
+    assert np.all(simulation.get_population()[disease] == 'event')
 
     simulation.step()
     simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    assert np.all(simulation.population._population[disease] == 'event')
+    assert np.all(simulation.get_population()[disease] == 'event')
 
     simulation.step()
     # Now enough time has passed so people should transition away
-    assert np.all(simulation.population._population[disease] == 'sick')
-    assert np.all(simulation.population._population.event_event_time == pd.to_datetime(event_time))
-    assert np.all(simulation.population._population.event_event_count == 1)
+    assert np.all(simulation.get_population()[disease] == 'sick')
+    assert np.all(simulation.get_population().event_event_time == pd.to_datetime(event_time))
+    assert np.all(simulation.get_population().event_event_count == 1)
 
 
 def test_dwell_time_with_mortality(base_config, base_plugins, disease):
@@ -115,23 +115,23 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
 
     # Move everyone into the event state
     simulation.step()
-    assert np.all(simulation.population._population[disease] == 'event')
+    assert np.all(simulation.get_population()[disease] == 'event')
 
     simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    assert np.all(simulation.population._population[disease] == 'event')
+    assert np.all(simulation.get_population()[disease] == 'event')
 
     simulation.step()
 
     # Make sure some people have died and remained in event state
-    assert (simulation.population._population['alive'] == 'alive').sum() < pop_size
+    assert (simulation.get_population()['alive'] == 'alive').sum() < pop_size
 
-    assert ((simulation.population._population['alive'] == 'dead').sum() ==
-            (simulation.population._population[disease] == 'event').sum())
+    assert ((simulation.get_population()['alive'] == 'dead').sum() ==
+            (simulation.get_population()[disease] == 'event').sum())
 
     # enough time has passed so living people should transition away to sick
-    assert ((simulation.population._population['alive'] == 'alive').sum() ==
-           (simulation.population._population[disease] == 'sick').sum())
+    assert ((simulation.get_population()['alive'] == 'alive').sum() ==
+           (simulation.get_population()[disease] == 'sick').sum())
 
 
 
@@ -228,7 +228,7 @@ def test_mortality_rate(base_config, base_plugins, disease):
 
     simulation.step()
     # Folks instantly transition to sick so now our mortality rate should be much higher
-    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population._population.index)['sick'])
+    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.get_population().index)['sick'])
 
 
 def test_incidence(base_config, base_plugins, disease):
@@ -264,7 +264,7 @@ def test_incidence(base_config, base_plugins, disease):
     simulation.step()
 
     assert np.allclose(from_yearly(0.7, time_step),
-                       incidence_rate(simulation.population._population.index), atol=0.00001)
+                       incidence_rate(simulation.get_population().index), atol=0.00001)
 
 
 def test_risk_deletion(base_config, base_plugins, disease):
@@ -311,7 +311,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
     expected_rate = base_rate * (1 - paf)
 
     assert np.allclose(from_yearly(expected_rate, time_step),
-                       incidence_rate(simulation.population._population.index), atol=0.00001)
+                       incidence_rate(simulation.get_population().index), atol=0.00001)
 
 
 def test__assign_event_time_for_prevalent_cases():

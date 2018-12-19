@@ -82,7 +82,7 @@ def test_adherence(base_config, get_annual_visits_mock):
 
     simulation.take_steps(number_of_steps=2)
 
-    df = simulation.population._population
+    df = simulation.get_population()
     df['fu_visit'] = df.healthcare_visits > 1
     t = df.groupby('adherence_category').fu_visit.count()
     assert t['non-adherent'] == 0, 'non-adherents should not show for follow-up visit'
