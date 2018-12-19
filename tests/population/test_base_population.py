@@ -104,14 +104,15 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
     assert mock_args['age_params'] == age_params
     assert mock_args['population_data'].equals(sub_pop)
     assert mock_args['randomness_streams'] == base_pop.randomness
-    for column in simulation.population.population:
-        assert simulation.population.population[column].equals(sims[column])
+    pop = simulation.population._population
+    for column in pop:
+        assert pop[column].equals(sims[column])
 
-    final_ages = simulation.population.population.age + num_days/365
+    final_ages = pop.age + num_days/365
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
 
-    assert np.allclose(simulation.population.population.age, final_ages, atol=0.5/365)  # Within a half of a day.
+    assert np.allclose(pop.age, final_ages, atol=0.5/365)  # Within a half of a day.
 
 
 def test_age_out_simulants(config, base_plugins):
@@ -130,9 +131,9 @@ def test_age_out_simulants(config, base_plugins):
     simulation = setup_simulation(components, input_config=config, plugin_config=base_plugins)
     time_start = simulation.clock.time
 
-    assert len(simulation.population.population) == len(simulation.population.population.age.unique())
+    assert len(simulation.population._population) == len(simulation.population._population.age.unique())
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.population.population
+    pop = simulation.population._population
     assert len(pop) == len(pop[~pop.tracked])
     exit_after_300_days = pop.exit_time >= time_start + pd.Timedelta(300, unit='D')
     exit_before_400_days = pop.exit_time <= time_start + pd.Timedelta(400, unit='D')

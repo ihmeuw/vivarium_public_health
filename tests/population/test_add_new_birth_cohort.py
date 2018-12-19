@@ -27,10 +27,10 @@ def test_FertilityDeterministic(base_config):
     simulation = setup_simulation(components, base_config)
     num_steps = simulation.run_for(duration=pd.Timedelta(days=num_days))
     assert num_steps == num_days // time_step
-    pop = simulation.population.population
+    pop = simulation.population._population
 
     # No death in this model.
-    assert np.all(simulation.population.population.alive == 'alive'), 'expect all simulants to be alive'
+    assert np.all(pop.alive == 'alive'), 'expect all simulants to be alive'
     assert (int(num_days * annual_new_simulants / 365)
             == len(pop.age) - start_population_size), 'expect new simulants'
 
@@ -57,10 +57,10 @@ def test_FertilityCrudeBirthRate(base_config, base_plugins):
     simulation.setup()
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.population.population
+    pop = simulation.population._population
 
     # No death in this model.
-    assert np.all(simulation.population.population.alive == 'alive'), 'expect all simulants to be alive'
+    assert np.all(pop.alive == 'alive'), 'expect all simulants to be alive'
 
     # TODO: Write a more rigorous test.
     assert len(pop.age) > start_population_size, 'expect new simulants'
@@ -105,9 +105,9 @@ def test_FertilityCrudeBirthRate(base_config, base_plugins):
     birth_rate = []
     pop = []
     for i in range(10):
-        pop.append(len(simulation.population.population))
+        pop.append(len(simulation.population._population))
         simulation.take_steps()
-        birth_rate.append((len(simulation.population.population)-pop[-1])/pop[-1])
+        birth_rate.append((len(simulation.population._population)-pop[-1])/pop[-1])
     given_birth_rate = 0.0625  # 500 / 8000 (population data from mock_artifact)
     np.testing.assert_allclose(birth_rate, given_birth_rate, atol=0.01)
 
@@ -134,16 +134,16 @@ def test_fertility_module(base_config, base_plugins):
 
     time_start = simulation.clock.time
 
-    assert 'last_birth_time' in simulation.population.population.columns,\
+    assert 'last_birth_time' in simulation.population._population.columns,\
         'expect Fertility module to update state table.'
-    assert 'parent_id' in simulation.population.population.columns, \
+    assert 'parent_id' in simulation.population._population.columns, \
         'expect Fertility module to update state table.'
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.population.population
+    pop = simulation.population._population
 
     # No death in this model.
-    assert np.all(simulation.population.population.alive == 'alive'), 'expect all simulants to be alive'
+    assert np.all(pop.alive == 'alive'), 'expect all simulants to be alive'
 
     # TODO: Write a more rigorous test.
     assert len(pop.age) > start_population_size, 'expect new simulants'

@@ -33,16 +33,16 @@ def test_incidence_rate_recalculation(base_config):
     recovery_rate = 72  # Average duration of 5 days
     sim = setup_simulation([TestPopulation(), make_model(base_config, incidence_rate, recovery_rate)], config)
 
-    susceptible = [(sim.population.population.simple_disease == 'healthy').sum()]
+    susceptible = [(sim.population._population.simple_disease == 'healthy').sum()]
     new_cases = []
     known_cases = pd.Index([])
 
     for step in range(360):
         sim.step()
-        cases = sim.population.population.query('simple_disease == "sick"')
+        cases = sim.population_.population.query('simple_disease == "sick"')
         new_cases.append(len(cases.index.difference(known_cases)))
         known_cases = cases.index
-        susceptible.append((sim.population.population.simple_disease == 'healthy').sum())
+        susceptible.append((sim.population._population.simple_disease == 'healthy').sum())
 
     susceptible = susceptible[:-1]
     incidence_rates = np.array(new_cases)/np.array(susceptible)
@@ -50,6 +50,6 @@ def test_incidence_rate_recalculation(base_config):
     assert np.isclose(np.mean(incidence_rates), from_yearly(0.01, pd.Timedelta(days=1)), rtol=0.05)
 
     expected_prevalence = incidence_rate * (1/recovery_rate)
-    actual_prevalence = (sim.population.population.simple_disease == 'sick').sum() / len(sim.population.population)
+    actual_prevalence = (sim.population._population.simple_disease == 'sick').sum() / len(sim.population._population)
 
     assert np.isclose(expected_prevalence, actual_prevalence)
