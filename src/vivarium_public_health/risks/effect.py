@@ -83,20 +83,21 @@ class RiskEffect:
             paf_data = get_paf_data(exposure, rr)
         else:
             filter_name, filter_term = self.affected_entity_type, self.affected_entity
+            type_filter_col = 'mortality' if self.affected_measure == 'excess_mortality' else 'morbidity'
             if 'paf' in self._get_data_functions:
                 paf_data = self._get_data_functions['paf'](builder)
 
             else:
                 distribution = builder.data.load(f'{self.risk_type}.{self.risk}.distribution')
                 if distribution in ['normal', 'lognormal', 'ensemble']:
-                    paf_data = builder.data.load(f'{self.risk_type}.{self.risk}.population_attributable_fraction',
-                                                 mortality=(self.target == 'excess_mortality'))
+                    paf_data = builder.data.load(f'{self.risk_type}.{self.risk}.population_attributable_fraction')
+                    paf_data = paf_data[paf_data[type_filter_col] == 1].drop(type_filter_col, 'columns')
 
                 else:
                     exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
-                    rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk',
-                                           mortality=(self.target == 'excess_mortality'))
+                    rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
                     rr = rr[rr[filter_name] == filter_term]
+                    rr = rr[rr[type_filter_col] == 1].drop(type_filter_col, 'columns')
                     paf_data = get_paf_data(exposure, rr)
 
             paf_data = paf_data[paf_data[filter_name] == filter_term]
@@ -113,8 +114,9 @@ class RiskEffect:
             if 'rr' in self._get_data_functions:
                 rr_data = self._get_data_functions['rr'](builder)
             else:
-                rr_data = builder.data.load(f"{self.risk_type}.{self.risk}.relative_risk",
-                                            mortality=(self.target == 'excess_mortality'))
+                rr_data = builder.data.load(f"{self.risk_type}.{self.risk}.relative_risk")
+                type_filter_col = 'mortality' if self.affected_measure == 'excess_mortality' else 'morbidity'
+                rr_data = rr_data[rr_data[type_filter_col] == 1].drop(type_filter_col, 'columns')
 
             row_filter = rr_data[f'{self.affected_entity_type}'] == self.affected_entity
             column_filter = ['parameter', 'sex', 'value', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
