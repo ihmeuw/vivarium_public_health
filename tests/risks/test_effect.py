@@ -282,12 +282,8 @@ def test_ContinuousRiskComponent(continuous_risk, base_config, base_plugins):
     simulation.setup()
     affected_causes = risk_data['affected_causes']
 
-    incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
-    incidence_rate.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
-                                                          key_columns=('sex',),
-                                                          parameter_columns=[('age', 'age_group_start', 'age_group_end'),
-                                                                             ('year', 'year_start', 'year_end')],
-                                                          value_columns=None)
+    incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate',
+                                                              source=lambda index: pd.Series(0.01, index=index))
 
     exposure = simulation.values.get_value('test_risk.exposure')
 
@@ -374,20 +370,31 @@ def test_RiskEffect_config_data(base_config, base_plugins):
     assert((exp == 'cat1').all())
 
     # This one should be affected by our DummyRiskEffect
-    rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
-    rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
-                                                 key_columns=('sex',),
-                                                 parameter_columns=[('age', 'age_group_start', 'age_group_end'),
-                                                                    ('year', 'year_start', 'year_end')],
-                                                 value_columns=None)
+    rates = simulation.values.register_rate_producer('test_cause.incidence_rate',
+                                                     source=lambda index: pd.Series(0.01, index=index))
 
     # This one should not
-    other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate')
-    other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
-                                                       key_columns=('sex',),
-                                                       parameter_columns=[('age', 'age_group_start', 'age_group_end'),
-                                                                          ('year', 'year_start', 'year_end')],
-                                                       value_columns=None)
+    other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate',
+                                                           source=lambda index: pd.Series(0.01, index=index))
 
     assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step)*50)
     assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
+
+
+def test_RiskEffect_excess_mortality(base_config, base_plugins):
+    dummy_risk = Risk("risk_factor.test_risk")
+    dummy_effect = RiskEffect("risk_factor.test_risk", "cause.test_cause.excess_mortality")
+    time_step = pd.Timedelta(days=base_config.time.step_size)
+
+    base_config.update({'test_risk': {'exposure': 1}}, layer='override')
+    base_config.update({'effect_of_test_risk_on_test_cause': {'excess_mortality': 50}})
+
+    simulation = initialize_simulation([TestPopulation(), dummy_risk, dummy_effect],
+                                       input_config=base_config, plugin_config=base_plugins)
+    simulation.setup()
+
+    em = simulation.values.register_rate_producer('test_cause.excess_mortality',
+                                                  source=lambda index: pd.Series(0.1, index=index))
+
+    assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.population.population.index))
+
