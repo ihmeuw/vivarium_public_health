@@ -91,8 +91,6 @@ class SIS:
 class SIS_fixed_duration:
 
     def __init__(self, cause: str, duration):
-        import pdb
-        pdb.set_trace()
         self.cause = cause
         if not isinstance(duration, pd.Timedelta):
             self.duration = pd.Timedelta(days=float(duration) // 1, hours=float(duration) % 1)
