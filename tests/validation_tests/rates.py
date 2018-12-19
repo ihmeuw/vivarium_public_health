@@ -39,7 +39,7 @@ def test_incidence_rate_recalculation(base_config):
 
     for step in range(360):
         sim.step()
-        cases = sim.population_.population.query('simple_disease == "sick"')
+        cases = sim.population.get_population().query('simple_disease == "sick"')
         new_cases.append(len(cases.index.difference(known_cases)))
         known_cases = cases.index
         susceptible.append((sim.get_population().simple_disease == 'healthy').sum())

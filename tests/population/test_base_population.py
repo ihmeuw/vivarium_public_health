@@ -104,7 +104,7 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
     assert mock_args['age_params'] == age_params
     assert mock_args['population_data'].equals(sub_pop)
     assert mock_args['randomness_streams'] == base_pop.randomness
-    pop = simulation.get_population(untracked=True)
+    pop = simulation.get_population()
     for column in pop:
         assert pop[column].equals(sims[column])
 
@@ -112,6 +112,7 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
 
+    pop = simulation.get_population()
     assert np.allclose(pop.age, final_ages, atol=0.5/365)  # Within a half of a day.
 
 
