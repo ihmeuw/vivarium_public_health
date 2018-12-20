@@ -67,7 +67,6 @@ class Disease:
         int_prefix = self.name + '_intervention.'
 
         inc_data = builder.data.load(data_prefix + 'incidence')
-        inc_data = add_year_column(builder, inc_data)
         i = builder.lookup.build_table(inc_data)
         self.incidence = builder.value.register_rate_producer(
             bau_prefix + 'incidence', source=i)
@@ -75,19 +74,16 @@ class Disease:
             int_prefix + 'incidence', source=i)
 
         rem_data = builder.data.load(data_prefix + 'remission')
-        rem_data = add_year_column(builder, rem_data)
         r = builder.lookup.build_table(rem_data)
         self.remission = builder.value.register_rate_producer(
             bau_prefix + 'remission', source=r)
 
         mty_data = builder.data.load(data_prefix + 'mortality')
-        mty_data = add_year_column(builder, mty_data)
         f = builder.lookup.build_table(mty_data)
         self.excess_mortality = builder.value.register_rate_producer(
             bau_prefix + 'excess_mortality', source=f)
 
         yld_data = builder.data.load(data_prefix + 'morbidity')
-        yld_data = add_year_column(builder, yld_data)
         yld_rate = builder.lookup.build_table(yld_data)
         self.disability_rate = builder.value.register_rate_producer(
             bau_prefix + 'yld_rate', source=yld_rate)
