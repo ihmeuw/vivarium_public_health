@@ -207,7 +207,7 @@ class Disease:
             f'{self.name}_C_previous': C_bau,
             f'{self.name}_S_intervention': new_S_int,
             f'{self.name}_C_intervention': new_C_int,
-                                   f'{self.name}_S_intervention_previous': S_int,
+            f'{self.name}_S_intervention_previous': S_int,
             f'{self.name}_C_intervention_previous': C_int,
         }, index=pop.index)
         self.population_view.update(pop_update)
