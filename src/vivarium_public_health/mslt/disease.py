@@ -67,7 +67,6 @@ class Disease:
         int_prefix = self.name + '_intervention.'
 
         inc_data = builder.data.load(data_prefix + 'incidence')
-        inc_data = add_year_column(builder, inc_data)
         i = builder.lookup.build_table(inc_data)
         self.incidence = builder.value.register_rate_producer(
             bau_prefix + 'incidence', source=i)
@@ -75,19 +74,16 @@ class Disease:
             int_prefix + 'incidence', source=i)
 
         rem_data = builder.data.load(data_prefix + 'remission')
-        rem_data = add_year_column(builder, rem_data)
         r = builder.lookup.build_table(rem_data)
         self.remission = builder.value.register_rate_producer(
             bau_prefix + 'remission', source=r)
 
         mty_data = builder.data.load(data_prefix + 'mortality')
-        mty_data = add_year_column(builder, mty_data)
         f = builder.lookup.build_table(mty_data)
         self.excess_mortality = builder.value.register_rate_producer(
             bau_prefix + 'excess_mortality', source=f)
 
         yld_data = builder.data.load(data_prefix + 'morbidity')
-        yld_data = add_year_column(builder, yld_data)
         yld_rate = builder.lookup.build_table(yld_data)
         self.disability_rate = builder.value.register_rate_producer(
             bau_prefix + 'yld_rate', source=yld_rate)
@@ -165,8 +161,8 @@ class Disease:
         # Calculate convenience terms.
         l_bau = i_bau + f_plus_r
         l_int = i_int + f_plus_r
-        q_bau = np.sqrt(i_bau2 + r2 + f2 + i_bau_r + f_r - i_bau_f)
-        q_int = np.sqrt(i_int2 + r2 + f2 + i_int_r + f_r - i_int_f)
+        q_bau = np.sqrt(i_bau2 + r2 + f2 + 2 * i_bau_r + 2 * f_r - 2 * i_bau_f)
+        q_int = np.sqrt(i_int2 + r2 + f2 + 2 * i_int_r + 2 * f_r - 2 * i_int_f)
         w_bau = np.exp(-(l_bau + q_bau) / 2)
         w_int = np.exp(-(l_int + q_int) / 2)
         v_bau = np.exp(-(l_bau - q_bau) / 2)
@@ -211,7 +207,7 @@ class Disease:
             f'{self.name}_C_previous': C_bau,
             f'{self.name}_S_intervention': new_S_int,
             f'{self.name}_C_intervention': new_C_int,
-                                   f'{self.name}_S_intervention_previous': S_int,
+            f'{self.name}_S_intervention_previous': S_int,
             f'{self.name}_C_intervention_previous': C_int,
         }, index=pop.index)
         self.population_view.update(pop_update)
@@ -227,8 +223,10 @@ class Disease:
         S_int_prev, C_int_prev = pop[f'{self.name}_S_intervention_previous'], pop[f'{self.name}_C_intervention_previous']
         D_int, D_int_prev = 1000 - S_int - C_int, 1000 - S_int_prev - C_int_prev
 
-        mortality_risk = (D - D_prev) / (S + C)
-        mortality_risk_int = (D_int - D_int_prev) / (S_int + C_int)
+        # NOTE: as per the spreadsheet, the denominator is from the same point
+        # in time as the term being subtracted in the numerator.
+        mortality_risk = (D - D_prev) / (S_prev + C_prev)
+        mortality_risk_int = (D_int - D_int_prev) / (S_int_prev + C_int_prev)
 
         delta = np.log((1 - mortality_risk) / (1 - mortality_risk_int))
 
