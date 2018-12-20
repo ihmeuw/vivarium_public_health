@@ -320,14 +320,19 @@ class DelayedRisk:
         bau_prefix = '{}.'.format(self.name)
         bau_cols = [c for c in bin_cols if c.startswith(bau_prefix)]
         # Sum over all of the bins in each row.
-        mean_bau_rr = rr_values[bau_cols].sum(axis=1)
+        mean_bau_rr = rr_values[bau_cols].sum(axis=1) / pop[bau_cols].sum(axis=1)
+        # Handle cases where the population size is zero.
+        mean_bau_rr = mean_bau_rr.fillna(1.0)
 
         # Calculate the mean relative-risk for the intervention scenario.
         int_prefix = '{}_intervention.'.format(self.name)
         int_cols = [c for c in bin_cols if c.startswith(int_prefix)]
         # Sum over all of the bins in each row.
-        mean_int_rr = rr_values[int_cols].sum(axis=1)
+        mean_int_rr = rr_values[int_cols].sum(axis=1) / pop[int_cols].sum(axis=1)
+        # Handle cases where the population size is zero.
+        mean_int_rr = mean_int_rr.fillna(1.0)
 
         # Calculate the disease incidence PIF for the intervention scenario.
         pif = (mean_bau_rr - mean_int_rr) / mean_bau_rr
-        return incidence_rate * pif
+        pif = pif.fillna(0.0)
+        return incidence_rate * (1 - pif)
