@@ -292,9 +292,15 @@ class DelayedRisk:
         :param disease: The name of the disease whose incidence rate will be
             modified.
         """
-        inc_rate = '{}_intervention.incidence'.format(disease)
-        modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
-        builder.value.register_value_modifier(inc_rate, modifier)
+        # NOTE: we need to modify different rates for chronic and acute
+        # diseases. For now, register modifiers for all possible rates.
+        rate_templates = ['{}_intervention.incidence',
+                          '{}_intervention.excess_mortality',
+                          '{}_intervention.yld_rate']
+        for template in rate_templates:
+            rate_name = template.format(disease)
+            modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
+            builder.value.register_value_modifier(rate_name, modifier)
 
     def incidence_adjustment(self, disease, index, incidence_rate):
         """
