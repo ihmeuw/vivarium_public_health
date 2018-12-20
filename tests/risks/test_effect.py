@@ -23,9 +23,10 @@ def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
     d = 'test_cause'
     rf = Risk(f'risk_factor.{r}')
     effect_data_functions = {
-        'rr': lambda *args: build_table([1.01, 'per_unit', d], year_start, year_end,
-                                        ('age', 'year', 'sex', 'value', 'parameter', 'cause')),
-        'paf': lambda *args: build_table([0.01, d], year_start, year_end, ('age', 'year', 'sex', 'value', 'cause')),
+        'rr': lambda *args: build_table([1.01, 'per_unit', d, 'incidence_rate'], year_start, year_end,
+                                        ('age', 'year', 'sex', 'value', 'parameter', 'cause', 'affected_measure')),
+        'paf': lambda *args: build_table([0.01, d, 'incidence_rate'], year_start, year_end,
+                                         ('age', 'year', 'sex', 'value', 'cause', 'affected_measure')),
     }
 
     effect = RiskEffect(f'risk_factor.{r}', f'cause.{d}.incidence_rate', effect_data_functions)
@@ -78,10 +79,10 @@ def test_risk_deletion(base_config, base_plugins, mocker):
     }
 
     effect_data_functions = {
-        'rr': lambda *args: build_table([risk_rr, 'per_unit', 'infected'], year_start, year_end,
-                                        ('age', 'year', 'sex', 'value', 'parameter', 'cause')),
-        'paf': lambda *args: build_table([risk_paf, 'infected'], year_start, year_end,
-                                         ('age', 'year', 'sex', 'value', 'cause')),
+        'rr': lambda *args: build_table([risk_rr, 'per_unit', 'infected','incidence_rate'], year_start, year_end,
+                                        ('age', 'year', 'sex', 'value', 'parameter', 'cause', 'affected_measure')),
+        'paf': lambda *args: build_table([risk_paf, 'infected', 'incidence_rate'], year_start, year_end,
+                                         ('age', 'year', 'sex', 'value', 'cause', 'affected_measure')),
     }
 
     def effect_function(rates, _):
@@ -328,6 +329,8 @@ def test_exposure_params_risk_effect_dichotomous(base_config, base_plugins, dich
         simulation.data.write(f'risk_factor.test_risk.{key}', value)
 
     for key, value in cg_data.items():
+        if key == 'relative_risk':
+            value['affected_measure'] = 'exposure_parameters'
         simulation.data.write(f'coverage_gap.test_coverage_gap.{key}', value)
 
     simulation.setup()
