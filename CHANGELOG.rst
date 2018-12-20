@@ -1,6 +1,7 @@
 **0.8.11 - 12/20/18**
 
  - Bugfix for mock_artifact testing data to include newly added columns.
+ - Bugfix to handle single-value sequela disability weight data.
 
 **0.8.10 - 12/20/18**
 
