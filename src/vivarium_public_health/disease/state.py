@@ -201,7 +201,8 @@ class DiseaseState(BaseDiseaseState):
         self._dwell_time = get_dwell_time_func(self.cause, builder)
         self.randomness_prevalence = builder.randomness.get_stream(f'{self.state_id}_prevalent_cases')
 
-        self._disability_weight = builder.lookup.build_table(get_disability_weight_func(self.cause, builder))
+        disability_weight_data = get_disability_weight_func(self.cause, builder)
+        self._disability_weight = builder.lookup.build_table(disability_weight_data)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
         if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
