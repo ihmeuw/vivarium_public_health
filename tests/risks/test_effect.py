@@ -55,13 +55,13 @@ def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
                                                                           ('year', 'year_start', 'year_end')],
                                                        value_columns=None)
 
-    assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step))
-    assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
+    assert np.allclose(rates(simulation.get_population().index), from_yearly(0.01, time_step))
+    assert np.allclose(other_rates(simulation.get_population().index), from_yearly(0.01, time_step))
 
     test_exposure[0] = 1
 
-    assert np.allclose(rates(simulation.population.population.index), from_yearly(0.0101, time_step))
-    assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
+    assert np.allclose(rates(simulation.get_population().index), from_yearly(0.0101, time_step))
+    assert np.allclose(other_rates(simulation.get_population().index), from_yearly(0.01, time_step))
 
 
 def test_risk_deletion(base_config, base_plugins, mocker):
@@ -98,8 +98,8 @@ def test_risk_deletion(base_config, base_plugins, mocker):
     joint_paf = base_simulation.get_value('infected.incidence_rate.paf')
 
     # Validate the base case
-    assert np.allclose(incidence(base_simulation.population.population.index), from_yearly(base_rate, time_step))
-    assert np.allclose(joint_paf(base_simulation.population.population.index), 0)
+    assert np.allclose(incidence(base_simulation.get_population().index), from_yearly(base_rate, time_step))
+    assert np.allclose(joint_paf(base_simulation.get_population().index), 0)
 
     transition = RateTransition(mocker.MagicMock(state_id='susceptible'),
                                 mocker.MagicMock(state_id='infected'), rate_data_functions)
@@ -117,9 +117,9 @@ def test_risk_deletion(base_config, base_plugins, mocker):
     incidence = rf_simulation.get_value('infected.incidence_rate')
     joint_paf = rf_simulation.get_value('infected.incidence_rate.paf')
 
-    assert np.allclose(incidence(rf_simulation.population.population.index),
+    assert np.allclose(incidence(rf_simulation.get_population().index),
                        from_yearly(base_rate * (1 - risk_paf), time_step))
-    assert np.allclose(joint_paf(rf_simulation.population.population.index), risk_paf)
+    assert np.allclose(joint_paf(rf_simulation.get_population().index), risk_paf)
 
 
 def test_continuous_exposure_effect(mocker, base_config, base_plugins, continuous_risk):
@@ -147,8 +147,8 @@ def test_continuous_exposure_effect(mocker, base_config, base_plugins, continuou
 
     simulation.setup()
 
-    rates = pd.Series(0.01, index=simulation.population.population.index)
-    rr = pd.Series(1.01, index=simulation.population.population.index)
+    rates = pd.Series(0.01, index=simulation.get_population().index)
+    rr = pd.Series(1.01, index=simulation.get_population().index)
 
     assert np.all(exposure_function(rates, rr) == 0.01)
 
@@ -183,16 +183,16 @@ def test_categorical_exposure_effect(base_config, base_plugins, mocker):
     simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
     simulation.setup()
 
-    rates = pd.Series(0.01, index=simulation.population.population.index)
-    rr = pd.DataFrame({'cat1': 1.01, 'cat2': 1}, index=simulation.population.population.index)
+    rates = pd.Series(0.01, index=simulation.get_population().index)
+    rr = pd.DataFrame({'cat1': 1.01, 'cat2': 1}, index=simulation.get_population().index)
 
     assert np.all(exposure_function(rates, rr) == 0.01)
 
     test_risk_exposure.side_effect = lambda index: pd.Series(['cat1'] * len(index), index=index)
     simulation.step()
 
-    rates = pd.Series(0.01, index=simulation.population.population.index)
-    rr = pd.DataFrame({'cat1': 1.01, 'cat2': 1}, index=simulation.population.population.index)
+    rates = pd.Series(0.01, index=simulation.get_population().index)
+    rr = pd.DataFrame({'cat1': 1.01, 'cat2': 1}, index=simulation.get_population().index)
 
     assert np.allclose(exposure_function(rates, rr), 0.0101)
 
@@ -218,8 +218,8 @@ def test_CategoricalRiskComponent_dichotomous_case(base_config, base_plugins, di
                                                                              ('year', 'year_start', 'year_end')],
                                                           value_columns=None)
 
-    categories = simulation.values.get_value('test_risk.exposure')(simulation.population.population.index)
-    assert np.isclose(categories.value_counts()['cat1'] / len(simulation.population.population), 0.5, rtol=0.01)
+    categories = simulation.values.get_value('test_risk.exposure')(simulation.get_population().index)
+    assert np.isclose(categories.value_counts()['cat1'] / len(simulation.get_population()), 0.5, rtol=0.01)
 
     expected_exposed_value = 0.01 * 1.01
     expected_unexposed_value = 0.01
@@ -254,10 +254,10 @@ def test_CategoricalRiskComponent_polytomous_case(base_config, base_plugins, pol
                                                                              ('year', 'year_start', 'year_end')],
                                                           value_columns=None)
 
-    categories = simulation.values.get_value('test_risk.exposure')(simulation.population.population.index)
+    categories = simulation.values.get_value('test_risk.exposure')(simulation.get_population().index)
 
     for category in ['cat1', 'cat2', 'cat3', 'cat4']:
-        assert np.isclose(categories.value_counts()[category] / len(simulation.population.population), 0.25, rtol=0.02)
+        assert np.isclose(categories.value_counts()[category] / len(simulation.get_population()), 0.25, rtol=0.02)
 
     expected_exposed_value = 0.01 * np.array([1.02, 1.03, 1.01])
 
@@ -291,11 +291,11 @@ def test_ContinuousRiskComponent(continuous_risk, base_config, base_plugins):
 
     exposure = simulation.values.get_value('test_risk.exposure')
 
-    assert np.allclose(exposure(simulation.population.population.index), 130, rtol=0.001)
+    assert np.allclose(exposure(simulation.get_population().index), 130, rtol=0.001)
 
     expected_value = 0.01 * (1.01**((130 - 112) / 10))
 
-    assert np.allclose(incidence_rate(simulation.population.population.index),
+    assert np.allclose(incidence_rate(simulation.get_population().index),
                        from_yearly(expected_value, time_step), rtol=0.001)
 
 
@@ -317,7 +317,7 @@ def test_exposure_params_risk_effect_dichotomous(base_config, base_plugins, dich
 
     simulation.setup()
 
-    pop = simulation.population.population
+    pop = simulation.get_population()
     exposure = simulation.values.get_value('test_risk.exposure')
     assert np.isclose(rf_exposed, exposure(pop.index).value_counts()['cat1']/len(pop), rtol=0.01)
 
@@ -336,7 +336,7 @@ def test_exposure_params_risk_effect_dichotomous(base_config, base_plugins, dich
 
     simulation.setup()
 
-    pop = simulation.population.population
+    pop = simulation.get_population()
     rf_exposure = simulation.values.get_value('test_risk.exposure')(pop.index)
 
     # proportion of simulants exposed to each category of affected risk stays same
@@ -370,7 +370,7 @@ def test_RiskEffect_config_data(base_config, base_plugins):
     simulation.setup()
 
     # make sure our dummy exposure value is being properly used
-    exp = simulation.values.get_value('test_risk.exposure')(simulation.population.population.index)
+    exp = simulation.values.get_value('test_risk.exposure')(simulation.get_population().index)
     assert((exp == 'cat1').all())
 
     # This one should be affected by our DummyRiskEffect
@@ -389,5 +389,5 @@ def test_RiskEffect_config_data(base_config, base_plugins):
                                                                           ('year', 'year_start', 'year_end')],
                                                        value_columns=None)
 
-    assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step)*50)
-    assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
+    assert np.allclose(rates(simulation.get_population().index), from_yearly(0.01, time_step)*50)
+    assert np.allclose(other_rates(simulation.get_population().index), from_yearly(0.01, time_step))

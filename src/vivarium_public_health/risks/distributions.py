@@ -66,7 +66,7 @@ class DichotomousDistribution:
         self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
                                                                          source=self.exposure)
         self.joint_paf = builder.value.register_value_producer(f'{self._risk}.exposure_parameters.paf',
-                                                               source=lambda index: [pd.Series(0, index=index)],
+                                                               source=lambda index: [builder.lookup.build_table(0)(index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
 
