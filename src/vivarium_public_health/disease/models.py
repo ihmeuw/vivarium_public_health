@@ -98,7 +98,7 @@ class SIS_fixed_duration:
         """
         self.cause = cause
         if not isinstance(duration, pd.Timedelta):
-            self.duration = pd.Timedelta(days=float(duration) // 1, hours=float(duration) % 1)
+            self.duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
         else:
             self.duration = duration
 
