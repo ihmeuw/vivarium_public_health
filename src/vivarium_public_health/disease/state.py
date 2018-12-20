@@ -196,17 +196,11 @@ class DiseaseState(BaseDiseaseState):
             'prevalence', lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.prevalence"))
         get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: pd.Timedelta(0))
 
-        disability_weight_data = get_disability_weight_func(self.cause, builder)
         self.prevalence_data = builder.lookup.build_table(get_prevalence_func(self.cause, builder))
         self._dwell_time = get_dwell_time_func(self.cause, builder)
         self.randomness_prevalence = builder.randomness.get_stream(f'{self.state_id}_prevalent_cases')
 
-        if isinstance(disability_weight_data, pd.DataFrame):
-            self._disability_weight = builder.lookup.build_table(float(disability_weight_data.value))
-        elif disability_weight_data is not None:
-            self._disability_weight = builder.lookup.build_table(disability_weight_data)
-        else:
-            self._disability_weight = builder.lookup.build_table(0)
+        self._disability_weight = builder.lookup.build_table(get_disability_weight_func(self.cause, builder))
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
         if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:

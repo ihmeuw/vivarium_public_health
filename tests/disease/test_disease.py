@@ -25,7 +25,6 @@ def assign_cause_mock(mocker):
 def base_data():
     def _set_prevalence(p):
         base_function = dict()
-        base_function['disability_weight'] = lambda _, __: 0
         base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=1)
         base_function['prevalence'] = lambda _, __: p
         return base_function
@@ -45,6 +44,7 @@ def get_test_prevalence(simulation, key):
 
 
 def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
+
     time_step = 10
     assign_cause_mock.side_effect = lambda population, *args: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
@@ -57,6 +57,7 @@ def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     healthy_state = BaseDiseaseState('healthy')
     data_function = base_data(0)
     data_function['dwell_time'] = lambda _, __: pd.Timedelta(days=28)
+    data_function['disability_weight'] = lambda _, __: 0.0
     event_state = DiseaseState('event', get_data_functions=data_function)
     done_state = BaseDiseaseState('sick')
 
@@ -100,6 +101,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     mort_get_data_funcs = {
         'dwell_time': lambda _, __: pd.Timedelta(days=14),
         'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
+        'disability_weight': lambda _, __: 0.0
     }
 
     mortality_state = ExcessMortalityState('event', get_data_functions=mort_get_data_funcs)
@@ -134,7 +136,6 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
            (simulation.get_population()[disease] == 'sick').sum())
 
 
-
 @pytest.mark.parametrize('test_prevalence_level', [0, 0.35, 1])
 def test_prevalence_single_state_with_migration(base_config, disease, base_data, test_prevalence_level):
     """
@@ -144,9 +145,13 @@ def test_prevalence_single_state_with_migration(base_config, disease, base_data,
     properly assigned to new simulants based on the prevalence data and pre-existing simulants status
 
     """
-    healthy = BaseDiseaseState('healthy')
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
 
-    sick = DiseaseState('sick', get_data_functions=base_data(test_prevalence_level))
+    healthy = BaseDiseaseState('healthy')
+    data_funcs = base_data(test_prevalence_level)
+    data_funcs.update({'disability_weight': lambda _, __: 0.0})
+    sick = DiseaseState('sick', get_data_functions=data_funcs)
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
     base_config.update({'population': {'population_size': 50000}}, **metadata(__file__))
@@ -165,11 +170,16 @@ def test_prevalence_single_state_with_migration(base_config, disease, base_data,
 @pytest.mark.parametrize('test_prevalence_level',
                          [[0.15, 0.05, 0.35], [0, 0.15, 0.5], [0.2, 0.3, 0.5], [0, 0, 1], [0, 0, 0]])
 def test_prevalence_multiple_sequelae(base_config, disease, base_data, test_prevalence_level):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+
     healthy = BaseDiseaseState('healthy')
 
     sequela = dict()
     for i, p in enumerate(test_prevalence_level):
-        sequela[i] = DiseaseState('sequela'+str(i), get_data_functions=base_data(p))
+        data_funcs = base_data(p)
+        data_funcs.update({'disability_weight': lambda _, __: 0.0})
+        sequela[i] = DiseaseState('sequela'+str(i), get_data_functions=data_funcs)
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]],
                          get_data_functions={'csmr': lambda _, __: None})
@@ -204,7 +214,7 @@ def test_mortality_rate(base_config, base_plugins, disease):
     healthy = BaseDiseaseState('healthy')
     mort_get_data_funcs = {
         'dwell_time': lambda _, __: pd.Timedelta(days=0),
-        'disability_weight': lambda _, __: 0.1,
+        'disability_weight': lambda _, __: 0.0,
         'prevalence': lambda _, __: build_table(0.000001, year_start-1, year_end,
                                                 ['age', 'year', 'sex', 'value']),
         'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
