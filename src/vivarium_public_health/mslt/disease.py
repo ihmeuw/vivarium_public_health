@@ -223,8 +223,10 @@ class Disease:
         S_int_prev, C_int_prev = pop[f'{self.name}_S_intervention_previous'], pop[f'{self.name}_C_intervention_previous']
         D_int, D_int_prev = 1000 - S_int - C_int, 1000 - S_int_prev - C_int_prev
 
-        mortality_risk = (D - D_prev) / (S + C)
-        mortality_risk_int = (D_int - D_int_prev) / (S_int + C_int)
+        # NOTE: as per the spreadsheet, the denominator is from the same point
+        # in time as the term being subtracted in the numerator.
+        mortality_risk = (D - D_prev) / (S_prev + C_prev)
+        mortality_risk_int = (D_int - D_int_prev) / (S_int_prev + C_int_prev)
 
         delta = np.log((1 - mortality_risk) / (1 - mortality_risk_int))
 
