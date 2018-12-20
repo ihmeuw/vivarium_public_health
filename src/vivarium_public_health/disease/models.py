@@ -2,8 +2,6 @@ import pandas as pd
 
 from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, RecoveredState,
                                             DiseaseState, DiseaseModel)
-from vivarium_inputs.utilities import DataMissingError
-from vivarium_public_health.dataset_manager.artifact import ArtifactException
 
 
 class SI:
