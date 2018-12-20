@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 from vivarium.framework.state_machine import State, Transient
+from vivarium.framework.values import list_combiner, joint_value_post_processor
 
 from vivarium_public_health.disease import RateTransition, ProportionTransition
 
@@ -334,11 +335,19 @@ class ExcessMortalityState(DiseaseState):
         super().setup(builder)
         get_excess_mortality_func = self._get_data_functions.get('excess_mortality', lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.excess_mortality"))
 
-        self.excess_mortality_data = get_excess_mortality_func(self.cause, builder)
-        excess_mortality_source = builder.lookup.build_table(self.excess_mortality_data)
+        self.base_excess_mortality = builder.lookup.build_table(get_excess_mortality_func(self.cause, builder))
         self._mortality = builder.value.register_rate_producer(f'{self.state_id}.excess_mortality',
-                                                               source=excess_mortality_source)
+                                                               source=self.effective_excess_mortality)
+        self.joint_paf = builder.value.register_value_producer(f'{self.state_id}.excess_mortality.paf',
+                                                               source=lambda idx: [builder.lookup.build_table(0)(idx)],
+                                                               preferred_combiner=list_combiner,
+                                                               preferred_post_processor=joint_value_post_processor)
         builder.value.register_value_modifier('mortality_rate', modifier=self.mortality_rates)
+
+    def effective_excess_mortality(self, index):
+        base_excess_mort = self.base_excess_mortality(index)
+        joint_mediated_paf = self.joint_paf(index)
+        return pd.Series(base_excess_mort.values * (1 - joint_mediated_paf.values), index=index)
 
     def mortality_rates(self, index, rates_df):
         """Modifies the baseline mortality rate for a simulant if they are in this state.

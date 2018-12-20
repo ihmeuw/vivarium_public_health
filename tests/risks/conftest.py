@@ -41,6 +41,8 @@ def continuous_risk():
         paf_data.append(build_table([1, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause']))
     rr_data = pd.concat(rr_data)
     paf_data = pd.concat(paf_data)
+    paf_data['affected_measure'] = 'incidence_rate'
+    rr_data['affected_measure'] = 'incidence_rate'
     risk_data['exposure'] = exposure_mean
     risk_data['exposure_standard_deviation'] = exposure_sd
     risk_data['relative_risk'] = rr_data
@@ -93,6 +95,8 @@ def dichotomous_risk():
         paf_data.append(build_table([1, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause']))
     rr_data = pd.concat(rr_data)
     paf_data = pd.concat(paf_data)
+    paf_data['affected_measure'] = 'incidence_rate'
+    rr_data['affected_measure'] = 'incidence_rate'
     risk_data['exposure'] = exposure_data
     risk_data['relative_risk'] = rr_data
     risk_data['population_attributable_fraction'] = paf_data
@@ -128,6 +132,8 @@ def polytomous_risk():
         paf_data.append(build_table([1, cause], year_start, year_end, ['age', 'sex', 'year', 'value', 'cause']))
     rr_data = pd.concat(rr_data)
     paf_data = pd.concat(paf_data)
+    paf_data['affected_measure'] = 'incidence_rate'
+    rr_data['affected_measure'] = 'incidence_rate'
     risk_data['exposure'] = exposure_data
     risk_data['relative_risk'] = rr_data
     risk_data['population_attributable_fraction'] = paf_data
@@ -168,7 +174,8 @@ def coverage_gap():
                     'year_end', 'sex'), var_name='population_attributable_fraction', value_name='value')
 
     paf_data['risk_factor'] = 'test_risk'
-
+    paf_data['affected_measure'] = 'exposure_parameters'
+    rr_data['affected_measure'] = 'exposure_parameters'
     cg_data['exposure'] = cg_exposure_data
     rr_data['risk_factor'] = 'test_risk'
     cg_data['relative_risk'] = rr_data
