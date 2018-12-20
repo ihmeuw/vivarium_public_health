@@ -89,15 +89,15 @@ def set_up_test_parameters(base_config, flu=False, mumps=False, deadly=False):
 
 def test_that_ylds_are_0_at_sim_beginning(base_config):
     simulation, disability = set_up_test_parameters(base_config)
-    ylds = int(simulation.get_value('metrics')(simulation.population.population.index)['years_lived_with_disability'])
+    ylds = int(simulation.get_value('metrics')(simulation.get_population().index)['years_lived_with_disability'])
     assert ylds == 0
 
 
 def test_that_healthy_people_dont_accrue_disability_weights(base_config):
     simulation, disability = set_up_test_parameters(base_config)
     simulation.run_for(duration=pd.Timedelta(days=365))
-    pop_size = len(simulation.population.population)
-    ylds = simulation.get_value('metrics')(simulation.population.population.index)['years_lived_with_disability']
+    pop_size = len(simulation.get_population())
+    ylds = simulation.get_value('metrics')(simulation.get_population().index)['years_lived_with_disability']
     assert np.isclose(ylds, pop_size * 0.0, rtol=0.01)
 
 
@@ -105,8 +105,8 @@ def test_single_disability_weight(base_config):
     simulation, disability = set_up_test_parameters(base_config, flu=True)
     flu_dw = 0.2
     simulation.run_for(duration=pd.Timedelta(days=365))
-    pop_size = len(simulation.population.population)
-    ylds = simulation.get_value('metrics')(simulation.population.population.index)['years_lived_with_disability']
+    pop_size = len(simulation.get_population())
+    ylds = simulation.get_value('metrics')(simulation.get_population().index)['years_lived_with_disability']
     assert np.isclose(ylds, pop_size * flu_dw, rtol=0.01)
 
 
@@ -115,8 +115,8 @@ def test_joint_disability_weight(base_config):
     flu_dw = 0.2
     mumps_dw = 0.4
     simulation.run_for(duration=pd.Timedelta(days=365))
-    pop_size = len(simulation.population.population)
-    ylds = simulation.get_value('metrics')(simulation.population.population.index)['years_lived_with_disability']
+    pop_size = len(simulation.get_population())
+    ylds = simulation.get_value('metrics')(simulation.get_population().index)['years_lived_with_disability']
     # check that JOINT disability weight is correctly calculated
     assert np.isclose(ylds, pop_size * (1-(1-flu_dw)*(1-mumps_dw)), rtol=0.01)
 
@@ -125,7 +125,7 @@ def test_joint_disability_weight(base_config):
 def test_dead_people_dont_accrue_disability(base_config):
     simulation, disability = set_up_test_parameters(base_config, deadly=True)
     simulation.run_for(duration=pd.Timedelta(days=365))
-    pop = simulation.population.population
+    pop = simulation.get_population()
     dead = pop[pop.alive == 'dead']
     assert len(dead) > 0
     assert np.all(disability.disability_weight(dead.index) == 0)
