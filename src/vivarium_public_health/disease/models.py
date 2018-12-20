@@ -18,7 +18,7 @@ class SI:
         get_data_functions = {}
         if only_morbid:
             infected = DiseaseState(self.cause)
-            get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
+            get_data_functions['csmr'] = lambda _, __: None
         else:
             infected = ExcessMortalityState(self.cause) 
         infected.allow_self_transitions()
@@ -43,7 +43,7 @@ class SIR:
         get_data_functions = {}
         if only_morbid:
             infected = DiseaseState(self.cause)
-            get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
+            get_data_functions['csmr'] = lambda _, __: None
         else:
             infected = ExcessMortalityState(self.cause)
 
@@ -73,7 +73,7 @@ class SIS:
         get_data_functions = {}
         if only_morbid:
             infected = DiseaseState(self.cause)
-            get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
+            get_data_functions['csmr'] = lambda _, __: None
         else:
             infected = ExcessMortalityState(self.cause)
 
@@ -89,6 +89,13 @@ class SIS:
 class SIS_fixed_duration:
 
     def __init__(self, cause: str, duration):
+        """
+
+        Parameters
+        ----------
+        cause
+        duration
+        """
         self.cause = cause
         if not isinstance(duration, pd.Timedelta):
             self.duration = pd.Timedelta(days=float(duration) // 1, hours=float(duration) % 1)
@@ -105,7 +112,7 @@ class SIS_fixed_duration:
         if only_morbid:
             infected = DiseaseState(self.cause,
                                     get_data_functions={'dwell_time': lambda _, __: self.duration})
-            get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
+            get_data_functions['csmr'] = lambda _, __: None
         else:
             infected = ExcessMortalityState(self.cause,
                                             get_data_functions={'dwell_time': lambda _, __: self.duration})
@@ -133,7 +140,7 @@ class neonatal:
         get_data_functions = {}
         if only_morbid:
             with_condition = DiseaseState(self.cause)
-            get_data_functions['csmr'] = lambda _, __: None  # DiseaseModel will try to pull not provided
+            get_data_functions['csmr'] = lambda _, __: None
         else:
             with_condition = ExcessMortalityState(self.cause)
         with_condition.allow_self_transitions()
