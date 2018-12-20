@@ -263,6 +263,12 @@ class DelayedRisk:
         col_int_yes = '{}_intervention.yes'.format(self.name)
         col_zero = '{}.0'.format(self.name)
         col_int_zero = '{}_intervention.0'.format(self.name)
+
+        # NOTE: Ensure there is no further uptake in cohorts where tobacco use
+        # is already prevalent.
+        inc_rate[pop[col_yes] > 0.0] = 0.0
+        int_inc_rate[pop[col_int_yes] > 0.0] = 0.0
+
         inc = inc_rate * pop[col_no]
         int_inc = int_inc_rate * pop[col_int_no]
         rem = rem_rate * pop[col_yes]
