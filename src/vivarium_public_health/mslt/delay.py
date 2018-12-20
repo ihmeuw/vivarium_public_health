@@ -263,6 +263,12 @@ class DelayedRisk:
         col_int_yes = '{}_intervention.yes'.format(self.name)
         col_zero = '{}.0'.format(self.name)
         col_int_zero = '{}_intervention.0'.format(self.name)
+
+        # NOTE: Ensure there is no further uptake in cohorts where tobacco use
+        # is already prevalent.
+        inc_rate[pop[col_yes] > 0.0] = 0.0
+        int_inc_rate[pop[col_int_yes] > 0.0] = 0.0
+
         inc = inc_rate * pop[col_no]
         int_inc = int_inc_rate * pop[col_int_no]
         rem = rem_rate * pop[col_yes]
@@ -286,9 +292,15 @@ class DelayedRisk:
         :param disease: The name of the disease whose incidence rate will be
             modified.
         """
-        inc_rate = '{}_intervention.incidence'.format(disease)
-        modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
-        builder.value.register_value_modifier(inc_rate, modifier)
+        # NOTE: we need to modify different rates for chronic and acute
+        # diseases. For now, register modifiers for all possible rates.
+        rate_templates = ['{}_intervention.incidence',
+                          '{}_intervention.excess_mortality',
+                          '{}_intervention.yld_rate']
+        for template in rate_templates:
+            rate_name = template.format(disease)
+            modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
+            builder.value.register_value_modifier(rate_name, modifier)
 
     def incidence_adjustment(self, disease, index, incidence_rate):
         """
@@ -308,14 +320,19 @@ class DelayedRisk:
         bau_prefix = '{}.'.format(self.name)
         bau_cols = [c for c in bin_cols if c.startswith(bau_prefix)]
         # Sum over all of the bins in each row.
-        mean_bau_rr = rr_values[bau_cols].sum(axis=1)
+        mean_bau_rr = rr_values[bau_cols].sum(axis=1) / pop[bau_cols].sum(axis=1)
+        # Handle cases where the population size is zero.
+        mean_bau_rr = mean_bau_rr.fillna(1.0)
 
         # Calculate the mean relative-risk for the intervention scenario.
         int_prefix = '{}_intervention.'.format(self.name)
         int_cols = [c for c in bin_cols if c.startswith(int_prefix)]
         # Sum over all of the bins in each row.
-        mean_int_rr = rr_values[int_cols].sum(axis=1)
+        mean_int_rr = rr_values[int_cols].sum(axis=1) / pop[int_cols].sum(axis=1)
+        # Handle cases where the population size is zero.
+        mean_int_rr = mean_int_rr.fillna(1.0)
 
         # Calculate the disease incidence PIF for the intervention scenario.
         pif = (mean_bau_rr - mean_int_rr) / mean_bau_rr
-        return incidence_rate * pif
+        pif = pif.fillna(0.0)
+        return incidence_rate * (1 - pif)
