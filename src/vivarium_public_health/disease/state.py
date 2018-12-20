@@ -202,6 +202,8 @@ class DiseaseState(BaseDiseaseState):
         self.randomness_prevalence = builder.randomness.get_stream(f'{self.state_id}_prevalent_cases')
 
         disability_weight_data = get_disability_weight_func(self.cause, builder)
+        if isinstance(disability_weight_data, pd.DataFrame) and len(disability_weight_data)  == 1:
+            disability_weight_data = disability_weight_data.value[0]  # sequela only have single value
         self._disability_weight = builder.lookup.build_table(disability_weight_data)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
