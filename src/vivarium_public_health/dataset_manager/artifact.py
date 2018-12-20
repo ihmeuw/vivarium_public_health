@@ -13,6 +13,7 @@ from vivarium_public_health.dataset_manager import hdf
 _log = logging.getLogger(__name__)
 
 
+
 class ArtifactException(Exception):
     """Exception raise for inconsistent use of the data artifact."""
     pass
@@ -33,9 +34,8 @@ class Artifact:
 
         self.path = path
         self._filter_terms = filter_terms
-
         self._cache = {}
-        self._keys = [EntityKey(k) for k in hdf.get_keys(self.path)]
+        self._keys = [EntityKey(k) for k in hdf.load(path, EntityKey('metadata.keyspace'), None)]
 
     @property
     def keys(self) -> List['EntityKey']:
@@ -93,6 +93,7 @@ class Artifact:
         ArtifactException :
             If the provided key already exists in the artifact.
         """
+
         entity_key = EntityKey(entity_key)
         if entity_key in self.keys:
             raise ArtifactException(f'{entity_key} already in artifact.')
@@ -100,6 +101,10 @@ class Artifact:
             pass
         else:
             self._keys.append(entity_key)
+
+            new_keyspace = self._keys.copy()
+            hdf.remove(self.path, EntityKey('metadata.keyspace'))
+            hdf.write(self.path, EntityKey('metadata.keyspace'), new_keyspace)
             hdf.write(self.path, entity_key, data)
 
     def remove(self, entity_key: str):
@@ -114,6 +119,7 @@ class Artifact:
         ------
         ArtifactException :
             If the key is not present in the artifact."""
+
         entity_key = EntityKey(entity_key)
         if entity_key not in self.keys:
             raise ArtifactException(f'Trying to remove non-existent key {entity_key} from artifact.')
@@ -121,7 +127,9 @@ class Artifact:
         self._keys.remove(entity_key)
         if entity_key in self._cache:
             self._cache.pop(entity_key)
-        hdf.remove(self.path, entity_key)
+        new_keyspace = self._keys.copy()
+        hdf.remove(self.path, EntityKey('metadata.keyspace'))
+        hdf.write(self.path, EntityKey('metadata.keyspace'), new_keyspace)
 
     def replace(self, entity_key: str, data: Any):
         """Replaces the data in the artifact at the provided key with the prov.
@@ -140,6 +148,7 @@ class Artifact:
             If the provided key does not already exist in the artifact.
         """
         e_key = EntityKey(entity_key)
+
         if e_key not in self.keys:
             raise ArtifactException(f'Trying to replace non-existent key {e_key} in artifact.')
         self.remove(entity_key)
