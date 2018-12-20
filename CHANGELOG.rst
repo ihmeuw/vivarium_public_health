@@ -1,3 +1,7 @@
+**0.8.11 - 12/20/18**
+
+ - Bugfix for mock_artifact testing data to include newly added columns.
+
 **0.8.10 - 12/20/18**
 
  - Added a replace function to the artifact class.
