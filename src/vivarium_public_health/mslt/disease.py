@@ -161,8 +161,8 @@ class Disease:
         # Calculate convenience terms.
         l_bau = i_bau + f_plus_r
         l_int = i_int + f_plus_r
-        q_bau = np.sqrt(i_bau2 + r2 + f2 + i_bau_r + f_r - i_bau_f)
-        q_int = np.sqrt(i_int2 + r2 + f2 + i_int_r + f_r - i_int_f)
+        q_bau = np.sqrt(i_bau2 + r2 + f2 + 2 * i_bau_r + 2 * f_r - 2 * i_bau_f)
+        q_int = np.sqrt(i_int2 + r2 + f2 + 2 * i_int_r + 2 * f_r - 2 * i_int_f)
         w_bau = np.exp(-(l_bau + q_bau) / 2)
         w_int = np.exp(-(l_int + q_int) / 2)
         v_bau = np.exp(-(l_bau - q_bau) / 2)
