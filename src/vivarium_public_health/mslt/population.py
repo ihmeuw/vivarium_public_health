@@ -36,7 +36,6 @@ class Mortality:
 
     def setup(self, builder):
         mortality_data = builder.data.load('cause.all_causes.mortality')
-        mortality_data = add_year_column(builder, mortality_data)
         self.mortality_rate = builder.value.register_rate_producer(
             'mortality_rate', source=builder.lookup.build_table(mortality_data))
 
