@@ -329,8 +329,6 @@ def test_exposure_params_risk_effect_dichotomous(base_config, base_plugins, dich
         simulation.data.write(f'risk_factor.test_risk.{key}', value)
 
     for key, value in cg_data.items():
-        if key == 'relative_risk':
-            value['affected_measure'] = 'exposure_parameters'
         simulation.data.write(f'coverage_gap.test_coverage_gap.{key}', value)
 
     simulation.setup()

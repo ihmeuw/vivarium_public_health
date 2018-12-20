@@ -174,8 +174,8 @@ def coverage_gap():
                     'year_end', 'sex'), var_name='population_attributable_fraction', value_name='value')
 
     paf_data['risk_factor'] = 'test_risk'
-    paf_data['affected_measure'] = 'incidence_rate'
-    rr_data['affected_measure'] = 'incidence_rate'
+    paf_data['affected_measure'] = 'exposure_parameters'
+    rr_data['affected_measure'] = 'exposure_parameters'
     cg_data['exposure'] = cg_exposure_data
     rr_data['risk_factor'] = 'test_risk'
     cg_data['relative_risk'] = rr_data
