@@ -100,6 +100,14 @@ class BasePopulation:
         population['age'] += step_size / SECONDS_PER_YEAR
         self.population_view.update(population)
 
+    @property
+    def name(self):
+        return "BasePopulation"
+
+    def __repr__(self):
+        # TODO: Make a __str__ with some info about relevant config settings?
+        return "BasePopulation()"
+
 
 class AgedOutSimulants:
 
@@ -120,6 +128,13 @@ class AgedOutSimulants:
             pop['tracked'] = pd.Series(False, index=pop.index)
             pop['exit_time'] = event.time
             self.population_view.update(pop)
+
+    @property
+    def name(self):
+        return "AgedOutSimulants"
+
+    def __repr__(self):
+        return "AgedOutSimulants()"
 
 
 def generate_population(simulant_ids, creation_time, step_size, age_params,

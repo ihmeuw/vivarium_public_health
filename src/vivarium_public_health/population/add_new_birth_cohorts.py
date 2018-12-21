@@ -57,6 +57,16 @@ class FertilityDeterministic:
                                       'age_end': 0,
                                   })
 
+    @property
+    def name(self):
+        return "FertilityDeterministic"
+
+    def __str__(self):
+        return f"FertilityDeterministic( fractional_new_births={self._fractional_new_births}"
+
+    def __repr__(self):
+        return "FertilityDeterministic()"
+
 
 class FertilityCrudeBirthRate:
     """Population-level model of births using Crude Birth Rate.
@@ -159,6 +169,13 @@ class FertilityCrudeBirthRate:
 
         return births / population
 
+    @property
+    def name(self):
+        return "FertilityCrudeBirthRate"
+
+    def __repr__(self):
+        return "FertilityCrudeBirthRate()"
+
 
 class FertilityAgeSpecificRates:
     """
@@ -239,3 +256,13 @@ class FertilityAgeSpecificRates:
                                         })
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
             self.population_view.update(parents)
+
+    @property
+    def name(self):
+        return "FertilityAgeSpecificRates"
+
+    def __str__(self):
+        return f"FertilityAgeSpecificRates( asfr= {self.asfr})"
+
+    def __repr__(self):
+        return "FertilityAgeSpecificRates()"

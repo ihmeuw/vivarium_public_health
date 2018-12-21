@@ -77,3 +77,10 @@ class Mortality:
             metrics['death_due_to_{}'.format(condition)] = count
 
         return metrics
+
+    @property
+    def name(self):
+        return "Mortality"
+
+    def __repr__(self):
+        return "Mortality()"
