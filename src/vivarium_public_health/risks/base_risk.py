@@ -95,4 +95,4 @@ class Risk:
         return f"Risk(_risk_type= {self._risk_type}, _risk= {self._risk})"
 
     def __repr__(self):
-        return f"Risk(risk= {self._risk}_type.{self._risk}"
+        return f"Risk(risk= {self._risk_type}.{self._risk}"
