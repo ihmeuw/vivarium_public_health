@@ -36,3 +36,11 @@ class Disability:
     def metrics(self, index, metrics):
         metrics['years_lived_with_disability'] = self.population_view.get(index)['years_lived_with_disability'].sum()
         return metrics
+
+    @property
+    def name(self):
+        return "Disability"
+
+    def __repr__(self):
+        # TODO: How is years_lived_with_disability altered? If it is small, could print it in a __str__
+        return "Disability()"

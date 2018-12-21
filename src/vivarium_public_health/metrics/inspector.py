@@ -13,3 +13,6 @@ class Inspector:
             To stop the simulation use 'exit()'.
             To continue to the next time step use 'Ctrl-D' ('Ctrl-Z' on Windows).
     """.format(event.time), local={'population': self.population_view.get(event.index)})
+
+    def __repr__(self):
+        return "Inspector()"
