@@ -130,3 +130,11 @@ class Treatment:
         protection = self.determine_protection(population)
         rates.loc[population.index] *= (1-protection.values)
         return rates
+
+    @property
+    def name(self):
+        return f"Treatment.{self.name}.{self.cause}"
+
+    def __repr__(self):
+        # TODO: What goes in the treatment effects list? Is it pretty-printable in a __str__?
+        return f"Treatment(name = {self.name}, cause={self.cause})"

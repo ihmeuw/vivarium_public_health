@@ -199,3 +199,10 @@ class HealthcareAccess:
         else:
             metrics['cost'] = metrics['healthcare_access_cost']
         return metrics
+
+    @property
+    def name(self):
+        return "HealthcareAccess"
+
+    def __repr__(self):
+        return "HealthCareAccess()"

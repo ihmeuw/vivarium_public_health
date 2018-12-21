@@ -54,6 +54,7 @@ class MassTreatmentCampaign:
 
     def __init__(self, treatment_name, etiology):
         self.treatment_name = treatment_name
+        self.etiology = etiology
         self.configuration_defaults = {treatment_name: MassTreatmentCampaign.configuration_defaults['treatment']}
         self.treatment = Treatment(treatment_name, etiology)
         self.schedule = TreatmentSchedule(treatment_name)
@@ -113,3 +114,10 @@ class MassTreatmentCampaign:
             metrics[f'{self.treatment.name}_{dose}_dose_current_count'] = current_dose.get(dose)
             metrics[f'{self.treatment.name}_{dose}_dose_previous_count'] = previous_dose.get(dose)
         return metrics
+
+    @property
+    def name(self):
+        return f"MassTreatmentCampaign.{self.treatment_name}.{self.etiology}"
+
+    def __repr__(self):
+        return f"MassTreatmentCampaign(treatment_name= {self.treatment_name}, etiology= {self.etiology}"

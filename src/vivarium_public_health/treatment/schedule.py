@@ -99,3 +99,10 @@ class TreatmentSchedule:
         time_to_dose = eligible_pop.age * 365 + step_size.days - dose_age
         correct_age = np.abs(time_to_dose) < step_size.days / 2
         return eligible_pop[correct_age]
+
+    @property
+    def name(self):
+        return f"TreatmentSchedule.{self.name}"
+
+    def __repr__(self):
+        return f"TreatmentSchedule(name= {self.name})"
