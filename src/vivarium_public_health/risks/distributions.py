@@ -14,7 +14,7 @@ class MissingDataError(Exception):
 
 
 class EnsembleSimulation(risk_distributions.EnsembleDistribution):
-
+    # TODO: Inheritance makes this one tricky
     def setup(self, builder):
         builder.components.add_components(self._distributions.values())
 
@@ -33,6 +33,14 @@ class SimulationDistribution:
 
     def ppf(self, x):
         return self.distribution(params=self.parameters(x.index)).ppf(x)
+
+    @property
+    def name(self):
+        param_string = ".".join(map(lambda p: f"{p[0]}:{p[1]}", self._parameters.items()))
+        return f"SimulationDistribution.{self.distribution}.{param_string}"
+
+    def __repr__(self):
+        return f"SimulationDistribution(distribution= {self.distribution}, parameters={self._parameters}"
 
 
 class PolytomousDistribution:
@@ -54,6 +62,16 @@ class PolytomousDistribution:
         exposure_sum = sorted_exposures.cumsum(axis='columns')
         category_index = (exposure_sum.T < x).T.sum('columns')
         return pd.Series(np.array(self.categories)[category_index], name=self._risk + '_exposure', index=x.index)
+
+    @property
+    def name(self):
+        return f"PolytomousDistribution.{self._risk}"
+
+    def __str__(self):
+        return f"PolytomousDistribution(risk= {self._risk}, categories= {self.categories}"
+
+    def __repr__(self):
+        return f"PolytomousDistribution(exposure_data, risk= {self._risk}"
 
 
 class DichotomousDistribution:
@@ -79,6 +97,13 @@ class DichotomousDistribution:
         exposed = x < self.exposure_proportion(x.index)
 
         return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
+
+    @property
+    def name(self):
+        return f"DichotomousDistribution.{self._risk}"
+
+    def __repr__(self):
+        return f"DichotomousDistribution(exposure_data, risk= {self._risk}"
 
 
 class RebinPolytomousDistribution(DichotomousDistribution):

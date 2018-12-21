@@ -146,3 +146,11 @@ class RiskEffect:
                 return rates * (rr.lookup(exposure.index, exposure))
 
         return exposure_effect
+
+    @property
+    def name(self):
+        return f"RiskEffect.{self.risk_type}.{self.risk}:{self.affected_entity_type}.{self.affected_entity}"
+
+    def __repr__(self):
+        return (f"RiskEffect(risk= {self.risk_type}.{self.risk}, target= {self.affected_entity_type}.{self.affected_entity}, "
+                f"get_data_functions={self._get_data_functions.keys()}")

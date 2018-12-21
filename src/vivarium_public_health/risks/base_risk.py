@@ -87,5 +87,12 @@ class Risk:
         propensity = self.propensity(index)
         return self.exposure_distribution.ppf(propensity)
 
-    def __repr__(self):
+    @property
+    def name(self):
+        return f"Risk.{self._risk_type}.{self._risk}"
+
+    def __str__(self):
         return f"Risk(_risk_type= {self._risk_type}, _risk= {self._risk})"
+
+    def __repr__(self):
+        return f"Risk(risk= {self._risk}_type.{self._risk}"
