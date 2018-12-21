@@ -18,6 +18,7 @@ class RateTransition(Transition):
                                                                source=lambda index: [builder.lookup.build_table(0)(index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
+
     def _get_rate_data(self, builder):
         if 'incidence_rate' in self._get_data_functions:
             rate_data = self._get_data_functions['incidence_rate'](self.output_state.cause, builder)

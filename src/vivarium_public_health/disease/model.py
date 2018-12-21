@@ -33,7 +33,7 @@ class DiseaseModel(Machine):
 
     @property
     def condition(self):
-        return self.state_column
+        return self.cause
 
     def setup(self, builder):
         super().setup(builder)
