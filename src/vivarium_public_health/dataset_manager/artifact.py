@@ -101,7 +101,6 @@ class Artifact:
             pass
         else:
             self._keys.append(entity_key)
-
             new_keyspace = self._keys.copy()
             hdf.remove(self.path, EntityKey('metadata.keyspace'))
             hdf.write(self.path, EntityKey('metadata.keyspace'), new_keyspace)
@@ -128,6 +127,7 @@ class Artifact:
         if entity_key in self._cache:
             self._cache.pop(entity_key)
         new_keyspace = self._keys.copy()
+        hdf.remove(self.path, entity_key)
         hdf.remove(self.path, EntityKey('metadata.keyspace'))
         hdf.write(self.path, EntityKey('metadata.keyspace'), new_keyspace)
 
