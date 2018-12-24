@@ -1,3 +1,23 @@
+**0.8.11 - 12/20/18**
+
+ - Bugfix for mock_artifact testing data to include newly added columns.
+ - Bugfix to handle single-value sequela disability weight data.
+
+**0.8.10 - 12/20/18**
+
+ - Added a replace function to the artifact class.
+ - Fixed a bug in age-specific fertility rate component.
+ - Added data free risk and risk effect components
+ - Removed the autogeneration of risk effects.
+ - Updated the risk and risk effect API.
+ - Added a configuration flag and component updates for limited forecasting data usage.
+ - Put in cause-level disability weights.
+ - Updated the population API.
+ - Added in standard epi disease models.
+ - Added support for morbidity only diseases.
+ - Expanded risk effects to target excess mortality.
+ - A host of model fixes and updates for the MSLT subpackage.
+
 **0.8.9 - 11/15/18**
 
  - Update documentation dependencies.

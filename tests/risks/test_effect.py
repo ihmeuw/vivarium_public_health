@@ -378,8 +378,8 @@ def test_RiskEffect_config_data(base_config, base_plugins):
     other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate',
                                                            source=lambda index: pd.Series(0.01, index=index))
 
-    assert np.allclose(rates(simulation.population.population.index), from_yearly(0.01, time_step)*50)
-    assert np.allclose(other_rates(simulation.population.population.index), from_yearly(0.01, time_step))
+    assert np.allclose(rates(simulation.get_population().index), from_yearly(0.01, time_step)*50)
+    assert np.allclose(other_rates(simulation.get_population().index), from_yearly(0.01, time_step))
 
 
 def test_RiskEffect_excess_mortality(base_config, base_plugins):
@@ -397,4 +397,4 @@ def test_RiskEffect_excess_mortality(base_config, base_plugins):
     em = simulation.values.register_rate_producer('test_cause.excess_mortality',
                                                   source=lambda index: pd.Series(0.1, index=index))
 
-    assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.population.population.index))
+    assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
