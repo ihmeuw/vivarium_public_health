@@ -1,8 +1,6 @@
 """Provide components to represent delayed effects."""
 import pandas as pd
 
-from . import add_year_column
-
 
 class DelayedRisk:
     """
@@ -128,7 +126,7 @@ class DelayedRisk:
             if not dis_columns or not dis_keys:
                 msg = 'No {} relative risks for disease {}'
                 raise ValueError(msg.format(self.name, disease))
-            rr_data = dis_rr_data[dis_keys + dis_columns]
+            rr_data = dis_rr_data.loc[:, dis_keys + dis_columns]
             dis_prefix = '{}_'.format(disease)
             bau_prefix = '{}.'.format(self.name)
             int_prefix = '{}_intervention.'.format(self.name)
@@ -140,7 +138,6 @@ class DelayedRisk:
                 # NOTE: avoid SettingWithCopyWarning
                 rr_data.loc[:, int_col[column]] = rr_data[column]
             rr_data = rr_data.rename(columns=bau_col)
-            rr_data = add_year_column(builder, rr_data)
             self.dis_rr[disease] = builder.lookup.build_table(rr_data)
 
         # Add a handler to create the exposure bin columns.
@@ -263,11 +260,6 @@ class DelayedRisk:
         col_int_yes = '{}_intervention.yes'.format(self.name)
         col_zero = '{}.0'.format(self.name)
         col_int_zero = '{}_intervention.0'.format(self.name)
-
-        # NOTE: Ensure there is no further uptake in cohorts where tobacco use
-        # is already prevalent.
-        inc_rate[pop[col_yes] > 0.0] = 0.0
-        int_inc_rate[pop[col_int_yes] > 0.0] = 0.0
 
         inc = inc_rate * pop[col_no]
         int_inc = int_inc_rate * pop[col_int_no]
