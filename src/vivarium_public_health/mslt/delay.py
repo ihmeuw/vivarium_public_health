@@ -1,8 +1,6 @@
 """Provide components to represent delayed effects."""
 import pandas as pd
 
-from . import add_year_column
-
 
 class DelayedRisk:
     """
@@ -140,7 +138,6 @@ class DelayedRisk:
                 # NOTE: avoid SettingWithCopyWarning
                 rr_data.loc[:, int_col[column]] = rr_data[column]
             rr_data = rr_data.rename(columns=bau_col)
-            rr_data = add_year_column(builder, rr_data)
             self.dis_rr[disease] = builder.lookup.build_table(rr_data)
 
         # Add a handler to create the exposure bin columns.
