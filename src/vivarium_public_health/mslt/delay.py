@@ -126,7 +126,7 @@ class DelayedRisk:
             if not dis_columns or not dis_keys:
                 msg = 'No {} relative risks for disease {}'
                 raise ValueError(msg.format(self.name, disease))
-            rr_data = dis_rr_data[dis_keys + dis_columns]
+            rr_data = dis_rr_data.loc[:, dis_keys + dis_columns]
             dis_prefix = '{}_'.format(disease)
             bau_prefix = '{}.'.format(self.name)
             int_prefix = '{}_intervention.'.format(self.name)
