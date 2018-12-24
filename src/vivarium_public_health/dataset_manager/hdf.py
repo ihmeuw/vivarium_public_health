@@ -12,7 +12,6 @@ from tables.nodes import filenode
 if typing.TYPE_CHECKING:
     from vivarium_public_health.dataset_manager import EntityKey
 
-
 DEFAULT_COLUMNS = {"location", "draw"}
 
 
