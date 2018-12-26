@@ -6,6 +6,7 @@ convenient access and inspection.
 """
 from collections import defaultdict
 import logging
+from pathlib import Path
 from typing import List, Dict, Any
 
 from vivarium_public_health.dataset_manager import hdf
@@ -21,7 +22,6 @@ class ArtifactException(Exception):
 
 class Artifact:
     """An interface for interacting with ``vivarium`` hdf artifacts."""
-
     def __init__(self, path: str, filter_terms: List[str]=None):
         """
         Parameters
@@ -35,7 +35,15 @@ class Artifact:
         self.path = path
         self._filter_terms = filter_terms
         self._cache = {}
-        self._keys = [EntityKey(k) for k in hdf.load(path, EntityKey('metadata.keyspace'), None)]
+        self._keys = [EntityKey(k) for k in self._get_keys()]
+
+    def _get_keys(self):
+        if not Path(self.path).is_file():
+            hdf.touch(self.path, False)
+        current_keys = [str(k) for k in hdf.get_keys(self.path)]
+        if 'metadata.keyspace' not in current_keys:
+            hdf.write(self.path, EntityKey('metadata.keyspace'), current_keys+['metadata.keyspace'])
+        return [str(k) for k in hdf.get_keys(self.path)]
 
     @property
     def keys(self) -> List['EntityKey']:
@@ -101,7 +109,7 @@ class Artifact:
             pass
         else:
             self._keys.append(entity_key)
-            new_keyspace = self._keys.copy()
+            new_keyspace = [str(k) for k in self._keys]
             hdf.remove(self.path, EntityKey('metadata.keyspace'))
             hdf.write(self.path, EntityKey('metadata.keyspace'), new_keyspace)
             hdf.write(self.path, entity_key, data)
@@ -126,7 +134,7 @@ class Artifact:
         self._keys.remove(entity_key)
         if entity_key in self._cache:
             self._cache.pop(entity_key)
-        new_keyspace = self._keys.copy()
+        new_keyspace = [str(k) for k in self._keys]
         hdf.remove(self.path, entity_key)
         hdf.remove(self.path, EntityKey('metadata.keyspace'))
         hdf.write(self.path, EntityKey('metadata.keyspace'), new_keyspace)

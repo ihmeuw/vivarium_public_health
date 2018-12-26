@@ -32,16 +32,13 @@ def hdf_mock(mocker, keys_mock):
     mock = mocker.patch('vivarium_public_health.dataset_manager.artifact.hdf')
 
     def mock_load(_, key, __):
-        if str(key) in keys_mock:
-            if str(key) == 'metadata.keyspace':
-                val = keys_mock
-            elif str(key) != 'no_data.key':
-                val = 'data'
-            else:
-                val = None
-            return val
+        if str(key) in keys_mock and key != 'no_data.key':
+            return 'data'
+        else:
+            return None
 
     mock.load.side_effect = mock_load
+    mock.get_keys.return_value = keys_mock
 
     return mock
 
@@ -180,7 +177,7 @@ def test_artifact_write(hdf_mock):
 
     assert ekey in a.keys
     assert ekey not in a._cache
-    expected_call = [call(path, EntityKey('metadata.keyspace'), [EntityKey(k) for k in keys_mock()]+[ekey]),
+    expected_call = [call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock()]+[key]),
                      call(path, ekey, 'data')]
     assert hdf_mock.write.call_args_list == expected_call
 
@@ -222,7 +219,7 @@ def test_remove_no_cache(hdf_mock):
     assert ekey not in a._cache
     expected_calls_remove = [call(path, ekey), call(path, EntityKey('metadata.keyspace'))]
     assert hdf_mock.remove.call_args_list == expected_calls_remove
-    expected_calls_write = [call(path, EntityKey('metadata.keyspace'), [EntityKey(k) for k in keys_mock() if k != key])]
+    expected_calls_write = [call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock() if k != key])]
     assert hdf_mock.write.call_args_list == expected_calls_write
 
 
@@ -296,10 +293,9 @@ def test_replace(hdf_mock):
                              call(path, keyspace_key)]
     assert hdf_mock.remove.call_args_list == expected_calls_remove
 
-    keyspace = [EntityKey(k) for k in keys_mock()]
-    new_keyspace = [EntityKey(k) for k in keys_mock()+[ekey]]
+    new_keyspace = [k for k in keys_mock()+[key]]
     expected_calls_write = [call(path, keyspace_key, new_keyspace), call(path, ekey, 'data'),
-                            call(path, keyspace_key, keyspace), call(path, keyspace_key, new_keyspace),
+                            call(path, keyspace_key, keys_mock()), call(path, keyspace_key, new_keyspace),
                             call(path, ekey, 'new_data')]
     assert hdf_mock.write.call_args_list == expected_calls_write
     assert ekey in a.keys
