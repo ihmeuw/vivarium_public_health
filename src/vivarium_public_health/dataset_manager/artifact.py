@@ -7,19 +7,17 @@ convenient access and inspection.
 from collections import defaultdict
 import logging
 from typing import List, Dict, Any
+from pathlib import Path
 
 from vivarium_public_health.dataset_manager import hdf
 
 _log = logging.getLogger(__name__)
 
 
-def create_hdf_with_keyspace(path, append):
-    hdf.touch(path, append)
-    if not append:
+def create_hdf_with_keyspace(path):
+    if not Path(path).is_file():
+        hdf.touch(path)
         hdf.write(path, EntityKey('metadata.keyspace'), ['metadata.keyspace'])
-    else:
-        message = 'To append, you need to provide the existing artifact with the metadata. Try again without append tag'
-        assert 'metadata.keyspace' in hdf.get_keys(path), message
 
 
 class ArtifactException(Exception):
@@ -29,7 +27,7 @@ class ArtifactException(Exception):
 
 class Artifact:
     """An interface for interacting with ``vivarium`` hdf artifacts."""
-    def __init__(self, path: str, append=False, filter_terms: List[str]=None):
+    def __init__(self, path: str, filter_terms: List[str]=None):
         """
         Parameters
         ----------
@@ -39,7 +37,7 @@ class Artifact:
             A set of terms suitable for usage with the ``where`` kwarg for ``pd.read_hdf``
         """
 
-        create_hdf_with_keyspace(path, append)
+        create_hdf_with_keyspace(path)
         self.path = path
         self._filter_terms = filter_terms
         self._cache = {}

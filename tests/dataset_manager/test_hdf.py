@@ -77,31 +77,29 @@ def test_touch_no_file(mocker):
     path = Path('not/an/existing/path.hdf')
     tables_mock = mocker.patch("vivarium_public_health.dataset_manager.hdf.tables")
 
-    hdf.touch(path, False)
+    hdf.touch(path)
     tables_mock.open_file.assert_called_once_with(str(path), mode='w')
     tables_mock.reset_mock()
-
-    with pytest.raises(FileNotFoundError):
-        hdf.touch(path, True)
 
 
 def test_touch_exists_but_not_file(hdf_file_path):
     path = Path(hdf_file_path).parent
-
-    with pytest.raises(FileNotFoundError):
-        hdf.touch(path, True)
+    with pytest.raises(ValueError):
+        hdf.touch(path)
 
 
 def test_touch_existing_file(hdf_file_path, mocker):
     path = Path(hdf_file_path)
     tables_mock = mocker.patch("vivarium_public_health.dataset_manager.hdf.tables")
 
-    hdf.touch(path, False)
+    hdf.touch(path)
     tables_mock.open_file.assert_called_once_with(str(path), mode='w')
     tables_mock.reset_mock()
 
-    hdf.touch(path, True)
-    tables_mock.open_file.assert_not_called()
+    # should wipe out and make it again
+    hdf.touch(path)
+    tables_mock.open_file.assert_called_once_with(str(path), mode='w')
+    tables_mock.reset_mock()
 
 
 def test_write_df(hdf_file_path, mock_key, mocker):

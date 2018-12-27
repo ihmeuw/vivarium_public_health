@@ -15,35 +15,24 @@ if typing.TYPE_CHECKING:
 DEFAULT_COLUMNS = {"location", "draw"}
 
 
-def touch(path: str, append: bool):
+def touch(path: str):
     """Creates an hdf file or wipes an existing file if necessary.
 
-    If the file exists and append is not true, the existing file
-    will be destroyed. If the file exists and append is true, touch
-    will do nothing.
+    If the hdf
 
     Parameters
     ----------
     path :
         The string path to the hdf file.
-    append :
-        Whether an existing artifact should be preserved and appended to
 
-    Raises
-    ------
-    FileNotFoundError
-        If attempting to append to a non-existent file."""
+    """
 
     path = Path(path)
+    if not path.suffix == '.hdf':
+        raise ValueError(f'You provided path: {str(path)} not valid for creating hdf file.')
 
-    if not path.is_file() and append:
-        raise FileNotFoundError("You indicated you want to append to "
-                                f"an existing artifact at {path} but no "
-                                "such artifact exists. remove --append if "
-                                "you wish to create a new artifact.")
-    elif not append:
-        with tables.open_file(str(path), mode='w'):
-            pass
+    with tables.open_file(str(path), mode='w'):
+        pass
 
 
 def write(path: str, entity_key: 'EntityKey', data: Any):

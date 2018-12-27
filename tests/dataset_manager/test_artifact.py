@@ -45,7 +45,7 @@ def hdf_mock(mocker, keys_mock):
 
     mock.load.side_effect = mock_load
     mock.get_keys.return_value = keys_mock
-    mock.touch.side_effect = lambda _, __ : None
+    mock.touch.side_effect = lambda _ : None
     return mock
 
 
@@ -54,23 +54,6 @@ _KEYS = ['population.age_bins',
          'population.structure',
          'population.theoretical_minimum_risk_life_expectancy',
          'cause.all_causes.restrictions']
-
-
-def test_create_hdf(tmpdir):
-    path = f'{tmpdir}/test.hdf'
-    create_hdf_with_keyspace(path, append=False)
-    assert Path(path).is_file()
-    assert 'metadata.keyspace' in hdf.get_keys(path)
-
-    create_hdf_with_keyspace(path, append=True)
-    assert hdf.get_keys(path) == ['metadata.keyspace']
-
-    hdf.remove(path, EntityKey('metadata.keyspace'))
-    with pytest.raises(AssertionError):
-        create_hdf_with_keyspace(path, append=True)
-
-    if tmpdir.check():
-        tmpdir.remove()
 
 
 def test_artifact_creation(hdf_mock, keys_mock):
@@ -84,7 +67,7 @@ def test_artifact_creation(hdf_mock, keys_mock):
     assert a.keys == [EntityKey(k) for k in keys_mock]
     hdf_mock.load.called_once_with(EntityKey('metadata.keyspace'))
 
-    a = Artifact(path, filter_terms=filter_terms)
+    a = Artifact(path, filter_terms)
 
     assert a.path == path
     assert a.filter_terms == filter_terms
@@ -163,7 +146,7 @@ def test_artifact_write_duplicate_key(hdf_mock):
     assert key in a
     assert ekey in a.keys
     assert ekey not in a._cache
-    hdf_mock.write.assert_not_called()
+    hdf_mock.write.called_once_with(path, EntityKey('metadat.keyspace'), ['metadata.keyspace'])
     hdf_mock.remove.assert_not_called()
 
 
@@ -181,7 +164,7 @@ def test_artifact_write_no_data(hdf_mock):
 
     assert ekey not in a.keys
     assert ekey not in a._cache
-    hdf_mock.write.assert_not_called()
+    hdf_mock.write.called_once_with(path, EntityKey('metadat.keyspace'), ['metadata.keyspace'])
     hdf_mock.remove.assert_not_called()
 
 
@@ -199,7 +182,8 @@ def test_artifact_write(hdf_mock):
 
     assert ekey in a.keys
     assert ekey not in a._cache
-    expected_call = [call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock()]+[key]),
+    expected_call = [call(path, EntityKey('metadata.keyspace'), ['metadata.keyspace']),
+                     call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock()]+[key]),
                      call(path, ekey, 'data')]
     assert hdf_mock.write.call_args_list == expected_call
 
@@ -221,7 +205,7 @@ def test_remove_bad_key(hdf_mock):
     assert ekey not in a.keys
     assert ekey not in a._cache
     hdf_mock.remove.assert_not_called()
-    hdf_mock.write.assert_not_called()
+    hdf_mock.write.called_once_with(path, EntityKey('metadat.keyspace'), ['metadata.keyspace'])
 
 
 def test_remove_no_cache(hdf_mock):
@@ -241,7 +225,8 @@ def test_remove_no_cache(hdf_mock):
     assert ekey not in a._cache
     expected_calls_remove = [call(path, ekey), call(path, EntityKey('metadata.keyspace'))]
     assert hdf_mock.remove.call_args_list == expected_calls_remove
-    expected_calls_write = [call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock() if k != key])]
+    expected_calls_write = [call(path, EntityKey('metadata.keyspace'), ['metadata.keyspace']),
+                            call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock() if k != key])]
     assert hdf_mock.write.call_args_list == expected_calls_write
 
 
