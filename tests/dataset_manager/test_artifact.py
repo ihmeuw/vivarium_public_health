@@ -2,7 +2,10 @@ import pytest
 from unittest.mock import call
 from pathlib import Path
 
-from vivarium_public_health.dataset_manager.artifact import Artifact, ArtifactException, EntityKey, _to_tree
+from vivarium_public_health.dataset_manager.artifact import (Artifact, ArtifactException, EntityKey,
+                                                             _to_tree, create_hdf_with_keyspace)
+from vivarium_public_health.dataset_manager import hdf
+
 
 
 @pytest.fixture()
@@ -51,6 +54,23 @@ _KEYS = ['population.age_bins',
          'population.structure',
          'population.theoretical_minimum_risk_life_expectancy',
          'cause.all_causes.restrictions']
+
+
+def test_create_hdf(tmpdir):
+    path = f'{tmpdir}/test.hdf'
+    create_hdf_with_keyspace(path, append=False)
+    assert Path(path).is_file()
+    assert 'metadata.keyspace' in hdf.get_keys(path)
+
+    create_hdf_with_keyspace(path, append=True)
+    assert hdf.get_keys(path) == ['metadata.keyspace']
+
+    hdf.remove(path, EntityKey('metadata.keyspace'))
+    with pytest.raises(AssertionError):
+        create_hdf_with_keyspace(path, append=True)
+
+    if tmpdir.check():
+        tmpdir.remove()
 
 
 def test_artifact_creation(hdf_mock, keys_mock):
