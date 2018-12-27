@@ -32,14 +32,17 @@ def hdf_mock(mocker, keys_mock):
     mock = mocker.patch('vivarium_public_health.dataset_manager.artifact.hdf')
 
     def mock_load(_, key, __):
-        if str(key) in keys_mock and key != 'no_data.key':
-            return 'data'
-        else:
-            return None
+        if str(key) in keys_mock:
+            if str(key) == 'metadata.keyspace':
+                return keys_mock
+            elif str(key) != 'no_data.key':
+                return 'data'
+            else:
+                return None
 
     mock.load.side_effect = mock_load
     mock.get_keys.return_value = keys_mock
-
+    mock.touch.side_effect = lambda _, __ : None
     return mock
 
 
@@ -51,18 +54,17 @@ _KEYS = ['population.age_bins',
 
 
 def test_artifact_creation(hdf_mock, keys_mock):
-    path = '/place/with/artifact.hdf'
+    path = 'path/to/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
 
     a = Artifact(path)
 
-    assert a.path == path
     assert a.filter_terms is None
     assert a._cache == {}
     assert a.keys == [EntityKey(k) for k in keys_mock]
     hdf_mock.load.called_once_with(EntityKey('metadata.keyspace'))
 
-    a = Artifact(path, filter_terms)
+    a = Artifact(path, filter_terms=filter_terms)
 
     assert a.path == path
     assert a.filter_terms == filter_terms
@@ -267,7 +269,7 @@ def test_loading_key_leaves_filters_unchanged(hdf_mock):
     path = str(Path(__file__).parent / 'artifact.hdf')
     filter_terms = ['location == Global', 'draw == 10', 'fake_filter']
 
-    a = Artifact(path, filter_terms)
+    a = Artifact(path, filter_terms=filter_terms)
 
     for key in _KEYS:
         a.load(key)
@@ -280,7 +282,7 @@ def test_replace(hdf_mock):
     key = 'new.key'
     ekey = EntityKey(key)
 
-    a = Artifact(path, filter_terms)
+    a = Artifact(path, filter_terms=filter_terms)
 
     assert ekey not in a.keys
 
@@ -288,13 +290,15 @@ def test_replace(hdf_mock):
 
     a.replace(key, "new_data")
     keyspace_key = EntityKey('metadata.keyspace')
+
     # keyspace will be remove first in a.write, second in self.remove from a.replace then self.write from a.replace
     expected_calls_remove = [call(path, keyspace_key), call(path, ekey), call(path, keyspace_key),
                              call(path, keyspace_key)]
     assert hdf_mock.remove.call_args_list == expected_calls_remove
 
     new_keyspace = [k for k in keys_mock()+[key]]
-    expected_calls_write = [call(path, keyspace_key, new_keyspace), call(path, ekey, 'data'),
+    expected_calls_write = [call(path, keyspace_key, [str(keyspace_key)]),
+                            call(path, keyspace_key, new_keyspace), call(path, ekey, 'data'),
                             call(path, keyspace_key, keys_mock()), call(path, keyspace_key, new_keyspace),
                             call(path, ekey, 'new_data')]
     assert hdf_mock.write.call_args_list == expected_calls_write
@@ -307,7 +311,7 @@ def test_replace_nonexistent_key(hdf_mock):
     key = 'new.key'
     ekey = EntityKey(key)
 
-    a = Artifact(path, filter_terms)
+    a = Artifact(path, filter_terms=filter_terms)
 
     assert ekey not in a.keys
 
