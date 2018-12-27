@@ -71,7 +71,6 @@ def rebin_rr_data(rr: pd.DataFrame, exposure: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_paf_data(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
-    import pdb; pdb.set_trace()
     rr.loc[:, 'year_end'] = rr.loc[:, 'year_start'] + 1
 
     key_cols = ['sex', 'parameter', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
@@ -86,7 +85,7 @@ def get_paf_data(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
 
     paf = ((mean_rr - 1)/mean_rr).reset_index()
     paf = paf.replace(-np.inf, 0)  # Rows with zero exposure.
-    
+
     return paf
 
 
