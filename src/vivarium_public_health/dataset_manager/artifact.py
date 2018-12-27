@@ -6,13 +6,20 @@ convenient access and inspection.
 """
 from collections import defaultdict
 import logging
-from pathlib import Path
 from typing import List, Dict, Any
 
 from vivarium_public_health.dataset_manager import hdf
 
 _log = logging.getLogger(__name__)
 
+
+def create_hdf_with_keyspace(path, append):
+    hdf.touch(path, append)
+    if not append:
+        hdf.write(path, EntityKey('metadata.keyspace'), ['metadata.keyspace'])
+    else:
+        message = 'To append, you need to provide the existing artifact with the metadata. Try again without append tag'
+        assert 'metadata.keyspace' in hdf.get_keys(path), message
 
 
 class ArtifactException(Exception):
@@ -22,7 +29,7 @@ class ArtifactException(Exception):
 
 class Artifact:
     """An interface for interacting with ``vivarium`` hdf artifacts."""
-    def __init__(self, path: str, filter_terms: List[str]=None):
+    def __init__(self, path: str, append=False, filter_terms: List[str]=None):
         """
         Parameters
         ----------
@@ -32,18 +39,11 @@ class Artifact:
             A set of terms suitable for usage with the ``where`` kwarg for ``pd.read_hdf``
         """
 
+        create_hdf_with_keyspace(path, append)
         self.path = path
         self._filter_terms = filter_terms
         self._cache = {}
-        self._keys = [EntityKey(k) for k in self._get_keys()]
-
-    def _get_keys(self):
-        if not Path(self.path).is_file():
-            hdf.touch(self.path, False)
-        current_keys = [str(k) for k in hdf.get_keys(self.path)]
-        if 'metadata.keyspace' not in current_keys:
-            hdf.write(self.path, EntityKey('metadata.keyspace'), current_keys+['metadata.keyspace'])
-        return [str(k) for k in hdf.get_keys(self.path)]
+        self._keys = [EntityKey(k) for k in hdf.load(self.path, EntityKey('metadata.keyspace'), None)]
 
     @property
     def keys(self) -> List['EntityKey']:
