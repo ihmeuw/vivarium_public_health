@@ -76,16 +76,13 @@ class RiskEffect:
     def _get_paf_data(self, builder):
         if self._config_data:
             exposure = build_exp_data_from_config(builder, self.risk)
-
             rr = build_rr_data_from_config(builder, self.risk, self.affected_entity, self.affected_measure)
-            rr[self.affected_entity_type] = self.affected_entity
-
             paf_data = get_paf_data(exposure, rr)
+            paf_data[self.affected_entity_type] = self.affected_entity
         else:
             filter_name, filter_term = self.affected_entity_type, self.affected_entity
             if 'paf' in self._get_data_functions:
                 paf_data = self._get_data_functions['paf'](builder)
-
             else:
                 distribution = builder.data.load(f'{self.risk_type}.{self.risk}.distribution')
                 if distribution in ['normal', 'lognormal', 'ensemble']:
@@ -95,10 +92,10 @@ class RiskEffect:
                 else:
                     exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
                     rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
-                    rr = rr[rr[filter_name] == filter_term]
                     rr = rr[rr['affected_measure'] == self.affected_measure].drop('affected_measure', 'columns')
                     rr = rr[rr[filter_name] == filter_term].drop(columns=[filter_name])
                     paf_data = get_paf_data(exposure, rr)
+
                     paf_data[filter_name] = filter_term
 
         paf_data = paf_data.loc[:, ['sex', 'value', self.affected_entity_type, 'age_group_start', 'age_group_end',
