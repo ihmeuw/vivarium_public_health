@@ -71,25 +71,22 @@ def rebin_rr_data(rr: pd.DataFrame, exposure: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_paf_data(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
+    import pdb; pdb.set_trace()
+    rr.loc[:, 'year_end'] = rr.loc[:, 'year_start'] + 1
 
-    years = rr.year_start.unique()
-    ex = ex[ex['year_start'].isin(years)]
-    key_cols = ['sex', 'parameter', 'year_start', 'year_end', 'age_group_start', 'age_group_end']
-    df = ex.merge(rr, on=key_cols)
-    df = df.groupby(['age_group_start', 'age_group_end', 'sex', 'year_start', 'year_end'], as_index=False)
+    key_cols = ['sex', 'parameter', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+    ex = ex.set_index(key_cols).sort_index(level=key_cols)
+    rr = rr.set_index(key_cols).sort_index(level=key_cols)
+    rr = rr.reindex(ex.index).fillna(method='ffill')
 
-    def compute_paf(g):
-        to_drop = g['parameter'] != 'cat1'
-        tmp = g['value_x'] * g['value_y']
-        tmp = tmp.sum()
-        g.drop(g[to_drop].index, inplace=True)
-        g.drop(['parameter', 'value_x', 'value_y'], axis=1, inplace=True)
-        g['value'] = (tmp-1)/tmp
-        return g
+    weighted_rr = ex*rr
 
-    paf = df.apply(compute_paf).reset_index()
+    groupby_cols = [c for c in key_cols if c != 'parameter']
+    mean_rr = weighted_rr.reset_index().groupby(groupby_cols)['value'].sum()
+
+    paf = ((mean_rr - 1)/mean_rr).reset_index()
     paf = paf.replace(-np.inf, 0)  # Rows with zero exposure.
-
+    
     return paf
 
 
