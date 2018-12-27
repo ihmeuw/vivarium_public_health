@@ -1,3 +1,7 @@
+**0.8.12 - 12/27/18**
+
+ - Bugfix in categorical paf calculation
+
 **0.8.11 - 12/20/18**
 
  - Bugfix for mock_artifact testing data to include newly added columns.
