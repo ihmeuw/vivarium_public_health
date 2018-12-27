@@ -18,14 +18,17 @@ DEFAULT_COLUMNS = {"location", "draw"}
 def touch(path: str):
     """Creates an hdf file or wipes an existing file if necessary.
 
-    If the hdf
+    If the given path is proper to create a hdf file, it creates a new hdf file.
 
     Parameters
     ----------
     path :
         The string path to the hdf file.
 
-    """
+    Raises
+    ------
+    FileNotFoundError
+        If the non-proper path is given to create a hdf file."""
 
     path = Path(path)
     if not path.suffix == '.hdf':
