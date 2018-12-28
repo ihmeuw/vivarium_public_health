@@ -31,7 +31,7 @@ class Artifact:
             A set of terms suitable for usage with the ``where`` kwarg for ``pd.read_hdf``
         """
 
-        Artifact.create_hdf_with_keyspace(path)
+        self.create_hdf_with_keyspace(path)
         self.path = path
         self._filter_terms = filter_terms
         self._cache = {}
