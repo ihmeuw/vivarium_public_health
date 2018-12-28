@@ -396,3 +396,59 @@ def test_to_tree():
     }
 
     assert _to_tree(keys) == key_tree
+
+
+def test_create_hdf(tmpdir):
+    path = Path(tmpdir)/'test.hdf'
+    assert not path.is_file()
+
+    test_artifact = Artifact(path.as_posix())
+    assert path.is_file()
+    assert EntityKey('metadata.keyspace') in test_artifact
+
+    test_artifact.write('new.key', 'data')
+    assert EntityKey('new.key') in test_artifact
+
+    #  check whether the existing path was NOT wiped out
+    new_artifact = Artifact(test_artifact.path)
+    assert new_artifact.path == test_artifact.path
+    assert EntityKey('new.key') in new_artifact
+
+
+def test_keys_initialization(tmpdir):
+    path = Path(tmpdir)/'test.hdf'
+    test_artifact = Artifact(path.as_posix())
+    test_key = test_artifact._keys
+
+    assert test_artifact.path == test_key.artifact_path
+    assert test_key._keys == ['metadata.keyspace']
+
+    test_artifact.write('new.keys', 'data')
+    assert test_key._keys == ['metadata.keyspace', 'new.keys']
+    assert test_key.to_list() == test_artifact.keys
+
+
+def test_keys_append(tmpdir):
+    path = Path(tmpdir)/'test.hdf'
+    test_artifact = Artifact(path.as_posix())
+    test_keys = test_artifact._keys
+
+    test_artifact.write('test.keys', 'data')
+    assert EntityKey('test.keys') in test_artifact
+    assert 'test.keys' in test_keys
+    assert test_keys._keys == ['metadata.keyspace', 'test.keys'] == [str(k) for k in test_artifact.keys]
+
+
+def test_keys_remove(tmpdir):
+    path = Path(tmpdir) / 'test.hdf'
+    test_artifact = Artifact(path.as_posix())
+    test_keys = test_artifact._keys
+
+    test_artifact.write('test.keys1', 'data')
+    test_artifact.write('test.keys2', 'data')
+    assert EntityKey('test.keys1') in test_artifact and EntityKey('test.keys2') in test_artifact
+    assert 'test.keys1' in test_keys and 'test.keys2' in test_keys
+
+    test_artifact.remove('test.keys2')
+    assert EntityKey('test.keys1') in test_artifact and not EntityKey('test.keys2') in test_artifact
+    assert 'test.keys1' in test_keys and not 'test.keys2' in test_keys
