@@ -27,7 +27,7 @@ def touch(path: str):
 
     Raises
     ------
-    FileNotFoundError
+    ValueError
         If the non-proper path is given to create a hdf file."""
 
     path = Path(path)
