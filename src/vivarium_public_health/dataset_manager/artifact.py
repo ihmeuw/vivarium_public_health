@@ -270,24 +270,36 @@ def _to_tree(keys: List[EntityKey]) -> Dict[str, Dict[str, List[str]]]:
 
 
 class Keys:
+    """A convenient wrapper around the keyspace which makes easier for Artifact
+     to maintain its keyspace when EntityKey is added or removed.
+     With the artifact_path, Keys object is initialized when the Artifact is
+     initialized """
 
     keyspace_node = EntityKey('metadata.keyspace')
 
-    def __init__(self, artifact_path):
+    def __init__(self, artifact_path: str):
         self.artifact_path = artifact_path
         self._keys = [str(k) for k in hdf.load(self.artifact_path, EntityKey('metadata.keyspace'), None)]
 
-    def append(self, new_key):
+    def append(self, new_key: EntityKey):
+        """ Whenever the artifact gets a new key and new data, append is called to
+        remove the old keyspace and to write the updated keyspace"""
+
         self._keys.append(str(new_key))
         hdf.remove(self.artifact_path, self.keyspace_node)
         hdf.write(self.artifact_path, self.keyspace_node, self._keys)
 
-    def remove(self, removing_key):
+    def remove(self, removing_key: EntityKey):
+        """ Whenever the artifact removes a key and data, remove is called to
+        remove the key from keyspace and write the updated keyspace."""
+
         self._keys.remove(str(removing_key))
         hdf.remove(self.artifact_path, self.keyspace_node)
         hdf.write(self.artifact_path, self.keyspace_node, self._keys)
 
-    def to_list(self):
+    def to_list(self) -> List[EntityKey]:
+        """A list of all the EntityKeys in the associated artifact."""
+
         return [EntityKey(k) for k in self._keys]
 
     def __contains__(self, item):
