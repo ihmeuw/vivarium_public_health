@@ -2,10 +2,7 @@ import pytest
 from unittest.mock import call
 from pathlib import Path
 
-from vivarium_public_health.dataset_manager.artifact import (Artifact, ArtifactException, EntityKey,
-                                                             _to_tree, create_hdf_with_keyspace)
-from vivarium_public_health.dataset_manager import hdf
-
+from vivarium_public_health.dataset_manager.artifact import (Artifact, ArtifactException, EntityKey, _to_tree)
 
 
 @pytest.fixture()
@@ -131,23 +128,26 @@ def test_artifact_load(hdf_mock, keys_mock):
         hdf_mock.load.reset_mock()
 
 
-def test_artifact_write_duplicate_key(hdf_mock):
+def test_artifact_write_duplicate_key(hdf_mock, keys_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'population.structure'
     ekey = EntityKey(key)
 
-    a = Artifact(path, filter_terms)
+    art = Artifact(path, filter_terms)
+    initial_keys = art.keys
+    assert initial_keys == [EntityKey(k) for k in keys_mock]
 
     with pytest.raises(ArtifactException) as err_info:
-        a.write(key, "data")
+        art.write(key, "data")
 
     assert f'{key} already in artifact.' == str(err_info.value)
-    assert key in a
-    assert ekey in a.keys
-    assert ekey not in a._cache
+    assert key in art
+    assert ekey in art.keys
+    assert ekey not in art._cache
     hdf_mock.write.called_once_with(path, EntityKey('metadat.keyspace'), ['metadata.keyspace'])
     hdf_mock.remove.assert_not_called()
+    assert art.keys == initial_keys
 
 
 def test_artifact_write_no_data(hdf_mock):
@@ -157,6 +157,7 @@ def test_artifact_write_no_data(hdf_mock):
     ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
+    initial_keys = a.keys
 
     assert ekey not in a.keys
 
@@ -166,6 +167,7 @@ def test_artifact_write_no_data(hdf_mock):
     assert ekey not in a._cache
     hdf_mock.write.called_once_with(path, EntityKey('metadat.keyspace'), ['metadata.keyspace'])
     hdf_mock.remove.assert_not_called()
+    assert a.keys == initial_keys
 
 
 def test_artifact_write(hdf_mock):
@@ -175,6 +177,7 @@ def test_artifact_write(hdf_mock):
     ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms)
+    initial_keys = a.keys
 
     assert ekey not in a.keys
 
@@ -186,6 +189,7 @@ def test_artifact_write(hdf_mock):
                      call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock()]+[key]),
                      call(path, ekey, 'data')]
     assert hdf_mock.write.call_args_list == expected_call
+    assert set(a.keys) == set(initial_keys + [ekey])
 
 
 def test_remove_bad_key(hdf_mock):
@@ -194,6 +198,7 @@ def test_remove_bad_key(hdf_mock):
     key = 'non_existent.key'
     ekey = EntityKey(key)
     a = Artifact(path, filter_terms)
+    initial_keys = a.keys
 
     assert ekey not in a.keys
     assert ekey not in a._cache
@@ -206,6 +211,7 @@ def test_remove_bad_key(hdf_mock):
     assert ekey not in a._cache
     hdf_mock.remove.assert_not_called()
     hdf_mock.write.called_once_with(path, EntityKey('metadat.keyspace'), ['metadata.keyspace'])
+    assert a.keys == initial_keys
 
 
 def test_remove_no_cache(hdf_mock):
@@ -216,14 +222,17 @@ def test_remove_no_cache(hdf_mock):
 
     a = Artifact(path, filter_terms)
 
-    assert ekey in a.keys
+    initial_keys = a.keys
+
+    assert ekey in initial_keys
     assert ekey not in a._cache
 
     a.remove(key)
 
     assert ekey not in a.keys
     assert ekey not in a._cache
-    expected_calls_remove = [call(path, ekey), call(path, EntityKey('metadata.keyspace'))]
+    assert set(initial_keys).difference(a.keys) == {ekey}
+    expected_calls_remove = [call(path, EntityKey('metadata.keyspace')), call(path, ekey)]
     assert hdf_mock.remove.call_args_list == expected_calls_remove
     expected_calls_write = [call(path, EntityKey('metadata.keyspace'), ['metadata.keyspace']),
                             call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock() if k != key])]
@@ -247,7 +256,7 @@ def test_remove(hdf_mock):
     assert ekey not in a.keys
     assert ekey not in a._cache
 
-    expected_calls = [call(path, ekey), call(path, EntityKey('metadata.keyspace'))]
+    expected_calls = [call(path, EntityKey('metadata.keyspace')), call(path, ekey)]
     assert hdf_mock.remove.call_args_list == expected_calls
 
 
@@ -292,20 +301,23 @@ def test_replace(hdf_mock):
     assert ekey not in a.keys
 
     a.write(key, "data")
+    keyspace_key = EntityKey('metadata.keyspace')
+    new_keyspace = [k for k in keys_mock() + [key]]
+
+    assert hdf_mock.write.call_args_list ==\
+           [call(path, keyspace_key, [str(keyspace_key)]), call(path, keyspace_key, new_keyspace),
+            call(path, ekey, 'data')]
+
+    hdf_mock.reset_mock()
 
     a.replace(key, "new_data")
-    keyspace_key = EntityKey('metadata.keyspace')
 
-    # keyspace will be remove first in a.write, second in self.remove from a.replace then self.write from a.replace
-    expected_calls_remove = [call(path, keyspace_key), call(path, ekey), call(path, keyspace_key),
-                             call(path, keyspace_key)]
+    # keyspace will be remove first in self.remove from a.replace then self.write from a.replace
+    expected_calls_remove = [call(path, keyspace_key), call(path, ekey), call(path, keyspace_key)]
     assert hdf_mock.remove.call_args_list == expected_calls_remove
 
-    new_keyspace = [k for k in keys_mock()+[key]]
-    expected_calls_write = [call(path, keyspace_key, [str(keyspace_key)]),
-                            call(path, keyspace_key, new_keyspace), call(path, ekey, 'data'),
-                            call(path, keyspace_key, keys_mock()), call(path, keyspace_key, new_keyspace),
-                            call(path, ekey, 'new_data')]
+    expected_calls_write = [call(path, keyspace_key, new_keyspace),
+                            call(path, keyspace_key, new_keyspace), call(path, ekey, 'new_data')]
     assert hdf_mock.write.call_args_list == expected_calls_write
     assert ekey in a.keys
 
@@ -317,11 +329,15 @@ def test_replace_nonexistent_key(hdf_mock):
     ekey = EntityKey(key)
 
     a = Artifact(path, filter_terms=filter_terms)
-
+    hdf_mock.called_once_with(ekey)
     assert ekey not in a.keys
 
+    hdf_mock.reset_mock()
     with pytest.raises(ArtifactException):
         a.replace(key, "new_data")
+
+    hdf_mock.write.assert_not_called()
+    hdf_mock.remove.assert_not_called()
 
 
 def test_EntityKey_init_failure():

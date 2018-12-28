@@ -14,12 +14,6 @@ from vivarium_public_health.dataset_manager import hdf
 _log = logging.getLogger(__name__)
 
 
-def create_hdf_with_keyspace(path):
-    if not Path(path).is_file():
-        hdf.touch(path)
-        hdf.write(path, EntityKey('metadata.keyspace'), ['metadata.keyspace'])
-
-
 class ArtifactException(Exception):
     """Exception raise for inconsistent use of the data artifact."""
     pass
@@ -37,16 +31,22 @@ class Artifact:
             A set of terms suitable for usage with the ``where`` kwarg for ``pd.read_hdf``
         """
 
-        create_hdf_with_keyspace(path)
+        Artifact.create_hdf_with_keyspace(path)
         self.path = path
         self._filter_terms = filter_terms
         self._cache = {}
-        self._keys = [EntityKey(k) for k in hdf.load(self.path, EntityKey('metadata.keyspace'), None)]
+        self._keys = Keys(self.path)
+
+    @staticmethod
+    def create_hdf_with_keyspace(path):
+        if not Path(path).is_file():
+            hdf.touch(path)
+            hdf.write(path, EntityKey('metadata.keyspace'), ['metadata.keyspace'])
 
     @property
     def keys(self) -> List['EntityKey']:
         """A list of all the keys contained within the artifact."""
-        return self._keys
+        return self._keys.to_list()
 
     @property
     def filter_terms(self) -> List[str]:
@@ -107,9 +107,6 @@ class Artifact:
             pass
         else:
             self._keys.append(entity_key)
-            new_keyspace = [str(k) for k in self._keys]
-            hdf.remove(self.path, EntityKey('metadata.keyspace'))
-            hdf.write(self.path, EntityKey('metadata.keyspace'), new_keyspace)
             hdf.write(self.path, entity_key, data)
 
     def remove(self, entity_key: str):
@@ -132,10 +129,7 @@ class Artifact:
         self._keys.remove(entity_key)
         if entity_key in self._cache:
             self._cache.pop(entity_key)
-        new_keyspace = [str(k) for k in self._keys]
         hdf.remove(self.path, entity_key)
-        hdf.remove(self.path, EntityKey('metadata.keyspace'))
-        hdf.write(self.path, EntityKey('metadata.keyspace'), new_keyspace)
 
     def replace(self, entity_key: str, data: Any):
         """Replaces the data in the artifact at the provided key with the prov.
@@ -273,3 +267,28 @@ def _to_tree(keys: List[EntityKey]) -> Dict[str, Dict[str, List[str]]]:
         else:
             out[k.type][k.measure] = []
     return out
+
+
+class Keys:
+
+    keyspace_node = EntityKey('metadata.keyspace')
+
+    def __init__(self, artifact_path):
+        self.artifact_path = artifact_path
+        self._keys = [str(k) for k in hdf.load(self.artifact_path, EntityKey('metadata.keyspace'), None)]
+
+    def append(self, new_key):
+        self._keys.append(str(new_key))
+        hdf.remove(self.artifact_path, self.keyspace_node)
+        hdf.write(self.artifact_path, self.keyspace_node, self._keys)
+
+    def remove(self, removing_key):
+        self._keys.remove(str(removing_key))
+        hdf.remove(self.artifact_path, self.keyspace_node)
+        hdf.write(self.artifact_path, self.keyspace_node, self._keys)
+
+    def to_list(self):
+        return [EntityKey(k) for k in self._keys]
+
+    def __contains__(self, item):
+        return item in self._keys
