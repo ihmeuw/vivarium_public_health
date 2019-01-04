@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ev
+
 uname -a
 free -m
 df -h
@@ -22,8 +24,13 @@ then
     branch = $TRAVIS_BRANCH
 else
     branch =  $TRAVIS_PULL_REQUEST_BRANCH
+fi
+
+echo branch $branch
 
 upstream_branch = git ls-remote --heads git@github.com:ihmeuw/vivarium.git $branch
+
+echo upstream branch found $upstream_branch
 
 if [$upstream_branch]
 then
