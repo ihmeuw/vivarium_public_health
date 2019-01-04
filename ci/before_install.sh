@@ -32,5 +32,6 @@ then
     git checkout $branch
     pip install .
     popd
+fi
 
 popd
