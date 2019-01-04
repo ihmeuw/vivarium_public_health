@@ -3,11 +3,9 @@ python:
   - 3.6
 
 before_install:
-  - ./ci/before_install.sh
-install:
-  - pip install .[test,docs]
+  - ./ci/travis-before-install.sh
 script:
-  - pytest
+  - ./ci/travis-test.sh
 deploy:
   provider: pypi
   user: vivarium
