@@ -170,7 +170,7 @@ def test_artifact_write_no_data(hdf_mock):
     assert a.keys == initial_keys
 
 
-def test_artifact_write(hdf_mock):
+def test_artifact_write(hdf_mock, keys_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'new.key'
@@ -186,7 +186,7 @@ def test_artifact_write(hdf_mock):
     assert ekey in a.keys
     assert ekey not in a._cache
     expected_call = [call(path, EntityKey('metadata.keyspace'), ['metadata.keyspace']),
-                     call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock()]+[key]),
+                     call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock]+[key]),
                      call(path, ekey, 'data')]
     assert hdf_mock.write.call_args_list == expected_call
     assert set(a.keys) == set(initial_keys + [ekey])
@@ -214,7 +214,7 @@ def test_remove_bad_key(hdf_mock):
     assert a.keys == initial_keys
 
 
-def test_remove_no_cache(hdf_mock):
+def test_remove_no_cache(hdf_mock, keys_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'population.structure'
@@ -235,7 +235,7 @@ def test_remove_no_cache(hdf_mock):
     expected_calls_remove = [call(path, EntityKey('metadata.keyspace')), call(path, ekey)]
     assert hdf_mock.remove.call_args_list == expected_calls_remove
     expected_calls_write = [call(path, EntityKey('metadata.keyspace'), ['metadata.keyspace']),
-                            call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock() if k != key])]
+                            call(path, EntityKey('metadata.keyspace'), [k for k in keys_mock if k != key])]
     assert hdf_mock.write.call_args_list == expected_calls_write
 
 
@@ -290,7 +290,7 @@ def test_loading_key_leaves_filters_unchanged(hdf_mock):
         assert a.filter_terms == filter_terms
 
 
-def test_replace(hdf_mock):
+def test_replace(hdf_mock, keys_mock):
     path = '/place/with/artifact.hdf'
     filter_terms = ['location == Global', 'draw == 10']
     key = 'new.key'
@@ -302,7 +302,7 @@ def test_replace(hdf_mock):
 
     a.write(key, "data")
     keyspace_key = EntityKey('metadata.keyspace')
-    new_keyspace = [k for k in keys_mock() + [key]]
+    new_keyspace = [k for k in keys_mock + [key]]
 
     assert hdf_mock.write.call_args_list ==\
            [call(path, keyspace_key, [str(keyspace_key)]), call(path, keyspace_key, new_keyspace),
