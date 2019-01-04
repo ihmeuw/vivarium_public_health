@@ -19,24 +19,24 @@ python -V
 
 pip install --upgrade pip setuptools
 
-if ["$TRAVIS_PULL_REQUEST" == "false"]
+if ["$TRAVIS_PULL_REQUEST" = "false"]
 then
-    branch = $TRAVIS_BRANCH
+    branch = "$TRAVIS_BRANCH"
 else
-    branch =  $TRAVIS_PULL_REQUEST_BRANCH
+    branch = "$TRAVIS_PULL_REQUEST_BRANCH"
 fi
 
-echo branch $branch
+echo branch "$branch"
 
-upstream_branch = git ls-remote --heads git@github.com:ihmeuw/vivarium.git $branch
+upstream_branch = git ls-remote --heads git@github.com:ihmeuw/vivarium.git "$branch"
 
-echo upstream branch found $upstream_branch
+echo upstream branch found "$upstream_branch"
 
-if [$upstream_branch]
+if ["$upstream_branch"]
 then
     git clone git@github.com:ihmeuw/vivarium.git
     pushd vivarium
-    git checkout $branch
+    git checkout "$branch"
     pip install .
     popd
 fi
