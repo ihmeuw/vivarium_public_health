@@ -40,4 +40,4 @@ fi
 
 popd
 
-echo
+pip install .[test,docs]
