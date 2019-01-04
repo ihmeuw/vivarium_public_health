@@ -1,12 +1,14 @@
 language: python
 python:
-- 3.6
+  - 3.6
+
+before_install:
+  - ./ci/before_install.sh
 install:
-- pip install -r requirements.txt
-- pip install pytest pytest-mock
-- pip install .
+  - pip install .[test,docs]
 script:
-- pytest
+  - make doctest -C docs/
+  - pytest
 deploy:
   provider: pypi
   user: vivarium
