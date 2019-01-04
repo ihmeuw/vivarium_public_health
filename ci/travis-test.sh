@@ -1,4 +1,4 @@
 #!/bin/bash
 
 source builds/venv/bin/activate
-pytest
+pytest tests/
