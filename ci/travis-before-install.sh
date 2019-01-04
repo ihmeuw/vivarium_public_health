@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -ev
-
 uname -a
 free -m
 df -h

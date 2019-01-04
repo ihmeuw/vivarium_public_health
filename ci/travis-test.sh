@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -evx
-
 source builds/venv/bin/activate
 
 # travis venv tests override python
