@@ -26,7 +26,7 @@ fi
 
 echo branch $branch
 
-upstream_branch=$"git ls-remote --heads git@github.com:ihmeuw/vivarium.git $branch"
+upstream_branch="$(git ls-remote --heads git@github.com:ihmeuw/vivarium.git $branch)"
 
 echo upstream branch found $upstream_branch
 
