@@ -24,9 +24,9 @@ else
     branch=$TRAVIS_PULL_REQUEST_BRANCH
 fi
 
-echo branch $branch
+echo branch ${branch}
 
-upstream_branch="$(git ls-remote --heads git@github.com:ihmeuw/vivarium.git $branch)"
+upstream_branch="$(git ls-remote --heads git@github.com:ihmeuw/vivarium.git ${branch})"
 
 echo upstream branch found $upstream_branch
 
