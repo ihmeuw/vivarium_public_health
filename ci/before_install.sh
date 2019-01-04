@@ -32,9 +32,8 @@ echo upstream branch found $upstream_branch
 
 if [ $upstream_branch ]
 then
-    "git clone git@github.com:ihmeuw/vivarium.git"
+    git clone --branch=$branch https://github.com/ihmeuw/vivarium.git
     pushd vivarium
-    git checkout $branch
     pip install .
     popd
 fi
