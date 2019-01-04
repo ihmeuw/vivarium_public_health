@@ -30,7 +30,7 @@ upstream_branch="$(git ls-remote --heads https://github.com/ihmeuw/vivarium.git 
 
 echo upstream branch found ${upstream_branch}
 
-if [ ${upstream_branch} -ne 0]
+if [ ${upstream_branch} -ne 0 ]
 then
     git clone --branch=$branch https://github.com/ihmeuw/vivarium.git
     pushd vivarium
