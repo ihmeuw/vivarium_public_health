@@ -17,7 +17,7 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        'vivarium>=0.8.14',
+        'vivarium',
         'numpy',
         'pandas',
         'scipy',

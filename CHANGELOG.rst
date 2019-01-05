@@ -1,3 +1,8 @@
+**0.8.13 - 01/04/19**
+
+ - Added support for multi-location data artifacts.
+ - Added CI branch synchronization
+
 **0.8.12 - 12/27/18**
 
  - Bugfix in categorical paf calculation
