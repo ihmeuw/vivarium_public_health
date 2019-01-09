@@ -2,13 +2,147 @@ import numpy as np
 import pandas as pd
 import itertools
 
-from vivarium.config_tree import ConfigTree
 
 
-def should_rebin(risk: str, config: ConfigTree) -> bool:
-    """ Check the configuration whether to rebin the polytomous risk """
 
-    return (risk in config) and ('rebin' in config[risk]) and (config[risk].rebin)
+
+class RiskString(str):
+
+    def __init__(self, risk):
+        super().__init__()
+        self._type, self._name = self.split_risk()
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def name(self):
+        return self._name
+
+    def split_risk(self):
+        split = self.split('.')
+        if len(split) != 2:
+            raise ValueError(f'You must specify the risk as "risk_type.risk_name". You specified {self}.')
+        return split[0], split[1]
+
+
+class TargetString(str):
+
+    def __init__(self, target):
+        super().__init__()
+        self._type, self._name, self._measure = self.split_target()
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def measure(self):
+        return self._measure
+
+    def split_target(self):
+        split = self.split('.')
+        if len(split) != 3:
+            raise ValueError(
+                f'You must specify the target as "affected_entity_type.affected_entity_name.affected_measure".'
+                f'You specified {self}.')
+        return split[0], split[1], split[2]
+
+
+def get_exposure_data(builder, risk: RiskString):
+    risk_config = builder.configuration[risk.name]
+    exposure_source = risk_config['exposure']
+    if exposure_source == 'data':
+        exposure_data = builder.data.load(f'{risk}.exposure')
+    else:
+        if isinstance(exposure_source, str):  # Build from covariate
+            cat1 = builder.data.load(f'covariate.{exposure_source}.estimate')
+            cat1 = cat1[cat1['parameter'] == 'mean_value']
+            cat1['parameter'] = 'cat1'
+        else:  # We have a numerical value
+            cat1 = builder.data.load('population.demographic_dimensions')
+            cat1['parameter'] = 'cat1'
+            cat1['value'] = float(exposure_source)
+        cat2 = cat1.copy()
+        cat2['parameter'] = 'cat2'
+        cat2['value'] = 1 - cat2['value']
+        exposure_data = pd.concat([cat1, cat2], ignore_index=True)
+
+    # FIXME: We should do the rebin and pivot here as well.
+
+    return exposure_data
+
+
+def get_relative_risk_data(builder, risk: RiskString, target: TargetString):
+    relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
+    if relative_risk_source == 'data':
+        relative_risk_data = builder.data.load(f'{risk}.relative_risk')
+        correct_target = ((relative_risk_data['affected_entity'] == target.name)
+                          & (relative_risk_data['affected_measure'] == target.measure))
+        relative_risk_data = (relative_risk_data[correct_target]
+                              .drop(['affected_entity', 'affected_measure'], 'columns'))
+    else:
+        cat1 = builder.data.load('population.demographic_dimensions')
+        cat1['parameter'] = 'cat1'
+        cat1['value'] = float(relative_risk_source)
+        cat2 = cat1.copy()
+        cat2['parameter'] = 'cat2'
+        cat2['value'] = 1 - cat2['value']
+        relative_risk_data = pd.concat([cat1, cat2], ignore_index=True)
+
+    # FIXME: We should do the rebin and pivot here as well.
+
+    return relative_risk_data
+
+
+def get_population_attributable_fraction_data(builder, risk: RiskString, target: TargetString):
+    exposure_source = builder.configuration[f'{risk.name}']['exposure']
+    rr_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
+    if exposure_source == 'data' and rr_source == 'data':
+        paf_data = builder.data.load(f'{risk}.population_attributable_fraction')
+        correct_target = ((paf_data['affected_entity'] == target.name)
+                          & (paf_data['affected_measure'] == target.measure))
+        paf_data = (paf_data[correct_target]
+                    .drop(['affected_entity', 'affected_measure'], 'columns'))
+    else:
+        key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        exposure_data = get_exposure_data(builder, risk).set_index(key_cols + ['parameter'])
+        relative_risk_data = get_relative_risk_data(builder, risk, target).set_index(key_cols + ['parameter'])
+        weighted_rr = (exposure_data * relative_risk_data).reset_index()
+        mean_rr = weighted_rr.groupby(key_cols).apply(lambda sub_df: sub_df.value.sum())
+        paf_data = ((mean_rr - 1)/mean_rr).reset_index().rename(columns={0: 'value'})
+    return paf_data
+
+
+def pivot_categorical(data):
+    key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+    data = data.pivot_table(index=key_cols, columns='parameter', values='value').reset_index()
+    data.columns.name = None
+    return data
+
+
+def calculate_paf(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
+    rr.loc[:, 'year_end'] = rr.loc[:, 'year_start'] + 1
+
+    key_cols = ['sex', 'parameter', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+    ex = ex.set_index(key_cols).sort_index(level=key_cols)
+    rr = rr.set_index(key_cols).sort_index(level=key_cols)
+    rr = rr.reindex(ex.index).fillna(method='ffill')
+
+    weighted_rr = ex*rr
+
+    groupby_cols = [c for c in key_cols if c != 'parameter']
+    mean_rr = weighted_rr.reset_index().groupby(groupby_cols)['value'].sum()
+
+    paf = ((mean_rr - 1)/mean_rr).reset_index()
+    paf = paf.replace(-np.inf, 0)  # Rows with zero exposure.
+
+    return paf
 
 
 def rebin_exposure_data(data: pd.DataFrame) -> pd.DataFrame:
@@ -70,128 +204,47 @@ def rebin_rr_data(rr: pd.DataFrame, exposure: pd.DataFrame) -> pd.DataFrame:
     return df.replace(unexposed, 'cat2')
 
 
-def get_paf_data(ex: pd.DataFrame, rr: pd.DataFrame) -> pd.DataFrame:
-    rr.loc[:, 'year_end'] = rr.loc[:, 'year_start'] + 1
+# def _get_paf_data(self, builder):
+#     risk_config = builder.configuration[self.risk.name]
+#     exposure_source = risk_config['exposure']
+#     rr_source = builder.configuration[f'effect_of_{self.risk.name}_on_{self.target.name}'][self.target.measure]
+#
+#     if exposure_source == 'data' and rr_source == 'data':
+#         paf_data = builder.data.load(f'{self.risk}.population_attributable_fraction')
+#     elif exposure_source == 'data':
+#         rr = self._get_relative_risk_data(builder)
+#
+#
+#     # if self._config_data:
+#     #     exposure = build_exp_data_from_config(builder, self.risk)
+#     #     rr = build_rr_data_from_config(builder, self.risk, self.affected_entity, self.affected_measure)
+#     #     paf_data = None #get_paf_data(exposure, rr)
+#     #     paf_data['affected_entity'] = self.affected_entity
+#     else:
+#         if 'paf' in self._get_data_functions:
+#             paf_data = self._get_data_functions['paf'](builder)
+#         else:
+#             distribution = builder.data.load(f'{self.risk_type}.{self.risk}.distribution')
+#             if distribution in ['normal', 'lognormal', 'ensemble']:
+#                 paf_data = builder.data.load(f'{self.risk_type}.{self.risk}.population_attributable_fraction')
+#                 paf_data = paf_data[paf_data['affected_measure'] == self.affected_measure]
+#                 paf_data = paf_data[paf_data['affected_entity'] == self.affected_entity]
+#             else:
+#                 exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
+#                 rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
+#                 rr = rr[rr['affected_measure'] == self.affected_measure].drop('affected_measure', 'columns')
+#                 rr = rr[rr['affected_entity'] == 'affected_entity'].drop('affected_entity', 'columns')
+#                 paf_data = None #get_paf_data(exposure, rr)
+#
+#                 paf_data['affected_entity'] = self.affected_entity
+#
+#     paf_data = paf_data.loc[:, ['sex', 'value', 'affected_entity', 'age_group_start', 'age_group_end',
+#                                 'year_start', 'year_end']]
+#
+#     return pivot_categorical(paf_data)
 
-    key_cols = ['sex', 'parameter', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
-    ex = ex.set_index(key_cols).sort_index(level=key_cols)
-    rr = rr.set_index(key_cols).sort_index(level=key_cols)
-    rr = rr.reindex(ex.index).fillna(method='ffill')
-
-    weighted_rr = ex*rr
-
-    groupby_cols = [c for c in key_cols if c != 'parameter']
-    mean_rr = weighted_rr.reset_index().groupby(groupby_cols)['value'].sum()
-
-    paf = ((mean_rr - 1)/mean_rr).reset_index()
-    paf = paf.replace(-np.inf, 0)  # Rows with zero exposure.
-
-    return paf
-
-
-def split_risk_from_type(full_risk: str):
-    """Expecting risk to specified as type.name (where type is singular).
-    Splitting out type and name."""
-    split = full_risk.split('.')
-    if len(split) != 2:
-        raise ValueError(f'You must specify the risk as "risk_type.risk_name". You specified {full_risk}.')
-    return split[0], split[1]
-
-
-def split_target_from_type_entity(full_target: str):
-    """Expecting affected entity to be specified as type.name.target (where type is singular).
-    Splitting out type, name, and target. """
-    split = full_target.split('.')
-    if len(split) != 3:
-        raise ValueError(f'You must specify the target as "affected_entity_type.affected_entity_name.affected_measure".'
-                         f'You specified {full_target}.')
-    return split[0], split[1], split[2]
-
-
-def exposure_from_covariate(config_name: str, builder) -> pd.DataFrame:
-    """For use with DummyRisk component. config_name is the covariate name (or
-    1 - covariate name) specified in configuration to use for exposure.
-    """
-    cn = config_name.split('-')
-    if cn[0].rstrip() == '1':
-        cov = cn[1].lstrip()
-    else:
-        cov = config_name
-
-    data = builder.data.load(f'covariate.{cov}.estimate')
-    data = data.drop(['lower_value', 'upper_value'], axis='columns')
-    data = data.rename(columns={'mean_value': 'value'})
-
-    if cn[0].rstrip() == '1':
-        data['value'] = data.value.apply(lambda x: 1-x)
-
-    data['parameter'] = 'cat1'
-
-    cat2 = data.copy()
-    cat2['parameter'] = 'cat2'
-    cat2['value'] = cat2.value.apply(lambda x: 1-x)
-
-    return data.append(cat2)
-
-
-def exposure_rr_from_config_value(value, year_start, year_end, measure, age_groups=None) -> pd.DataFrame:
-    years = range(year_start, year_end+1)
-    if age_groups is None:
-        age_groups = pd.DataFrame({'age_group_start': range(0, 140), 'age_group_end': range(1, 141)})
-    sexes = ['Male', 'Female']
-
-    list_of_lists = [years, age_groups.age_group_start, sexes]
-    data = pd.DataFrame(list(itertools.product(*list_of_lists)), columns=['year_start', 'age_group_start', 'sex'])
-    data['year_end'] = data.year_start.apply(lambda x: x+1)
-
-    age_groups = age_groups.set_index('age_group_start')
-    data['age_group_end'] = data.age_group_start.apply(lambda x: age_groups.age_group_end[x])
-
-    cat1 = data.copy()
-    cat1['parameter'] = 'cat1'
-    cat1['value'] = value
-
-    cat2 = data.copy()
-    cat2['parameter'] = 'cat2'
-    cat2['value'] = 1 - value if measure == 'exposure' else 1
-
-    return cat1.append(cat2)
-
-
-def build_exp_data_from_config(builder, risk):
-    exp_value = builder.configuration[risk]['exposure']
-
-    if isinstance(exp_value, str):
-        exp_data = exposure_from_covariate(exp_value, builder)
-    elif isinstance(exp_value, (int, float)):
-        if exp_value < 0 or exp_value > 1:
-            raise ValueError(f"The specified value for {risk} exposure should be in the range [0, 1]. "
-                             f"You specified {exp_value}")
-
-        exp_data = exposure_rr_from_config_value(exp_value, builder.configuration.time.start.year,
-                                                 builder.configuration.time.end.year, 'exposure')
-    else:
-        raise TypeError(f"You may only specify a value for {risk} exposure that is the "
-                        f"name of a covariate or a single value. You specified {exp_value}.")
-    return exp_data
-
-
-def build_rr_data_from_config(builder, risk, affected_entity, target):
-    rr_config_key = f'effect_of_{risk}_on_{affected_entity}'
-    rr_value = builder.configuration[rr_config_key][target]
-
-    if not isinstance(rr_value, (int, float)):
-        raise TypeError(f"You may only specify a single numeric value for relative risk of {rr_config_key} "
-                        f"in the configuration. You supplied {rr_value}.")
-    if rr_value < 1 or rr_value > 100:
-        raise ValueError(f"The specified value for {rr_config_key} should be in the range [1, 100]. "
-                         f"You specified {rr_value}")
-
-    # if exposure is a covariate, we need to match the age groups to ensure merges work out
-    age_groups = None
-    exp = builder.configuration[risk]['exposure']
-    if isinstance(exp, str):
-        age_groups = exposure_from_covariate(exp)[['age_group_start', 'age_group_end']].drop_duplicates()
-    rr_data = exposure_rr_from_config_value(rr_value, builder.configuration.time.start.year,
-                                            builder.configuration.time.end.year, 'relative_risk', age_groups)
-    return rr_data
+# if should_rebin(self.risk, builder.configuration):
+#     exposure_data = builder.data.load(f"{self.risk_type}.{self.risk}.exposure")
+#     exposure_data = exposure_data.loc[:, column_filter]
+#     exposure_data = exposure_data[exposure_data['year_start'].isin(rr_data.year_start.unique())]
+#     rr_data = rebin_rr_data(rr_data, exposure_data)

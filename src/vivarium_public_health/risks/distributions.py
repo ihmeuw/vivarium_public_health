@@ -4,8 +4,7 @@ import pandas as pd
 from risk_distributions import risk_distributions
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
-from vivarium_public_health.util import pivot_age_sex_year_binned
-from .data_transformation import should_rebin, rebin_exposure_data
+from .data_transformation import rebin_exposure_data, pivot_categorical
 from functools import partial
 
 
@@ -85,50 +84,43 @@ class RebinPolytomousDistribution(DichotomousDistribution):
     pass
 
 
-def get_distribution(risk: str, distribution_type: str, exposure_data: pd.DataFrame, **data):
-
+def get_distribution(risk: str, distribution_type: str, exposure: pd.DataFrame,
+                     rebin=None, exposure_standard_deviation=None, weights=None):
     if distribution_type == "dichotomous":
-        exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
-        distribution = DichotomousDistribution(exposure_data, risk)
+        exposure = pivot_categorical(exposure)
+        distribution = DichotomousDistribution(exposure, risk)
 
     elif distribution_type == 'polytomous':
         SPECIAL = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
-        rebin = should_rebin(risk, data['configuration'])
 
         if rebin and risk in SPECIAL:
             raise NotImplementedError(f'{risk} cannot be rebinned at this point')
-
-        if rebin:
-            exposure_data = rebin_exposure_data(exposure_data)
-            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
-            distribution = RebinPolytomousDistribution(exposure_data, risk)
+        elif rebin:
+            exposure = rebin_exposure_data(exposure)
+            exposure = pivot_categorical(exposure)
+            distribution = RebinPolytomousDistribution(exposure, risk)
         else:
-            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
+            exposure_data = pivot_categorical(exposure)
             distribution = PolytomousDistribution(exposure_data, risk)
 
     elif distribution_type in ['normal', 'lognormal', 'ensemble']:
-        exposure_sd = data['exposure_standard_deviation']
-        exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
-        exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
-
+        exposure = exposure.rename(index=str, columns={"value": "mean"})
+        exposure_standard_deviation = (exposure_standard_deviation
+                                       .rename(index=str, columns={"value": "standard_deviation"}))
         # merge to make sure we have matching mean and standard deviation
-        exposure = exposure_data.merge(exposure_sd).set_index(['year_start', 'year_end',
-                                                               'age_group_start', 'age_group_end', 'sex'])
+        exposure = (exposure
+                    .merge(exposure_standard_deviation)
+                    .set_index(['year_start', 'year_end', 'age_group_start', 'age_group_end', 'sex']))
 
         if distribution_type == 'normal':
             distribution = SimulationDistribution(mean=exposure['mean'], sd=exposure['standard_deviation'],
                                                   distribution=risk_distributions.Normal)
-
         elif distribution_type == 'lognormal':
             distribution = SimulationDistribution(mean=exposure['mean'], sd=exposure['standard_deviation'],
                                                   distribution=risk_distributions.LogNormal)
-
         else:
-            weights = data['weights']
-
             if risk == 'high_ldl_cholesterol':
                 weights = weights.drop('invgamma', axis=1)
-
             if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
                 weights = weights.drop('invweibull', axis=1)
 
