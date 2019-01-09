@@ -28,17 +28,22 @@ class BasePopulation:
         ----------
         builder : vivarium.framework.engine.Builder
         """
+        self.config = builder.configuration.population
+        input_config = builder.configuration.input_data
+
         self.randomness = {'general_purpose': builder.randomness.get_stream('population_generation'),
                            'bin_selection': builder.randomness.get_stream('bin_selection', for_initialization=True),
                            'age_smoothing': builder.randomness.get_stream('age_smoothing', for_initialization=True)}
         self.register_simulants = builder.randomness.register_simulants
-        self.config = builder.configuration.population
-        input_config = builder.configuration.input_data
+
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
+
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
+
         source_population_structure = load_population_structure(builder)
         source_population_structure['location'] = input_config.location
+
         self.population_data = _build_population_data_table(source_population_structure)
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
