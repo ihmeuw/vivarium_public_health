@@ -26,7 +26,7 @@ class MortalityObserver:
         alive_at_start = pop.loc[pop.entrance_time == self.initial_pop_entrance_time].copy()
         years_in_sim = (alive_at_start.exit_time - alive_at_start.entrance_time) / pd.Timedelta(days=365.25)
         alive_at_start['age_at_start'] = alive_at_start.age - years_in_sim
-        born_in_sim = pop.loc[pop.entrance_time > start_time].copy()
+        born_in_sim = pop.loc[pop.entrance_time > self.initial_pop_entrance_time].copy()
 
         causes = pop.cause_of_death.unique().tolist()
         causes.remove('not_dead')
@@ -36,10 +36,10 @@ class MortalityObserver:
         frame_dict = {'total_deaths': 0, 'person_time': 0}
         frame_dict.update({c: 0 for c in causes})
 
-        total = pd.DataFrame(frame_dict, index=age_bins.index)
-        born = pd.DataFrame(frame_dict, index=age_bins.index)
+        total = pd.DataFrame(frame_dict, index=self.age_bins.index)
+        born = pd.DataFrame(frame_dict, index=self.age_bins.index)
 
-        for group, age_bin in age_bins.iterrows():
+        for group, age_bin in self.age_bins.iterrows():
             start, end = age_bin.age_group_start, age_bin.age_group_end
             in_group = pop[pop.age.between(start, end)]
             died = in_group[in_group.alive == 'dead']
