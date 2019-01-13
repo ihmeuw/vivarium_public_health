@@ -1,9 +1,5 @@
 import numpy as np
 import pandas as pd
-import itertools
-
-
-
 
 
 class RiskString(str):
@@ -103,7 +99,7 @@ def get_relative_risk_data(builder, risk: RiskString, target: TargetString):
 def get_population_attributable_fraction_data(builder, risk: RiskString, target: TargetString):
     exposure_source = builder.configuration[f'{risk.name}']['exposure']
     rr_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
-    if exposure_source == 'data' and rr_source == 'data':
+    if exposure_source == 'data' and rr_source == 'data' and risk.type == 'risk_factor':
         paf_data = builder.data.load(f'{risk}.population_attributable_fraction')
         correct_target = ((paf_data['affected_entity'] == target.name)
                           & (paf_data['affected_measure'] == target.measure))
