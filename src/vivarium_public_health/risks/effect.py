@@ -1,7 +1,5 @@
-import numpy as np
-
-from .data_transformation import (get_relative_risk_data, get_population_attributable_fraction_data,
-                                  RiskString, TargetString, pivot_categorical)
+from .data_transformations import (RiskString, TargetString, get_relative_risk_data,
+                                   get_population_attributable_fraction_data, get_exposure_effect)
 
 
 class RiskEffect:
@@ -50,14 +48,12 @@ class RiskEffect:
                                        RiskEffect.configuration_defaults['effect_of_risk_on_entity']}
 
     def setup(self, builder):
-        self._check_valid_data_sources(builder)
-        rr_data = get_relative_risk_data(builder, self.risk, self.target)
-        rr_data = pivot_categorical(rr_data)
-        self.relative_risk = builder.lookup.build_table(rr_data)
-        paf_data = get_population_attributable_fraction_data(builder, self.risk, self.target)
-        self.population_attributable_fraction = builder.lookup.build_table(paf_data)
+        self.relative_risk = builder.lookup.build_table(get_relative_risk_data(builder, self.risk, self.target))
+        self.population_attributable_fraction = builder.lookup.build_table(
+            get_population_attributable_fraction_data(builder, self.risk, self.target)
+        )
 
-        self.exposure_effect = self.get_exposure_effect(builder, self.risk)
+        self.exposure_effect = get_exposure_effect(builder, self.risk)
 
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}', modifier=self.adjust_target)
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}.paf',
@@ -65,41 +61,3 @@ class RiskEffect:
 
     def adjust_target(self, index, target):
         return self.exposure_effect(target, self.relative_risk(index))
-
-    def _check_valid_data_sources(self, builder):
-        risk_config = builder.configuration[self.risk.name]
-        exposure_source = risk_config['exposure']
-        rr_source = builder.configuration[f'effect_of_{self.risk.name}_on_{self.target.name}'][self.target.measure]
-        if (exposure_source != 'data' or rr_source != 'data') and risk_config['distribution'] != 'dichotomous':
-            raise ValueError('Parameterized risk components are only valid for dichotomous risks.')
-        if isinstance(rr_source, (int, float)) and not 1 <= risk_config['exposure'] <= 100:
-            raise ValueError(f"Relative risk should be in the range [1, 100]")
-
-    @staticmethod
-    def get_exposure_effect(builder, risk: RiskString):
-        risk_config = builder.configuration[risk]
-        distribution_type = risk_config['distribution']
-        if distribution_type == 'data':
-            distribution_type = builder.data.load(f'{risk}.distribution')
-
-        risk_exposure = builder.value.get_value(f'{risk.name}.exposure')
-
-        if distribution_type in ['normal', 'lognormal', 'ensemble']:
-            raise NotImplementedError()
-            # tmred = builder.data.load(f"{risk_type}.{risk}.tmred")
-            # tmrel = 0.5 * (tmred["min"] + tmred["max"])
-            # exposure_parameters = builder.data.load(f"{risk_type}.{risk}.exposure_parameters")
-            # max_exposure = exposure_parameters["max_rr"]
-            # scale = exposure_parameters["scale"]
-            #
-            # def exposure_effect(rates, rr):
-            #     exposure = np.minimum(risk_exposure(rr.index), max_exposure)
-            #     relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
-            #     return rates * relative_risk
-        else:
-
-            def exposure_effect(rates, rr):
-                exposure = risk_exposure(rr.index)
-                return rates * (rr.lookup(exposure.index, exposure))
-
-        return exposure_effect

@@ -1,7 +1,6 @@
 import pandas as pd
 
-from vivarium_public_health.risks import get_distribution
-from vivarium_public_health.risks.data_transformation import get_exposure_data, RiskString
+from vivarium_public_health.risks.data_transformations import RiskString, get_distribution, get_exposure_post_processor
 
 
 class Risk:
@@ -31,6 +30,7 @@ class Risk:
             "exposure": 'data',
             "distribution": 'data',
             "rebin": {},
+            "category_thresholds": [],
         }
     }
 
@@ -47,15 +47,20 @@ class Risk:
         self.configuration_defaults = {f'{self.risk.name}': Risk.configuration_defaults['risk']}
 
     def setup(self, builder):
-        self._validate_data_source(builder)
         self.exposure_distribution = self._get_distribution(builder)
         builder.components.add_components([self.exposure_distribution])
+
         self.randomness = builder.randomness.get_stream(f'initial_{self.risk.name}_propensity')
+
         self._propensity = pd.Series()
         self.propensity = builder.value.register_value_producer(f'{self.risk.name}.propensity',
                                                                 source=lambda index: self._propensity[index])
-        self.exposure = builder.value.register_value_producer(f'{self.risk.name}.exposure',
-                                                              source=self.get_current_exposure)
+        self.exposure = builder.value.register_value_producer(
+            f'{self.risk.name}.exposure',
+            source=self.get_current_exposure,
+            preferred_post_processor=get_exposure_post_processor(builder, self.risk)
+        )
+
         builder.population.initializes_simulants(self.on_initialize_simulants)
 
     def on_initialize_simulants(self, pop_data):
@@ -66,34 +71,7 @@ class Risk:
         return self.exposure_distribution.ppf(propensity)
 
     def _get_distribution(self, builder):
-        risk_config = builder.configuration[self.risk.name]
-        distribution_type = risk_config['distribution']
-        if distribution_type == 'data':
-            distribution_type = builder.data.load(f'{self.risk}.distribution')
-
-        args = {'risk': self.risk.name,
-                'distribution_type': distribution_type,
-                'exposure': get_exposure_data(builder, self.risk),
-                'rebin': risk_config['rebin'],
-                'exposure_standard_deviation': None,
-                'weights': None}
-
-        if distribution_type in ['normal', 'lognormal', 'ensemble']:
-            args['exposure_standard_deviation'] = builder.data.load(f"{self.risk}.exposure_standard_deviation")
-        if distribution_type == 'ensemble':
-            args['weights'] = builder.data.load(f'{self.risk}.ensemble_weights')
-
-        return get_distribution(**args)
-
-    def _validate_data_source(self, builder):
-        risk_config = builder.configuration[self.risk.name]
-        if risk_config['exposure'] != 'data' and risk_config['distribution'] != 'dichotomous':
-            raise ValueError('Parameterized risk components are only valid for dichotomous risks.')
-        if isinstance(risk_config['exposure'], (int, float)) and not 0 <= risk_config['exposure'] <= 1:
-            raise ValueError(f"Exposure should be in the range [0, 1]")
+        return get_distribution(builder, self.risk)
 
     def __repr__(self):
         return f"Risk({self.risk})"
-
-
-
