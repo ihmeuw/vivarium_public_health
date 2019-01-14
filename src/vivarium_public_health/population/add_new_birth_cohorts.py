@@ -1,7 +1,7 @@
 """This module contains several components that  model birth rates."""
 import pandas as pd
 import numpy as np
-from vivarium_public_health.population.base_population import load_population_structure
+from vivarium_public_health.population.data_transformations import get_crude_birth_rate
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate better data into gestational model (probably as a separate component)
@@ -74,7 +74,7 @@ class FertilityCrudeBirthRate:
     """
     def setup(self, builder):
 
-        self.birth_rate = self.get_crude_birth_rate(builder)
+        self.birth_rate = get_crude_birth_rate(builder)
 
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
         self.simulant_creator = builder.population.get_simulant_creator()
@@ -109,74 +109,6 @@ class FertilityCrudeBirthRate:
                                       'age_start': 0,
                                       'age_end': 0,
                                   })
-
-    @staticmethod
-    def get_crude_birth_rate(builder):
-        population_data = load_population_structure(builder)
-        exit_age = builder.configuration.population.to_dict().get('exit_age', None)
-        if exit_age:
-            if builder.configuration.population.age_end != exit_age:
-                raise ValueError('If you specify an exit age, the initial population age end must be the same '
-                                 'for the crude birth rate calculation to work.')
-            cut_bin = population_data[(population_data.age_group_start < exit_age)
-                                      & (population_data.age_group_end >= exit_age)]
-            cut_bin.value *= (exit_age - cut_bin.age_group_start) / (cut_bin.age_group_end - cut_bin.age_group_start)
-            cut_bin.loc[:, 'age_group_end'] = exit_age
-            population_data = population_data[population_data.age_group_end <= exit_age]
-            population_data = pd.concat([population_data, cut_bin], ignore_index=True)
-
-        population_data = population_data.groupby(['year_start'])['value'].sum()
-        birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
-                                       future=builder.configuration.input_data.forecast)
-        birth_data = (birth_data[birth_data.parameter == 'mean_value']
-                      .drop('parameter', 'columns')
-                      .groupby(['year_start'])['value'].sum())
-        birth_rate = ((birth_data / population_data)
-                      .reset_index()
-                      .rename(columns={'year_start': 'year'})
-                      .set_index('year')
-                      .value)
-
-        exceeds_data = builder.configuration.time.end.year > birth_rate.index.max()
-        if exceeds_data:
-            if builder.configuration.interpolation.extrapolate:
-                new_index = pd.RangeIndex(birth_rate.index.min(), builder.configuration.time.end.year + 1)
-                birth_rate = birth_rate.reindex(new_index, fill_value=birth_rate.at[birth_rate.index.max()])
-            else:
-                raise ValueError('Trying to extrapolate beyond the end of available birth data.')
-        return birth_rate
-
-    def birth_rate_producer(self, year):
-        """Computes a crude birth rate from demographic data in a given year.
-        Parameters
-        ----------
-        year : int
-            The year we want the birth rate for.
-        Returns
-        -------
-        float
-            The crude birth rate of the population in the given year in
-            births per person per year.
-        """
-
-        most_recent_data_year = min(max(self._population_data.year_start), max(self._birth_data.year_start))
-        if year > most_recent_data_year:
-            if not self.extrapolate:
-                raise ValueError('You need to set extrapolate=True to run simulation for the future years')
-
-            # FIXME: Here we fix the future birthrate to be same as the most available data. Fix it when we have
-            # a better idea
-            year = most_recent_data_year
-
-        population_table = self._population_data.query("year_start == @year and sex == 'Both'")
-        births = float(self._birth_data.query('sex == "Both"').set_index(['year_start']).loc[year].mean_value)
-
-        if self.exit_age is not None:
-            population = population_table.query("age < @self.exit_age").population.sum()
-        else:
-            population = population_table.population.sum()
-
-        return births / population
 
 
 class FertilityAgeSpecificRates:
@@ -254,4 +186,4 @@ class FertilityAgeSpecificRates:
                                             'age_end': 0,
                                         })
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
-            self.population_view.update(parents)\
+            self.population_view.update(parents)

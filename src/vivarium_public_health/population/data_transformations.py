@@ -353,3 +353,58 @@ def get_cause_deleted_mortality(all_cause_mortality, list_of_csmrs):
         all_cause_mortality = all_cause_mortality.subtract(csmr.set_index(index_cols)).dropna()
 
     return all_cause_mortality.reset_index().rename(columns={'value': 'death_due_to_other_causes'})
+
+
+def load_population_structure(builder):
+    data = builder.data.load("population.structure", future=builder.configuration.input_data.forecast)
+    # create an age column which is the midpoint of the age group
+    data['age'] = data.apply(lambda row: (row['age_group_start'] + row['age_group_end']) / 2, axis=1)
+    return data
+
+
+def get_crude_birth_rate(builder):
+    population_data = load_population_structure(builder)
+    birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
+                                   future=builder.configuration.input_data.forecast)
+
+    validate_crude_birth_rate_data(builder, population_data.year.max())
+    exit_age = builder.configuration.population.to_dict().get('exit_age', None)
+    if exit_age:
+        cut_bin = population_data[(population_data.age_group_start < exit_age)
+                                  & (population_data.age_group_end >= exit_age)]
+        cut_bin.value *= (exit_age - cut_bin.age_group_start) / (cut_bin.age_group_end - cut_bin.age_group_start)
+        cut_bin.loc[:, 'age_group_end'] = exit_age
+        population_data = population_data[population_data.age_group_end < exit_age]
+        population_data = pd.concat([population_data, cut_bin], ignore_index=True)
+
+    population_data = population_data.groupby(['year_start'])['value'].sum()
+    birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
+                                   future=builder.configuration.input_data.forecast)
+    birth_data = (birth_data[birth_data.parameter == 'mean_value']
+                  .drop('parameter', 'columns')
+                  .groupby(['year_start'])['value'].sum())
+    birth_rate = ((birth_data / population_data)
+                  .reset_index()
+                  .rename(columns={'year_start': 'year'})
+                  .set_index('year')
+                  .value)
+
+    exceeds_data = builder.configuration.time.end.year > birth_rate.index.max()
+    if exceeds_data:
+        if builder.configuration.interpolation.extrapolate:
+            new_index = pd.RangeIndex(birth_rate.index.min(), builder.configuration.time.end.year + 1)
+            birth_rate = birth_rate.reindex(new_index, fill_value=birth_rate.at[birth_rate.index.max()])
+        else:
+            raise ValueError('Trying to extrapolate beyond the end of available birth data.')
+    return birth_rate
+
+
+def validate_crude_birth_rate_data(builder, data_year_max):
+    exit_age = builder.configuration.population.to_dict().get('exit_age', None)
+    if exit_age and builder.configuration.population.age_end != exit_age:
+        raise ValueError('If you specify an exit age, the initial population age end must be the same '
+                         'for the crude birth rate calculation to work.')
+
+    exceeds_data = builder.configuration.time.end.year > data_year_max
+    if exceeds_data and not builder.configuration.interpolation.extrapolate:
+        raise ValueError('Trying to extrapolate beyond the end of available birth data.')
