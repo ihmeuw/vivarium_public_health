@@ -4,8 +4,6 @@ import pandas as pd
 from risk_distributions import risk_distributions
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
-from vivarium_public_health.util import pivot_age_sex_year_binned
-from .data_transformation import should_rebin, rebin_exposure_data
 from functools import partial
 
 
@@ -36,14 +34,14 @@ class SimulationDistribution:
 
 
 class PolytomousDistribution:
-    def __init__(self, exposure_data: pd.DataFrame, risk: str):
+    def __init__(self, risk: str, exposure_data: pd.DataFrame):
+        self.risk = risk
         self.exposure_data = exposure_data
-        self._risk = risk
         self.categories = sorted([column for column in self.exposure_data if 'cat' in column],
                                  key=lambda column: int(column[3:]))
 
     def setup(self, builder):
-        self.exposure = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
+        self.exposure = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
                                                               source=builder.lookup.build_table(self.exposure_data))
 
     def ppf(self, x):
@@ -53,19 +51,19 @@ class PolytomousDistribution:
             raise MissingDataError('All exposure data returned as 0.')
         exposure_sum = sorted_exposures.cumsum(axis='columns')
         category_index = (exposure_sum.T < x).T.sum('columns')
-        return pd.Series(np.array(self.categories)[category_index], name=self._risk + '_exposure', index=x.index)
+        return pd.Series(np.array(self.categories)[category_index], name=self.risk + '_exposure', index=x.index)
 
 
 class DichotomousDistribution:
-    def __init__(self, exposure_data: pd.DataFrame, risk: str):
+    def __init__(self, risk: str, exposure_data: pd.DataFrame):
+        self.risk = risk
         self.exposure_data = exposure_data.drop('cat2', axis=1)
-        self._risk = risk
 
     def setup(self, builder):
         self._base_exposure = builder.lookup.build_table(self.exposure_data)
-        self.exposure_proportion = builder.value.register_value_producer(f'{self._risk}.exposure_parameters',
+        self.exposure_proportion = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
                                                                          source=self.exposure)
-        self.joint_paf = builder.value.register_value_producer(f'{self._risk}.exposure_parameters.paf',
+        self.joint_paf = builder.value.register_value_producer(f'{self.risk}.exposure_parameters.paf',
                                                                source=lambda index: [builder.lookup.build_table(0)(index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
@@ -77,67 +75,24 @@ class DichotomousDistribution:
 
     def ppf(self, x):
         exposed = x < self.exposure_proportion(x.index)
-
-        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
-
-
-class RebinPolytomousDistribution(DichotomousDistribution):
-    pass
+        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self.risk + '_exposure', index=x.index)
 
 
-def get_distribution(risk: str, distribution_type: str, exposure_data: pd.DataFrame, **data):
-
-    if distribution_type == "dichotomous":
-        exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
-        distribution = DichotomousDistribution(exposure_data, risk)
-
-    elif distribution_type == 'polytomous':
-        SPECIAL = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
-        rebin = should_rebin(risk, data['configuration'])
-
-        if rebin and risk in SPECIAL:
-            raise NotImplementedError(f'{risk} cannot be rebinned at this point')
-
-        if rebin:
-            exposure_data = rebin_exposure_data(exposure_data)
-            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
-            distribution = RebinPolytomousDistribution(exposure_data, risk)
-        else:
-            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
-            distribution = PolytomousDistribution(exposure_data, risk)
-
-    elif distribution_type in ['normal', 'lognormal', 'ensemble']:
-        exposure_sd = data['exposure_standard_deviation']
-        exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
-        exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
-
-        # merge to make sure we have matching mean and standard deviation
-        exposure = exposure_data.merge(exposure_sd).set_index(['year_start', 'year_end',
-                                                               'age_group_start', 'age_group_end', 'sex'])
-
-        if distribution_type == 'normal':
-            distribution = SimulationDistribution(mean=exposure['mean'], sd=exposure['standard_deviation'],
-                                                  distribution=risk_distributions.Normal)
-
-        elif distribution_type == 'lognormal':
-            distribution = SimulationDistribution(mean=exposure['mean'], sd=exposure['standard_deviation'],
-                                                  distribution=risk_distributions.LogNormal)
-
-        else:
-            weights = data['weights']
-
-            if risk == 'high_ldl_cholesterol':
-                weights = weights.drop('invgamma', axis=1)
-
-            if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
-                weights = weights.drop('invweibull', axis=1)
-
-            # weight is all same across the demo groups
-            e_weights = weights.head(1)
-
-            distribution = EnsembleSimulation(e_weights, mean=exposure['mean'], sd=exposure['standard_deviation'])
-
+def get_distribution(risk, distribution_type, exposure, exposure_standard_deviation, weights):
+    if distribution_type == 'dichotomous':
+        distribution = DichotomousDistribution(exposure, risk)
+    elif 'polytomous' in distribution_type:
+        distribution = PolytomousDistribution(exposure, risk)
+    elif distribution_type == 'normal':
+        distribution = SimulationDistribution(mean=exposure['value'], sd=exposure_standard_deviation['value'],
+                                              distribution=risk_distributions.Normal)
+    elif distribution_type == 'lognormal':
+        distribution = SimulationDistribution(mean=exposure['value'], sd=exposure_standard_deviation['value'],
+                                              distribution=risk_distributions.LogNormal)
+    elif distribution_type == 'ensemble':
+        # weight is all same across the demographic groups
+        e_weights = weights.head(1)
+        distribution = EnsembleSimulation(e_weights, mean=exposure['value'], sd=exposure_standard_deviation['value'],)
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
-
     return distribution

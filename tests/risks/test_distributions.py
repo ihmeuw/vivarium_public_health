@@ -2,10 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium.framework.configuration import build_simulation_configuration
 from vivarium.testing_utilities import build_table
 from vivarium_public_health.risks import distributions
-from vivarium_public_health.util import pivot_age_sex_year_binned
+from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 
 def test_get_distribution_ensemble_risk():
@@ -44,21 +43,6 @@ def test_get_distribution_ensemble_risk():
     for k,v in ensemble_weights.items():
         ensemble_weights[k] = v/sum(ensemble_weights.values())
         np.isclose(ensemble_weights[k], e.weights[k])
-
-
-def test_should_rebin():
-    test_config = build_simulation_configuration()
-    test_config['population'] = {'population_size': 100}
-    assert not distributions.should_rebin('test_risk', test_config)
-
-    test_config['test_risk'] = {}
-    assert not distributions.should_rebin('test_risk', test_config)
-
-    test_config['test_risk'].rebin = False
-    assert not distributions.should_rebin('test_risk', test_config)
-
-    test_config['test_risk']['rebin'] = True
-    assert distributions.should_rebin('test_risk', test_config)
 
 
 def test_rebin_exposure():
@@ -107,8 +91,7 @@ def test_get_distribution_dichotomous_risk():
     test_exposure = pd.concat(test_exposure)
 
     test_d = distributions.get_distribution('dichotomous_risk', distribution, test_exposure)
-    Dichotomous_d = distributions.DichotomousDistribution(pivot_age_sex_year_binned(test_exposure, 'parameter', 'value'),
-                                                          'dichotomous_risk')
+    Dichotomous_d = distributions.DichotomousDistribution(pivot_categorical(test_exposure), 'dichotomous_risk')
 
     assert type(test_d) == type(Dichotomous_d)
     assert test_d._risk == Dichotomous_d._risk
@@ -128,8 +111,7 @@ def test_get_distribution_polytomous_risk(mocker):
     test_exposure = pd.concat(test_exposure)
     kwargs = {'configuration': None}
     test_d = distributions.get_distribution('polytomous_risk', distribution, test_exposure, **kwargs)
-    Polytomous_d = distributions.PolytomousDistribution(pivot_age_sex_year_binned(test_exposure, 'parameter', 'value'),
-                                                        'polytomous_risk')
+    Polytomous_d = distributions.PolytomousDistribution(pivot_categorical(test_exposure), 'polytomous_risk')
 
     assert type(test_d) == type(Polytomous_d)
     assert test_d._risk == Polytomous_d._risk
@@ -155,8 +137,7 @@ def test_get_distribution_polytomous_risk_rebinned(mocker):
         rebinned_exposure.append(build_table([cat, value], 2000, 2005, ('age', 'year', 'sex', 'parameter', 'value')))
     rebinned_exposure = pd.concat(rebinned_exposure)
 
-    Polytomous_d = distributions.RebinPolytomousDistribution(pivot_age_sex_year_binned(rebinned_exposure, 'parameter',
-                                                                                       'value'),'polytomous_risk')
+    Polytomous_d = distributions.RebinPolytomousDistribution(pivot_categorical(rebinned_exposure), 'polytomous_risk')
 
     assert type(test_d) == type(Polytomous_d)
     assert test_d._risk == Polytomous_d._risk
