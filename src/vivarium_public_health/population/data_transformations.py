@@ -24,25 +24,25 @@ def assign_demographic_proportions(population_data):
     population_data['P(sex, location, age| year)'] = (
         population_data
             .groupby('year_start', as_index=False)
-            .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
-            .reset_index(level=0).population
+            .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
+            .reset_index(level=0).value
     )
 
     population_data['P(sex, location | age, year)'] = (
         population_data
             .groupby(['age', 'year_start'], as_index=False)
-            .apply(lambda sub_pop: sub_pop.population / sub_pop[sub_pop.sex == 'Both'].population.sum())
-            .reset_index(level=0).population
+            .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
+            .reset_index(level=0).value
     )
 
     population_data['P(age | year, sex, location)'] = (
         population_data
             .groupby(['year_start', 'sex', 'location'], as_index=False)
-            .apply(lambda sub_pop: sub_pop.population / sub_pop.population.sum())
-            .reset_index(level=0).population
+            .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
+            .reset_index(level=0).value
     )
 
-    return population_data[population_data.sex != 'Both']
+    return population_data
 
 
 #  FIXME: This step should definitely be happening after we get some approximation of the underlying
@@ -78,7 +78,7 @@ def rescale_binned_proportions(pop_data, age_start, age_end):
     age_end = min(pop_data.age_group_end.max(), age_end) - 1e-8
     pop_data = _add_edge_age_groups(pop_data.copy())
 
-    columns_to_scale = ['P(sex, location, age| year)', 'P(age | year, sex, location)', 'population']
+    columns_to_scale = ['P(sex, location, age| year)', 'P(age | year, sex, location)', 'value']
     for _, sub_pop in pop_data.groupby(['sex', 'location']):
 
         min_bin = sub_pop[(sub_pop.age_group_start <= age_start) & (age_start < sub_pop.age_group_end)]
