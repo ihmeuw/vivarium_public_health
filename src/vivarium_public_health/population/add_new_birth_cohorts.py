@@ -10,7 +10,6 @@ PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
 
 class FertilityDeterministic:
     """Deterministic model of births.
-
     Attributes
     ----------
     fractional_new_births : float
@@ -35,7 +34,6 @@ class FertilityDeterministic:
     def add_new_birth_cohort(self, event):
         """Deterministically adds a new set of simulants at every timestep
         based on a parameter in the configuration.
-
         Parameters
         ----------
         event : vivarium.population.PopulationEvent
@@ -60,61 +58,48 @@ class FertilityDeterministic:
 
 class FertilityCrudeBirthRate:
     """Population-level model of births using Crude Birth Rate.
-
     Attributes
     ----------
     randomness : `randomness.RandomStream`
         A named stream of random numbers bound to vivarium's common
         random number framework.
-
     Notes
     -----
     The OECD definition of Crude Birthrate can be found on their
     website_, while a more thorough discussion of fertility and
     birth rate models can be found on Wikipedia_ or in demography
     textbooks.
-
     .. _website: https://stats.oecd.org/glossary/detail.asp?ID=490
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-        self._population_data = load_population_structure(builder)
-        self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
-                                             future=builder.configuration.input_data.forecast)
-        if 'exit_age' in builder.configuration.population:
-            self.exit_age = builder.configuration.population.exit_age
-        else:
-            self.exit_age = None
+
+        self.birth_rate = self.get_crude_birth_rate(builder)
+
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
         self.simulant_creator = builder.population.get_simulant_creator()
-        self.extrapolate = builder.configuration.interpolation.extrapolate
         builder.event.register_listener('time_step', self.add_new_birth_cohort)
-
 
     def add_new_birth_cohort(self, event):
         """Adds new simulants every time step based on the Crude Birth Rate
         and an assumption that birth is a Poisson process
-
         Parameters
         ----------
         event : vivarium.population.PopulationEvent
             The event that triggered the function call.
         creator : method
             A function or method for creating a population.
-
         Notes
         -----
         The method for computing the Crude Birth Rate employed here is
         approximate.
-
         """
-        # FIXME: We are pulling data every time here.  Use the value pipeline system.
-        birth_rate = self._get_birth_rate(event.time.year)
+
+        birth_rate = self.birth_rate.at[event.time.year]
         population_size = len(event.index)
         step_size = event.step_size / pd.Timedelta(seconds=1)
 
         mean_births = birth_rate*population_size*step_size/SECONDS_PER_YEAR
-
         # Assume births occur as a Poisson process
         r = np.random.RandomState(seed=self.randomness.get_seed())
         simulants_to_add = r.poisson(mean_births)
@@ -125,14 +110,48 @@ class FertilityCrudeBirthRate:
                                       'age_end': 0,
                                   })
 
-    def _get_birth_rate(self, year):
-        """Computes a crude birth rate from demographic data in a given year.
+    @staticmethod
+    def get_crude_birth_rate(builder):
+        population_data = load_population_structure(builder)
+        exit_age = builder.configuration.population.to_dict().get('exit_age', None)
+        if exit_age:
+            if builder.configuration.population.age_end != exit_age:
+                raise ValueError('If you specify an exit age, the initial population age end must be the same '
+                                 'for the crude birth rate calculation to work.')
+            cut_bin = population_data[(population_data.age_group_start < exit_age)
+                                      & (population_data.age_group_end >= exit_age)]
+            cut_bin.value *= (exit_age - cut_bin.age_group_start) / (cut_bin.age_group_end - cut_bin.age_group_start)
+            cut_bin.loc[:, 'age_group_end'] = exit_age
+            population_data = population_data[population_data.age_group_end <= exit_age]
+            population_data = pd.concat([population_data, cut_bin], ignore_index=True)
 
+        population_data = population_data.groupby(['year_start'])['value'].sum()
+        birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
+                                       future=builder.configuration.input_data.forecast)
+        birth_data = (birth_data[birth_data.parameter == 'mean_value']
+                      .drop('parameter', 'columns')
+                      .groupby(['year_start'])['value'].sum())
+        birth_rate = ((birth_data / population_data)
+                      .reset_index()
+                      .rename(columns={'year_start': 'year'})
+                      .set_index('year')
+                      .value)
+
+        exceeds_data = builder.configuration.time.end.year > birth_rate.index.max()
+        if exceeds_data:
+            if builder.configuration.interpolation.extrapolate:
+                new_index = pd.RangeIndex(birth_rate.index.min(), builder.configuration.time.end.year + 1)
+                birth_rate = birth_rate.reindex(new_index, fill_value=birth_rate.at[birth_rate.index.max()])
+            else:
+                raise ValueError('Trying to extrapolate beyond the end of available birth data.')
+        return birth_rate
+
+    def birth_rate_producer(self, year):
+        """Computes a crude birth rate from demographic data in a given year.
         Parameters
         ----------
         year : int
             The year we want the birth rate for.
-
         Returns
         -------
         float
@@ -145,7 +164,7 @@ class FertilityCrudeBirthRate:
             if not self.extrapolate:
                 raise ValueError('You need to set extrapolate=True to run simulation for the future years')
 
-            # FIXME: Here we fix the futre birthrate to be same as the most available data. Fix it when we have
+            # FIXME: Here we fix the future birthrate to be same as the most available data. Fix it when we have
             # a better idea
             year = most_recent_data_year
 
@@ -168,12 +187,10 @@ class FertilityAgeSpecificRates:
     def setup(self, builder):
         """ Setup the common randomness stream and
         age-specific fertility lookup tables.
-
         Parameters
         ----------
         builder : vivarium.engine.Builder
             Framework coordination object.
-
         """
 
         self.randomness = builder.randomness.get_stream('fertility')
@@ -208,7 +225,6 @@ class FertilityAgeSpecificRates:
 
     def step(self, event):
         """Produces new children and updates parent status on time steps.
-
         Parameters
         ----------
         event : vivarium.population.PopulationEvent
@@ -238,4 +254,4 @@ class FertilityAgeSpecificRates:
                                             'age_end': 0,
                                         })
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
-            self.population_view.update(parents)
+            self.population_view.update(parents)\
