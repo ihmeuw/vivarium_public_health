@@ -14,7 +14,7 @@ class MortalityObserver:
                          .reset_index(drop=True))
         exit_age = builder.configuration.exit_age
         if exit_age:
-            self.age_bins = self.age_bins[self.age_bins.age_group_start <= exit_age]
+            self.age_bins = self.age_bins[self.age_bins.age_group_start < exit_age]
             self.age_bins.loc[self.age_bins.age_group_end > exit_age, 'age_group_end'] = exit_age
 
         self.population_view = builder.population.get_view(columns_required)
