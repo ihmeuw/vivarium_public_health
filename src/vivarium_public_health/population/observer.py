@@ -12,8 +12,10 @@ class MortalityObserver:
         self.age_bins = (builder.data.load('population.demographic_dimensions')[['age_group_start', 'age_group_end']]
                          .drop_duplicates()
                          .reset_index(drop=True))
-        if builder.configuration.population.exit_age:
-            self.age_bins = self.age_bins[self.age_bins.age_group_end <= builder.configuration.population.exit_age]
+        exit_age = builder.configuration.exit_age
+        if exit_age:
+            self.age_bins = self.age_bins[self.age_bins.age_group_start <= exit_age]
+            self.age_bins.loc[self.age_bins.age_group_end > exit_age, 'age_group_end'] = exit_age
 
         self.population_view = builder.population.get_view(columns_required)
         builder.value.register_value_modifier('metrics', self.metrics)
