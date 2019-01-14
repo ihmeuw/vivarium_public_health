@@ -43,7 +43,7 @@ class MortalityObserver:
 
         for group, age_bin in self.age_bins.iterrows():
             start, end = age_bin.age_group_start, age_bin.age_group_end
-            in_group = pop[pop.age.between(start, end)]
+            in_group = pop[(pop.age >= start) & (pop.age < end)]
             died = in_group[in_group.alive == 'dead']
             total.loc[group, 'total_deaths'] = len(died)
             cause_of_death = died.cause_of_death.value_counts()
@@ -52,7 +52,7 @@ class MortalityObserver:
                     cod = f'death_due_to_{cod}'
                 total.loc[group, cod] += count
 
-            in_group = born_in_sim[born_in_sim.age.between(start, end)]
+            in_group = born_in_sim[(born_in_sim.age >= start) & (born_in_sim.age < end)]
             died = in_group[in_group.alive == 'dead']
             born.loc[group, 'total_deaths'] = len(died)
             cause_of_death = died.cause_of_death.value_counts()
@@ -61,7 +61,7 @@ class MortalityObserver:
                     cod = f'death_due_to_{cod}'
                 born.loc[group, cod] += count
 
-            alive_at_start_and_lived_in = alive_at_start[alive_at_start.age_at_start.between(start, end)]
+            alive_at_start_and_lived_in = alive_at_start[(alive_at_start.age >= start) & (alive_at_start.age < end)]
             time_start = alive_at_start_and_lived_in.age_at_start
             time_start[time_start <= start] = start
             time_end = alive_at_start_and_lived_in.age
