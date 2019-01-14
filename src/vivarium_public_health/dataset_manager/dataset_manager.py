@@ -1,4 +1,5 @@
 """A vivarium plugin for managing complex data."""
+import logging
 from pathlib import Path
 from typing import Union, Sequence
 import re
@@ -10,6 +11,7 @@ from vivarium.framework.engine import Builder
 from vivarium_public_health.dataset_manager import Artifact
 
 
+_log = logging.getLogger(__name__)
 _Filter = Union[str, int, Sequence[int], Sequence[str]]
 
 
@@ -42,9 +44,9 @@ class ArtifactManagerInterface:
         future :
             Flag indicating whether data should be pulled from forecasting.
         column_filters :
-            Filters that subset the data by a categorical column and then remove the
-            column from the raw data. They are supplied as keyword arguments to the
-            load method in the form "column=value".
+            Filters that subset the data by a categorical column and then
+            remove the column from the raw data. They are supplied as keyword
+            arguments to the load method in the form "column=value".
 
         Returns
         -------
@@ -66,9 +68,9 @@ class ArtifactManager:
 
     def setup(self, builder: Builder):
         """Performs this component's simulation setup."""
-        self.artifact = self._load_artifact(builder.configuration)
         # because not all columns are accessible via artifact filter terms, apply config filters separately
         self.config_filter_term = validate_filter_term(builder.configuration.input_data.artifact_filter_term)
+        self.artifact = self._load_artifact(builder.configuration)
 
     def _load_artifact(self, configuration: ConfigTree) -> Artifact:
         """Looks up the path to the artifact hdf file, builds a default filter,
@@ -89,6 +91,9 @@ class ArtifactManager:
         draw = configuration.input_data.input_draw_number
         location = configuration.input_data.location
         base_filter_terms = [f'draw == {draw}', get_location_term(location)]
+        _log.debug(f'Running simulation from artifact located at {artifact_path}')
+        _log.debug(f'Artifact base filter terms are {base_filter_terms}')
+        _log.debug(f'Artifact additional filter terms are {self.config_filter_term}')
         return Artifact(artifact_path, base_filter_terms)
 
     def load(self, entity_key: str, future=False, **column_filters: _Filter):
@@ -205,4 +210,3 @@ def parse_artifact_path_config(config: ConfigTree) -> str:
         raise FileNotFoundError(f"Cannot find artifact at path {path}")
 
     return str(path)
-
