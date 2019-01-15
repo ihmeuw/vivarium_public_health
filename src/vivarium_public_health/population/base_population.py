@@ -103,7 +103,7 @@ class AgeOutSimulants:
     def setup(self, builder):
         self.config = builder.configuration.population
         self.population_view = builder.population.get_view(['age', 'exit_time', 'tracked'])
-        builder.event.register_listener('time_step__cleanup', self.on_time_step_cleanup())
+        builder.event.register_listener('time_step__cleanup', self.on_time_step_cleanup)
 
     def on_time_step_cleanup(self, event):
         population = self.population_view.get(event.index)
@@ -237,10 +237,6 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
         Table with same columns as `simulants` and with the additional columns 'age', 'sex',  and 'location'.
     """
     pop_data = rescale_binned_proportions(pop_data, age_start, age_end)
-    pop_data['sex'] = pop_data['sex'].astype(
-        pd.api.types.CategoricalDtype(['Male', 'Female', 'Both'], ordered=False)
-    )
-
     if pop_data.empty:
         raise ValueError(
             'The age range ({}, {}) is not represented by the population data structure'.format(age_start, age_end))

@@ -41,7 +41,6 @@ class FertilityDeterministic:
         creator : method
             A function or method for creating a population.
         """
-
         # Assume births are uniformly distributed throughout the year.
         step_size = event.step_size/pd.Timedelta(seconds=1)
         simulants_to_add = (self.config.number_of_new_simulants_each_year*step_size/SECONDS_PER_YEAR
@@ -73,7 +72,6 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
-
         self.birth_rate = get_crude_birth_rate(builder)
 
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
@@ -94,7 +92,6 @@ class FertilityCrudeBirthRate:
         The method for computing the Crude Birth Rate employed here is
         approximate.
         """
-
         birth_rate = self.birth_rate.at[event.time.year]
         population_size = len(event.index)
         step_size = event.step_size / pd.Timedelta(seconds=1)
@@ -124,7 +121,6 @@ class FertilityAgeSpecificRates:
         builder : vivarium.engine.Builder
             Framework coordination object.
         """
-
         self.randomness = builder.randomness.get_stream('fertility')
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate",
                                       future=builder.configuration.input_data.forecast)
@@ -161,8 +157,6 @@ class FertilityAgeSpecificRates:
         ----------
         event : vivarium.population.PopulationEvent
             The event that triggered the function call.
-        creator : method
-            A function or method for creating a population.
         """
         # Get a view on all living women who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
