@@ -121,26 +121,22 @@ class MortalityObserver:
         total = pd.DataFrame(frame_dict, index=self.age_bins.index)
         born = pd.DataFrame(frame_dict, index=self.age_bins.index)
 
+        # let's leave out the first year and the last year
 
-        for year in range(start_time.year, end_time.year+1):
-            born_in_this_year = (pop.entrance_time.dt.year == year)
-            alive_at_start_of_this_year = (pop.entrance_time.dt.year < year) & (pop.exit_time.dt.year >= year)
+        for year in range(start_time.year+1, end_time.year):
+            existing_sims = pop.loc[(pop.entrance_time.dt.year < year) & (pop.exit_time.dt.year >= year)].copy()
+            newborn_sims = pop.loc[pop.entrance_time.dt.year == year].copy()
 
-            existing_sims = pop[alive_at_start_of_this_year].copy()
-            newborn_sims = pop[born_in_this_year].copy()
-
-            # age_at_year_end can be age_at_death if sim dies during this year
             sim_years_since_year_start = (existing_sims.exit_time - pd.datetime(year, 1, 1)) / pd.Timedelta(days=365.25)
             existing_sims['age_at_year_start'] = existing_sims.age - sim_years_since_year_start
             existing_sims['age_at_year_end'] = existing_sims.age_at_year_start + min(1, sim_years_since_year_start)
 
-            sim_years_since_born = (newborn_sims.exit_time - newborn_sims.entrace_time) / pd.Timedelta(days=365.25)
             sim_years_till_year_end = (pd.datetime(year, 12, 31) - newborn_sims.entrace_time) / pd.Timedelta(days=365.25)
-            newborn_sims['age_at_year_end'] = min(sim_years_since_born, sim_years_till_year_end)
+            newborn_sims['age_at_year_end'] = min(sim_years_till_year_end, newborn_sims.age)
 
             for group, age_bin in self.age_bins.iterrows():
                 start, end = age_bin.age_group_start, age_bin.age_group_end
-                in_group = existing_sims[(existing_sims.age_at_year_end >= start) & (existing_sims.age_at_year_end < end)]
+                in_group = existing_sims[(existing_sims.age >= start) & (existing_sims.age < end)]
                 died = in_group[in_group.alive == 'dead']
                 total.loc[group, f'total_deaths_{year}'] = len(died)
                 cause_of_death = died.cause_of_death.value_counts()
@@ -149,7 +145,7 @@ class MortalityObserver:
                         cod = f'death_due_to_{cod}_{year}'
                     total.loc[group, cod] += count
 
-                in_group = newborn_sims[(newborn_sims.age_at_year_end >= start) & (newborn_sims.age_at_year_end < end)]
+                in_group = newborn_sims[(newborn_sims.age >= start) & (newborn_sims.age < end)]
                 died = in_group[in_group.alive == 'dead']
                 born.loc[group, f'total_deaths_{year}'] = len(died)
                 cause_of_death = died.cause_of_death.value_counts()
@@ -158,22 +154,20 @@ class MortalityObserver:
                         cod = f'death_due_to_{cod}_{year}'
                     born.loc[group, cod] += count
 
-                time_start = alive_at_start_and_lived_in.age_at_start
-                time_start[time_start <= start] = start
-                time_end = alive_at_start_and_lived_in.age
-                time_end[time_end > end] = end
+                alive_at_start_and_lived_in = existing_sims[(existing_sims.age_at_year_start < end) &
+                                                            (existing_sims.age_at_year_end >= start)]
+                time_start = max(alive_at_start_and_lived_in.age_at_year_start, start)
+                time_end = min(alive_at_start_and_lived_in.age_at_year_end, end)
                 total.loc[group, f'person_time_{year}'] += (time_end - time_start).sum()
 
-                born_and_lived_in = born_in_sim[born_in_sim.age >= start]
+                born_and_lived_in = newborn_sims[(newborn_sims.age_at_year_end >= start) &(newborn_sims.age_at_year_end < end)]
                 time_start = start
-                time_end = born_and_lived_in.age
-                time_end[time_end > end] = end
+                time_end = min(born_and_lived_in.age_at_year_end, end)
                 total.loc[group, f'person_time_{year}'] += (time_end - time_start).sum()
 
-                lived_in = born_in_sim[born_in_sim.age >= start]
+                lived_in = newborn_sims[(newborn_sims.age_at_year_end >= start) &(newborn_sims.age_at_year_end < end)]
                 time_start = start
-                time_end = lived_in.age
-                time_end[time_end > end] = end
+                time_end = min(lived_in.age_at_year_end, end)
                 born.loc[group, f'person_time_{year}'] += (time_end - time_start).sum()
 
             for ((label, age_group), count) in total.unstack().iteritems():
@@ -184,7 +178,3 @@ class MortalityObserver:
 
             return metrics
 
-    @staticmethod
-    def count_deaths(time_start, time_end, age_start, age_end, pop):
-        exists_at_time_start = pop.loc[pop.entrance_time == ]
-        born_between_time_start_and_end
