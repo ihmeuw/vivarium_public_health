@@ -1,6 +1,7 @@
 import pandas as pd
 from vivarium_public_health.risks.data_transformation import split_risk_from_type
 
+
 class CategoricalRiskObserver:
     """ An observer for a categorical risk factor.
     This component by default observes proportion of simulants in each age
@@ -23,7 +24,7 @@ class CategoricalRiskObserver:
         }
     }
 
-    def __init__(self, risk):
+    def __init__(self, risk: str):
         """
         Parameters
         ----------
