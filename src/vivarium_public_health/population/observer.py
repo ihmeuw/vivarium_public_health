@@ -3,12 +3,6 @@ import pandas as pd
 import numpy as np
 
 
-def by_year(input_data_config):
-    return ('observer' in input_data_config and
-            'mortality' in input_data_config['observer'] and
-            input_data_config['observer'].mortality.by_year)
-
-
 def to_years(time) -> float:
     return time / pd.Timedelta(days=365.25)
 
@@ -39,7 +33,7 @@ class MortalityObserver:
             self.age_bins = self.age_bins[self.age_bins.age_group_end <= builder.configuration.population.exit_age]
 
         self.population_view = builder.population.get_view(columns_required)
-        self.by_year = by_year(builder.configuration.input_data)
+        self.by_year = builder.configuration.observer.mortality.by_year
 
         builder.value.register_value_modifier('metrics', self.metrics)
 
