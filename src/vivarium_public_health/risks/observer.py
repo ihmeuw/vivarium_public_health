@@ -33,7 +33,7 @@ class CategoricalRiskObserver:
 
         """
         self.risk_type, self.risk_name = split_risk_from_type(risk)
-        self.configuration_defaults = CategoricalRiskObserver.configuration_defaults
+        self.configuration_defaults = {f'{self.risk_name}': CategoricalRiskObserver.configuration_defaults['observer']['risk']}
 
     def setup(self, builder):
         self.clock = builder.time.clock()
