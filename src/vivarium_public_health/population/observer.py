@@ -60,9 +60,9 @@ class MortalityObserver:
         total = pd.melt(total.reset_index().rename(columns={'index': 'age_group'}), id_vars=['year', 'age_group'])
         born = pd.melt(born.reset_index().rename(columns={'index': 'age_group'}), id_vars=['year', 'age_group'])
 
-        for row in total.iterrows():
+        for _, row in total.iterrows():
             metrics[f'age_group_{row.age_group}_year_{row.year}_{row.variable}'] = row.value
-        for row in born.iterrows():
+        for _, row in born.iterrows():
             metrics[f'age_group_{row.age_group}_year_{row.year}_{row.variable}_among_born'] = row.value
 
         return metrics
