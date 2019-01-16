@@ -56,12 +56,14 @@ class MortalityObserver:
                                                                                  born_in_sim, self.age_bins)
         else:
             total, born = self._metrics_by_year(pop, years, start_time, end_time, causes)
-        import pdb; pdb.set_trace()
-        for ((label, age_group), count) in total.unstack().iteritems():
-            metrics[f'age_group_{age_group}_{label}'] = count
 
-        for ((label, age_group), count) in born.unstack().iteritems():
-            metrics[f'age_group_{age_group}_{label}_among_born'] = count
+        total = pd.melt(total.reset_index().rename(columns={'index': 'age_group'}), id_vars=['year', 'age_group'])
+        born = pd.melt(born.reset_index().rename(columns={'index': 'age_group'}), id_vars=['year', 'age_group'])
+
+        for row in total.iterrows():
+            metrics[f'age_group_{row.age_group}_year_{row.year}_{row.variable}'] = row.value
+        for row in born.iterrows():
+            metrics[f'age_group_{row.age_group}_year_{row.year}_{row.variable}_among_born'] = row.value
 
         return metrics
 
