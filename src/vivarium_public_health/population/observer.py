@@ -57,13 +57,15 @@ class MortalityObserver:
         else:
             total, born = self._metrics_by_year(pop, years, start_time, end_time, causes)
 
-        total = pd.melt(total.reset_index().rename(columns={'index': 'age_group'}), id_vars=['year', 'age_group'])
-        born = pd.melt(born.reset_index().rename(columns={'index': 'age_group'}), id_vars=['year', 'age_group'])
+        total = pd.melt(total, id_vars=['year', 'age_group_start', 'age_group_end'])
+        born = pd.melt(born, id_vars=['year', 'age_group_start', 'age_group_end'])
 
         for _, row in total.iterrows():
-            metrics[f'age_group_{row.age_group}_year_{row.year}_{row.variable}'] = row.value
+            metrics[f'age_group_{row.age_group_start}_to_{row.age_group_end}' \
+                f'_year_{row.year}_{row.variable}'] = row.value
         for _, row in born.iterrows():
-            metrics[f'age_group_{row.age_group}_year_{row.year}_{row.variable}_among_born'] = row.value
+            metrics[f'age_group_{row.age_group_start}_to_{row.age_group_end}' \
+                f'_year_{row.year}_{row.variable}_among_born'] = row.value
 
         return metrics
 
@@ -118,8 +120,8 @@ class MortalityObserver:
         frame_dict = dict()
         frame_dict.update({c: 0 for c in causes})
 
-        total = pd.DataFrame(frame_dict, index=age_bins.index)
-        born = pd.DataFrame(frame_dict, index=age_bins.index)
+        total = pd.DataFrame(frame_dict, index=age_bins.index).merge(age_bins)
+        born = pd.DataFrame(frame_dict, index=age_bins.index).merge(age_bins)
         total['year'] = year
         born['year'] = year
 
