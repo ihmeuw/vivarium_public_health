@@ -1,5 +1,5 @@
 import pandas as pd
-
+from vivarium_public_health.risks.data_transformation import split_risk_from_type
 
 class CategoricalRiskObserver:
     """ An observer for a categorical risk factor.
@@ -23,7 +23,7 @@ class CategoricalRiskObserver:
         }
     }
 
-    def __init__(self, _risk):
+    def __init__(self, risk):
         """
         Parameters
         ----------
@@ -31,7 +31,7 @@ class CategoricalRiskObserver:
         the type and name of a risk, specified as "type.name". Type is singular.
 
         """
-        self.risk_type, self.risk_name = _risk.split('.')
+        self.risk_type, self.risk_name = split_risk_from_type(risk)
         self.configuration_defaults = CategoricalRiskObserver.configuration_defaults
 
     def setup(self, builder):
