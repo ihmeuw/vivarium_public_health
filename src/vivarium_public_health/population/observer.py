@@ -32,9 +32,9 @@ class MortalityObserver:
         self.start_time = self.clock()
         columns_required = ['tracked', 'alive', 'age', 'entrance_time', 'exit_time',
                             'cause_of_death', 'years_of_life_lost']
-        self.age_bins = (builder.data.load('population.structure')[['age_group_start', 'age_group_end']]
+        self.age_bins = (builder.data.load('population.structure')[['age_group_id', 'age_group_start', 'age_group_end']]
                          .drop_duplicates()
-                         .reset_index(drop=True))
+                         .set_index('age_group_id'))
         if builder.configuration.population.exit_age:
             self.age_bins = self.age_bins[self.age_bins.age_group_end <= builder.configuration.population.exit_age]
 
