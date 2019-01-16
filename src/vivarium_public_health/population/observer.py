@@ -120,8 +120,8 @@ class MortalityObserver:
         frame_dict = dict()
         frame_dict.update({c: 0 for c in causes})
 
-        total = pd.DataFrame(frame_dict, index=age_bins.index).merge(age_bins)
-        born = pd.DataFrame(frame_dict, index=age_bins.index).merge(age_bins)
+        total = pd.DataFrame(frame_dict, index=age_bins.index).join(age_bins)
+        born = pd.DataFrame(frame_dict, index=age_bins.index).join(age_bins)
         total['year'] = year
         born['year'] = year
 
