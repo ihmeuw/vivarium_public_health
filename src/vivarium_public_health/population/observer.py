@@ -62,7 +62,7 @@ class MortalityObserver:
                                                                                  born_in_sim, self.age_bins)
         else:
             total, born = self._metrics_by_year(pop, years, start_time, end_time, causes)
-
+        import pdb; pdb.set_trace()
         for ((label, age_group), count) in total.unstack().iteritems():
             metrics[f'age_group_{age_group}_{label}'] = count
 
@@ -164,17 +164,16 @@ class MortalityObserver:
             in_age_group = existing_before_block[(existing_before_block.age_at_year_start < end)
                                                  & (existing_before_block.age_at_year_end >= start)]
 
-            time_start = np.maximum(in_age_group.age_at_year_start, start)
-            time_end = np.minimum(in_age_group.age_at_year_end, end)
-            total.loc[group] += (time_end - time_start).sum()
+            age_start = np.maximum(in_age_group.age_at_year_start, start)
+            age_end = np.minimum(in_age_group.age_at_year_end, end)
+            total.loc[group] += (age_end - age_start).sum()
 
             # BORN IN BLOCK
-            in_age_group = born_in_block[(born_in_block.age_at_year_end >= start)
-                                         & (born_in_block.age_at_year_end < end)]
-            time_start = np.maximum(in_age_group.age_at_year_start, start)
-            time_end = np.minimum(in_age_group.age_at_year_end, end)
-            total.loc[group] += (time_end - time_start).sum()
-            born.loc[group] += (time_end - time_start).sum()
+            in_age_group = born_in_block[(born_in_block.age_at_year_end >= start)]
+            age_start = np.maximum(0, start)
+            age_end = np.minimum(in_age_group.age_at_year_end, end)
+            total.loc[group] += (age_end - age_start).sum()
+            born.loc[group] += (age_end - age_start).sum()
 
         return total, born
 
