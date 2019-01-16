@@ -8,6 +8,19 @@ def to_years(time) -> float:
 
 
 class MortalityObserver:
+    """ An observer for total and cause specific deaths during simulation.
+    This component by default observes the total number of deaths out of
+    total population and total person time that each simulant spent
+    during the simulation until it exits.
+
+    These data are categorized by age groups and causes and aggregated over
+    total population as well as the population who were born during
+    the simulation.
+
+    By default, we also aggregate over time. If by_year flag is turned on,
+    we aggregate the data by each year.
+
+    """
     configuration_defaults = {
         'observer': {
             'mortality': {
@@ -26,11 +39,12 @@ class MortalityObserver:
         self.start_time = self.clock()
         columns_required = ['tracked', 'alive', 'age', 'entrance_time', 'exit_time',
                             'cause_of_death', 'years_of_life_lost']
-        self.age_bins = (builder.data.load('population.structure')[['age_group_start', 'age_group_end']]
-                         .drop_duplicates()
-                         .reset_index(drop=True))
-        if builder.configuration.population.exit_age:
-            self.age_bins = self.age_bins[self.age_bins.age_group_end <= builder.configuration.population.exit_age]
+        self.age_bins = builder.data.load('population.age_bins')
+        exit_age = builder.configuration.population.exit_age
+        if exit_age:
+            self.age_bins = self.age_bins[self.age_bins.age_group_start < exit_age]
+            self.age_bins.loc[self.age_bins.age_group_end > exit_age, 'age_group_end'] = exit_age
+
 
         self.population_view = builder.population.get_view(columns_required)
         self.by_year = builder.configuration.observer.mortality.by_year
@@ -57,15 +71,14 @@ class MortalityObserver:
         else:
             total, born = self._metrics_by_year(pop, years, start_time, end_time, causes)
 
-        total = pd.melt(total, id_vars=['year', 'age_group_start', 'age_group_end'])
-        born = pd.melt(born, id_vars=['year', 'age_group_start', 'age_group_end'])
+        total = total.drop(['age_group_start', 'age_group_end'], axis=1).melt(id_vars=['year', 'age_group_name'])
+        born = born.drop(['age_group_start', 'age_group_end'], axis=1).melt(id_vars=['year', 'age_group_name'])
 
         for _, row in total.iterrows():
-            metrics[f'age_group_{row.age_group_start}_to_{row.age_group_end}' \
-                f'_year_{row.year}_{row.variable}'] = row.value
+            metrics[f'age_group_{row.age_group_name.replace(" ", "_")}_year_{row.year}_{row.variable}'] = row.value
+
         for _, row in born.iterrows():
-            metrics[f'age_group_{row.age_group_start}_to_{row.age_group_end}' \
-                f'_year_{row.year}_{row.variable}_among_born'] = row.value
+            metrics[f'age_group_{row.age_group_name.replace(" ", "_")}_year_{row.year}_{row.variable}_among_born'] = row.value
 
         return metrics
 
@@ -174,4 +187,3 @@ class MortalityObserver:
             born.loc[group] += (age_end - age_start).sum()
 
         return total, born
-
