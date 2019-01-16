@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 
 
-def by_year(config):
-    return ('observer' in config) and ('mortality' in config['observer']) and config['observer'].mortality.by_year
+def by_year(input_data_config):
+    return ('observer' in input_data_config and
+            'mortality' in input_data_config['observer'] and
+            input_data_config['observer'].mortality.by_year)
 
 
 def to_years(time) -> float:
@@ -13,15 +15,21 @@ def to_years(time) -> float:
 
 class MortalityObserver:
     configuration_defaults = {
-        'by_year': False
+        'observer': {
+            'mortality': {
+                'by_year': False
+            }
+        }
     }
+
+    def __init__(self):
+        self.configuration_defaults = MortalityObserver.configuration_defaults
 
     def setup(self, builder):
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
         self.initial_pop_entrance_time = self.clock() - self.step_size()
         self.start_time = self.clock()
-        self.configuration_defaults = {'observer': {'mortality': MortalityObserver.configuration_defaults['by_year']}}
         columns_required = ['tracked', 'alive', 'age', 'entrance_time', 'exit_time',
                             'cause_of_death', 'years_of_life_lost']
         self.age_bins = (builder.data.load('population.structure')[['age_group_start', 'age_group_end']]
@@ -31,7 +39,7 @@ class MortalityObserver:
             self.age_bins = self.age_bins[self.age_bins.age_group_end <= builder.configuration.population.exit_age]
 
         self.population_view = builder.population.get_view(columns_required)
-        self.by_year = by_year(builder.configuration)
+        self.by_year = by_year(builder.configuration.input_data)
 
         builder.value.register_value_modifier('metrics', self.metrics)
 
@@ -48,9 +56,10 @@ class MortalityObserver:
 
         if not self.by_year:
             year = 'all_years'
-            existing_at_start, born_in_sim = self.get_simulants_in_groups(self.initial_pop_entrance_time, end_time)
+            existing_at_start, born_in_sim = self.get_simulants_in_time_block(start_time, end_time, pop)
             total, born = self.count_deaths(year, existing_at_start, born_in_sim, self.age_bins, causes)
-            total, born = self.count_person_time(year, existing_at_start, born_in_sim, self.age_bins, total, born)
+            total[f'person_time'], born[f'person_time'] = self.count_person_time(existing_at_start,
+                                                                                 born_in_sim, self.age_bins)
         else:
             total, born = self._metrics_by_year(pop, years, start_time, end_time, causes)
 
@@ -68,12 +77,13 @@ class MortalityObserver:
         born_data = []
 
         for year in years:
-            first_entrance = self.initial_pop_entrance_time if year == start_time.year else pd.datetime(year, 1, 1)
+            first_entrance = self.start_time if year == start_time.year else pd.datetime(year, 1, 1)
             last_exit = end_time if year == end_time.year else pd.datetime(year, 12, 31)
 
-            existing_at_start, born_in_sim = self.get_simulants_in_groups(first_entrance, last_exit, pop)
-            total, born = self.count_deaths(year, existing_at_start, born_in_sim, self.age_bins, causes)
-            total, born = self.count_person_time(year, existing_at_start, born_in_sim, self.age_bins, total, born)
+            existing_before_block, born_in_block = self.get_simulants_in_time_block(first_entrance, last_exit, pop)
+            total, born = self.count_deaths(year, existing_before_block, born_in_block, self.age_bins, causes)
+            total[f'person_time'], born[f'person_time'] = self.count_person_time(existing_before_block, born_in_block,
+                                                                                 self.age_bins)
 
             total_data.append(total)
             born_data.append(born)
@@ -84,81 +94,87 @@ class MortalityObserver:
         return total, born
 
     @staticmethod
-    def get_simulants_in_groups(first_entrance: pd.datetime, last_exit: pd.datetime, pop: pd.DataFrame) -> Tuple:
-        existing_at_start = pop.loc[(pop.entrance_time <= first_entrance) & (pop.exit_time > first_entrance)].copy()
-        born_in_sim = pop.loc[(pop.entrance_time > first_entrance) & (pop.entrance_time < last_exit)].copy()
+    def get_simulants_in_time_block(block_start: pd.datetime, block_end: pd.datetime, pop: pd.DataFrame) -> Tuple:
+        existing_before_block = pop.loc[(pop.entrance_time < block_start)].copy()
+        born_in_block = pop.loc[(pop.entrance_time >= block_start) & (pop.entrance_time <= block_end)].copy()
 
-        years_till_exit = to_years(existing_at_start.exit_time - first_entrance)
-        years_in_this_period = to_years(last_exit - first_entrance)
+        years_till_exit = to_years(existing_before_block.exit_time - block_start)
+        years_in_this_period = to_years(block_end - block_start)
 
-        existing_at_start['age_at_year_start'] = existing_at_start.age - years_till_exit
-        existing_at_start['age_at_year_end'] = existing_at_start.age_at_year_start \
+        # age is age at sim end when metrics are collected
+        existing_before_block['age_at_year_start'] = existing_before_block.age - years_till_exit
+        existing_before_block['age_at_year_end'] = existing_before_block.age_at_year_start \
                                                + np.minimum(years_till_exit, years_in_this_period)
 
-        max_newborn_years = to_years(last_exit - born_in_sim.entrance_time)
-        born_in_sim['age_at_year_end'] = np.minimum(max_newborn_years, born_in_sim.age)
+        max_newborn_years = to_years(block_end - born_in_block.entrance_time)  # if simulant lived to/past end of block
+        born_in_block['age_at_year_end'] = np.minimum(max_newborn_years, born_in_block.age)
 
-        return existing_at_start, born_in_sim
+        return existing_before_block, born_in_block
 
     @staticmethod
     def count_deaths(year: Union[int, str], existing_at_start: pd.DataFrame, born_in_sim: pd.DataFrame,
                      age_bins: pd.DataFrame, causes: List):
 
-        causes = [f'death_due_to_{c}_{year}' for c in causes]
-        causes.extend([f'death_due_to_other_causes_{year}'])
-        causes.extend([f'total_deaths_{year}'])
-        person_time = [f'person_time_{year}']
+        causes = [f'death_due_to_{c}' for c in causes]
+        causes.extend([f'death_due_to_other_causes'])
+        causes.extend([f'total_deaths'])
 
         frame_dict = dict()
         frame_dict.update({c: 0 for c in causes})
-        frame_dict.update({p: 0 for p in person_time})
 
         total = pd.DataFrame(frame_dict, index=age_bins.index)
         born = pd.DataFrame(frame_dict, index=age_bins.index)
+        total['year'] = year
+        born['year'] = year
 
         for group, age_bin in age_bins.iterrows():
             start, end = age_bin.age_group_start, age_bin.age_group_end
+            # because only counting dead simulants, age is frozen at time of death
             in_group = existing_at_start[(existing_at_start.age >= start) & (existing_at_start.age < end)]
             died = in_group[in_group.alive == 'dead']
-            total.loc[group, f'total_deaths_{year}'] = len(died)
+            total.loc[group, f'total_deaths'] = len(died)
             cause_of_death = died.cause_of_death.value_counts()
             for cod, count in cause_of_death.iteritems():
                 if 'death' not in cod:
                     cod = f'death_due_to_{cod}'
-                cod += f'_{year}'
-                total.loc[group, cod] += count
+                total.loc[group, cod] = count
 
             in_group = born_in_sim[(born_in_sim.age >= start) & (born_in_sim.age < end)]
             died = in_group[in_group.alive == 'dead']
-            born.loc[group, f'total_deaths_{year}'] = len(died)
-            total.loc[group, f'total_deaths_{year}'] += len(died)
+            born.loc[group, f'total_deaths'] = len(died)
+            total.loc[group, f'total_deaths'] += len(died)
             cause_of_death = died.cause_of_death.value_counts()
             for cod, count in cause_of_death.iteritems():
                 if 'death' not in cod:
                     cod = f'death_due_to_{cod}'
-                cod += f'_{year}'
-                born.loc[group, cod] += count
+                born.loc[group, cod] = count
                 total.loc[group, cod] += count
 
         return total, born
 
     @staticmethod
-    def count_person_time(year: Union[int, str], existing_at_start: pd.DataFrame, born_in_sim: pd.DataFrame,
-                          age_bins: pd.DataFrame, total: pd.DataFrame, born: pd.DataFrame):
+    def count_person_time(existing_before_block: pd.DataFrame, born_in_block: pd.DataFrame, age_bins: pd.DataFrame):
+
+        total, born = pd.Series(0, index=age_bins.index), pd.Series(0, index=age_bins.index)
+
         for group, age_bin in age_bins.iterrows():
             start, end = age_bin.age_group_start, age_bin.age_group_end
 
-            alive_at_start_and_lived_in = existing_at_start[(existing_at_start.age_at_year_start < end)
-                                                            & (existing_at_start.age_at_year_end >= start)]
-            time_start = np.maximum(alive_at_start_and_lived_in.age_at_year_start, start)
-            time_end = np.minimum(alive_at_start_and_lived_in.age_at_year_end, end)
-            total.loc[group, f'person_time_{year}'] += (time_end - time_start).sum()
+            # ALIVE BEFORE BLOCK
+            in_age_group = existing_before_block[(existing_before_block.age_at_year_start < end)
+                                                 & (existing_before_block.age_at_year_end >= start)]
 
-            born_and_lived_in = born_in_sim[(born_in_sim.age_at_year_end >= start) & (born_in_sim.age_at_year_end < end)]
-            time_start = start
-            time_end = np.minimum(born_and_lived_in.age_at_year_end, end)
-            total.loc[group, f'person_time_{year}'] += (time_end - time_start).sum()
-            born.loc[group, f'person_time_{year}'] += (time_end - time_start).sum()
+            time_start = np.maximum(in_age_group.age_at_year_start, start)
+            time_end = np.minimum(in_age_group.age_at_year_end, end)
+            total.loc[group] += (time_end - time_start).sum()
+
+            # BORN IN BLOCK
+            in_age_group = born_in_block[(born_in_block.age_at_year_end >= start)
+                                         & (born_in_block.age_at_year_end < end)]
+            time_start = np.maximum(in_age_group.age_at_year_start, start)
+            time_end = np.minimum(in_age_group.age_at_year_end, end)
+            total.loc[group] += (time_end - time_start).sum()
+            born.loc[group] += (time_end - time_start).sum()
 
         return total, born
 
