@@ -11,14 +11,19 @@ class CategoricalRiskObserver:
     It also collects the total number of alive simulants in each age group
     when the proportion is collected.
 
+    configuration should be given as e.g.,
+
+    observer:
+        risk_name:
+            sample_date:
+                'month' : 12
+                'day': 31
     """
     configuration_defaults = {
-        'risk': {
             'by_year': True,
             'sample_date':{
                 'month': 7,
                 'day': 1
-            }
         }
     }
 
@@ -31,7 +36,7 @@ class CategoricalRiskObserver:
 
         """
         self.risk_type, self.risk_name = split_risk_from_type(risk)
-        self.configuration_defaults = {'observer': {f'{self.risk_name}': CategoricalRiskObserver.configuration_defaults['risk']}}
+        self.configuration_defaults = {'observer': {f'{self.risk_name}': CategoricalRiskObserver.configuration_defaults}}
 
     def setup(self, builder):
         self.clock = builder.time.clock()
@@ -78,3 +83,4 @@ class CategoricalRiskObserver:
             metrics[f'age_group_{row.age_group_name.replace(" ", "_")}_year_{row.year}_{row.variable}'] = row.value
 
         return metrics
+
