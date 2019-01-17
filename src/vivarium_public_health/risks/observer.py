@@ -13,17 +13,18 @@ class CategoricalRiskObserver:
 
     configuration should be given as e.g.,
 
-    observer:
-        risk_name:
-            sample_date:
-                'month' : 12
-                'day': 31
+    {risk_name}_observer:
+        sample_date:
+            'month' : 12
+            'day': 31
     """
     configuration_defaults = {
+        'risk_observer': {
             'by_year': True,
             'sample_date':{
                 'month': 7,
                 'day': 1
+            }
         }
     }
 
@@ -36,7 +37,8 @@ class CategoricalRiskObserver:
 
         """
         self.risk_type, self.risk_name = split_risk_from_type(risk)
-        self.configuration_defaults = {'observer': {f'{self.risk_name}': CategoricalRiskObserver.configuration_defaults}}
+        self.configuration_defaults = {f'{self.risk_name}_observer':
+                                           CategoricalRiskObserver.configuration_defaults['risk_observer']}
 
     def setup(self, builder):
         self.clock = builder.time.clock()
