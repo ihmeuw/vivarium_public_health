@@ -61,6 +61,7 @@ class CategoricalRiskObserver:
         builder.event.register_listener('collect_metrics', self.on_collect_metrics)
 
     def on_collect_metrics(self, event):
+        """Records counts of risk exposed by category."""
         pop = self.population_view.get(event.index)
 
         if self.should_sample(event.time):
@@ -74,11 +75,13 @@ class CategoricalRiskObserver:
 
             self.data[self.clock().year] = sample
 
-    def should_sample(self, event_time: pd.Timestamp):
+    def should_sample(self, event_time: pd.Timestamp) -> bool:
+        """Returns true if we should sample on this time step."""
         sample_date = pd.Timestamp(event_time.year, self.config.sample_date.month, self.config.sample_date.day)
         return self.clock() <= sample_date < event_time
 
-    def generate_sampling_frame(self):
+    def generate_sampling_frame(self) -> pd.DataFrame:
+        """Generates an empty sampling data frame."""
         sample = pd.DataFrame({f'{cat}': 0 for cat in self.categories}, index=self.age_bins.index)
         return sample
 
