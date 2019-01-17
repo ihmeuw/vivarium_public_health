@@ -22,15 +22,10 @@ class MortalityObserver:
 
     """
     configuration_defaults = {
-        'observer': {
-            'mortality': {
-                'by_year': False
-            }
+        'mortality_observer': {
+            'by_year': False
         }
     }
-
-    def __init__(self):
-        self.configuration_defaults = MortalityObserver.configuration_defaults
 
     def setup(self, builder):
         self.clock = builder.time.clock()
@@ -44,7 +39,6 @@ class MortalityObserver:
         if exit_age:
             self.age_bins = self.age_bins[self.age_bins.age_group_start < exit_age]
             self.age_bins.loc[self.age_bins.age_group_end > exit_age, 'age_group_end'] = exit_age
-
 
         self.population_view = builder.population.get_view(columns_required)
         self.by_year = builder.configuration.observer.mortality.by_year
