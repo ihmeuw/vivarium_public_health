@@ -1,6 +1,8 @@
 import pandas as pd
 from vivarium_public_health.risks.data_transformations import RiskString
 
+from .utilities import get_age_bins
+
 
 class CategoricalRiskObserver:
     """ An observer for a categorical risk factor.
@@ -19,10 +21,12 @@ class CategoricalRiskObserver:
             'day': 31
     """
     configuration_defaults = {
-        'risk_observer': {
-            'sample_date': {
-                'month': 7,
-                'day': 1
+        'metrics': {
+            'risk_observer': {
+                'sample_date': {
+                    'month': 7,
+                    'day': 1
+                }
             }
         }
     }
@@ -36,22 +40,16 @@ class CategoricalRiskObserver:
 
         """
         self.risk = RiskString(risk)
-        self.configuration_defaults = {
+        self.configuration_defaults = {'metrics': {
             f'{self.risk.name}_observer': CategoricalRiskObserver.configuration_defaults['risk_observer']
-        }
+        }}
 
     def setup(self, builder):
-        self.config = builder.configuration[f'{self.risk.name}_observer']
         self.data = {}
-
+        self.config = builder.configuration[f'{self.risk.name}_observer']
         self.clock = builder.time.clock()
-
         self.categories = builder.data.load(f'{self.risk}.categories')
-        self.age_bins = builder.data.load('population.age_bins')
-        exit_age = builder.configuration.population.exit_age
-        if exit_age:
-            self.age_bins = self.age_bins[self.age_bins.age_group_start < exit_age]
-            self.age_bins.loc[self.age_bins.age_group_end > exit_age, 'age_group_end'] = exit_age
+        self.age_bins = get_age_bins(builder)
 
         self.population_view = builder.population.get_view(['alive', 'age'], query='alive == "alive"')
 

@@ -1,10 +1,9 @@
 from typing import List, Union, Tuple, Iterable
+
 import pandas as pd
 import numpy as np
 
-
-def to_years(time) -> float:
-    return time / pd.Timedelta(days=365.25)
+from .utilities import get_age_bins
 
 
 class MortalityObserver:
@@ -22,26 +21,24 @@ class MortalityObserver:
 
     """
     configuration_defaults = {
-        'mortality_observer': {
-            'by_year': False
+        'metrics': {
+            'mortality': {
+                'by_year': False
+            }
         }
     }
 
     def setup(self, builder):
+        self.by_year = builder.configuration.metrics.mortality.by_year
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
         self.initial_pop_entrance_time = self.clock() - self.step_size()
         self.start_time = self.clock()
+        self.age_bins = get_age_bins(builder)
+
         columns_required = ['tracked', 'alive', 'age', 'entrance_time', 'exit_time',
                             'cause_of_death', 'years_of_life_lost']
-        self.age_bins = builder.data.load('population.age_bins')
-        exit_age = builder.configuration.population.exit_age
-        if exit_age:
-            self.age_bins = self.age_bins[self.age_bins.age_group_start < exit_age]
-            self.age_bins.loc[self.age_bins.age_group_end > exit_age, 'age_group_end'] = exit_age
-
         self.population_view = builder.population.get_view(columns_required)
-        self.by_year = builder.configuration.observer.mortality.by_year
 
         builder.value.register_value_modifier('metrics', self.metrics)
 
@@ -69,10 +66,14 @@ class MortalityObserver:
         born = born.drop(['age_group_start', 'age_group_end'], axis=1).melt(id_vars=['year', 'age_group_name'])
 
         for _, row in total.iterrows():
-            metrics[f'age_group_{row.age_group_name.replace(" ", "_")}_year_{row.year}_{row.variable}'] = row.value
+            age_group_name = row.age_group_name.replace(" ", "_").lower()
+            label = f'{row.variable}_in_{row.year}_among_{age_group_name}'
+            metrics[label] = row.value
 
         for _, row in born.iterrows():
-            metrics[f'age_group_{row.age_group_name.replace(" ", "_")}_year_{row.year}_{row.variable}_among_born'] = row.value
+            age_group_name = row.age_group_name.replace(" ", "_").lower()
+            label = f'{row.variable}_in_{row.year}_among_{age_group_name}_born_in_sim'
+            metrics[label] = row.value
 
         return metrics
 
@@ -181,3 +182,7 @@ class MortalityObserver:
             born.loc[group] += (age_end - age_start).sum()
 
         return total, born
+
+
+def to_years(time) -> float:
+    return time / pd.Timedelta(days=365.25)
