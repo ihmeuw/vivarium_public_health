@@ -46,7 +46,7 @@ class CategoricalRiskObserver:
 
     def setup(self, builder):
         self.data = {}
-        self.config = builder.configuration[f'{self.risk.name}_observer']
+        self.config = builder.configuration[f'metrics'][f'{self.risk.name}_observer']
         self.clock = builder.time.clock()
         self.categories = builder.data.load(f'{self.risk}.categories')
         self.age_bins = get_age_bins(builder)
