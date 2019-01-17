@@ -24,10 +24,19 @@ class EnsembleSimulation(risk_distributions.EnsembleDistribution):
 class SimulationDistribution:
     def __init__(self, mean, sd, distribution=None):
         self.distribution = distribution
-        self._parameters = distribution.get_params(mean, sd)
+        self._parameters = self._get_parameters(mean, sd)
 
     def setup(self, builder):
-        self.parameters = builder.lookup.build_table(self._parameters.reset_index())
+        self.parameters = builder.lookup.build_table(self._parameters)
+
+    def _get_parameters(self, mean, sd):
+        index = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        mean = mean.set_index(index)['value']
+        sd = sd.set_index(index)['value']
+        assert mean[mean == 0].index.difference(sd[sd == 0].index).empty
+        params = self.distribution.get_params(mean[mean > 0], sd[sd > 0]).set_index(mean[mean > 0].index)
+        params = params.reindex(mean.index, fill_value=0).reset_index()
+        return params
 
     def ppf(self, x):
         return self.distribution(params=self.parameters(x.index)).ppf(x)
@@ -71,7 +80,7 @@ class DichotomousDistribution:
     def exposure(self, index):
         base_exposure = self._base_exposure(index).values
         joint_paf = self.joint_paf(index).values
-        return base_exposure * (1-joint_paf)
+        return pd.Series(base_exposure * (1-joint_paf), index=index, name='values')
 
     def ppf(self, x):
         exposed = x < self.exposure_proportion(x.index)
@@ -80,19 +89,18 @@ class DichotomousDistribution:
 
 def get_distribution(risk, distribution_type, exposure, exposure_standard_deviation, weights):
     if distribution_type == 'dichotomous':
-        distribution = DichotomousDistribution(exposure, risk)
+        distribution = DichotomousDistribution(risk, exposure)
     elif 'polytomous' in distribution_type:
-        distribution = PolytomousDistribution(exposure, risk)
+        distribution = PolytomousDistribution(risk, exposure)
     elif distribution_type == 'normal':
-        distribution = SimulationDistribution(mean=exposure['value'], sd=exposure_standard_deviation['value'],
+        distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
                                               distribution=risk_distributions.Normal)
     elif distribution_type == 'lognormal':
-        distribution = SimulationDistribution(mean=exposure['value'], sd=exposure_standard_deviation['value'],
+        distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
                                               distribution=risk_distributions.LogNormal)
     elif distribution_type == 'ensemble':
         # weight is all same across the demographic groups
-        e_weights = weights.head(1)
-        distribution = EnsembleSimulation(e_weights, mean=exposure['value'], sd=exposure_standard_deviation['value'],)
+        distribution = EnsembleSimulation(weights, mean=exposure, sd=exposure_standard_deviation,)
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
     return distribution

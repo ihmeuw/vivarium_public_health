@@ -26,7 +26,6 @@ class Risk:
     configuration_defaults = {
         "risk": {
             "exposure": 'data',
-            "distribution": 'data',
             "rebin": {},
             "category_thresholds": [],
         }
@@ -64,7 +63,8 @@ class Risk:
 
     def get_current_exposure(self, index):
         propensity = self.propensity(index)
-        return self.exposure_distribution.ppf(propensity)
+
+        return pd.Series(self.exposure_distribution.ppf(propensity), index=index)
 
     def _get_distribution(self, builder):
         return get_distribution(builder, self.risk)

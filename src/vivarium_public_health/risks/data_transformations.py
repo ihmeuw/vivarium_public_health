@@ -59,7 +59,7 @@ class TargetString(str):
 
 
 def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
-    """Pivots data that is wide on categories to be long."""
+    """Pivots data that is long on categories to be wide."""
     key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
     data = data.pivot_table(index=key_cols, columns='parameter', values='value').reset_index()
     data.columns.name = None
@@ -83,7 +83,7 @@ def get_exposure_post_processor(builder, risk: RiskString):
         thresholds = [-np.inf] + thresholds + [np.inf]
         categories = [f'cat{i}' for i in range(1, len(thresholds))]
 
-        def post_processor(exposure):
+        def post_processor(exposure, _):
             return pd.Series(pd.cut(exposure, thresholds, labels=categories), index=exposure.index).astype(str)
     else:
         post_processor = None
@@ -105,9 +105,10 @@ def load_distribution_data(builder, risk: RiskString):
 def get_distribution_type(builder, risk: RiskString):
     risk_config = builder.configuration[risk.name]
 
-    distribution_type = risk_config['distribution']
-    if distribution_type == 'data':
+    if risk_config['exposure'] == 'data':
         distribution_type = builder.data.load(f'{risk}.distribution')
+    else:
+        distribution_type = 'dichotomous'
 
     return distribution_type
 
@@ -153,6 +154,7 @@ def get_exposure_distribution_weights(builder, risk: RiskString):
     distribution_type = get_distribution_type(builder, risk)
     if distribution_type == 'ensemble':
         weights = builder.data.load(f'{risk}.exposure_distribution_weights')
+        weights = weights[['parameter', 'value']].drop_duplicates().set_index('parameter').transpose()
     else:
         weights = None
     return weights
@@ -194,7 +196,7 @@ def rebin_exposure_data(builder, risk: RiskString, data: pd.DataFrame):
 def get_relative_risk_data(builder, risk: RiskString, target: TargetString):
     validate_relative_risk_data_source(builder, risk, target)
     relative_risk_data = load_relative_risk_data(builder, risk, target)
-    relative_risk_data = rebin_relative_risk_data(builder, relative_risk_data)
+    relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
     return relative_risk_data
 
 
@@ -217,7 +219,7 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
         cat2['value'] = 1 - cat2['value']
         relative_risk_data = pd.concat([cat1, cat2], ignore_index=True)
 
-    if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
+    if distribution_type in ['dichotomous', 'ordered polytomous', 'unordered polytomous']:
         relative_risk_data = pivot_categorical(relative_risk_data)
 
     return relative_risk_data
@@ -299,7 +301,6 @@ def get_exposure_effect(builder, risk: RiskString):
 ##################################################
 
 def get_population_attributable_fraction_data(builder, risk: RiskString, target: TargetString):
-    validate_population_attributable_fraction_data_source(builder, risk, target)
     exposure_source = builder.configuration[f'{risk.name}']['exposure']
     rr_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
@@ -372,27 +373,24 @@ def get_population_attributable_fraction_data(builder, risk: RiskString, target:
 def validate_distribution_data_source(builder, risk: RiskString):
     """Checks that the exposure distribution specification is valid."""
     exposure_type = builder.configuration[risk.name]['exposure']
-    distribution = builder.configuration[risk.name]['distribution']
     rebin = builder.configuration[risk.name]['rebin']
     category_thresholds = builder.configuration[risk.name]['category_thresholds']
 
     if risk.type == 'alternative_risk_factor':
-        if exposure_type != 'data' or distribution != 'data' or rebin:
+        if exposure_type != 'data' or rebin:
             raise ValueError('Parameterized risk components are not available for alternative risks.')
 
         if not category_thresholds:
             raise ValueError('Must specify category thresholds to use alternative risks.')
 
     elif risk.type in ['risk_factor', 'coverage_gap'] and exposure_type != 'data':
-        if distribution != 'dichotomous':
-            raise ValueError('Parameterized risk components are only valid for dichotomous risks.')
-        elif isinstance(exposure_type, (int, float)) and not 0 <= exposure_type <= 1:
+        if isinstance(exposure_type, (int, float)) and not 0 <= exposure_type <= 1:
             raise ValueError(f"Exposure should be in the range [0, 1]")
         elif isinstance(exposure_type, str) and exposure_type.split('.')[0] != 'covariate':
             raise ValueError(f"Exposure must be specified as 'data', an integer or float value, "
                              f"or as a string in the format covariate.covariate_name")
         else:
-            raise ValueError(f"Invalid exposure specification for risk {risk.name}")
+            pass  # All good
     else:
         raise ValueError(f'Unknown risk type {risk.type} for risk {risk.name}')
 
@@ -406,12 +404,3 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
         pass
     else:
         raise ValueError(f'Invalid risk effect specification for risk {risk.name} and target {target.name}')
-
-
-def validate_population_attributable_fraction_data_source(builder, risk: RiskString, target: TargetString):
-    risk_config = builder.configuration[risk.name]
-    exposure_source = risk_config['exposure']
-    relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
-
-    if (exposure_source != 'data' or relative_risk_source != 'data') and risk_config['distribution'] != 'dichotomous':
-        raise ValueError('Parameterized risk components are only valid for dichotomous risks.')
