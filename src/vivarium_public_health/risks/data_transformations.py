@@ -219,7 +219,7 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
         cat2['value'] = 1 - cat2['value']
         relative_risk_data = pd.concat([cat1, cat2], ignore_index=True)
 
-    if distribution_type in ['dichotomous', 'ordered polytomous', 'unordered polytomous']:
+    if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
         relative_risk_data = pivot_categorical(relative_risk_data)
 
     return relative_risk_data
