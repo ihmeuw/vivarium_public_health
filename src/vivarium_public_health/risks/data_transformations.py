@@ -383,7 +383,7 @@ def validate_distribution_data_source(builder, risk: RiskString):
         if not category_thresholds:
             raise ValueError('Must specify category thresholds to use alternative risks.')
 
-    elif risk.type in ['risk_factor', 'coverage_gap'] and exposure_type != 'data':
+    elif risk.type in ['risk_factor', 'coverage_gap']:
         if isinstance(exposure_type, (int, float)) and not 0 <= exposure_type <= 1:
             raise ValueError(f"Exposure should be in the range [0, 1]")
         elif isinstance(exposure_type, str) and exposure_type.split('.')[0] != 'covariate':
