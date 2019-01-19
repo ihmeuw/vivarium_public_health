@@ -312,10 +312,9 @@ def get_population_attributable_fraction_data(builder, risk: RiskString, target:
                     .drop(['affected_entity', 'affected_measure'], 'columns'))
     else:
         key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
-        exposure_data = get_exposure_data(builder, risk).set_index(key_cols + ['parameter'])
-        relative_risk_data = get_relative_risk_data(builder, risk, target).set_index(key_cols + ['parameter'])
-        weighted_rr = (exposure_data * relative_risk_data).reset_index()
-        mean_rr = weighted_rr.groupby(key_cols).apply(lambda sub_df: sub_df.value.sum())
+        exposure_data = get_exposure_data(builder, risk).set_index(key_cols)
+        relative_risk_data = get_relative_risk_data(builder, risk, target).set_index(key_cols)
+        mean_rr = (exposure_data * relative_risk_data).sum(axis=1)
         paf_data = ((mean_rr - 1)/mean_rr).reset_index().rename(columns={0: 'value'})
     return paf_data
 

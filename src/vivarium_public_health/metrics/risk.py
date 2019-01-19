@@ -41,7 +41,7 @@ class CategoricalRiskObserver:
         """
         self.risk = RiskString(risk)
         self.configuration_defaults = {'metrics': {
-            f'{self.risk.name}_observer': CategoricalRiskObserver.configuration_defaults['metrics']
+            f'{self.risk.name}_observer': CategoricalRiskObserver.configuration_defaults['metrics']['risk_observer']
         }}
 
     def setup(self, builder):
