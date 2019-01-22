@@ -29,4 +29,6 @@ or build it from source with
 
   ``> python setup.py install``
 
+Documentation
+======================
 You can view documentation at https://vivarium_public_health.readthedocs.io/en/latest/
