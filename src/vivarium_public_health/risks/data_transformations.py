@@ -112,7 +112,7 @@ def get_distribution_type(builder, risk: RiskString):
     return distribution_type
 
 
-def get_exposure_data(builder, risk: RiskString):
+def get_exposure_data(builder, risk: RiskString, pivot=True):
     risk_config = builder.configuration[risk.name]
     exposure_source = risk_config['exposure']
     distribution_type = get_distribution_type(builder, risk)
@@ -134,7 +134,7 @@ def get_exposure_data(builder, risk: RiskString):
         cat2['value'] = 1 - cat2['value']
         exposure_data = pd.concat([cat1, cat2], ignore_index=True)
 
-    if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
+    if pivot and distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
         exposure_data = pivot_categorical(exposure_data)
 
     return exposure_data
@@ -191,14 +191,14 @@ def rebin_exposure_data(builder, risk: RiskString, data: pd.DataFrame):
 # Relative risk data handlers #
 ###############################
 
-def get_relative_risk_data(builder, risk: RiskString, target: TargetString):
+def get_relative_risk_data(builder, risk: RiskString, target: TargetString, pivot=True):
     validate_relative_risk_data_source(builder, risk, target)
-    relative_risk_data = load_relative_risk_data(builder, risk, target)
+    relative_risk_data = load_relative_risk_data(builder, risk, target, pivot)
     relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
     return relative_risk_data
 
 
-def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
+def load_relative_risk_data(builder, risk: RiskString, target: TargetString, pivot=True):
     distribution_type = get_distribution_type(builder, risk)
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
@@ -217,7 +217,7 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
         cat2['value'] = 1 - cat2['value']
         relative_risk_data = pd.concat([cat1, cat2], ignore_index=True)
 
-    if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
+    if pivot and distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
         relative_risk_data = pivot_categorical(relative_risk_data)
 
     return relative_risk_data
@@ -312,8 +312,8 @@ def get_population_attributable_fraction_data(builder, risk: RiskString, target:
                     .drop(['affected_entity', 'affected_measure'], 'columns'))
     else:
         key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
-        exposure_data = get_exposure_data(builder, risk).set_index(key_cols + ['parameter'])
-        relative_risk_data = get_relative_risk_data(builder, risk, target).set_index(key_cols + ['parameter'])
+        exposure_data = get_exposure_data(builder, risk, pivot=False).set_index(key_cols + ['parameter'])
+        relative_risk_data = get_relative_risk_data(builder, risk, target, pivot=False).set_index(key_cols + ['parameter'])
         weighted_rr = (exposure_data * relative_risk_data).reset_index()
         mean_rr = weighted_rr.groupby(key_cols).apply(lambda sub_df: sub_df.value.sum())
         paf_data = ((mean_rr - 1)/mean_rr).reset_index().rename(columns={0: 'value'})
