@@ -66,6 +66,11 @@ class DelayedRisk:
         """
         self.name = name
         self.bin_years = bin_years
+        self.configuration_defaults = {
+            name: {
+                'constant_prevalence': False
+            },
+        }
 
     def setup(self, builder):
         """
@@ -75,6 +80,11 @@ class DelayedRisk:
         handlers and rate modifiers, and setting up the population view.
         """
         self.config = builder.configuration
+
+        # Determine whether smoking prevalence should change over time.
+        # The alternative scenario is that there is no remission; all people
+        # who begin smoking will continue to smoke.
+        self.constant_prevalence = self.config[self.name]['constant_prevalence']
 
         # Read in the delay duration from the configuration, if present.
         if 'delay' in self.config[self.name]:
@@ -227,6 +237,11 @@ class DelayedRisk:
         rem_rate = self.remission(idx)
         int_inc_rate = self.int_incidence(idx)
         int_rem_rate = self.int_remission(idx)
+
+        # In the constant-prevalence case, assume there is no remission.
+        if self.constant_prevalence:
+            rem_rate = 0.0
+            int_rem_rate = 0.0
 
         # Calculate the survival rate for each bin.
         pop = self.population_view.get(idx)
