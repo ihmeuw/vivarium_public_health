@@ -80,9 +80,9 @@ class DichotomousDistribution:
 
 def get_distribution(risk, distribution_type, exposure, exposure_standard_deviation, weights):
     if distribution_type == 'dichotomous':
-        distribution = DichotomousDistribution(exposure, risk)
+        distribution = DichotomousDistribution(risk, exposure)
     elif 'polytomous' in distribution_type:
-        distribution = PolytomousDistribution(exposure, risk)
+        distribution = PolytomousDistribution(risk, exposure)
     elif distribution_type == 'normal':
         distribution = SimulationDistribution(mean=exposure['value'], sd=exposure_standard_deviation['value'],
                                               distribution=risk_distributions.Normal)
