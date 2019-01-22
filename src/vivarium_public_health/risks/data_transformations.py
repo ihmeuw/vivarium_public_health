@@ -194,7 +194,7 @@ def rebin_exposure_data(builder, risk: RiskString, data: pd.DataFrame):
 def get_relative_risk_data(builder, risk: RiskString, target: TargetString):
     validate_relative_risk_data_source(builder, risk, target)
     relative_risk_data = load_relative_risk_data(builder, risk, target)
-    relative_risk_data = rebin_relative_risk_data(builder, relative_risk_data)
+    relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
     return relative_risk_data
 
 
