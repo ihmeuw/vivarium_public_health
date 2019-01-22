@@ -388,13 +388,11 @@ def validate_distribution_data_source(builder, risk: RiskString):
         if exposure_type != 'data':
             if distribution != 'dichotomous':
                 raise ValueError('Parameterized risk components are only valid for dichotomous risks.')
-            elif isinstance(exposure_type, (int, float)) and not 0 <= exposure_type <= 1:
+            if isinstance(exposure_type, (int, float)) and not 0 <= exposure_type <= 1:
                 raise ValueError(f"Exposure should be in the range [0, 1]")
             elif isinstance(exposure_type, str) and exposure_type.split('.')[0] != 'covariate':
                 raise ValueError(f"Exposure must be specified as 'data', an integer or float value, "
                                  f"or as a string in the format covariate.covariate_name")
-            else:
-                raise ValueError(f"Invalid exposure specification for risk {risk.name}")
     else:
         raise ValueError(f'Unknown risk type {risk.type} for risk {risk.name}')
 
