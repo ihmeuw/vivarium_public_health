@@ -1,4 +1,3 @@
-import warnings
 from .data_transformations import (RiskString, TargetString, get_relative_risk_data,
                                    get_population_attributable_fraction_data, get_exposure_effect)
 
@@ -16,10 +15,8 @@ class RiskEffect:
     """
 
     configuration_defaults = {
-        'effect_of_risk_on_entity': {
-            'incidence_rate': 'data',
-            'exposure_parameters': 'data',
-            'excess_mortality': 'data',
+        'effect_of_risk_on_target': {
+            'measure': 'data',
         }
     }
 
@@ -38,8 +35,11 @@ class RiskEffect:
         """
         self.risk = RiskString(risk)
         self.target = TargetString(target)
-        self.configuration_defaults = {f'effect_of_{self.risk.name}_on_{self.target.name}':
-                                       RiskEffect.configuration_defaults['effect_of_risk_on_entity']}
+        self.configuration_defaults = {
+            f'effect_of_{self.risk.name}_on_{self.target.name}': {
+                self.target.measure: RiskEffect.configuration_defaults['effect_of_risk_on_target']['measure']
+            }
+        }
 
     def setup(self, builder):
         self.relative_risk = builder.lookup.build_table(get_relative_risk_data(builder, self.risk, self.target))
@@ -55,23 +55,3 @@ class RiskEffect:
 
     def adjust_target(self, index, target):
         return self.exposure_effect(target, self.relative_risk(index))
-
-
-class AdditiveShift(RiskEffect):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        warnings.warn("The additive shift component is only partially featured.  It does not support risks with"
-                      "any baseline coverage (it does not handle paf calculation).  It will not fail if misused")
-
-    def setup(self, builder):
-        self.config = builder.configuration[f'effect_of_{self.risk.name}_on_{self.target.name}']
-        self.shift_size = float(self.config[self.target.measure])
-
-        self.exposure = builder.value.get_value(f'{self.risk.name}.exposure')
-
-        builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}', modifier=self.adjust_target)
-
-    def adjust_target(self, index, target):
-        shift_size = self.exposure(index).map({'cat1': 0, 'cat2': self.shift_size})
-        return target + shift_size
