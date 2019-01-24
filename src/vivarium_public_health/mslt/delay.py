@@ -68,7 +68,8 @@ class DelayedRisk:
         self.bin_years = bin_years
         self.configuration_defaults = {
             name: {
-                'constant_prevalence': False
+                'constant_prevalence': False,
+                'tobacco_tax': False,
             },
         }
 
@@ -85,6 +86,8 @@ class DelayedRisk:
         # The alternative scenario is that there is no remission; all people
         # who begin smoking will continue to smoke.
         self.constant_prevalence = self.config[self.name]['constant_prevalence']
+
+        self.tobacco_tax = self.config[self.name]['tobacco_tax']
 
         # Read in the delay duration from the configuration, if present.
         if 'delay' in self.config[self.name]:
@@ -157,6 +160,12 @@ class DelayedRisk:
             self.on_initialize_simulants,
             creates_columns=new_columns,
             requires_columns=req_columns)
+
+        # Load the effects of a tobacco tax.
+        tax_inc = builder.data.load(f'risk_factor.{self.name}.tax_effect_incidence')
+        tax_rem = builder.data.load(f'risk_factor.{self.name}.tax_effect_remission')
+        self.tax_effect_inc = builder.lookup.build_table(tax_inc)
+        self.tax_effect_rem = builder.lookup.build_table(tax_rem)
 
         # Add a handler to move people from one bin to the next.
         builder.event.register_listener('time_step__prepare',
@@ -280,6 +289,16 @@ class DelayedRisk:
         int_inc = int_inc_rate * pop[col_int_no]
         rem = rem_rate * pop[col_yes]
         int_rem = int_rem_rate * pop[col_int_yes]
+
+        # Account for the effects of a tobacco tax.
+        if self.tobacco_tax:
+            # The tax has a scaling effect (reduction) on incidence, and
+            # causes additional remission.
+            tax_inc = self.tax_effect_inc(idx)
+            tax_rem = self.tax_effect_rem(idx)
+            int_inc *= tax_inc
+            int_rem += (1 - tax_rem) * pop[col_int_yes]
+
         pop[col_no] = pop[col_no] - inc
         pop[col_int_no] = pop[col_int_no] - int_inc
         pop[col_yes] = pop[col_yes] + inc - rem
