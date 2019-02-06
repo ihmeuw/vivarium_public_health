@@ -277,14 +277,12 @@ def get_exposure_effect(builder, risk: RiskString):
     risk_exposure = builder.value.get_value(f'{risk.name}.exposure')
 
     if distribution_type in ['normal', 'lognormal', 'ensemble']:
-        tmred = builder.data.load(f"{risk_type}.{risk}.tmred")
+        tmred = builder.data.load(f"{risk}.tmred")
         tmrel = 0.5 * (tmred["min"] + tmred["max"])
-        exposure_parameters = builder.data.load(f"{risk_type}.{risk}.exposure_parameters")
-        max_exposure = exposure_parameters["max_rr"]
-        scale = exposure_parameters["scale"]
+        scale = builder.data.load(f"{risk}.relative_risk_scalar")
 
         def exposure_effect(rates, rr):
-            exposure = np.minimum(risk_exposure(rr.index), max_exposure)
+            exposure = risk_exposure(rr.index)
             relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
             return rates * relative_risk
     else:
