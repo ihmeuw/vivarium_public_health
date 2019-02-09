@@ -77,7 +77,7 @@ class HealthcareAccess:
         self.general_healthcare_access_emitter = builder.event.get_emitter('general_healthcare_access')
         self.followup_healthcare_access_emitter = builder.event.get_emitter('followup_healthcare_access')
 
-        annual_visits = builder.data.load("healthcare_entity.outpatient_visits.annual_visits")
+        annual_visits = builder.data.load("healthcare_entity.outpatient_visits.utilization")
         self.utilization_rate = builder.value.register_rate_producer('healthcare_utilization.rate',
                                                                      source=builder.lookup.build_table(annual_visits))
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
