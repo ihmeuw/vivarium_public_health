@@ -12,18 +12,35 @@ class MissingDataError(Exception):
 
 class EnsembleSimulation:
     def __init__(self, weights, mean, sd):
-        self._weights = pivot_categorical(weights)
+        self._weights = weights
         self._mean = mean
         self._sd = sd
+        self._params = self._get_parameters()
 
     def setup(self, builder):
         self.weights = builder.lookup.build_table(self._weights)
-        self.mean = builder.lookup.build_table(self._mean.drop('parameter', axis=1))
-        self.sd = builder.lookup.build_table(self._sd)
+        self.parameters = {k: builder.lookup.build_table(v.reset_index()) for k,v in self._params.items()}
+
+    def _get_parameters(self):
+        index_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        weights = self._weights.set_index(index_cols)
+        mean = self._mean.drop('parameter', axis=1).set_index(index_cols)['value']
+        sd = self._sd.set_index(index_cols)['value']
+        ensemble = risk_distributions.EnsembleDistribution(weights, mean, sd)
+        parameters = {key: ensemble.distributions[key].parameter_data for key in ensemble.distributions}
+        return parameters
 
     def ppf(self, x):
-        ensemble = risk_distributions.EnsembleDistribution(self.weights(x.index), self.mean(x.index), self.sd(x.index))
-        return ensemble.ppf(x)
+        distribution_map = risk_distributions.EnsembleDistribution.distribution_map
+
+        if not x.empty:
+            datas = []
+            for name, params in self.parameters.items():
+                weights = self.weights(x.index)
+                datas.append(weights[name].multiply(distribution_map[name](params=self.parameters[name](x.index)).ppf(x)))
+            return np.sum(datas, axis=0)
+        else:
+            return np.array([])
 
 
 class SimulationDistribution:

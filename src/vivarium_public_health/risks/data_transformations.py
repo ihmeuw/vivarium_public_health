@@ -154,6 +154,7 @@ def get_exposure_distribution_weights(builder, risk: RiskString):
     distribution_type = get_distribution_type(builder, risk)
     if distribution_type == 'ensemble':
         weights = builder.data.load(f'{risk}.exposure_distribution_weights')
+        weights = pivot_categorical(weights)
     else:
         weights = None
     return weights
