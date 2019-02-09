@@ -147,8 +147,8 @@ class HealthcareAccess:
         self.population_view.update(population.healthcare_visits)
 
         year = event.time.year
-        self.cost_by_year[year] += self._appointment_cost(index).sum()
-        self.outpatient_cost[year] += self._appointment_cost(index).sum()
+        self.cost_by_year[year] += self._appointment_cost(index).value.sum()
+        self.outpatient_cost[year] += self._appointment_cost(index).value.sum()
 
     def followup_access(self, event):
         # determine population due for a follow-up appointment
