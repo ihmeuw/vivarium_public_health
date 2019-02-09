@@ -4,21 +4,26 @@ import pandas as pd
 from risk_distributions import risk_distributions
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
-from functools import partial
-
+from vivarium_public_health.risks.data_transformations import pivot_categorical
 
 class MissingDataError(Exception):
     pass
 
 
-class EnsembleSimulation(risk_distributions.EnsembleDistribution):
+class EnsembleSimulation:
+    def __init__(self, weights, mean, sd):
+        self._weights = pivot_categorical(weights)
+        self._mean = mean
+        self._sd = sd
 
     def setup(self, builder):
-        builder.components.add_components(self._distributions.values())
+        self.weights = builder.lookup.build_table(self._weights)
+        self.mean = builder.lookup.build_table(self._mean.drop('parameter', axis=1))
+        self.sd = builder.lookup.build_table(self._sd)
 
-    def get_distribution_map(self):
-        dist_map = super().get_distribution_map()
-        return {dist_name: partial(SimulationDistribution, distribution=dist) for dist_name, dist in dist_map.items()}
+    def ppf(self, x):
+        ensemble = risk_distributions.EnsembleDistribution(self.weights(x.index), self.mean(x.index), self.sd(x.index))
+        return ensemble.ppf(x)
 
 
 class SimulationDistribution:
@@ -99,7 +104,6 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
         distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
                                               distribution=risk_distributions.LogNormal)
     elif distribution_type == 'ensemble':
-        # weight is all same across the demographic groups
         distribution = EnsembleSimulation(weights, mean=exposure, sd=exposure_standard_deviation,)
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
