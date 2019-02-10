@@ -155,6 +155,10 @@ def get_exposure_distribution_weights(builder, risk: RiskString):
     if distribution_type == 'ensemble':
         weights = builder.data.load(f'{risk}.exposure_distribution_weights')
         weights = pivot_categorical(weights)
+        if 'glnorm' in weights.columns:
+            if np.any(weights['glnorm']):
+                raise NotImplementedError('glnorm distribution is not supported')
+            weights = weights.drop(columns='glnorm')
     else:
         weights = None
     return weights

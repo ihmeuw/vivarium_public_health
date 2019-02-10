@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 
-from risk_distributions import risk_distributions
+from risk_distributions import EnsembleDistribution, Normal, LogNormal
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
-from vivarium_public_health.risks.data_transformations import pivot_categorical
+
 
 class MissingDataError(Exception):
     pass
@@ -12,35 +12,29 @@ class MissingDataError(Exception):
 
 class EnsembleSimulation:
     def __init__(self, weights, mean, sd):
-        self._weights = weights
-        self._mean = mean
-        self._sd = sd
-        self._params = self._get_parameters()
+        self._weights, self._parameters = self._get_parameters(weights, mean, sd)
 
     def setup(self, builder):
         self.weights = builder.lookup.build_table(self._weights)
-        self.parameters = {k: builder.lookup.build_table(v.reset_index()) for k,v in self._params.items()}
+        self.parameters = {k: builder.lookup.build_table(v) for k, v in self._parameters.items()}
 
-    def _get_parameters(self):
+    def _get_parameters(self, weights, mean, sd):
         index_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
-        weights = self._weights.set_index(index_cols)
-        mean = self._mean.drop('parameter', axis=1).set_index(index_cols)['value']
-        sd = self._sd.set_index(index_cols)['value']
-        ensemble = risk_distributions.EnsembleDistribution(weights, mean, sd)
-        parameters = {key: ensemble.distributions[key].parameter_data for key in ensemble.distributions}
-        return parameters
+        weights = weights.set_index(index_cols)
+        mean = mean.set_index(index_cols)['value']
+        sd = sd.set_index(index_cols)['value']
+        weights, parameters = EnsembleDistribution.get_parameters(weights, mean=mean, sd=sd)
+        return weights.reset_index(), {name: p.reset_index() for name, p in parameters.items()}
 
-    def ppf(self, x):
-        distribution_map = risk_distributions.EnsembleDistribution.distribution_map
-
-        if not x.empty:
-            datas = []
-            for name, params in self.parameters.items():
-                weights = self.weights(x.index)
-                datas.append(weights[name].multiply(distribution_map[name](params=self.parameters[name](x.index)).ppf(x)))
-            return np.sum(datas, axis=0)
+    def ppf(self, q):
+        if not q.empty:
+            weights = self.weights(q.index)
+            parameters = {name: parameter(q.index) for name, parameter in self.parameters.items()}
+            x = EnsembleDistribution(weights, parameters).ppf(q)
+            x[x.isnull()] = 0
         else:
-            return np.array([])
+            x = pd.Series([])
+        return x
 
 
 class SimulationDistribution:
@@ -55,10 +49,7 @@ class SimulationDistribution:
         index = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
         mean = mean.set_index(index)['value']
         sd = sd.set_index(index)['value']
-        assert mean[mean == 0].index.difference(sd[sd == 0].index).empty
-        params = self.distribution.get_params(mean[mean > 0], sd[sd > 0]).set_index(mean[mean > 0].index)
-        params = params.reindex(mean.index, fill_value=0).reset_index()
-        return params
+        return self.distribution.get_params(mean, sd).reset_index()
 
     def ppf(self, x):
         return self.distribution(params=self.parameters(x.index)).ppf(x)
@@ -116,10 +107,10 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
         distribution = PolytomousDistribution(risk, exposure)
     elif distribution_type == 'normal':
         distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
-                                              distribution=risk_distributions.Normal)
+                                              distribution=Normal)
     elif distribution_type == 'lognormal':
         distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
-                                              distribution=risk_distributions.LogNormal)
+                                              distribution=LogNormal)
     elif distribution_type == 'ensemble':
         distribution = EnsembleSimulation(weights, mean=exposure, sd=exposure_standard_deviation,)
     else:
