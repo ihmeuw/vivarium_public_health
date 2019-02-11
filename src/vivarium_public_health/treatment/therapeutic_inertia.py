@@ -2,7 +2,7 @@ import pandas as pd
 import scipy.stats
 
 
-class TherapeuticIntertia:
+class TherapeuticInertia:
 
     configuration_defaults = {
         'therapeutic_inertia': {
