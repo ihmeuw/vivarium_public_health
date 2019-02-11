@@ -1,5 +1,5 @@
 import pandas as pd
-import scipy
+import scipy.stats
 
 
 class TherapeuticIntertia:
