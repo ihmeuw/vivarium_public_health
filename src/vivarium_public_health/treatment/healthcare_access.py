@@ -71,25 +71,25 @@ class HealthcareAccess:
         self._followup_adherence = self._followup_adherence.append(self.initialize_adherence(pop_data.index))
 
         self.population_view.update(pd.DataFrame({'healthcare_last_visit_date': pd.NaT,
-                                                  'healthcare_followup_data': pd.NaT}, index=pop_data.index))
+                                                  'healthcare_followup_date': pd.NaT}, index=pop_data.index))
 
     def on_time_step(self, event):
         population = self.population_view.get(event.index, query="alive == 'alive'")
 
         followup_mask = ((population.healthcare_followup_date > self.clock())
                          & (population.healthcare_followup_date <= event.time))
-        may_followup_pop = population[followup_mask]
+        may_followup_pop = population[followup_mask].index
         to_followup_pop = self.randomness.filter_for_probability(may_followup_pop,
                                                                  self.followup_adherence(may_followup_pop),
                                                                  additional_key='followup_access')
 
-        may_do_general_access = population.index.difference(may_followup_pop.index)
-        general_access = self.randomness.filter_for_rate(may_do_general_access.index,
+        may_do_general_access = population.index.difference(may_followup_pop)
+        general_access = self.randomness.filter_for_rate(may_do_general_access,
                                                          self.utilization_rate(population.index),
                                                          additional_key='general_access')
 
-        self.general_healthcare_access_emitter.emit(Event(general_access))
-        self.followup_healthcare_access_emitter.emit(Event(to_followup_pop))
+        self.general_healthcare_access_emitter(Event(general_access))
+        self.followup_healthcare_access_emitter(Event(to_followup_pop))
 
     def on_healthcare_access(self, event):
         self.population_view.update(pd.DataFrame({'healthcare_last_visit_date': event.time}, index=event.index))
