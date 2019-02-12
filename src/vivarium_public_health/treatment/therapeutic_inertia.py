@@ -22,7 +22,7 @@ class TherapeuticInertia:
         self.randomness = builder.randomness.get_stream(self.name)
 
         self._therapeutic_inertia = self.initialize_therapeutic_inertia()
-        ti_source = lambda index: pd.Series(self.therapeutic_inertia, index=index)
+        ti_source = lambda index: pd.Series(self._therapeutic_inertia, index=index)
         self.therapeutic_inertia = builder.value.register_value_producer('therapeutic_inertia', source=ti_source)
 
     def initialize_therapeutic_inertia(self):
