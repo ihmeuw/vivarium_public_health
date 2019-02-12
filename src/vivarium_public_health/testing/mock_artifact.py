@@ -49,8 +49,9 @@ MOCKERS = {
                                                             ("age", "sex", "year", "value", "affected_measure")),
         },
         'healthcare_entity': {
-            'cost': build_table(0, 1990, 2017).query('sex=="Female" and age_group_start==27').drop('sex', 'columns'),
-            'annual_visits': 0,
+            'cost': build_table([0, 'outpatient_visits'], 1990, 2017,
+                                ("age", "sex", "year", "value", "healthcare_entity")),
+            'utilization': 0,
         },
         'population': {
             'structure': make_uniform_pop_data(),
