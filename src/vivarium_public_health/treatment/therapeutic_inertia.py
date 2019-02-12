@@ -3,6 +3,9 @@ import scipy.stats
 
 
 class TherapeuticInertia:
+    """Expose a therapeutic inertia pipeline that defines
+    a population-level therapeutic inertia.
+    This is the probability of treatment during a healthcare visit."""
 
     configuration_defaults = {
         'therapeutic_inertia': {
@@ -18,18 +21,11 @@ class TherapeuticInertia:
 
         self.randomness = builder.randomness.get_stream(self.name)
 
-        self._therapeutic_inertia = pd.Series()
-        self.therapeutic_inertia = builder.value.register_value_producer('therapeutic_inertia',
-                                                                         source=lambda index:
-                                                                         self._therapeutic_inertia.loc[index])
+        self._therapeutic_inertia = self.initialize_therapeutic_inertia()
+        ti_source = lambda index: pd.Series(self.therapeutic_inertia, index=index)
+        self.therapeutic_inertia = builder.value.register_value_producer('therapeutic_inertia', source=ti_source)
 
-        builder.population.initializes_simulants(self.on_initialize_simulants)
-
-    def on_initialize_simulants(self, pop_data):
-        self._therapeutic_inertia = self._therapeutic_inertia.append(pd.Series(self.initialize_therapeutic_inertia(pop_data.index),
-                                                                               index=pop_data.index))
-
-    def initialize_therapeutic_inertia(self, index):
+    def initialize_therapeutic_inertia(self):
         triangle_min = self.therapeutic_inertia_parameters.triangle_min
         triangle_max = self.therapeutic_inertia_parameters.triangle_max
         triangle_mode = self.therapeutic_inertia_parameters.triangle_mode
@@ -39,9 +35,7 @@ class TherapeuticInertia:
         scale = triangle_max - triangle_min
         c = (triangle_mode - loc) / scale
 
-        draw = self.randomness.get_draw(index, additional_key='individual_draw')
-        therapeutic_inertia = scipy.stats.triang(c, loc=loc, scale=scale).ppf(draw)
+        seed = self.randomness.get_seed(additional_key='draw')
+        therapeutic_inertia = scipy.stats.triang(c, loc=loc, scale=scale).rvs(random_state=seed)
 
         return therapeutic_inertia
-
-
