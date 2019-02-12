@@ -1,24 +1,40 @@
 import numpy as np
 import pandas as pd
 
-from risk_distributions import risk_distributions
+from risk_distributions import EnsembleDistribution, Normal, LogNormal
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
-from functools import partial
 
 
 class MissingDataError(Exception):
     pass
 
 
-class EnsembleSimulation(risk_distributions.EnsembleDistribution):
+class EnsembleSimulation:
+    def __init__(self, weights, mean, sd):
+        self._weights, self._parameters = self._get_parameters(weights, mean, sd)
 
     def setup(self, builder):
-        builder.components.add_components(self._distributions.values())
+        self.weights = builder.lookup.build_table(self._weights)
+        self.parameters = {k: builder.lookup.build_table(v) for k, v in self._parameters.items()}
 
-    def get_distribution_map(self):
-        dist_map = super().get_distribution_map()
-        return {dist_name: partial(SimulationDistribution, distribution=dist) for dist_name, dist in dist_map.items()}
+    def _get_parameters(self, weights, mean, sd):
+        index_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        weights = weights.set_index(index_cols)
+        mean = mean.set_index(index_cols)['value']
+        sd = sd.set_index(index_cols)['value']
+        weights, parameters = EnsembleDistribution.get_parameters(weights, mean=mean, sd=sd)
+        return weights.reset_index(), {name: p.reset_index() for name, p in parameters.items()}
+
+    def ppf(self, q):
+        if not q.empty:
+            weights = self.weights(q.index)
+            parameters = {name: parameter(q.index) for name, parameter in self.parameters.items()}
+            x = EnsembleDistribution(weights, parameters).ppf(q)
+            x[x.isnull()] = 0
+        else:
+            x = pd.Series([])
+        return x
 
 
 class SimulationDistribution:
@@ -33,13 +49,15 @@ class SimulationDistribution:
         index = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
         mean = mean.set_index(index)['value']
         sd = sd.set_index(index)['value']
-        assert mean[mean == 0].index.difference(sd[sd == 0].index).empty
-        params = self.distribution.get_params(mean[mean > 0], sd[sd > 0]).set_index(mean[mean > 0].index)
-        params = params.reindex(mean.index, fill_value=0).reset_index()
-        return params
+        return self.distribution.get_params(mean, sd).reset_index()
 
-    def ppf(self, x):
-        return self.distribution(params=self.parameters(x.index)).ppf(x)
+    def ppf(self, q):
+        if not q.empty:
+            x = self.distribution(params=self.parameters(q.index)).ppf(q)
+            x[x.x.isnull()] = 0
+        else:
+            x = pd.Series([])
+        return x
 
 
 class PolytomousDistribution:
@@ -94,12 +112,11 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
         distribution = PolytomousDistribution(risk, exposure)
     elif distribution_type == 'normal':
         distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
-                                              distribution=risk_distributions.Normal)
+                                              distribution=Normal)
     elif distribution_type == 'lognormal':
         distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
-                                              distribution=risk_distributions.LogNormal)
+                                              distribution=LogNormal)
     elif distribution_type == 'ensemble':
-        # weight is all same across the demographic groups
         distribution = EnsembleSimulation(weights, mean=exposure, sd=exposure_standard_deviation,)
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
