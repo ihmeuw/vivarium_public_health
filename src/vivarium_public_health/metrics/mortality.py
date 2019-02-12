@@ -84,12 +84,11 @@ class MortalityObserver:
 
 def count_person_time(pop, age_bins, start_time, end_time):
     lived_in_span = pop[(start_time <= pop.exit_time) & (pop.entrance_time < end_time)]
-
     # The right way to do this is np.maximum/np.minimum,
     # but there's some bug in pandas that causes that to break.
     entrance_time = lived_in_span.entrance_time
     exit_time = lived_in_span.exit_time
-    exit_time[end_time < exit_time] = end_time
+    exit_time.loc[end_time < exit_time] = end_time
 
     years_in_span = (exit_time - entrance_time) / pd.Timedelta(days=365.25)
     lived_in_span['age_at_start'] = np.maximum(lived_in_span.age - years_in_span, 0)
@@ -98,9 +97,11 @@ def count_person_time(pop, age_bins, start_time, end_time):
 
     for group, age_bin in age_bins.iterrows():
         start, end = age_bin.age_group_start, age_bin.age_group_end
-        in_group = lived_in_span[(lived_in_span.age_at_start < end)]
+        in_group = lived_in_span[(start < lived_in_span.age) & (lived_in_span.age_at_start < end)]
         age_start = np.maximum(in_group.age_at_start, start)
         age_end = np.minimum(in_group.age, end)
+        if (age_end - age_start).sum() < 0:
+            import pdb; pdb.set_trace()
         data.loc[group] += (age_end - age_start).sum()
 
     return data
