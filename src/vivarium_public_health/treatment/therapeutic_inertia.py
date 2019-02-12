@@ -33,7 +33,10 @@ class TherapeuticInertia:
         # convert to scipy params
         loc = triangle_min
         scale = triangle_max - triangle_min
-        c = (triangle_mode - loc) / scale
+        if scale == 0:
+            c = 0
+        else:
+            c = (triangle_mode - loc) / scale
 
         seed = self.randomness.get_seed(additional_key='draw')
         therapeutic_inertia = scipy.stats.triang(c, loc=loc, scale=scale).rvs(random_state=seed)
