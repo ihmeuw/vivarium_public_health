@@ -51,8 +51,13 @@ class SimulationDistribution:
         sd = sd.set_index(index)['value']
         return self.distribution.get_params(mean, sd).reset_index()
 
-    def ppf(self, x):
-        return self.distribution(params=self.parameters(x.index)).ppf(x)
+    def ppf(self, q):
+        if not q.empty:
+            x = self.distribution(params=self.parameters(q.index)).ppf(q)
+            x[x.x.isnull()] = 0
+        else:
+            x = pd.Series([])
+        return x
 
 
 class PolytomousDistribution:
