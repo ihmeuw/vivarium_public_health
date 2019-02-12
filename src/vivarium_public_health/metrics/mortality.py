@@ -100,8 +100,6 @@ def count_person_time(pop, age_bins, start_time, end_time):
         in_group = lived_in_span[(start < lived_in_span.age) & (lived_in_span.age_at_start < end)]
         age_start = np.maximum(in_group.age_at_start, start)
         age_end = np.minimum(in_group.age, end)
-        if (age_end - age_start).sum() < 0:
-            import pdb; pdb.set_trace()
         data.loc[group] += (age_end - age_start).sum()
 
     return data
