@@ -202,9 +202,11 @@ class DiseaseState(BaseDiseaseState):
         self.randomness_prevalence = builder.randomness.get_stream(f'{self.state_id}_prevalent_cases')
 
         disability_weight_data = get_disability_weight_func(self.cause, builder)
-        if isinstance(disability_weight_data, pd.DataFrame) and len(disability_weight_data)  == 1:
+        if isinstance(disability_weight_data, pd.DataFrame) and len(disability_weight_data) == 1:
             disability_weight_data = disability_weight_data.value[0]  # sequela only have single value
         self._disability_weight = builder.lookup.build_table(disability_weight_data)
+        self.disability_weight = builder.value.register_value_producer(f'{self._model}.disability_weight',
+                                                                       source=self.compute_disability_weight)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
         if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
@@ -285,7 +287,7 @@ class DiseaseState(BaseDiseaseState):
         if self.cleanup_function is not None:
             self.cleanup_function(index, event_time)
 
-    def disability_weight(self, index):
+    def compute_disability_weight(self, index):
         """Gets the disability weight associated with this state.
 
         Parameters
