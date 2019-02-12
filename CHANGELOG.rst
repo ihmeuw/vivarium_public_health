@@ -1,3 +1,10 @@
+**0.9.0 - 02/12/19**
+
+ - Updated population and crude birth rate models for GBD 2017.
+ - Added mortality and risk observers in metrics.
+ - Updated risk distribution and effect to work with the updated risk_distributions package.
+ - Updated healthcare access component.
+
 **0.8.13 - 01/04/19**
 
  - Added support for multi-location data artifacts.
