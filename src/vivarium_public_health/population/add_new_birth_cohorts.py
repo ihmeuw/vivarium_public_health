@@ -78,18 +78,29 @@ class FertilityCrudeBirthRate:
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
     def setup(self, builder):
+        self.config = builder.configuration
         self._population_data = load_population_structure(builder)
         self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
-                                             future=builder.configuration.input_data.forecast)
-        if 'exit_age' in builder.configuration.population:
-            self.exit_age = builder.configuration.population.exit_age
+                                             future=self.config.input_data.forecast)
+
+        if 'exit_age' in self.config.population:
+            self.exit_age = self.config.population.exit_age
         else:
             self.exit_age = None
+
+        self.fertility_constant = self._get_fertility_constant()
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
         self.simulant_creator = builder.population.get_simulant_creator()
-        self.extrapolate = builder.configuration.interpolation.extrapolate
+        self.extrapolate = self.config.interpolation.extrapolate
         builder.event.register_listener('time_step', self.add_new_birth_cohort)
 
+    def _get_fertility_constant(self):
+        age_start, age_end = self.config.population.age_start, self.config.population.age_end
+        initial_simulants_size = self.config.poulation.population_size
+        population_table = self._population_data.query("year_start == @year and sex == 'Both'")
+        initial_pop_in_age_group = population_table.query("age_group_start >= @age_start and age_group_end <= @age_end"
+                                                          ).population.sum()
+        return initial_simulants_size / initial_pop_in_age_group
 
     def add_new_birth_cohort(self, event):
         """Adds new simulants every time step based on the Crude Birth Rate
@@ -108,12 +119,11 @@ class FertilityCrudeBirthRate:
         approximate.
 
         """
-        # FIXME: We are pulling data every time here.  Use the value pipeline system.
-        birth_rate = self._get_birth_rate(event.time.year)
-        population_size = len(event.index)
+
+        live_births = self._get_live_births(event.time.year)
         step_size = event.step_size / pd.Timedelta(seconds=1)
 
-        mean_births = birth_rate*population_size*step_size/SECONDS_PER_YEAR
+        mean_births = self.fertility_constant * live_births*step_size/SECONDS_PER_YEAR
 
         # Assume births occur as a Poisson process
         r = np.random.RandomState(seed=self.randomness.get_seed())
@@ -125,8 +135,8 @@ class FertilityCrudeBirthRate:
                                       'age_end': 0,
                                   })
 
-    def _get_birth_rate(self, year):
-        """Computes a crude birth rate from demographic data in a given year.
+    def _get_live_births(self, year: int) -> float:
+        """Return live births from demographic data in a given year.
 
         Parameters
         ----------
@@ -136,8 +146,7 @@ class FertilityCrudeBirthRate:
         Returns
         -------
         float
-            The crude birth rate of the population in the given year in
-            births per person per year.
+            The live births of the population in the given year.
         """
 
         most_recent_data_year = min(max(self._population_data.year_start), max(self._birth_data.year_start))
@@ -149,15 +158,9 @@ class FertilityCrudeBirthRate:
             # a better idea
             year = most_recent_data_year
 
-        population_table = self._population_data.query("year_start == @year and sex == 'Both'")
         births = float(self._birth_data.query('sex == "Both"').set_index(['year_start']).loc[year].mean_value)
 
-        if self.exit_age is not None:
-            population = population_table.query("age < @self.exit_age").population.sum()
-        else:
-            population = population_table.population.sum()
-
-        return births / population
+        return births
 
 
 class FertilityAgeSpecificRates:
