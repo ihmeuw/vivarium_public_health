@@ -54,4 +54,4 @@ class RiskEffect:
                                               modifier=self.population_attributable_fraction)
 
     def adjust_target(self, index, target):
-        return self.exposure_effect(target, self.relative_risk(index).value)
+        return self.exposure_effect(target, self.relative_risk(index))
