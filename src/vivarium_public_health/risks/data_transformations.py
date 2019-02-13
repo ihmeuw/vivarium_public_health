@@ -214,6 +214,8 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
                           & (relative_risk_data['affected_measure'] == target.measure))
         relative_risk_data = (relative_risk_data[correct_target]
                               .drop(['affected_entity', 'affected_measure'], 'columns'))
+        if distribution_type in ['normal', 'lognormal', 'ensemble']:
+            relative_risk_data = relative_risk_data.drop(['parameter'], 'columns')
     else:
         cat1 = builder.data.load('population.demographic_dimensions')
         cat1['parameter'] = 'cat1'
