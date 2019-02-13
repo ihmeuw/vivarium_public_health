@@ -24,7 +24,9 @@ class BasePopulation:
 
         self.randomness = {'general_purpose': builder.randomness.get_stream('population_generation'),
                            'bin_selection': builder.randomness.get_stream('bin_selection', for_initialization=True),
-                           'age_smoothing': builder.randomness.get_stream('age_smoothing', for_initialization=True)}
+                           'age_smoothing': builder.randomness.get_stream('age_smoothing', for_initialization=True),
+                           'age_smoothing_age_bounds': builder.randomness.get_stream('age_smoothing_age_bounds',
+                                                                                     for_initialization=True)}
         self.register_simulants = builder.randomness.register_simulants
 
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
@@ -250,7 +252,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     simulants['age'] = choices.loc[decisions, 'age'].values
     simulants['sex'] = choices.loc[decisions, 'sex'].values
     simulants['location'] = choices.loc[decisions, 'location'].values
-    simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing'])
+    simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing_age_bounds'])
     register_simulants(simulants[['entrance_time', 'age']])
     return simulants
 

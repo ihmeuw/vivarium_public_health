@@ -55,7 +55,11 @@ class HealthcareAccess:
         self.population_view = builder.population.get_view(['alive'] + creates_columns)
         builder.population.initializes_simulants(self.on_initialize_simulants, creates_columns=creates_columns)
 
-        self.randomness = builder.randomness.get_stream(self.name)
+        self.randomness_followup_access = builder.randomness.get_stream(self.name + '_followup_access')
+        self.randomness_general_access = builder.randomness.get_stream(self.name + 'general_access')
+        self.randomness_followup_adherence = builder.randomness.get_stream(self.name + 'followup_adherence')
+
+
         builder.event.register_listener('time_step', self.on_time_step)
 
         self.general_healthcare_access_emitter = builder.event.get_emitter('general_healthcare_access')
@@ -79,14 +83,12 @@ class HealthcareAccess:
         followup_mask = ((population.healthcare_followup_date > self.clock())
                          & (population.healthcare_followup_date <= event.time))
         may_followup_pop = population[followup_mask].index
-        to_followup_pop = self.randomness.filter_for_probability(may_followup_pop,
-                                                                 self.followup_adherence(may_followup_pop),
-                                                                 additional_key='followup_access')
+        to_followup_pop = self.randomness_followup_access.filter_for_probability(may_followup_pop,
+                                                                 self.followup_adherence(may_followup_pop))
 
         may_do_general_access = population.index.difference(may_followup_pop)
-        general_access = self.randomness.filter_for_rate(may_do_general_access,
-                                                         self.utilization_rate(population.index),
-                                                         additional_key='general_access')
+        general_access = self.randomness_general_access.filter_for_rate(may_do_general_access,
+                                                         self.utilization_rate(population.index))
 
         self.general_healthcare_access_emitter(Event(general_access))
         self.followup_healthcare_access_emitter(Event(to_followup_pop))
@@ -95,7 +97,7 @@ class HealthcareAccess:
         self.population_view.update(pd.DataFrame({'healthcare_last_visit_date': event.time}, index=event.index))
 
     def initialize_adherence(self, index):
-        r = np.random.RandomState(self.randomness.get_seed(additional_key='followup_adherence'))
+        r = np.random.RandomState(self.randomness_followup_adherence.get_seed())
         alpha = np.array([self.followup_adherence_parameters['proportion_adherent'],
                           self.followup_adherence_parameters['proportion_semi_adherent'],
                           self.followup_adherence_parameters['proportion_not_adherent']]) * 100
