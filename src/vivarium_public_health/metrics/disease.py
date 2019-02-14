@@ -37,7 +37,7 @@ class DiseaseObserver:
                 susceptible_pop = in_age_group[in_age_group[f'{self.disease}'] == f'susceptible_to_{self.disease}']
                 self.frame.loc[(group, event.time.year, sex), f'{self.disease}_cases'] += len(new_disease_cases)
                 self.frame.loc[(group, event.time.year, sex), 'susceptible_person_time'] += \
-                    (event.step_size / pd.Timedelta(days=365)) * len(susceptible_pop)
+                    (event.step_size / pd.Timedelta(days=365.25)) * len(susceptible_pop)
 
     def metrics(self, index, metrics):
         data = self.frame.to_dict(orient='index')
