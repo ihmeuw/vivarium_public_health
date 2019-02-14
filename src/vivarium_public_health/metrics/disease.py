@@ -14,7 +14,6 @@ class DiseaseObserver:
         self.disease = disease
 
     def setup(self, builder):
-        self.clock = builder.time.clock()
         self.age_bins = get_age_bins(builder)
         columns_required = ['tracked', 'alive', 'age', 'sex', f'{self.disease}', f'{self.disease}_event_time']
         self.population_view = builder.population.get_view(columns_required)
