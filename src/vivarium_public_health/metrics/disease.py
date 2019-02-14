@@ -12,7 +12,7 @@ class DiseaseObserver:
     """
     def __init__(self, disease: str):
         self.disease = disease
-        self.name = f'{self.disease}_observer'
+        self.name = 'disease_observer'
 
     def setup(self, builder):
         self.age_bins = get_age_bins(builder)
