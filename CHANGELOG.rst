@@ -1,9 +1,15 @@
 **0.9.0 - 02/12/19**
 
+ - Dataset manager logging.
+ - Added an SIR with duration model.
+ - Built observer for death counts and person years by age and year.
  - Updated population and crude birth rate models for GBD 2017.
- - Added mortality and risk observers in metrics.
+ - Built an observer to point sample categorical risk exposure.
  - Updated risk distribution and effect to work with the updated risk_distributions package.
  - Updated healthcare access component.
+ - Added component for therapeutic inertia.
+ - Exposed individual cause disability weights as pipelines.
+ - Various bugfixes and api updates.
 
 **0.8.13 - 01/04/19**
 
