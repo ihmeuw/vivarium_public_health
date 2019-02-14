@@ -191,7 +191,7 @@ def smooth_ages(simulants, population_data, randomness):
         younger = [float(sub_pop.loc[sub_pop.age == ages[0], 'age_group_start'])] + ages[:-1]
         older = ages[1:] + [float(sub_pop.loc[sub_pop.age == ages[-1], 'age_group_end'])]
 
-        uniform_all = randomness.get_draw(simulants.index, additional_key='smooth_ages')
+        uniform_all = randomness.get_draw(simulants.index)
 
         for age_set in zip(ages, younger, older):
             age = AgeValues(*age_set)

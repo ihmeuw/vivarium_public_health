@@ -246,7 +246,7 @@ def test__assign_demography_with_age_bounds():
     pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     age_start, age_end = 0, 180
-    r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
+    r = {k: get_randomness(k) for k in ['general_purpose', 'bin_selection', 'age_smoothing', 'age_smoothing_age_bounds']}
 
     simulants = bp._assign_demography_with_age_bounds(simulants, pop_data, age_start,
                                                       age_end, r, lambda *args, **kwargs: None)
