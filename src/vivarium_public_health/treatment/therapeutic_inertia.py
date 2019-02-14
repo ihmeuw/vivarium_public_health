@@ -38,7 +38,7 @@ class TherapeuticInertia:
         else:
             c = (triangle_mode - loc) / scale
 
-        seed = self.randomness.get_seed(additional_key='draw')
+        seed = self.randomness.get_seed()
         therapeutic_inertia = scipy.stats.triang(c, loc=loc, scale=scale).rvs(random_state=seed)
 
         return therapeutic_inertia
