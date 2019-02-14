@@ -6,7 +6,8 @@ class DiseaseObserver:
     """ An observer for disease cases and person time susceptible to
     the specific disease during simulation. This component by default
     observes the total number of disease cases and total sum of susceptible
-    person time by each demographic group (age, year, sex).
+    person time by each demographic group (age and sex) by each simulation
+    year.
 
     """
     def __init__(self, disease: str):
