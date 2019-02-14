@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from .utilities import get_age_bins
+from .utilities import get_age_bins, get_sexes
 
 
 class MortalityObserver:
@@ -27,15 +27,18 @@ class MortalityObserver:
     }
 
     def setup(self, builder):
+        self.name = 'mortality_observer'
+
         self.by_year = builder.configuration.metrics.mortality.by_year
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
         self.initial_pop_entrance_time = self.clock() - self.step_size()
         self.start_time = self.clock()
         self.age_bins = get_age_bins(builder)
+        self.sexes = get_sexes()
 
-        columns_required = ['tracked', 'alive', 'age', 'entrance_time', 'exit_time',
-                            'cause_of_death', 'years_of_life_lost']
+        columns_required = ['tracked', 'alive', 'age', 'sex', 'entrance_time',
+                            'exit_time', 'cause_of_death', 'years_of_life_lost']
         self.population_view = builder.population.get_view(columns_required)
 
         builder.value.register_value_modifier('metrics', self.metrics)
@@ -49,35 +52,42 @@ class MortalityObserver:
         metrics.update(self.get_metrics(pop))
         metrics.update(self.get_metrics(born_in_sim, among_born=True))
 
-        if self.by_year:
-            for year in range(self.start_time.year, self.clock().year + 1):
-                metrics.update(self.get_metrics(pop, year))
-                metrics.update(self.get_metrics(born_in_sim, year, among_born=True))
+        for sex in self.sexes:
+            if self.by_year:
+                for year in range(self.start_time.year, self.clock().year + 1):
+                    metrics.update(self.get_metrics(pop, year=year, sex=sex))
+                    metrics.update(self.get_metrics(born_in_sim, year=year, sex=sex, among_born=True))
+            else:
+                metrics.update(self.get_metrics(pop, sex=sex))
+                metrics.update(self.get_metrics(born_in_sim, sex=sex, among_born=True))
 
         return metrics
 
-    def get_metrics(self, pop, year=None, among_born=False):
+    def get_metrics(self, pop, year=None, sex=None, among_born=False):
         if year is not None:
             start, end = pd.Timestamp(f'1-1-{year}'), pd.Timestamp(f'1-1-{year + 1}')
         else:
             start, end = pd.Timestamp(f'1-1-1900'), pd.Timestamp(f'1-1-2100')
 
-        out = {}
+        if sex is not None:
+            pop = pop.loc[pop.sex == sex]
 
+        out = {}
         data = count_deaths(pop, self.age_bins, start, end)
         data['person_time'] = count_person_time(pop, self.age_bins, start, end)
-        out.update(self.format_output(data, year, among_born))
+        out.update(self.format_output(data, year, sex, among_born))
 
         return out
 
-    def format_output(self, data, year, among_born):
+    def format_output(self, data, year, sex, among_born):
         out = {}
         born_flag = 'born_in_sim' if among_born else 'all_simulants'
         year_flag = year if year is not None else 'all_years'
+        sex_flag = sex if sex is not None else 'both_sexes'
         for i, row in data.iterrows():
             age_group_name = self.age_bins.at[i, 'age_group_name'].replace(' ', '_')
             for variable, value in row.iteritems():
-                label = f'{variable}_in_{year_flag}_among_{age_group_name}_{born_flag}'
+                label = f'{variable}_for_{sex_flag}_in_{year_flag}_among_{age_group_name}_{born_flag}'
                 out[label] = value
         return out
 
