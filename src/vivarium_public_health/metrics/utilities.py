@@ -7,5 +7,6 @@ def get_age_bins(builder):
         age_bins.loc[age_bins.age_group_end > exit_age, 'age_group_end'] = exit_age
     return age_bins
 
+
 def get_sexes():
     return ['Male', 'Female']
