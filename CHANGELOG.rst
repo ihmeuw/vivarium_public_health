@@ -1,3 +1,7 @@
+**0.9.1 - 02/14/19**
+
+ - Update dependencies
+
 **0.9.0 - 02/12/19**
 
  - Dataset manager logging.
