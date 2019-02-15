@@ -2,8 +2,8 @@ import pandas as pd
 
 
 class TreatmentObserver:
-    """ An observer for treaement counts by each dose and each simulation year.
-    This component by default have 4 different doses for a given treatment.
+    """ An observer for treatment counts by each dose and each simulation year.
+    This component by default has 4 different doses for a given treatment.
     To change it, configuration for the case of 'shigellosis_vaccine'
     should be given as e.g.,
 
