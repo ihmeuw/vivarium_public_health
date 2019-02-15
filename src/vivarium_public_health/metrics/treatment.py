@@ -23,7 +23,7 @@ class TreatmentObserver:
 
     def __init__(self, treatment: str):
         self.treatment = treatment
-        self.name = f'treatment_observer'
+        self.name = f'{self.treatment}_treatment_observer'
         self.configuration_defaults = {'metrics': {
             f'{self.treatment}_observer': TreatmentObserver.configuration_defaults['metrics']['treatment_observer']
         }}
