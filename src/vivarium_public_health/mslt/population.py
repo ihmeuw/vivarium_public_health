@@ -37,7 +37,7 @@ class BasePopulation:
         builder.population.initializes_simulants(self.on_initialize_simulants, creates_columns=columns)
         self.population_view = builder.population.get_view(columns + ['tracked'])
 
-        builder.event.register_listener('time_step', self.on_time_step, priority=6)
+        builder.event.register_listener('time_step', self.on_time_step)
 
     def on_initialize_simulants(self, _):
         self.population_view.update(self.pop_data)
