@@ -66,6 +66,8 @@ class Mortality:
 
     def on_time_step(self, event):
         pop = self.population_view.get(event.index)
+        if pop.empty:
+            return
         probability_of_death = 1 - np.exp(-self.mortality_rate(event.index))
         pop.acmr = self.mortality_rate(event.index)
         deaths = pop.population * probability_of_death
@@ -99,6 +101,8 @@ class Disability:
 
     def on_time_step(self, event):
         pop = self.population_view.get(event.index)
+        if pop.empty:
+            return
         pop.yld_rate = self.yld_rate(event.index)
         pop.bau_yld_rate = self.yld_rate.source(event.index)
         pop.HALY = pop.person_years * (1 - pop.yld_rate)
