@@ -222,7 +222,7 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
         cat1['value'] = float(relative_risk_source)
         cat2 = cat1.copy()
         cat2['parameter'] = 'cat2'
-        cat2['value'] = 1 - cat2['value']
+        cat2['value'] = 1
         relative_risk_data = pd.concat([cat1, cat2], ignore_index=True)
 
     if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
