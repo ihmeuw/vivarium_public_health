@@ -402,8 +402,8 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
 
     if isinstance(relative_risk_source, (int, float)):
         if not 1 <= relative_risk_source <= 100:
-            raise ValueError(f"Relative risk should be in the range [1, 100]")
+            raise ValueError(f"Relative risk should be in the range [1, 100].")
     elif relative_risk_source == 'data':
         pass
     else:
-        raise ValueError(f'Invalid risk effect specification for risk {risk.name} and target {target.name}')
+        raise ValueError(f'Invalid risk effect specification for risk {risk.name} and target {target.name}.')
