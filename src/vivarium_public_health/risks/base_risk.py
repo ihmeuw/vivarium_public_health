@@ -63,7 +63,7 @@ class Risk:
 
     def get_current_exposure(self, index):
         propensity = self.propensity(index)
-
+        import pdb; pdb.set_trace()
         return pd.Series(self.exposure_distribution.ppf(propensity), index=index)
 
     def _get_distribution(self, builder):
