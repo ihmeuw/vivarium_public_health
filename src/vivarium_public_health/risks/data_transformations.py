@@ -219,7 +219,15 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
     else:
         cat1 = builder.data.load('population.demographic_dimensions')
         cat1['parameter'] = 'cat1'
-        cat1['value'] = float(relative_risk_source)
+        if isinstance(relative_risk_source, (float, int)):
+            cat1['value'] = float(relative_risk_source)
+        else:  # parameters for distribution to sample from
+            params = relative_risk_source[0]
+            if len(params) == 3:  # log distribution
+                cat1['value'] = max(1, np.exp(params['log_se'] * np.random.randn() + params['log_mean']
+                                              + np.random.normal(0, params['tau'])))
+            else:
+                cat1['value'] = max(1, np.random.normal(params['mean'], params['se']))
         cat2 = cat1.copy()
         cat2['parameter'] = 'cat2'
         cat2['value'] = 1
@@ -388,7 +396,7 @@ def validate_distribution_data_source(builder, risk: RiskString):
     elif risk.type in ['risk_factor', 'coverage_gap']:
         if isinstance(exposure_type, (int, float)) and not 0 <= exposure_type <= 1:
             raise ValueError(f"Exposure should be in the range [0, 1]")
-        elif isinstance(exposure_type, str) and exposure_type.split('.')[0] not in ['covariate', 'data'] :
+        elif isinstance(exposure_type, str) and exposure_type.split('.')[0] not in ['covariate', 'data']:
             raise ValueError(f"Exposure must be specified as 'data', an integer or float value, "
                              f"or as a string in the format covariate.covariate_name")
         else:
@@ -400,9 +408,25 @@ def validate_distribution_data_source(builder, risk: RiskString):
 def validate_relative_risk_data_source(builder, risk: RiskString, target: TargetString):
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
-    if isinstance(relative_risk_source, (int, float)) and not 1 <= relative_risk_source <= 100:
-        raise ValueError(f"Relative risk should be in the range [1, 100]")
+    keys = {'data': ['data'],
+            'value': ['relative_risk'],
+            'distribution': ['mean', 'se'],
+            'log_distribution': ['log_mean', 'log_se']}
+    import pdb; pdb.set_trace()
+    if relative_risk_source['data']:
+
+
+    if isinstance(relative_risk_source, (int, float)):
+        if not 1 <= relative_risk_source <= 100:
+            raise ValueError(f"Relative risk should be in the range [1, 100]")
     elif relative_risk_source == 'data':
         pass
+    elif isinstance(relative_risk_source, list) and len(relative_risk_source) == 1:
+        relative_risk_source = relative_risk_source[0]
+        log_dist_params = {'log_mean', 'log_se', 'tau'}
+        dist_params = {'mean', 'se'}
+        if set(relative_risk_source) != log_dist_params and set(relative_risk_source) != dist_params:
+            raise ValueError(f'If providing parameters for a distribution, you must supply either {log_dist_params} '
+                             f'or {dist_params}. You specified: {set(relative_risk_source)}.')
     else:
-        raise ValueError(f'Invalid risk effect specification for risk {risk.name} and target {target.name}')
+        raise ValueError(f'Invalid risk effect specification for risk {risk.name} and target {target.name}.')

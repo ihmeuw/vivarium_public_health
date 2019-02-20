@@ -16,7 +16,15 @@ class RiskEffect:
 
     configuration_defaults = {
         'effect_of_risk_on_target': {
-            'measure': 'data',
+            'measure': {
+                'data': True,
+                'relative_risk': None,
+                'mean': None,
+                'se': None,
+                'log_mean': None,
+                'log_se': None,
+                'tau': None
+            }
         }
     }
 
