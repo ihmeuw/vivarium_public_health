@@ -122,8 +122,7 @@ class FertilityAgeSpecificRates:
             Framework coordination object.
         """
         self.randomness = builder.randomness.get_stream('fertility')
-        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate",
-                                      future=builder.configuration.input_data.forecast)
+        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
         asfr_data = asfr_data[asfr_data.sex == 'Female'][['year_start', 'year_end',
                                                           'age_group_start', 'age_group_end', 'mean_value']]
         asfr_source = builder.lookup.build_table(asfr_data, key_columns=(),
