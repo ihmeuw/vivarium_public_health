@@ -36,7 +36,7 @@ def test_FertilityDeterministic(config):
     num_days = 100
 
     config.update({
-        'fertility_deterministic': {
+        'fertility': {
             'number_of_new_simulants_each_year': annual_new_simulants
         }
     }, **metadata(__file__))

@@ -9,44 +9,37 @@ PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
 
 
 class FertilityDeterministic:
-    """Deterministic model of births.
-    Attributes
-    ----------
-    fractional_new_births : float
-        A rolling record of the fractional part of new births generated
-        each time-step that allows us to
-    """
+    """Deterministic model of births."""
 
     configuration_defaults = {
-        'fertility_deterministic': {
+        'fertility': {
             'number_of_new_simulants_each_year': 1000,
         },
     }
 
-    def __init__(self):
-        self.fractional_new_births = 0
-
     def setup(self, builder):
-        self.config = builder.configuration.fertility_deterministic
-        self.simulant_creator = builder.population.get_simulant_creator()
-        builder.event.register_listener('time_step', self.add_new_birth_cohort)
+        self.fractional_new_births = 0
+        self.simulants_per_year = builder.configuration.fertility.number_of_new_simulants_each_year
 
-    def add_new_birth_cohort(self, event):
-        """Deterministically adds a new set of simulants at every timestep
-        based on a parameter in the configuration.
+        self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.event.register_listener('time_step', self.on_time_step)
+
+    def on_time_step(self, event):
+        """Adds a set number of simulants to the population each time step.
+
         Parameters
         ----------
-        event : vivarium.population.PopulationEvent
+        event
             The event that triggered the function call.
-        creator : method
-            A function or method for creating a population.
         """
         # Assume births are uniformly distributed throughout the year.
-        step_size = event.step_size/pd.Timedelta(seconds=1)
-        simulants_to_add = (self.config.number_of_new_simulants_each_year*step_size/SECONDS_PER_YEAR
-                            + self.fractional_new_births)
+        step_size = event.step_size/pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        simulants_to_add = self.simulants_per_year*step_size + self.fractional_new_births
+
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
+
         if simulants_to_add > 0:
             self.simulant_creator(simulants_to_add,
                                   population_configuration={
