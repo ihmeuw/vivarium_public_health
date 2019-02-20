@@ -417,7 +417,8 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
                        'distribution': ['mean', 'se'],
                        'log_distribution': ['log_mean', 'log_se', 'tau']}
     for k, v in config_keys_map.items():
-        if relative_risk_source[v[0]] is not None and relative_risk_source[v[0]] is not False:
+        source_type_keys = [relative_risk_source[config_key] is not None and relative_risk_source[config_key] is not False for config_key in v]
+        if any(source_type_keys):
             # the keys for all other source types should be None or False
             other_config_keys = config_keys.difference(v)
             for other_key in other_config_keys:
@@ -425,10 +426,10 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
                     raise ValueError(f'You may specify relative risk source of data or a value or parameters for a '
                                      f'distribution. You specified {v}, which corresponds to a source of {k}, as well '
                                      f'as {other_key}, which corresponds to a source of '
-                                     f'{[k for k, v in config_keys_map.items() if other_key in v]}.')
+                                     f'{[k for k, v in config_keys_map.items() if other_key in v][0]}.')
             # if there are multiple config keys for this source, they must all not be None
-            for companion_key in v[1:]:
-                if companion_key is None:
+            for companion_key in v:
+                if relative_risk_source[companion_key] is None:
                     raise ValueError(f'If you specify relative risk effect based on {k}, you must provide non-None '
                                      f'values for {v}, but {companion_key} is None.')
 
