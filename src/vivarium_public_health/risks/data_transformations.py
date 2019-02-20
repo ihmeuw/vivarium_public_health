@@ -222,7 +222,7 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
         cat1['parameter'] = 'cat1'
         if relative_risk_source['relative_risk'] is not None:
             cat1['value'] = float(relative_risk_source)
-        elif relative_risk_source['log_mean']:  # log distribution
+        elif relative_risk_source['log_mean'] is not None:  # log distribution
             cat1['value'] = max(1, np.exp(relative_risk_source['log_se'] * np.random.randn()
                                           + relative_risk_source['log_mean']
                                           + np.random.normal(0, relative_risk_source['tau'])))
