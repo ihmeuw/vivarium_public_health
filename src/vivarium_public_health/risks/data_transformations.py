@@ -437,3 +437,4 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
                 if not isinstance(relative_risk_source['relative_risk'], (int, float)) or \
                         not 1 <= relative_risk_source['relative_risk'] <= 100:
                     raise ValueError(f"Relative risk should be in the range [1, 100].")
+
