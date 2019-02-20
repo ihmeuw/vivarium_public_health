@@ -222,7 +222,7 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
         cat1['value'] = float(relative_risk_source)
         cat2 = cat1.copy()
         cat2['parameter'] = 'cat2'
-        cat2['value'] = 1 - cat2['value']
+        cat2['value'] = 1
         relative_risk_data = pd.concat([cat1, cat2], ignore_index=True)
 
     if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
@@ -400,9 +400,10 @@ def validate_distribution_data_source(builder, risk: RiskString):
 def validate_relative_risk_data_source(builder, risk: RiskString, target: TargetString):
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
-    if isinstance(relative_risk_source, (int, float)) and not 1 <= relative_risk_source <= 100:
-        raise ValueError(f"Relative risk should be in the range [1, 100]")
+    if isinstance(relative_risk_source, (int, float)):
+        if not 1 <= relative_risk_source <= 100:
+            raise ValueError(f"Relative risk should be in the range [1, 100].")
     elif relative_risk_source == 'data':
         pass
     else:
-        raise ValueError(f'Invalid risk effect specification for risk {risk.name} and target {target.name}')
+        raise ValueError(f'Invalid risk effect specification for risk {risk.name} and target {target.name}.')
