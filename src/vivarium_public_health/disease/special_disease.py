@@ -2,7 +2,7 @@ import pandas as pd
 
 
 class RiskAttributableDisease:
-    """ Disease fully attributed by a risk.
+    """ Component to model a disease fully attributed by a risk.
     This is for some (risk, cause) pairs with population attributable fraction
     equal to 1 where `infected to the cause` is defined by the level of risk
     exposure higher than the threshold level.
@@ -12,15 +12,15 @@ class RiskAttributableDisease:
     `protein_energy_malnutrition`. One who is exposed to child wasting of cat1
     or cat2 become infected to `protein_energy_malnutrition`.
 
-    In addition to the threshold level, you also should configure whether
+    In addition to the threshold level, you may configure whether
     there is any mortality associated with this disease by mortality flag.
-    The last flag is recoverable flag, which is set to False if the disease
-    cannot be cured even though the risk exposure is below the threshold.
-    If the recoverable flag is set to true, the simulants with the condition
-    becomes susceptible to this disease again when the risk exposure level is
-    below the threshold level.
+    Another option is a recoverable flag, which should be set to False
+    if the disease cannot be cured even though the risk exposure is below
+    the threshold. If the recoverable flag is set to true, the simulants who
+    had the condition becomes susceptible to this disease again when the risk
+    exposure level becomes below the threshold level.
 
-    Configuration defaluts should be given as, for the continuous risk factor,
+    Configuration defaults should be given as, for the continuous risk factor,
 
     diabetes_mellitus:
         threshold : 7
@@ -34,7 +34,6 @@ class RiskAttributableDisease:
         threshold : ['cat1', 'cat2'] # provide the categories to get PEM.
         mortality : True
         recoverable : True
-
     """
 
     configuration_defaults = {
