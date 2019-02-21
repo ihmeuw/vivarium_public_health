@@ -8,7 +8,6 @@ from vivarium_public_health.disease import RiskAttributableDisease
 def disease_mock(mocker):
     def disease_with_distribution(distribution):
         test_disease = RiskAttributableDisease('test_cause', 'test_risk')
-        test_disease.exposure = mocker.Mock()
         test_disease.distribution = distribution
         test_disease.exposure = mocker.Mock()
         test_disease._get_population = mocker.Mock()
