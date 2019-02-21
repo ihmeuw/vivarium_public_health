@@ -52,7 +52,7 @@ class Artifact:
     def filter_terms(self) -> List[str]:
         return self._filter_terms
 
-    def load(self, entity_key: str, future: bool=False) -> Any:
+    def load(self, entity_key: str) -> Any:
         """Loads the data associated with provided EntityKey.
 
         Parameters
