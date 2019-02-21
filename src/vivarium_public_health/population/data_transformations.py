@@ -356,7 +356,7 @@ def get_cause_deleted_mortality(all_cause_mortality, list_of_csmrs):
 
 
 def load_population_structure(builder):
-    data = builder.data.load("population.structure", future=builder.configuration.input_data.forecast)
+    data = builder.data.load("population.structure")
     # create an age column which is the midpoint of the age group
     data['age'] = data.apply(lambda row: (row['age_group_start'] + row['age_group_end']) / 2, axis=1)
     return data
@@ -364,8 +364,7 @@ def load_population_structure(builder):
 
 def get_crude_birth_rate(builder):
     population_data = load_population_structure(builder)
-    birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
-                                   future=builder.configuration.input_data.forecast)
+    birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
     validate_crude_birth_rate_data(builder, population_data.year_end.max())
     population_data = rescale_final_age_bin(builder, population_data)
 
