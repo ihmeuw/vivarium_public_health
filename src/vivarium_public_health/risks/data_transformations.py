@@ -210,16 +210,16 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString, sou
     distribution_type = get_distribution_type(builder, risk)
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
-    if source_type is 'relative risk value':
+    if source_type == 'relative risk value':
         relative_risk_data = _make_relative_risk_data(builder, float(relative_risk_source['relative_risk']))
 
-    elif source_type is 'log distribution':
+    elif source_type == 'log distribution':
         cat1_value = max(1, np.exp(relative_risk_source['log_se'] * np.random.randn()
                                    + relative_risk_source['log_mean']
                                    + np.random.normal(0, relative_risk_source['tau'])))
         relative_risk_data = _make_relative_risk_data(builder, cat1_value)
 
-    elif source_type is 'normal distribution':
+    elif source_type == 'normal distribution':
         cat1_value = max(1, np.random.normal(relative_risk_source['mean'], relative_risk_source['se']))
         relative_risk_data = _make_relative_risk_data(builder, cat1_value)
 
