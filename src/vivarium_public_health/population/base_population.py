@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 
-from .data_transformations import assign_demographic_proportions, rescale_binned_proportions, smooth_ages
+from .data_transformations import (assign_demographic_proportions, rescale_binned_proportions, smooth_ages,
+                                   load_population_structure)
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 
@@ -110,9 +111,7 @@ class AgedOutSimulants:
         self.population_view = builder.population.get_view(['age', 'exit_time', 'tracked'])
         builder.event.register_listener('time_step__cleanup', self.agedout_handler)
 
-
     def agedout_handler(self, event):
-
         population = self.population_view.get(event.index)
         max_age = float(self.config.exit_age)
         pop = population[(population['age'] >= max_age) & (population['tracked'] == True)].copy()
@@ -290,10 +289,3 @@ def _build_population_data_table(data):
             'P(age | year, sex, location)' : Conditional probability of age given year, sex, and location.
     """
     return assign_demographic_proportions(data)
-
-
-def load_population_structure(builder):
-    data = builder.data.load("population.structure", future=builder.configuration.input_data.forecast)
-    # create an age column which is the midpoint of the age group
-    data['age'] = data.apply(lambda row: (row['age_group_start'] + row['age_group_end']) / 2, axis=1)
-    return data
