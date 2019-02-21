@@ -415,34 +415,36 @@ def validate_distribution_data_source(builder, risk: RiskString):
 
 
 def validate_relative_risk_data_source(builder, risk: RiskString, target: TargetString):
-    relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
+    source_key = f'effect_of_{risk.name}_on_{target.name}'
+    relative_risk_source = builder.configuration[source_key][target.measure]
 
-    source_map = {frozenset(): 'data',
-                  frozenset(['relative_risk']): 'relative risk value',
-                  frozenset(['mean', 'se']): 'normal distribution',
-                  frozenset(['log_mean', 'log_se', 'tau']): 'log distribution'}
+    provided_keys = set(k for k, v in relative_risk_source.items() if isinstance(v.get_value(), (int, float)))
 
-    all_keys = set().union(*source_map.keys())
+    source_map = {'data': set(),
+                  'relative risk value': {'relative_risk'},
+                  'normal distribution': {'mean', 'se'},
+                  'log distribution': {'log_mean', 'log_se', 'tau'}}
 
-    config_keys = set()
-
-    for k in all_keys:
-        if relative_risk_source[k] is not None:
-            if not isinstance(relative_risk_source[k], (float, int)):
-                raise ValueError(f'All parameters for relative risk effects must be numeric. '
-                                 f'The value specified for {k} is {relative_risk_source[k]}.')
-            if k == 'relative_risk':
-                if not 1 <= relative_risk_source[k] <= 100:
-                    raise ValueError(f"If specifying a single value for relative risk, it should be in the "
-                                     f"range [1, 100]. You provided {relative_risk_source[k]}.")
-
-            config_keys = config_keys.union({k})
-
-    source_type = source_map.get(frozenset(config_keys), None)
-
-    if source_type is None:
+    if provided_keys not in source_map.values():
         raise ValueError(f'The acceptable parameter options for specifying relative risk are: '
-                         f'{[set(s) for s in source_map.keys() if s]}. You provided {config_keys}.')
+                         f'{source_map.values()}. You provided {provided_keys} for {source_key}.')
+
+    source_type = [k for k, v in source_map.items() if provided_keys == v][0]
+
+    if source_type == 'relative risk value':
+        if not 1 <= relative_risk_source['relative_risk'] <= 100:
+            raise ValueError(f"If specifying a single value for relative risk, it should be in the "
+                             f"range [1, 100]. You provided {relative_risk_source['relative_risk']} for {source_key}.")
+    elif source_type == 'normal distribution':
+        if relative_risk_source['mean'] <= 0 or relative_risk_source['se'] <= 0:
+            raise ValueError(f"To specify parameters for a normal distribution for a risk effect, you must provide"
+                             f"both mean and se above 0. This is not the case for {source_key}.")
+    elif source_type == 'log distribution':
+        if relative_risk_source['log_mean'] <= 0 or relative_risk_source['log_se'] <= 0:
+            raise ValueError(f"To specify parameters for a log distribution for a risk effect, you must provide"
+                             f"both log_mean and log_se above 0. This is not the case for {source_key}.")
+    else:
+        pass
 
     return source_type
 
