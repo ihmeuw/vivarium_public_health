@@ -2,23 +2,39 @@ import pandas as pd
 
 
 class RiskAttributableDisease:
-    """ Component to model a disease fully attributed by a risk.
-    This is for some (risk, cause) pairs with population attributable fraction
-    equal to 1 where `infected to the cause` is defined by the level of risk
-    exposure higher than the threshold level.
+    """Component to model a disease fully attributed by a risk.
+    
+    For some (risk, cause) pairs with population attributable fraction
+    equal to 1, the clinical definition of the with condition state 
+    corresponds to a particular exposure of a risk.
 
-    For example, one who has Fasting plasma glucose of greater than 7 mmol/L
-    is considered to have `diabetes_mellitus`. Another example is
-    `protein_energy_malnutrition`. One who is exposed to child wasting of cat1
-    or cat2 become infected to `protein_energy_malnutrition`.
-
+    For example, a diagnosis of ``diabetes_mellitus`` occurs after 
+    repeated measurements of fasting plasma glucose above 7 mmol/L. 
+    Similarly, ``protein_energy_malnutrition`` corresponds to a weight 
+    for height ratio that is more than two standard deviations below
+    the WHO guideline median weight for height.  In the Global Burden
+    of Disease, this corresponds to a categorical exposure to 
+    ``child_wasting`` in either ``cat1`` or ``cat2``.
+    
+    The definition of the disease in terms of exposure should be provided
+    in the ``threshold`` configuration flag.  For risks with continuous
+    exposure models, the threshold should be provided as a single 
+    ``float`` or ``int``.  For categorical risks, the threshold
+    should be provided as a list of categories.
+    
     In addition to the threshold level, you may configure whether
-    there is any mortality associated with this disease by mortality flag.
-    Another option is a recoverable flag, which should be set to False
-    if the disease cannot be cured even though the risk exposure is below
-    the threshold. If the recoverable flag is set to true, the simulants who
-    had the condition becomes susceptible to this disease again when the risk
-    exposure level becomes below the threshold level.
+    there is any mortality associated with this disease with the 
+    ``mortality`` configuration flag.
+     
+    Finally, you may specify whether the someone should "recover" 
+    from the disease if their exposure level falls outside the 
+    provided threshold. 
+    
+    In our provided examples, a person would no longer be experiencing 
+    ``protein_energy_malnutrition`` if their exposure drift out (or
+    changes via an intervention) of the provided exposure categories. 
+    Having your ``fasting_plasma_glucose`` drop below a provided level
+    does not necessarily mean you're no longer diabetic however.
 
     Configuration defaults should be given as, for the continuous risk factor,
 
