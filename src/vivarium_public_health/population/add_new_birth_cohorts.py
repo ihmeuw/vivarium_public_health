@@ -1,7 +1,7 @@
 """This module contains several components that  model birth rates."""
 import pandas as pd
 import numpy as np
-from vivarium_public_health.population.data_transformations import get_crude_birth_rate
+from vivarium_public_health.population.data_transformations import get_live_births_per_year
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate better data into gestational model (probably as a separate component)
@@ -9,44 +9,37 @@ PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
 
 
 class FertilityDeterministic:
-    """Deterministic model of births.
-    Attributes
-    ----------
-    fractional_new_births : float
-        A rolling record of the fractional part of new births generated
-        each time-step that allows us to
-    """
+    """Deterministic model of births."""
 
     configuration_defaults = {
-        'fertility_deterministic': {
+        'fertility': {
             'number_of_new_simulants_each_year': 1000,
         },
     }
 
-    def __init__(self):
-        self.fractional_new_births = 0
-
     def setup(self, builder):
-        self.config = builder.configuration.fertility_deterministic
-        self.simulant_creator = builder.population.get_simulant_creator()
-        builder.event.register_listener('time_step', self.add_new_birth_cohort)
+        self.fractional_new_births = 0
+        self.simulants_per_year = builder.configuration.fertility.number_of_new_simulants_each_year
 
-    def add_new_birth_cohort(self, event):
-        """Deterministically adds a new set of simulants at every timestep
-        based on a parameter in the configuration.
+        self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.event.register_listener('time_step', self.on_time_step)
+
+    def on_time_step(self, event):
+        """Adds a set number of simulants to the population each time step.
+
         Parameters
         ----------
-        event : vivarium.population.PopulationEvent
+        event
             The event that triggered the function call.
-        creator : method
-            A function or method for creating a population.
         """
         # Assume births are uniformly distributed throughout the year.
-        step_size = event.step_size/pd.Timedelta(seconds=1)
-        simulants_to_add = (self.config.number_of_new_simulants_each_year*step_size/SECONDS_PER_YEAR
-                            + self.fractional_new_births)
+        step_size = event.step_size/pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        simulants_to_add = self.simulants_per_year*step_size + self.fractional_new_births
+
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
+
         if simulants_to_add > 0:
             self.simulant_creator(simulants_to_add,
                                   population_configuration={
@@ -56,50 +49,65 @@ class FertilityDeterministic:
 
 
 class FertilityCrudeBirthRate:
-    """Population-level model of births using Crude Birth Rate.
-    Attributes
-    ----------
-    randomness : `randomness.RandomStream`
-        A named stream of random numbers bound to vivarium's common
-        random number framework.
+    """Population-level model of births using crude birth rate.
+
+    The number of births added each time step is calculated as
+
+    new_births = sim_pop_size_t0 * live_births / true_pop_size * step_size
+
+    Where
+
+    sim_pop_size_t0 = the initial simulation population size
+    live_births = annual number of live births in the true population
+    true_pop_size = the true population size
+
+    This component has configuration flags that determine whether the
+    live births and the true population size should vary with time.
+
     Notes
     -----
-    The OECD definition of Crude Birthrate can be found on their
+    The OECD definition of crude birth rate can be found on their
     website_, while a more thorough discussion of fertility and
     birth rate models can be found on Wikipedia_ or in demography
     textbooks.
     .. _website: https://stats.oecd.org/glossary/detail.asp?ID=490
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
+
+    configuration_defaults = {
+        'fertility': {
+            'time_dependent_live_births': True,
+            'time_dependent_population_fraction': False,
+        }
+    }
+
     def setup(self, builder):
-        self.birth_rate = get_crude_birth_rate(builder)
+        self.clock = builder.time.clock()
+
+        self.birth_rate = get_live_births_per_year(builder)
 
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
-        self.simulant_creator = builder.population.get_simulant_creator()
-        builder.event.register_listener('time_step', self.add_new_birth_cohort)
 
-    def add_new_birth_cohort(self, event):
+        self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.event.register_listener('time_step', self.on_time_step)
+
+    def on_time_step(self, event):
         """Adds new simulants every time step based on the Crude Birth Rate
         and an assumption that birth is a Poisson process
         Parameters
         ----------
-        event : vivarium.population.PopulationEvent
+        event
             The event that triggered the function call.
-        creator : method
-            A function or method for creating a population.
-        Notes
-        -----
-        The method for computing the Crude Birth Rate employed here is
-        approximate.
         """
-        birth_rate = self.birth_rate.at[event.time.year]
-        population_size = len(event.index)
-        step_size = event.step_size / pd.Timedelta(seconds=1)
+        birth_rate = self.birth_rate.at[self.clock().year]
+        step_size = event.step_size / pd.Timedelta(seconds=SECONDS_PER_YEAR)
 
-        mean_births = birth_rate*population_size*step_size/SECONDS_PER_YEAR
+        mean_births = birth_rate * step_size
         # Assume births occur as a Poisson process
         r = np.random.RandomState(seed=self.randomness.get_seed())
         simulants_to_add = r.poisson(mean_births)
+
         if simulants_to_add > 0:
             self.simulant_creator(simulants_to_add,
                                   population_configuration={
