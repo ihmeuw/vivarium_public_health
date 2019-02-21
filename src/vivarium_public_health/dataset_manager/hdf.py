@@ -144,7 +144,7 @@ def _write_data_frame(path: str, entity_key: 'EntityKey', data: pd.DataFrame):
     # that you can filter by without reading in a whole dataset.
     data_columns = DEFAULT_COLUMNS.intersection(data.columns)
 
-    with pd.HDFStore(path, complevel=9, format="table") as store:
+    with pd.HDFStore(path, complevel=9) as store:
         store.put(entity_path, data, format="table", data_columns=data_columns)
 
 
