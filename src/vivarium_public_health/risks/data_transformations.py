@@ -216,7 +216,7 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString, sou
     elif source_type == 'log distribution':
         cat1_value = max(1, np.exp(relative_risk_source['log_se'] * np.random.randn()
                                    + relative_risk_source['log_mean']
-                                   + np.random.normal(0, relative_risk_source['tau'])))
+                                   + np.random.normal(0, relative_risk_source['tau_squared'])))
         relative_risk_data = _make_relative_risk_data(builder, cat1_value)
 
     elif source_type == 'normal distribution':
@@ -423,7 +423,7 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
     source_map = {'data': set(),
                   'relative risk value': {'relative_risk'},
                   'normal distribution': {'mean', 'se'},
-                  'log distribution': {'log_mean', 'log_se', 'tau'}}
+                  'log distribution': {'log_mean', 'log_se', 'tau_squared'}}
 
     if provided_keys not in source_map.values():
         raise ValueError(f'The acceptable parameter options for specifying relative risk are: '
@@ -443,6 +443,9 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
         if relative_risk_source['log_mean'] <= 0 or relative_risk_source['log_se'] <= 0:
             raise ValueError(f"To specify parameters for a log distribution for a risk effect, you must provide"
                              f"both log_mean and log_se above 0. This is not the case for {source_key}.")
+        if relative_risk_source['tau_squared'] < 0:
+            raise ValueError(f"To specify parameters for a log distribution for a risk effect, you must provide"
+                             f"tau_squared >= 0. This is not the case for {source_key}.")
     else:
         pass
 
