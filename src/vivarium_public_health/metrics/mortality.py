@@ -1,26 +1,20 @@
 import pandas as pd
 import numpy as np
 
-from .utilities import get_age_bins
+from .utilities import get_age_bins, clean_cause_of_death, to_years
 
 
 class MortalityObserver:
     """ An observer for total and cause specific deaths during simulation.
-    This component by default observes the total number of deaths out of
-    total population and total person time that each simulant spent
-    during the simulation until it exits.
-
-    These data are categorized by age groups and causes and aggregated over
-    total population as well as the population who were born during
-    the simulation.
-
-    By default, we also aggregate over time. If by_year flag is turned on,
-    we aggregate the data by each year.
-
+    This component counts total and cause specific deaths in the population
+    as well as person time (the time spent alive and tracked in the
+    simulation).
+    The data is discretized by age groups and optionally by year.
     """
     configuration_defaults = {
         'metrics': {
             'mortality': {
+                # TODO: Implement by_sex and by_age flags
                 'by_year': False
             }
         }
@@ -90,7 +84,7 @@ def count_person_time(pop, age_bins, start_time, end_time):
     exit_time = lived_in_span.exit_time
     exit_time.loc[end_time < exit_time] = end_time
 
-    years_in_span = (exit_time - entrance_time) / pd.Timedelta(days=365.25)
+    years_in_span = to_years(exit_time - entrance_time)
     lived_in_span['age_at_start'] = np.maximum(lived_in_span.age - years_in_span, 0)
 
     data = pd.Series(0, index=age_bins.index)
@@ -121,20 +115,3 @@ def count_deaths(pop, age_bins, start_time, end_time):
             data.loc[group, cod] = count
 
     return data
-
-
-def clean_cause_of_death(pop):
-
-    def _clean(cod):
-        if 'death' in cod or 'dead' in cod:
-            pass
-        else:
-            cod = f'death_due_to_{cod}'
-        return cod
-
-    pop.cause_of_death = pop.cause_of_death.apply(_clean)
-    return pop
-
-
-def to_years(time) -> float:
-    return time / pd.Timedelta(days=365.25)
