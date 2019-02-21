@@ -1,7 +1,7 @@
 """This module contains several components that  model birth rates."""
 import pandas as pd
 import numpy as np
-from vivarium_public_health.population.data_transformations import get_crude_birth_rate
+from vivarium_public_health.population.data_transformations import get_live_births_per_year
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate better data into gestational model (probably as a separate component)
@@ -49,50 +49,52 @@ class FertilityDeterministic:
 
 
 class FertilityCrudeBirthRate:
-    """Population-level model of births using Crude Birth Rate.
-    Attributes
-    ----------
-    randomness : `randomness.RandomStream`
-        A named stream of random numbers bound to vivarium's common
-        random number framework.
+    """Population-level model of births using crude birth rate.
+
     Notes
     -----
-    The OECD definition of Crude Birthrate can be found on their
+    The OECD definition of crude birth rate can be found on their
     website_, while a more thorough discussion of fertility and
     birth rate models can be found on Wikipedia_ or in demography
     textbooks.
     .. _website: https://stats.oecd.org/glossary/detail.asp?ID=490
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
+
+    configuration_defaults = {
+        'fertility': {
+            'time_dependent_live_births': True,
+            'time_dependent_population_fraction': False,
+        }
+    }
+
     def setup(self, builder):
-        self.birth_rate = get_crude_birth_rate(builder)
+        self.clock = builder.time.clock()
+
+        self.birth_rate = get_live_births_per_year(builder)
 
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
-        self.simulant_creator = builder.population.get_simulant_creator()
-        builder.event.register_listener('time_step', self.add_new_birth_cohort)
 
-    def add_new_birth_cohort(self, event):
+        self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.event.register_listener('time_step', self.on_time_step)
+
+    def on_time_step(self, event):
         """Adds new simulants every time step based on the Crude Birth Rate
         and an assumption that birth is a Poisson process
         Parameters
         ----------
-        event : vivarium.population.PopulationEvent
+        event
             The event that triggered the function call.
-        creator : method
-            A function or method for creating a population.
-        Notes
-        -----
-        The method for computing the Crude Birth Rate employed here is
-        approximate.
         """
-        birth_rate = self.birth_rate.at[event.time.year]
-        population_size = len(event.index)
-        step_size = event.step_size / pd.Timedelta(seconds=1)
+        birth_rate = self.birth_rate.at[self.clock().year]
+        step_size = event.step_size / pd.Timedelta(seconds=SECONDS_PER_YEAR)
 
-        mean_births = birth_rate*population_size*step_size/SECONDS_PER_YEAR
+        mean_births = birth_rate * step_size
         # Assume births occur as a Poisson process
         r = np.random.RandomState(seed=self.randomness.get_seed())
         simulants_to_add = r.poisson(mean_births)
+
         if simulants_to_add > 0:
             self.simulant_creator(simulants_to_add,
                                   population_configuration={
