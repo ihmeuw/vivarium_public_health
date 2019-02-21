@@ -51,6 +51,19 @@ class FertilityDeterministic:
 class FertilityCrudeBirthRate:
     """Population-level model of births using crude birth rate.
 
+    The number of births added each time step is calculated as
+
+    new_births = sim_pop_size_t0 * live_births / true_pop_size * step_size
+
+    Where
+
+    sim_pop_size_t0 = the initial simulation population size
+    live_births = annual number of live births in the true population
+    true_pop_size = the true population size
+
+    This component has configuration flags that determine whether the
+    live births and the true population size should vary with time.
+
     Notes
     -----
     The OECD definition of crude birth rate can be found on their
