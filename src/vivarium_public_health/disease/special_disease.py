@@ -12,19 +12,28 @@ class RiskAttributableDisease:
     `protein_energy_malnutrition`. One who is exposed to child wasting of cat1
     or cat2 become infected to `protein_energy_malnutrition`.
 
+    In addition to the threshold level, you also should configure whether
+    there is any mortality associated with this disease by mortality flag.
+    The last flag is recoverable flag, which is set to False if the disease
+    cannot be cured even though the risk exposure is below the threshold.
+    If the recoverable flag is set to true, the simulants with the condition
+    becomes susceptible to this disease again when the risk exposure level is
+    below the threshold level.
+
     Configuration defaluts should be given as, for the continuous risk factor,
 
     diabetes_mellitus:
         threshold : 7
         mortality : True
-        absorbing_state : True # once get infected, cannot be recovered.
+        recoverable : False
+
 
     For the categorical risk factor,
 
     protein_energy_malnutrition:
         threshold : ['cat1', 'cat2'] # provide the categories to get PEM.
         mortality : True
-        absorbing_state : False # can be recovered.
+        recoverable : True
 
     """
 
@@ -32,7 +41,7 @@ class RiskAttributableDisease:
         'risk_attributable_disease': {
             'threshold': None,
             'mortality': True,
-            'absorbing_state': False
+            'recoverable': True
         }
     }
 
@@ -46,7 +55,7 @@ class RiskAttributableDisease:
     def setup(self, builder):
 
         self.threshold = builder.configuration[self.name].threshold
-        self.absorbing_state = builder.configuration[self.name].absorbing_state
+        self.recoverable = builder.configuration[self.name].recoverable
         disability_weight = builder.data.load(f'cause.{self.name}.disability_weight')
         self.distribution = builder.data.load(f'risk_factor.{self.risk}.distribution')
 
@@ -70,8 +79,10 @@ class RiskAttributableDisease:
         builder.event.register_listener('time_step', self.on_time_step)
         builder.population.initializes_simulants(self.on_initialize_simulants)
 
-    def filter_by_exposure(self, index):
+    def _get_population(self, index, query=None):
+        return self.population_view.get(index, query)
 
+    def filter_by_exposure(self, index):
         exposure = self.exposure(index)
         if self.distribution in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
             sick = exposure.isin(self.threshold)
@@ -86,15 +97,16 @@ class RiskAttributableDisease:
         self.population_view.update(new_pop)
 
     def on_time_step(self, event):
-        pop = self.population_view.get(event.index, query='alive == "alive"')
+        pop = self._get_population(event.index, query='alive == "alive"')
         sick = self.filter_by_exposure(event.index)
-        if not self.absorbing_state:
+        #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
+        if self.recoverable:
             pop.loc[~sick, self.name] = f'susceptible_to_{self.name}'
         pop.loc[sick, self.name] = self.name
         self.population_view.update(pop)
 
     def mortality_rates(self, index, rates_df):
-        population = self.population_view.get(index)
+        population = self._get_population(index)
         rate = (self._mortality(population.index, skip_post_processor=True)
                 * (population[self.name] == self.name))
         if isinstance(rates_df, pd.Series):
@@ -104,5 +116,6 @@ class RiskAttributableDisease:
         return rates_df
 
     def compute_disability_weight(self, index):
-        population = self.population_view.get(index, query=f'alive=="alive" and {self.name}=="{self.name}"')
+        population = self._get_population(index, query=f'alive=="alive" and {self.name}=="{self.name}"')
         return self._disability_weight(population.index)
+
