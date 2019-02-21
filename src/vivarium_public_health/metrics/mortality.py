@@ -6,18 +6,17 @@ from .utilities import get_age_bins, clean_cause_of_death, to_years
 
 class MortalityObserver:
     """ An observer for total and cause specific deaths during simulation.
-    This component by default observes the total number of deaths out of
-    total population and total person time that each simulant spent
-    during the simulation until it exits.
-    These data are categorized by age groups and causes and aggregated over
-    total population as well as the population who were born during
-    the simulation.
-    By default, we also aggregate over time. If by_year flag is turned on,
-    we aggregate the data by each year.
+
+    This component counts total and cause specific deaths in the population
+    as well as person time (the time spent alive and tracked in the
+    simulation).
+
+    The data is discretized by age groups and optionally by year.
     """
     configuration_defaults = {
         'metrics': {
             'mortality': {
+                # TODO: Implement by_sex and by_age flags
                 'by_year': False
             }
         }
