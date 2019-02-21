@@ -27,7 +27,6 @@ class RiskAttributableDisease:
         mortality : True
         recoverable : False
 
-
     For the categorical risk factor,
 
     protein_energy_malnutrition:
@@ -52,7 +51,6 @@ class RiskAttributableDisease:
         }
 
     def setup(self, builder):
-
         self.threshold = builder.configuration[self.name].threshold
         self.recoverable = builder.configuration[self.name].recoverable
         disability_weight = builder.data.load(f'cause.{self.name}.disability_weight')
