@@ -200,13 +200,13 @@ def rebin_exposure_data(builder, risk: RiskString, data: pd.DataFrame):
 ###############################
 
 def get_relative_risk_data(builder, risk: RiskString, target: TargetString):
-    validate_relative_risk_data_source(builder, risk, target)
-    relative_risk_data = load_relative_risk_data(builder, risk, target)
+    source_type = validate_relative_risk_data_source(builder, risk, target)
+    relative_risk_data = load_relative_risk_data(builder, risk, target, source_type)
     relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
     return relative_risk_data
 
 
-def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
+def load_relative_risk_data(builder, risk: RiskString, target: TargetString, source_type: str):
     distribution_type = get_distribution_type(builder, risk)
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
@@ -414,35 +414,32 @@ def validate_distribution_data_source(builder, risk: RiskString):
 def validate_relative_risk_data_source(builder, risk: RiskString, target: TargetString):
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
-    config_keys = {'relative_risk', 'mean', 'se', 'log_mean', 'log_se', 'tau'}
-    if set(relative_risk_source.keys()) != config_keys:
-        raise ValueError(f'The only allowable configuration keys for specifying risk effect are {config_keys}.')
+    source_map = {frozenset(): 'data',
+                  frozenset(['relative_risk']): 'relative risk value',
+                  frozenset(['mean', 'se']): 'normal distribution',
+                  frozenset(['log_mean', 'log_se', 'tau']): 'log distribution'}
 
-    if all([relative_risk_source[k] is None for k in config_keys]):  # implicit data source
-        pass
-    else:
-        config_keys_map = {'value': ['relative_risk'],
-                           'distribution': ['mean', 'se'],
-                           'log_distribution': ['log_mean', 'log_se', 'tau']}
-        for k, v in config_keys_map.items():
-            source_type_keys = [relative_risk_source[config_key] is not None for config_key in v]
-            if any(source_type_keys):
-                # the keys for all other source types should be None or False
-                other_config_keys = config_keys.difference(v)
-                for other_key in other_config_keys:
-                    if relative_risk_source[other_key] is not None:
-                        raise ValueError(f'You may specify relative risk source of data or a value or parameters for a '
-                                         f'distribution. You specified {v}, which corresponds to a source of {k}, '
-                                         f'as well as {other_key}, which corresponds to a source of '
-                                         f'{[k for k, v in config_keys_map.items() if other_key in v][0]}.')
-                # if there are multiple config keys for this source, they must all not be None
-                for companion_key in v:
-                    if relative_risk_source[companion_key] is None:
-                        raise ValueError(f'If you specify relative risk effect based on {k}, you must provide non-None '
-                                         f'values for {v}, but {companion_key} is None.')
+    all_keys = set().union(*source_map.keys())
 
-                if k == 'relative_risk':
-                    if not isinstance(relative_risk_source['relative_risk'], (int, float)) or \
-                            not 1 <= relative_risk_source['relative_risk'] <= 100:
-                        raise ValueError(f"Relative risk should be in the range [1, 100].")
+    config_keys = set()
+
+    for k in all_keys:
+        if relative_risk_source[k] is not None:
+            if not isinstance(relative_risk_source[k], (float, int)):
+                raise ValueError(f'All parameters for relative risk effects must be numeric. '
+                                 f'The value specified for {k} is {relative_risk_source[k]}.')
+            if k == 'relative_risk':
+                if not 1 <= relative_risk_source[k] <= 100:
+                    raise ValueError(f"If specifying a single value for relative risk, it should be in the "
+                                     f"range [1, 100]. You provided {relative_risk_source[k]}.")
+
+            config_keys = config_keys.union({k})
+
+    source_type = source_map.get(frozenset(config_keys), None)
+
+    if source_type is None:
+        raise ValueError(f'The acceptable parameter options for specifying relative risk are: '
+                         f'{[set(s) for s in source_map.keys() if s]}. You provided {config_keys}.')
+
+    return source_type
 
