@@ -364,7 +364,8 @@ def load_population_structure(builder):
 
 def get_live_births_per_year(builder):
     population_data = load_population_structure(builder)
-    birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
+    birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
+                                   future=builder.configuration.input_data.forecast)
 
     validate_crude_birth_rate_data(builder, population_data.year_end.max())
     population_data = rescale_final_age_bin(builder, population_data)
