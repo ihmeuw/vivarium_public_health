@@ -111,7 +111,7 @@ def test_FertilityCrudeBirthRate_extrapolate(config, base_plugins):
         pop_start = len(simulation.get_population())
         simulation.step()
         pop_end = len(simulation.get_population())
-        birth_rate.append((pop_end - pop_start)/pop_start)
+        birth_rate.append((pop_end - pop_start)/pop_size)
 
     given_birth_rate = 2*live_births_by_sex / true_pop_size
     np.testing.assert_allclose(birth_rate, given_birth_rate, atol=0.01)
