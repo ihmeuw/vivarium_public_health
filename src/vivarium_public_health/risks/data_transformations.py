@@ -1,7 +1,8 @@
+from typing import Union
+
 import numpy as np
 import pandas as pd
 
-from vivarium import ConfigTree
 from vivarium_public_health.risks import distributions
 
 
@@ -209,7 +210,17 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
     distribution_type = get_distribution_type(builder, risk)
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
-    if relative_risk_source['data']:
+    if relative_risk_source['relative_risk'] is not None:
+        relative_risk_data = _make_relative_risk_data(builder, float(relative_risk_source['relative_risk']))
+    elif relative_risk_source['log_mean'] is not None:  # log distribution
+        cat1_value = max(1, np.exp(relative_risk_source['log_se'] * np.random.randn()
+                                      + relative_risk_source['log_mean']
+                                      + np.random.normal(0, relative_risk_source['tau'])))
+        relative_risk_data = _make_relative_risk_data(builder, cat1_value)
+    elif relative_risk_source['mean'] is not None:
+        cat1_value = max(1, np.random.normal(relative_risk_source['mean'], relative_risk_source['se']))
+        relative_risk_data = _make_relative_risk_data(builder, cat1_value)
+    else:  # data
         relative_risk_data = builder.data.load(f'{risk}.relative_risk')
         correct_target = ((relative_risk_data['affected_entity'] == target.name)
                           & (relative_risk_data['affected_measure'] == target.measure))
@@ -217,26 +228,21 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
                               .drop(['affected_entity', 'affected_measure'], 'columns'))
         if distribution_type in ['normal', 'lognormal', 'ensemble']:
             relative_risk_data = relative_risk_data.drop(['parameter'], 'columns')
-    else:
-        cat1 = builder.data.load('population.demographic_dimensions')
-        cat1['parameter'] = 'cat1'
-        if relative_risk_source['relative_risk'] is not None:
-            cat1['value'] = float(relative_risk_source)
-        elif relative_risk_source['log_mean'] is not None:  # log distribution
-            cat1['value'] = max(1, np.exp(relative_risk_source['log_se'] * np.random.randn()
-                                          + relative_risk_source['log_mean']
-                                          + np.random.normal(0, relative_risk_source['tau'])))
-        else:
-            cat1['value'] = max(1, np.random.normal(relative_risk_source['mean'], relative_risk_source['se']))
-        cat2 = cat1.copy()
-        cat2['parameter'] = 'cat2'
-        cat2['value'] = 1
-        relative_risk_data = pd.concat([cat1, cat2], ignore_index=True)
 
     if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
         relative_risk_data = pivot_categorical(relative_risk_data)
 
     return relative_risk_data
+
+
+def _make_relative_risk_data(builder, cat1_value: Union[float, int]) -> pd.DataFrame:
+    cat1 = builder.data.load('population.demographic_dimensions')
+    cat1['parameter'] = 'cat1'
+    cat1['value'] = cat1_value
+    cat2 = cat1.copy()
+    cat2['parameter'] = 'cat2'
+    cat2['value'] = 1
+    return pd.concat([cat1, cat2], ignore_index=True)
 
 
 def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.DataFrame) -> pd.DataFrame:
@@ -408,33 +414,35 @@ def validate_distribution_data_source(builder, risk: RiskString):
 def validate_relative_risk_data_source(builder, risk: RiskString, target: TargetString):
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
-    config_keys = {'data', 'relative_risk', 'mean', 'se', 'log_mean', 'log_se', 'tau'}
+    config_keys = {'relative_risk', 'mean', 'se', 'log_mean', 'log_se', 'tau'}
     if set(relative_risk_source.keys()) != config_keys:
         raise ValueError(f'The only allowable configuration keys for specifying risk effect are {config_keys}.')
 
-    config_keys_map = {'data': ['data'],
-                       'value': ['relative_risk'],
-                       'distribution': ['mean', 'se'],
-                       'log_distribution': ['log_mean', 'log_se', 'tau']}
-    for k, v in config_keys_map.items():
-        source_type_keys = [relative_risk_source[config_key] is not None and relative_risk_source[config_key] is not False for config_key in v]
-        if any(source_type_keys):
-            # the keys for all other source types should be None or False
-            other_config_keys = config_keys.difference(v)
-            for other_key in other_config_keys:
-                if relative_risk_source[other_key] is not None and relative_risk_source[other_key] is not False:
-                    raise ValueError(f'You may specify relative risk source of data or a value or parameters for a '
-                                     f'distribution. You specified {v}, which corresponds to a source of {k}, as well '
-                                     f'as {other_key}, which corresponds to a source of '
-                                     f'{[k for k, v in config_keys_map.items() if other_key in v][0]}.')
-            # if there are multiple config keys for this source, they must all not be None
-            for companion_key in v:
-                if relative_risk_source[companion_key] is None:
-                    raise ValueError(f'If you specify relative risk effect based on {k}, you must provide non-None '
-                                     f'values for {v}, but {companion_key} is None.')
+    if all([relative_risk_source[k] is None for k in config_keys]):  # implicit data source
+        pass
+    else:
+        config_keys_map = {'value': ['relative_risk'],
+                           'distribution': ['mean', 'se'],
+                           'log_distribution': ['log_mean', 'log_se', 'tau']}
+        for k, v in config_keys_map.items():
+            source_type_keys = [relative_risk_source[config_key] is not None for config_key in v]
+            if any(source_type_keys):
+                # the keys for all other source types should be None or False
+                other_config_keys = config_keys.difference(v)
+                for other_key in other_config_keys:
+                    if relative_risk_source[other_key] is not None:
+                        raise ValueError(f'You may specify relative risk source of data or a value or parameters for a '
+                                         f'distribution. You specified {v}, which corresponds to a source of {k}, '
+                                         f'as well as {other_key}, which corresponds to a source of '
+                                         f'{[k for k, v in config_keys_map.items() if other_key in v][0]}.')
+                # if there are multiple config keys for this source, they must all not be None
+                for companion_key in v:
+                    if relative_risk_source[companion_key] is None:
+                        raise ValueError(f'If you specify relative risk effect based on {k}, you must provide non-None '
+                                         f'values for {v}, but {companion_key} is None.')
 
-            if k == 'relative_risk':
-                if not isinstance(relative_risk_source['relative_risk'], (int, float)) or \
-                        not 1 <= relative_risk_source['relative_risk'] <= 100:
-                    raise ValueError(f"Relative risk should be in the range [1, 100].")
+                if k == 'relative_risk':
+                    if not isinstance(relative_risk_source['relative_risk'], (int, float)) or \
+                            not 1 <= relative_risk_source['relative_risk'] <= 100:
+                        raise ValueError(f"Relative risk should be in the range [1, 100].")
 
