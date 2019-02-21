@@ -6,7 +6,7 @@ import pandas as pd
 def make_uniform_pop_data(age_bin_midpoint=False):
     age_bins = [(n, n + 5) for n in range(0, 100, 5)]
     sexes = ('Male', 'Female', 'Both')
-    years = [(1990, 1995), (1995, 2000), (2000, 2005), (2005, 2010)]
+    years = zip(range(1990, 2017), range(1991, 2018))
     locations = (1, 2)
 
     age_bins, sexes, years, locations = zip(*product(age_bins, sexes, years, locations))
