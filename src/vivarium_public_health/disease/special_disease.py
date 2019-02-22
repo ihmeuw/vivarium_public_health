@@ -1,4 +1,8 @@
 import pandas as pd
+import re
+from operator import lt, gt
+
+from collections import namedtuple
 
 
 class RiskAttributableDisease:
@@ -19,7 +23,11 @@ class RiskAttributableDisease:
     The definition of the disease in terms of exposure should be provided
     in the ``threshold`` configuration flag.  For risks with continuous
     exposure models, the threshold should be provided as a single 
-    ``float`` or ``int``.  For categorical risks, the threshold
+    ``float`` or ``int`` with a proper sign between ">" and "<", implying
+    that disease is defined by the exposure level ">" than threshold level
+    or, "<" than threshold level, respectively.
+
+    For categorical risks, the threshold
     should be provided as a list of categories.
     
     In addition to the threshold level, you may configure whether
@@ -39,7 +47,7 @@ class RiskAttributableDisease:
     Configuration defaults should be given as, for the continuous risk factor,
 
     diabetes_mellitus:
-        threshold : 7
+        threshold : "<7"
         mortality : True
         recoverable : False
 
@@ -67,10 +75,8 @@ class RiskAttributableDisease:
         }
 
     def setup(self, builder):
-        self.threshold = builder.configuration[self.name].threshold
         self.recoverable = builder.configuration[self.name].recoverable
         disability_weight = builder.data.load(f'cause.{self.name}.disability_weight')
-        self.distribution = builder.data.load(f'risk_factor.{self.risk}.distribution')
 
         if builder.configuration[self.name].mortality:
             csmr_data = builder.data.load(f'cause.{self.name}.cause_specific_mortality')
@@ -86,22 +92,15 @@ class RiskAttributableDisease:
                                                                        source=self.compute_disability_weight)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
-        self.exposure = builder.value.get_value(f'{self.risk}.exposure')
+        distribution = builder.data.load(f'risk_factor.{self.risk}.distribution')
+        exposure_pipeline = builder.value.get_value(f'{self.risk}.exposure')
+        threshold = builder.configuration[self.name].threshold
+
+        self.filter_by_exposure = self.get_exposure_filter(distribution, exposure_pipeline, threshold)
         self.population_view = builder.population.get_view([self.name, 'alive'])
 
         builder.event.register_listener('time_step', self.on_time_step)
         builder.population.initializes_simulants(self.on_initialize_simulants)
-
-    def _get_population(self, index, query=None):
-        return self.population_view.get(index, query)
-
-    def filter_by_exposure(self, index):
-        exposure = self.exposure(index)
-        if self.distribution in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
-            sick = exposure.isin(self.threshold)
-        else:
-            sick = exposure > self.threshold
-        return sick
 
     def on_initialize_simulants(self, pop_data):
         new_pop = pd.Series(f'susceptible_to_{self.name}', index=pop_data.index, name=self.name)
@@ -110,16 +109,51 @@ class RiskAttributableDisease:
         self.population_view.update(new_pop)
 
     def on_time_step(self, event):
-        pop = self._get_population(event.index, query='alive == "alive"')
-        sick = self.filter_by_exposure(event.index)
+        pop = self.population_view.get(event.index, query='alive == "alive"')
+        sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
         if self.recoverable:
             pop.loc[~sick, self.name] = f'susceptible_to_{self.name}'
         pop.loc[sick, self.name] = self.name
         self.population_view.update(pop)
 
+    def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
+
+        if distribution in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
+
+            def categorical_filter(index):
+                exposure = exposure_pipeline(index)
+                return exposure.isin(threshold)
+            filter_function = categorical_filter
+
+        else:  # continuous
+            Threshold = namedtuple('Threshold', ['operator', 'value'])
+            threshold_val = re.findall("[-+]?\d*\.?\d+", threshold)
+
+            if len(threshold_val) != 1:
+                raise ValueError(f'Your {threshold} is an incorrect threshold format. It should include "<" or ">" along'
+                                 f' with an integer or float number. Your threshold does not include a number or more '
+                                 'than one number.')
+
+            allowed_operator = {'<', '>'}
+            threshold_op = [s for s in threshold.split(threshold_val[0]) if s]
+            #  if threshold_op has more than 1 operators or 0 operator
+            if len(threshold_op) != 1 or not allowed_operator.intersection(threshold_op):
+                raise ValueError(f'Your {threshold} is an incorrect threshold format. It should include "<" or ">" along'
+                                 f' with an integer or float number.')
+
+            op = gt if threshold_op[0] == ">" else lt
+            threshold = Threshold(op, float(threshold_val[0]))
+
+            def continuous_filter(index):
+                exposure = exposure_pipeline(index)
+                return threshold.operator(exposure, threshold.value)
+            filter_function = continuous_filter
+
+        return filter_function
+
     def mortality_rates(self, index, rates_df):
-        population = self._get_population(index)
+        population = self.population_view.get(index)
         rate = (self._mortality(population.index, skip_post_processor=True)
                 * (population[self.name] == self.name))
         if isinstance(rates_df, pd.Series):
@@ -129,6 +163,5 @@ class RiskAttributableDisease:
         return rates_df
 
     def compute_disability_weight(self, index):
-        population = self._get_population(index, query=f'alive=="alive" and {self.name}=="{self.name}"')
+        population = self.population_view.get(index, query=f'alive=="alive" and {self.name}=="{self.name}"')
         return self._disability_weight(population.index)
-
