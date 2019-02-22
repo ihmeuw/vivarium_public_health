@@ -36,7 +36,7 @@ class DiseaseObserver:
         self.counts = defaultdict(int)
         self.person_time = defaultdict(float)
 
-        columns_required = ['alive', 'exit_time', f'{self.disease}', f'{self.disease}_event_time']
+        columns_required = ['alive', f'{self.disease}']
         if self.config.by_age:
             columns_required += ['age']
         if self.config.by_sex:
@@ -58,7 +58,7 @@ class DiseaseObserver:
         base_key = self.output_template.safe_substitute(year=self.clock().year)
         base_filter = f'{self.disease} == susceptible_to_{self.disease}'
 
-        group_counts = get_group_counts(pop, base_filter, base_key, self.config, self.age_bins)
+        group_counts = get_group_counts(pop, base_filter, base_key, self.config.to_dict(), self.age_bins)
 
         for key, count in group_counts.items():
             count_key = key.safe_substitute(measure=f'{self.disease}_counts')
