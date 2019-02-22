@@ -4,14 +4,18 @@ from .utilities import get_age_bins, get_output_template, get_group_counts
 
 
 class TreatmentObserver:
-    """ An observer for treatment counts by each dose and each simulation year.
-    This component by default has 4 different doses for a given treatment.
-    To change it, configuration for the case of 'shigellosis_vaccine'
-    should be given as e.g.,
+    """Observes dose counts for a single treatment.
 
-    metrics:
-        shigellosis_vaccine_observer:
-            doses: ['first', 'second']
+    This component is intended for use with the ``MassTreatmentCampaign``
+    component in ``vivarium_public_health``.  It expects the names of the
+    doses to be supplied under the configuration key
+    ``{treatment_name}.doses`` and should work with any component that
+    specifies its doses in that manner.
+
+    By default, this observer computes aggregate dose counts over the entire
+    simulation.  It can be configured to bin these into age_groups, sexes,
+    and years by setting the ``by_age``, ``by_sex``, and ``by_year``
+    flags, respectively.
 
     """
 
