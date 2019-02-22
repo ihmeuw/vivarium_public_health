@@ -30,7 +30,7 @@ class DiseaseObserver:
         }
 
     def setup(self, builder):
-        self.config = builder.configuration[self.name]
+        self.config = builder.configuration['metrics'][self.name]
 
         self.clock = builder.time.clock()
 
