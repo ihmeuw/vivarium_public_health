@@ -5,26 +5,32 @@ from .utilities import get_age_bins, get_output_template, to_years, get_group_co
 
 class DiseaseObserver:
     """Observes disease counts and person time for a single cause.
+
     By default, this observer computes aggregate susceptible person time
     and counts of disease cases over the entire simulation.  It can be
     configured to bin these into age_groups, sexes, and years by setting
     the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
+
     """
     configuration_defaults = {
-        'disease_observer': {
-            'by_age': False,
-            'by_year': False,
-            'by_sex': False,
+        'metrics': {
+            'disease_observer': {
+                'by_age': False,
+                'by_year': False,
+                'by_sex': False,
+            }
         }
     }
 
     def __init__(self, disease: str):
         self.disease = disease
         self.name = f'{self.disease}_observer'
-        self.configuration_defaults = {self.name: DiseaseObserver.configuration_defaults['disease_observer']}
+        self.configuration_defaults = {
+            'metrics': {self.name: DiseaseObserver.configuration_defaults['metrics']['disease_observer']}
+        }
 
     def setup(self, builder):
-        self.config = builder.configuration[self.name]
+        self.config = builder.configuration['metrics'][self.name]
 
         self.clock = builder.time.clock()
 
