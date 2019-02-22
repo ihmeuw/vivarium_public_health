@@ -88,8 +88,8 @@ class DiseaseObserver:
         group_counts = get_group_counts(pop, base_filter, base_key, self.config.to_dict(), self.age_bins)
 
         for key, count in group_counts.items():
-            person_time_key = key.safe_substitute(measure=f'{self.disease}_counts')
-            self.person_time[person_time_key] += count
+            count_key = key.safe_substitute(measure=f'{self.disease}_counts')
+            self.counts[count_key] += count
 
     def metrics(self, index, metrics):
         metrics.update(self.counts)
