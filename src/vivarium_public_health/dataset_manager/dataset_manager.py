@@ -20,7 +20,7 @@ class ArtifactManagerInterface:
     def __init__(self, controller):
         self._controller = controller
 
-    def load(self, entity_key: str, future: bool=False, **column_filters: _Filter) -> pd.DataFrame:
+    def load(self, entity_key: str, **column_filters: _Filter) -> pd.DataFrame:
         """Loads data associated with a formatted entity key.
 
         The provided entity key must be of the form
@@ -41,8 +41,6 @@ class ArtifactManagerInterface:
         ----------
         entity_key :
             The key associated with the expected data.
-        future :
-            Flag indicating whether data should be pulled from forecasting.
         column_filters :
             Filters that subset the data by a categorical column and then
             remove the column from the raw data. They are supplied as keyword
@@ -52,7 +50,7 @@ class ArtifactManagerInterface:
         -------
             The data associated with the given key filtered down to the requested subset.
         """
-        return self._controller.load(entity_key, future, **column_filters)
+        return self._controller.load(entity_key, **column_filters)
 
 
 class ArtifactManager:
@@ -62,7 +60,6 @@ class ArtifactManager:
         'input_data': {
             'artifact_path': None,
             'artifact_filter_term': None,
-            'forecast': False
         }
     }
 
@@ -96,15 +93,13 @@ class ArtifactManager:
         _log.debug(f'Artifact additional filter terms are {self.config_filter_term}.')
         return Artifact(artifact_path, base_filter_terms)
 
-    def load(self, entity_key: str, future=False, **column_filters: _Filter):
+    def load(self, entity_key: str, **column_filters: _Filter):
         """Loads data associated with the given entity key.
 
         Parameters
         ----------
         entity_key :
             The key associated with the expected data.
-        future :
-            Flag indicating whether data should be pulled from forecasting.
         column_filters :
             Filters that subset the data by a categorical column and then remove the
             column from the raw data. They are supplied as keyword arguments to the
@@ -115,7 +110,7 @@ class ArtifactManager:
             The data associated with the given key, filtered down to the requested subset
             if the data is a dataframe.
         """
-        data = self.artifact.load(entity_key, future)
+        data = self.artifact.load(entity_key)
         return filter_data(data, self.config_filter_term, **column_filters) if isinstance(data, pd.DataFrame) else data
 
 
