@@ -11,6 +11,16 @@ class DiseaseObserver:
     configured to bin these into age_groups, sexes, and years by setting
     the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
 
+    In the model specification, your configuration for this component should
+    be specified as, e.g.:
+
+    configuration:
+        metrics:
+            YOUR_DISEASE_NAME:
+                by_age: True
+                by_year: False
+                by_sex: True
+
     """
     configuration_defaults = {
         'metrics': {
