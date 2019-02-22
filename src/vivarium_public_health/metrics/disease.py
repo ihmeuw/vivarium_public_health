@@ -1,8 +1,6 @@
 from collections import defaultdict
 
-import pandas as pd
-
-from .utilities import get_age_bins, get_output_template, to_years
+from .utilities import get_age_bins, get_output_template, to_years, get_group_counts
 
 
 class DiseaseObserver:
@@ -57,36 +55,17 @@ class DiseaseObserver:
 
         # Ignoring the edge case where the step spans a new year.
         # Accrue all counts and time to the current year.
-        key = self.output_template.safe_substitute(year=self.clock().year)
-        count_key = key.safe_substitute(measure=f'{self.disease}_counts')
-        person_time_key = key.safe_substitute(measure=f'{self.disease}_susceptible_person_time')
+        base_key = self.output_template.safe_substitute(year=self.clock().year)
+        base_filter = f'{self.disease} == susceptible_to_{self.disease}'
 
-        filter_string = f'{self.disease} == susceptible_to_{self.disease}'
+        group_counts = get_group_counts(pop, base_filter, base_key, self.config, self.age_bins)
 
-        if self.config.by_age:
-            ages = self.age_bins.iterrows()
-            filter_string += ' and ({age_group_start} <= age) and (age < {age_group_end})'
-        else:
-            ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
+        for key, count in group_counts.items():
+            count_key = key.safe_substitute(measure=f'{self.disease}_counts')
+            person_time_key = key.safe_substitute(measure=f'{self.disease}_susceptible_person_time')
 
-        if self.config.by_sex:
-            sexes = ['Male', 'Female']
-            filter_string += ' and sex == {sex}'
-        else:
-            sexes = ['Both']
-
-        for group, age_group in ages:
-            start, end = age_group.age_group_start, age_group.age_group_end
-            for sex in sexes:
-                filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex}
-                group_count_key = count_key.safe_substitute(**filter_kwargs)
-                group_person_time_key = person_time_key.safe_substitute(**filter_kwargs)
-                group_filter = filter_string.format(**filter_kwargs)
-
-                in_group = pop.query(group_filter)
-
-                self.counts[group_count_key] += len(in_group)
-                self.person_time[group_person_time_key] += len(in_group) * to_years(event.step_size)
+            self.counts[count_key] += count
+            self.person_time[person_time_key] += count * to_years(event.step_size)
 
     def metrics(self, index, metrics):
         metrics.update(self.counts)

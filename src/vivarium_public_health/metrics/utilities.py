@@ -23,6 +23,35 @@ def get_output_template(by_age, by_sex, by_year):
     return Template(template)
 
 
+def get_group_counts(pop, base_filter, base_key, config, age_bins):
+    if config.by_age:
+        ages = age_bins.iterrows()
+        base_filter += ' and ({age_group_start} <= age) and (age < {age_group_end})'
+    else:
+        ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
+
+    if config.by_sex:
+        sexes = ['Male', 'Female']
+        base_filter += ' and sex == {sex}'
+    else:
+        sexes = ['Both']
+
+    group_counts = {}
+
+    for group, age_group in ages:
+        start, end = age_group.age_group_start, age_group.age_group_end
+        for sex in sexes:
+            filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex}
+            key = base_key.safe_substitute(**filter_kwargs)
+            group_filter = base_filter.format(**filter_kwargs)
+
+            in_group = pop.query(group_filter)
+
+            group_counts[key] = len(in_group)
+
+    return group_counts
+
+
 def clean_cause_of_death(pop):
 
     def _clean(cod):
