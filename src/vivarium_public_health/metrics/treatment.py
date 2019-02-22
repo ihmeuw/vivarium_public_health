@@ -51,7 +51,7 @@ class TreatmentObserver:
         if self.config.by_sex:
             columns_required += ['sex']
 
-        self.population_view = builder.population.get_view(columns_required, query='alive == "alive"')
+        self.population_view = builder.population.get_view(columns_required)
 
         builder.value.register_value_modifier('metrics', self.metrics)
         builder.event.register_listener('on_collect_metrics', self.on_collect_metrics)
@@ -65,8 +65,10 @@ class TreatmentObserver:
             base_filter = (f'{self.treatment}_current_dose == {dose} and '
                            f'{self.treatment}_current_dose_event_time == {event.time}')
             group_counts = get_group_counts(pop, base_filter, base_key, self.config.to_dict(), self.age_bins)
-            key = base_key.safe_substitute(measure=f'{self.treatment}_{dose}_count')
-            self.counts[key] += group_counts
+
+            for key, count in group_counts.items():
+                key = base_key.safe_substitute(measure=f'{self.treatment}_{dose}_count')
+                self.counts[key] += count
 
     def metrics(self, index, metrics):
         metrics.update(self.counts)
