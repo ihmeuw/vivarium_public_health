@@ -40,22 +40,23 @@ class DiseaseObserver:
         self.counts = defaultdict(int)
         self.person_time = defaultdict(float)
 
-        columns_required = ['alive', f'{self.disease}']
+        columns_required = ['alive', f'{self.disease}', f'{self.disease}_event_time']
         if self.config.by_age:
             columns_required += ['age']
         if self.config.by_sex:
             columns_required += ['sex']
 
-        self.population_view = builder.population.get_view(columns_required, query='alive == "alive"')
+        self.population_view = builder.population.get_view(columns_required)
 
         builder.value.register_value_modifier('metrics', self.metrics)
         # FIXME: The state table is modified before the clock advances.
-        # In order to get an accurate representation of person time and disease
-        # counts, we need to look at the state table before anything happens.
+        # In order to get an accurate representation of person time we need to look at
+        # the state table before anything happens.
         builder.event.register_listener('time_step__prepare', self.on_time_step_prepare)
+        builder.event.register_listener('on_collect_metrics', self.on_collect_metrics)
 
     def on_time_step_prepare(self, event):
-        pop = self.population_view.get(event.index)
+        pop = self.population_view.get(event.index, query='alive == "alive"')
 
         # Ignoring the edge case where the step spans a new year.
         # Accrue all counts and time to the current year.
@@ -65,11 +66,20 @@ class DiseaseObserver:
         group_counts = get_group_counts(pop, base_filter, base_key, self.config.to_dict(), self.age_bins)
 
         for key, count in group_counts.items():
-            count_key = key.safe_substitute(measure=f'{self.disease}_counts')
             person_time_key = key.safe_substitute(measure=f'{self.disease}_susceptible_person_time')
-
-            self.counts[count_key] += count
             self.person_time[person_time_key] += count * to_years(event.step_size)
+
+    def on_collect_metrics(self, event):
+        pop = self.population_view.get(event.index)
+
+        base_key = self.output_template.safe_substitute(year=event.time.year)
+        base_filter = f'{self.disease}_event_time == {event.time}'
+
+        group_counts = get_group_counts(pop, base_filter, base_key, self.config.to_dict(), self.age_bins)
+
+        for key, count in group_counts.items():
+            person_time_key = key.safe_substitute(measure=f'{self.disease}_counts')
+            self.person_time[person_time_key] += count
 
     def metrics(self, index, metrics):
         metrics.update(self.counts)
