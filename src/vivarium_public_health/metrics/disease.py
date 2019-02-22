@@ -26,7 +26,7 @@ class DiseaseObserver:
         self.disease = disease
         self.name = f'{self.disease}_observer'
         self.configuration_defaults = {
-            'metrics': {self.name: DiseaseObserver.configuration_defaults['disease_observer']}
+            'metrics': {self.name: DiseaseObserver.configuration_defaults['metrics']['disease_observer']}
         }
 
     def setup(self, builder):
