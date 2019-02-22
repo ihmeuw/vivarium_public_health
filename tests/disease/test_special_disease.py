@@ -8,7 +8,7 @@ from vivarium_public_health.disease import RiskAttributableDisease
 @pytest.fixture
 def disease_mock(mocker):
     def disease_with_distribution(distribution):
-        test_disease = RiskAttributableDisease('test_cause', 'test_risk')
+        test_disease = RiskAttributableDisease('cause.test_cause', 'risk_factor.test_risk')
         test_disease.distribution = distribution
         test_disease.population_view = mocker.Mock()
         test_disease._mortality = mocker.Mock()
@@ -74,15 +74,17 @@ def test_mortality_rate_pandas_series(disease_mock):
     disease = disease_mock('enesmble')
     num_sims = 500
     test_index = range(num_sims)
-    current_disease_status = [disease.name] * int(0.2 * num_sims) + \
-                             [f'susceptible_to_{disease.name}'] * int(num_sims * 0.8)
-    disease.population_view.get.side_effect =lambda index: pd.DataFrame({disease.name: current_disease_status,
+    current_disease_status = [disease.cause.name] * int(0.2 * num_sims) + \
+                             [f'susceptible_to_{disease.cause.name}'] * int(num_sims * 0.8)
+    disease.population_view.get.side_effect =lambda index: pd.DataFrame({disease.cause.name: current_disease_status,
                                                                         'alive': 'alive'}, index=index)
-    expected_mortality_values = pd.Series(current_disease_status, name=disease.name,
-                                          index=test_index).map({disease.name: 0.05, f'susceptible_to_{disease.name}':0})
+    expected_mortality_values = pd.Series(current_disease_status, name=disease.cause.name,
+                                          index=test_index).map({disease.cause.name: 0.05,
+                                                                 f'susceptible_to_{disease.cause.name}': 0})
     disease._mortality.return_value = expected_mortality_values
     rates_df = pd.Series(0, index=test_index, name='death_due_to_other_causes')
-    expected = pd.DataFrame({'death_due_to_other_causes': 0, disease.name: expected_mortality_values}, index=test_index)
+    expected = pd.DataFrame({'death_due_to_other_causes': 0, disease.cause.name: expected_mortality_values},
+                            index=test_index)
 
     assert np.all(expected == disease.mortality_rates(test_index, rates_df))
 
@@ -91,15 +93,16 @@ def test_mortality_rate_pandas_dataframe(disease_mock):
     disease = disease_mock('enesmble')
     num_sims = 500
     test_index = range(num_sims)
-    current_disease_status = [disease.name] * int(0.2 * num_sims) + \
-                             [f'susceptible_to_{disease.name}'] * int(num_sims * 0.8)
-    disease.population_view.get.side_effect = lambda index: pd.DataFrame({disease.name: current_disease_status,
+    current_disease_status = [disease.cause.name] * int(0.2 * num_sims) + \
+                             [f'susceptible_to_{disease.cause.name}'] * int(num_sims * 0.8)
+    disease.population_view.get.side_effect = lambda index: pd.DataFrame({disease.cause.name: current_disease_status,
                                                                           'alive': 'alive'}, index=index)
-    expected_mortality_values = pd.Series(current_disease_status, name=disease.name,
-                                          index=test_index).map({disease.name: 0.05, f'susceptible_to_{disease.name}': 0})
+    expected_mortality_values = pd.Series(current_disease_status, name=disease.cause.name,
+                                          index=test_index).map({disease.cause.name: 0.05,
+                                                                 f'susceptible_to_{disease.cause.name}': 0})
     disease._mortality.return_value = expected_mortality_values
     rates_df = pd.DataFrame({'death_due_to_other_causes': 0, 'another_test_cause': 0.001}, index=test_index)
     expected = pd.DataFrame({'death_due_to_other_causes': 0, 'another_test_cause': 0.001,
-                             disease.name: expected_mortality_values}, index=test_index)
+                             disease.cause.name: expected_mortality_values}, index=test_index)
 
     assert np.all(expected == disease.mortality_rates(test_index, rates_df))

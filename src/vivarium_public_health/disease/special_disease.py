@@ -3,6 +3,7 @@ import re
 from operator import lt, gt
 
 from collections import namedtuple
+from vivarium_public_health.risks.data_transformations import EntityString
 
 
 class RiskAttributableDisease:
@@ -44,10 +45,16 @@ class RiskAttributableDisease:
     Having your ``fasting_plasma_glucose`` drop below a provided level
     does not necessarily mean you're no longer diabetic however.
 
+    To add this component, you need to initialize it with full cause name
+    and full risk name, e.g.,
+
+    RiskAttributableDisease('cause.protein_energy_malnutrition',
+                            'risk_factor.child_wasting')
+
     Configuration defaults should be given as, for the continuous risk factor,
 
     diabetes_mellitus:
-        threshold : "<7"
+        threshold : ">7"
         mortality : True
         recoverable : False
 
@@ -67,45 +74,45 @@ class RiskAttributableDisease:
         }
     }
 
-    def __init__(self, name, risk):
-        self.name = name
-        self.risk = risk
+    def __init__(self, cause, risk):
+        self.cause = EntityString(cause)
+        self.risk = EntityString(risk)
         self.configuration_defaults = {
-            self.name: RiskAttributableDisease.configuration_defaults['risk_attributable_disease']
+            self.cause.name: RiskAttributableDisease.configuration_defaults['risk_attributable_disease']
         }
 
     def setup(self, builder):
-        self.recoverable = builder.configuration[self.name].recoverable
-        disability_weight = builder.data.load(f'cause.{self.name}.disability_weight')
+        self.recoverable = builder.configuration[self.cause.name].recoverable
 
-        if builder.configuration[self.name].mortality:
-            csmr_data = builder.data.load(f'cause.{self.name}.cause_specific_mortality')
+        if builder.configuration[self.cause.name].mortality:
+            csmr_data = builder.data.load(f'cause.{self.cause.name}.cause_specific_mortality')
             builder.value.register_value_modifier('csmr_data', lambda: csmr_data)
-            excess_mortality_data = builder.data.load(f'cause.{self.name}.excess_mortality')
+            excess_mortality_data = builder.data.load(f'{self.cause}.excess_mortality')
             builder.value.register_value_modifier('mortality_rate', self.mortality_rates)
             self._mortality = builder.value.register_value_producer(
-                f'{self.name}.excess_mortality', source=builder.lookup.build_table(excess_mortality_data)
+                f'{self.cause}.excess_mortality', source=builder.lookup.build_table(excess_mortality_data)
             )
 
+        disability_weight = builder.data.load(f'{self.cause}.disability_weight')
         self._disability_weight = builder.lookup.build_table(disability_weight)
-        self.disability_weight = builder.value.register_value_producer(f'{self.name}.disability_weight',
+        self.disability_weight = builder.value.register_value_producer(f'{self.cause}.disability_weight',
                                                                        source=self.compute_disability_weight)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
-        distribution = builder.data.load(f'risk_factor.{self.risk}.distribution')
-        exposure_pipeline = builder.value.get_value(f'{self.risk}.exposure')
-        threshold = builder.configuration[self.name].threshold
+        distribution = builder.data.load(f'{self.risk}.distribution')
+        exposure_pipeline = builder.value.get_value(f'{self.risk.name}.exposure')
+        threshold = builder.configuration[self.cause.name].threshold
 
         self.filter_by_exposure = self.get_exposure_filter(distribution, exposure_pipeline, threshold)
-        self.population_view = builder.population.get_view([self.name, 'alive'])
+        self.population_view = builder.population.get_view([self.cause.name, 'alive'])
 
         builder.event.register_listener('time_step', self.on_time_step)
         builder.population.initializes_simulants(self.on_initialize_simulants)
 
     def on_initialize_simulants(self, pop_data):
-        new_pop = pd.Series(f'susceptible_to_{self.name}', index=pop_data.index, name=self.name)
+        new_pop = pd.Series(f'susceptible_to_{self.cause.name}', index=pop_data.index, name=self.cause.name)
         sick = self.filter_by_exposure(pop_data.index)
-        new_pop[sick] = self.name
+        new_pop[sick] = self.cause.name
         self.population_view.update(new_pop)
 
     def on_time_step(self, event):
@@ -113,8 +120,8 @@ class RiskAttributableDisease:
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
         if self.recoverable:
-            pop.loc[~sick, self.name] = f'susceptible_to_{self.name}'
-        pop.loc[sick, self.name] = self.name
+            pop.loc[~sick, self.cause.name] = f'susceptible_to_{self.cause.name}'
+        pop.loc[sick, self.cause.name] = self.cause.name
         self.population_view.update(pop)
 
     def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
@@ -155,13 +162,13 @@ class RiskAttributableDisease:
     def mortality_rates(self, index, rates_df):
         population = self.population_view.get(index)
         rate = (self._mortality(population.index, skip_post_processor=True)
-                * (population[self.name] == self.name))
+                * (population[self.cause.name] == self.cause.name))
         if isinstance(rates_df, pd.Series):
-            rates_df = pd.DataFrame({rates_df.name: rates_df, self.name: rate})
+            rates_df = pd.DataFrame({rates_df.name: rates_df, self.cause.name: rate})
         else:
-            rates_df[self.name] = rate
+            rates_df[self.cause.name] = rate
         return rates_df
 
     def compute_disability_weight(self, index):
-        population = self.population_view.get(index, query=f'alive=="alive" and {self.name}=="{self.name}"')
+        population = self.population_view.get(index, query=f'alive=="alive" and {self.cause.name}=="{self.cause.name}"')
         return self._disability_weight(population.index)
