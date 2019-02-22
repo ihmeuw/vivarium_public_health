@@ -356,34 +356,49 @@ def get_cause_deleted_mortality(all_cause_mortality, list_of_csmrs):
 
 
 def load_population_structure(builder):
-    data = builder.data.load("population.structure", future=builder.configuration.input_data.forecast)
+    data = builder.data.load("population.structure")
     # create an age column which is the midpoint of the age group
     data['age'] = data.apply(lambda row: (row['age_group_start'] + row['age_group_end']) / 2, axis=1)
     return data
 
 
-def get_crude_birth_rate(builder):
+def get_live_births_per_year(builder):
     population_data = load_population_structure(builder)
-    birth_data = builder.data.load("covariate.live_births_by_sex.estimate",
-                                   future=builder.configuration.input_data.forecast)
+    birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
+
     validate_crude_birth_rate_data(builder, population_data.year_end.max())
     population_data = rescale_final_age_bin(builder, population_data)
 
+    initial_population_size = builder.configuration.population.population_size
     population_data = population_data.groupby(['year_start'])['value'].sum()
     birth_data = (birth_data[birth_data.parameter == 'mean_value']
                   .drop('parameter', 'columns')
                   .groupby(['year_start'])['value'].sum())
 
-    birth_rate = ((birth_data / population_data)
-                  .reset_index()
-                  .rename(columns={'year_start': 'year'})
-                  .set_index('year')
-                  .value)
-    exceeds_data = builder.configuration.time.end.year > birth_rate.index.max()
-    if exceeds_data:
-        new_index = pd.RangeIndex(birth_rate.index.min(), builder.configuration.time.end.year + 1)
-        birth_rate = birth_rate.reindex(new_index, fill_value=birth_rate.at[birth_rate.index.max()])
-    return birth_rate
+    if not builder.configuration.fertility.time_dependent_live_births:
+        birth_data = birth_data.at[builder.configuration.time.start.year]
+
+    if not builder.configuration.fertility.time_dependent_population_fraction:
+        population_data = population_data.at[builder.configuration.time.start.year]
+
+    live_birth_rate = initial_population_size / population_data * birth_data
+
+    if isinstance(live_birth_rate, (int, float)):
+        live_birth_rate = pd.Series(live_birth_rate, index=pd.RangeIndex(builder.configuration.time.start.year,
+                                                                         builder.configuration.time.end.year + 1,
+                                                                         name='year'))
+    else:
+        live_birth_rate = (live_birth_rate
+                           .reset_index()
+                           .rename(columns={'year_start': 'year'})
+                           .set_index('year')
+                           .value)
+        exceeds_data = builder.configuration.time.end.year > live_birth_rate.index.max()
+        if exceeds_data:
+            new_index = pd.RangeIndex(live_birth_rate.index.min(), builder.configuration.time.end.year + 1)
+            live_birth_rate = live_birth_rate.reindex(new_index,
+                                                      fill_value=live_birth_rate.at[live_birth_rate.index.max()])
+    return live_birth_rate
 
 
 def rescale_final_age_bin(builder, population_data):

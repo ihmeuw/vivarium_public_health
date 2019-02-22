@@ -2,19 +2,18 @@ from collections import defaultdict
 
 import pandas as pd
 
-from .utilities import get_age_bins, get_output_template
-from .mortality import to_years
+from .utilities import get_age_bins, get_output_template, to_years
 
 
 class DiseaseObserver:
-    """ An observer for disease cases and person time susceptible to
-    the specific disease during simulation. This component by default
-    observes the total number of disease cases and total sum of susceptible
-    person time by each demographic group (age and sex) by each simulation
-    year.
+    """Observes disease counts and person time for a single cause.
+
+    By default, this observer computes aggregate susceptible person time
+    and counts of disease cases over the entire simulation.  It can be
+    configured to bin these into age_groups, sexes, and years by setting
+    the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
 
     """
-
     configuration_defaults = {
         'disease_observer': {
             'by_age': False,

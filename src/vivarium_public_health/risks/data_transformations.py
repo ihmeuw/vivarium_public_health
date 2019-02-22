@@ -1,6 +1,9 @@
+from typing import Union
+
 import numpy as np
 import pandas as pd
 
+from vivarium.framework.randomness import RandomnessStream
 from vivarium_public_health.risks import distributions
 
 
@@ -197,18 +200,19 @@ def rebin_exposure_data(builder, risk: RiskString, data: pd.DataFrame):
 # Relative risk data handlers #
 ###############################
 
-def get_relative_risk_data(builder, risk: RiskString, target: TargetString):
-    validate_relative_risk_data_source(builder, risk, target)
-    relative_risk_data = load_relative_risk_data(builder, risk, target)
+def get_relative_risk_data(builder, risk: RiskString, target: TargetString, randomness: RandomnessStream):
+    source_type = validate_relative_risk_data_source(builder, risk, target)
+    relative_risk_data = load_relative_risk_data(builder, risk, target, source_type, randomness)
     relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
     return relative_risk_data
 
 
-def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
+def load_relative_risk_data(builder, risk: RiskString, target: TargetString,
+                            source_type: str, randomness: RandomnessStream):
     distribution_type = get_distribution_type(builder, risk)
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
-    if relative_risk_source == 'data':
+    if source_type == 'data':
         relative_risk_data = builder.data.load(f'{risk}.relative_risk')
         correct_target = ((relative_risk_data['affected_entity'] == target.name)
                           & (relative_risk_data['affected_measure'] == target.measure))
@@ -216,19 +220,55 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString):
                               .drop(['affected_entity', 'affected_measure'], 'columns'))
         if distribution_type in ['normal', 'lognormal', 'ensemble']:
             relative_risk_data = relative_risk_data.drop(['parameter'], 'columns')
-    else:
-        cat1 = builder.data.load('population.demographic_dimensions')
-        cat1['parameter'] = 'cat1'
-        cat1['value'] = float(relative_risk_source)
-        cat2 = cat1.copy()
-        cat2['parameter'] = 'cat2'
-        cat2['value'] = 1 - cat2['value']
-        relative_risk_data = pd.concat([cat1, cat2], ignore_index=True)
+
+    elif source_type == 'relative risk value':
+        relative_risk_data = _make_relative_risk_data(builder, float(relative_risk_source['relative_risk']))
+
+    else:  # distribution
+        parameters = {k: v.get_value() for k, v in relative_risk_source.items() if v.get_value() is not None}
+        random_state = np.random.RandomState(randomness.get_seed())
+        cat1_value = generate_relative_risk_from_distribution(random_state, parameters)
+        relative_risk_data = _make_relative_risk_data(builder, cat1_value)
 
     if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
         relative_risk_data = pivot_categorical(relative_risk_data)
 
     return relative_risk_data
+
+
+def generate_relative_risk_from_distribution(random_state: np.random.RandomState,
+                                             parameters: dict) -> Union[float, pd.Series, np.ndarray]:
+    first = pd.Series(list(parameters.values())[0])
+    length = len(first)
+    index = first.index
+
+    for v in parameters.values():
+        if length != len(pd.Series(v)) or not index.equals(pd.Series(v).index):
+            raise ValueError('If specifying vectorized parameters, all parameters '
+                             'must be the same length and have the same index.')
+
+    if 'mean' in parameters:  # normal distribution
+        rr_value = random_state.normal(parameters['mean'], parameters['se'])
+    elif 'log_mean' in parameters:  # log distribution
+        rr_value = np.exp(parameters['log_se'] * random_state.randn()
+                          + parameters['log_mean'] + random_state.normal(0, parameters['tau_squared']))
+    else:
+        raise NotImplementedError(f'Only normal distributions (supplying mean and se) and log distributions '
+                                  f'(supplying log_mean, log_se, and tau_squared) are currently supported.')
+
+    rr_value = np.maximum(1, rr_value)
+
+    return rr_value
+
+
+def _make_relative_risk_data(builder, cat1_value: float) -> pd.DataFrame:
+    cat1 = builder.data.load('population.demographic_dimensions')
+    cat1['parameter'] = 'cat1'
+    cat1['value'] = cat1_value
+    cat2 = cat1.copy()
+    cat2['parameter'] = 'cat2'
+    cat2['value'] = 1
+    return pd.concat([cat1, cat2], ignore_index=True)
 
 
 def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.DataFrame) -> pd.DataFrame:
@@ -303,7 +343,8 @@ def get_exposure_effect(builder, risk: RiskString):
 # Population attributable fraction data handlers #
 ##################################################
 
-def get_population_attributable_fraction_data(builder, risk: RiskString, target: TargetString):
+def get_population_attributable_fraction_data(builder, risk: RiskString,
+                                              target: TargetString, randomness: RandomnessStream):
     exposure_source = builder.configuration[f'{risk.name}']['exposure']
     rr_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
@@ -316,7 +357,7 @@ def get_population_attributable_fraction_data(builder, risk: RiskString, target:
     else:
         key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
         exposure_data = get_exposure_data(builder, risk).set_index(key_cols)
-        relative_risk_data = get_relative_risk_data(builder, risk, target).set_index(key_cols)
+        relative_risk_data = get_relative_risk_data(builder, risk, target, randomness).set_index(key_cols)
         mean_rr = (exposure_data * relative_risk_data).sum(axis=1)
         paf_data = ((mean_rr - 1)/mean_rr).reset_index().rename(columns={0: 'value'})
     return paf_data
@@ -388,7 +429,7 @@ def validate_distribution_data_source(builder, risk: RiskString):
     elif risk.type in ['risk_factor', 'coverage_gap']:
         if isinstance(exposure_type, (int, float)) and not 0 <= exposure_type <= 1:
             raise ValueError(f"Exposure should be in the range [0, 1]")
-        elif isinstance(exposure_type, str) and exposure_type.split('.')[0] not in ['covariate', 'data'] :
+        elif isinstance(exposure_type, str) and exposure_type.split('.')[0] not in ['covariate', 'data']:
             raise ValueError(f"Exposure must be specified as 'data', an integer or float value, "
                              f"or as a string in the format covariate.covariate_name")
         else:
@@ -398,11 +439,39 @@ def validate_distribution_data_source(builder, risk: RiskString):
 
 
 def validate_relative_risk_data_source(builder, risk: RiskString, target: TargetString):
-    relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
+    source_key = f'effect_of_{risk.name}_on_{target.name}'
+    relative_risk_source = builder.configuration[source_key][target.measure]
 
-    if isinstance(relative_risk_source, (int, float)) and not 1 <= relative_risk_source <= 100:
-        raise ValueError(f"Relative risk should be in the range [1, 100]")
-    elif relative_risk_source == 'data':
-        pass
+    provided_keys = set(k for k, v in relative_risk_source.items() if isinstance(v.get_value(), (int, float)))
+
+    source_map = {'data': set(),
+                  'relative risk value': {'relative_risk'},
+                  'normal distribution': {'mean', 'se'},
+                  'log distribution': {'log_mean', 'log_se', 'tau_squared'}}
+
+    if provided_keys not in source_map.values():
+        raise ValueError(f'The acceptable parameter options for specifying relative risk are: '
+                         f'{source_map.values()}. You provided {provided_keys} for {source_key}.')
+
+    source_type = [k for k, v in source_map.items() if provided_keys == v][0]
+
+    if source_type == 'relative risk value':
+        if not 1 <= relative_risk_source['relative_risk'] <= 100:
+            raise ValueError(f"If specifying a single value for relative risk, it should be in the "
+                             f"range [1, 100]. You provided {relative_risk_source['relative_risk']} for {source_key}.")
+    elif source_type == 'normal distribution':
+        if relative_risk_source['mean'] <= 0 or relative_risk_source['se'] <= 0:
+            raise ValueError(f"To specify parameters for a normal distribution for a risk effect, you must provide"
+                             f"both mean and se above 0. This is not the case for {source_key}.")
+    elif source_type == 'log distribution':
+        if relative_risk_source['log_mean'] <= 0 or relative_risk_source['log_se'] <= 0:
+            raise ValueError(f"To specify parameters for a log distribution for a risk effect, you must provide"
+                             f"both log_mean and log_se above 0. This is not the case for {source_key}.")
+        if relative_risk_source['tau_squared'] < 0:
+            raise ValueError(f"To specify parameters for a log distribution for a risk effect, you must provide"
+                             f"tau_squared >= 0. This is not the case for {source_key}.")
     else:
-        raise ValueError(f'Invalid risk effect specification for risk {risk.name} and target {target.name}')
+        pass
+
+    return source_type
+
