@@ -13,17 +13,21 @@ class DiseaseObserver:
 
     """
     configuration_defaults = {
-        'disease_observer': {
-            'by_age': False,
-            'by_year': False,
-            'by_sex': False,
+        'metrics': {
+            'disease_observer': {
+                'by_age': False,
+                'by_year': False,
+                'by_sex': False,
+            }
         }
     }
 
     def __init__(self, disease: str):
         self.disease = disease
         self.name = f'{self.disease}_observer'
-        self.configuration_defaults = {self.name: DiseaseObserver.configuration_defaults['disease_observer']}
+        self.configuration_defaults = {
+            'metrics': {self.name: DiseaseObserver.configuration_defaults['disease_observer']}
+        }
 
     def setup(self, builder):
         self.config = builder.configuration[self.name]
