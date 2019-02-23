@@ -4,6 +4,7 @@
  - Remove forecast flags
  - Update crude birth rate fertility component
  - Allow parameterization of RiskEffect components with normal and lognormal distributions.
+ - New observers for disease and treatment.
 
 **0.9.1 - 02/14/19**
 
