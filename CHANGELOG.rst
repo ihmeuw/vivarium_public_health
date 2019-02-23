@@ -1,3 +1,10 @@
+**0.8.14 - 02/22/19**
+
+ - Pin numpy and tables dependencies.
+ - Update crude birth rate fertility component
+ - Allow parameterization of RiskEffect components with normal and lognormal distributions.
+ - New observers for disease and treatment.
+
 **0.8.13 - 01/04/19**
 
  - Added support for multi-location data artifacts.
