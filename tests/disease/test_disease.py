@@ -374,7 +374,12 @@ def test_no_birth_prevalence_initial_assignment(base_config, disease):
     # prevalence should be used for assigning initial status at sim start
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 1)
 
-    # with no birth prevalence provided, it should default to 0
+    # with no birth prevalence provided, it should default to 0 for ages start = end = 0
     simulation.clock.step_forward()
     simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0})
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.5, 0.01)
+
+    # and default to prevalence for ages not start = end = 0
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.67, 0.01)
