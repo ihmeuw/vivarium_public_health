@@ -1,7 +1,7 @@
 import pandas as pd
 
 from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, RecoveredState,
-                                            DiseaseState, DiseaseModel, BaseDiseaseState)
+                                            DiseaseState, DiseaseModel)
 
 
 class SI:
@@ -165,7 +165,7 @@ class NeonatalSWC_without_incidence:
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
         disease_model_data_functions = {}
 
-        healthy = BaseDiseaseState(self.cause)
+        healthy = SusceptibleState(self.cause)
 
         with_condition_data_functions = {'birth_prevalence':
                                          lambda cause, builder: builder.data.load(f"cause.{cause}.birth_prevalence")}
