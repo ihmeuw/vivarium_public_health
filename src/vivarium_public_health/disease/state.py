@@ -200,7 +200,8 @@ class DiseaseState(BaseDiseaseState):
         get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: pd.Timedelta(0))
 
         self.prevalence_data = builder.lookup.build_table(get_prevalence_func(self.cause, builder))
-        self.birth_prevalence_data = builder.lookup.build_table(get_birth_prevalence_func(self.cause, builder))
+        self.birth_prevalence_data = builder.lookup.build_table(get_birth_prevalence_func(self.cause, builder),
+                                                                parameter_columns=(['year', 'year_start', 'year_end']))
         self._dwell_time = get_dwell_time_func(self.cause, builder)
         self.randomness_prevalence = builder.randomness.get_stream(f'{self.state_id}_prevalent_cases')
 
