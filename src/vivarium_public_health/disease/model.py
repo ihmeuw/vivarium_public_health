@@ -114,7 +114,7 @@ class DiseaseModel(Machine):
 
         # FIXME: this is a hack to figure out whether or not we're at the simulation start based on the fact that the
         #  fertility components create this user data
-        if pop_data.user_data is None:  # simulation start
+        if not pop_data.user_data:  # simulation start
             if self.configuration_age_start != self.configuration_age_end != 0:
                 state_names, weights_bins = self.get_state_weights(pop_data.index, "prevalence")
             else:
