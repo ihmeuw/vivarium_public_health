@@ -358,6 +358,11 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, disease):
     simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0})
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.75, 0.01)
 
+    # and prevalence should be used for ages not start = end = 0
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.83, 0.01)
+
 
 def test_no_birth_prevalence_initial_assignment(base_config, disease):
     healthy = BaseDiseaseState('healthy')
