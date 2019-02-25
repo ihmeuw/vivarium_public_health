@@ -82,7 +82,7 @@ class DiseaseModel(Machine):
         if not states:
             return states, None
 
-        weights = [s[f'{prevalence_type}_data'](pop_index) for s in states]
+        weights = [getattr(s, f'{prevalence_type}_data')(pop_index) for s in states]
         for w in weights:
             w.reset_index(inplace=True, drop=True)
         weights += ((1 - np.sum(weights, axis=0)), )
