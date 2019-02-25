@@ -156,7 +156,7 @@ class SIR_fixed_duration:
                                                         get_data_functions=disease_model_data_functions)])
 
 
-class NeonatalSWCWithoutIncidence:
+class NeonatalSWC_without_incidence:
 
     def __init__(self, cause: str):
         self.cause = cause
@@ -182,7 +182,7 @@ class NeonatalSWCWithoutIncidence:
                                                         get_data_functions=disease_model_data_functions)])
 
 
-class NeonatalSWCWithIncidence:
+class NeonatalSWC_with_incidence:
 
     def __init__(self, cause: str):
         self.cause = cause
