@@ -77,8 +77,7 @@ class DiseaseModel(Machine):
         return self._csmr_data
 
     def get_state_weights(self, pop_index, prevalence_type):
-        states = [s for s in self.states if hasattr(s, f'{prevalence_type}_data') and
-                  getattr(s, f'{prevalence_type}_data') is not None]
+        states = [s for s in self.states if hasattr(s, f'{prevalence_type}_data') and getattr(s, f'{prevalence_type}_data') is not None]
 
         if not states:
             return states, None
@@ -112,7 +111,7 @@ class DiseaseModel(Machine):
         self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))
 
         assert self.initial_state in {s.state_id for s in self.states}
-
+        import pdb; pdb.set_trace()
         # FIXME: this is a hack to figure out whether or not we're at the simulation start based on the fact that the
         #  fertility components create this user data
         if not pop_data.user_data:  # simulation start
