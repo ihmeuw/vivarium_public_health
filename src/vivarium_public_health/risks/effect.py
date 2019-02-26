@@ -16,7 +16,14 @@ class RiskEffect:
 
     configuration_defaults = {
         'effect_of_risk_on_target': {
-            'measure': 'data',
+            'measure': {
+                'relative_risk': None,
+                'mean': None,
+                'se': None,
+                'log_mean': None,
+                'log_se': None,
+                'tau': None
+            }
         }
     }
 
@@ -42,9 +49,11 @@ class RiskEffect:
         }
 
     def setup(self, builder):
-        self.relative_risk = builder.lookup.build_table(get_relative_risk_data(builder, self.risk, self.target))
+        self.randomness = builder.randomness.get_stream(f'effect_of_{self.risk.name}_on_{self.target.name}')
+        self.relative_risk = builder.lookup.build_table(get_relative_risk_data(builder, self.risk,
+                                                                               self.target, self.randomness))
         self.population_attributable_fraction = builder.lookup.build_table(
-            get_population_attributable_fraction_data(builder, self.risk, self.target)
+            get_population_attributable_fraction_data(builder, self.risk, self.target, self.randomness)
         )
 
         self.exposure_effect = get_exposure_effect(builder, self.risk)
