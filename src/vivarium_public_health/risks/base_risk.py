@@ -1,6 +1,6 @@
 import pandas as pd
 
-from vivarium_public_health.risks.data_transformations import EntityString, get_distribution, get_exposure_post_processor
+from vivarium_public_health.risks.data_transformations import RiskString, get_distribution, get_exposure_post_processor
 
 
 class Risk:
@@ -38,7 +38,7 @@ class Risk:
         risk :
             the type and name of a risk, specified as "type.name". Type is singular.
         """
-        self.risk = EntityString(risk)
+        self.risk = RiskString(risk)
         self.configuration_defaults = {f'{self.risk.name}': Risk.configuration_defaults['risk']}
 
     def setup(self, builder):
