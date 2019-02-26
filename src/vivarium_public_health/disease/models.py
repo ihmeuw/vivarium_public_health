@@ -156,9 +156,9 @@ class SIR_fixed_duration:
                                                         get_data_functions=disease_model_data_functions)])
 
 
-class neonatal:
+class NeonatalSWC_without_incidence:
 
-    def __init__(self, cause):
+    def __init__(self, cause: str):
         self.cause = cause
 
     def setup(self, builder):
@@ -166,18 +166,44 @@ class neonatal:
         disease_model_data_functions = {}
 
         healthy = SusceptibleState(self.cause)
+
+        with_condition_data_functions = {'birth_prevalence':
+                                         lambda cause, builder: builder.data.load(f"cause.{cause}.birth_prevalence")}
         if only_morbid:
-            with_condition = DiseaseState(self.cause)
+            with_condition = DiseaseState(self.cause, get_data_functions=with_condition_data_functions)
             disease_model_data_functions['csmr'] = lambda _, __: None
         else:
-            with_condition = ExcessMortalityState(self.cause)
+            with_condition = ExcessMortalityState(self.cause, get_data_functions=with_condition_data_functions)
 
         healthy.allow_self_transitions()
         with_condition.allow_self_transitions()
 
-        # TODO: some neonatal causes (e.g. sepsis) have incidence and remission at least at the MEID level
-        # healthy.add_transition(with_condition, source_data_type='rate')
-        # with_condition.add_transition(healthy, source_data_type='rate')
+        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, with_condition],
+                                                        get_data_functions=disease_model_data_functions)])
+
+
+class NeonatalSWC_with_incidence:
+
+    def __init__(self, cause: str):
+        self.cause = cause
+
+    def setup(self, builder):
+        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
+        disease_model_data_functions = {}
+
+        healthy = SusceptibleState(self.cause)
+
+        with_condition_data_functions = {'birth_prevalence':
+                                         lambda cause, builder: builder.data.load(f"cause.{cause}.birth_prevalence")}
+        if only_morbid:
+            with_condition = DiseaseState(self.cause, get_data_functions=with_condition_data_functions)
+            disease_model_data_functions['csmr'] = lambda _, __: None
+        else:
+            with_condition = ExcessMortalityState(self.cause, get_data_functions=with_condition_data_functions)
+
+        healthy.allow_self_transitions()
+        healthy.add_transition(with_condition, source_data_type='rate')
+        with_condition.allow_self_transitions()
 
         builder.components.add_components([DiseaseModel(self.cause, states=[healthy, with_condition],
                                                         get_data_functions=disease_model_data_functions)])
