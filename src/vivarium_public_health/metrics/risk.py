@@ -1,5 +1,5 @@
 import pandas as pd
-from vivarium_public_health.risks.data_transformations import RiskString
+from vivarium_public_health.risks.data_transformations import EntityString
 
 from .utilities import get_age_bins
 
@@ -39,7 +39,7 @@ class CategoricalRiskObserver:
         the type and name of a risk, specified as "type.name". Type is singular.
 
         """
-        self.risk = RiskString(risk)
+        self.risk = EntityString(risk)
         self.configuration_defaults = {'metrics': {
             f'{self.risk.name}_observer': CategoricalRiskObserver.configuration_defaults['metrics']['risk_observer']
         }}

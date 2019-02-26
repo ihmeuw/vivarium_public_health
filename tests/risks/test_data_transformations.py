@@ -3,7 +3,7 @@ import hypothesis.strategies as st
 import hypothesis.extra.pandas as pdst
 import pytest
 
-from vivarium_public_health.risks.data_transformations import RiskString, TargetString
+from vivarium_public_health.risks.data_transformations import EntityString, TargetString
 
 
 @st.composite
@@ -14,15 +14,15 @@ def component_string(draw, min_components=0, max_components=None):
 
 
 @given(component_string().filter(lambda x: len(x.split('.')) != 2))
-def test_RiskString_fail(s):
+def test_EntityString_fail(s):
     with pytest.raises(ValueError):
-        RiskString(s)
+        EntityString(s)
 
 
 @given(component_string(2, 2))
-def test_RiskString_pass(s):
+def test_EntityString_pass(s):
     risk_type, risk_name = s.split('.')
-    r = RiskString(s)
+    r = EntityString(s)
     assert r.type == risk_type
     assert r.name == risk_name
 
