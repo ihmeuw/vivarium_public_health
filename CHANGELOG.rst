@@ -1,3 +1,15 @@
+**0.9.3 - 02/26/19**
+
+ - Bugfix in checking relative risk source type from configuration.
+
+**0.9.2 - 02/22/19**
+
+ - Pin numpy and tables dependencies.
+ - Remove forecast flags
+ - Update crude birth rate fertility component
+ - Allow parameterization of RiskEffect components with normal and lognormal distributions.
+ - New observers for disease and treatment.
+
 **0.9.1 - 02/14/19**
 
  - Update dependencies

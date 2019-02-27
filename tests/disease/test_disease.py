@@ -335,3 +335,56 @@ def test__assign_event_time_for_prevalent_cases():
 
     assert expected.equals(DiseaseState._assign_event_time_for_prevalent_cases(pop_data, current_time, random_func,
                                                                                dwell_time_func))
+
+
+def test_prevalence_birth_prevalence_initial_assignment(base_config, disease):
+    healthy = BaseDiseaseState('healthy')
+
+    data_funcs = {'prevalence': lambda _, __: 1,
+                  'birth_prevalence': lambda _, __: 0.5,
+                  'disability_weight': lambda _, __: 0}
+    with_condition = DiseaseState('with_condition', get_data_functions=data_funcs)
+
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition],
+                         get_data_functions={'csmr': lambda _, __: None})
+    base_config.update({'population': {'population_size': 1000, 'age_start': 0, 'age_end': 5}}, **metadata(__file__))
+    simulation = setup_simulation([TestPopulation(), model], base_config)
+
+    # prevalence should be used for assigning initial status at sim start
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 1)
+
+    # birth prevalence should be used for assigning initial status to newly-borns on time steps
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.75, 0.01)
+
+    # and prevalence should be used for ages not start = end = 0
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.83, 0.01)
+
+
+def test_no_birth_prevalence_initial_assignment(base_config, disease):
+    healthy = BaseDiseaseState('healthy')
+
+    data_funcs = {'prevalence': lambda _, __: 1,
+                  'disability_weight': lambda _, __: 0}
+    with_condition = DiseaseState('with_condition', get_data_functions=data_funcs)
+
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition],
+                         get_data_functions={'csmr': lambda _, __: None})
+    base_config.update({'population': {'population_size': 1000, 'age_start': 0, 'age_end': 5}}, **metadata(__file__))
+    simulation = setup_simulation([TestPopulation(), model], base_config)
+
+    # prevalence should be used for assigning initial status at sim start
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 1)
+
+    # with no birth prevalence provided, it should default to 0 for ages start = end = 0
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.5, 0.01)
+
+    # and default to prevalence for ages not start = end = 0
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.67, 0.01)

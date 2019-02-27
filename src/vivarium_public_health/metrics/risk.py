@@ -1,6 +1,7 @@
 import pandas as pd
 from vivarium_public_health.utilities import EntityString
 
+
 from .utilities import get_age_bins
 
 
