@@ -6,10 +6,13 @@ import pandas as pd
 from vivarium.framework.randomness import RandomnessStream
 from vivarium_public_health.risks import distributions
 
+REBIN_UNSUPPORTED = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
+
 
 #############
 # Utilities #
 #############
+
 
 class RiskString(str):
     """Convenience class for representing risks as strings."""
@@ -96,7 +99,6 @@ def get_exposure_post_processor(builder, risk: RiskString):
 
 def load_distribution_data(builder, risk: RiskString):
     exposure_data = get_exposure_data(builder, risk)
-    exposure_data = rebin_exposure_data(builder, risk, exposure_data)
 
     data = {'distribution_type': get_distribution_type(builder, risk),
             'exposure': exposure_data,
@@ -117,6 +119,12 @@ def get_distribution_type(builder, risk: RiskString):
 
 
 def get_exposure_data(builder, risk: RiskString):
+    exposure_data = load_exposure_data(builder, risk)
+    exposure_data = rebin_exposure_data(builder, risk, exposure_data)
+    return exposure_data
+
+
+def load_exposure_data(builder, risk: RiskString):
     risk_config = builder.configuration[risk.name]
     exposure_source = risk_config['exposure']
     distribution_type = get_distribution_type(builder, risk)
@@ -167,33 +175,25 @@ def get_exposure_distribution_weights(builder, risk: RiskString):
     return weights
 
 
-def rebin_exposure_data(builder, risk: RiskString, data: pd.DataFrame):
-    rebin = builder.configuration[risk.name]['rebin']
-    # if 'polytomous' in distribution_type:
-    #     rebin_unsupported = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
-    #     if risk_config['rebin'] and risk.name in rebin_unsupported:
-    #         raise NotImplementedError(f'{risk.name} cannot be rebinned.')
-    #     elif risk_config['rebin'] and not raw:
-    #         exposure_data = rebin_exposure_data(exposure_data)
+def rebin_exposure_data(builder, risk: RiskString, exposure_data: pd.DataFrame):
+    validate_rebin_source(builder, risk, exposure_data)
+    rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
+    distribution_type = get_distribution_type(builder, risk)
+    if 'polytomous' in distribution_type and rebin_exposed_categories:
+        if risk.name in REBIN_UNSUPPORTED:
+            raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
 
-    # unexposed = sorted([c for c in data['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
-    # middle_cats = set(data['parameter']) - {unexposed} - {'cat1'}
-    # data['sex'] = data['sex'].astype(object)
-    # df = data.groupby(['year_start', 'year_end', 'age_group_start', 'age_group_end', 'sex'], as_index=False)
-    # assert np.allclose(df['value'].sum().value, 1)
-    #
-    # def rebin(g):
-    #     g.reset_index(inplace=True)
-    #     to_drop = g['parameter'].isin(middle_cats)
-    #     g.drop(g[to_drop].index, inplace=True)
-    #
-    #     g.loc[g.parameter == 'cat1', 'value'] = 1 - g[g.parameter == unexposed].loc[:, 'value'].values
-    #     return g
-    #
-    # df = df.apply(rebin).reset_index().replace(unexposed, 'cat2')
-    if rebin:
-        raise NotImplementedError()
-    return data
+        exposed = exposure_data[exposure_data.parameter.isin(rebin_exposed_categories)].drop("parameter", "columns")
+        exposed = exposed.groupby(list(exposed.columns.difference(['value']))).sum().reset_index()
+        exposed["parameter"] = 'cat1'
+
+        unexposed = exposed.copy()
+        unexposed["parameter"] = 'cat2'
+        unexposed["value"] = 1 - unexposed["value"]
+
+        exposure_data = pd.concat([exposed, unexposed], ignore_index=True)
+
+    return exposure_data
 
 
 ###############################
@@ -273,48 +273,31 @@ def _make_relative_risk_data(builder, cat1_value: float) -> pd.DataFrame:
 
 def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.DataFrame) -> pd.DataFrame:
     """ When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
-        For the exposed categories of relative risk (after rebinning) should be the weighted sum of relative risk
-        of those categories where weights are relative proportions of exposure of those categories.
+        After rebinning, rr for both exposed and unexposed categories should be the weighted sum of relative risk
+        of the component categories where weights are relative proportions of exposure of those categories.
         For example, if cat1, cat2, cat3 are exposed categories and cat4 is unexposed with exposure [0.1,0.2,0.3,0.4],
         for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
         (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
     """
-    # if 'polytomous' in distribution_type:
-    #     rebin_unsupported = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
-    #     if risk_config['rebin'] and risk.name in rebin_unsupported:
-    #         raise NotImplementedError(f'{risk.name} cannot be rebinned.')
-    #     elif risk_config['rebin']:
-    #         relative_risk_data = rebin_relative_risk_data(exposure_data)
+    rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
+    distribution_type = get_distribution_type(builder, risk)
 
-    # df = exposure.merge(rr, on=['parameter', 'sex', 'age_group_start', 'age_group_end',
-    #                             'year_start', 'year_end'])
-    #
-    # df = df.groupby(['year_start', 'year_end', 'age_group_start', 'age_group_end', 'sex'], as_index=False)
-    #
-    # unexposed = sorted([c for c in rr['parameter'].unique() if 'cat' in c], key=lambda c: int(c[3:]))[-1]
-    # middle_cats = set(rr['parameter']) - {unexposed} - {'cat1'}
-    # rr['sex'] = rr['sex'].astype(object)
-    # exposure['sex'] = exposure['sex'].astype(object)
-    #
-    # def rebin_rr(g):
-    #     # value_x = exposure, value_y = rr
-    #     g['weighted_rr'] = g['value_x']*g['value_y']
-    #     x = g['weighted_rr'].sum()-g.loc[g.parameter == unexposed, 'weighted_rr']
-    #     x /= g['value_x'].sum()-g.loc[g.parameter == unexposed, 'value_x'].values
-    #     to_drop = g['parameter'].isin(middle_cats)
-    #     g.drop(g[to_drop].index, inplace=True)
-    #     g.drop(['value_x', 'value_y', 'weighted_rr'], axis=1, inplace=True)
-    #     g['value'] = x.iloc[0]
-    #     g.loc[g.parameter == unexposed, 'value'] = 1.0
-    #     g['value'].fillna(0, inplace=True)
-    #     return g
-    #
-    # df = df.apply(rebin_rr).reset_index().loc[:, ['parameter', 'sex', 'value', 'age_group_start',
-    #                                               'age_group_end', 'year_start', 'year_end']]
-    # return df.replace(unexposed, 'cat2')
-    rebin = builder.configuration[risk.name]['rebin']
-    if rebin:
-        raise NotImplementedError()
+    if 'polytomous' in distribution_type and rebin_exposed_categories:
+        if risk.name in REBIN_UNSUPPORTED:
+            raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
+
+        exposure_data = load_exposure_data(builder, risk)
+        cols = list(exposure_data.columns.difference(['value']))
+
+        relative_risk_data = relative_risk_data.merge(exposure_data, on=cols)
+        relative_risk_data['value_x'] = relative_risk_data.value_x.multiply(relative_risk_data.value_y)
+        relative_risk_data.parameter = (
+            relative_risk_data["parameter"].map(lambda p: 'cat1' if p in rebin_exposed_categories else 'cat2'))
+        relative_risk_data = relative_risk_data.groupby(
+            cols + ['affected_measure', 'affected_entity']).sum().reset_index()
+        relative_risk_data['value'] = relative_risk_data.value_x.divide(relative_risk_data.value_y, 0)
+        relative_risk_data = relative_risk_data.drop(['value_x', 'value_y'], 'columns')
+
     return relative_risk_data
 
 
@@ -361,52 +344,6 @@ def get_population_attributable_fraction_data(builder, risk: RiskString,
         mean_rr = (exposure_data * relative_risk_data).sum(axis=1)
         paf_data = ((mean_rr - 1)/mean_rr).reset_index().rename(columns={0: 'value'})
     return paf_data
-
-
-# def _get_paf_data(self, builder):
-#     risk_config = builder.configuration[self.risk.name]
-#     exposure_source = risk_config['exposure']
-#     rr_source = builder.configuration[f'effect_of_{self.risk.name}_on_{self.target.name}'][self.target.measure]
-#
-#     if exposure_source == 'data' and rr_source == 'data':
-#         paf_data = builder.data.load(f'{self.risk}.population_attributable_fraction')
-#     elif exposure_source == 'data':
-#         rr = self._get_relative_risk_data(builder)
-#
-#
-#     # if self._config_data:
-#     #     exposure = build_exp_data_from_config(builder, self.risk)
-#     #     rr = build_rr_data_from_config(builder, self.risk, self.affected_entity, self.affected_measure)
-#     #     paf_data = None #get_paf_data(exposure, rr)
-#     #     paf_data['affected_entity'] = self.affected_entity
-#     else:
-#         if 'paf' in self._get_data_functions:
-#             paf_data = self._get_data_functions['paf'](builder)
-#         else:
-#             distribution = builder.data.load(f'{self.risk_type}.{self.risk}.distribution')
-#             if distribution in ['normal', 'lognormal', 'ensemble']:
-#                 paf_data = builder.data.load(f'{self.risk_type}.{self.risk}.population_attributable_fraction')
-#                 paf_data = paf_data[paf_data['affected_measure'] == self.affected_measure]
-#                 paf_data = paf_data[paf_data['affected_entity'] == self.affected_entity]
-#             else:
-#                 exposure = builder.data.load(f'{self.risk_type}.{self.risk}.exposure')
-#                 rr = builder.data.load(f'{self.risk_type}.{self.risk}.relative_risk')
-#                 rr = rr[rr['affected_measure'] == self.affected_measure].drop('affected_measure', 'columns')
-#                 rr = rr[rr['affected_entity'] == 'affected_entity'].drop('affected_entity', 'columns')
-#                 paf_data = None #get_paf_data(exposure, rr)
-#
-#                 paf_data['affected_entity'] = self.affected_entity
-#
-#     paf_data = paf_data.loc[:, ['sex', 'value', 'affected_entity', 'age_group_start', 'age_group_end',
-#                                 'year_start', 'year_end']]
-#
-#     return pivot_categorical(paf_data)
-
-# if should_rebin(self.risk, builder.configuration):
-#     exposure_data = builder.data.load(f"{self.risk_type}.{self.risk}.exposure")
-#     exposure_data = exposure_data.loc[:, column_filter]
-#     exposure_data = exposure_data[exposure_data['year_start'].isin(rr_data.year_start.unique())]
-#     rr_data = rebin_rr_data(rr_data, exposure_data)
 
 
 ##############
@@ -475,3 +412,15 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
 
     return source_type
 
+
+def validate_rebin_source(builder, risk: RiskString, exposure_data: pd.DataFrame):
+    rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
+    invalid_cats = rebin_exposed_categories.difference(set(exposure_data.parameter))
+    if invalid_cats:
+        raise ValueError(f'The following provided categories for the rebinned exposed category of {risk.name} '
+                         f'are not found in the exposure data: {invalid_cats}.')
+
+    if rebin_exposed_categories == set(exposure_data.parameter):
+        raise ValueError(f'The provided categories for the rebinned exposed category of {risk.name} comprise all '
+                         f'categories for the exposure data. At least one category must be left out of the provided '
+                         f'categories to be rebinned into the unexposed category.')
