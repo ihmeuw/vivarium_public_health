@@ -183,15 +183,13 @@ def rebin_exposure_data(builder, risk: RiskString, exposure_data: pd.DataFrame):
         if risk.name in REBIN_UNSUPPORTED:
             raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
 
-        exposed = exposure_data[exposure_data.parameter.isin(rebin_exposed_categories)].drop("parameter", "columns")
-        exposed = exposed.groupby(list(exposed.columns.difference(['value']))).sum().reset_index()
-        exposed["parameter"] = 'cat1'
-
-        unexposed = exposed.copy()
-        unexposed["parameter"] = 'cat2'
-        unexposed["value"] = 1 - unexposed["value"]
-
-        exposure_data = pd.concat([exposed, unexposed], ignore_index=True)
+        exposure_data = exposure_data[exposure_data.parameter.isin(rebin_exposed_categories)].drop("parameter", "columns")
+        exposure_data = (exposure_data
+                         .groupby(list(exposure_data.columns.difference(['value'])))
+                         .sum()
+                         .reset_index()
+                         .rename(columns={'value': 'cat1'}))
+        exposure_data['cat2'] = 1 - exposure_data['cat1']
 
     return exposure_data
 
@@ -204,6 +202,10 @@ def get_relative_risk_data(builder, risk: RiskString, target: TargetString, rand
     source_type = validate_relative_risk_data_source(builder, risk, target)
     relative_risk_data = load_relative_risk_data(builder, risk, target, source_type, randomness)
     relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
+
+    if get_distribution_type(builder, risk) in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
+        relative_risk_data = pivot_categorical(relative_risk_data)
+
     return relative_risk_data
 
 
@@ -229,9 +231,6 @@ def load_relative_risk_data(builder, risk: RiskString, target: TargetString,
         random_state = np.random.RandomState(randomness.get_seed())
         cat1_value = generate_relative_risk_from_distribution(random_state, parameters)
         relative_risk_data = _make_relative_risk_data(builder, cat1_value)
-
-    if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
-        relative_risk_data = pivot_categorical(relative_risk_data)
 
     return relative_risk_data
 
