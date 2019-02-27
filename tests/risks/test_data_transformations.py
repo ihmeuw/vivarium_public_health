@@ -1,30 +1,15 @@
 from hypothesis import given
 import hypothesis.strategies as st
-import hypothesis.extra.pandas as pdst
 import pytest
 
 from vivarium_public_health.risks.data_transformations import TargetString
-from vivarium_public_health.utilities import EntityString
+
 
 @st.composite
 def component_string(draw, min_components=0, max_components=None):
     alphabet = st.characters(blacklist_characters=['.'])
     string_parts = draw(st.lists(st.text(alphabet=alphabet), min_size=min_components, max_size=max_components))
     return '.'.join(string_parts)
-
-
-@given(component_string().filter(lambda x: len(x.split('.')) != 2))
-def test_EntityString_fail(s):
-    with pytest.raises(ValueError):
-        EntityString(s)
-
-
-@given(component_string(2, 2))
-def test_EntityString_pass(s):
-    risk_type, risk_name = s.split('.')
-    r = EntityString(s)
-    assert r.type == risk_type
-    assert r.name == risk_name
 
 
 @given(component_string().filter(lambda x: len(x.split('.')) != 3))
