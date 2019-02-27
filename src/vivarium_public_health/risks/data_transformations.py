@@ -121,13 +121,16 @@ def get_distribution_type(builder, risk: RiskString):
 def get_exposure_data(builder, risk: RiskString):
     exposure_data = load_exposure_data(builder, risk)
     exposure_data = rebin_exposure_data(builder, risk, exposure_data)
+
+    if get_distribution_type(builder, risk) in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
+        exposure_data = pivot_categorical(exposure_data)
+
     return exposure_data
 
 
 def load_exposure_data(builder, risk: RiskString):
     risk_config = builder.configuration[risk.name]
     exposure_source = risk_config['exposure']
-    distribution_type = get_distribution_type(builder, risk)
 
     if exposure_source == 'data':
         exposure_data = builder.data.load(f'{risk}.exposure')
@@ -145,9 +148,6 @@ def load_exposure_data(builder, risk: RiskString):
         cat2['parameter'] = 'cat2'
         cat2['value'] = 1 - cat2['value']
         exposure_data = pd.concat([cat1, cat2], ignore_index=True)
-
-    if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
-        exposure_data = pivot_categorical(exposure_data)
 
     return exposure_data
 
@@ -183,13 +183,15 @@ def rebin_exposure_data(builder, risk: RiskString, exposure_data: pd.DataFrame):
         if risk.name in REBIN_UNSUPPORTED:
             raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
 
-        exposure_data = exposure_data[exposure_data.parameter.isin(rebin_exposed_categories)].drop("parameter", "columns")
-        exposure_data = (exposure_data
-                         .groupby(list(exposure_data.columns.difference(['value'])))
-                         .sum()
-                         .reset_index()
-                         .rename(columns={'value': 'cat1'}))
-        exposure_data['cat2'] = 1 - exposure_data['cat1']
+        exposed = exposure_data[exposure_data.parameter.isin(rebin_exposed_categories)].drop("parameter", "columns")
+        exposed = exposed.groupby(list(exposed.columns.difference(['value']))).sum().reset_index()
+        exposed["parameter"] = 'cat1'
+
+        unexposed = exposed.copy()
+        unexposed["parameter"] = 'cat2'
+        unexposed["value"] = 1 - unexposed["value"]
+
+        exposure_data = pd.concat([exposed, unexposed], ignore_index=True)
 
     return exposure_data
 
