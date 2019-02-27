@@ -369,13 +369,12 @@ def get_live_births_per_year(builder):
 
     validate_crude_birth_rate_data(builder, population_data.year_end.max())
     population_data = rescale_final_age_bin(builder, population_data)
-
+   
     initial_population_size = builder.configuration.population.population_size
     population_data = (population_data.loc[population_data.sex == 'Both']
                        .groupby(['year_start'])['population'].sum())
-    birth_data = (birth_data[birth_data.parameter == 'mean_value']
-                  .drop('parameter', 'columns')
-                  .groupby(['year_start'])['value'].sum())
+
+    birth_data = birth_data.groupby(['year_start'])['mean_value'].sum()
 
     if not builder.configuration.fertility.time_dependent_live_births:
         birth_data = birth_data.at[builder.configuration.time.start.year]
@@ -390,6 +389,7 @@ def get_live_births_per_year(builder):
                                                                          builder.configuration.time.end.year + 1,
                                                                          name='year'))
     else:
+        live_birth_rate.rename('value', inplace=True)
         live_birth_rate = (live_birth_rate
                            .reset_index()
                            .rename(columns={'year_start': 'year'})
