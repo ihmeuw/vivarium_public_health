@@ -415,6 +415,12 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
 
 def validate_rebin_source(builder, risk: RiskString, exposure_data: pd.DataFrame):
     rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
+    distribution_type = get_distribution_type(builder, risk)
+
+    if rebin_exposed_categories and 'polytomous' not in distribution_type:
+        raise ValueError(f'Rebinning is only supported for polytomous risks. You provided rebinning exposed categories'
+                         f'for {risk.name}, which is of type {distribution_type}.')
+
     invalid_cats = rebin_exposed_categories.difference(set(exposure_data.parameter))
     if invalid_cats:
         raise ValueError(f'The following provided categories for the rebinned exposed category of {risk.name} '
