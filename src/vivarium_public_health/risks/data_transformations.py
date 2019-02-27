@@ -292,10 +292,9 @@ def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.D
 
         relative_risk_data = relative_risk_data.merge(exposure_data, on=cols)
         relative_risk_data['value_x'] = relative_risk_data.value_x.multiply(relative_risk_data.value_y)
-        relative_risk_data.parameter = (
-            relative_risk_data["parameter"].map(lambda p: 'cat1' if p in rebin_exposed_categories else 'cat2'))
-        relative_risk_data = relative_risk_data.groupby(
-            cols + ['affected_measure', 'affected_entity']).sum().reset_index()
+        relative_risk_data.parameter = (relative_risk_data["parameter"]
+                                        .map(lambda p: 'cat1' if p in rebin_exposed_categories else 'cat2'))
+        relative_risk_data = relative_risk_data.groupby(cols).sum().reset_index()
         relative_risk_data['value'] = relative_risk_data.value_x.divide(relative_risk_data.value_y, 0)
         relative_risk_data = relative_risk_data.drop(['value_x', 'value_y'], 'columns')
 
