@@ -3,7 +3,7 @@ import re
 from operator import lt, gt
 
 from collections import namedtuple
-from vivarium_public_health.risks.data_transformations import EntityString
+from vivarium_public_health.utilities import EntityString
 
 
 class RiskAttributableDisease:

@@ -1,5 +1,5 @@
 import pandas as pd
-from vivarium_public_health.risks.data_transformations import EntityString
+from vivarium_public_health.utilities import EntityString
 
 from .utilities import get_age_bins
 

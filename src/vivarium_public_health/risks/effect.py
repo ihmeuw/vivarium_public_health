@@ -1,4 +1,5 @@
-from .data_transformations import (EntityString, TargetString, get_relative_risk_data,
+from vivarium_public_health.utilities import EntityString
+from .data_transformations import (TargetString, get_relative_risk_data,
                                    get_population_attributable_fraction_data, get_exposure_effect)
 
 

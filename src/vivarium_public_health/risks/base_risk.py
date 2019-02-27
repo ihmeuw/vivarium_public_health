@@ -1,6 +1,7 @@
 import pandas as pd
 
-from vivarium_public_health.risks.data_transformations import EntityString, get_distribution, get_exposure_post_processor
+from vivarium_public_health.utilities import EntityString
+from vivarium_public_health.risks.data_transformations import get_distribution, get_exposure_post_processor
 
 
 class Risk:

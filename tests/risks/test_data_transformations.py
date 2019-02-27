@@ -3,8 +3,8 @@ import hypothesis.strategies as st
 import hypothesis.extra.pandas as pdst
 import pytest
 
-from vivarium_public_health.risks.data_transformations import EntityString, TargetString
-
+from vivarium_public_health.risks.data_transformations import TargetString
+from vivarium_public_health.utilities import EntityString
 
 @st.composite
 def component_string(draw, min_components=0, max_components=None):
