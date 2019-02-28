@@ -110,7 +110,7 @@ def load_distribution_data(builder, risk: RiskString):
 def get_distribution_type(builder, risk: RiskString):
     risk_config = builder.configuration[risk.name]
 
-    if risk_config['exposure'] == 'data':
+    if risk_config['exposure'] == 'data' and not risk_config['rebin']['exposed']:
         distribution_type = builder.data.load(f'{risk}.distribution')
     else:
         distribution_type = 'dichotomous'
@@ -178,8 +178,8 @@ def get_exposure_distribution_weights(builder, risk: RiskString):
 def rebin_exposure_data(builder, risk: RiskString, exposure_data: pd.DataFrame):
     validate_rebin_source(builder, risk, exposure_data)
     rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
-    distribution_type = get_distribution_type(builder, risk)
-    if 'polytomous' in distribution_type and rebin_exposed_categories:
+
+    if rebin_exposed_categories:
         if risk.name in REBIN_UNSUPPORTED:
             raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
 
@@ -275,9 +275,8 @@ def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.D
         (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
     """
     rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
-    distribution_type = get_distribution_type(builder, risk)
 
-    if 'polytomous' in distribution_type and rebin_exposed_categories:
+    if rebin_exposed_categories:
         if risk.name in REBIN_UNSUPPORTED:
             raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
 
@@ -289,7 +288,7 @@ def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.D
         relative_risk_data.parameter = (relative_risk_data["parameter"]
                                         .map(lambda p: 'cat1' if p in rebin_exposed_categories else 'cat2'))
         relative_risk_data = relative_risk_data.groupby(cols).sum().reset_index()
-        relative_risk_data['value'] = relative_risk_data.value_x.divide(relative_risk_data.value_y, 0)
+        relative_risk_data['value'] = relative_risk_data.value_x.divide(relative_risk_data.value_y).fillna(0)
         relative_risk_data = relative_risk_data.drop(['value_x', 'value_y'], 'columns')
 
     return relative_risk_data
@@ -409,11 +408,10 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
 
 def validate_rebin_source(builder, risk: RiskString, exposure_data: pd.DataFrame):
     rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
-    distribution_type = get_distribution_type(builder, risk)
 
-    if rebin_exposed_categories and 'polytomous' not in distribution_type:
+    if rebin_exposed_categories and 'polytomous' not in builder.data.load(f'{risk}.distribution'):
         raise ValueError(f'Rebinning is only supported for polytomous risks. You provided rebinning exposed categories'
-                         f'for {risk.name}, which is of type {distribution_type}.')
+                         f'for {risk.name}, which is of type {builder.data.load(f"{risk}.distribution")}.')
 
     invalid_cats = rebin_exposed_categories.difference(set(exposure_data.parameter))
     if invalid_cats:
