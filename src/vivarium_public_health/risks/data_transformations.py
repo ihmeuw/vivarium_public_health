@@ -275,6 +275,7 @@ def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.D
         (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
     """
     rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
+    validate_rebin_source(builder, risk, relative_risk_data)
 
     if rebin_exposed_categories:
         if risk.name in REBIN_UNSUPPORTED:
@@ -406,19 +407,19 @@ def validate_relative_risk_data_source(builder, risk: RiskString, target: Target
     return source_type
 
 
-def validate_rebin_source(builder, risk: RiskString, exposure_data: pd.DataFrame):
+def validate_rebin_source(builder, risk: RiskString, data: pd.DataFrame):
     rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
 
     if rebin_exposed_categories and 'polytomous' not in builder.data.load(f'{risk}.distribution'):
         raise ValueError(f'Rebinning is only supported for polytomous risks. You provided rebinning exposed categories'
                          f'for {risk.name}, which is of type {builder.data.load(f"{risk}.distribution")}.')
 
-    invalid_cats = rebin_exposed_categories.difference(set(exposure_data.parameter))
+    invalid_cats = rebin_exposed_categories.difference(set(data.parameter))
     if invalid_cats:
         raise ValueError(f'The following provided categories for the rebinned exposed category of {risk.name} '
                          f'are not found in the exposure data: {invalid_cats}.')
 
-    if rebin_exposed_categories == set(exposure_data.parameter):
+    if rebin_exposed_categories == set(data.parameter):
         raise ValueError(f'The provided categories for the rebinned exposed category of {risk.name} comprise all '
                          f'categories for the exposure data. At least one category must be left out of the provided '
                          f'categories to be rebinned into the unexposed category.')
