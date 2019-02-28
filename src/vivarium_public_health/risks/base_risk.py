@@ -23,9 +23,9 @@ class Risk:
             risk:
                 exposure: proxy_covariate
 
-    For polytomous risks, you can also provide an optional rebin block in the
-    configuration to indicate that the risk should be rebinned into a dichotomous
-    risk. That rebin block should contain 'exposed', a list of the categories
+    For polytomous risks, you can also provide an optional 'rebinned_exposed'
+    block in the configuration to indicate that the risk should be rebinned
+    into a dichotomous risk. That block should contain a list of the categories
     that should be rebinned into a single exposed category in the resulting
     dichotomous risk. For example, for a risk named "risk" with categories
     cat1, cat2, cat3, and cat4 that you wished to rebin into a dichotomous risk
@@ -34,16 +34,23 @@ class Risk:
 
     configuration:
         risk:
-            rebin:
-                exposed: ['cat1', 'cat2']
+            rebinned_exposed: ['cat1', 'cat2']
+
+    For alternative risk factors, you can provide a 'category_thresholds'
+    block in the in configuration to dictate the thresholds that should be
+    used to bin the continuous distributions. Note that this is mutually
+    exclusive with providing 'rebinned_exposed' categories. For a risk named
+    "risk", the configuration could look like:
+
+    configuration:
+        risk:
+            category_thresholds: [7, 8, 9]
     """
 
     configuration_defaults = {
         "risk": {
             "exposure": 'data',
-            "rebin": {
-                "exposed": [],
-            },
+            "rebinned_exposed": [],
             "category_thresholds": [],
         }
     }

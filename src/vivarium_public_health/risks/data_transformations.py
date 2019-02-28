@@ -59,7 +59,7 @@ def load_distribution_data(builder, risk: EntityString):
 def get_distribution_type(builder, risk: EntityString):
     risk_config = builder.configuration[risk.name]
 
-    if risk_config['exposure'] == 'data' and not risk_config['rebin']['exposed']:
+    if risk_config['exposure'] == 'data' and not risk_config['rebinned_exposed']:
         distribution_type = builder.data.load(f'{risk}.distribution')
     else:
         distribution_type = 'dichotomous'
@@ -126,7 +126,7 @@ def get_exposure_distribution_weights(builder, risk: EntityString):
 
 def rebin_exposure_data(builder, risk: EntityString, exposure_data: pd.DataFrame):
     validate_rebin_source(builder, risk, exposure_data)
-    rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
+    rebin_exposed_categories = set(builder.configuration[risk.name]['rebinned_exposed'])
 
     if rebin_exposed_categories:
         if risk.name in REBIN_UNSUPPORTED:
@@ -227,7 +227,7 @@ def rebin_relative_risk_data(builder, risk: EntityString, relative_risk_data: pd
         for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
         (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
     """
-    rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
+    rebin_exposed_categories = set(builder.configuration[risk.name]['rebinned_exposed'])
     validate_rebin_source(builder, risk, relative_risk_data)
 
     if rebin_exposed_categories:
@@ -366,7 +366,11 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
 
 
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
-    rebin_exposed_categories = set(builder.configuration[risk.name]['rebin']['exposed'])
+    rebin_exposed_categories = set(builder.configuration[risk.name]['rebinned_exposed'])
+
+    if rebin_exposed_categories and builder.configuration[risk.name]['category_thresholds']:
+        raise ValueError(f'Rebinning and category thresholds are mutually exclusive. '
+                         f'You provided both for {risk.name}.')
 
     if rebin_exposed_categories and 'polytomous' not in builder.data.load(f'{risk}.distribution'):
         raise ValueError(f'Rebinning is only supported for polytomous risks. You provided rebinning exposed categories'
