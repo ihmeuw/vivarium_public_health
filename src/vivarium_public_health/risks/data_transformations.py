@@ -5,38 +5,11 @@ import pandas as pd
 
 from vivarium.framework.randomness import RandomnessStream
 from vivarium_public_health.risks import distributions
-from vivarium_public_health.utilities import EntityString
+from vivarium_public_health.utilities import EntityString, TargetString
 
 #############
 # Utilities #
 #############
-
-class TargetString(str):
-    """Convenience class for representing risk targets as strings."""
-
-    def __init__(self, target):
-        super().__init__()
-        self._type, self._name, self._measure = self.split_target()
-
-    @property
-    def type(self):
-        return self._type
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def measure(self):
-        return self._measure
-
-    def split_target(self):
-        split = self.split('.')
-        if len(split) != 3:
-            raise ValueError(
-                f'You must specify the target as "affected_entity_type.affected_entity_name.affected_measure".'
-                f'You specified {self}.')
-        return split[0], split[1], split[2]
 
 
 def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
