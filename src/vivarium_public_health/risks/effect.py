@@ -1,5 +1,7 @@
-from .data_transformations import (RiskString, TargetString, get_relative_risk_data,
-                                   get_population_attributable_fraction_data, get_exposure_effect)
+
+from vivarium_public_health.utilities import EntityString, TargetString
+from .data_transformations import (get_relative_risk_data, get_population_attributable_fraction_data,
+                                   get_exposure_effect)
 
 
 class RiskEffect:
@@ -40,7 +42,7 @@ class RiskEffect:
             supplied in the form "entity_type.entity_name.measure"
             where entity_type should be singular (e.g., cause instead of causes).
         """
-        self.risk = RiskString(risk)
+        self.risk = EntityString(risk)
         self.target = TargetString(target)
         self.configuration_defaults = {
             f'effect_of_{self.risk.name}_on_{self.target.name}': {

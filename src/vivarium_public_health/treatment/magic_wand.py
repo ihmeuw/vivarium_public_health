@@ -1,4 +1,4 @@
-from vivarium_public_health.risks.data_transformations import TargetString
+from vivarium_public_health.utilities import TargetString
 
 
 class AbsoluteShift:
