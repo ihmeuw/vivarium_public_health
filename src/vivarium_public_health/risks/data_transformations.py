@@ -5,60 +5,11 @@ import pandas as pd
 
 from vivarium.framework.randomness import RandomnessStream
 from vivarium_public_health.risks import distributions
-
+from vivarium_public_health.utilities import EntityString, TargetString
 
 #############
 # Utilities #
 #############
-
-class RiskString(str):
-    """Convenience class for representing risks as strings."""
-
-    def __init__(self, risk):
-        super().__init__()
-        self._type, self._name = self.split_risk()
-
-    @property
-    def type(self):
-        return self._type
-
-    @property
-    def name(self):
-        return self._name
-
-    def split_risk(self):
-        split = self.split('.')
-        if len(split) != 2:
-            raise ValueError(f'You must specify the risk as "risk_type.risk_name". You specified {self}.')
-        return split[0], split[1]
-
-
-class TargetString(str):
-    """Convenience class for representing risk targets as strings."""
-
-    def __init__(self, target):
-        super().__init__()
-        self._type, self._name, self._measure = self.split_target()
-
-    @property
-    def type(self):
-        return self._type
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def measure(self):
-        return self._measure
-
-    def split_target(self):
-        split = self.split('.')
-        if len(split) != 3:
-            raise ValueError(
-                f'You must specify the target as "affected_entity_type.affected_entity_name.affected_measure".'
-                f'You specified {self}.')
-        return split[0], split[1], split[2]
 
 
 def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
@@ -73,13 +24,13 @@ def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
 # Exposure data handlers #
 ##########################
 
-def get_distribution(builder, risk: RiskString):
+def get_distribution(builder, risk: EntityString):
     validate_distribution_data_source(builder, risk)
     data = load_distribution_data(builder, risk)
     return distributions.get_distribution(risk.name, **data)
 
 
-def get_exposure_post_processor(builder, risk: RiskString):
+def get_exposure_post_processor(builder, risk: EntityString):
     thresholds = builder.configuration[risk.name]['category_thresholds']
 
     if thresholds:
@@ -94,7 +45,7 @@ def get_exposure_post_processor(builder, risk: RiskString):
     return post_processor
 
 
-def load_distribution_data(builder, risk: RiskString):
+def load_distribution_data(builder, risk: EntityString):
     exposure_data = get_exposure_data(builder, risk)
     exposure_data = rebin_exposure_data(builder, risk, exposure_data)
 
@@ -105,7 +56,7 @@ def load_distribution_data(builder, risk: RiskString):
     return data
 
 
-def get_distribution_type(builder, risk: RiskString):
+def get_distribution_type(builder, risk: EntityString):
     risk_config = builder.configuration[risk.name]
 
     if risk_config['exposure'] == 'data':
@@ -116,7 +67,7 @@ def get_distribution_type(builder, risk: RiskString):
     return distribution_type
 
 
-def get_exposure_data(builder, risk: RiskString):
+def get_exposure_data(builder, risk: EntityString):
     risk_config = builder.configuration[risk.name]
     exposure_source = risk_config['exposure']
     distribution_type = get_distribution_type(builder, risk)
@@ -144,7 +95,7 @@ def get_exposure_data(builder, risk: RiskString):
     return exposure_data
 
 
-def get_exposure_standard_deviation_data(builder, risk: RiskString):
+def get_exposure_standard_deviation_data(builder, risk: EntityString):
     distribution_type = get_distribution_type(builder, risk)
     if distribution_type in ['normal', 'lognormal', 'ensemble']:
         exposure_sd = builder.data.load(f'{risk}.exposure_standard_deviation')
@@ -153,7 +104,7 @@ def get_exposure_standard_deviation_data(builder, risk: RiskString):
     return exposure_sd
 
 
-def get_exposure_distribution_weights(builder, risk: RiskString):
+def get_exposure_distribution_weights(builder, risk: EntityString):
     distribution_type = get_distribution_type(builder, risk)
     if distribution_type == 'ensemble':
         weights = builder.data.load(f'{risk}.exposure_distribution_weights')
@@ -167,7 +118,7 @@ def get_exposure_distribution_weights(builder, risk: RiskString):
     return weights
 
 
-def rebin_exposure_data(builder, risk: RiskString, data: pd.DataFrame):
+def rebin_exposure_data(builder, risk: EntityString, data: pd.DataFrame):
     rebin = builder.configuration[risk.name]['rebin']
     # if 'polytomous' in distribution_type:
     #     rebin_unsupported = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
@@ -200,14 +151,14 @@ def rebin_exposure_data(builder, risk: RiskString, data: pd.DataFrame):
 # Relative risk data handlers #
 ###############################
 
-def get_relative_risk_data(builder, risk: RiskString, target: TargetString, randomness: RandomnessStream):
+def get_relative_risk_data(builder, risk: EntityString, target: TargetString, randomness: RandomnessStream):
     source_type = validate_relative_risk_data_source(builder, risk, target)
     relative_risk_data = load_relative_risk_data(builder, risk, target, source_type, randomness)
     relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
     return relative_risk_data
 
 
-def load_relative_risk_data(builder, risk: RiskString, target: TargetString,
+def load_relative_risk_data(builder, risk: EntityString, target: TargetString,
                             source_type: str, randomness: RandomnessStream):
     distribution_type = get_distribution_type(builder, risk)
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
@@ -271,7 +222,7 @@ def _make_relative_risk_data(builder, cat1_value: float) -> pd.DataFrame:
     return pd.concat([cat1, cat2], ignore_index=True)
 
 
-def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.DataFrame) -> pd.DataFrame:
+def rebin_relative_risk_data(builder, risk: EntityString, relative_risk_data: pd.DataFrame) -> pd.DataFrame:
     """ When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
         For the exposed categories of relative risk (after rebinning) should be the weighted sum of relative risk
         of those categories where weights are relative proportions of exposure of those categories.
@@ -318,7 +269,7 @@ def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.D
     return relative_risk_data
 
 
-def get_exposure_effect(builder, risk: RiskString):
+def get_exposure_effect(builder, risk: EntityString):
     distribution_type = get_distribution_type(builder, risk)
     risk_exposure = builder.value.get_value(f'{risk.name}.exposure')
 
@@ -343,7 +294,7 @@ def get_exposure_effect(builder, risk: RiskString):
 # Population attributable fraction data handlers #
 ##################################################
 
-def get_population_attributable_fraction_data(builder, risk: RiskString,
+def get_population_attributable_fraction_data(builder, risk: EntityString,
                                               target: TargetString, randomness: RandomnessStream):
     exposure_source = builder.configuration[f'{risk.name}']['exposure']
     rr_source_type = validate_relative_risk_data_source(builder, risk, target)
@@ -413,7 +364,7 @@ def get_population_attributable_fraction_data(builder, risk: RiskString,
 # Validators #
 ##############
 
-def validate_distribution_data_source(builder, risk: RiskString):
+def validate_distribution_data_source(builder, risk: EntityString):
     """Checks that the exposure distribution specification is valid."""
     exposure_type = builder.configuration[risk.name]['exposure']
     rebin = builder.configuration[risk.name]['rebin']
@@ -438,7 +389,7 @@ def validate_distribution_data_source(builder, risk: RiskString):
         raise ValueError(f'Unknown risk type {risk.type} for risk {risk.name}')
 
 
-def validate_relative_risk_data_source(builder, risk: RiskString, target: TargetString):
+def validate_relative_risk_data_source(builder, risk: EntityString, target: TargetString):
     source_key = f'effect_of_{risk.name}_on_{target.name}'
     relative_risk_source = builder.configuration[source_key][target.measure]
 
