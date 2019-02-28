@@ -332,9 +332,9 @@ def get_exposure_effect(builder, risk: RiskString):
 def get_population_attributable_fraction_data(builder, risk: RiskString,
                                               target: TargetString, randomness: RandomnessStream):
     exposure_source = builder.configuration[f'{risk.name}']['exposure']
-    rr_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
+    rr_source_type = validate_relative_risk_data_source(builder, risk, target)
 
-    if exposure_source == 'data' and rr_source == 'data' and risk.type == 'risk_factor':
+    if exposure_source == 'data' and rr_source_type == 'data' and risk.type == 'risk_factor':
         paf_data = builder.data.load(f'{risk}.population_attributable_fraction')
         correct_target = ((paf_data['affected_entity'] == target.name)
                           & (paf_data['affected_measure'] == target.measure))

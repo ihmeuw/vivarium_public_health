@@ -1,3 +1,7 @@
+**0.9.3 - 02/26/19**
+
+ - Bugfix in checking relative risk source type from configuration.
+
 **0.9.2 - 02/22/19**
 
  - Pin numpy and tables dependencies.
