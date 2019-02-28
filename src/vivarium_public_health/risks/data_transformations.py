@@ -183,15 +183,9 @@ def rebin_exposure_data(builder, risk: RiskString, exposure_data: pd.DataFrame):
         if risk.name in REBIN_UNSUPPORTED:
             raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
 
-        exposed = exposure_data[exposure_data.parameter.isin(rebin_exposed_categories)].drop("parameter", "columns")
-        exposed = exposed.groupby(list(exposed.columns.difference(['value']))).sum().reset_index()
-        exposed["parameter"] = 'cat1'
-
-        unexposed = exposed.copy()
-        unexposed["parameter"] = 'cat2'
-        unexposed["value"] = 1 - unexposed["value"]
-
-        exposure_data = pd.concat([exposed, unexposed], ignore_index=True)
+        exposure_data["parameter"] = (exposure_data["parameter"]
+                                      .map(lambda p: 'cat1' if p in rebin_exposed_categories else 'cat2'))
+        exposure_data = exposure_data.groupby(list(exposure_data.columns.difference(['value']))).sum().reset_index()
 
     return exposure_data
 
