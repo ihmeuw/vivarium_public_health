@@ -183,11 +183,15 @@ def rebin_exposure_data(builder, risk: RiskString, exposure_data: pd.DataFrame):
         if risk.name in REBIN_UNSUPPORTED:
             raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
 
-        exposure_data["parameter"] = (exposure_data["parameter"]
-                                      .map(lambda p: 'cat1' if p in rebin_exposed_categories else 'cat2'))
-        exposure_data = exposure_data.groupby(list(exposure_data.columns.difference(['value']))).sum().reset_index()
+    exposure_data = _rebin_exposure_data(exposure_data, rebin_exposed_categories)
 
     return exposure_data
+
+
+def _rebin_exposure_data(exposure_data: pd.DataFrame, rebin_exposed_categories: set) -> pd.DataFrame:
+    exposure_data["parameter"] = (exposure_data["parameter"]
+                                  .map(lambda p: 'cat1' if p in rebin_exposed_categories else 'cat2'))
+    return exposure_data.groupby(list(exposure_data.columns.difference(['value']))).sum().reset_index()
 
 
 ###############################
@@ -282,17 +286,22 @@ def rebin_relative_risk_data(builder, risk: RiskString, relative_risk_data: pd.D
             raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
 
         exposure_data = load_exposure_data(builder, risk)
-        cols = list(exposure_data.columns.difference(['value']))
-
-        relative_risk_data = relative_risk_data.merge(exposure_data, on=cols)
-        relative_risk_data['value_x'] = relative_risk_data.value_x.multiply(relative_risk_data.value_y)
-        relative_risk_data.parameter = (relative_risk_data["parameter"]
-                                        .map(lambda p: 'cat1' if p in rebin_exposed_categories else 'cat2'))
-        relative_risk_data = relative_risk_data.groupby(cols).sum().reset_index()
-        relative_risk_data['value'] = relative_risk_data.value_x.divide(relative_risk_data.value_y).fillna(0)
-        relative_risk_data = relative_risk_data.drop(['value_x', 'value_y'], 'columns')
+        relative_risk_data = _rebin_relative_risk_data(relative_risk_data, exposure_data, rebin_exposed_categories)
 
     return relative_risk_data
+
+
+def _rebin_relative_risk_data(relative_risk_data: pd.DataFrame, exposure_data: pd.DataFrame,
+                              rebin_exposed_categories: set) -> pd.DataFrame:
+    cols = list(exposure_data.columns.difference(['value']))
+
+    relative_risk_data = relative_risk_data.merge(exposure_data, on=cols)
+    relative_risk_data['value_x'] = relative_risk_data.value_x.multiply(relative_risk_data.value_y)
+    relative_risk_data.parameter = (relative_risk_data["parameter"]
+                                    .map(lambda p: 'cat1' if p in rebin_exposed_categories else 'cat2'))
+    relative_risk_data = relative_risk_data.groupby(cols).sum().reset_index()
+    relative_risk_data['value'] = relative_risk_data.value_x.divide(relative_risk_data.value_y).fillna(0)
+    return relative_risk_data.drop(['value_x', 'value_y'], 'columns')
 
 
 def get_exposure_effect(builder, risk: RiskString):
