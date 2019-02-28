@@ -132,7 +132,7 @@ def rebin_exposure_data(builder, risk: EntityString, exposure_data: pd.DataFrame
         if risk.name in REBIN_UNSUPPORTED:
             raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
 
-    exposure_data = _rebin_exposure_data(exposure_data, rebin_exposed_categories)
+        exposure_data = _rebin_exposure_data(exposure_data, rebin_exposed_categories)
 
     return exposure_data
 
