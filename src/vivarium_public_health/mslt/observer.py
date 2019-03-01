@@ -19,7 +19,15 @@ class MorbidityMortality:
         self.output_file = output_file
 
     def setup(self, builder):
-        columns = ['age', 'sex']
+        # Record the key columns from the core multi-state life table.
+        columns = ['age', 'sex',
+                   'population', 'bau_population',
+                   'acmr', 'bau_acmr',
+                   'pr_death', 'bau_pr_death',
+                   'deaths', 'bau_deaths',
+                   'yld_rate', 'bau_yld_rate',
+                   'person_years', 'bau_person_years',
+                   'HALY', 'bau_HALY']
         self.population_view = builder.population.get_view(columns)
         self.yld_rate = builder.value.get_value('yld_rate')
         self.acm_rate = builder.value.get_value('mortality_rate')
@@ -28,8 +36,13 @@ class MorbidityMortality:
         builder.event.register_listener('simulation_end', self.write_output)
         self.tables = []
         self.table_cols = ['sex', 'age', 'year',
-                           'bau_yld_rate', 'bau_mortality_rate',
-                           'int_yld_rate', 'int_mortality_rate']
+                           'population', 'bau_population',
+                           'acmr', 'bau_acmr',
+                           'pr_death', 'bau_pr_death',
+                           'deaths', 'bau_deaths',
+                           'yld_rate', 'bau_yld_rate',
+                           'person_years', 'bau_person_years',
+                           'HALY', 'bau_HALY']
 
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
@@ -38,10 +51,6 @@ class MorbidityMortality:
             return
 
         pop['year'] = self.clock().year
-        pop['bau_yld_rate'] = self.yld_rate.source(event.index)
-        pop['bau_mortality_rate'] = self.acm_rate.source(event.index)
-        pop['int_yld_rate'] = self.yld_rate(event.index)
-        pop['int_mortality_rate'] = self.acm_rate(event.index)
         self.tables.append(pop[self.table_cols])
 
     def write_output(self, event):
