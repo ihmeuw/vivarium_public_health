@@ -4,6 +4,7 @@ import pytest
 
 from vivarium_public_health.utilities import EntityString, TargetString
 
+
 @st.composite
 def component_string(draw, min_components=0, max_components=None):
     alphabet = st.characters(blacklist_characters=['.'])
@@ -38,3 +39,5 @@ def test_TargetString_pass(s):
     assert t.type == target_type
     assert t.name == target_name
     assert t.measure == target_measure
+
+
