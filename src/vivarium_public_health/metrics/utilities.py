@@ -91,6 +91,36 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> Template:
     return Template(template)
 
 
+def get_age_sex_filter_and_iterables(config, age_bins):
+    age_sex_filter = QueryString('')
+    if config['by_age']:
+        ages = age_bins.iterrows()
+        age_sex_filter += '({age_group_start} <= age) and (age < {age_group_end})'
+    else:
+        ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
+
+    if config['by_sex']:
+        sexes = ['Male', 'Female']
+        age_sex_filter += 'sex == {sex}'
+    else:
+        sexes = ['Both']
+
+    return age_sex_filter, (ages, sexes)
+
+
+def get_time_span_filter_and_iterable(config, sim_start, sim_end):
+    if config['by_year']:
+        time_spans = [(year, (pd.Timestamp(f'1-1-{year}'), pd.Timestamp(f'1-1-{year + 1}')))
+                      for year in range(sim_start.year, sim_end.year + 1)]
+    else:
+        time_spans = [('all_years', (pd.Timestamp(f'1-1-1000'), pd.Timestamp(f'1-1-5000')))]
+    # This filter needs to be applied separately to compute additional
+    # attributes in the person time calculation.
+    span_filter = '{t_start} <= exit_time and entrance_time < {t_end}'
+
+    return span_filter, time_spans
+
+
 def get_group_counts(pop: pd.DataFrame, base_filter: QueryString, base_key: Template,
                      config: dict, age_bins: pd.DataFrame) -> dict:
     """Gets a count of people in a custom subgroup.
@@ -123,17 +153,8 @@ def get_group_counts(pop: pd.DataFrame, base_filter: QueryString, base_key: Temp
         A dictionary of output_key, count pairs where the output key is a
         string template with an unfilled measure parameter.
     """
-    if config['by_age']:
-        ages = age_bins.iterrows()
-        base_filter += '({age_group_start} <= age) and (age < {age_group_end})'
-    else:
-        ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
-
-    if config['by_sex']:
-        sexes = ['Male', 'Female']
-        base_filter += 'sex == {sex}'
-    else:
-        sexes = ['Both']
+    age_sex_filter, (ages, sexes) = get_age_sex_filter_and_iterables(config, age_bins)
+    base_filter += age_sex_filter
 
     group_counts = {}
 
@@ -154,40 +175,14 @@ def get_group_counts(pop: pd.DataFrame, base_filter: QueryString, base_key: Temp
 def get_person_time(pop: pd.DataFrame, config: dict, sim_start: pd.Timestamp,
                     sim_end: pd.Timestamp, age_bins: pd.DataFrame) -> dict:
     base_key = get_output_template(**config).safe_substitute(measure='person_time')
-    (base_filter, span_filter), (ages, sexes, years) = get_person_time_filters_and_iterables(config, age_bins,
-                                                                                             sim_start, sim_end)
+    base_filter, (ages, sexes) = get_age_sex_filter_and_iterables(config, age_bins)
+    span_filter, time_spans = get_time_span_filter_and_iterable(config, sim_start, sim_end)
+
     person_time = {}
-    for year, (t_start, t_end) in years:
+    for year, (t_start, t_end) in time_spans:
         lived_in_span = get_lived_in_span(pop, span_filter, t_start, t_end)
         person_time.update(get_person_time_in_span(lived_in_span, base_filter, base_key, sexes, ages, year))
     return person_time
-
-
-def get_person_time_filters_and_iterables(config, age_bins, sim_start, sim_end):
-    base_filter = QueryString('')
-
-    if config['by_age']:
-        ages = age_bins.iterrows()
-        base_filter += '({age_group_start} <= age) and (age_at_start < {age_group_end})'
-    else:
-        ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
-
-    if config['by_sex']:
-        sexes = ['Male', 'Female']
-        base_filter += 'sex == {sex}'
-    else:
-        sexes = ['Both']
-
-    if config['by_year']:
-        years = [(year, (pd.Timestamp(f'1-1-{year}'), pd.Timestamp(f'1-1-{year + 1}')))
-                 for year in range(sim_start.year, sim_end.year + 1)]
-    else:
-        years = [('all_years', (pd.Timestamp(f'1-1-1000'), pd.Timestamp(f'1-1-5000')))]
-    # This filter needs to be applied separately to compute additional
-    # attributes in the person time calculation.
-    span_filter = '{t_start} <= exit_time and entrance_time < {t_end}'
-
-    return (base_filter, span_filter), (ages, sexes, years)
 
 
 def get_lived_in_span(pop, span_filter, t_start, t_end):
@@ -226,7 +221,10 @@ def get_deaths(pop: pd.DataFrame, config: dict, sim_start: pd.Timestamp,
                sim_end: pd.Timestamp, age_bins: pd.DataFrame):
     base_key = get_output_template(**config)
     pop = clean_cause_of_death(pop)
+
     base_filter = QueryString('alive == "dead"')
+    span_filter, time_spans = get_time_span_filter_and_iterable(config, sim_start, sim_end)
+    base_filter += span_filter
 
     if config['by_year']:
         years = [(year, (pd.Timestamp(f'1-1-{year}'), pd.Timestamp(f'1-1-{year + 1}')))
