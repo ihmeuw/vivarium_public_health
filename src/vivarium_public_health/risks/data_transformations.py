@@ -7,7 +7,6 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium_public_health.risks import distributions
 from vivarium_public_health.utilities import EntityString, TargetString
 
-REBIN_UNSUPPORTED = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
 
 #############
 # Utilities #
@@ -129,9 +128,6 @@ def rebin_exposure_data(builder, risk: EntityString, exposure_data: pd.DataFrame
     rebin_exposed_categories = set(builder.configuration[risk.name]['rebinned_exposed'])
 
     if rebin_exposed_categories:
-        if risk.name in REBIN_UNSUPPORTED:
-            raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
-
         exposure_data = _rebin_exposure_data(exposure_data, rebin_exposed_categories)
 
     return exposure_data
@@ -231,9 +227,6 @@ def rebin_relative_risk_data(builder, risk: EntityString, relative_risk_data: pd
     validate_rebin_source(builder, risk, relative_risk_data)
 
     if rebin_exposed_categories:
-        if risk.name in REBIN_UNSUPPORTED:
-            raise NotImplementedError(f'Rebinning for {risk.name} is not supported.')
-
         exposure_data = load_exposure_data(builder, risk)
         relative_risk_data = _rebin_relative_risk_data(relative_risk_data, exposure_data, rebin_exposed_categories)
 
