@@ -104,7 +104,8 @@ class Disease:
         self.tables = []
         self.table_cols = ['sex', 'age', 'year',
                            'bau_incidence', 'int_incidence',
-                           'bau_prevalence', 'int_prevalence']
+                           'bau_prevalence', 'int_prevalence',
+                           'bau_deaths', 'int_deaths']
         self.clock = builder.time.clock()
 
     def on_collect_metrics(self, event):
@@ -118,6 +119,8 @@ class Disease:
         pop['int_incidence'] = self.int_incidence(event.index)
         pop['bau_prevalence'] = pop[self.bau_C_col] / (pop[self.bau_C_col] + pop[self.bau_S_col])
         pop['int_prevalence'] = pop[self.int_C_col] / (pop[self.bau_C_col] + pop[self.bau_S_col])
+        pop['bau_deaths'] = 1000 - pop[self.bau_S_col] - pop[self.bau_C_col]
+        pop['int_deaths'] = 1000 - pop[self.int_S_col] - pop[self.int_C_col]
         self.tables.append(pop.loc[:, self.table_cols])
 
     def write_output(self, event):
