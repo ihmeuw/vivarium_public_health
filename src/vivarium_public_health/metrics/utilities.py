@@ -1,6 +1,7 @@
 from string import Template
 from typing import Union
 
+import numpy as np
 import pandas as pd
 
 
@@ -150,7 +151,6 @@ def get_group_counts(pop: pd.DataFrame, base_filter: QueryString, base_key: Temp
     return group_counts
 
 
-
 def get_person_time(pop: pd.DataFrame, config: dict, sim_start: pd.Timestamp,
                     sim_end: pd.Timestamp, age_bins: pd.DataFrame) -> dict:
     base_key = get_output_template(**config).safe_substitute(measure='person_time')
@@ -159,7 +159,7 @@ def get_person_time(pop: pd.DataFrame, config: dict, sim_start: pd.Timestamp,
     person_time = {}
     for year, (t_start, t_end) in years:
         lived_in_span = get_lived_in_span(pop, span_filter, t_start, t_end)
-        person_time.update(get_person_time_in_span(lived_in_span, base_filter, base_key, sexes, ages, year)
+        person_time.update(get_person_time_in_span(lived_in_span, base_filter, base_key, sexes, ages, year))
     return person_time
 
 
@@ -248,6 +248,49 @@ def get_deaths(pop: pd.DataFrame, config: dict, sim_start: pd.Timestamp,
             deaths[key] = count
 
     return deaths
+
+
+def get_susceptible_person_time(pop, config, disease, current_year, step_size, age_bins):
+    base_key = Template(get_output_template(**config).safe_substitute(year=current_year))
+    base_filter = QueryString(f'alive == "alive" and {disease} == susceptible_to_{disease}')
+
+    group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
+
+    person_time = {}
+    for key, count in group_counts.items():
+        person_time_key = key.safe_substitute(measure=f'{disease}_susceptible_person_time')
+        person_time[person_time_key] = count * to_years(step_size)
+
+    return person_time
+
+
+def get_disease_event_counts(pop, config, disease, event_time, age_bins):
+    base_key = Template(get_output_template(**config).safe_substitute(year=event_time.year))
+    base_filter = QueryString(f'{disease}_event_time == {event_time}')
+
+    group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
+
+    disease_events = {}
+    for key, count in group_counts.items():
+        count_key = key.safe_substitute(measure=f'{disease}_counts')
+        disease_events[count_key] = count
+
+    return disease_events
+
+
+def get_treatment_counts(pop, config, treatment, doses, event_time, age_bins):
+    base_key = Template(get_output_template(**config).safe_substitute(year=event_time.year))
+    base_filter = QueryString(f'{treatment}_current_dose_event_time == {event_time}')
+
+    dose_counts = {}
+    for dose in doses:
+        base_filter += f'{treatment}_current_dose == {dose}'
+        group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
+        for key, count in group_counts.items():
+            key = base_key.safe_substitute(measure=f'{treatment}_{dose}_count')
+            dose_counts[key] = count
+
+    return dose_counts
 
 
 def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:

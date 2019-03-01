@@ -1,7 +1,6 @@
-from collections import defaultdict
-from string import Template
+from collections import Counter
 
-from .utilities import get_age_bins, get_output_template, get_group_counts, QueryString
+from .utilities import get_age_bins, get_treatment_counts
 
 
 class TreatmentObserver:
@@ -50,18 +49,14 @@ class TreatmentObserver:
     def setup(self, builder):
         self.config = builder.configuration['metrics'][self.name]
         self.doses = builder.configuration[self.treatment]['doses']
-
-        self.output_template = get_output_template(**self.config.to_dict())
-
         self.age_bins = get_age_bins(builder)
-        self.counts = defaultdict(int)
+        self.counts = Counter()
 
         columns_required = ['alive', f'{self.treatment}_current_dose_event_time', f'{self.treatment}_current_dose']
         if self.config.by_age:
             columns_required += ['age']
         if self.config.by_sex:
             columns_required += ['sex']
-
         self.population_view = builder.population.get_view(columns_required)
 
         builder.value.register_value_modifier('metrics', self.metrics)
@@ -69,17 +64,8 @@ class TreatmentObserver:
 
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
-
-        base_key = Template(self.output_template.safe_substitute(year=event.time.year))
-
-        for dose in self.doses:
-            base_filter = QueryString(f'{self.treatment}_current_dose == {dose} and '
-                                      f'{self.treatment}_current_dose_event_time == {event.time}')
-            group_counts = get_group_counts(pop, base_filter, base_key, self.config.to_dict(), self.age_bins)
-
-            for key, count in group_counts.items():
-                key = base_key.safe_substitute(measure=f'{self.treatment}_{dose}_count')
-                self.counts[key] += count
+        dose_counts_this_step = get_treatment_counts(pop, self.config.to_dict(), self.doses, event.time, self.age_bins)
+        self.counts.update(dose_counts_this_step)
 
     def metrics(self, index, metrics):
         metrics.update(self.counts)
