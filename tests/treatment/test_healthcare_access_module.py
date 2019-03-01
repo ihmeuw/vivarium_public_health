@@ -26,6 +26,7 @@ class Metrics:
 
 
 @pytest.mark.slow
+@pytest.mark.skip
 def test_general_access(base_config, base_plugins):
     year_start = 1990
     year_end = 2005
