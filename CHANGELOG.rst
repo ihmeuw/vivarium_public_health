@@ -1,3 +1,9 @@
+**0.9.4 - 03/01/19**
+
+ - Added neonatal models and support for birth prevalence in DiseaseModel.
+ - Added a risk attributable disease model.
+ - Added support for rebinning polytomous risks into dichotomous risks.
+
 **0.9.3 - 02/26/19**
 
  - Bugfix in checking relative risk source type from configuration.
