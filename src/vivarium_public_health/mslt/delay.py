@@ -33,6 +33,20 @@ class DelayedRisk:
     .. note:: The relative risks are defined in relation to the pre-exposure
        group (whose relative risks are therefore defined to be :math:`1`).
 
+    The configuration options for this component are:
+
+    - ``constant_prevalence`` (boolean, default is ``False``): if this is set
+      to ``True``, the remission rate in both the BAU and intervention will be
+      kept fixed at 0 (i.e., no remission).
+
+    - ``tobacco_tax`` (boolean, default is ``False``): if this is set to
+      ``True``, additional scaling effects are applied to both the incidence
+      and remission rates.
+
+    - ``delay`` (integer, default is ``20``): the number of years, after
+      remission, during which relative risks decrease back to their baseline
+      values.
+
     Identify the disease(s) for which this delayed risk will have an effect in
     the simulation configuration. For example, to modify the incidence of CHD
     and stroke, this would look like:
@@ -46,16 +60,20 @@ class DelayedRisk:
                    - Mortality()
                    - Disability()
                disease:
-                   - Disease('chd')
-                   - Disease('stroke')
+                   - Disease('CHD')
+                   - Disease('Stroke')
                delay:
                    - DelayedRisk('tobacco')
                ...
        configuration:
            tobacco:
+               constant_prevalence: False
+               tobacco_tax: False
+               delay: 20
                affects:
                    # This is where the affected diseases should be listed.
-                   stroke:
+                   CHD:
+                   Stroke:
     """
 
     def __init__(self, name, bin_years=20):
@@ -299,10 +317,13 @@ class DelayedRisk:
             int_inc *= tax_inc
             int_rem += (1 - tax_rem) * pop[col_int_yes]
 
+        # Apply the incidence rate to the never-exposed population.
         pop[col_no] = pop[col_no] - inc
         pop[col_int_no] = pop[col_int_no] - int_inc
+        # Incidence and remission affect who is currently exposed.
         pop[col_yes] = pop[col_yes] + inc - rem
         pop[col_int_yes] = pop[col_int_yes] + int_inc - int_rem
+        # Those who have just remitted enter the first post-remission bin.
         pop[col_zero] = rem
         pop[col_int_zero] = int_rem
 
