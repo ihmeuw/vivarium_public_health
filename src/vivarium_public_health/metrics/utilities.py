@@ -150,6 +150,106 @@ def get_group_counts(pop: pd.DataFrame, base_filter: QueryString, base_key: Temp
     return group_counts
 
 
+
+def get_person_time(pop: pd.DataFrame, config: dict, sim_start: pd.Timestamp,
+                    sim_end: pd.Timestamp, age_bins: pd.DataFrame) -> dict:
+    base_key = get_output_template(**config).safe_substitute(measure='person_time')
+    (base_filter, span_filter), (ages, sexes, years) = get_person_time_filters_and_iterables(config, age_bins,
+                                                                                             sim_start, sim_end)
+    person_time = {}
+    for year, (t_start, t_end) in years:
+        lived_in_span = get_lived_in_span(pop, span_filter, t_start, t_end)
+        person_time.update(get_person_time_in_span(lived_in_span, base_filter, base_key, sexes, ages, year)
+    return person_time
+
+
+def get_person_time_filters_and_iterables(config, age_bins, sim_start, sim_end):
+    base_filter = QueryString('')
+
+    if config['by_age']:
+        ages = age_bins.iterrows()
+        base_filter += '({age_group_start} <= age) and (age_at_start < {age_group_end})'
+    else:
+        ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
+
+    if config['by_sex']:
+        sexes = ['Male', 'Female']
+        base_filter += 'sex == {sex}'
+    else:
+        sexes = ['Both']
+
+    if config['by_year']:
+        years = [(year, (pd.Timestamp(f'1-1-{year}'), pd.Timestamp(f'1-1-{year + 1}')))
+                 for year in range(sim_start.year, sim_end.year + 1)]
+    else:
+        years = [('all_years', (pd.Timestamp(f'1-1-1000'), pd.Timestamp(f'1-1-5000')))]
+    # This filter needs to be applied separately to compute additional
+    # attributes in the person time calculation.
+    span_filter = '{t_start} <= exit_time and entrance_time < {t_end}'
+
+    return (base_filter, span_filter), (ages, sexes, years)
+
+
+def get_lived_in_span(pop, span_filter, t_start, t_end):
+    lived_in_span = pop.query(span_filter.format(t_start, t_end))
+
+    entrance_time = lived_in_span.entrance_time
+    exit_time = lived_in_span.exit_time
+    exit_time.loc[t_end < exit_time] = t_end
+
+    years_in_span = to_years(exit_time - entrance_time)
+    lived_in_span['age_at_start'] = np.maximum(lived_in_span.age - years_in_span, 0)
+    return lived_in_span
+
+
+def get_person_time_in_span(lived_in_span, base_filter, base_key, sexes, ages, year):
+    person_time = {}
+    for sex in sexes:
+        for group, age_bin in ages:
+            a_start, a_end = age_bin.age_group_start, age_bin.age_group_end
+            filter_kwargs = {'year': year, 'sex': sex, 'age_group_start': a_start,
+                             'age_group_end': a_end, 'age_group': age_bin.age_group_name}
+
+            group_filter = base_filter.format(**filter_kwargs)
+            in_group = lived_in_span.query(group_filter) if group_filter else lived_in_span.copy()
+            age_start = np.maximum(in_group.age_at_start, a_start)
+            age_end = np.minimum(in_group.age, a_end)
+
+            key = base_key.substitute(**filter_kwargs)
+
+            person_time[key] = (age_end - age_start).sum()
+
+    return person_time
+
+
+def get_deaths(pop: pd.DataFrame, config: dict, sim_start: pd.Timestamp,
+               sim_end: pd.Timestamp, age_bins: pd.DataFrame):
+    base_key = get_output_template(**config)
+    pop = clean_cause_of_death(pop)
+    base_filter = QueryString('alive == "dead"')
+
+    if config['by_year']:
+        years = [(year, (pd.Timestamp(f'1-1-{year}'), pd.Timestamp(f'1-1-{year + 1}')))
+                 for year in range(sim_start.year, sim_end.year + 1)]
+    else:
+        years = [('all_years', (pd.Timestamp(f'1-1-1000'), pd.Timestamp(f'1-1-5000')))]
+    additional_filter = '{t_start} <= exit_time and entrance_time < {t_end}'
+
+    causes = [c for c in pop.cause_of_death.unique()]
+    additional_filter += ' and cause_of_death == {cause}'
+
+    deaths = {}
+    for cause, year, (t_start, t_end) in zip(causes, years):
+        cause_year_filter = base_filter + additional_filter.format(t_start, t_end, cause)
+        group_deaths = get_group_counts(pop, cause_year_filter, base_key, config, age_bins)
+
+        for key, count in group_deaths:
+            key = key.substitute(measure=cause, year=year)
+            deaths[key] = count
+
+    return deaths
+
+
 def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
     """Standardizes cause of death names to all read ``death_due_to_cause``."""
 
