@@ -1,3 +1,8 @@
+**0.8.15 - 02/28/19**
+
+ - Fix fertility component work with both 2016 and forecasting data.
+ - Fix tests to work with upstream changes.
+
 **0.8.14 - 02/22/19**
 
  - Pin numpy and tables dependencies.
