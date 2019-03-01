@@ -361,20 +361,21 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
     rebin_exposed_categories = set(builder.configuration[risk.name]['rebinned_exposed'])
 
-    if rebin_exposed_categories and builder.configuration[risk.name]['category_thresholds']:
-        raise ValueError(f'Rebinning and category thresholds are mutually exclusive. '
-                         f'You provided both for {risk.name}.')
+    if rebin_exposed_categories:
+        if builder.configuration[risk.name]['category_thresholds']:
+            raise ValueError(f'Rebinning and category thresholds are mutually exclusive. '
+                             f'You provided both for {risk.name}.')
 
-    if rebin_exposed_categories and 'polytomous' not in builder.data.load(f'{risk}.distribution'):
-        raise ValueError(f'Rebinning is only supported for polytomous risks. You provided rebinning exposed categories'
-                         f'for {risk.name}, which is of type {builder.data.load(f"{risk}.distribution")}.')
+        if 'polytomous' not in builder.data.load(f'{risk}.distribution'):
+            raise ValueError(f'Rebinning is only supported for polytomous risks. You provided rebinning exposed categories'
+                             f'for {risk.name}, which is of type {builder.data.load(f"{risk}.distribution")}.')
 
-    invalid_cats = rebin_exposed_categories.difference(set(data.parameter))
-    if invalid_cats:
-        raise ValueError(f'The following provided categories for the rebinned exposed category of {risk.name} '
-                         f'are not found in the exposure data: {invalid_cats}.')
+        invalid_cats = rebin_exposed_categories.difference(set(data.parameter))
+        if invalid_cats:
+            raise ValueError(f'The following provided categories for the rebinned exposed category of {risk.name} '
+                             f'are not found in the exposure data: {invalid_cats}.')
 
-    if rebin_exposed_categories == set(data.parameter):
-        raise ValueError(f'The provided categories for the rebinned exposed category of {risk.name} comprise all '
-                         f'categories for the exposure data. At least one category must be left out of the provided '
-                         f'categories to be rebinned into the unexposed category.')
+        if rebin_exposed_categories == set(data.parameter):
+            raise ValueError(f'The provided categories for the rebinned exposed category of {risk.name} comprise all '
+                             f'categories for the exposure data. At least one category must be left out of the provided '
+                             f'categories to be rebinned into the unexposed category.')
