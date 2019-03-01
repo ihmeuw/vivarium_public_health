@@ -1,6 +1,7 @@
 from collections import defaultdict
+from string import Template
 
-from .utilities import get_age_bins, get_output_template, to_years, get_group_counts
+from .utilities import get_age_bins, get_output_template, to_years, get_group_counts, QueryString
 
 
 class DiseaseObserver:
@@ -70,8 +71,8 @@ class DiseaseObserver:
 
         # Ignoring the edge case where the step spans a new year.
         # Accrue all counts and time to the current year.
-        base_key = self.output_template.safe_substitute(year=self.clock().year)
-        base_filter = f'{self.disease} == susceptible_to_{self.disease}'
+        base_key = Template(self.output_template.safe_substitute(year=self.clock().year))
+        base_filter = QueryString(f'{self.disease} == susceptible_to_{self.disease}')
 
         group_counts = get_group_counts(pop, base_filter, base_key, self.config.to_dict(), self.age_bins)
 
@@ -83,7 +84,7 @@ class DiseaseObserver:
         pop = self.population_view.get(event.index)
 
         base_key = self.output_template.safe_substitute(year=event.time.year)
-        base_filter = f'{self.disease}_event_time == {event.time}'
+        base_filter = QueryString(f'{self.disease}_event_time == {event.time}')
 
         group_counts = get_group_counts(pop, base_filter, base_key, self.config.to_dict(), self.age_bins)
 

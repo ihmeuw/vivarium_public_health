@@ -1,6 +1,41 @@
 from string import Template
+from typing import Union
 
 import pandas as pd
+
+
+class QueryString(str):
+    """Convenience string that forms logical conjunctions using addition.
+
+    This class is meant to be used to create a logical statement for
+    use with pandas ``query`` functions. It hides away the management
+    of conjunctions and the fence posting problems that management creates.
+
+    Examples
+    --------
+    >>> s = QueryString('')
+    >>> s
+    ''
+    >>> s + ''
+    ''
+    >>> s + 'abc'
+    'abc'
+    >>> s += 'abc'
+    >>> s + 'def'
+    'abc and def'
+
+    """
+    def __add__(self, other: Union[str, 'QueryString']) -> 'QueryString':
+        if self:
+            if other:
+                return QueryString(str(self) + ' and ' + other)
+            else:
+                return self
+        else:
+            return other
+
+    def __radd__(self, other: Union[str, 'QueryString']) -> 'QueryString':
+        return self + other
 
 
 def get_age_bins(builder) -> pd.DataFrame:
@@ -55,8 +90,8 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> Template:
     return Template(template)
 
 
-def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
-                     config: dict, age_bins: pd.DataFrame = None) -> dict:
+def get_group_counts(pop: pd.DataFrame, base_filter: QueryString, base_key: Template,
+                     config: dict, age_bins: pd.DataFrame) -> dict:
     """Gets a count of people in a custom subgroup.
 
     The user is responsible for providing a default filter (e.g. only alive
@@ -89,13 +124,13 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
     """
     if config['by_age']:
         ages = age_bins.iterrows()
-        base_filter += ' and ({age_group_start} <= age) and (age < {age_group_end})'
+        base_filter += '({age_group_start} <= age) and (age < {age_group_end})'
     else:
         ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
 
     if config['by_sex']:
         sexes = ['Male', 'Female']
-        base_filter += ' and sex == {sex}'
+        base_filter += 'sex == {sex}'
     else:
         sexes = ['Both']
 
@@ -105,7 +140,7 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
         start, end = age_group.age_group_start, age_group.age_group_end
         for sex in sexes:
             filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex}
-            key = base_key.safe_substitute(**filter_kwargs)
+            key = Template(base_key.safe_substitute(**filter_kwargs))
             group_filter = base_filter.format(**filter_kwargs)
 
             in_group = pop.query(group_filter)
