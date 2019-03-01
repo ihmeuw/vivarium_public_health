@@ -36,7 +36,7 @@ class Risk:
         risk:
             rebinned_exposed: ['cat1', 'cat2']
 
-    For alternative risk factors, you can provide a 'category_thresholds'
+    For alternative risk factors, you must provide a 'category_thresholds'
     block in the in configuration to dictate the thresholds that should be
     used to bin the continuous distributions. Note that this is mutually
     exclusive with providing 'rebinned_exposed' categories. For a risk named
