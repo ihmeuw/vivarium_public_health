@@ -151,12 +151,14 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString, ra
     if get_distribution_type(builder, risk) in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
         relative_risk_data = pivot_categorical(relative_risk_data)
 
+    else:
+        relative_risk_data = relative_risk_data.drop(['parameter'], 'columns')
+
     return relative_risk_data
 
 
 def load_relative_risk_data(builder, risk: EntityString, target: TargetString,
                             source_type: str, randomness: RandomnessStream):
-    distribution_type = get_distribution_type(builder, risk)
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
     if source_type == 'data':
@@ -165,8 +167,6 @@ def load_relative_risk_data(builder, risk: EntityString, target: TargetString,
                           & (relative_risk_data['affected_measure'] == target.measure))
         relative_risk_data = (relative_risk_data[correct_target]
                               .drop(['affected_entity', 'affected_measure'], 'columns'))
-        if distribution_type in ['normal', 'lognormal', 'ensemble']:
-            relative_risk_data = relative_risk_data.drop(['parameter'], 'columns')
 
     elif source_type == 'relative risk value':
         relative_risk_data = _make_relative_risk_data(builder, float(relative_risk_source['relative_risk']))
