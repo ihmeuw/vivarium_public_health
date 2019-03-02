@@ -408,7 +408,7 @@ def rescale_final_age_bin(builder, population_data):
     if exit_age:
         cut_bin = population_data[(population_data.age_group_start < exit_age)
                                   & (population_data.age_group_end >= exit_age)]
-        cut_bin.value *= (exit_age - cut_bin.age_group_start) / (cut_bin.age_group_end - cut_bin.age_group_start)
+        cut_bin.loc[:, 'population'] *= (exit_age - cut_bin.age_group_start) / (cut_bin.age_group_end - cut_bin.age_group_start)
         cut_bin.loc[:, 'age_group_end'] = exit_age
         population_data = population_data[population_data.age_group_end < exit_age]
         population_data = pd.concat([population_data, cut_bin], ignore_index=True)
