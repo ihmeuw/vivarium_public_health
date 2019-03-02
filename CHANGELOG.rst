@@ -1,3 +1,7 @@
+**0.9.5 - 03/01/19**
+
+ - Bugfix in validating rebinning risks for continuous risks.
+
 **0.9.4 - 03/01/19**
 
  - Added neonatal models and support for birth prevalence in DiseaseModel.
