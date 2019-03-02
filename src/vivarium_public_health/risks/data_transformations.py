@@ -151,12 +151,14 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString, ra
     if get_distribution_type(builder, risk) in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
         relative_risk_data = pivot_categorical(relative_risk_data)
 
+    else:
+        relative_risk_data = relative_risk_data.drop(['parameter'], 'columns')
+
     return relative_risk_data
 
 
 def load_relative_risk_data(builder, risk: EntityString, target: TargetString,
                             source_type: str, randomness: RandomnessStream):
-    distribution_type = get_distribution_type(builder, risk)
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
     if source_type == 'data':
@@ -165,8 +167,6 @@ def load_relative_risk_data(builder, risk: EntityString, target: TargetString,
                           & (relative_risk_data['affected_measure'] == target.measure))
         relative_risk_data = (relative_risk_data[correct_target]
                               .drop(['affected_entity', 'affected_measure'], 'columns'))
-        if distribution_type in ['normal', 'lognormal', 'ensemble']:
-            relative_risk_data = relative_risk_data.drop(['parameter'], 'columns')
 
     elif source_type == 'relative risk value':
         relative_risk_data = _make_relative_risk_data(builder, float(relative_risk_source['relative_risk']))
@@ -361,21 +361,20 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
     rebin_exposed_categories = set(builder.configuration[risk.name]['rebinned_exposed'])
 
-    if rebin_exposed_categories:
-        if builder.configuration[risk.name]['category_thresholds']:
-            raise ValueError(f'Rebinning and category thresholds are mutually exclusive. '
-                             f'You provided both for {risk.name}.')
+    if rebin_exposed_categories and builder.configuration[risk.name]['category_thresholds']:
+        raise ValueError(f'Rebinning and category thresholds are mutually exclusive. '
+                         f'You provided both for {risk.name}.')
 
-        if 'polytomous' not in builder.data.load(f'{risk}.distribution'):
-            raise ValueError(f'Rebinning is only supported for polytomous risks. You provided rebinning exposed categories'
-                             f'for {risk.name}, which is of type {builder.data.load(f"{risk}.distribution")}.')
+    if rebin_exposed_categories and 'polytomous' not in builder.data.load(f'{risk}.distribution'):
+        raise ValueError(f'Rebinning is only supported for polytomous risks. You provided rebinning exposed categories'
+                         f'for {risk.name}, which is of type {builder.data.load(f"{risk}.distribution")}.')
 
-        invalid_cats = rebin_exposed_categories.difference(set(data.parameter))
-        if invalid_cats:
-            raise ValueError(f'The following provided categories for the rebinned exposed category of {risk.name} '
-                             f'are not found in the exposure data: {invalid_cats}.')
+    invalid_cats = rebin_exposed_categories.difference(set(data.parameter))
+    if invalid_cats:
+        raise ValueError(f'The following provided categories for the rebinned exposed category of {risk.name} '
+                         f'are not found in the exposure data: {invalid_cats}.')
 
-        if rebin_exposed_categories == set(data.parameter):
-            raise ValueError(f'The provided categories for the rebinned exposed category of {risk.name} comprise all '
-                             f'categories for the exposure data. At least one category must be left out of the provided '
-                             f'categories to be rebinned into the unexposed category.')
+    if rebin_exposed_categories == set(data.parameter):
+        raise ValueError(f'The provided categories for the rebinned exposed category of {risk.name} comprise all '
+                         f'categories for the exposure data. At least one category must be left out of the provided '
+                         f'categories to be rebinned into the unexposed category.')
