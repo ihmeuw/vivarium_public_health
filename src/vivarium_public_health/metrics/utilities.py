@@ -1,6 +1,41 @@
 from string import Template
+from typing import Union
 
 import pandas as pd
+
+
+class QueryString(str):
+    """Convenience string that forms logical conjunctions using addition.
+
+    This class is meant to be used to create a logical statement for
+    use with pandas ``query`` functions. It hides away the management
+    of conjunctions and the fence posting problems that management creates.
+
+    Examples
+    --------
+    >>> s = QueryString('')
+    >>> s
+    ''
+    >>> s + ''
+    ''
+    >>> s + 'abc'
+    'abc'
+    >>> s += 'abc'
+    >>> s + 'def'
+    'abc and def'
+
+    """
+    def __add__(self, other: Union[str, 'QueryString']) -> 'QueryString':
+        if self:
+            if other:
+                return QueryString(str(self) + ' and ' + str(other))
+            else:
+                return self
+        else:
+            return QueryString(other)
+
+    def __radd__(self, other: Union[str, 'QueryString']) -> 'QueryString':
+        return QueryString(other) + self
 
 
 def get_age_bins(builder) -> pd.DataFrame:
@@ -89,13 +124,13 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
     """
     if config['by_age']:
         ages = age_bins.iterrows()
-        base_filter += ' and ({age_group_start} <= age) and (age < {age_group_end})'
+        base_filter += '({age_group_start} <= age) and (age < {age_group_end})'
     else:
         ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
 
     if config['by_sex']:
         sexes = ['Male', 'Female']
-        base_filter += ' and sex == {sex}'
+        base_filter += 'sex == {sex}'
     else:
         sexes = ['Both']
 

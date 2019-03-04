@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from .utilities import get_age_bins, get_output_template, get_group_counts
+from .utilities import get_age_bins, get_output_template, get_group_counts, QueryString
 
 
 class TreatmentObserver:
@@ -72,8 +72,8 @@ class TreatmentObserver:
         base_key = self.output_template.safe_substitute(year=event.time.year)
 
         for dose in self.doses:
-            base_filter = (f'{self.treatment}_current_dose == {dose} and '
-                           f'{self.treatment}_current_dose_event_time == {event.time}')
+            base_filter = QueryString(f'{self.treatment}_current_dose == {dose} and '
+                                      f'{self.treatment}_current_dose_event_time == {event.time}')
             group_counts = get_group_counts(pop, base_filter, base_key, self.config.to_dict(), self.age_bins)
 
             for key, count in group_counts.items():
