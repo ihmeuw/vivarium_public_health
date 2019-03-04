@@ -134,7 +134,7 @@ def test_get_disease_event_counts(ages_and_bins, sexes, observer_config):
         expected_value /= len(age_bins)
     assert np.isclose(values.pop(), expected_value)
 
-    # Doubling pop should double person time
+    # Doubling pop should double counts
     pop = pd.concat([pop, pop], axis=0, ignore_index=True)
 
     counts = get_disease_event_counts(pop, observer_config, disease, event_time, age_bins)
@@ -166,7 +166,7 @@ def test_get_treatment_counts(ages_and_bins, sexes, observer_config):
         expected_value /= len(age_bins)
     assert np.isclose(values.pop(), expected_value)
 
-    # Doubling pop should double person time
+    # Doubling pop should double counts
     pop = pd.concat([pop, pop], axis=0, ignore_index=True)
 
     counts = get_treatment_counts(pop, observer_config, treatment, doses, event_time, age_bins)
