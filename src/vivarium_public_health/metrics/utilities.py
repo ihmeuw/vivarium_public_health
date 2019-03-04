@@ -150,6 +150,34 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
     return group_counts
 
 
+def get_susceptible_person_time(pop, config, disease, current_year, step_size, age_bins):
+    base_key = Template(get_output_template(**config).safe_substitute(year=current_year))
+    base_filter = QueryString(f'alive == "alive" and {disease} == susceptible_to_{disease}')
+
+    group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
+
+    person_time = {}
+    for key, count in group_counts.items():
+        person_time_key = key.safe_substitute(measure=f'{disease}_susceptible_person_time')
+        person_time[person_time_key] = count * to_years(step_size)
+
+    return person_time
+
+
+def get_disease_event_counts(pop, config, disease, event_time, age_bins):
+    base_key = Template(get_output_template(**config).safe_substitute(year=event_time.year))
+    base_filter = QueryString(f'{disease}_event_time == {event_time}')
+
+    group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
+
+    disease_events = {}
+    for key, count in group_counts.items():
+        count_key = key.safe_substitute(measure=f'{disease}_counts')
+        disease_events[count_key] = count
+
+    return disease_events
+
+
 def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
     """Standardizes cause of death names to all read ``death_due_to_cause``."""
 
