@@ -180,6 +180,23 @@ def get_disease_event_counts(pop, config, disease, event_time, age_bins):
     return disease_events
 
 
+def get_treatment_counts(pop, config, treatment, doses, event_time, age_bins):
+    base_key = Template(get_output_template(**config).safe_substitute(year=event_time.year))
+    # Can't use query with time stamps, so filter
+    pop = pop.loc[pop[f'{treatment}_current_dose_event_time'] == event_time]
+    base_filter = QueryString('')
+
+    dose_counts = {}
+    for dose in doses:
+        dose_filter = base_filter + f'{treatment}_current_dose == {dose}'
+        group_counts = get_group_counts(pop, dose_filter, base_key, config, age_bins)
+        for key, count in group_counts.items():
+            key = base_key.safe_substitute(measure=f'{treatment}_{dose}_count')
+            dose_counts[key] = count
+
+    return dose_counts
+
+
 def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
     """Standardizes cause of death names to all read ``death_due_to_cause``."""
 
