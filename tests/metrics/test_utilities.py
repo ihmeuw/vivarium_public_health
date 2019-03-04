@@ -137,9 +137,9 @@ def test_get_disease_event_counts(ages_and_bins, sexes, observer_config):
     # Doubling pop should double person time
     pop = pd.concat([pop, pop], axis=0, ignore_index=True)
 
-    person_time = get_disease_event_counts(pop, observer_config, disease, event_time, age_bins)
+    counts = get_disease_event_counts(pop, observer_config, disease, event_time, age_bins)
 
-    values = set(person_time.values())
+    values = set(counts.values())
     assert len(values) == 1
     assert np.isclose(values.pop(), 2 * expected_value)
 
