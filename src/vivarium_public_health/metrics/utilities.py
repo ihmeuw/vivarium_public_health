@@ -188,7 +188,7 @@ def get_treatment_counts(pop, config, treatment, doses, event_time, age_bins):
 
     dose_counts = {}
     for dose in doses:
-        dose_filter = base_filter + f'{treatment}_current_dose == {dose}'
+        dose_filter = base_filter + f'{treatment}_current_dose == "{dose}"'
         group_counts = get_group_counts(pop, dose_filter, base_key, config, age_bins)
         for key, count in group_counts.items():
             key = base_key.safe_substitute(measure=f'{treatment}_{dose}_count')
