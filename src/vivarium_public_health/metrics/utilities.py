@@ -80,18 +80,18 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> Template:
         A template string with measure and possibly additional criteria.
 
     """
-    template = '{measure}'
+    template = '${measure}'
     if by_year:
-        template += '_in_{year}'
+        template += '_in_${year}'
     if by_sex:
-        template += '_among_{sex}'
+        template += '_among_${sex}'
     if by_age:
-        template += '_in_age_group_{age_group}'
+        template += '_in_age_group_${age_group}'
     return Template(template)
 
 
 def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
-                     config: dict, age_bins: pd.DataFrame = None) -> dict:
+                     config: dict, age_bins: pd.DataFrame) -> dict:
     """Gets a count of people in a custom subgroup.
 
     The user is responsible for providing a default filter (e.g. only alive
@@ -123,14 +123,14 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
         string template with an unfilled measure parameter.
     """
     if config['by_age']:
-        ages = age_bins.iterrows()
-        base_filter += '({age_group_start} <= age) and (age < {age_group_end})'
+        ages = age_bins.set_index('age_group_name').iterrows()
+        base_filter += '{age_group_start} <= age and age < {age_group_end}'
     else:
-        ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
+        ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None, 'age_group_name': 'all_ages'}))]
 
     if config['by_sex']:
         sexes = ['Male', 'Female']
-        base_filter += 'sex == {sex}'
+        base_filter += 'sex == "{sex}"'
     else:
         sexes = ['Both']
 
@@ -139,10 +139,11 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
     for group, age_group in ages:
         start, end = age_group.age_group_start, age_group.age_group_end
         for sex in sexes:
-            filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex}
-            key = base_key.safe_substitute(**filter_kwargs)
+            filter_kwargs = {'age_group_start': start, 'age_group_end': end,
+                             'sex': sex}
+            template_kwargs = {'sex': sex.lower(), 'age_group': group.lower()}
+            key = Template(base_key.safe_substitute(**template_kwargs))
             group_filter = base_filter.format(**filter_kwargs)
-
             in_group = pop.query(group_filter)
 
             group_counts[key] = len(in_group)
@@ -152,8 +153,7 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
 
 def get_susceptible_person_time(pop, config, disease, current_year, step_size, age_bins):
     base_key = Template(get_output_template(**config).safe_substitute(year=current_year))
-    base_filter = QueryString(f'alive == "alive" and {disease} == susceptible_to_{disease}')
-
+    base_filter = QueryString(f'alive == "alive" and {disease} == "susceptible_to_{disease}"')
     group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
 
     person_time = {}
