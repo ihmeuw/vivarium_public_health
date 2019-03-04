@@ -83,7 +83,7 @@ def test_query_string(a, b):
 def test_get_susceptible_person_time(ages_and_bins, sexes, observer_config):
     ages, age_bins = ages_and_bins
     disease = 'test_disease'
-    states = [f'susceptible_to_{disease}']
+    states = [f'susceptible_to_{disease}', disease]
     pop = pd.DataFrame(list(product(ages, sexes, states)), columns=['age', 'sex', disease])
     pop['alive'] = 'alive'
     # Shuffle the rows
@@ -96,7 +96,7 @@ def test_get_susceptible_person_time(ages_and_bins, sexes, observer_config):
 
     values = set(person_time.values())
     assert len(values) == 1
-    expected_value = to_years(step_size)*len(pop)
+    expected_value = to_years(step_size)*len(pop)/2
     if observer_config['by_sex']:
         expected_value /= 2
     if observer_config['by_age']:
@@ -112,4 +112,32 @@ def test_get_susceptible_person_time(ages_and_bins, sexes, observer_config):
     assert len(values) == 1
     assert np.isclose(values.pop(), 2*expected_value)
 
+
+def test_get_disease_event_counts(ages_and_bins, sexes, observer_config):
+    ages, age_bins = ages_and_bins
+    disease = 'test_disease'
+    event_time = pd.Timestamp('1-1-2017')
+    states = [event_time, pd.NaT]
+    pop = pd.DataFrame(list(product(ages, sexes, states)), columns=['age', 'sex', f'{disease}_event_time'])
+    # Shuffle the rows
+    pop = pop.sample(frac=1).reset_index(drop=True)
+
+    counts = get_disease_event_counts(pop, observer_config, disease, event_time, age_bins)
+
+    values = set(counts.values())
+    assert len(values) == 1
+    expected_value = len(pop) / 2
+    if observer_config['by_sex']:
+        expected_value /= 2
+    if observer_config['by_age']:
+        expected_value /= len(age_bins)
+
+    # Doubling pop should double person time
+    pop = pd.concat([pop, pop], axis=0, ignore_index=True)
+
+    person_time = get_disease_event_counts(pop, observer_config, disease, event_time, age_bins)
+
+    values = set(person_time.values())
+    assert len(values) == 1
+    assert np.isclose(values.pop(), 2 * expected_value)
 

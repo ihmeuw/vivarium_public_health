@@ -144,7 +144,7 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
             template_kwargs = {'sex': sex.lower(), 'age_group': group.lower()}
             key = Template(base_key.safe_substitute(**template_kwargs))
             group_filter = base_filter.format(**filter_kwargs)
-            in_group = pop.query(group_filter)
+            in_group = pop.query(group_filter) if group_filter else pop
 
             group_counts[key] = len(in_group)
 
@@ -166,7 +166,9 @@ def get_susceptible_person_time(pop, config, disease, current_year, step_size, a
 
 def get_disease_event_counts(pop, config, disease, event_time, age_bins):
     base_key = Template(get_output_template(**config).safe_substitute(year=event_time.year))
-    base_filter = QueryString(f'{disease}_event_time == {event_time}')
+    # Can't use query with time stamps, so filter
+    pop = pop.loc[pop[f'{disease}_event_time'] == event_time]
+    base_filter = QueryString('')
 
     group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
 
