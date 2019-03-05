@@ -12,8 +12,6 @@ from tables.nodes import filenode
 if typing.TYPE_CHECKING:
     from vivarium_public_health.dataset_manager import EntityKey
 
-DEFAULT_COLUMNS = {"location", "draw"}
-
 
 def touch(path: str):
     """Creates an hdf file or wipes an existing file if necessary.
@@ -139,13 +137,10 @@ def _write_data_frame(path: str, entity_key: 'EntityKey', data: pd.DataFrame):
     if data.empty:
         raise ValueError("Cannot persist empty dataset")
 
-    # Even though these get called data_columns, it's more correct to think of them
-    # as the columns you can use to index into the raw data with. It's the subset of columns
-    # that you can filter by without reading in a whole dataset.
-    data_columns = DEFAULT_COLUMNS.intersection(data.columns)
-
+    # Our data is indexed (mostly -- demog dimensions isn't).
+    # The indices can be queried by name in table format.
     with pd.HDFStore(path, complevel=9) as store:
-        store.put(entity_path, data, format="table", data_columns=data_columns)
+        store.put(entity_path, data, format="table")
 
 
 def _get_keys(root: tables.node.Node, prefix: str='') -> List[str]:
