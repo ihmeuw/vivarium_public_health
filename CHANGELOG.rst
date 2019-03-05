@@ -1,3 +1,7 @@
+**0.8.16 - 03/04/19**
+
+ - Bugfix to handle population data.
+
 **0.8.15 - 02/28/19**
 
  - Fix fertility component work with both 2016 and forecasting data.
@@ -13,7 +17,7 @@
 **0.8.13 - 01/04/19**
 
  - Added support for multi-location data artifacts.
- - Added CI branch synchronization
+ - Added CI branch synchronization.
 
 **0.8.12 - 12/27/18**
 
