@@ -28,7 +28,7 @@ class EnsembleSimulation:
 
     def ppf(self, q):
         if not q.empty:
-            # We limit valid propensity to (0.001 0.999). Beyond that bound values return NaN and then become zero,
+            # We limit valid propensity to [0.001 0.999]. Beyond that bound values return NaN and then become zero,
             # which is nonsensical.
             q[q > 0.999] = 0.998
             q[q < 0.001] = 0.0011
