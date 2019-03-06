@@ -1,3 +1,4 @@
+from collections import ChainMap
 from string import Template
 from typing import Union
 
@@ -38,6 +39,63 @@ class QueryString(str):
         return QueryString(other) + self
 
 
+class SubstituteString(str):
+    """Normal string plus a no-op substitute method.
+    Meant to be used with the OutputTemplate."""
+    def substitute(self, *args, **kws):
+        return self
+
+
+class OutputTemplate(Template):
+    """Output string template that enforces standardized formatting."""
+    @staticmethod
+    def format_template_value(value):
+        """Formatting helper method for substituting values into a template."""
+        return str(value).replace(' ', '_').lower()
+
+    @staticmethod
+    def get_mapping(*args, **kws):
+        """Gets a consistent mapping from args passed to substitute."""
+        # This is copied directly from the first part of Template.substitute
+        if not args:
+            raise TypeError("descriptor 'substitute' of 'Template' object "
+                            "needs an argument")
+        self, *args = args  # allow the "self" keyword be passed
+        if len(args) > 1:
+            raise TypeError('Too many positional arguments')
+        if not args:
+            mapping = dict(kws)
+        elif kws:
+            mapping = ChainMap(kws, args[0])
+        else:
+            mapping = args[0]
+        return self, mapping
+
+    def substitute(*args, **kws):
+        """Substitutes provided values into the template.
+        Users are allowed to pass any dictionary like object whose keys match
+        placeholders in the template. Alternatively, they can provide
+        keyword arguments where the keywords are the placeholders. If both
+        are provided, the keywords take precedence.
+        Returns
+        -------
+            Another output template with the provided values substituted in
+            to the template placeholders if any placeholders remain,
+            otherwise a completed ``SubstituteString``.
+        """
+        self, mapping = OutputTemplate.get_mapping(*args, **kws)
+        mapping = {key: self.format_template_value(value) for key, value in mapping.items()}
+        try:
+            return SubstituteString(super(OutputTemplate, self).substitute(mapping))
+        except KeyError:
+            return OutputTemplate(super(OutputTemplate, self).safe_substitute(mapping))
+
+    def safe_substitute(*args, **kws):
+        """Alias to OutputTemplate.substitute."""
+        self, mapping = OutputTemplate.get_mapping(*args, **kws)
+        return self.substitute(mapping)
+
+
 def get_age_bins(builder) -> pd.DataFrame:
     """Retrieves age bins relevant to the current simulation.
 
@@ -60,7 +118,7 @@ def get_age_bins(builder) -> pd.DataFrame:
     return age_bins
 
 
-def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> Template:
+def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> OutputTemplate:
     """Gets a template string for output metrics.
 
     The template string should be filled in using filter criteria for
@@ -87,10 +145,10 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> Template:
         template += '_among_${sex}'
     if by_age:
         template += '_in_age_group_${age_group}'
-    return Template(template)
+    return OutputTemplate(template)
 
 
-def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
+def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTemplate,
                      config: dict, age_bins: pd.DataFrame) -> dict:
     """Gets a count of people in a custom subgroup.
 
@@ -142,7 +200,7 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
             filter_kwargs = {'age_group_start': start, 'age_group_end': end,
                              'sex': sex}
             template_kwargs = {'sex': sex.lower(), 'age_group': group.lower()}
-            key = Template(base_key.safe_substitute(**template_kwargs))
+            key = base_key.substitute(**template_kwargs)
             group_filter = base_filter.format(**filter_kwargs)
             in_group = pop.query(group_filter) if group_filter else pop
 
@@ -152,20 +210,20 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: Template,
 
 
 def get_susceptible_person_time(pop, config, disease, current_year, step_size, age_bins):
-    base_key = Template(get_output_template(**config).safe_substitute(year=current_year))
+    base_key = get_output_template(**config).substitute(year=current_year)
     base_filter = QueryString(f'alive == "alive" and {disease} == "susceptible_to_{disease}"')
     group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
 
     person_time = {}
     for key, count in group_counts.items():
-        person_time_key = key.safe_substitute(measure=f'{disease}_susceptible_person_time')
+        person_time_key = key.substitute(measure=f'{disease}_susceptible_person_time')
         person_time[person_time_key] = count * to_years(step_size)
 
     return person_time
 
 
 def get_disease_event_counts(pop, config, disease, event_time, age_bins):
-    base_key = Template(get_output_template(**config).safe_substitute(year=event_time.year))
+    base_key = get_output_template(**config).substitute(year=event_time.year)
     # Can't use query with time stamps, so filter
     pop = pop.loc[pop[f'{disease}_event_time'] == event_time]
     base_filter = QueryString('')
@@ -174,14 +232,14 @@ def get_disease_event_counts(pop, config, disease, event_time, age_bins):
 
     disease_events = {}
     for key, count in group_counts.items():
-        count_key = key.safe_substitute(measure=f'{disease}_counts')
+        count_key = key.substitute(measure=f'{disease}_counts')
         disease_events[count_key] = count
 
     return disease_events
 
 
 def get_treatment_counts(pop, config, treatment, doses, event_time, age_bins):
-    base_key = Template(get_output_template(**config).safe_substitute(year=event_time.year))
+    base_key = get_output_template(**config).substitute(year=event_time.year)
     # Can't use query with time stamps, so filter
     pop = pop.loc[pop[f'{treatment}_current_dose_event_time'] == event_time]
     base_filter = QueryString('')
@@ -191,7 +249,7 @@ def get_treatment_counts(pop, config, treatment, doses, event_time, age_bins):
         dose_filter = base_filter + f'{treatment}_current_dose == "{dose}"'
         group_counts = get_group_counts(pop, dose_filter, base_key, config, age_bins)
         for key, count in group_counts.items():
-            key = base_key.safe_substitute(measure=f'{treatment}_{dose}_count')
+            key = base_key.substitute(measure=f'{treatment}_{dose}_count')
             dose_counts[key] = count
 
     return dose_counts
