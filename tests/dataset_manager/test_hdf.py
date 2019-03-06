@@ -181,6 +181,9 @@ def test_write_data_frame(hdf_file_path):
     data = build_table([lambda *args, **kwargs: random.choice([0, 1]), "Kenya", 1],
                        2005, 2010, columns=('age', 'year', 'sex', 'draw', 'location', 'value'))
 
+    non_val_columns = data.columns.difference({'value'})
+    data = data.set_index(list(non_val_columns))
+
     hdf._write_data_frame(hdf_file_path, key, data)
 
     written_data = pd.read_hdf(hdf_file_path, key.path)
@@ -188,7 +191,7 @@ def test_write_data_frame(hdf_file_path):
 
     filter_terms = ['draw == 0']
     written_data = pd.read_hdf(hdf_file_path, key.path, where=filter_terms)
-    assert written_data.equals(data[data['draw'] == 0])
+    assert written_data.equals(data.xs(0, level='draw', drop_level=False))
 
 
 def test_get_keys_private(hdf_file, hdf_keys):
