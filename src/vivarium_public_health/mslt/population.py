@@ -3,14 +3,35 @@ import pandas as pd
 
 
 class BasePopulation:
+    """
+    This component implements the core population demographics: age, sex,
+    population size.
+
+    The configuration options for this component are:
+
+    - ``population_size``: The number of population cohorts (**must be
+      specified**).
+
+    - ``max_age``: The age at which cohorts are removed from the population
+      (default: 110).
+
+    .. code-block:: yaml
+
+       configuration
+           population:
+               population_size: 44 # Male and female 5-year cohorts, 0 to 109.
+               max_age: 110        # The age at which cohorts are removed.
+    """
 
     configuration_defaults = {
         'population': {
             'max_age': 110,
         }
     }
+    """Define the default age at which cohorts are removed."""
 
     def setup(self, builder):
+        """Load the population data."""
         self.pop_data = builder.data.load('population.structure')
         self.pop_data.loc[:, 'acmr'] = 0.0
         self.pop_data.loc[:, 'bau_acmr'] = 0.0
@@ -40,9 +61,11 @@ class BasePopulation:
         builder.event.register_listener('time_step', self.on_time_step)
 
     def on_initialize_simulants(self, _):
+        """Initialize each cohort."""
         self.population_view.update(self.pop_data)
 
     def on_time_step(self, event):
+        """Remove cohorts that have reached the maximum age."""
         pop = self.population_view.get(event.index, query='tracked == True')
         pop['age'] += 1
         pop.loc[pop.age >= self.max_age, 'tracked'] = False
@@ -50,8 +73,13 @@ class BasePopulation:
 
 
 class Mortality:
+    """
+    This component reduces the population size of each cohort over time,
+    according to the all-cause mortality rate.
+    """
 
     def setup(self, builder):
+        """Load the all-cause mortality rate."""
         mortality_data = builder.data.load('cause.all_causes.mortality')
         self.mortality_rate = builder.value.register_rate_producer(
             'mortality_rate', source=builder.lookup.build_table(mortality_data))
@@ -65,6 +93,10 @@ class Mortality:
                                                             'person_years', 'bau_person_years'])
 
     def on_time_step(self, event):
+        """
+        Calculate the number of deaths and survivors at each time-step, for
+        both the BAU and intervention scenarios.
+        """
         pop = self.population_view.get(event.index)
         if pop.empty:
             return
@@ -86,8 +118,14 @@ class Mortality:
 
 
 class Disability:
+    """
+    This component calculates the health-adjusted life years (HALYs) for each
+    cohort over time, according to the years lost due to disability (YLD)
+    rate.
+    """
 
     def setup(self, builder):
+        """Load the years lost due to disability (YLD) rate."""
         yld_data = builder.data.load('cause.all_causes.disability_rate')
         yld_rate = builder.lookup.build_table(yld_data)
         self.yld_rate = builder.value.register_rate_producer('yld_rate', source=yld_rate)
@@ -100,6 +138,10 @@ class Disability:
             'bau_HALY', 'HALY'])
 
     def on_time_step(self, event):
+        """
+        Calculate the HALYs for each cohort at each time-step, for both the
+        BAU and intervention scenarios.
+        """
         pop = self.population_view.get(event.index)
         if pop.empty:
             return
