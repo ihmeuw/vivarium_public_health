@@ -13,3 +13,4 @@ API Reference
    api_reference/testing
    api_reference/treatment
    api_reference/util
+   api_reference/mslt

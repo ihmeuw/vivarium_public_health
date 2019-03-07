@@ -1,0 +1,34 @@
+plugins:
+    optional:
+        data:
+            controller: "vivarium_public_health.dataset_manager.ArtifactManager"
+            builder_interface: "vivarium_public_health.dataset_manager.ArtifactManagerInterface"
+
+components:
+    vivarium_public_health:
+        mslt:
+            population:
+                - BasePopulation()
+                - Mortality()
+                - Disability()
+            intervention:
+                - ModifyAllCauseMortality('reduce_acmr')
+            observer:
+                - MorbidityMortality('reduce_acmr_mslt.csv')
+
+configuration:
+    input_data:
+        # Change this to "mslt_maori_data.hdf" for the Maori population.
+        artifact_path: mslt_non-maori_data.hdf
+    population:
+        population_size: 220 # Males and females, aged 0 to 109.
+    time:
+        start:
+            year: 2011
+        end:
+            year: 2120
+        step_size: 365  # In days
+    intervention:
+        reduce_acmr:
+            # Reduce the all-cause mortality rate by 5%.
+            scale: 0.95
