@@ -262,9 +262,8 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTempla
     for group, age_group in ages:
         start, end = age_group.age_group_start, age_group.age_group_end
         for sex in sexes:
-            filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex}
-            template_kwargs = {'sex': sex.lower(), 'age_group': group.lower()}
-            key = base_key.substitute(**template_kwargs)
+            filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex, 'age_group': group}
+            key = base_key.substitute(**filter_kwargs)
             group_filter = base_filter.format(**filter_kwargs)
             in_group = pop.query(group_filter) if group_filter else pop
 
