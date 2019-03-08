@@ -348,8 +348,10 @@ def get_lived_in_span(pop: pd.DataFrame, t_start: pd.Timestamp, t_end: pd.Timest
     span_exit_time = lived_in_span.exit_time.copy()
     span_exit_time.loc[t_end < span_exit_time] = t_end
 
-    lived_in_span.loc[:, 'age_at_span_end'] = lived_in_span.age - to_years(lived_in_span.exit_time - span_exit_time)
-    lived_in_span.loc[:, 'age_at_span_start'] = lived_in_span.age - to_years(lived_in_span.exit_time - span_entrance_time)
+    lived_in_span.loc[:, 'age_at_span_end'] = lived_in_span.age - to_years(lived_in_span.exit_time
+                                                                           - span_exit_time)
+    lived_in_span.loc[:, 'age_at_span_start'] = lived_in_span.age - to_years(lived_in_span.exit_time
+                                                                             - span_entrance_time)
     return lived_in_span
 
 
