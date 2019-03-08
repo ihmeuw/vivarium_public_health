@@ -1,10 +1,10 @@
-from itertools import  product
+from itertools import product
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from vivarium_public_health.metrics.utilities import (QueryString, to_years,
+from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplate, to_years, get_output_template,
                                                       get_susceptible_person_time, get_disease_event_counts,
                                                       get_treatment_counts)
 
@@ -79,6 +79,44 @@ def test_query_string(a, b):
     assert b == 'b and a and b'
     assert b == QueryString('b and a and b')
     assert isinstance(b, QueryString)
+
+
+def test_get_output_template(observer_config):
+    template = get_output_template(**observer_config)
+
+    assert isinstance(template, OutputTemplate)
+    assert '${measure}' in template.template
+
+    if observer_config['by_year']:
+        assert '_in_${year}' in template.template
+    if observer_config['by_sex']:
+        assert '_among_${sex}' in template.template
+    if observer_config['by_age']:
+        assert '_in_age_group_${age_group}' in template.template
+
+
+@pytest.mark.parametrize('measure, sex, age, year',
+                         product(['test', 'Test'], ['female', 'Female'],
+                                 [1.0, 1, 'Early Neonatal'], [2011, '2011']))
+def test_output_template(observer_config, measure, sex, age, year):
+    template = get_output_template(**observer_config)
+
+    out1 = template.substitute(measure=measure, sex=sex, age_group=age, year=year)
+    out2 = template.substitute(measure=measure).substitute(sex=sex).substitute(age_group=age).substitute(year=year)
+    assert out1 == out2
+
+
+def test_output_template_exact():
+    template = get_output_template(by_age=True, by_sex=True, by_year=True)
+
+    out = template.substitute(measure='Test', sex='Female', age_group=1.0, year=2011)
+    expected = 'test_in_2011_among_female_in_age_group_1.0'
+    assert out == expected
+
+    out = template.substitute(measure='Test', sex='Female', age_group='Early Neonatal', year=2011)
+    expected = 'test_in_2011_among_female_in_age_group_early_neonatal'
+
+    assert out == expected
 
 
 def test_get_susceptible_person_time(ages_and_bins, sexes, observer_config):
