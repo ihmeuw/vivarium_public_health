@@ -1,7 +1,8 @@
 from collections import ChainMap
 from string import Template
-from typing import Union
+from typing import Union, List, Tuple, Iterable
 
+import numpy as np
 import pandas as pd
 
 
@@ -148,8 +149,8 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> OutputTemp
     return OutputTemplate(template)
 
 
-def get_age_sex_filter_and_iterables(config: dict,
-                                     age_bins: pd.DataFrame) -> (QueryString, (pd.DataFrame, pd.DataFrame)):
+def get_age_sex_filter_and_iterables(config: dict, age_bins: pd.DataFrame) -> (
+        QueryString, Tuple[Iterable[Tuple[str, pd.Series]], List[str]]):
     """Constructs a filter and a set of iterables for age and sex.
 
     The constructed filter and iterables are based on configuration for the
@@ -189,8 +190,32 @@ def get_age_sex_filter_and_iterables(config: dict,
     return age_sex_filter, (ages, sexes)
 
 
-def get_time_span_filter_and_iterable(config: dict, sim_start: pd.Timestamp,
-                                      sim_end: pd.Timestamp) -> (QueryString, pd.DataFrame):
+def get_time_span_filter_and_iterable(config: dict, sim_start: pd.Timestamp, sim_end: pd.Timestamp) -> (
+        QueryString, List[Tuple[str, Tuple[pd.Timestamp, pd.Timestamp]]]):
+    """Constructs a filter and iterable for time.
+
+    The constructed filter and iterable are based on configuration for the
+    observer component.
+
+    Parameters
+    ----------
+    config
+        A mapping with 'by_yer' and a boolean value indicating whether
+        the observer is binning data by year.
+    sim_start
+        The time the simulation starts.
+    sim_end
+        The time the simulation ends.
+
+    Returns
+    -------
+    span_filter
+        A filter on time for use with DataFrame.query
+    time_spans
+        Iterable for the age and sex groups partially defining the bins
+        for the observers.
+
+    """
     if config['by_year']:
         time_spans = [(year, (pd.Timestamp(year=year, month=1, day=1), pd.Timestamp(f'1-1-{year + 1}')))
                       for year in range(sim_start.year, sim_end.year + 1)]
@@ -198,7 +223,7 @@ def get_time_span_filter_and_iterable(config: dict, sim_start: pd.Timestamp,
         time_spans = [('all_years', (pd.Timestamp(f'1-1-1900'), pd.Timestamp(f'1-1-2100')))]
     # This filter needs to be applied separately to compute additional
     # attributes in the person time calculation.
-    span_filter = '{t_start} <= exit_time and entrance_time < {t_end}'
+    span_filter = QueryString('{t_start} <= exit_time and entrance_time < {t_end}')
 
     return span_filter, time_spans
 
