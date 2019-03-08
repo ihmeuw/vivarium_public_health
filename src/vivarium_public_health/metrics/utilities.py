@@ -200,7 +200,7 @@ def get_time_span_filter_and_iterable(config: dict, sim_start: pd.Timestamp, sim
     Parameters
     ----------
     config
-        A mapping with 'by_yer' and a boolean value indicating whether
+        A mapping with 'by_year' and a boolean value indicating whether
         the observer is binning data by year.
     sim_start
         The time the simulation starts.
