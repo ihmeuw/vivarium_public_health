@@ -148,6 +148,61 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> OutputTemp
     return OutputTemplate(template)
 
 
+def get_age_sex_filter_and_iterables(config: dict,
+                                     age_bins: pd.DataFrame) -> (QueryString, (pd.DataFrame, pd.DataFrame)):
+    """Constructs a filter and a set of iterables for age and sex.
+
+    The constructed filter and iterables are based on configuration for the
+    observer component.
+
+    Parameters
+    ----------
+    config
+        A mapping with 'by_age' and 'by_sex' keys and boolean values
+        indicating whether the observer is binning data by the respective
+        categories.
+    age_bins
+        A table containing bin names and bin edges.
+
+    Returns
+    -------
+    age_sex_filter
+        A filter on age and sex for use with DataFrame.query
+    (ages, sexes)
+        Iterables for the age and sex groups partially defining the bins
+        for the observers.
+
+    """
+    age_sex_filter = QueryString("")
+    if config['by_age']:
+        ages = age_bins.set_index('age_group_name').iterrows()
+        age_sex_filter += '{age_group_start} <= age and age < {age_group_end}'
+    else:
+        ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
+
+    if config['by_sex']:
+        sexes = ['Male', 'Female']
+        age_sex_filter += 'sex == "{sex}"'
+    else:
+        sexes = ['Both']
+
+    return age_sex_filter, (ages, sexes)
+
+
+def get_time_span_filter_and_iterable(config: dict, sim_start: pd.Timestamp,
+                                      sim_end: pd.Timestamp) -> (QueryString, pd.DataFrame):
+    if config['by_year']:
+        time_spans = [(year, (pd.Timestamp(year=year, month=1, day=1), pd.Timestamp(f'1-1-{year + 1}')))
+                      for year in range(sim_start.year, sim_end.year + 1)]
+    else:
+        time_spans = [('all_years', (pd.Timestamp(f'1-1-1900'), pd.Timestamp(f'1-1-2100')))]
+    # This filter needs to be applied separately to compute additional
+    # attributes in the person time calculation.
+    span_filter = '{t_start} <= exit_time and entrance_time < {t_end}'
+
+    return span_filter, time_spans
+
+
 def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTemplate,
                      config: dict, age_bins: pd.DataFrame) -> dict:
     """Gets a count of people in a custom subgroup.
@@ -180,25 +235,15 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTempla
         A dictionary of output_key, count pairs where the output key is a
         string template with an unfilled measure parameter.
     """
-    if config['by_age']:
-        ages = age_bins.set_index('age_group_name').iterrows()
-        base_filter += '{age_group_start} <= age and age < {age_group_end}'
-    else:
-        ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None, 'age_group_name': 'all_ages'}))]
-
-    if config['by_sex']:
-        sexes = ['Male', 'Female']
-        base_filter += 'sex == "{sex}"'
-    else:
-        sexes = ['Both']
+    age_sex_filter, (ages, sexes) = get_age_sex_filter_and_iterables(config, age_bins)
+    base_filter += age_sex_filter
 
     group_counts = {}
 
     for group, age_group in ages:
         start, end = age_group.age_group_start, age_group.age_group_end
         for sex in sexes:
-            filter_kwargs = {'age_group_start': start, 'age_group_end': end,
-                             'sex': sex}
+            filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex}
             template_kwargs = {'sex': sex.lower(), 'age_group': group.lower()}
             key = base_key.substitute(**template_kwargs)
             group_filter = base_filter.format(**filter_kwargs)
