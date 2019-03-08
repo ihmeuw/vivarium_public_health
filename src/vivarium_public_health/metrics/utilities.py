@@ -318,6 +318,41 @@ def get_treatment_counts(pop, config, treatment, doses, event_time, age_bins):
     return dose_counts
 
 
+def get_lived_in_span(pop: pd.DataFrame, t_start: pd.Timestamp, t_end: pd.Timestamp):
+    """Gets a subset of the population that lived in the time span.
+
+    Parameters
+    ----------
+    pop
+        A table representing the population with columns for 'entrance_time',
+        'exit_time' and 'age'.
+    t_start
+        The date and time at the start of the span.
+    t_end
+        The date and time at the end of the span.
+
+    Returns
+    -------
+    lived_in_span
+        A table representing the population who lived some amount of time
+        within the time span with all columns provided in the original
+        table and additional columns 'age_at_start' and 'age_at_end' indicating
+        the age of the individual at the start and end of the time span,
+        respectively.
+
+    """
+    lived_in_span = pop.loc[(t_start < pop['exit_time']) & (pop['entrance_time'] < t_end)]
+
+    span_entrance_time = lived_in_span.entrance_time.copy()
+    span_entrance_time.loc[t_start > span_entrance_time] = t_start
+    span_exit_time = lived_in_span.exit_time.copy()
+    span_exit_time.loc[t_end < span_exit_time] = t_end
+
+    lived_in_span.loc[:, 'age_at_span_end'] = lived_in_span.age - to_years(lived_in_span.exit_time - span_exit_time)
+    lived_in_span.loc[:, 'age_at_span_start'] = lived_in_span.age - to_years(lived_in_span.exit_time - span_entrance_time)
+    return lived_in_span
+
+
 def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
     """Standardizes cause of death names to all read ``death_due_to_cause``."""
 

@@ -1,4 +1,4 @@
-from itertools import product
+from itertools import product, combinations
 
 import numpy as np
 import pandas as pd
@@ -7,7 +7,7 @@ import pytest
 from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplate, to_years, get_output_template,
                                                       get_susceptible_person_time, get_disease_event_counts,
                                                       get_treatment_counts, get_age_sex_filter_and_iterables,
-                                                      get_time_iterable)
+                                                      get_time_iterable, get_lived_in_span)
 
 
 @pytest.fixture(params=((0, 100, 5, 1000), (20, 100, 5, 1000)))
@@ -290,3 +290,78 @@ def test_get_treatment_counts(ages_and_bins, sexes, observer_config):
     values = set(counts.values())
     assert len(values) == 1
     assert np.isclose(values.pop(), 2 * expected_value)
+
+
+def test_get_lived_in_span():
+    dt = pd.Timedelta(days=5)
+    reference_t = pd.Timestamp('1-10-2010')
+
+    early_1 = reference_t - 2*dt
+    early_2 = reference_t - dt
+
+    t_start = reference_t
+
+    mid_1 = reference_t + dt
+    mid_2 = reference_t + 2*dt
+
+    t_end = reference_t + 3*dt
+
+    late_1 = reference_t + 4*dt
+    late_2 = reference_t + 5*dt
+
+    # 28 combinations, six of which are entirely out of the time span
+    times = [early_1, early_2, t_start, mid_1, mid_2, t_end, late_1, late_2]
+    starts, ends = zip(*combinations(times, 2))
+    pop = pd.DataFrame({'age': to_years(10*dt), 'entrance_time': starts, 'exit_time': ends})
+
+    lived_in_span = get_lived_in_span(pop, t_start, t_end)
+    # Indices here are from the combinatorics math. They represent
+    # 0: (early_1, early_2)
+    # 1: (early_1, t_start)
+    # 7: (early_2, t_start)
+    # 25: (t_end, late_1)
+    # 26: (t_end, late_2)
+    # 27: (late_1, late_2)
+    assert {0, 1, 7, 25, 26, 27}.intersection(lived_in_span.index) == set()
+
+    exit_before_span_end = lived_in_span.exit_time <= t_end
+    assert np.all(lived_in_span.loc[exit_before_span_end, 'age_at_span_end']
+                  == lived_in_span.loc[exit_before_span_end, 'age'])
+
+    exit_after_span_end = ~exit_before_span_end
+    age_at_end = lived_in_span.age - to_years(lived_in_span.exit_time - t_end)
+    assert np.all(lived_in_span.loc[exit_after_span_end, 'age_at_span_end']
+                  == age_at_end.loc[exit_after_span_end])
+
+    enter_after_span_start = lived_in_span.entrance_time >= t_start
+    age_at_start = lived_in_span.age - to_years(lived_in_span.exit_time - lived_in_span.entrance_time)
+    assert np.all(lived_in_span.loc[enter_after_span_start, 'age_at_span_start']
+                  == age_at_start.loc[enter_after_span_start])
+
+    enter_before_span_start = ~enter_after_span_start
+    age_at_start = lived_in_span.age - to_years(lived_in_span.exit_time - t_start)
+    assert np.all(lived_in_span.loc[enter_before_span_start, 'age_at_span_start']
+                  == age_at_start.loc[enter_before_span_start])
+
+
+def test_get_lived_in_span_no_one_in_span():
+    dt = pd.Timedelta(days=365.25)
+    t_start = pd.Timestamp('1-1-2010')
+    t_end = t_start + dt
+
+    pop = pd.DataFrame({'entrance_time': t_start - 2*dt, 'exit_time': t_start - dt, 'age': range(100)})
+    lived_in_span = get_lived_in_span(pop, t_start, t_end)
+    assert lived_in_span.empty
+
+    pop = pd.DataFrame({'entrance_time': t_end + dt, 'exit_time': t_end + 2*dt, 'age': range(100)})
+    lived_in_span = get_lived_in_span(pop, t_start, t_end)
+    assert lived_in_span.empty
+
+
+
+
+
+
+
+
+
