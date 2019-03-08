@@ -7,7 +7,7 @@ import pytest
 from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplate, to_years, get_output_template,
                                                       get_susceptible_person_time, get_disease_event_counts,
                                                       get_treatment_counts, get_age_sex_filter_and_iterables,
-                                                      get_time_span_filter_and_iterable)
+                                                      get_time_iterable)
 
 
 @pytest.fixture(params=((0, 100, 5, 1000), (20, 100, 5, 1000)))
@@ -166,14 +166,13 @@ def test_get_age_sex_filter_and_iterables(ages_and_bins, observer_config):
 
 
 @pytest.mark.parametrize('year_start, year_end', [(2011, 2017), (2011, 2011)])
-def test_get_time_span_filter_and_iterable_no_year(year_start, year_end):
+def test_get_time_iterable_no_year(year_start, year_end):
     config = {'by_year': False}
     sim_start = pd.Timestamp(f'7-2-{year_start}')
     sim_end = pd.Timestamp(f'3-15-{year_end}')
 
-    span_filter, time_spans = get_time_span_filter_and_iterable(config, sim_start, sim_end)
+    time_spans = get_time_iterable(config, sim_start, sim_end)
 
-    assert span_filter == '{t_start} <= exit_time and entrance_time < {t_end}'
     assert len(time_spans) == 1
     name, (start, end) = time_spans[0]
     assert name == 'all_years'
@@ -182,14 +181,13 @@ def test_get_time_span_filter_and_iterable_no_year(year_start, year_end):
 
 
 @pytest.mark.parametrize('year_start, year_end', [(2011, 2017), (2011, 2011)])
-def test_get_time_span_filter_and_iterable_with_year(year_start, year_end):
+def test_get_time_iterable_with_year(year_start, year_end):
     config = {'by_year': True}
     sim_start = pd.Timestamp(f'7-2-{year_start}')
     sim_end = pd.Timestamp(f'3-15-{year_end}')
 
-    span_filter, time_spans = get_time_span_filter_and_iterable(config, sim_start, sim_end)
+    time_spans = get_time_iterable(config, sim_start, sim_end)
 
-    assert span_filter == '{t_start} <= exit_time and entrance_time < {t_end}'
     years = list(range(year_start, year_end + 1))
     assert len(time_spans) == len(years)
     for year, time_span in zip(years, time_spans):

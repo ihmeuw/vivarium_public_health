@@ -190,12 +190,12 @@ def get_age_sex_filter_and_iterables(config: dict, age_bins: pd.DataFrame) -> (
     return age_sex_filter, (ages, sexes)
 
 
-def get_time_span_filter_and_iterable(config: dict, sim_start: pd.Timestamp, sim_end: pd.Timestamp) -> (
-        QueryString, List[Tuple[str, Tuple[pd.Timestamp, pd.Timestamp]]]):
-    """Constructs a filter and iterable for time.
+def get_time_iterable(config: dict, sim_start: pd.Timestamp,
+                      sim_end: pd.Timestamp) -> List[Tuple[str, Tuple[pd.Timestamp, pd.Timestamp]]]:
+    """Constructs an iterable for time bins.
 
-    The constructed filter and iterable are based on configuration for the
-    observer component.
+    The constructed iterable are based on configuration for the observer
+    component.
 
     Parameters
     ----------
@@ -209,11 +209,9 @@ def get_time_span_filter_and_iterable(config: dict, sim_start: pd.Timestamp, sim
 
     Returns
     -------
-    span_filter
-        A filter on time for use with DataFrame.query
     time_spans
         Iterable for the time groups partially defining the bins
-         for the observers.
+        for the observers.
 
     """
     if config['by_year']:
@@ -221,11 +219,7 @@ def get_time_span_filter_and_iterable(config: dict, sim_start: pd.Timestamp, sim
                       for year in range(sim_start.year, sim_end.year + 1)]
     else:
         time_spans = [('all_years', (pd.Timestamp(f'1-1-1900'), pd.Timestamp(f'1-1-2100')))]
-    # This filter needs to be applied separately to compute additional
-    # attributes in the person time calculation.
-    span_filter = QueryString('{t_start} <= exit_time and entrance_time < {t_end}')
-
-    return span_filter, time_spans
+    return time_spans
 
 
 def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTemplate,
