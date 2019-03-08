@@ -6,7 +6,8 @@ import pytest
 
 from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplate, to_years, get_output_template,
                                                       get_susceptible_person_time, get_disease_event_counts,
-                                                      get_treatment_counts)
+                                                      get_treatment_counts, get_age_sex_filter_and_iterables,
+                                                      get_time_iterable)
 
 
 @pytest.fixture(params=((0, 100, 5, 1000), (20, 100, 5, 1000)))
@@ -117,6 +118,83 @@ def test_output_template_exact():
     expected = 'test_in_2011_among_female_in_age_group_early_neonatal'
 
     assert out == expected
+
+
+def test_get_age_sex_filter_and_iterables(ages_and_bins, observer_config):
+    _, age_bins = ages_and_bins
+    age_sex_filter, (ages, sexes) = get_age_sex_filter_and_iterables(observer_config, age_bins)
+
+    assert isinstance(age_sex_filter, QueryString)
+    if observer_config['by_age'] and observer_config['by_sex']:
+        assert age_sex_filter == '{age_group_start} <= age and age < {age_group_end} and sex == "{sex}"'
+
+        for (g1, s1), (g2, s2) in zip(ages, age_bins.set_index('age_group_name').iterrows()):
+            assert g1 == g2
+            assert s1.equals(s2)
+
+        assert sexes == ['Male', 'Female']
+
+    elif observer_config['by_age']:
+        assert age_sex_filter == '{age_group_start} <= age and age < {age_group_end}'
+
+        for (g1, s1), (g2, s2) in zip(ages, age_bins.set_index('age_group_name').iterrows()):
+            assert g1 == g2
+            assert s1.equals(s2)
+
+        assert sexes == ['Both']
+    elif observer_config['by_sex']:
+        assert age_sex_filter == 'sex == "{sex}"'
+
+        assert len(ages) == 1
+        group, data = ages[0]
+        assert group == 'all_ages'
+        assert data['age_group_start'] is None
+        assert data['age_group_end'] is None
+
+        assert sexes == ['Male', 'Female']
+
+    else:
+        assert age_sex_filter == ''
+
+        assert len(ages) == 1
+        group, data = ages[0]
+        assert group == 'all_ages'
+        assert data['age_group_start'] is None
+        assert data['age_group_end'] is None
+
+        assert sexes == ['Both']
+
+
+@pytest.mark.parametrize('year_start, year_end', [(2011, 2017), (2011, 2011)])
+def test_get_time_iterable_no_year(year_start, year_end):
+    config = {'by_year': False}
+    sim_start = pd.Timestamp(f'7-2-{year_start}')
+    sim_end = pd.Timestamp(f'3-15-{year_end}')
+
+    time_spans = get_time_iterable(config, sim_start, sim_end)
+
+    assert len(time_spans) == 1
+    name, (start, end) = time_spans[0]
+    assert name == 'all_years'
+    assert start == pd.Timestamp('1-1-1900')
+    assert end == pd.Timestamp('1-1-2100')
+
+
+@pytest.mark.parametrize('year_start, year_end', [(2011, 2017), (2011, 2011)])
+def test_get_time_iterable_with_year(year_start, year_end):
+    config = {'by_year': True}
+    sim_start = pd.Timestamp(f'7-2-{year_start}')
+    sim_end = pd.Timestamp(f'3-15-{year_end}')
+
+    time_spans = get_time_iterable(config, sim_start, sim_end)
+
+    years = list(range(year_start, year_end + 1))
+    assert len(time_spans) == len(years)
+    for year, time_span in zip(years, time_spans):
+        name, (start, end) = time_span
+        assert name == year
+        assert start == pd.Timestamp(f'1-1-{year}')
+        assert end  == pd.Timestamp(f'1-1-{year+1}')
 
 
 def test_get_susceptible_person_time(ages_and_bins, sexes, observer_config):
