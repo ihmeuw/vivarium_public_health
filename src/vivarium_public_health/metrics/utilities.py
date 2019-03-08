@@ -212,12 +212,12 @@ def get_time_span_filter_and_iterable(config: dict, sim_start: pd.Timestamp, sim
     span_filter
         A filter on time for use with DataFrame.query
     time_spans
-        Iterable for the age and sex groups partially defining the bins
-        for the observers.
+        Iterable for the time groups partially defining the bins
+         for the observers.
 
     """
     if config['by_year']:
-        time_spans = [(year, (pd.Timestamp(year=year, month=1, day=1), pd.Timestamp(f'1-1-{year + 1}')))
+        time_spans = [(year, (pd.Timestamp(f'1-1-{year}'), pd.Timestamp(f'1-1-{year + 1}')))
                       for year in range(sim_start.year, sim_end.year + 1)]
     else:
         time_spans = [('all_years', (pd.Timestamp(f'1-1-1900'), pd.Timestamp(f'1-1-2100')))]
