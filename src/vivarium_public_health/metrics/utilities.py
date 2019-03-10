@@ -336,9 +336,11 @@ def get_lived_in_span(pop: pd.DataFrame, t_start: pd.Timestamp, t_end: pd.Timest
     lived_in_span
         A table representing the population who lived some amount of time
         within the time span with all columns provided in the original
-        table and additional columns 'age_at_start' and 'age_at_end' indicating
-        the age of the individual at the start and end of the time span,
-        respectively.
+        table and additional columns 'age_at_span_start' and 'age_at_span_end'
+        indicating the age of the individual at the start and end of the time
+        span, respectively. 'age_at_span_start' will never be lower than the
+        age at the simulant's entrance time and 'age_at_span_end' will never
+        be greater than the age at the simulant's exit time.
 
     """
     lived_in_span = pop.loc[(t_start < pop['exit_time']) & (pop['entrance_time'] < t_end)]

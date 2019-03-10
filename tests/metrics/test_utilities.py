@@ -356,12 +356,3 @@ def test_get_lived_in_span_no_one_in_span():
     pop = pd.DataFrame({'entrance_time': t_end + dt, 'exit_time': t_end + 2*dt, 'age': range(100)})
     lived_in_span = get_lived_in_span(pop, t_start, t_end)
     assert lived_in_span.empty
-
-
-
-
-
-
-
-
-
