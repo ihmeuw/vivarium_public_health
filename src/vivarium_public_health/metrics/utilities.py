@@ -442,6 +442,26 @@ def get_person_time_in_span(lived_in_span: pd.DataFrame, base_filter: QueryStrin
     return person_time
 
 
+def get_deaths(pop: pd.DataFrame, config: dict, sim_start: pd.Timestamp,
+               sim_end: pd.Timestamp, age_bins: pd.DataFrame):
+    base_filter = QueryString('alive == "dead" and cause_of_death == {cause}')
+    base_key = get_output_template(**config)
+    pop = clean_cause_of_death(pop)
+
+    causes = [c for c in pop.cause_of_death.unique()]
+    time_spans = get_time_iterable(config, sim_start, sim_end)
+
+    deaths = {}
+    for year, (t_start, t_end) in time_spans:
+        died_in_span = pop[(t_start <= pop.exit_time) & (pop.exit_time < t_end)]
+        for cause in causes:
+            cause_year_key = base_key.substitute(measure=cause, year=year)
+            cause_filter = base_filter.format(cause=cause)
+            group_deaths = get_group_counts(died_in_span, cause_filter, cause_year_key, config, age_bins)
+            deaths.update(group_deaths)
+    return deaths
+
+
 def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
     """Standardizes cause of death names to all read ``death_due_to_cause``."""
 
