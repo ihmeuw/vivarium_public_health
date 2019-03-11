@@ -29,8 +29,6 @@ class MorbidityMortality:
                    'person_years', 'bau_person_years',
                    'HALY', 'bau_HALY']
         self.population_view = builder.population.get_view(columns)
-        self.yld_rate = builder.value.get_value('yld_rate')
-        self.acm_rate = builder.value.get_value('mortality_rate')
         self.clock = builder.time.clock()
         builder.event.register_listener('collect_metrics', self.on_collect_metrics)
         builder.event.register_listener('simulation_end', self.write_output)
