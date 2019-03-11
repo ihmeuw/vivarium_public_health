@@ -165,6 +165,52 @@ def test_get_age_sex_filter_and_iterables(ages_and_bins, observer_config):
         assert sexes == ['Both']
 
 
+def test_get_age_sex_filter_and_iterables_with_span(ages_and_bins, observer_config):
+    _, age_bins = ages_and_bins
+    age_sex_filter, (ages, sexes) = get_age_sex_filter_and_iterables(observer_config, age_bins, in_span=True)
+
+    assert isinstance(age_sex_filter, QueryString)
+    if observer_config['by_age'] and observer_config['by_sex']:
+        expected = '{age_group_start} < age_at_span_end and age_at_span_start < {age_group_end} and sex == "{sex}"'
+        assert age_sex_filter == expected
+
+        for (g1, s1), (g2, s2) in zip(ages, age_bins.set_index('age_group_name').iterrows()):
+            assert g1 == g2
+            assert s1.equals(s2)
+
+        assert sexes == ['Male', 'Female']
+
+    elif observer_config['by_age']:
+        assert age_sex_filter == '{age_group_start} < age_at_span_end and age_at_span_start < {age_group_end}'
+
+        for (g1, s1), (g2, s2) in zip(ages, age_bins.set_index('age_group_name').iterrows()):
+            assert g1 == g2
+            assert s1.equals(s2)
+
+        assert sexes == ['Both']
+    elif observer_config['by_sex']:
+        assert age_sex_filter == 'sex == "{sex}"'
+
+        assert len(ages) == 1
+        group, data = ages[0]
+        assert group == 'all_ages'
+        assert data['age_group_start'] is None
+        assert data['age_group_end'] is None
+
+        assert sexes == ['Male', 'Female']
+
+    else:
+        assert age_sex_filter == ''
+
+        assert len(ages) == 1
+        group, data = ages[0]
+        assert group == 'all_ages'
+        assert data['age_group_start'] is None
+        assert data['age_group_end'] is None
+
+        assert sexes == ['Both']
+
+
 @pytest.mark.parametrize('year_start, year_end', [(2011, 2017), (2011, 2011)])
 def test_get_time_iterable_no_year(year_start, year_end):
     config = {'by_year': False}
