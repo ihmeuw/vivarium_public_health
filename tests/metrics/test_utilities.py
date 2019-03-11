@@ -7,7 +7,8 @@ import pytest
 from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplate, to_years, get_output_template,
                                                       get_susceptible_person_time, get_disease_event_counts,
                                                       get_treatment_counts, get_age_sex_filter_and_iterables,
-                                                      get_time_iterable, get_lived_in_span)
+                                                      get_time_iterable, get_lived_in_span, get_person_time_in_span,
+                                                      _MIN_YEAR, _MAX_YEAR, _MIN_AGE, _MAX_AGE)
 
 
 @pytest.fixture(params=((0, 100, 5, 1000), (20, 100, 5, 1000)))
@@ -148,8 +149,8 @@ def test_get_age_sex_filter_and_iterables(ages_and_bins, observer_config):
         assert len(ages) == 1
         group, data = ages[0]
         assert group == 'all_ages'
-        assert data['age_group_start'] is None
-        assert data['age_group_end'] is None
+        assert data['age_group_start'] == _MIN_AGE
+        assert data['age_group_end'] == _MAX_AGE
 
         assert sexes == ['Male', 'Female']
 
@@ -159,8 +160,8 @@ def test_get_age_sex_filter_and_iterables(ages_and_bins, observer_config):
         assert len(ages) == 1
         group, data = ages[0]
         assert group == 'all_ages'
-        assert data['age_group_start'] is None
-        assert data['age_group_end'] is None
+        assert data['age_group_start'] == _MIN_AGE
+        assert data['age_group_end'] == _MAX_AGE
 
         assert sexes == ['Both']
 
@@ -194,8 +195,8 @@ def test_get_age_sex_filter_and_iterables_with_span(ages_and_bins, observer_conf
         assert len(ages) == 1
         group, data = ages[0]
         assert group == 'all_ages'
-        assert data['age_group_start'] is None
-        assert data['age_group_end'] is None
+        assert data['age_group_start'] == _MIN_AGE
+        assert data['age_group_end'] == _MAX_AGE
 
         assert sexes == ['Male', 'Female']
 
@@ -205,8 +206,8 @@ def test_get_age_sex_filter_and_iterables_with_span(ages_and_bins, observer_conf
         assert len(ages) == 1
         group, data = ages[0]
         assert group == 'all_ages'
-        assert data['age_group_start'] is None
-        assert data['age_group_end'] is None
+        assert data['age_group_start'] == _MIN_AGE
+        assert data['age_group_end'] == _MAX_AGE
 
         assert sexes == ['Both']
 
@@ -222,8 +223,8 @@ def test_get_time_iterable_no_year(year_start, year_end):
     assert len(time_spans) == 1
     name, (start, end) = time_spans[0]
     assert name == 'all_years'
-    assert start == pd.Timestamp('1-1-1900')
-    assert end == pd.Timestamp('1-1-2100')
+    assert start == pd.Timestamp(f'1-1-{_MIN_YEAR}')
+    assert end == pd.Timestamp(f'1-1-{_MAX_YEAR}')
 
 
 @pytest.mark.parametrize('year_start, year_end', [(2011, 2017), (2011, 2011)])
@@ -240,7 +241,7 @@ def test_get_time_iterable_with_year(year_start, year_end):
         name, (start, end) = time_span
         assert name == year
         assert start == pd.Timestamp(f'1-1-{year}')
-        assert end  == pd.Timestamp(f'1-1-{year+1}')
+        assert end == pd.Timestamp(f'1-1-{year+1}')
 
 
 def test_get_susceptible_person_time(ages_and_bins, sexes, observer_config):
@@ -402,3 +403,44 @@ def test_get_lived_in_span_no_one_in_span():
     pop = pd.DataFrame({'entrance_time': t_end + dt, 'exit_time': t_end + 2*dt, 'age': range(100)})
     lived_in_span = get_lived_in_span(pop, t_start, t_end)
     assert lived_in_span.empty
+
+
+def test_get_person_time_in_span(ages_and_bins, observer_config):
+    _, age_bins = ages_and_bins
+    start = int(age_bins.age_group_start.min())
+    end = int(age_bins.age_group_end.max())
+    n_ages = len(list(range(start, end)))
+    n_bins = len(age_bins)
+    segments_per_age = [(i + 1)*(n_ages - i) for i in range(n_ages)]
+    ages_per_bin = n_ages // n_bins
+    age_bins['expected_time'] = [sum(segments_per_age[ages_per_bin*i:ages_per_bin*(i+1)]) for i in range(n_bins)]
+
+    age_starts, age_ends = zip(*combinations(range(start, end + 1), 2))
+    women = pd.DataFrame({'age_at_span_start': age_starts, 'age_at_span_end': age_ends, 'sex': 'Female'})
+    men = women.copy()
+    men.loc[:, 'sex'] = 'Male'
+
+    lived_in_span = pd.concat([women, men], ignore_index=True).sample(frac=1).reset_index(drop=True)
+    base_filter = QueryString("")
+    span_key = get_output_template(**observer_config).substitute(measure='person_time', year=2019)
+
+    pt = get_person_time_in_span(lived_in_span, base_filter, span_key, observer_config, age_bins)
+
+    if observer_config['by_age']:
+        for group, age_bin in age_bins.iterrows():
+            group_pt = sum(set([v for k, v in pt.items() if f'in_age_group_{group}' in k]))
+            if observer_config['by_sex']:
+                assert group_pt == age_bin.expected_time
+            else:
+                assert group_pt == 2 * age_bin.expected_time
+    else:
+        group_pt = sum(set(pt.values()))
+        if observer_config['by_sex']:
+            assert group_pt == age_bins.expected_time.sum()
+        else:
+            assert group_pt == 2 * age_bins.expected_time.sum()
+
+
+
+
+
