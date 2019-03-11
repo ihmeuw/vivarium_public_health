@@ -42,7 +42,10 @@ class QueryString(str):
 
 class SubstituteString(str):
     """Normal string plus a no-op substitute method.
-    Meant to be used with the OutputTemplate."""
+
+    Meant to be used with the OutputTemplate.
+
+    """
     def substitute(self, *args, **kws):
         return self
 
@@ -149,7 +152,7 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> OutputTemp
     return OutputTemplate(template)
 
 
-def get_age_sex_filter_and_iterables(config: dict, age_bins: pd.DataFrame) -> (
+def get_age_sex_filter_and_iterables(config: dict, age_bins: pd.DataFrame, in_span: bool = False) -> (
         QueryString, Tuple[Iterable[Tuple[str, pd.Series]], List[str]]):
     """Constructs a filter and a set of iterables for age and sex.
 
@@ -164,6 +167,10 @@ def get_age_sex_filter_and_iterables(config: dict, age_bins: pd.DataFrame) -> (
         categories.
     age_bins
         A table containing bin names and bin edges.
+    in_span
+        Whether the filter for age corresponds to living through an age
+        group in a time span or uses a point estimate of age at a particular
+        point in time.
 
     Returns
     -------
@@ -177,7 +184,10 @@ def get_age_sex_filter_and_iterables(config: dict, age_bins: pd.DataFrame) -> (
     age_sex_filter = QueryString("")
     if config['by_age']:
         ages = age_bins.set_index('age_group_name').iterrows()
-        age_sex_filter += '{age_group_start} <= age and age < {age_group_end}'
+        if in_span:
+            age_sex_filter += '{age_group_start} < age_at_span_end and age_at_span_start < {age_group_end}'
+        else:
+            age_sex_filter += '{age_group_start} <= age and age < {age_group_end}'
     else:
         ages = [('all_ages', pd.Series({'age_group_start': None, 'age_group_end': None}))]
 
