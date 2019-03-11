@@ -1,3 +1,5 @@
+.. _concept_observer:
+
 Recording life table outputs
 ============================
 

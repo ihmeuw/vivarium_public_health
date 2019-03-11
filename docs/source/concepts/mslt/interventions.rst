@@ -1,8 +1,19 @@
+.. _concept_intervention:
+
 Interventions
 =============
 
 We will consider three different interventions that affect the prevalence of
 tobacco smoking.
+
+Each of these interventions will affect the exposure distribution of the risk
+factor (tobacco smoking).
+This will be done by modifying any of the rates that affect the exposure
+(i.e.,, the uptake and remission rates), or by moving people from one exposure
+category to another.
+
+.. note:: Another option, not explored here, is to modify the relative risk(s)
+   associated with an exposure category.
 
 Tobacco eradication
 -------------------

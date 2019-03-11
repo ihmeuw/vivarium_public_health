@@ -32,3 +32,12 @@ interventions, and to capture different simulation outputs of interest.
 
    bau_no_delay
    bau_no_remission
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Writing your own MSLT components
+
+   custom_intervention
+   custom_observer
+   custom_risk_factor

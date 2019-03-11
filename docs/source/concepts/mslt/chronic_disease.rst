@@ -78,3 +78,7 @@ With this simplifying assumption, the system of equations are:
    :math:`C_a`  Number of diseased people at age :math:`a`.
    :math:`D_a`  Number of dead people at age :math:`a` (due to the disease).
    ===========  ============================================================
+
+This is a system of linear ordinary differential equations (ODEs), for which
+an analytic solution can be obtained (see equations (4)--(6) in
+`Barendregt et al., 2003 <https://doi.org/10.1186/1478-7954-1-4>`_).
