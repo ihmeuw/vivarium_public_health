@@ -8,7 +8,8 @@ from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplat
                                                       get_susceptible_person_time, get_disease_event_counts,
                                                       get_treatment_counts, get_age_sex_filter_and_iterables,
                                                       get_time_iterable, get_lived_in_span, get_person_time_in_span,
-                                                      get_deaths, get_ylls, _MIN_YEAR, _MAX_YEAR, _MIN_AGE, _MAX_AGE)
+                                                      get_deaths, get_years_of_life_lost,
+                                                      _MIN_YEAR, _MAX_YEAR, _MIN_AGE, _MAX_AGE)
 
 
 @pytest.fixture(params=((0, 100, 5, 1000), (20, 100, 5, 1000)))
@@ -496,8 +497,8 @@ def test_get_ylls(ages_and_bins, sexes, observer_config):
     def life_expectancy(index):
         return pd.Series(1, index=index)
 
-    ylls = get_ylls(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'),
-                    age_bins, life_expectancy, causes)
+    ylls = get_years_of_life_lost(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'),
+                                  age_bins, life_expectancy, causes)
     values = set(ylls.values())
 
     expected_value = len(pop) / len(causes)
@@ -516,8 +517,8 @@ def test_get_ylls(ages_and_bins, sexes, observer_config):
     # Doubling pop should double counts
     pop = pd.concat([pop, pop], axis=0, ignore_index=True)
 
-    ylls = get_ylls(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'),
-                    age_bins, life_expectancy, causes)
+    ylls = get_years_of_life_lost(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'),
+                                  age_bins, life_expectancy, causes)
     values = set(ylls.values())
 
     if observer_config['by_year']:
