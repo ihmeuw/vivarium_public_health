@@ -272,7 +272,7 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTempla
     Returns
     -------
         A dictionary of output_key, count pairs where the output key is a
-        string template with an unfilled measure parameter.
+        string or template representing the sub groups.
     """
     age_sex_filter, (ages, sexes) = get_age_sex_filter_and_iterables(config, age_bins)
     base_filter += age_sex_filter
@@ -285,7 +285,7 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTempla
             filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex, 'age_group': group}
             group_key = base_key.substitute(**filter_kwargs)
             group_filter = base_filter.format(**filter_kwargs)
-            in_group = pop.query(group_filter) if group_filter else pop
+            in_group = pop.query(group_filter) if group_filter and not pop.empty else pop
 
             group_counts[group_key] = len(in_group)
 
@@ -440,6 +440,55 @@ def get_person_time_in_span(lived_in_span: pd.DataFrame, base_filter: QueryStrin
             person_time[key] = (age_end - age_start).sum()
 
     return person_time
+
+
+def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timestamp,
+               sim_end: pd.Timestamp, age_bins: pd.DataFrame) -> Dict[str, int]:
+    """Counts the number of deaths by cause.
+
+    The user is responsible for providing a default filter (e.g. only alive
+    people, or people susceptible to a particular disease).  Demographic
+    filters will be applied based on standardized configuration.
+
+    Parameters
+    ----------
+    pop
+        The population dataframe to be counted. It must contain sufficient
+        columns for any necessary filtering (e.g. the ``age`` column if
+        filtering by age).
+    config
+        A dict with ``by_age``, ``by_sex``, and ``by_year`` keys and
+        boolean values.
+    sim_start
+        The simulation start time.
+    sim_end
+        The simulation end time.
+    age_bins
+        A dataframe with ``age_group_start`` and ``age_group_end`` columns.
+
+    Returns
+    -------
+    deaths
+        A dictionary of output_key, death_count pairs where the output_key
+        represents a particular demographic subgroup.
+
+    """
+    base_filter = QueryString('alive == "dead" and cause_of_death == "{cause}"')
+    base_key = get_output_template(**config)
+    pop = clean_cause_of_death(pop)
+
+    causes = [c for c in pop.cause_of_death.unique()]
+    time_spans = get_time_iterable(config, sim_start, sim_end)
+
+    deaths = {}
+    for year, (t_start, t_end) in time_spans:
+        died_in_span = pop[(t_start <= pop.exit_time) & (pop.exit_time < t_end)]
+        for cause in causes:
+            cause_year_key = base_key.substitute(measure=cause, year=year)
+            cause_filter = base_filter.format(cause=cause)
+            group_deaths = get_group_counts(died_in_span, cause_filter, cause_year_key, config, age_bins)
+            deaths.update(group_deaths)
+    return deaths
 
 
 def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
