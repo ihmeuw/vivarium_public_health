@@ -24,7 +24,7 @@ class RiskEffect:
                 'se': None,
                 'log_mean': None,
                 'log_se': None,
-                'tau': None
+                'tau_squared': None
             }
         }
     }
