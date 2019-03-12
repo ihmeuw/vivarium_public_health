@@ -1,9 +1,10 @@
 from collections import ChainMap
 from string import Template
-from typing import Union, List, Tuple, Dict
+from typing import Union, List, Tuple, Dict, Callable
 
 import numpy as np
 import pandas as pd
+from vivarium.framework.lookup import LookupTable
 
 _MIN_AGE = 0.
 _MAX_AGE = 150.
@@ -243,8 +244,9 @@ def get_time_iterable(config: Dict[str, bool], sim_start: pd.Timestamp,
     return time_spans
 
 
-def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTemplate, config: Dict[str, bool],
-                     age_bins: pd.DataFrame) -> Dict[Union[SubstituteString, OutputTemplate], int]:
+def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTemplate,
+                     config: Dict[str, bool], age_bins: pd.DataFrame,
+                     aggregate: Callable = len) -> Dict[Union[SubstituteString, OutputTemplate], Union[int, float]]:
     """Gets a count of people in a custom subgroup.
 
     The user is responsible for providing a default filter (e.g. only alive
@@ -287,7 +289,7 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTempla
             group_filter = base_filter.format(**filter_kwargs)
             in_group = pop.query(group_filter) if group_filter and not pop.empty else pop
 
-            group_counts[group_key] = len(in_group)
+            group_counts[group_key] = aggregate(in_group)
 
     return group_counts
 
@@ -443,12 +445,8 @@ def get_person_time_in_span(lived_in_span: pd.DataFrame, base_filter: QueryStrin
 
 
 def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timestamp,
-               sim_end: pd.Timestamp, age_bins: pd.DataFrame) -> Dict[str, int]:
+               sim_end: pd.Timestamp, age_bins: pd.DataFrame, causes: List[str]) -> Dict[str, int]:
     """Counts the number of deaths by cause.
-
-    The user is responsible for providing a default filter (e.g. only alive
-    people, or people susceptible to a particular disease).  Demographic
-    filters will be applied based on standardized configuration.
 
     Parameters
     ----------
@@ -465,6 +463,8 @@ def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timesta
         The simulation end time.
     age_bins
         A dataframe with ``age_group_start`` and ``age_group_end`` columns.
+    causes
+        List of causes present in the simulation.
 
     Returns
     -------
@@ -473,22 +473,71 @@ def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timesta
         represents a particular demographic subgroup.
 
     """
-    base_filter = QueryString('alive == "dead" and cause_of_death == "{cause}"')
+    base_filter = QueryString('alive == "dead" and cause_of_death == "death_due_to_{cause}"')
     base_key = get_output_template(**config)
     pop = clean_cause_of_death(pop)
 
-    causes = [c for c in pop.cause_of_death.unique()]
     time_spans = get_time_iterable(config, sim_start, sim_end)
 
     deaths = {}
     for year, (t_start, t_end) in time_spans:
         died_in_span = pop[(t_start <= pop.exit_time) & (pop.exit_time < t_end)]
         for cause in causes:
-            cause_year_key = base_key.substitute(measure=cause, year=year)
+            cause_year_key = base_key.substitute(measure=f'death_due_to_{cause}', year=year)
             cause_filter = base_filter.format(cause=cause)
             group_deaths = get_group_counts(died_in_span, cause_filter, cause_year_key, config, age_bins)
             deaths.update(group_deaths)
     return deaths
+
+
+def get_years_of_life_lost(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timestamp, sim_end: pd.Timestamp,
+                           age_bins: pd.DataFrame, life_expectancy: LookupTable, causes: List[str]) -> Dict[str, float]:
+    """Counts the years of life lost by cause.
+
+    Parameters
+    ----------
+    pop
+        The population dataframe to be counted. It must contain sufficient
+        columns for any necessary filtering (e.g. the ``age`` column if
+        filtering by age).
+    config
+        A dict with ``by_age``, ``by_sex``, and ``by_year`` keys and
+        boolean values.
+    sim_start
+        The simulation start time.
+    sim_end
+        The simulation end time.
+    age_bins
+        A dataframe with ``age_group_start`` and ``age_group_end`` columns.
+    life_expectancy
+        A lookup table that takes in a pandas index and returns the life
+        expectancy of the each individual represented by the index.
+    causes
+        List of causes present in the simulation.
+
+    Returns
+    -------
+    ylls
+        A dictionary of output_key, yll_count pairs where the output_key
+        represents a particular demographic subgroup.
+
+    """
+    base_filter = QueryString('alive == "dead" and cause_of_death == "death_due_to_{cause}"')
+    base_key = get_output_template(**config)
+    pop = clean_cause_of_death(pop)
+
+    time_spans = get_time_iterable(config, sim_start, sim_end)
+
+    years_of_life_lost = {}
+    for year, (t_start, t_end) in time_spans:
+        died_in_span = pop[(t_start <= pop.exit_time) & (pop.exit_time < t_end)]
+        for cause in causes:
+            cause_year_key = base_key.substitute(measure=f'ylls_due_to_{cause}', year=year)
+            cause_filter = base_filter.format(cause=cause)
+            group_ylls = get_group_counts(died_in_span, cause_filter, cause_year_key, config, age_bins,
+                                          aggregate=lambda subgroup: sum(life_expectancy(subgroup.index)))
+            years_of_life_lost.update(group_ylls)
+    return years_of_life_lost
 
 
 def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
