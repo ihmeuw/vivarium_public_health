@@ -50,6 +50,8 @@ def write(path: str, entity_key: 'EntityKey', data: Any):
     """
     if isinstance(data, pd.DataFrame):
         _write_data_frame(path, entity_key, data)
+    # TODO: should we support writing index objects directly? If we do, .reset_index() in the builder etc. is
+    # problematic. Currently not supporting.
     else:
         _write_json_blob(path, entity_key, data)
 
@@ -82,6 +84,10 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
         else:
             filter_terms = _get_valid_filter_terms(filter_terms, node.table.colnames)
             data = pd.read_hdf(path, entity_key.path, where=filter_terms)
+            with pd.HDFStore(path, complevel=9) as store:
+                metadata = store.get_storer(entity_key.path).metadata
+            if 'is_empty' in metadata and metadata['is_empty']: # undo transform performed on write
+                data = data.set_index(list(data.columns))
 
         return data
 
@@ -133,14 +139,26 @@ def _write_json_blob(path: str, entity_key: 'EntityKey', data: Any):
 
 def _write_data_frame(path: str, entity_key: 'EntityKey', data: pd.DataFrame):
     """Writes a pandas DataFrame or Series to the hdf file at the given path."""
-    entity_path = entity_key.path
+    # Our data is indexed, sometimes with no other columns. This leaves an empty dataframe that
+    # store.put will silently fail to write in table format.
     if data.empty:
-        raise ValueError("Cannot persist empty dataset")
+        _write_empty_dataframe(path, entity_key, data)
+    else:
+        entity_path = entity_key.path
+        metadata = {'is_empty': False}
+        with pd.HDFStore(path, complevel=9) as store:
+            store.put(entity_path, data, format="table")
+            store.get_storer(entity_path).metadata = metadata
 
-    # Our data is indexed (mostly -- demog dimensions isn't).
-    # The indices can be queried by name in table format.
+
+def _write_empty_dataframe(path: str, entity_key: 'EntityKey', data: pd.DataFrame):
+    """Writes an empty pandas DataFrame to the hdf file at the given path, queryable by its index."""
+    entity_path = entity_key.path
+    data = data.reset_index()
+    metadata = {'is_empty': True}
     with pd.HDFStore(path, complevel=9) as store:
-        store.put(entity_path, data, format="table")
+        store.put(entity_path, data, format='table', data_colmns=data.columns)
+        store.get_storer(entity_path).metadata = metadata
 
 
 def _get_keys(root: tables.node.Node, prefix: str='') -> List[str]:
