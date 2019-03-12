@@ -84,9 +84,9 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
         else:
             filter_terms = _get_valid_filter_terms(filter_terms, node.table.colnames)
             data = pd.read_hdf(path, entity_key.path, where=filter_terms)
-            with pd.HDFStore(path, complevel=9) as store:
+            with pd.HDFStore(path, complevel=9, mode='r') as store:
                 metadata = store.get_storer(entity_key.path).metadata
-            if 'is_empty' in metadata and metadata['is_empty']: # undo transform performed on write
+            if 'is_empty' in metadata and metadata['is_empty']:  # undo transform performed on write
                 data = data.set_index(list(data.columns))
 
         return data
