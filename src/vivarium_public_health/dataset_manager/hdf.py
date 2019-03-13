@@ -155,6 +155,10 @@ def _write_empty_dataframe(path: str, entity_key: 'EntityKey', data: pd.DataFram
     """Writes an empty pandas DataFrame to the hdf file at the given path, queryable by its index."""
     entity_path = entity_key.path
     data = data.reset_index()
+
+    if data.empty:
+        raise ValueError("Cannot write an empty dataframe that does not have an index.")
+
     metadata = {'is_empty': True}
     with pd.HDFStore(path, complevel=9) as store:
         store.put(entity_path, data, format='table', data_colmns=data.columns)
