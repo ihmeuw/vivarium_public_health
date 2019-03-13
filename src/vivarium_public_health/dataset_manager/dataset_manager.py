@@ -111,9 +111,7 @@ class ArtifactManager:
             if the data is a dataframe.
         """
         data = self.artifact.load(entity_key)
-        # demog dimensions and age bins are a df but not multi-indexed because they have no columns beyond our
-        # indexing dimensions
-        if isinstance(data, pd.DataFrame) and isinstance(data.index, pd.MultiIndex):
+        if isinstance(data, pd.DataFrame):  # could be metadata dict
             data = data.reset_index()
         return filter_data(data, self.config_filter_term, **column_filters) if isinstance(data, pd.DataFrame) else data
 

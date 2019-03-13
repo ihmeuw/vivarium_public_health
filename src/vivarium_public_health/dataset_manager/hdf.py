@@ -85,9 +85,9 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
             filter_terms = _get_valid_filter_terms(filter_terms, node.table.colnames)
             data = pd.read_hdf(path, entity_key.path, where=filter_terms)
             with pd.HDFStore(path, complevel=9, mode='r') as store:
-                metadata = store.get_storer(entity_key.path).metadata
-            if 'is_empty' in metadata and metadata['is_empty']:  # undo transform performed on write
-                data = data.set_index(list(data.columns))
+                metadata = store.get_storer(entity_key.path).attrs.metadata  # NOTE: must use attrs. write this up
+            if 'is_empty' in metadata and metadata['is_empty']:
+                data = data.set_index(list(data.columns))  # undoing transform performed on write
 
         return data
 
@@ -148,7 +148,7 @@ def _write_data_frame(path: str, entity_key: 'EntityKey', data: pd.DataFrame):
         metadata = {'is_empty': False}
         with pd.HDFStore(path, complevel=9) as store:
             store.put(entity_path, data, format="table")
-            store.get_storer(entity_path).metadata = metadata
+            store.get_storer(entity_path).attrs.metadata = metadata  # NOTE: must use attrs. write this up
 
 
 def _write_empty_dataframe(path: str, entity_key: 'EntityKey', data: pd.DataFrame):
@@ -158,7 +158,7 @@ def _write_empty_dataframe(path: str, entity_key: 'EntityKey', data: pd.DataFram
     metadata = {'is_empty': True}
     with pd.HDFStore(path, complevel=9) as store:
         store.put(entity_path, data, format='table', data_colmns=data.columns)
-        store.get_storer(entity_path).metadata = metadata
+        store.get_storer(entity_path).attrs.metadata = metadata  # NOTE: must use attrs. write this up
 
 
 def _get_keys(root: tables.node.Node, prefix: str='') -> List[str]:
