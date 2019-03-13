@@ -552,7 +552,7 @@ def test_get_years_lived_with_disability(ages_and_bins, sexes, observer_config):
 
     disability_weights = {cause: disability_weight(cause) for cause in causes}
 
-    ylds = get_years_lived_with_disability(pop, observer_config, year, step_size, age_bins, causes, disability_weights)
+    ylds = get_years_lived_with_disability(pop, observer_config, year, step_size, age_bins, disability_weights, causes)
 
     values = set(ylds.values())
     assert len(values) == 1
@@ -567,7 +567,7 @@ def test_get_years_lived_with_disability(ages_and_bins, sexes, observer_config):
     # Doubling pop should double person time
     pop = pd.concat([pop, pop], axis=0, ignore_index=True)
 
-    ylds = get_years_lived_with_disability(pop, observer_config, year, step_size, age_bins, causes, disability_weights)
+    ylds = get_years_lived_with_disability(pop, observer_config, year, step_size, age_bins, disability_weights, causes)
 
     values = set(ylds.values())
     assert len(values) == 1
