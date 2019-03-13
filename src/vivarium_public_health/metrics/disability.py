@@ -79,7 +79,7 @@ class Disability:
                                                          self.age_bins, self.disability_weight_pipelines, self.causes)
         self.years_lived_with_disability.update(ylds_this_step)
 
-        pop.loc[event.index, 'years_lived_with_disability'] += self.disability_weight(event.index)
+        pop.loc[:, 'years_lived_with_disability'] += self.disability_weight(pop.index)
         self.population_view.update(pop)
 
     def metrics(self, index, metrics):
