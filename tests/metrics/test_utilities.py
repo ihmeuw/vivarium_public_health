@@ -443,7 +443,7 @@ def test_get_person_time_in_span(ages_and_bins, observer_config):
 
 
 def test_get_deaths(ages_and_bins, sexes, observer_config):
-    alive = ['dead']
+    alive = ['dead', 'alive']
     ages, age_bins = ages_and_bins
     exit_times = [pd.Timestamp('1-1-2012'), pd.Timestamp('1-1-2013')]
     causes = ['cause_a', 'cause_b']
@@ -456,7 +456,7 @@ def test_get_deaths(ages_and_bins, sexes, observer_config):
     deaths = get_deaths(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'), age_bins, causes)
     values = set(deaths.values())
 
-    expected_value = len(pop) / len(causes)
+    expected_value = len(pop) / (len(causes) * len(alive))
     if observer_config['by_year']:
         assert len(values) == 2  # Uniform across bins with deaths, 0 in year bins without deaths
         expected_value /= 2
@@ -484,7 +484,7 @@ def test_get_deaths(ages_and_bins, sexes, observer_config):
 
 
 def test_get_ylls(ages_and_bins, sexes, observer_config):
-    alive = ['dead']
+    alive = ['dead', 'alive']
     ages, age_bins = ages_and_bins
     exit_times = [pd.Timestamp('1-1-2012'), pd.Timestamp('1-1-2013')]
     causes = ['cause_a', 'cause_b']
@@ -501,7 +501,7 @@ def test_get_ylls(ages_and_bins, sexes, observer_config):
                                   age_bins, life_expectancy, causes)
     values = set(ylls.values())
 
-    expected_value = len(pop) / len(causes)
+    expected_value = len(pop) / (len(causes) * len(alive))
     if observer_config['by_year']:
         assert len(values) == 2  # Uniform across bins with deaths, 0 in year bins without deaths
         expected_value /= 2
