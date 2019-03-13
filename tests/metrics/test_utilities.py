@@ -9,6 +9,7 @@ from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplat
                                                       get_treatment_counts, get_age_sex_filter_and_iterables,
                                                       get_time_iterable, get_lived_in_span, get_person_time_in_span,
                                                       get_deaths, get_years_of_life_lost,
+                                                      get_years_lived_with_disability,
                                                       _MIN_YEAR, _MAX_YEAR, _MIN_AGE, _MAX_AGE)
 
 
@@ -483,7 +484,7 @@ def test_get_deaths(ages_and_bins, sexes, observer_config):
     assert np.isclose(value, 2 * expected_value)
 
 
-def test_get_ylls(ages_and_bins, sexes, observer_config):
+def test_get_years_of_life_lost(ages_and_bins, sexes, observer_config):
     alive = ['dead', 'alive']
     ages, age_bins = ages_and_bins
     exit_times = [pd.Timestamp('1-1-2012'), pd.Timestamp('1-1-2013')]
@@ -527,3 +528,47 @@ def test_get_ylls(ages_and_bins, sexes, observer_config):
         assert len(values) == 1
     value = max(values)
     assert np.isclose(value, 2 * expected_value)
+
+
+def test_get_years_lived_with_disability(ages_and_bins, sexes, observer_config):
+    alive = ['dead', 'alive']
+    ages, age_bins = ages_and_bins
+    causes = ['cause_a', 'cause_b']
+    cause_a = ['susceptible_to_cause_a', 'cause_a']
+    cause_b = ['susceptible_to_cause_b', 'cause_b']
+    year = 2010
+    step_size = pd.Timedelta(days=7)
+
+    pop = pd.DataFrame(list(product(alive, ages, sexes, cause_a, cause_b)),
+                       columns=['alive', 'age', 'sex'] + causes)
+    # Shuffle the rows
+    pop = pop.sample(frac=1).reset_index(drop=True)
+
+    def disability_weight(cause):
+        def inner(index):
+            sub_pop = pop.loc[index]
+            return pd.Series(1, index=index) * (sub_pop[cause] == cause)
+        return inner
+
+    disability_weights = {cause: disability_weight(cause) for cause in causes}
+
+    ylds = get_years_lived_with_disability(pop, observer_config, year, step_size, age_bins, causes, disability_weights)
+
+    values = set(ylds.values())
+    assert len(values) == 1
+    states_per_cause = len(cause_a)
+    expected_value = len(pop) / (len(alive) * states_per_cause) * to_years(step_size)
+    if observer_config['by_sex']:
+        expected_value /= 2
+    if observer_config['by_age']:
+        expected_value /= len(age_bins)
+    assert np.isclose(values.pop(), expected_value)
+
+    # Doubling pop should double person time
+    pop = pd.concat([pop, pop], axis=0, ignore_index=True)
+
+    ylds = get_years_lived_with_disability(pop, observer_config, year, step_size, age_bins, causes, disability_weights)
+
+    values = set(ylds.values())
+    assert len(values) == 1
+    assert np.isclose(values.pop(), 2 * expected_value)

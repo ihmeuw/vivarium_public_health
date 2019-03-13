@@ -5,6 +5,7 @@ from typing import Union, List, Tuple, Dict, Callable
 import numpy as np
 import pandas as pd
 from vivarium.framework.lookup import LookupTable
+from vivarium.framework.values import Pipeline
 
 _MIN_AGE = 0.
 _MAX_AGE = 150.
@@ -517,7 +518,7 @@ def get_years_of_life_lost(pop: pd.DataFrame, config: Dict[str, bool], sim_start
 
     Returns
     -------
-    ylls
+    years_of_life_lost
         A dictionary of output_key, yll_count pairs where the output_key
         represents a particular demographic subgroup.
 
@@ -538,6 +539,55 @@ def get_years_of_life_lost(pop: pd.DataFrame, config: Dict[str, bool], sim_start
                                           aggregate=lambda subgroup: sum(life_expectancy(subgroup.index)))
             years_of_life_lost.update(group_ylls)
     return years_of_life_lost
+
+
+def get_years_lived_with_disability(pop: pd.DataFrame, config: Dict[str, bool], current_year: int,
+                                    step_size: pd.Timedelta, age_bins: pd.DataFrame,
+                                    disability_weights: Dict[str, Pipeline], causes: List[str]) -> Dict[str, float]:
+    """Counts the years lived with disability by cause in the time step.
+
+    Parameters
+    ----------
+    pop
+        The population dataframe to be counted. It must contain sufficient
+        columns for any necessary filtering (e.g. the ``age`` column if
+        filtering by age).
+    config
+        A dict with ``by_age``, ``by_sex``, and ``by_year`` keys and
+        boolean values.
+    current_year
+        The current year in the simulation.
+    step_size
+        The size of the current time step.
+    age_bins
+        A dataframe with ``age_group_start`` and ``age_group_end`` columns.
+    disability_weights
+        A mapping between causes and their disability weight pipelines.
+    causes
+        List of causes present in the simulation.
+
+    Returns
+    -------
+    years_lived_with_disability
+        A dictionary of output_key, yld_count pairs where the output_key
+        represents a particular demographic subgroup.
+
+    """
+    base_key = get_output_template(**config).substitute(year=current_year)
+    base_filter = QueryString('alive == "alive"')
+
+    years_lived_with_disability = {}
+    for cause in causes:
+        cause_key = base_key.substitute(measure=f'ylds_due_to_{cause}')
+
+        def count_ylds(sub_group):
+            """Counts ylds attributable to a cause in the time step."""
+            return sum(disability_weights[cause](sub_group.index) * to_years(step_size))
+
+        group_ylds = get_group_counts(pop, base_filter, cause_key, config, age_bins, aggregate=count_ylds)
+        years_lived_with_disability.update(group_ylds)
+
+    return years_lived_with_disability
 
 
 def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
