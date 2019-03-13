@@ -10,8 +10,10 @@ Tobacco smoking: effect of interventions
 Tobacco eradication
 -------------------
 
-We add the ``TobaccoEradication`` component, and specify at what year it comes
-into effect.
+.. py:currentmodule:: vivarium_public_health.mslt.intervention
+
+We add the :class:`TobaccoEradication` component, and specify at what year it
+comes into effect.
 Shown below are the new lines that are added to the simulation definition
 :ref:`for the BAU scenario <tobacco_bau_yaml>`.
 
@@ -32,8 +34,8 @@ Shown below are the new lines that are added to the simulation definition
 Tobacco-free generation
 -----------------------
 
-We add the ``TobaccoFreeGeneration`` component, and specify at what year it
-comes into effect.
+We add the :class:`TobaccoFreeGeneration` component, and specify at what year
+it comes into effect.
 Shown below are the new lines that are added to the simulation definition
 :ref:`for the BAU scenario <tobacco_bau_yaml>`.
 
@@ -54,7 +56,10 @@ Shown below are the new lines that are added to the simulation definition
 Tobacco tax
 -----------
 
-We enable the ``tobacco_tax`` option of the tobacco component.
+.. py:currentmodule:: vivarium_public_health.mslt.delay
+
+We enable the ``tobacco_tax`` option of the tobacco risk factor
+(:class:`DelayedRisk`).
 Shown below are the new lines that are added to the simulation definition
 :ref:`for the BAU scenario <tobacco_bau_yaml>`.
 

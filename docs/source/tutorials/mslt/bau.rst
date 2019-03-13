@@ -20,10 +20,13 @@ We then show how to run this simulation and interpret the results.
 .. note:: All of the MSLT components are contained within the
    ``vivarium_public_health.mslt`` module.
    This module is divided into several sub-modules; we will use the
-   ``population``, ``intervention``, and ``observer`` modules in this example.
+   :mod:`.population`, :mod:`.intervention`, and :mod:`.observer` modules in
+   this example.
 
 Defining the model simulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. py:currentmodule:: vivarium_public_health.mslt.population
 
 Because we are reading all of the necessary input data tables from a
 preexisting data artifact, we need to load two Vivarium plugins:
@@ -42,10 +45,10 @@ settings:
    :caption: Define the input data artifact.
 
 The core components of the simulation are the population demographics
-(``BasePopulation``), the mortality rate (``Mortality``), and the years lost
-due to disability (YLD) rate (``Disability``).
-These components are located in the ``population`` module, and so we identify
-them as follows:
+(:class:`~BasePopulation`), the mortality rate (:class:`~Mortality`), and the
+years lost due to disability (YLD) rate (:class:`Disability`).
+These components are located in the
+:mod:`.population` module, and so we identify them as follows:
 
 .. literalinclude:: /_static/mslt_reduce_acmr.yaml
    :language: yaml
@@ -60,9 +63,11 @@ the configuration settings:
    :lines: 19,23-30
    :caption: Define the number of cohorts and the simulation time period.
 
+.. py:currentmodule:: vivarium_public_health.mslt.intervention
 
 We also add a component that will reduce the all-cause mortality rate
-(``ModifyAllCauseMortality``, which is located in the ``intervention`` module)
+(:class:`ModifyAllCauseMortality`, which is located in the
+:mod:`.intervention` module)
 and give this intervention a name (``reduce_acmr``).
 We define the reduction in all-cause mortality rate in the configuration
 settings, identifying the intervention by name (``reduce_acmr``) and defining
@@ -73,10 +78,13 @@ the mortality rate scaling factor (``scale``):
    :lines: 7-9,14-15,18-19,31-34
    :caption: The core population components.
 
+.. py:currentmodule:: vivarium_public_health.mslt.observer
+
 Finally, we need to record the core life table quantities (as shown in the
 :ref:`example table <example_mslt_table>`) at each year of the simulation, by
-using the ``MorbidityMortality`` observer (located in the ``observer``
-module) and specifying the output file (``reduce_acmr_mslt.csv``):
+using the :class:`MorbidityMortality` observer (located in the
+:mod:`.observer` module) and specifying the output
+file (``reduce_acmr_mslt.csv``):
 
 .. literalinclude:: /_static/mslt_reduce_acmr.yaml
    :language: yaml
@@ -101,8 +109,9 @@ simulation with the following command:
 
    simulate run reduce_acmr.yaml
 
-When this has completed, the output recorded by the ``MorbidityMortality``
-observer will be saved in the file ``reduce_acmr_mslt.csv``.
+When this has completed, the output recorded by the
+:class:`MorbidityMortality` observer will be saved in the file
+``reduce_acmr_mslt.csv``.
 The contents of this file will look like:
 
 .. csv-table:: An extract of the simulation results, showing a subset of rows

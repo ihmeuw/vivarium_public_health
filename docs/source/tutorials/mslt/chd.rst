@@ -9,22 +9,24 @@ Intervention: a reduction in CHD incidence
 ------------------------------------------
 
 .. note:: In this example, we will also use components from the
-   ``vivarium_public_health.mslt.disease`` module.
+   :mod:`vivarium_public_health.mslt.disease` module.
 
 Compared to the :ref:`previous simulation <mslt_reduce_acmr>`, we will now add
 a chronic disease component, and replace the all-cause mortality rate
 intervention with an intervention that affects CHD incidence.
 
 To add CHD as a separate cause of morbidity and mortality, we use the
-``Disease`` component:
+:class:`~vivarium_public_health.mslt.disease.Disease` component:
 
 .. literalinclude:: /_static/mslt_reduce_chd.yaml
    :language: yaml
    :lines: 7-9,14-15
    :caption: Add a chronic disease.
 
-We then replace the ``ModifyAllCauseMortality`` intervention with the
-``ModifyDiseaseIncidence`` intervention.
+.. py:currentmodule:: vivarium_public_health.mslt.intervention
+
+We then replace the :class:`ModifyAllCauseMortality` intervention with the
+:class:`ModifyDiseaseIncidence` intervention.
 We give this intervention a name (``reduce_chd``) and identify the disease
 that it affects (``CHD``).
 In the configuration settings, we identify this intervention by name
@@ -36,9 +38,11 @@ In the configuration settings, we identify this intervention by name
    :lines: 7-9,16-17,22,34-37
    :caption: Add an intervention that reduces CHD incidence.
 
+.. py:currentmodule:: vivarium_public_health.mslt.observer
+
 Finally, we add an observer to record CHD incidence, prevalence, and deaths,
 in both the BAU scenario and the intervention scenario.
-We use the ``Disease`` observer, identify the disease of interest by name
+We use the :class:`Disease` observer, identify the disease of interest by name
 (``CHD``), and specify the output file (``reduce_chd_disease.csv``).
 
 .. literalinclude:: /_static/mslt_reduce_chd.yaml
@@ -64,8 +68,9 @@ simulation with the following command:
 
    simulate run reduce_chd.yaml
 
-When this has completed, the output recorded by the ``MorbidityMortality``
-observer will be saved in the file ``reduce_chd_mslt.csv``.
+When this has completed, the output recorded by the
+:class:`MorbidityMortality` observer will be saved in the file
+``reduce_chd_mslt.csv``.
 
 We can now plot the survival of this cohort in both the BAU and intervention
 scenarios, relative to the starting population, and see how the survival rate
@@ -82,14 +87,14 @@ has increased as a result of this intervention.
    Compare this to the impact of
    :ref:`reducing all-cause mortality rate by 5% <mslt_reduce_acmr_fig>`.
 
-The output recorded by the ``Disease`` observer will be saved in the file
+The output recorded by the :class:`Disease` observer will be saved in the file
 ``reduce_chd_disease.csv``.
 The contents of this file will look like:
 
 .. csv-table:: An extract of the CHD statistics, showing a subset of rows for
    the cohort of males aged 50-54 in 2010.
 
-   Disease,Year of birth,Sex,Age,Year,BAU incidence,Incidence,BAU prevalence,Prevalence,BAU deaths,Deaths,Change in incidence,Change in prevalence
+   **Disease**,**Year of birth**,**Sex**,**Age**,**Year**,**BAU incidence**,**Incidence**,**BAU prevalence**,**Prevalence**,**BAU deaths**,**Deaths**,**Change in incidence**,**Change in prevalence**
    ...
    CHD,1958,male,53,2011,0.005339172657680636,0.005072214024796604,0.040773746292951045,0.04054116957472282,0.58533431153149,0.583569340293451,-0.00026695863288403194,-0.00023257671822822512
    CHD,1958,male,54,2012,0.005698168146464383,0.005413259739141163,0.04517666366247726,0.044700445256575384,1.2175752762775431,1.2105903765985175,-0.0002849084073232198,-0.0004762184059018751
