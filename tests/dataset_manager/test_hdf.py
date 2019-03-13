@@ -147,6 +147,19 @@ def test_load_with_valid_filters(hdf_file_path, hdf_key):
             assert set(data.year) == {2006}
 
 
+def test_load_filter_empty_data_frame_index(hdf_file_path, hdf_key):
+    key = EntityKey('cause.test.prevalence')
+    data = pd.DataFrame(data={'age': range(10),
+                              'year': range(10),
+                              'draw': range(10)})
+    data = data.set_index(list(data.columns))
+
+    hdf._write_data_frame(hdf_file_path, key, data)
+    loaded_data = hdf.load(hdf_file_path, key, filter_terms=['year == 4'])
+    loaded_data = loaded_data.reset_index()
+    assert loaded_data.year.unique() == 4
+
+
 def test_remove(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
     hdf.remove(hdf_file_path, key)
