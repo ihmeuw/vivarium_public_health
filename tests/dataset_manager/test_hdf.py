@@ -176,7 +176,20 @@ def test_write_empty_data_frame(hdf_file_path):
         hdf._write_data_frame(hdf_file_path, key, data)
 
 
-def test_write_data_frame(hdf_file_path):
+def test_write_empty_data_frame_index(hdf_file_path):
+    key = EntityKey('cause.test.prevalence')
+    data = pd.DataFrame(data={'age': range(10),
+                              'year': range(10),
+                              'draw': range(10)})
+    data = data.set_index(list(data.columns))
+
+    hdf._write_data_frame(hdf_file_path, key, data)
+    written_data = pd.read_hdf(hdf_file_path, key.path)
+    written_data = written_data.set_index(list(written_data))  # write resets index. only calling load undoes it
+    assert written_data.equals(data)
+
+
+def test_write_data_frame(hdf_fhtople_path):
     key = EntityKey('cause.test.prevalence')
     data = build_table([lambda *args, **kwargs: random.choice([0, 1]), "Kenya", 1],
                        2005, 2010, columns=('age', 'year', 'sex', 'draw', 'location', 'value'))
