@@ -4,30 +4,228 @@ Input data requirements
 The data required for an MSLT model depend on the model components.
 Here, we define the data requirements for each type of component.
 
+In general, rates and values are stored in tables with the following columns:
+
 .. note:: For convenience, all of these input data can be collected into a
    single data artifact.
+   For each of the tables described below, we identify the name under which it
+   should be stored in a data artifact.
 
 Core MSLT
 ---------
 
-.. todo:: Describe the data requirements.
+The cohorts and their population sizes are defined in the
+``population.structure`` table:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**population**,**bau_population**
+   2011,2,female,108970.000,108970.000
+   2011,2,male,114970.000,114970.000
+   2011,7,female,105600.000,105600.000
+   2011,7,male,110470.000,110470.000
+   ...,...,...,...,...
+   2011,102,female,1035.000,1035.000
+   2011,102,male,433.125,433.125
+   2011,107,female,207.000,207.000
+   2011,107,male,86.625,86.625
+
+The age-specific, sex-specific mortality rates are defined in the
+``cause.all_causes.mortality`` table:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**rate**
+   2011,0,female,0.003586
+   2011,0,male,0.004390
+   2011,1,female,0.000330
+   2011,1,male,0.000340
+   ...,...,...,...
+   2120,109,female,0.524922
+   2120,109,male,0.529281
+
+Similarly, the age-specific, sex-specific disability rates are defined in the
+``cause.all_causes.disability_rate`` table:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**rate**
+   2011,0,female,0.014837
+   2011,0,male,0.020674
+   2011,1,female,0.022379
+   2011,1,male,0.026409
+   ...,...,...,...
+   2120,109,female,0.366114
+   2120,109,male,0.357842
 
 Chronic diseases
 ----------------
 
-.. todo:: Describe the data requirements.
+For each chronic disease, the initial prevalence and disease-specific rates
+are stored in the following tables (where the disease name is ``NAME``).
+
+The incidence rate \(i\) is stored in ``chronic_disease.NAME.incidence``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**NAME_i**
+   2011,0,female,0.0
+   ...,...,...,...
+
+The disability rate \(DR\) is stored in ``chronic_disease.NAME.morbidity``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**NAME_DR**
+   2011,0,female,0.0
+   ...,...,...,...
+
+The mortality rate \(f\) is stored in ``chronic_disease.NAME.mortality``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**NAME_f**
+   2011,0,female,0.0
+   ...,...,...,...
+
+The initial prevalence is stored in ``chronic_disease.NAME.prevalence``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**NAME_prev**
+   2011,0,female,0.0
+   ...,...,...,...
+
+The remission rate \(r\) is stored in ``chronic_disease.NAME.remission``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**NAME_r**
+   2011,0,female,0.0
+   ...,...,...,...
+
+.. note:: Note that the column names are different in each table.
 
 Acute diseases and other events
 -------------------------------
 
-.. todo:: Describe the data requirements.
+For each acute disease/event, the morbidity and mortality rates are stored in
+the following tables (where the disease/event names is ``NAME``).
+
+The morbidity rate is stored in ``acute_disease.NAME.morbidity``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**NAME_disability_rate**
+   2011,0,female,0.000301
+   ...,...,...,...
+
+The mortality rate is stored in ``acute_disease.NAME.mortality``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**NAME_excess_mortality**
+   2011,0,female,0.000032
+   ...,...,...,...
+
+.. note:: Note that the column names are different in each table.
 
 Risk factors
 ------------
 
-.. todo:: Describe the data requirements.
+The tobacco risk factor (as implemented by the
+:class:`~vivarium_public_health.mslt.delay.DelayedRisk` component) requires
+several data tables.
+
+The incidence rate is stored in ``risk_factor.tobacco.incidence``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**incidence**
+   2011,0,female,0.000301
+   ...,...,...,...
+
+The remission rate is stored in ``risk_factor.tobacco.remission``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**remission**
+   2011,0,female,0.000301
+   ...,...,...,...
+
+The initial prevalence for each exposure category is stored in
+``risk_factor.tobacco.prevalence``:
+
+.. csv-table::
+
+  **year**,**age**,**sex**,**tobacco.no**,**tobacco.yes**,**tobacco.0**,**tobacco.1**,...,**tobacco.20**,**tobacco.21**
+   2011,0,female,1.0,0.0,0.0,0.0,...,0.0,0.0
+   ...,...,...,...,...,...,...,...,...,...
+
+The relative risk of mortality for each exposure category (defined separately
+for the BAU and intervention scenarios) is stored in
+``risk_factor.tobacco.mortality_relative_risk``:
+
+.. csv-table::
+
+  **year**,**age**,**sex**,**tobacco.no**,**tobacco.yes**,...,**tobacco.21**,**tobacco_intervention.no**,**tobacco_intervention.yes**,...,**tobacco_intervention.21**
+   2011,0,female,1.0,1.0,...,1.0,1.0,1.0,...,1.0
+   ...,...,...,...,...,...,...,...,...,...,...
+
+The relative risk of chronic disease incidence for each exposure category is
+stored in ``risk_factor.tobacco.disease_relative_risk``, which contains
+separate columns for each chronic disease.
+Shown here is an example for two chronic diseases, called ``DiseaseA`` and
+``DiseaseB``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**DiseaseA_no**,**DiseaseA_yes**,...,**DiseaseA_21**,**DiseaseB_no**,**DiseaseB_yes**,...,**DiseaseB_21**
+    2011,0,female,1.0,1.0,...,1.0,1.0,1.0,...,1.0
+    ...,...,...,...,...,...,...,...,...,...,...
 
 Interventions
 -------------
 
-.. todo:: Describe the data requirements.
+The :class:`~vivarium_public_health.mslt.intervention.TobaccoEradication`
+and :class:`~vivarium_public_health.mslt.intervention.TobaccoFreeGeneration`
+interventions don't have any data requirements.
+The tobacco tax intervention, however, is characterised in terms of its effect
+on the incidence (i.e., uptake) and remission (i.e., cessation) rates.
+
+The incidence effect is stored in
+``risk_factor.tobacco.tax_effect_incidence``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**incidence_effect**
+   2011,0,female,1.0
+   2011,0,male,1.0
+   2011,1,female,1.0
+   2011,1,male,1.0
+   ...,...,...,...
+   2121,109,female,0.866004
+   2121,109,male,0.866004
+   2121,110,female,0.866004
+   2121,110,male,0.866004
+
+The remission effect is stored in
+``risk_factor.tobacco.tax_effect_remission``:
+
+.. csv-table::
+
+   **year**,**age**,**sex**,**remission_effect**
+   2011,0,female,1.0
+   2011,0,male,1.0
+   2011,1,female,1.0
+   2011,1,male,1.0
+   ...,...,...,...
+   2031,22,female,0.975724
+   2031,22,male,0.975724
+   2031,23,female,0.975724
+   2031,23,male,0.975724
+   ...,...,...,...
+   2121,109,female,1.0
+   2121,109,male,1.0
+   2121,110,female,1.0
+   2121,110,male,1.0
