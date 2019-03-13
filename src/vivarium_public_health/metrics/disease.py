@@ -5,18 +5,22 @@ from .utilities import get_age_bins, get_disease_event_counts, get_susceptible_p
 
 class DiseaseObserver:
     """Observes disease counts and person time for a single cause.
+
     By default, this observer computes aggregate susceptible person time
     and counts of disease cases over the entire simulation.  It can be
     configured to bin these into age_groups, sexes, and years by setting
     the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
+
     In the model specification, your configuration for this component should
     be specified as, e.g.:
+
     configuration:
         metrics:
             YOUR_DISEASE_NAME:
                 by_age: True
                 by_year: False
                 by_sex: True
+
     """
     configuration_defaults = {
         'metrics': {
