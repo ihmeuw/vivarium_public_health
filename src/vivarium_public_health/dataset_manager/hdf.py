@@ -161,7 +161,7 @@ def _write_empty_dataframe(path: str, entity_key: 'EntityKey', data: pd.DataFram
 
     metadata = {'is_empty': True}
     with pd.HDFStore(path, complevel=9) as store:
-        store.put(entity_path, data, format='table', data_colmns=data.columns)
+        store.put(entity_path, data, format='table', data_columns=True)
         store.get_storer(entity_path).attrs.metadata = metadata  # NOTE: must use attrs. write this up
 
 
