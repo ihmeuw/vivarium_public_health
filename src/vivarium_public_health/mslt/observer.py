@@ -9,6 +9,9 @@ class MorbidityMortality:
     """
     This class records the all-cause morbidity and mortality rates for each
     cohort at each year of the simulation.
+
+    :param output_file: The name of the CSV file in which to record the
+        morbidity and mortality data.
     """
 
     def __init__(self, output_file):
@@ -102,11 +105,15 @@ class Disease:
     """
     This class records the disease incidence rate and disease prevalence for
     each cohort at each year of the simulation.
+
+    :param name: The name of the chronic disease.
+    :param output_file: The name of the CSV file in which to record the
+        disease data.
     """
 
     def __init__(self, name, output_file):
         """
-        :param name: The name of the disease.
+        :param name: The name of the chronic disease.
         :param output_file: The name of the CSV file in which to record the
             disease data.
         """
@@ -173,7 +180,12 @@ class Disease:
 
 
 class TobaccoPrevalence:
-    """This class records the prevalence of tobacco use in the population."""
+    """
+    This class records the prevalence of tobacco use in the population.
+
+    :param output_file: The name of the CSV file in which to record the
+        prevalence data.
+    """
 
     def __init__(self, output_file):
         self.output_file = output_file
