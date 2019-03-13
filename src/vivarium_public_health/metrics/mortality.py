@@ -42,7 +42,7 @@ class MortalityObserver:
         self.start_time = self.clock()
         self.initial_pop_entrance_time = self.start_time - self.step_size()
         self.age_bins = get_age_bins(builder)
-        self.causes = [c.state_column for c in builder.components.get_components('DiseaseModel')]
+        self.causes = [c.state_column for c in builder.components.get_components('DiseaseModel')] + ['other_causes']
 
         life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
         self.life_expectancy = builder.lookup.build_table(life_expectancy_data, key_columns=[],
