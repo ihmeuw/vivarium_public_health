@@ -189,7 +189,19 @@ def test_write_empty_data_frame_index(hdf_file_path):
     assert written_data.equals(data)
 
 
-def test_write_data_frame(hdf_fhtople_path):
+def test_write_load_empty_data_frame_index(hdf_file_path):
+    key = EntityKey('cause.test.prevalence')
+    data = pd.DataFrame(data={'age': range(10),
+                              'year': range(10),
+                              'draw': range(10)})
+    data = data.set_index(list(data.columns))
+
+    hdf._write_data_frame(hdf_file_path, key, data)
+    loaded_data = hdf.load(hdf_file_path, key, filter_terms=None)
+    assert loaded_data.equals(data)
+
+
+def test_write_data_frame(hdf_file_path):
     key = EntityKey('cause.test.prevalence')
     data = build_table([lambda *args, **kwargs: random.choice([0, 1]), "Kenya", 1],
                        2005, 2010, columns=('age', 'year', 'sex', 'draw', 'location', 'value'))
