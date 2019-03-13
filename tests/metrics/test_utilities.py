@@ -8,7 +8,8 @@ from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplat
                                                       get_susceptible_person_time, get_disease_event_counts,
                                                       get_treatment_counts, get_age_sex_filter_and_iterables,
                                                       get_time_iterable, get_lived_in_span, get_person_time_in_span,
-                                                      get_deaths, _MIN_YEAR, _MAX_YEAR, _MIN_AGE, _MAX_AGE)
+                                                      get_deaths, get_years_of_life_lost,
+                                                      _MIN_YEAR, _MAX_YEAR, _MIN_AGE, _MAX_AGE)
 
 
 @pytest.fixture(params=((0, 100, 5, 1000), (20, 100, 5, 1000)))
@@ -442,7 +443,7 @@ def test_get_person_time_in_span(ages_and_bins, observer_config):
 
 
 def test_get_deaths(ages_and_bins, sexes, observer_config):
-    alive = ['dead']
+    alive = ['dead', 'alive']
     ages, age_bins = ages_and_bins
     exit_times = [pd.Timestamp('1-1-2012'), pd.Timestamp('1-1-2013')]
     causes = ['cause_a', 'cause_b']
@@ -452,10 +453,10 @@ def test_get_deaths(ages_and_bins, sexes, observer_config):
     # Shuffle the rows
     pop = pop.sample(frac=1).reset_index(drop=True)
 
-    deaths = get_deaths(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'), age_bins)
+    deaths = get_deaths(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'), age_bins, causes)
     values = set(deaths.values())
 
-    expected_value = len(pop) / len(causes)
+    expected_value = len(pop) / (len(causes) * len(alive))
     if observer_config['by_year']:
         assert len(values) == 2  # Uniform across bins with deaths, 0 in year bins without deaths
         expected_value /= 2
@@ -471,7 +472,7 @@ def test_get_deaths(ages_and_bins, sexes, observer_config):
     # Doubling pop should double counts
     pop = pd.concat([pop, pop], axis=0, ignore_index=True)
 
-    deaths = get_deaths(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'), age_bins)
+    deaths = get_deaths(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'), age_bins, causes)
     values = set(deaths.values())
 
     if observer_config['by_year']:
@@ -482,3 +483,47 @@ def test_get_deaths(ages_and_bins, sexes, observer_config):
     assert np.isclose(value, 2 * expected_value)
 
 
+def test_get_ylls(ages_and_bins, sexes, observer_config):
+    alive = ['dead', 'alive']
+    ages, age_bins = ages_and_bins
+    exit_times = [pd.Timestamp('1-1-2012'), pd.Timestamp('1-1-2013')]
+    causes = ['cause_a', 'cause_b']
+
+    pop = pd.DataFrame(list(product(alive, ages, sexes, exit_times, causes)),
+                       columns=['alive', 'age', 'sex', 'exit_time', 'cause_of_death'])
+    # Shuffle the rows
+    pop = pop.sample(frac=1).reset_index(drop=True)
+
+    def life_expectancy(index):
+        return pd.Series(1, index=index)
+
+    ylls = get_years_of_life_lost(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'),
+                                  age_bins, life_expectancy, causes)
+    values = set(ylls.values())
+
+    expected_value = len(pop) / (len(causes) * len(alive))
+    if observer_config['by_year']:
+        assert len(values) == 2  # Uniform across bins with deaths, 0 in year bins without deaths
+        expected_value /= 2
+    else:
+        assert len(values) == 1
+    value = max(values)
+    if observer_config['by_sex']:
+        expected_value /= 2
+    if observer_config['by_age']:
+        expected_value /= len(age_bins)
+    assert np.isclose(value, expected_value)
+
+    # Doubling pop should double counts
+    pop = pd.concat([pop, pop], axis=0, ignore_index=True)
+
+    ylls = get_years_of_life_lost(pop, observer_config, pd.Timestamp('1-1-2010'), pd.Timestamp('1-1-2015'),
+                                  age_bins, life_expectancy, causes)
+    values = set(ylls.values())
+
+    if observer_config['by_year']:
+        assert len(values) == 2  # Uniform across bins with deaths, 0 in year bins without deaths
+    else:
+        assert len(values) == 1
+    value = max(values)
+    assert np.isclose(value, 2 * expected_value)
