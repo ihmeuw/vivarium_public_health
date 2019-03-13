@@ -6,8 +6,21 @@ from .utilities import get_age_bins, get_person_time, get_deaths, get_years_of_l
 class MortalityObserver:
     """ An observer for cause-specific deaths, ylls, and total person time.
 
-    The data is optionally discretized by age, sex, and/or year. These options
-    can be configured in the model specification.
+    By default, this counts cause-specific deaths, years of life lost, and
+    total person time over the full course of the simulation. It can be
+    configured to bin these measures into age groups, sexes, and years
+    by setting the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
+
+    In the model specification, your configuration for this component should
+    be specified as, e.g.:
+
+    configuration:
+        metrics:
+            mortality:
+                by_age: True
+                by_year: False
+                by_sex: True
+
     """
     configuration_defaults = {
         'metrics': {
@@ -19,8 +32,10 @@ class MortalityObserver:
         }
     }
 
-    def setup(self, builder):
+    def __init__(self):
         self.name = 'mortality_observer'
+
+    def setup(self, builder):
         self.config = builder.configuration.metrics.mortality
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
