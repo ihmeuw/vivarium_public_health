@@ -76,18 +76,16 @@ class DelayedRisk:
                    Stroke:
     """
 
-    def __init__(self, name, bin_years=20):
+    def __init__(self, name):
         """
         :param name: The name of the exposure (e.g., ``"tobacco"``).
-        :param bin_years: The number of years over which the risk changes
-            (default: 20).
         """
         self.name = name
-        self.bin_years = bin_years
         self.configuration_defaults = {
             name: {
                 'constant_prevalence': False,
                 'tobacco_tax': False,
+                'delay': 20,
             },
         }
 
@@ -107,9 +105,7 @@ class DelayedRisk:
 
         self.tobacco_tax = self.config[self.name]['tobacco_tax']
 
-        # Read in the delay duration from the configuration, if present.
-        if 'delay' in self.config[self.name]:
-            self.bin_years = int(self.config[self.name]['delay'])
+        self.bin_years = int(self.config[self.name]['delay'])
 
         # Load the initial prevalence.
         prev_data = builder.data.load(f'risk_factor.{self.name}.prevalence')
