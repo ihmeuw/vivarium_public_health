@@ -3,6 +3,7 @@ from collections import Counter
 import pandas as pd
 from vivarium.framework.values import list_combiner, joint_value_post_processor, rescale_post_processor
 
+from vivarium_public_health.disease import DiseaseModel
 from .utilities import get_age_bins, get_years_lived_with_disability
 
 
@@ -43,7 +44,7 @@ class Disability:
         self.age_bins = get_age_bins(builder)
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
-        self.causes = [c.state_column for c in builder.components.get_components('DiseaseModel')]
+        self.causes = [c.state_column for c in builder.components.get_components(DiseaseModel)]
         self.years_lived_with_disability = Counter()
         self.disability_weight_pipelines = {cause: builder.value.get_value(f'{cause}.disability_weight')
                                             for cause in self.causes}
@@ -74,11 +75,11 @@ class Disability:
     def on_time_step_prepare(self, event):
         pop = self.population_view.get(event.index, query='tracked == True and alive == "alive"')
         ylds_this_step = get_years_lived_with_disability(pop, self.config.to_dict(),
-                                                         self.clock.time(), self.step_size(),
+                                                         self.clock().year, self.step_size(),
                                                          self.age_bins, self.disability_weight_pipelines, self.causes)
         self.years_lived_with_disability.update(ylds_this_step)
 
-        pop.loc[event.index, 'years_lived_with_disability'] += self.disability_weight(event.index)
+        pop.loc[:, 'years_lived_with_disability'] += self.disability_weight(pop.index)
         self.population_view.update(pop)
 
     def metrics(self, index, metrics):
