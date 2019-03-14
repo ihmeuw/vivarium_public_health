@@ -1,3 +1,9 @@
+**0.9.6 - 03/13/19**
+
+ - Generic observers for mortality, disability, person time, and treatment counts.
+ - Bugfix for large propensities when using risk distributions.
+ - Bugfix for rr distribution parameter name.
+
 **0.9.5 - 03/01/19**
 
  - Bugfix in validating rebinning risks for continuous risks.
