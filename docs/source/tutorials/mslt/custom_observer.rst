@@ -121,7 +121,10 @@ This method saves the recorded data, by performing the following steps:
   can be identified by two columns: year of birth, and sex;
 
 * Sorting the table rows so that they are grouped by cohort and arranged
-  chronologically; and
+  chronologically;
+
+* Calculating the life expectancy and the health-adjusted life expectancy
+  (HALE) for each cohort at each time-step; and
 
 * Writing the sorted table to the specified output file.
 
