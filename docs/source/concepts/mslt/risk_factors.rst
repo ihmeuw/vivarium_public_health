@@ -1,3 +1,5 @@
+.. _concept_risk_factor:
+
 Risk factors
 ============
 
