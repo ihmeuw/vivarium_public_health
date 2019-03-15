@@ -26,7 +26,6 @@ class Mortality:
         self.death_emitter = builder.event.get_emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')
         self.clock = builder.time.clock()
-        builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
         self.population_view = builder.population.get_view(
             ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location', 'years_of_life_lost'])
