@@ -1,3 +1,7 @@
+**0.8.17 - 03/15/19**
+
+ - Bugfix to handle duplicate data in crude birth rate fertility component.
+
 **0.8.16 - 03/04/19**
 
  - Bugfix to handle population data.
