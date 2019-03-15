@@ -32,29 +32,30 @@ class BasePopulation:
 
     def setup(self, builder):
         """Load the population data."""
+        reqd_cols = ['age', 'sex', 'population', 'bau_population']
+        zero_cols = ['acmr', 'bau_acmr',
+                     'pr_death', 'bau_pr_death', 'deaths', 'bau_deaths',
+                     'yld_rate', 'bau_yld_rate',
+                     'person_years', 'bau_person_years',
+                     'HALY', 'bau_HALY']
+
         self.pop_data = builder.data.load('population.structure')
-        self.pop_data.loc[:, 'acmr'] = 0.0
-        self.pop_data.loc[:, 'bau_acmr'] = 0.0
-        self.pop_data.loc[:, 'pr_death'] = 0.0
-        self.pop_data.loc[:, 'bau_pr_death'] = 0.0
-        self.pop_data.loc[:, 'deaths'] = 0.0
-        self.pop_data.loc[:, 'bau_deaths'] = 0.0
-        self.pop_data.loc[:, 'yld_rate'] = 0.0
-        self.pop_data.loc[:, 'bau_yld_rate'] = 0.0
-        self.pop_data.loc[:, 'person_years'] = 0.0
-        self.pop_data.loc[:, 'bau_person_years'] = 0.0
-        self.pop_data.loc[:, 'HALY'] = 0.0
-        self.pop_data.loc[:, 'bau_HALY'] = 0.0
+
+        # Check that this table contains the required columns.
+        present = set(reqd_cols) & set(self.pop_data.columns)
+        if len(present) != len(reqd_cols):
+            missing = set(reqd_cols) - set(self.pop_data.columns)
+            msg = f'Table population.structure is missing columns: {missing}'
+            raise ValueError(msg)
+
+        # Create additional columns with placeholder (zero) values.
+        for column in zero_cols:
+            self.pop_data.loc[:, column] = 0.0
 
         self.max_age = builder.configuration.population.max_age
 
         # Track all of the quantities that exist in the core spreadsheet table.
-        columns = ['age', 'sex', 'population', 'bau_population',
-                   'acmr', 'bau_acmr',
-                   'pr_death', 'bau_pr_death', 'deaths', 'bau_deaths',
-                   'yld_rate', 'bau_yld_rate',
-                   'person_years', 'bau_person_years',
-                   'HALY', 'bau_HALY']
+        columns = reqd_cols + zero_cols
         builder.population.initializes_simulants(self.on_initialize_simulants, creates_columns=columns)
         self.population_view = builder.population.get_view(columns + ['tracked'])
 
