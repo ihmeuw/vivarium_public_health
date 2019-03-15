@@ -1,5 +1,3 @@
-import pandas as pd
-
 from vivarium_public_health.disease import DiseaseModel
 from .utilities import get_age_bins, get_person_time, get_deaths, get_years_of_life_lost
 
@@ -73,8 +71,5 @@ class MortalityObserver:
         metrics['years_of_life_lost'] = self.life_expectancy(the_dead.index).sum()
         metrics['total_population_living'] = len(the_living)
         metrics['total_population_dead'] = len(the_dead)
-
-        for (condition, count) in pd.value_counts(the_dead.cause_of_death).to_dict().items():
-            metrics['death_due_to_{}'.format(condition)] = count
 
         return metrics
