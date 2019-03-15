@@ -24,12 +24,9 @@ def config(base_config):
 
 
 def crude_birth_rate_data(live_births=500):
-    data = (build_table([live_births], 1990, 2017, ('age', 'year', 'sex', 'mean_value'))
-            .query('age_group_start == 25')
+    return (build_table([live_births], 1990, 2017, ('age', 'year', 'sex', 'mean_value'))
+            .query('age_group_start == 25 and sex == "Both"')
             .drop(['age_group_start', 'age_group_end'], 'columns'))
-    data = data.groupby(['year_start', 'year_end']).sum().reset_index()
-    data['sex'] = 'Both'
-    return data
 
 
 def test_FertilityDeterministic(config):
@@ -116,7 +113,7 @@ def test_FertilityCrudeBirthRate_extrapolate(config, base_plugins):
         pop_end = len(simulation.get_population())
         birth_rate.append((pop_end - pop_start)/pop_size)
 
-    given_birth_rate = 2*live_births_by_sex / true_pop_size
+    given_birth_rate = live_births_by_sex / true_pop_size
     np.testing.assert_allclose(birth_rate, given_birth_rate, atol=0.01)
 
 
