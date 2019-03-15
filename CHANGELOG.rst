@@ -1,5 +1,6 @@
 **0.8.17 - 03/15/19**
 
+ - Add new and standardize observers for disability, mortality, disease, risk, and treatment.
  - Bugfix to handle duplicate data in crude birth rate fertility component.
 
 **0.8.16 - 03/04/19**
