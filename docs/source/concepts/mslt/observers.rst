@@ -9,7 +9,20 @@ The multi-state life table contains a vast amount of information for each
 population cohort at each time-step of a model simulation.
 Since the primary objective of MSLT models is to predict the impact of
 preventative interventions on population morbidity and mortality, only some
-these data are relevant and worth recording.
+of these data are relevant and worth recording.
+
+The core concepts are:
+
+1. MSLT components, such as diseases, risk factors, and interventions, will
+   record quantities of interest as columns in the population table;
+
+2. Observers will record the values of these columns (and also those of
+   columns that identify each cohort, such as their age and sex) at each
+   time-step; and
+
+3. At the end of the simulation, observers will concatenate the values
+   observed at each time-step into a single table, calculate summary
+   statistics (if required), and save the resulting table to disk.
 
 The MSLT framework provides a number of "observers" that record tailored
 summary statistics during a model simulation.
