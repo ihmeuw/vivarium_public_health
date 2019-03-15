@@ -143,7 +143,17 @@ class DelayedRisk:
 
         # Load the disease-specific relative risks for each exposure bin.
         dis_rr_data = builder.data.load(f'risk_factor.{self.name}.disease_relative_risk')
-        key_columns = ['age', 'sex', 'year']
+
+        # Check that the relative risk table includes required columns.
+        key_columns = ['age_group_start', 'age_group_end', 'sex',
+                       'year_start', 'year_end']
+        if set(key_columns) & set(dis_rr_data.columns) != set(key_columns):
+            # Fallback option, handle tables that do not define bin edges.
+            key_columns = ['age', 'sex', 'year']
+        if set(key_columns) & set(dis_rr_data.columns) != set(key_columns):
+            msg = 'Missing index columns for disease-specific relative risks'
+            raise ValueError(msg)
+
         self.dis_rr = {}
         for disease in diseases:
             dis_columns = [c for c in dis_rr_data.columns
