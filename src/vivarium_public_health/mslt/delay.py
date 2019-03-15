@@ -254,6 +254,8 @@ class DelayedRisk:
         - Increased duration of time since exposure.
         """
         pop = self.population_view.get(event.index)
+        if pop.empty:
+            return
         idx = pop.index
         acmr = self.acm_rate(idx)
         inc_rate = self.incidence(idx)
