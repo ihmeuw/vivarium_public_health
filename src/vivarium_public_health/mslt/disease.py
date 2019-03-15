@@ -155,8 +155,8 @@ class Disease:
         """
         Update the disease status for both the BAU and intervention scenarios.
         """
-        idx = event.index
-        pop = self.population_view.get(idx)
+        pop = self.population_view.get(event.index)
+        idx = pop.index
         S_bau, C_bau = pop[f'{self.name}_S'], pop[f'{self.name}_C']
         S_int = pop[f'{self.name}_S_intervention']
         C_int = pop[f'{self.name}_C_intervention']

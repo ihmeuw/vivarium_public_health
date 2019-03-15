@@ -253,8 +253,8 @@ class DelayedRisk:
         - Cessation of exposure; and
         - Increased duration of time since exposure.
         """
-        idx = event.index
-        pop = self.population_view.get(idx)
+        pop = self.population_view.get(event.index)
+        idx = pop.index
         acmr = self.acm_rate(idx)
         inc_rate = self.incidence(idx)
         rem_rate = self.remission(idx)
@@ -267,13 +267,12 @@ class DelayedRisk:
             int_rem_rate = 0.0
 
         # Calculate the survival rate for each bin.
-        pop = self.population_view.get(idx)
         bin_cols = self.get_bin_names()
         base_surv_rate = (1 - acmr)
         surv_rate = self.mortality_rr(idx).rpow(base_surv_rate, axis=0)
 
         # Account for mortality in each bin.
-        pop[bin_cols] = pop[bin_cols].mul(surv_rate[bin_cols])
+        pop.loc[:, bin_cols] = pop.loc[:, bin_cols].mul(surv_rate[bin_cols])
 
         # Account for transitions between bins.
         # Note that the order of evaluation matters.
@@ -355,8 +354,8 @@ class DelayedRisk:
         """
         # Multiply the population in each bin by the associated relative risk.
         bin_cols = self.get_bin_names()
-        incidence_rr = self.dis_rr[disease](index)[bin_cols]
         pop = self.population_view.get(index)
+        incidence_rr = self.dis_rr[disease](pop.index)[bin_cols]
         rr_values = pop[bin_cols] * incidence_rr
 
         # Calculate the mean relative-risk for the BAU scenario.
