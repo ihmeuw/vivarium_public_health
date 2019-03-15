@@ -24,9 +24,12 @@ def config(base_config):
 
 
 def crude_birth_rate_data(live_births=500):
-    return (build_table(['mean_value', live_births], 1990, 2017, ('age', 'year', 'sex', 'parameter', 'mean_value'))
-            .query('age_group_start == 25 and sex != "Both"')
+    data = (build_table([live_births], 1990, 2017, ('age', 'year', 'sex', 'mean_value'))
+            .query('age_group_start == 25')
             .drop(['age_group_start', 'age_group_end'], 'columns'))
+    data = data.groupby(['year_start', 'year_end']).sum().reset_index()
+    data['sex'] = 'Both'
+    return data
 
 
 def test_FertilityDeterministic(config):
