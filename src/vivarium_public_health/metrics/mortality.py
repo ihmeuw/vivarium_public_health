@@ -1,7 +1,5 @@
-import pandas as pd
-
 from vivarium_public_health.disease import DiseaseModel
-from .utilities import get_age_bins, get_person_time, get_deaths, get_years_of_life_lost, clean_cause_of_death
+from .utilities import get_age_bins, get_person_time, get_deaths, get_years_of_life_lost
 
 
 class MortalityObserver:
