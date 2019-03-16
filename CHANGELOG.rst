@@ -1,3 +1,7 @@
+**0.8.18 - 03/15/19**
+
+ - Bugfixes for treatment, disease, and disability observers.
+
 **0.8.17 - 03/15/19**
 
  - Add new and standardize observers for disability, mortality, disease, risk, and treatment.
