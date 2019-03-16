@@ -58,7 +58,7 @@ class DiseaseObserver:
         # In order to get an accurate representation of person time we need to look at
         # the state table before anything happens.
         builder.event.register_listener('time_step__prepare', self.on_time_step_prepare)
-        builder.event.register_listener('on_collect_metrics', self.on_collect_metrics)
+        builder.event.register_listener('collect_metrics', self.on_collect_metrics)
 
     def on_time_step_prepare(self, event):
         pop = self.population_view.get(event.index)
