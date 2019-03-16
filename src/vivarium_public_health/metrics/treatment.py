@@ -55,11 +55,11 @@ class TreatmentObserver:
         self.population_view = builder.population.get_view(columns_required)
 
         builder.value.register_value_modifier('metrics', self.metrics)
-        builder.event.register_listener('on_collect_metrics', self.on_collect_metrics)
+        builder.event.register_listener('collect_metrics', self.on_collect_metrics)
 
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
-        dose_counts_this_step = get_treatment_counts(pop, self.config.to_dict(), self.doses, event.time, self.age_bins)
+        dose_counts_this_step = get_treatment_counts(pop, self.config.to_dict(), self.treatment, self.doses, event.time, self.age_bins)
         self.counts.update(dose_counts_this_step)
 
     def metrics(self, index, metrics):
