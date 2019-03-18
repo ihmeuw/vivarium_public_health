@@ -1,3 +1,8 @@
+**0.9.7 - 03/17/19**
+
+ - Bugfixes in disease and treatment observers.
+ - Remove unnecessary output metrics.
+
 **0.9.6 - 03/13/19**
 
  - Generic observers for mortality, disability, person time, and treatment counts.
