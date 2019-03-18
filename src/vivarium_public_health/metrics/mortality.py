@@ -44,9 +44,8 @@ class MortalityObserver:
                                                           parameter_columns=[('age', 'age_group_start',
                                                                               'age_group_end')])
 
-        columns_required = ['tracked', 'alive', 'entrance_time', 'exit_time', 'cause_of_death', 'years_of_life_lost']
-        if self.config.by_age:
-            columns_required += ['age']
+        columns_required = ['tracked', 'alive', 'entrance_time', 'exit_time', 'cause_of_death',
+                            'years_of_life_lost', 'age']
         if self.config.by_sex:
             columns_required += ['sex']
         self.population_view = builder.population.get_view(columns_required)
