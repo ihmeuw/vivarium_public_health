@@ -1,3 +1,7 @@
+**0.9.8 - 03/19/10**
+
+ - Bugfix in mortality observer.
+
 **0.9.7 - 03/17/19**
 
  - Bugfixes in disease and treatment observers.
