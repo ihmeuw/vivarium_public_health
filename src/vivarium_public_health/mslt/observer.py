@@ -5,21 +5,49 @@ import pandas as pd
 import itertools
 
 
+def output_file(config, suffix, sep='_', ext='csv'):
+    """
+    Determine the output file name for an observer, based on the prefix
+    defined in ``config.observer.output_prefix`` and the (optional)
+    ``config.input_data.input_draw_number``.
+
+    :param config: The builder configuration object.
+    :param suffix: The observer-specific suffix.
+    :param sep: The separator between prefix, suffix, and draw number.
+    :param ext: The output file extension.
+    """
+    if 'observer' not in config:
+        raise ValueError('observer.output_prefix not defined')
+    if 'output_prefix' not in config.observer:
+        raise ValueError('observer.output_prefix not defined')
+    prefix = config.observer.output_prefix
+    if 'input_draw_number' in config.input_data:
+        draw = config.input_data.input_draw_number
+    else:
+        draw = 0
+    output_file = prefix + sep + suffix
+    if draw > 0:
+        output_file += '{}{}'.format(sep, draw)
+    output_file += '.{}'.format(ext)
+    print(output_file)
+    return output_file
+
+
 class MorbidityMortality:
     """
     This class records the all-cause morbidity and mortality rates for each
     cohort at each year of the simulation.
 
-    :param output_file: The name of the CSV file in which to record the
+    :param output_suffix: The suffix for the CSV file in which to record the
         morbidity and mortality data.
     """
 
-    def __init__(self, output_file):
+    def __init__(self, output_suffix='mm'):
         """
-        :param output_file: The name of the CSV file in which to record the
-            morbidity and mortality data.
+        :param output_suffix: The suffix for the CSV file in which to record
+            the morbidity and mortality data.
         """
-        self.output_file = output_file
+        self.output_suffix = output_suffix
 
     def setup(self, builder):
         # Record the key columns from the core multi-state life table.
@@ -45,6 +73,9 @@ class MorbidityMortality:
                            'yld_rate', 'bau_yld_rate',
                            'person_years', 'bau_person_years',
                            'HALY', 'bau_HALY']
+
+        self.output_file = output_file(builder.configuration,
+                                       self.output_suffix)
 
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
@@ -107,18 +138,20 @@ class Disease:
     each cohort at each year of the simulation.
 
     :param name: The name of the chronic disease.
-    :param output_file: The name of the CSV file in which to record the
+    :param output_suffix: The suffix for the CSV file in which to record the
         disease data.
     """
 
-    def __init__(self, name, output_file):
+    def __init__(self, name, output_suffix=None):
         """
         :param name: The name of the chronic disease.
-        :param output_file: The name of the CSV file in which to record the
-            disease data.
+        :param output_suffix: The suffix for the CSV file in which to record
+            the disease data.
         """
         self.name = name
-        self.output_file = output_file
+        if output_suffix is None:
+            output_suffix = name.lower()
+        self.output_suffix = output_suffix
 
     def setup(self, builder):
         bau_incidence_value = '{}.incidence'.format(self.name)
@@ -145,6 +178,8 @@ class Disease:
                            'bau_prevalence', 'int_prevalence',
                            'bau_deaths', 'int_deaths']
         self.clock = builder.time.clock()
+        self.output_file = output_file(builder.configuration,
+                                       self.output_suffix)
 
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
@@ -183,12 +218,12 @@ class TobaccoPrevalence:
     """
     This class records the prevalence of tobacco use in the population.
 
-    :param output_file: The name of the CSV file in which to record the
+    :param output_suffix: The suffix for the CSV file in which to record the
         prevalence data.
     """
 
-    def __init__(self, output_file):
-        self.output_file = output_file
+    def __init__(self, output_suffix='tobacco'):
+        self.output_suffix = output_suffix
         self.name = 'tobacco'
 
     def setup(self, builder):
@@ -208,6 +243,8 @@ class TobaccoPrevalence:
                                         self.on_collect_metrics)
         builder.event.register_listener('simulation_end',
                                         self.write_output)
+        self.output_file = output_file(builder.configuration,
+                                       self.output_suffix)
 
     def get_bin_names(self):
         """
