@@ -29,7 +29,6 @@ def output_file(config, suffix, sep='_', ext='csv'):
     if draw > 0:
         output_file += '{}{}'.format(sep, draw)
     output_file += '.{}'.format(ext)
-    print(output_file)
     return output_file
 
 
