@@ -1,6 +1,0 @@
-numpy
-pandas
-scipy
-tables
-vivarium
-risk_distributions

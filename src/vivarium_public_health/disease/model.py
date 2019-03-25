@@ -38,6 +38,9 @@ class DiseaseModel(Machine):
     def setup(self, builder):
         super().setup(builder)
 
+        self.configuration_age_start = builder.configuration.population.age_start
+        self.configuration_age_end = builder.configuration.population.age_end
+
         self._csmr_data = self._get_data_functions['csmr'](self.cause, builder)
         self.config = builder.configuration
         self._interpolation_order = builder.configuration.interpolation.order
@@ -73,13 +76,13 @@ class DiseaseModel(Machine):
     def get_csmr(self):
         return self._csmr_data
 
-    def get_state_weights(self, pop_index):
-        states = [s for s in self.states if hasattr(s, 'prevalence_data') and s.prevalence_data is not None]
+    def get_state_weights(self, pop_index, prevalence_type):
+        states = [s for s in self.states if hasattr(s, f'{prevalence_type}_data') and getattr(s, f'{prevalence_type}_data') is not None]
 
         if not states:
             return states, None
 
-        weights = [s.prevalence_data(pop_index) for s in states]
+        weights = [getattr(s, f'{prevalence_type}_data')(pop_index) for s in states]
         for w in weights:
             w.reset_index(inplace=True, drop=True)
         weights += ((1 - np.sum(weights, axis=0)), )
@@ -109,7 +112,21 @@ class DiseaseModel(Machine):
 
         assert self.initial_state in {s.state_id for s in self.states}
 
-        state_names, weights_bins = self.get_state_weights(pop_data.index)
+        # FIXME: this is a hack to figure out whether or not we're at the simulation start based on the fact that the
+        #  fertility components create this user data
+        if not pop_data.user_data:  # simulation start
+            if self.configuration_age_start != self.configuration_age_end != 0:
+                state_names, weights_bins = self.get_state_weights(pop_data.index, "prevalence")
+            else:
+                raise NotImplementedError('We do not currently support an age 0 cohort. '
+                                          'configuration.population.age_start and configuration.population.age_end '
+                                          'cannot both be 0.')
+
+        else:  # on time step
+            if pop_data.user_data['age_start'] == pop_data.user_data['age_end'] == 0:
+                state_names, weights_bins = self.get_state_weights(pop_data.index, "birth_prevalence")
+            else:
+                state_names, weights_bins = self.get_state_weights(pop_data.index, "prevalence")
 
         if state_names and not population.empty:
             # only do this if there are states in the model that supply prevalence data

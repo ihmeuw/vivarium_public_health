@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from . import add_year_column
-
 
 class BasePopulation:
 
@@ -36,7 +34,6 @@ class Mortality:
 
     def setup(self, builder):
         mortality_data = builder.data.load('cause.all_causes.mortality')
-        mortality_data = add_year_column(builder, mortality_data)
         self.mortality_rate = builder.value.register_rate_producer(
             'mortality_rate', source=builder.lookup.build_table(mortality_data))
 
@@ -57,6 +54,5 @@ class Disability:
 
     def setup(self, builder):
         yld_data = builder.data.load('cause.all_causes.disability_rate')
-        yld_data = add_year_column(builder, yld_data)
         yld_rate = builder.lookup.build_table(yld_data)
         builder.value.register_rate_producer('yld_rate', source=yld_rate)

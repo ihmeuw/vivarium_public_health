@@ -49,7 +49,7 @@ def test_general_access(base_config, base_plugins):
     metrics = Metrics()
     simulation = initialize_simulation([TestPopulation(), metrics, HealthcareAccess()],
                                        input_config=base_config, plugin_config=base_plugins)
-    simulation.data.write("healthcare_entity.outpatient_visits.annual_visits",
+    simulation.data.write("healthcare_entity.outpatient_visits.utilization",
                           build_table(annual_rate, year_start, year_end, ['age', 'year', 'sex', 'annual_visits']))
     simulation.setup()
 
@@ -82,7 +82,7 @@ def test_adherence(base_config, get_annual_visits_mock):
 
     simulation.take_steps(number_of_steps=2)
 
-    df = simulation.population.population
+    df = simulation.get_population()
     df['fu_visit'] = df.healthcare_visits > 1
     t = df.groupby('adherence_category').fu_visit.count()
     assert t['non-adherent'] == 0, 'non-adherents should not show for follow-up visit'

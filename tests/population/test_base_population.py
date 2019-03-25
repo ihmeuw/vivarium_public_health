@@ -104,14 +104,16 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
     assert mock_args['age_params'] == age_params
     assert mock_args['population_data'].equals(sub_pop)
     assert mock_args['randomness_streams'] == base_pop.randomness
-    for column in simulation.population.population:
-        assert simulation.population.population[column].equals(sims[column])
+    pop = simulation.get_population()
+    for column in pop:
+        assert pop[column].equals(sims[column])
 
-    final_ages = simulation.population.population.age + num_days/365
+    final_ages = pop.age + num_days/365
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
 
-    assert np.allclose(simulation.population.population.age, final_ages, atol=0.5/365)  # Within a half of a day.
+    pop = simulation.get_population()
+    assert np.allclose(pop.age, final_ages, atol=0.5/365)  # Within a half of a day.
 
 
 def test_age_out_simulants(config, base_plugins):
@@ -130,9 +132,9 @@ def test_age_out_simulants(config, base_plugins):
     simulation = setup_simulation(components, input_config=config, plugin_config=base_plugins)
     time_start = simulation.clock.time
 
-    assert len(simulation.population.population) == len(simulation.population.population.age.unique())
+    assert len(simulation.get_population()) == len(simulation.get_population().age.unique())
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.population.population
+    pop = simulation.get_population()
     assert len(pop) == len(pop[~pop.tracked])
     exit_after_300_days = pop.exit_time >= time_start + pd.Timedelta(300, unit='D')
     exit_before_400_days = pop.exit_time <= time_start + pd.Timedelta(400, unit='D')
@@ -244,7 +246,7 @@ def test__assign_demography_with_age_bounds():
     pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     age_start, age_end = 0, 180
-    r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
+    r = {k: get_randomness(k) for k in ['general_purpose', 'bin_selection', 'age_smoothing', 'age_smoothing_age_bounds']}
 
     simulants = bp._assign_demography_with_age_bounds(simulants, pop_data, age_start,
                                                       age_end, r, lambda *args, **kwargs: None)

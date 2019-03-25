@@ -1,3 +1,86 @@
+**0.9.8 - 03/19/10**
+
+ - Bugfix in mortality observer.
+
+**0.9.7 - 03/17/19**
+
+ - Bugfixes in disease and treatment observers.
+ - Remove unnecessary output metrics.
+
+**0.9.6 - 03/13/19**
+
+ - Generic observers for mortality, disability, person time, and treatment counts.
+ - Bugfix for large propensities when using risk distributions.
+ - Bugfix for rr distribution parameter name.
+
+**0.9.5 - 03/01/19**
+
+ - Bugfix in validating rebinning risks for continuous risks.
+
+**0.9.4 - 03/01/19**
+
+ - Added neonatal models and support for birth prevalence in DiseaseModel.
+ - Added a risk attributable disease model.
+ - Added support for rebinning polytomous risks into dichotomous risks.
+
+**0.9.3 - 02/26/19**
+
+ - Bugfix in checking relative risk source type from configuration.
+
+**0.9.2 - 02/22/19**
+
+ - Pin numpy and tables dependencies.
+ - Remove forecast flags
+ - Update crude birth rate fertility component
+ - Allow parameterization of RiskEffect components with normal and lognormal distributions.
+ - New observers for disease and treatment.
+
+**0.9.1 - 02/14/19**
+
+ - Update dependencies
+
+**0.9.0 - 02/12/19**
+
+ - Dataset manager logging.
+ - Added an SIR with duration model.
+ - Built observer for death counts and person years by age and year.
+ - Updated population and crude birth rate models for GBD 2017.
+ - Built an observer to point sample categorical risk exposure.
+ - Updated risk distribution and effect to work with the updated risk_distributions package.
+ - Updated healthcare access component.
+ - Added component for therapeutic inertia.
+ - Exposed individual cause disability weights as pipelines.
+ - Various bugfixes and api updates.
+
+**0.8.13 - 01/04/19**
+
+ - Added support for multi-location data artifacts.
+ - Added CI branch synchronization
+
+**0.8.12 - 12/27/18**
+
+ - Bugfix in categorical paf calculation
+
+**0.8.11 - 12/20/18**
+
+ - Bugfix for mock_artifact testing data to include newly added columns.
+ - Bugfix to handle single-value sequela disability weight data.
+
+**0.8.10 - 12/20/18**
+
+ - Added a replace function to the artifact class.
+ - Fixed a bug in age-specific fertility rate component.
+ - Added data free risk and risk effect components
+ - Removed the autogeneration of risk effects.
+ - Updated the risk and risk effect API.
+ - Added a configuration flag and component updates for limited forecasting data usage.
+ - Put in cause-level disability weights.
+ - Updated the population API.
+ - Added in standard epi disease models.
+ - Added support for morbidity only diseases.
+ - Expanded risk effects to target excess mortality.
+ - A host of model fixes and updates for the MSLT subpackage.
+
 **0.8.9 - 11/15/18**
 
  - Update documentation dependencies.

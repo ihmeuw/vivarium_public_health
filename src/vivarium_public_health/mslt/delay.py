@@ -1,8 +1,6 @@
 """Provide components to represent delayed effects."""
 import pandas as pd
 
-from . import add_year_column
-
 
 class DelayedRisk:
     """
@@ -58,9 +56,6 @@ class DelayedRisk:
                affects:
                    # This is where the affected diseases should be listed.
                    stroke:
-               # For now, apply a constant PIF to incidence and/or remission.
-               incidence_pif: 0.95
-               remission_pif: 1.05
     """
 
     def __init__(self, name, bin_years=20):
@@ -81,9 +76,9 @@ class DelayedRisk:
         """
         self.config = builder.configuration
 
-        # NOTE: for now, apply a constant PIF to incidence and remission.
-        self.incidence_pif = self.config[self.name].incidence_pif
-        self.remission_pif = self.config[self.name].remission_pif
+        # Read in the delay duration from the configuration, if present.
+        if 'delay' in self.config[self.name]:
+            self.bin_years = int(self.config[self.name]['delay'])
 
         # Load the initial prevalence.
         prev_data = builder.data.load(f'risk_factor.{self.name}.prevalence')
@@ -131,7 +126,7 @@ class DelayedRisk:
             if not dis_columns or not dis_keys:
                 msg = 'No {} relative risks for disease {}'
                 raise ValueError(msg.format(self.name, disease))
-            rr_data = dis_rr_data[dis_keys + dis_columns]
+            rr_data = dis_rr_data.loc[:, dis_keys + dis_columns]
             dis_prefix = '{}_'.format(disease)
             bau_prefix = '{}.'.format(self.name)
             int_prefix = '{}_intervention.'.format(self.name)
@@ -140,9 +135,9 @@ class DelayedRisk:
             int_col = {c: c.replace(dis_prefix, int_prefix).replace('post_', '')
                        for c in dis_columns}
             for column in dis_columns:
-                rr_data[int_col[column]] = rr_data[column]
+                # NOTE: avoid SettingWithCopyWarning
+                rr_data.loc[:, int_col[column]] = rr_data[column]
             rr_data = rr_data.rename(columns=bau_col)
-            rr_data = add_year_column(builder, rr_data)
             self.dis_rr[disease] = builder.lookup.build_table(rr_data)
 
         # Add a handler to create the exposure bin columns.
@@ -176,7 +171,11 @@ class DelayedRisk:
 
         The intervention bin names take the form ``"name_intervention.X"``.
         """
-        bins = ['no', 'yes'] + [str(s) for s in range(self.bin_years + 2)]
+        if self.bin_years == 0:
+            delay_bins = [str(0)]
+        else:
+            delay_bins = [str(s) for s in range(self.bin_years + 2)]
+        bins = ['no', 'yes'] + delay_bins
         bau_bins = ['{}.{}'.format(self.name, bin) for bin in bins]
         int_bins = ['{}_intervention.{}'.format(self.name, bin) for bin in bins]
         all_bins = bau_bins + int_bins
@@ -226,9 +225,8 @@ class DelayedRisk:
         acmr = self.acm_rate(idx)
         inc_rate = self.incidence(idx)
         rem_rate = self.remission(idx)
-        # NOTE: for now, apply a constant PIF to the incidence rate.
-        int_inc_rate = self.int_incidence(idx) * self.incidence_pif
-        int_rem_rate = self.int_remission(idx) * self.remission_pif
+        int_inc_rate = self.int_incidence(idx)
+        int_rem_rate = self.int_remission(idx)
 
         # Calculate the survival rate for each bin.
         pop = self.population_view.get(idx)
@@ -243,10 +241,11 @@ class DelayedRisk:
         # Note that the order of evaluation matters.
         suffixes = ['', '_intervention']
         # First, accumulate the final post-exposure bin.
-        for suffix in suffixes:
-            accum_col = '{}{}.{}'.format(self.name, suffix, self.bin_years + 1)
-            from_col = '{}{}.{}'.format(self.name, suffix, self.bin_years)
-            pop[accum_col] += pop[from_col]
+        if self.bin_years > 0:
+            for suffix in suffixes:
+                accum_col = '{}{}.{}'.format(self.name, suffix, self.bin_years + 1)
+                from_col = '{}{}.{}'.format(self.name, suffix, self.bin_years)
+                pop[accum_col] += pop[from_col]
         # Then increase time since exposure for all other post-exposure bins.
         for n_years in reversed(range(self.bin_years)):
             for suffix in suffixes:
@@ -261,6 +260,7 @@ class DelayedRisk:
         col_int_yes = '{}_intervention.yes'.format(self.name)
         col_zero = '{}.0'.format(self.name)
         col_int_zero = '{}_intervention.0'.format(self.name)
+
         inc = inc_rate * pop[col_no]
         int_inc = int_inc_rate * pop[col_int_no]
         rem = rem_rate * pop[col_yes]
@@ -284,9 +284,15 @@ class DelayedRisk:
         :param disease: The name of the disease whose incidence rate will be
             modified.
         """
-        inc_rate = '{}_intervention.incidence'.format(disease)
-        modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
-        builder.value.register_value_modifier(inc_rate, modifier)
+        # NOTE: we need to modify different rates for chronic and acute
+        # diseases. For now, register modifiers for all possible rates.
+        rate_templates = ['{}_intervention.incidence',
+                          '{}_intervention.excess_mortality',
+                          '{}_intervention.yld_rate']
+        for template in rate_templates:
+            rate_name = template.format(disease)
+            modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
+            builder.value.register_value_modifier(rate_name, modifier)
 
     def incidence_adjustment(self, disease, index, incidence_rate):
         """
@@ -306,14 +312,19 @@ class DelayedRisk:
         bau_prefix = '{}.'.format(self.name)
         bau_cols = [c for c in bin_cols if c.startswith(bau_prefix)]
         # Sum over all of the bins in each row.
-        mean_bau_rr = rr_values[bau_cols].sum(axis=1)
+        mean_bau_rr = rr_values[bau_cols].sum(axis=1) / pop[bau_cols].sum(axis=1)
+        # Handle cases where the population size is zero.
+        mean_bau_rr = mean_bau_rr.fillna(1.0)
 
         # Calculate the mean relative-risk for the intervention scenario.
         int_prefix = '{}_intervention.'.format(self.name)
         int_cols = [c for c in bin_cols if c.startswith(int_prefix)]
         # Sum over all of the bins in each row.
-        mean_int_rr = rr_values[int_cols].sum(axis=1)
+        mean_int_rr = rr_values[int_cols].sum(axis=1) / pop[int_cols].sum(axis=1)
+        # Handle cases where the population size is zero.
+        mean_int_rr = mean_int_rr.fillna(1.0)
 
         # Calculate the disease incidence PIF for the intervention scenario.
-        pif = mean_int_rr / mean_bau_rr
-        return incidence_rate * pif
+        pif = (mean_bau_rr - mean_int_rr) / mean_bau_rr
+        pif = pif.fillna(0.0)
+        return incidence_rate * (1 - pif)
