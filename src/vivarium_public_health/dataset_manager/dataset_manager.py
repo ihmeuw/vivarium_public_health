@@ -111,6 +111,8 @@ class ArtifactManager:
             if the data is a dataframe.
         """
         data = self.artifact.load(entity_key)
+        if isinstance(data, pd.DataFrame):  # could be metadata dict
+            data = data.reset_index()
         return filter_data(data, self.config_filter_term, **column_filters) if isinstance(data, pd.DataFrame) else data
 
 
