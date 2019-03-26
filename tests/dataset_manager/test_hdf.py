@@ -49,7 +49,8 @@ def hdf_file(hdf_file_path):
 _KEYS = ['population.age_bins',
          'population.structure',
          'population.theoretical_minimum_risk_life_expectancy',
-         'cause.all_causes.restrictions']
+         'cause.all_causes.restrictions',
+         'metadata.ve']
 
 
 @pytest.fixture
