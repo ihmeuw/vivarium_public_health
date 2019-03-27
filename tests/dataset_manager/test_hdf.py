@@ -50,7 +50,9 @@ _KEYS = ['population.age_bins',
          'population.structure',
          'population.theoretical_minimum_risk_life_expectancy',
          'cause.all_causes.restrictions',
-         'metadata.ve']
+         'metadata.versions',
+         'metadata.locations',
+         'metadata.keyspace']
 
 
 @pytest.fixture
@@ -122,8 +124,10 @@ def test_write_json(hdf_file_path, mock_key, json_data, mocker):
 def test_load(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
     data = hdf.load(hdf_file_path, key, filter_terms=None)
-    if 'restrictions' in key:
+    if 'restrictions' in key or 'versions' in key:
         assert isinstance(data, dict)
+    elif 'metadata' in key:
+        assert isinstance(data, list)
     else:
         assert isinstance(data, pd.DataFrame)
 
@@ -131,8 +135,10 @@ def test_load(hdf_file_path, hdf_key):
 def test_load_with_invalid_filters(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
     data = hdf.load(hdf_file_path, key, filter_terms=["fake_filter==0"])
-    if 'restrictions' in key:
+    if 'restrictions' in key or 'versions' in key:
         assert isinstance(data, dict)
+    elif 'metadata' in key:
+        assert isinstance(data, list)
     else:
         assert isinstance(data, pd.DataFrame)
 
@@ -140,8 +146,10 @@ def test_load_with_invalid_filters(hdf_file_path, hdf_key):
 def test_load_with_valid_filters(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
     data = hdf.load(hdf_file_path, key, filter_terms=["year == 2006"])
-    if 'restrictions' in key:
+    if 'restrictions' in key or 'versions' in key:
         assert isinstance(data, dict)
+    elif 'metadata' in key:
+        assert isinstance(data, list)
     else:
         assert isinstance(data, pd.DataFrame)
         if 'year' in data.columns:
