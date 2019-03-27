@@ -84,7 +84,7 @@ def load_exposure_data(builder, risk: EntityString):
         exposure_data = builder.data.load(f'{risk}.exposure')
     else:
         if isinstance(exposure_source, str):  # Build from covariate
-            cat1 = builder.data.load(f'covariate.{exposure_source}.estimate')
+            cat1 = builder.data.load(f'{exposure_source}.estimate')
             # TODO: Generate a draw.
             cat1 = cat1[cat1['parameter'] == 'mean_value']
             cat1['parameter'] = 'cat1'
