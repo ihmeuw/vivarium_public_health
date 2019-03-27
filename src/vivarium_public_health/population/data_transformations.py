@@ -375,11 +375,15 @@ def get_live_births_per_year(builder):
                   .drop('parameter', 'columns')
                   .groupby(['year_start'])['value'].sum())
 
+    start_year = builder.configuration.time.start.year
+    if builder.configuration.interpolation.extrapolate and start_year > birth_data.index.max():
+        start_year = birth_data.index.max()
+
     if not builder.configuration.fertility.time_dependent_live_births:
-        birth_data = birth_data.at[builder.configuration.time.start.year]
+        birth_data = birth_data.at[start_year]
 
     if not builder.configuration.fertility.time_dependent_population_fraction:
-        population_data = population_data.at[builder.configuration.time.start.year]
+        population_data = population_data.at[start_year]
 
     live_birth_rate = initial_population_size / population_data * birth_data
 
