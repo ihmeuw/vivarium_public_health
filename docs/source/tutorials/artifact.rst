@@ -153,7 +153,7 @@ that gets loaded out of it:
 
 .. code-block:: python
 
-    art = Artifact('test_artifact.hdf', filter_terms=['age > 5'])
+    art = Artifact('test_artifact.hdf', filter_terms=['age_group_start > 5'])
     pop = art.load('population.structure')
     print(pop.head()))
 
