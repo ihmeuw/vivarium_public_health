@@ -75,7 +75,7 @@ class DiseaseObserver:
                                                             self.clock().year, event.step_size, self.age_bins)
         self.person_time.update(person_time_this_step)
 
-        if should_sample(event.time):
+        if self.should_sample(event.time):
             point_prevalence = get_prevalent_cases(pop, self.config.to_dict(), self.disease, event.time, self.age_bins)
             self.prevalence.update(point_prevalence)
 
