@@ -1,3 +1,7 @@
+**0.8.20 - 03/27/19**
+
+ - Update to handle newest version of Vivarium, including no longer having both sexes in build_table.
+
 **0.8.19 - 03/26/19**
 
  - Bugfix for mortality observer.
