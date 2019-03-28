@@ -12,10 +12,11 @@ from tables.nodes import filenode
 if typing.TYPE_CHECKING:
     from vivarium_public_health.dataset_manager import EntityKey
 
+DEFAULT_COLUMNS = {"location", "draw"}
+
 
 def touch(path: str):
     """Creates an hdf file or wipes an existing file if necessary.
-
     If the given path is proper to create a hdf file, it creates a new hdf file.
 
     Parameters
@@ -26,8 +27,8 @@ def touch(path: str):
     Raises
     ------
     ValueError
-        If the non-proper path is given to create a hdf file."""
-
+        If the non-proper path is given to create a hdf file.
+    """
     path = Path(path)
     if not path.suffix == '.hdf':
         raise ValueError(f'You provided path: {str(path)} not valid for creating hdf file.')
@@ -50,8 +51,6 @@ def write(path: str, entity_key: 'EntityKey', data: Any):
     """
     if isinstance(data, pd.DataFrame):
         _write_data_frame(path, entity_key, data)
-    # TODO: should we support writing index objects directly? If we do, .reset_index() in the builder etc. is
-    # problematic. Currently not supporting.
     else:
         _write_json_blob(path, entity_key, data)
 
@@ -84,10 +83,6 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
         else:
             filter_terms = _get_valid_filter_terms(filter_terms, node.table.colnames)
             data = pd.read_hdf(path, entity_key.path, where=filter_terms)
-            with pd.HDFStore(path, complevel=9, mode='r') as store:
-                metadata = store.get_storer(entity_key.path).attrs.metadata  # NOTE: must use attrs. write this up
-            if 'is_empty' in metadata and metadata['is_empty']:
-                data = data.set_index(list(data.columns))  # undoing transform performed on write
 
         return data
 
@@ -99,6 +94,7 @@ def remove(path: str, entity_key: 'EntityKey'):
     ----------
     path :
         The path to the hdf file to remove the data from.
+
     entity_key :
         A representation of the internal hdf path where the data is located.
     """
@@ -139,30 +135,17 @@ def _write_json_blob(path: str, entity_key: 'EntityKey', data: Any):
 
 def _write_data_frame(path: str, entity_key: 'EntityKey', data: pd.DataFrame):
     """Writes a pandas DataFrame or Series to the hdf file at the given path."""
-    # Our data is indexed, sometimes with no other columns. This leaves an empty dataframe that
-    # store.put will silently fail to write in table format.
-    if data.empty:
-        _write_empty_dataframe(path, entity_key, data)
-    else:
-        entity_path = entity_key.path
-        metadata = {'is_empty': False}
-        with pd.HDFStore(path, complevel=9) as store:
-            store.put(entity_path, data, format="table")
-            store.get_storer(entity_path).attrs.metadata = metadata  # NOTE: must use attrs. write this up
-
-
-def _write_empty_dataframe(path: str, entity_key: 'EntityKey', data: pd.DataFrame):
-    """Writes an empty pandas DataFrame to the hdf file at the given path, queryable by its index."""
     entity_path = entity_key.path
-    data = data.reset_index()
-
     if data.empty:
-        raise ValueError("Cannot write an empty dataframe that does not have an index.")
+        raise ValueError("Cannot persist empty dataset")
 
-    metadata = {'is_empty': True}
+    # Even though these get called data_columns, it's more correct to think of them
+    # as the columns you can use to index into the raw data with. It's the subset of columns
+    # that you can filter by without reading in a whole dataset.
+    data_columns = DEFAULT_COLUMNS.intersection(data.columns)
+
     with pd.HDFStore(path, complevel=9) as store:
-        store.put(entity_path, data, format='table', data_columns=True)
-        store.get_storer(entity_path).attrs.metadata = metadata  # NOTE: must use attrs. write this up
+        store.put(entity_path, data, format="table", data_columns=data_columns)
 
 
 def _get_keys(root: tables.node.Node, prefix: str='') -> List[str]:

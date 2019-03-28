@@ -15,7 +15,6 @@ from vivarium_public_health.dataset_manager import EntityKey, hdf
 @pytest.fixture
 def hdf_file_path(tmpdir):
     """This file contains the following:
-
     Object Tree:
         / (RootGroup) ''
         /cause (Group) ''
@@ -49,10 +48,7 @@ def hdf_file(hdf_file_path):
 _KEYS = ['population.age_bins',
          'population.structure',
          'population.theoretical_minimum_risk_life_expectancy',
-         'cause.all_causes.restrictions',
-         'metadata.versions',
-         'metadata.locations',
-         'metadata.keyspace']
+         'cause.all_causes.restrictions']
 
 
 @pytest.fixture
@@ -124,10 +120,8 @@ def test_write_json(hdf_file_path, mock_key, json_data, mocker):
 def test_load(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
     data = hdf.load(hdf_file_path, key, filter_terms=None)
-    if 'restrictions' in key or 'versions' in key:
+    if 'restrictions' in key:
         assert isinstance(data, dict)
-    elif 'metadata' in key:
-        assert isinstance(data, list)
     else:
         assert isinstance(data, pd.DataFrame)
 
@@ -135,10 +129,8 @@ def test_load(hdf_file_path, hdf_key):
 def test_load_with_invalid_filters(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
     data = hdf.load(hdf_file_path, key, filter_terms=["fake_filter==0"])
-    if 'restrictions' in key or 'versions' in key:
+    if 'restrictions' in key:
         assert isinstance(data, dict)
-    elif 'metadata' in key:
-        assert isinstance(data, list)
     else:
         assert isinstance(data, pd.DataFrame)
 
@@ -146,27 +138,12 @@ def test_load_with_invalid_filters(hdf_file_path, hdf_key):
 def test_load_with_valid_filters(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
     data = hdf.load(hdf_file_path, key, filter_terms=["year == 2006"])
-    if 'restrictions' in key or 'versions' in key:
+    if 'restrictions' in key:
         assert isinstance(data, dict)
-    elif 'metadata' in key:
-        assert isinstance(data, list)
     else:
         assert isinstance(data, pd.DataFrame)
         if 'year' in data.columns:
             assert set(data.year) == {2006}
-
-
-def test_load_filter_empty_data_frame_index(hdf_file_path, hdf_key):
-    key = EntityKey('cause.test.prevalence')
-    data = pd.DataFrame(data={'age': range(10),
-                              'year': range(10),
-                              'draw': range(10)})
-    data = data.set_index(list(data.columns))
-
-    hdf._write_data_frame(hdf_file_path, key, data)
-    loaded_data = hdf.load(hdf_file_path, key, filter_terms=['year == 4'])
-    loaded_data = loaded_data.reset_index()
-    assert loaded_data.year.unique() == 4
 
 
 def test_remove(hdf_file_path, hdf_key):
@@ -198,38 +175,10 @@ def test_write_empty_data_frame(hdf_file_path):
         hdf._write_data_frame(hdf_file_path, key, data)
 
 
-def test_write_empty_data_frame_index(hdf_file_path):
-    key = EntityKey('cause.test.prevalence')
-    data = pd.DataFrame(data={'age': range(10),
-                              'year': range(10),
-                              'draw': range(10)})
-    data = data.set_index(list(data.columns))
-
-    hdf._write_data_frame(hdf_file_path, key, data)
-    written_data = pd.read_hdf(hdf_file_path, key.path)
-    written_data = written_data.set_index(list(written_data))  # write resets index. only calling load undoes it
-    assert written_data.equals(data)
-
-
-def test_write_load_empty_data_frame_index(hdf_file_path):
-    key = EntityKey('cause.test.prevalence')
-    data = pd.DataFrame(data={'age': range(10),
-                              'year': range(10),
-                              'draw': range(10)})
-    data = data.set_index(list(data.columns))
-
-    hdf._write_data_frame(hdf_file_path, key, data)
-    loaded_data = hdf.load(hdf_file_path, key, filter_terms=None)
-    assert loaded_data.equals(data)
-
-
 def test_write_data_frame(hdf_file_path):
     key = EntityKey('cause.test.prevalence')
     data = build_table([lambda *args, **kwargs: random.choice([0, 1]), "Kenya", 1],
                        2005, 2010, columns=('age', 'year', 'sex', 'draw', 'location', 'value'))
-
-    non_val_columns = data.columns.difference({'value'})
-    data = data.set_index(list(non_val_columns))
 
     hdf._write_data_frame(hdf_file_path, key, data)
 
@@ -238,7 +187,7 @@ def test_write_data_frame(hdf_file_path):
 
     filter_terms = ['draw == 0']
     written_data = pd.read_hdf(hdf_file_path, key.path, where=filter_terms)
-    assert written_data.equals(data.xs(0, level='draw', drop_level=False))
+    assert written_data.equals(data[data['draw'] == 0])
 
 
 def test_get_keys_private(hdf_file, hdf_keys):
