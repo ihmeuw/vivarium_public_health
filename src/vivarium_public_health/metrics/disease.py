@@ -1,6 +1,8 @@
 from collections import Counter
 
-from .utilities import get_age_bins, get_disease_event_counts, get_susceptible_person_time
+import pandas as pd
+
+from .utilities import get_age_bins, get_disease_event_counts, get_susceptible_person_time, get_prevalent_cases
 
 
 class DiseaseObserver:
@@ -28,6 +30,10 @@ class DiseaseObserver:
                 'by_age': False,
                 'by_year': False,
                 'by_sex': False,
+                'prevalence_sample_date': {
+                    'month': 7,
+                    'day': 1,
+                }
             }
         }
     }
@@ -45,6 +51,7 @@ class DiseaseObserver:
         self.age_bins = get_age_bins(builder)
         self.counts = Counter()
         self.person_time = Counter()
+        self.prevalence = Counter()
 
         columns_required = ['alive', f'{self.disease}', f'{self.disease}_event_time']
         if self.config.by_age:
@@ -68,13 +75,23 @@ class DiseaseObserver:
                                                             self.clock().year, event.step_size, self.age_bins)
         self.person_time.update(person_time_this_step)
 
+        if should_sample(event.time):
+            point_prevalence = get_prevalent_cases(pop, self.config.to_dict(), self.disease, event.time, self.age_bins)
+            self.prevalence.update(point_prevalence)
+
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
         disease_events_this_step = get_disease_event_counts(pop, self.config.to_dict(), self.disease,
                                                             event.time, self.age_bins)
         self.counts.update(disease_events_this_step)
 
+    def should_sample(self, event_time: pd.Timestamp) -> bool:
+        """Returns true if we should sample on this time step."""
+        sample_date = pd.Timestamp(event_time.year, self.config.sample_date.month, self.config.sample_date.day)
+        return self.clock() <= sample_date < event_time
+
     def metrics(self, index, metrics):
         metrics.update(self.counts)
         metrics.update(self.person_time)
+        metrics.update(self.prevalence)
         return metrics

@@ -296,32 +296,26 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTempla
 
 
 def get_susceptible_person_time(pop, config, disease, current_year, step_size, age_bins):
-    base_key = get_output_template(**config).substitute(year=current_year)
+    base_key = get_output_template(**config).substitute(measure=f'{disease}_susceptible_person_time', year=current_year)
     base_filter = QueryString(f'alive == "alive" and {disease} == "susceptible_to_{disease}"')
-    group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
-
-    person_time = {}
-    for group_key, count in group_counts.items():
-        group_key = group_key.substitute(measure=f'{disease}_susceptible_person_time')
-        person_time[group_key] = count * to_years(step_size)
-
+    person_time = get_group_counts(pop, base_filter, base_key, config, age_bins,
+                                   aggregate=lambda x: len(x) * to_years(step_size))
     return person_time
 
 
 def get_disease_event_counts(pop, config, disease, event_time, age_bins):
-    base_key = get_output_template(**config).substitute(year=event_time.year)
+    base_key = get_output_template(**config).substitute(measure=f'{disease}_counts', year=event_time.year)
     # Can't use query with time stamps, so filter
     pop = pop.loc[pop[f'{disease}_event_time'] == event_time]
     base_filter = QueryString('')
+    return get_group_counts(pop, base_filter, base_key, config, age_bins)
 
-    group_counts = get_group_counts(pop, base_filter, base_key, config, age_bins)
 
-    disease_events = {}
-    for group_key, count in group_counts.items():
-        group_key = group_key.substitute(measure=f'{disease}_counts')
-        disease_events[group_key] = count
-
-    return disease_events
+def get_prevalent_cases(pop, config, disease, event_time, age_bins):
+    config['by_year'] = True  # This is always an annual point estimate
+    base_key = get_output_template(**config).substitute(measure=f'{disease}_prevalent_cases', year=event_time.year)
+    base_filter = QueryString(f'alive == "alive" and {disease} != "susceptible_to_{disease}"')
+    return get_group_counts(pop, base_filter, base_key, config, age_bins)
 
 
 def get_treatment_counts(pop, config, treatment, doses, event_time, age_bins):
