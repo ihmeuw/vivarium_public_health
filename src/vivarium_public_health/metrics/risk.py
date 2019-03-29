@@ -7,6 +7,7 @@ from .utilities import get_age_bins
 
 class CategoricalRiskObserver:
     """ An observer for a categorical risk factor.
+
     This component by default observes proportion of simulants in each age
     group who are alive and in each category of risk at the midpoint of a year
     unless the sample date is specified in the configuration.
@@ -16,10 +17,12 @@ class CategoricalRiskObserver:
 
     configuration should be given as e.g.,
 
-    {risk_name}_observer:
-        sample_date:
-            'month' : 12
-            'day': 31
+    .. code-block:: yaml
+
+        {risk_name}_observer:
+            sample_date:
+                month: 12
+                day: 31
     """
     configuration_defaults = {
         'metrics': {

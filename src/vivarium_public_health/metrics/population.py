@@ -11,12 +11,15 @@ class PopulationObserver:
     By default, this counts the population at a particular sample date
     annually. It can be configured to bin the population into age groups and
     sexes by setting the ``by_age`` and ``by_sex`` flags, respectively. The
-    sample date defaults to July 1st.  This is also configurable
+    sample date defaults to July 1st.  This is also configurable.
+
+    The configuration defaults also contain a ``by_year`` flag, but it has
+    no behavior associated with it.
 
     In the model specification, your configuration for this component should
     be specified as, e.g.:
 
-    ..code-block: yaml
+    .. code-block:: yaml
 
         configuration:
             metrics:

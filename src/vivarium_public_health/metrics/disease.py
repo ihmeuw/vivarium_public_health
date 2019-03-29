@@ -21,11 +21,11 @@ class DiseaseObserver:
     In the model specification, your configuration for this component should
     be specified as, e.g.:
 
-    .. code-block: yaml
+    .. code-block:: yaml
 
         configuration:
             metrics:
-                YOUR_DISEASE_NAME:
+                {YOUR_DISEASE_NAME}_observer:
                     by_age: True
                     by_year: False
                     by_sex: True
