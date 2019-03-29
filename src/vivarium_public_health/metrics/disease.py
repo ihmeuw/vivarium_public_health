@@ -1,25 +1,37 @@
 from collections import Counter
 
-from .utilities import get_age_bins, get_disease_event_counts, get_susceptible_person_time
+import pandas as pd
+
+from .utilities import get_age_bins, get_disease_event_counts, get_susceptible_person_time, get_prevalent_cases
 
 
 class DiseaseObserver:
-    """Observes disease counts and person time for a single cause.
+    """Observes disease counts, person time, and prevalent cases for a cause.
 
     By default, this observer computes aggregate susceptible person time
     and counts of disease cases over the entire simulation.  It can be
     configured to bin these into age_groups, sexes, and years by setting
     the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
 
+    It also records prevalent cases on a particular sample date each year.
+    These will also be binned based on the flags set for the observer.
+    Additionally, the sample date is configurable and defaults to July 1st
+    of each year.
+
     In the model specification, your configuration for this component should
     be specified as, e.g.:
 
-    configuration:
-        metrics:
-            YOUR_DISEASE_NAME:
-                by_age: True
-                by_year: False
-                by_sex: True
+    .. code-block:: yaml
+
+        configuration:
+            metrics:
+                {YOUR_DISEASE_NAME}_observer:
+                    by_age: True
+                    by_year: False
+                    by_sex: True
+                    prevalence_sample_date:
+                        month: 4
+                        day: 10
 
     """
     configuration_defaults = {
@@ -28,6 +40,10 @@ class DiseaseObserver:
                 'by_age': False,
                 'by_year': False,
                 'by_sex': False,
+                'prevalence_sample_date': {
+                    'month': 7,
+                    'day': 1,
+                }
             }
         }
     }
@@ -45,6 +61,7 @@ class DiseaseObserver:
         self.age_bins = get_age_bins(builder)
         self.counts = Counter()
         self.person_time = Counter()
+        self.prevalence = Counter()
 
         columns_required = ['alive', f'{self.disease}', f'{self.disease}_event_time']
         if self.config.by_age:
@@ -68,13 +85,23 @@ class DiseaseObserver:
                                                             self.clock().year, event.step_size, self.age_bins)
         self.person_time.update(person_time_this_step)
 
+        if self.should_sample(event.time):
+            point_prevalence = get_prevalent_cases(pop, self.config.to_dict(), self.disease, event.time, self.age_bins)
+            self.prevalence.update(point_prevalence)
+
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
         disease_events_this_step = get_disease_event_counts(pop, self.config.to_dict(), self.disease,
                                                             event.time, self.age_bins)
         self.counts.update(disease_events_this_step)
 
+    def should_sample(self, event_time: pd.Timestamp) -> bool:
+        """Returns true if we should sample on this time step."""
+        sample_date = pd.Timestamp(event_time.year, self.config.sample_date.month, self.config.sample_date.day)
+        return self.clock() <= sample_date < event_time
+
     def metrics(self, index, metrics):
         metrics.update(self.counts)
         metrics.update(self.person_time)
+        metrics.update(self.prevalence)
         return metrics
