@@ -17,7 +17,6 @@ DEFAULT_COLUMNS = {"location", "draw"}
 
 def touch(path: str):
     """Creates an hdf file or wipes an existing file if necessary.
-
     If the given path is proper to create a hdf file, it creates a new hdf file.
 
     Parameters
@@ -28,8 +27,8 @@ def touch(path: str):
     Raises
     ------
     ValueError
-        If the non-proper path is given to create a hdf file."""
-
+        If the non-proper path is given to create a hdf file.
+    """
     path = Path(path)
     if not path.suffix == '.hdf':
         raise ValueError(f'You provided path: {str(path)} not valid for creating hdf file.')
@@ -95,6 +94,7 @@ def remove(path: str, entity_key: 'EntityKey'):
     ----------
     path :
         The path to the hdf file to remove the data from.
+
     entity_key :
         A representation of the internal hdf path where the data is located.
     """

@@ -15,7 +15,6 @@ from vivarium_public_health.dataset_manager import EntityKey, hdf
 @pytest.fixture
 def hdf_file_path(tmpdir):
     """This file contains the following:
-
     Object Tree:
         / (RootGroup) ''
         /cause (Group) ''
