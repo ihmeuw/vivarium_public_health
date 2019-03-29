@@ -6,22 +6,26 @@ from .utilities import get_age_bins, get_population_counts
 
 
 class PopulationObserver:
-    """ An observer for cause-specific deaths, ylls, and total person time.
+    """ An observer for population counts.
 
-    By default, this counts cause-specific deaths, years of life lost, and
-    total person time over the full course of the simulation. It can be
-    configured to bin these measures into age groups, sexes, and years
-    by setting the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
+    By default, this counts the population at a particular sample date
+    annually. It can be configured to bin the population into age groups and
+    sexes by setting the ``by_age`` and ``by_sex`` flags, respectively. The
+    sample date defaults to July 1st.  This is also configurable
 
     In the model specification, your configuration for this component should
     be specified as, e.g.:
 
-    configuration:
-        metrics:
-            mortality:
-                by_age: True
-                by_year: False
-                by_sex: True
+    ..code-block: yaml
+
+        configuration:
+            metrics:
+                population:
+                    by_age: True
+                    by_sex: True
+                    sample_date:
+                        month: 4
+                        day: 10
 
     """
     configuration_defaults = {
