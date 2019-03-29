@@ -312,9 +312,18 @@ def get_disease_event_counts(pop, config, disease, event_time, age_bins):
 
 
 def get_prevalent_cases(pop, config, disease, event_time, age_bins):
+    config = config.copy()
     config['by_year'] = True  # This is always an annual point estimate
     base_key = get_output_template(**config).substitute(measure=f'{disease}_prevalent_cases', year=event_time.year)
     base_filter = QueryString(f'alive == "alive" and {disease} != "susceptible_to_{disease}"')
+    return get_group_counts(pop, base_filter, base_key, config, age_bins)
+
+
+def get_population_counts(pop, config, event_time, age_bins):
+    config = config.copy()
+    config['by_year'] = True  # This is always an annual point estimate
+    base_key = get_output_template(**config).substitute(measure=f'population_count', year=event_time.year)
+    base_filter = QueryString(f'alive == "alive"')
     return get_group_counts(pop, base_filter, base_key, config, age_bins)
 
 
