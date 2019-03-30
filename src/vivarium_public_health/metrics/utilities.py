@@ -135,7 +135,7 @@ def get_age_bins(builder) -> pd.DataFrame:
     return age_bins
 
 
-def get_output_template(by_age: bool, by_sex: bool, by_year: bool) -> OutputTemplate:
+def get_output_template(by_age: bool, by_sex: bool, by_year: bool, **_) -> OutputTemplate:
     """Gets a template string for output metrics.
 
     The template string should be filled in using filter criteria for

@@ -97,7 +97,7 @@ class DiseaseObserver:
 
     def should_sample(self, event_time: pd.Timestamp) -> bool:
         """Returns true if we should sample on this time step."""
-        sample_date = pd.Timestamp(event_time.year, self.config.sample_date.month, self.config.sample_date.day)
+        sample_date = pd.Timestamp(year=event_time.year, **self.config.prevalence_sample_date.to_dict())
         return self.clock() <= sample_date < event_time
 
     def metrics(self, index, metrics):
