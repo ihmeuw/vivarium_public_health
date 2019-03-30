@@ -1,3 +1,7 @@
+**0.9.10 - 03/29/19**
+
+ - Bugfix in disease observer.
+
 **0.9.9 - 03/28/19**
 
  - Bugfix in data free risk components when using a covariate for coverage.
