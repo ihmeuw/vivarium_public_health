@@ -2,9 +2,14 @@
 Artifact
 ========
 
-The :class:`vivarium_public_health.dataset_manager.artifact.Artifact` in vivarium_public_health provides an interface
-to interact with the data artifacts that can be used as the underlying storage for input data into a simulation. We'll
-go through how to view, delete, and write data to an artifact using the tools provided by
+A data artifact is a bundle of input data associated with a particular public health model. It is typically
+stored as an ``hdf`` file on disk with very particular formatting. This file is then used by the 
+vivarium_public_health simulations to fill in all the relevant parameter data. 
+
+It is frequently useful to be able to view or modify this data outside the simulation.  The 
+vivarium_public_health :class:`vivarium_public_health.dataset_manager.artifact.Artifact` provides
+a high level interface to do just that. In this tutorial we'll go through how to view, delete, 
+and write data to an artifact using the tools provided by the
 :class:`vivarium_public_health.dataset_manager.artifact.Artifact`. You'll access data in the artifact through keys,
 mirroring the underlying hdf storage of artifacts.
 
