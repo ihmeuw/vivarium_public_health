@@ -9,8 +9,8 @@ vivarium_public_health simulations to fill in all the relevant parameter data.
 It is frequently useful to be able to view or modify this data outside the simulation.  The 
 vivarium_public_health :class:`vivarium_public_health.dataset_manager.artifact.Artifact` provides
 a high level interface to do just that. In this tutorial we'll go through how to view, delete, 
-and write data to an artifact using the tools provided by
-:class:`~vivarium_public_health.dataset_manager.artifact.Artifact`. You'll access data in the artifact through keys,
+and write data to an artifact using the tools provided by the
+:class:`vivarium_public_health.dataset_manager.artifact.Artifact`. You'll access data in the artifact through keys,
 mirroring the underlying hdf storage of artifacts.
 
 .. contents::
@@ -20,7 +20,7 @@ mirroring the underlying hdf storage of artifacts.
 
 Creating an artifact
 ---------------------
-To view an existing hdf file via the :class:`~vivarium_public_health.dataset_manager.artifact.Artifact` tools, we'll
+To view an existing hdf file via the :class:`vivarium_public_health.dataset_manager.artifact.Artifact` tools, we'll
 create a new artifact. We can print the resulting artifact to view the tree structure of the keys
 in our artifact. We'll use our test artifact to illustrate:
 
@@ -43,7 +43,7 @@ in our artifact. We'll use our test artifact to illustrate:
             structure
             theoretical_minimum_risk_life_expectancy
 
-Now we have an :class:`~vivarium_public_health.dataset_manager.artifact.Artifact` object, which we can use to interact
+Now we have an :class:`vivarium_public_health.dataset_manager.artifact.Artifact` object, which we can use to interact
 with the data stored in the hdf file with which we created it.
 
 Optionally, we can specify filter terms on the artifact when we create it, which will be applied to filter all data
@@ -88,7 +88,7 @@ artifact:
     [EntityKey(metadata.keyspace), EntityKey(metadata.locations), EntityKey(metadata.versions), EntityKey(population.age_bins),
      EntityKey(population.structure), EntityKey(population.theoretical_minimum_risk_life_expectancy)]
 
-What we get back is a list of :class:`~vivarium_public_health.dataset_manager.artifact.EntityKey` objects. We can
+What we get back is a list of :class:`vivarium_public_health.dataset_manager.artifact.EntityKey` objects. We can
 access the individual components of each key via attributes, like so:
 
 .. code-block:: python
@@ -109,9 +109,9 @@ Because we're looking at the 'population.structure' key, we only have a type and
 
 Reading data
 -------------
-Now that we've seen how to create an :class:`~vivarium_public_health.dataset_manager.artifact.Artifact` object and
+Now that we've seen how to create an :class:`vivarium_public_health.dataset_manager.artifact.Artifact` object and
 view the underlying storage structure, let's cover how to actually retrieve data from that artifact. We'll use the
-:func:`~vivarium_public_health.dataset_manager.artifact.Artifact.load` method. We saw the key names in our artifact
+:func:`vivarium_public_health.dataset_manager.artifact.Artifact.load` method. We saw the key names in our artifact
 in the previous step, and we'll use those names to load data. For example, if we want to load the population structure
 data from our Artifact we do:
 
@@ -152,7 +152,7 @@ that gets loaded out of it:
 
 Writing data
 ------------
-To write new data to an artifact, use the :func:`~vivarium_public_health.dataset_manager.artifact.Artifact.write` method,
+To write new data to an artifact, use the :func:`vivarium_public_health.dataset_manager.artifact.Artifact.write` method,
 passing the full key (in the string representation we saw above of type.name.measure or type.measure) and the data you wish
 to store.
 
@@ -169,8 +169,8 @@ to store.
 
     Successfully Added!
 
-If the key you wish to write to is already in the artifact, you'll want to use the :func:`~vivarium_public_health.dataset_manager.artifact.Artifact.replace`
-method instead of :func:`~vivarium_public_health.dataset_manager.artifact.Artifact.write`. This allows you to replace
+If the key you wish to write to is already in the artifact, you'll want to use the :func:`vivarium_public_health.dataset_manager.artifact.Artifact.replace`
+method instead of :func:`vivarium_public_health.dataset_manager.artifact.Artifact.write`. This allows you to replace
 the data in the artifact at the given key with the passed data.
 
 .. code-block:: python
@@ -189,8 +189,8 @@ the data in the artifact at the given key with the passed data.
 Removing data
 -------------
 
-Like :func:`~vivarium_public_health.dataset_manager.artifact.Artifact.load` and :func:`~vivarium_public_health.dataset_manager.artifact.Artifact.write`,
-:func:`~vivarium_public_health.dataset_manager.artifact.Artifact.remove` is based on keys. Pass the name of the key
+Like :func:`vivarium_public_health.dataset_manager.artifact.Artifact.load` and :func:`vivarium_public_health.dataset_manager.artifact.Artifact.write`,
+:func:`vivarium_public_health.dataset_manager.artifact.Artifact.remove` is based on keys. Pass the name of the key
 you wish to remove, and it will be deleted from the artifact and the underlying hdf file.
 
 .. code-block:: python
