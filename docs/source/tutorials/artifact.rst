@@ -7,7 +7,7 @@ stored as an ``hdf`` file on disk with very particular formatting. This file is 
 vivarium_public_health simulations to fill in all the relevant parameter data. 
 
 It is frequently useful to be able to view or modify this data outside the simulation.  The 
-vivarium_public_health :class:`~vivarium_public_health.dataset_manager.artifact.Artifact` provides
+vivarium_public_health :class:`vivarium_public_health.dataset_manager.artifact.Artifact` provides
 a high level interface to do just that. In this tutorial we'll go through how to view, delete, 
 and write data to an artifact using the tools provided by
 :class:`~vivarium_public_health.dataset_manager.artifact.Artifact`. You'll access data in the artifact through keys,
