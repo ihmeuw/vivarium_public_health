@@ -68,15 +68,6 @@ term to the list as below:
 
 Note that the keys in the artifact are unchanged. The filter terms only affect data when it is loaded out of the artifact.
 
-.. testcode::
-    :hide:
-
-    import os
-    from vivarium_public_health.dataset_manager import Artifact
-
-    art_path = os.path.abspath(os.path.join(os.getcwd(), '../../../tests/dataset_manager/artifact.hdf')
-    art = Artifact(art_path, filter_terms=['year_start > 2005'])
-
 
 Artifacts store data under keys. Each key is of the form ``<type>.<name>.<measure>``, e.g.,
 "cause.all_causes.restrictions" or ``<type>.<measure>``, e.g., "population.structure." To view all keys in an
@@ -109,19 +100,6 @@ access the individual components of each key via attributes, like so:
     structure
 
 Because we're looking at the 'population.structure' key, we only have a type and measure.
-
-.. testcode::
-    :hide:
-
-    import os
-    from vivarium_public_health.dataset_manager import Artifact
-
-    art_path = os.path.abspath(os.path.join(os.getcwd(), '../../../tests/dataset_manager/artifact.hdf')
-    art = Artifact(art_path)
-    key = art.keys[0]
-    key.type
-    key.name
-    key.measure
 
 
 Reading data
@@ -166,16 +144,6 @@ that gets loaded out of it:
                                            Female 2016     2015        6424674.99
                                            Male   2017     2016        6610845.00
                                            Female 2006     2005        4922733.99
-
-.. testcode::
-    :hide:
-
-    import os
-    from vivarium_public_health.dataset_manager import Artifact
-
-    art_path = os.path.abspath(os.path.join(os.getcwd(), '../../../tests/dataset_manager/artifact.hdf')
-    art = Artifact(art_path)
-    art.load(str(art.keys[0]))
 
 Writing data
 ------------
@@ -231,17 +199,3 @@ you wish to remove, and it will be deleted from the artifact and the underlying 
 
     Successfully Deleted!
 
-.. testcode::
-    :hide:
-
-    import os
-    from vivarium_public_health.dataset_manager import Artifact
-
-    art_path = os.path.abspath(os.path.join(os.getcwd(), '../../../tests/dataset_manager/artifact.hdf')
-    art = Artifact(art_path)
-    art.write('locations.names', ['United States', 'Washington', 'California'])
-    assert 'location.names' in art
-    art.replace('locations.names', ['Oregon', 'Texas']
-    assert art.load('locations.names') == ['Oregon', 'Texas']
-    art.remove('locations.names')
-    assert 'location.names' not in art
