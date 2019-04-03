@@ -21,7 +21,7 @@ configuration:
         # Change this to "mslt_maori_data.hdf" for the Maori population.
         artifact_path: mslt_non-maori_data.hdf
     population:
-        population_size: 220 # Males and females, aged 0 to 109.
+        population_size: 44 # Male and female 5-year cohorts, aged 0 to 109.
     time:
         start:
             year: 2011
