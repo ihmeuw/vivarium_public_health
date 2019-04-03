@@ -46,17 +46,33 @@ in our artifact. We'll use our test artifact to illustrate:
 Now we have an :class:`vivarium_public_health.dataset_manager.artifact.Artifact` object, which we can use to interact
 with the data stored in the hdf file with which we created it.
 
-Optionally, we can specify filter terms on the artifact when we create it, which will be applied to filter all data
-that we load out of the artifact. For example, if we were only interested in data for years after 2005, we could add a
-filter term to our artifact that would filter all data with a ``year_start`` column. Any data in our artifact that does
-not contain this column will not be filtered. If we also wanted to filter to ages under 5, we could add another filter
-term to the list as below:
+Filter Terms
++++++++++++++
+The data stored in artifacts may be large, potentially on the order of millions of rows for a single dataset, and
+loading a full dataset requires time and memory, both of which may be limited. If you are only interested in certain
+subsets of the data, e.g., only years after 2000 or only draw 0, you may want to read only the portion you
+need. This is the idea behind filter terms. Filter terms are built into an Artifact on its creation and apply to all
+data loaded from that Artifact. You can think of filter terms as somewhat similar to the :func:`pandas.DataFrame.query`
+method, although the key difference is that filter terms apply to what data is actually read off disk. This
+ means that they can reduce the time and memory required to load a single dataset from an Artifact. For example, if you
+build a filter term of ``draw == 0`` into your Artifact and then load a dataset from that Artifact, only rows with
+``draw == 0`` would even be read into memory.
+
+Filter terms should be specified as a list of strings, with each item in the list corresponding to a single filter.
+This allows multiple column filters to be applied to a single Artifact. These terms are combined logically using 'AND',
+so filter terms of ``['draw == 0', 'year_start > 2010', 'age_group_start < 5']`` would mean only return rows with
+``draw == 0 AND year_start > 2010 AND age_group_start < 5`. Note that if some data stored in your Artifact does not
+contain the column or columns included in your filter terms, the non-applicable filter terms will be skipped for that
+data. So if a dataset in an Artifact created with the draw, year_start, and age_group_start filter terms only included
+a draw column, only ``draw == 0`` would be applied to that data.
+
+Here's how we would construct an Artifact with the draw, year_start, and age_group_start filters we just described:
 
 .. code-block:: python
 
     from vivarium_public_health.dataset_manager import Artifact
 
-    art = Artifact('test_artifact.hdf', filter_terms=['year_start > 2005', 'age_group_start <= 5'])
+    art = Artifact('test_artifact.hdf', filter_terms=['draw == 0', 'year_start > 2005', 'age_group_start <= 5'])
     print(art)
 
 ::
@@ -73,7 +89,11 @@ term to the list as below:
 
 Note that the keys in the artifact are unchanged. The filter terms only affect data when it is loaded out of the artifact.
 
+**NOTE:** For now, the only filter terms that will work on artifacts are those related to the ``draw`` and ``location``
+columns.
 
+Keys
++++++
 Artifacts store data under keys. Each key is of the form ``<type>.<name>.<measure>``, e.g.,
 "cause.all_causes.restrictions" or ``<type>.<measure>``, e.g., "population.structure." To view all keys in an
 artifact, use the ``keys`` attribute of the
@@ -106,6 +126,8 @@ access the individual components of each key via attributes, like so:
 
 Because we're looking at the 'population.structure' key, we only have a type and measure.
 
+These ``EntityKey`` objects are an internal representation. When referencing keys in an artifact to load data from or
+to write to, we can use strings, as we will see in the following sections.
 
 Reading data
 -------------
@@ -150,6 +172,20 @@ that gets loaded out of it:
                                            Male   2017     2016        6610845.00
                                            Female 2006     2005        4922733.99
 
+We can only load keys that already exist in the Artifact, however. If we try to load a key not present in our Artifact,
+we will get an error:
+
+.. code-block:: python
+
+    art.load('a.fake.key')
+::
+
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "/home/kate/code/vivarium/vivarium_public_health/src/vivarium_public_health/dataset_manager/artifact.py", line 75, in load
+        raise ArtifactException(f"{entity_key} should be in {self.path}.")
+    vivarium_public_health.dataset_manager.artifact.ArtifactException: a.fake.key should be in tests/dataset_manager/artifact.hdf.
+
 Writing data
 ------------
 To write new data to an artifact, use the :func:`vivarium_public_health.dataset_manager.artifact.Artifact.write` method,
@@ -169,7 +205,22 @@ to store.
 
     Successfully Added!
 
-If the key you wish to write to is already in the artifact, you'll want to use the :func:`vivarium_public_health.dataset_manager.artifact.Artifact.replace`
+What if the key we wish to write to is already present in the data? Let's see what happens if we try to write again to
+ the ``locations.names`` key we just wrote to. We get an error:
+
+.. code-block:: python
+
+    art.write('locations.names', ['New York', 'Florida'])
+
+::
+
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "/home/kate/code/vivarium/vivarium_public_health/src/vivarium_public_health/dataset_manager/artifact.py", line 105, in write
+        raise ArtifactException(f'{entity_key} already in artifact.')
+    vivarium_public_health.dataset_manager.artifact.ArtifactException: locations.names already in artifact.
+
+If the key you want to write to is already in the artifact, you'll want to use the :func:`vivarium_public_health.dataset_manager.artifact.Artifact.replace`
 method instead of :func:`vivarium_public_health.dataset_manager.artifact.Artifact.write`. This allows you to replace
 the data in the artifact at the given key with the passed data.
 
