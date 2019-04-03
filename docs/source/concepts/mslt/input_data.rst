@@ -1,3 +1,5 @@
+.. _mslt_input_data:
+
 Input data requirements
 =======================
 
