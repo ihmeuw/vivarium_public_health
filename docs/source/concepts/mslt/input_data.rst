@@ -11,6 +11,9 @@ In general, rates and values are stored in tables with the following columns:
    For each of the tables described below, we identify the name under which it
    should be stored in a data artifact.
 
+   We will see how to use data artifacts in the
+   :ref:`MSLT tutorials <mslt_tutorials>`.
+
 Core MSLT
 ---------
 
