@@ -1,3 +1,5 @@
+.. _mslt_tutorials:
+
 Multi-State Life Tables: chronic disease interventions
 ======================================================
 
@@ -11,6 +13,8 @@ interventions, and to capture different simulation outputs of interest.
 
 .. todo:: Provide the necessary data artifact(s) and simulation files in an
    accompanying repository.
+
+   They are currently hosted here: https://github.com/collijk/mslt_port/
 
 .. toctree::
    :maxdepth: 2
@@ -32,7 +36,6 @@ interventions, and to capture different simulation outputs of interest.
 
    bau_no_delay
    bau_no_remission
-
 
 .. toctree::
    :maxdepth: 2
