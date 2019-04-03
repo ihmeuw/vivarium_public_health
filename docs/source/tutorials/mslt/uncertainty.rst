@@ -1,0 +1,20 @@
+Uncertainty analyses
+====================
+
+.. todo:: Document how we're doing this
+
+   I've implemented this by providing a module, ``mslt_port.parallel``, that
+   runs multiple simulations for a single model specification, where each
+   simulation uses a different draw number.
+   It also provides support for running these simulations in parallel across
+   an arbitrary number of cores.
+
+   A convenience script is provided, which can be used as follows:
+
+   .. code:: console
+
+      run_uncertainty.py --draws 2000 --spawn 16 file1.yaml file2.yaml [...]
+
+   This will run 2000 simulations for each of the model specifications
+   (file1.yaml, file2.yaml, etc) and distribute these simulations across 16
+   cores.

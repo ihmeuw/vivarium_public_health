@@ -44,3 +44,9 @@ interventions, and to capture different simulation outputs of interest.
    custom_intervention
    custom_observer
    custom_risk_factor
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Model analysis
+
+   uncertainty
