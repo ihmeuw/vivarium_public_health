@@ -61,7 +61,7 @@ build a filter term of ``draw == 0`` into your Artifact and then load a dataset 
 Filter terms should be specified as a list of strings, with each item in the list corresponding to a single filter.
 This allows multiple column filters to be applied to a single Artifact. These terms are combined logically using 'AND',
 so filter terms of ``['draw == 0', 'year_start > 2010', 'age_group_start < 5']`` would mean only return rows with
-``draw == 0 AND year_start > 2010 AND age_group_start < 5`. Note that if some data stored in your Artifact does not
+``draw == 0 AND year_start > 2010 AND age_group_start < 5``. Note that if some data stored in your Artifact does not
 contain the column or columns included in your filter terms, the non-applicable filter terms will be skipped for that
 data. So if a dataset in an Artifact created with the draw, year_start, and age_group_start filter terms only included
 a draw column, only ``draw == 0`` would be applied to that data.
@@ -205,8 +205,9 @@ to store.
 
     Successfully Added!
 
+
 What if the key we wish to write to is already present in the data? Let's see what happens if we try to write again to
- the ``locations.names`` key we just wrote to. We get an error:
+the ``locations.names`` key we just wrote to. We get an error:
 
 .. code-block:: python
 
