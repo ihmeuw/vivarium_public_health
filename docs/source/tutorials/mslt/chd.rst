@@ -43,11 +43,11 @@ In the configuration settings, we identify this intervention by name
 Finally, we add an observer to record CHD incidence, prevalence, and deaths,
 in both the BAU scenario and the intervention scenario.
 We use the :class:`Disease` observer, identify the disease of interest by name
-(``CHD``), and specify the output file (``reduce_chd_disease.csv``).
+(``CHD``), and specify the prefix for output files (``mslt_reduce_chd``).
 
 .. literalinclude:: /_static/mslt_reduce_chd.yaml
    :language: yaml
-   :lines: 7-9,18,20
+   :lines: 7-9,18,20,21-22,38-39
    :caption: Record CHD incidence, prevalence, and deaths.
 
 Putting all of these pieces together, we obtain the following simulation

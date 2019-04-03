@@ -83,12 +83,12 @@ the mortality rate scaling factor (``scale``):
 Finally, we need to record the core life table quantities (as shown in the
 :ref:`example table <example_mslt_table>`) at each year of the simulation, by
 using the :class:`MorbidityMortality` observer (located in the
-:mod:`.observer` module) and specifying the output
-file (``reduce_acmr_mslt.csv``):
+:mod:`.observer` module) and specifying the prefix for output
+files (``mslt_reduce_acmr``):
 
 .. literalinclude:: /_static/mslt_reduce_acmr.yaml
    :language: yaml
-   :lines: 7-9,16-17
+   :lines: 7-9,16-17,18-19,35-36
    :caption: The core population components.
 
 Putting all of these pieces together, we obtain the following simulation

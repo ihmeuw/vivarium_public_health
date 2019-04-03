@@ -14,7 +14,7 @@ components:
             intervention:
                 - ModifyAllCauseMortality('reduce_acmr')
             observer:
-                - MorbidityMortality('reduce_acmr_mslt.csv')
+                - MorbidityMortality()
 
 configuration:
     input_data:
@@ -32,3 +32,5 @@ configuration:
         reduce_acmr:
             # Reduce the all-cause mortality rate by 5%.
             scale: 0.95
+    observer:
+        output_prefix: mslt_reduce_acmr # The prefix for output files.

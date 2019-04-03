@@ -16,8 +16,8 @@ components:
             intervention:
                 - ModifyDiseaseIncidence('reduce_chd', 'CHD')
             observer:
-                - MorbidityMortality('reduce_chd_mslt.csv')
-                - Disease('CHD', 'reduce_chd_disease.csv')
+                - MorbidityMortality()
+                - Disease('CHD')
 
 configuration:
     input_data:
@@ -35,3 +35,5 @@ configuration:
         reduce_chd:
             # Reduce the CHD incidence rate by 5%.
             CHD_incidence_scale: 0.95
+    observer:
+        output_prefix: mslt_reduce_chd # The prefix for output files.

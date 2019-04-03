@@ -32,8 +32,8 @@ components:
                 - Disease('COPD')
                 - AcuteDisease('LRTI')
             observer:
-                - MorbidityMortality('tobacco_bau_mslt.csv')
-                - TobaccoPrevalence('tobacco_bau_prevalence.csv')
+                - MorbidityMortality()
+                - TobaccoPrevalence()
 
 configuration:
     input_data:
@@ -67,3 +67,5 @@ configuration:
             LRTI:
             Melanoma:
             Stroke:
+    observer:
+        output_prefix: mslt_tobacco_bau # The prefix for output files.
