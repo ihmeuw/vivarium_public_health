@@ -8,5 +8,6 @@ Vivarium Public Health Documentation
    :maxdepth: 2
    :caption: Contents:
 
+   tutorials/index
    api_reference
 
