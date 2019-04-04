@@ -54,7 +54,7 @@ subsets of the data, e.g., only years after 2000 or only draw 0, you may want to
 need. This is the idea behind filter terms. Filter terms are built into an Artifact on its creation and apply to all
 data loaded from that Artifact. You can think of filter terms as somewhat similar to the :func:`pandas.DataFrame.query`
 method, although the key difference is that filter terms apply to what data is actually read off disk. This
- means that they can reduce the time and memory required to load a single dataset from an Artifact. For example, if you
+means that they can reduce the time and memory required to load a single dataset from an Artifact. For example, if you
 build a filter term of ``draw == 0`` into your Artifact and then load a dataset from that Artifact, only rows with
 ``draw == 0`` would even be read into memory.
 
