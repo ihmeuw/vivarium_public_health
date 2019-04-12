@@ -11,10 +11,8 @@ After completing this tutorial, you will be able to adapt and modify these
 simulations, to explore the impact of different model assumptions and
 interventions, and to capture different simulation outputs of interest.
 
-.. todo:: Provide the necessary data artifact(s) and simulation files in an
-   accompanying repository.
-
-   They are currently hosted here: https://github.com/collijk/mslt_port/
+.. note:: The input data requirements for each of the MSLT components
+   introduced in these tutorials are :ref:`described here <mslt_input_data>`.
 
 .. toctree::
    :maxdepth: 2

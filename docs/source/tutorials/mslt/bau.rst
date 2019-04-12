@@ -1,12 +1,6 @@
 The business-as-usual (BAU) scenario
 ====================================
 
-.. todo:: Describe the Māori and non-Māori populations.
-
-.. todo:: Describe the core MSLT components.
-
-.. todo:: Provide the necessary input data.
-
 .. _mslt_reduce_acmr:
 
 Intervention: a reduction in mortality rate

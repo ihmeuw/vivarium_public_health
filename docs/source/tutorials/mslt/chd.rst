@@ -1,8 +1,6 @@
 Chronic heart disease
 =====================
 
-.. todo:: Describe the CHD data
-
 .. _mslt_reduce_chd:
 
 Intervention: a reduction in CHD incidence

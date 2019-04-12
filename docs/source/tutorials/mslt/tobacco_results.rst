@@ -1,8 +1,6 @@
 Tobacco smoking: effect of interventions
 ========================================
 
-.. todo:: Describe the input data requirements.
-
 .. todo:: Show the simulation definitions.
 
 .. todo:: Show the effect of each intervention.

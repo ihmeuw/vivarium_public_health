@@ -1,8 +1,6 @@
 Tobacco smoking: BAU scenario
 =============================
 
-.. todo:: Describe the input data requirements.
-
 .. todo:: Show the simulation definition.
 
 Each chronic and acute disease that is affected by tobacco smoking is modelled
