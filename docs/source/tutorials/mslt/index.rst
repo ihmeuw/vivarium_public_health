@@ -20,6 +20,7 @@ interventions, and to capture different simulation outputs of interest.
    :maxdepth: 2
    :caption: First steps
 
+   getting_started
    bau
    chd
 
