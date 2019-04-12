@@ -8,7 +8,7 @@ Vivarium Public Health Documentation
    :maxdepth: 2
    :caption: Contents:
 
-   api_reference
    concepts/index
    tutorials/index
-   implementation/index
+   advanced/index
+   api_reference

@@ -1,5 +1,7 @@
-Multi-State Life Table components
-=================================
+.. _mslt_advanced:
+
+Multi-State Life Table
+======================
 
 Here we describe how the multi-state life tables (MSLT) components are
 implemented.
@@ -61,9 +63,14 @@ The following sequence of operations will be performed:
 
 .. toctree::
    :maxdepth: 2
-   :caption: MSLT components
+   :caption: Writing your own MSLT components
 
-   chronic_disease
-   acute_disease
-   risk_factors
-   interventions
+   custom_intervention
+   custom_observer
+   custom_risk_factor
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Model analysis
+
+   uncertainty
