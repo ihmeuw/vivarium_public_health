@@ -36,3 +36,8 @@ terminal, from within the **mslt_port-master** directory:
 .. code-block:: sh
 
    simulate run model_file.yaml
+
+.. note:: Each simulation will produce one or more output CSV files. You can
+   then extract relevant subsets from these data files and plot them using
+   your normal plotting tools. This allows you to easily examine outcomes of
+   interest for specific cohorts and/or over specific time intervals.
