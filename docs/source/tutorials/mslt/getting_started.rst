@@ -25,3 +25,14 @@ Getting started
 
   .. note:: We will probably need to change this link (and the directory name)
      to a canonical location.
+
+Once you have completed these steps, you will be able to run all of the
+simulations described in these tutorials. For each simulation there will be a
+model specification file, whose file name ends in ``.yaml``. These are
+plain text files, that you can edit in any text editor. To run the simulation
+described in one of these files, run the following command in a console or
+terminal, from within the **mslt_port-master** directory:
+
+.. code-block:: sh
+
+   simulate run model_file.yaml
