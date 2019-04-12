@@ -63,14 +63,14 @@ The following sequence of operations will be performed:
 
 .. toctree::
    :maxdepth: 2
+   :caption: Model analysis
+
+   uncertainty
+
+.. toctree::
+   :maxdepth: 2
    :caption: Writing your own MSLT components
 
    custom_intervention
    custom_observer
    custom_risk_factor
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Model analysis
-
-   uncertainty

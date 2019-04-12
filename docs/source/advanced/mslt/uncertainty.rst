@@ -9,6 +9,10 @@ Uncertainty analyses
    It also provides support for running these simulations in parallel across
    an arbitrary number of cores.
 
+   **This is a bespoke process** because you need to decide which draws are
+   correlated (e.g., the incidence rate for a single disease, across all age
+   groups, sex, and ethnicity).
+
    A convenience script is provided, which can be used as follows:
 
    .. code:: console
@@ -18,3 +22,9 @@ Uncertainty analyses
    This will run 2000 simulations for each of the model specifications
    (file1.yaml, file2.yaml, etc) and distribute these simulations across 16
    cores.
+
+   Note that this means the user has to install the ``mslt_port`` package:
+
+   .. code-block:: sh
+
+      pip install .
