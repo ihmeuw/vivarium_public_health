@@ -40,28 +40,40 @@ The age-specific, sex-specific mortality rates are defined in the
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**rate**
-   2011,0,female,0.003586
-   2011,0,male,0.004390
-   2011,1,female,0.000330
-   2011,1,male,0.000340
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**rate**
+   2011,2012,0,1,female,0.003586
+   2011,2012,0,1,male,0.004390
+   2011,2012,1,2,female,0.000330
+   2011,2012,1,2,male,0.000340
    ...,...,...,...
-   2120,109,female,0.524922
-   2120,109,male,0.529281
+   2120,2121,109,110,female,0.524922
+   2120,2121,109,110,male,0.529281
+
+.. note:: Rates and other values that apply to specific cohorts during the
+   simulation (i.e., all input data except for the initial cohort population
+   sizes and initial disease/risk factor prevalence) are indexed by time
+   intervals and age intervals.
+
+   In the mortality rate table shown above, the rate in each row applies:
+
+   + From the time in **year_start** up to (but not including) the time in
+     **year_end**; and
+   + To cohorts whose age lies between **age_group_start** (inclusive) and
+     **age_group_end** (exclusive).
 
 Similarly, the age-specific, sex-specific disability rates are defined in the
 ``cause.all_causes.disability_rate`` table:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**rate**
-   2011,0,female,0.014837
-   2011,0,male,0.020674
-   2011,1,female,0.022379
-   2011,1,male,0.026409
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**rate**
+   2011,2012,0,1,female,0.014837
+   2011,2012,0,1,male,0.020674
+   2011,2012,1,2,female,0.022379
+   2011,2012,1,2,male,0.026409
    ...,...,...,...
-   2120,109,female,0.366114
-   2120,109,male,0.357842
+   2120,2121,109,110,female,0.366114
+   2120,2121,109,110,male,0.357842
 
 Chronic diseases
 ----------------
@@ -73,24 +85,24 @@ The incidence rate \(i\) is stored in ``chronic_disease.NAME.incidence``:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**NAME_i**
-   2011,0,female,0.0
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**NAME_i**
+   2011,2012,0,1,female,0.0
    ...,...,...,...
 
 The disability rate \(DR\) is stored in ``chronic_disease.NAME.morbidity``:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**NAME_DR**
-   2011,0,female,0.0
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**NAME_DR**
+   2011,2012,0,1,female,0.0
    ...,...,...,...
 
 The mortality rate \(f\) is stored in ``chronic_disease.NAME.mortality``:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**NAME_f**
-   2011,0,female,0.0
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**NAME_f**
+   2011,2012,0,1,female,0.0
    ...,...,...,...
 
 The initial prevalence is stored in ``chronic_disease.NAME.prevalence``:
@@ -105,8 +117,8 @@ The remission rate \(r\) is stored in ``chronic_disease.NAME.remission``:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**NAME_r**
-   2011,0,female,0.0
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**NAME_r**
+   2011,2012,0,1,female,0.0
    ...,...,...,...
 
 .. note:: Note that the column names are different in each table.
@@ -121,16 +133,16 @@ The morbidity rate is stored in ``acute_disease.NAME.morbidity``:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**NAME_disability_rate**
-   2011,0,female,0.000301
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**NAME_disability_rate**
+   2011,2012,0,1,female,0.000301
    ...,...,...,...
 
 The mortality rate is stored in ``acute_disease.NAME.mortality``:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**NAME_excess_mortality**
-   2011,0,female,0.000032
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**NAME_excess_mortality**
+   2011,2012,0,1,female,0.000032
    ...,...,...,...
 
 .. note:: Note that the column names are different in each table.
@@ -146,16 +158,16 @@ The incidence rate is stored in ``risk_factor.tobacco.incidence``:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**incidence**
-   2011,0,female,0.000301
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**incidence**
+   2011,2012,0,1,female,0.000301
    ...,...,...,...
 
 The remission rate is stored in ``risk_factor.tobacco.remission``:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**remission**
-   2011,0,female,0.000301
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**remission**
+   2011,2012,0,1,female,0.000301
    ...,...,...,...
 
 The initial prevalence for each exposure category is stored in
@@ -173,8 +185,8 @@ for the BAU and intervention scenarios) is stored in
 
 .. csv-table::
 
-  **year**,**age**,**sex**,**tobacco.no**,**tobacco.yes**,...,**tobacco.21**,**tobacco_intervention.no**,**tobacco_intervention.yes**,...,**tobacco_intervention.21**
-   2011,0,female,1.0,1.0,...,1.0,1.0,1.0,...,1.0
+  **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**tobacco.no**,**tobacco.yes**,...,**tobacco.21**,**tobacco_intervention.no**,**tobacco_intervention.yes**,...,**tobacco_intervention.21**
+   2011,2012,0,1,female,1.0,1.0,...,1.0,1.0,1.0,...,1.0
    ...,...,...,...,...,...,...,...,...,...,...
 
 The relative risk of chronic disease incidence for each exposure category is
@@ -185,8 +197,8 @@ Shown here is an example for two chronic diseases, called ``DiseaseA`` and
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**DiseaseA_no**,**DiseaseA_yes**,...,**DiseaseA_21**,**DiseaseB_no**,**DiseaseB_yes**,...,**DiseaseB_21**
-    2011,0,female,1.0,1.0,...,1.0,1.0,1.0,...,1.0
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**DiseaseA_no**,**DiseaseA_yes**,...,**DiseaseA_21**,**DiseaseB_no**,**DiseaseB_yes**,...,**DiseaseB_21**
+    2011,2012,0,1,female,1.0,1.0,...,1.0,1.0,1.0,...,1.0
     ...,...,...,...,...,...,...,...,...,...,...
 
 Interventions
@@ -203,34 +215,34 @@ The incidence effect is stored in
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**incidence_effect**
-   2011,0,female,1.0
-   2011,0,male,1.0
-   2011,1,female,1.0
-   2011,1,male,1.0
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**incidence_effect**
+   2011,2012,0,1,female,1.0
+   2011,2012,0,1,male,1.0
+   2011,2012,1,2,female,1.0
+   2011,2012,1,2,male,1.0
    ...,...,...,...
-   2121,109,female,0.866004
-   2121,109,male,0.866004
-   2121,110,female,0.866004
-   2121,110,male,0.866004
+   2120,2121,108,109,female,0.866004
+   2120,2121,108,109male,0.866004
+   2120,2121,109,110,female,0.866004
+   2120,2121,109,110male,0.866004
 
 The remission effect is stored in
 ``risk_factor.tobacco.tax_effect_remission``:
 
 .. csv-table::
 
-   **year**,**age**,**sex**,**remission_effect**
-   2011,0,female,1.0
-   2011,0,male,1.0
-   2011,1,female,1.0
-   2011,1,male,1.0
+   **year_start**,**year_end**,**age_group_start**,**age_group_end**,**sex**,**remission_effect**
+   2011,2012,0,1,female,1.0
+   2011,2012,0,1,male,1.0
+   2011,2012,1,2,female,1.0
+   2011,2012,1,2,male,1.0
    ...,...,...,...
-   2031,22,female,0.975724
-   2031,22,male,0.975724
-   2031,23,female,0.975724
-   2031,23,male,0.975724
+   2031,2032,22,23,female,0.975724
+   2031,2032,22,23,male,0.975724
+   2031,2032,23,24,female,0.975724
+   2031,2032,23,24,male,0.975724
    ...,...,...,...
-   2121,109,female,1.0
-   2121,109,male,1.0
-   2121,110,female,1.0
-   2121,110,male,1.0
+   2120,2121,108,109,female,1.0
+   2120,2121,108,109,male,1.0
+   2120,2121,109,110,female,1.0
+   2120,2121,109,110,male,1.0
