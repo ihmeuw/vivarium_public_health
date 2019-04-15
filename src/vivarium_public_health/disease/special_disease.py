@@ -129,10 +129,10 @@ class RiskAttributableDisease:
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
         if self.recoverable:
+            pop.loc[~sick & (pop[self.cause.name] != f'susceptible_to_{self.cause.name}'), self.susceptible_event_time_column] = event.time
             pop.loc[~sick, self.cause.name] = f'susceptible_to_{self.cause.name}'
-            pop.loc[~sick, self.susceptible_event_time_column] = event.time
+        pop.loc[sick & (pop[self.cause.name] != self.cause.name), self.diseased_event_time_column] = event.time
         pop.loc[sick, self.cause.name] = self.cause.name
-        pop.loc[sick, self.diseased_event_time_column] = event.time
         self.population_view.update(pop)
 
     def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
