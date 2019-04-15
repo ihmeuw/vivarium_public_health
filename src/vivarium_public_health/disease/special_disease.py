@@ -77,6 +77,8 @@ class RiskAttributableDisease:
     def __init__(self, cause, risk):
         self.cause = EntityString(cause)
         self.risk = EntityString(risk)
+        self.diseased_event_time_column = f'{self.cause.name}_event_time'
+        self.susceptible_event_time_column = f'susceptible_to_{self.cause.name}_event_time'
         self.configuration_defaults = {
             self.cause.name: RiskAttributableDisease.configuration_defaults['risk_attributable_disease']
         }
@@ -104,15 +106,22 @@ class RiskAttributableDisease:
         threshold = builder.configuration[self.cause.name].threshold
 
         self.filter_by_exposure = self.get_exposure_filter(distribution, exposure_pipeline, threshold)
-        self.population_view = builder.population.get_view([self.cause.name, 'alive'])
+        self.population_view = builder.population.get_view([self.cause.name, self.diseased_event_time_column,
+                                                            self.susceptible_event_time_column, 'alive'])
 
         builder.event.register_listener('time_step', self.on_time_step)
-        builder.population.initializes_simulants(self.on_initialize_simulants)
+        builder.population.initializes_simulants(self.on_initialize_simulants,
+                                                 creates_columns=[self.cause.name,
+                                                                  self.diseased_event_time_column,
+                                                                  self.susceptible_event_time_column])
 
     def on_initialize_simulants(self, pop_data):
-        new_pop = pd.Series(f'susceptible_to_{self.cause.name}', index=pop_data.index, name=self.cause.name)
+        new_pop = pd.DataFrame({self.cause.name: f'susceptible_to_{self.cause.name}',
+                                self.diseased_event_time_column: pd.Series(pd.NaT, index=pop_data.index),
+                                self.susceptible_event_time_column: pd.Series(pd.NaT, index=pop_data.index)},
+                               index=pop_data.index)
         sick = self.filter_by_exposure(pop_data.index)
-        new_pop[sick] = self.cause.name
+        new_pop.loc[sick, self.cause.name] = self.cause.name
         self.population_view.update(new_pop)
 
     def on_time_step(self, event):
@@ -121,12 +130,13 @@ class RiskAttributableDisease:
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
         if self.recoverable:
             pop.loc[~sick, self.cause.name] = f'susceptible_to_{self.cause.name}'
+            pop.loc[~sick, self.susceptible_event_time_column] = event.time
         pop.loc[sick, self.cause.name] = self.cause.name
+        pop.loc[sick, self.diseased_event_time_column] = event.time
         self.population_view.update(pop)
 
     def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
-        # alternative risk factors are modeled ensemble but processed into categorical exposure
-        if (distribution in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous'] or self.risk.type == 'alternative_risk_factor'):
+        if distribution in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
             def categorical_filter(index):
                 exposure = exposure_pipeline(index)
                 return exposure.isin(threshold)
