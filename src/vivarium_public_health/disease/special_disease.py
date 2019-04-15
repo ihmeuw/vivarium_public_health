@@ -125,9 +125,8 @@ class RiskAttributableDisease:
         self.population_view.update(pop)
 
     def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
-
-        if distribution in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
-
+        # alternative risk factors are modeled ensemble but processed into categorical exposure
+        if (distribution in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous'] or self.risk.type == 'alternative_risk_factor'):
             def categorical_filter(index):
                 exposure = exposure_pipeline(index)
                 return exposure.isin(threshold)
