@@ -86,6 +86,8 @@ class RiskAttributableDisease:
     def setup(self, builder):
         self.recoverable = builder.configuration[self.cause.name].recoverable
 
+        self.clock = builder.time.clock()
+
         if builder.configuration[self.cause.name].mortality:
             csmr_data = builder.data.load(f'cause.{self.cause.name}.cause_specific_mortality')
             builder.value.register_value_modifier('csmr_data', lambda: csmr_data)
@@ -120,8 +122,10 @@ class RiskAttributableDisease:
                                 self.diseased_event_time_column: pd.Series(pd.NaT, index=pop_data.index),
                                 self.susceptible_event_time_column: pd.Series(pd.NaT, index=pop_data.index)},
                                index=pop_data.index)
+
         sick = self.filter_by_exposure(pop_data.index)
         new_pop.loc[sick, self.cause.name] = self.cause.name
+        new_pop.loc[sick, self.diseased_event_time_column] = self.clock()  # match VPH disease, only set w/ condition
         self.population_view.update(new_pop)
 
     def on_time_step(self, event):
@@ -129,10 +133,13 @@ class RiskAttributableDisease:
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
         if self.recoverable:
-            pop.loc[~sick & (pop[self.cause.name] != f'susceptible_to_{self.cause.name}'), self.susceptible_event_time_column] = event.time
+            change_to_susceptible = (~sick) & (pop[self.cause.name] != f'susceptible_to_{self.cause.name}')
+            pop.loc[change_to_susceptible, self.susceptible_event_time_column] = event.time
             pop.loc[~sick, self.cause.name] = f'susceptible_to_{self.cause.name}'
-        pop.loc[sick & (pop[self.cause.name] != self.cause.name), self.diseased_event_time_column] = event.time
+        change_to_diseased = sick & (pop[self.cause.name] != self.cause.name)
+        pop.loc[change_to_diseased, self.diseased_event_time_column] = event.time
         pop.loc[sick, self.cause.name] = self.cause.name
+
         self.population_view.update(pop)
 
     def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
