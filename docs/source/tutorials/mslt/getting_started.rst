@@ -41,3 +41,7 @@ terminal, from within the **mslt_port-master** directory:
    then extract relevant subsets from these data files and plot them using
    your normal plotting tools. This allows you to easily examine outcomes of
    interest for specific cohorts and/or over specific time intervals.
+
+   The figures shown in these tutorials were created using external tools, not
+   included in the Vivarium Public Health package and not documented here. Any
+   plotting software could be used to produce similar figures.

@@ -3,13 +3,16 @@
 Multi-State Life Tables: chronic disease interventions
 ======================================================
 
-In this tutorial, you will learn how to reproduce each of the simulations
+In these tutorials, you will learn how to reproduce each of the simulations
 presented in the paper "Multistate lifetable modelling of preventive
 interventions: Concept and Python code".
 
-After completing this tutorial, you will be able to adapt and modify these
+After completing these tutorials, you will be able to adapt and modify these
 simulations, to explore the impact of different model assumptions and
 interventions, and to capture different simulation outputs of interest.
+
+.. important:: These tutorials are intended to be followed in order, from
+   first to last.
 
 .. note:: The input data requirements for each of the MSLT components
    introduced in these tutorials are :ref:`described here <mslt_input_data>`.
