@@ -135,10 +135,10 @@ class RiskAttributableDisease:
         if self.recoverable:
             change_to_susceptible = (~sick) & (pop[self.cause.name] != f'susceptible_to_{self.cause.name}')
             pop.loc[change_to_susceptible, self.susceptible_event_time_column] = event.time
-            pop.loc[~sick, self.cause.name] = f'susceptible_to_{self.cause.name}'
+            pop.loc[change_to_susceptible, self.cause.name] = f'susceptible_to_{self.cause.name}'
         change_to_diseased = sick & (pop[self.cause.name] != self.cause.name)
         pop.loc[change_to_diseased, self.diseased_event_time_column] = event.time
-        pop.loc[sick, self.cause.name] = self.cause.name
+        pop.loc[change_to_diseased, self.cause.name] = self.cause.name
 
         self.population_view.update(pop)
 
