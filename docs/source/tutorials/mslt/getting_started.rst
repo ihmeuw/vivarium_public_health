@@ -5,7 +5,8 @@ Getting started
   version of Python installed, the easiest option is to use
   `Anaconda <https://www.anaconda.com/distribution/>`__.
 
-- You need to install the ``vivarium_public_health`` Python package:
+- You need to install the ``vivarium_public_health`` Python package. Do this
+  by running the following command in a command prompt or terminal:
 
   .. Note that `pip` is the simplest way to do this when using Anaconda.
 
@@ -30,8 +31,8 @@ Once you have completed these steps, you will be able to run all of the
 simulations described in these tutorials. For each simulation there will be a
 model specification file, whose file name ends in ``.yaml``. These are
 plain text files, that you can edit in any text editor. To run the simulation
-described in one of these files, run the following command in a console or
-terminal, from within the **mslt_port-master** directory:
+described in one of these files, run the following command in a command prompt
+or terminal, from within the **mslt_port-master** directory:
 
 .. code-block:: sh
 
