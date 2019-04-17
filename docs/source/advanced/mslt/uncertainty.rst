@@ -13,7 +13,14 @@ Uncertainty analyses
    correlated (e.g., the incidence rate for a single disease, across all age
    groups, sex, and ethnicity).
 
-   A convenience script is provided, which can be used as follows:
+   First, you need to generate data artifacts that contain the 2000 draws for
+   each rate/value, using the ``build_simulation_files.py`` script in the
+   **uncertainty_analysis** directory.
+   Note that this is currently a **very slow process** and generates data
+   artifacts that are around **3 GB** in size.
+
+   A convenience script is provided in the **uncertainty_analysis** directory,
+   which can be used as follows:
 
    .. code:: console
 
