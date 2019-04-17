@@ -29,7 +29,6 @@ interventions, and to capture different simulation outputs of interest.
    :maxdepth: 2
    :caption: Tobacco interventions
 
-   tobacco_bau
    tobacco_results
 
 .. toctree::

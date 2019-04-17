@@ -37,8 +37,10 @@ components:
 
 configuration:
     input_data:
-        # Change this to "mslt_maori_data.hdf" for the Maori population.
-        artifact_path: mslt_non-maori_data.hdf
+        # Change this to "mslt_tobacco_maori_20-years.hdf" for the Maori
+        # population.
+        artifact_path: mslt_tobacco_non-maori_20-years.hdf
+        input_draw_number: 0
     population:
         population_size: 44 # Male and female 5-year cohorts, aged 0 to 109.
     time:
