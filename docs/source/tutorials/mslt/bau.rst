@@ -96,16 +96,16 @@ definition:
 Running the model simulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Save the above simulation definition as ``reduce_acmr.yaml`` and run the
+The above simulation is already defined in ``mslt_reduce_acmr.yaml``. Run this
 simulation with the following command:
 
 .. code-block:: console
 
-   simulate run reduce_acmr.yaml
+   simulate run mslt_reduce_acmr.yaml
 
 When this has completed, the output recorded by the
 :class:`MorbidityMortality` observer will be saved in the file
-``reduce_acmr_mslt.csv``.
+``mslt_reduce_acmr_mm.csv``.
 The contents of this file will look like:
 
 .. csv-table:: An extract of the simulation results, showing a subset of rows

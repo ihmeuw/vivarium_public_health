@@ -1,7 +1,7 @@
 .. _mslt_advanced:
 
-Multi-State Life Table
-======================
+Multi-State Life Tables
+=======================
 
 Here we describe how the multi-state life tables (MSLT) components are
 implemented.

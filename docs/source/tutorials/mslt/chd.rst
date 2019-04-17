@@ -59,16 +59,16 @@ definition:
 Running the model simulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Save the above simulation definition as ``reduce_chd.yaml`` and run the
+The above simulation is already defined in ``mslt_reduce_chd.yaml``. Run this
 simulation with the following command:
 
 .. code-block:: console
 
-   simulate run reduce_chd.yaml
+   simulate run mslt_reduce_chd.yaml
 
 When this has completed, the output recorded by the
 :class:`MorbidityMortality` observer will be saved in the file
-``reduce_chd_mslt.csv``.
+``mslt_reduce_chd_mm.csv``.
 
 We can now plot the survival of this cohort in both the BAU and intervention
 scenarios, relative to the starting population, and see how the survival rate
