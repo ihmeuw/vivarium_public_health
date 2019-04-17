@@ -187,7 +187,7 @@ class FertilityAgeSpecificRates:
                                         population_configuration={
                                             'age_start': 0,
                                             'age_end': 0,
-                                            'sim_state': 'setup',
+                                            'sim_state': 'time_step',
                                         })
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
             self.population_view.update(parents)
