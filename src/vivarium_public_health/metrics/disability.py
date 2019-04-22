@@ -3,7 +3,7 @@ from collections import Counter
 import pandas as pd
 from vivarium.framework.values import list_combiner, joint_value_post_processor, rescale_post_processor
 
-from vivarium_public_health.disease import DiseaseModel
+from vivarium_public_health.disease import DiseaseModel, RiskAttributableDisease
 from .utilities import get_age_bins, get_years_lived_with_disability
 
 
@@ -46,7 +46,8 @@ class Disability:
         self.age_bins = get_age_bins(builder)
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
-        self.causes = [c.state_column for c in builder.components.get_components(DiseaseModel)]
+        self.causes = [c.state_column
+                       for c in builder.components.get_components((DiseaseModel, RiskAttributableDisease))]
         self.years_lived_with_disability = Counter()
         self.disability_weight_pipelines = {cause: builder.value.get_value(f'{cause}.disability_weight')
                                             for cause in self.causes}
