@@ -15,6 +15,7 @@ from vivarium_public_health.utilities import EntityString, TargetString
 def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
     """Pivots data that is long on categories to be wide."""
     key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+    key_cols = [k for k in key_cols if k in data.columns]
     data = data.pivot_table(index=key_cols, columns='parameter', values='value').reset_index()
     data.columns.name = None
     return data

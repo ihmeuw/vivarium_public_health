@@ -1,4 +1,13 @@
-**0.9.8 - 03/19/10**
+**0.9.10 - 03/29/19**
+
+ - Bugfix in disease observer.
+
+**0.9.9 - 03/28/19**
+
+ - Bugfix in data free risk components when using a covariate for coverage.
+ - Bugfix for simulations that start in a future year with extrapolate.
+
+**0.9.8 - 03/19/19**
 
  - Bugfix in mortality observer.
 

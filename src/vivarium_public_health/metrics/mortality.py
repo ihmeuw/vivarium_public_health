@@ -13,12 +13,14 @@ class MortalityObserver:
     In the model specification, your configuration for this component should
     be specified as, e.g.:
 
-    configuration:
-        metrics:
-            mortality:
-                by_age: True
-                by_year: False
-                by_sex: True
+    .. code-block:: yaml
+
+        configuration:
+            metrics:
+                mortality:
+                    by_age: True
+                    by_year: False
+                    by_sex: True
 
     """
     configuration_defaults = {

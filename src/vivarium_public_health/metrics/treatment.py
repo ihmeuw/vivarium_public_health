@@ -5,23 +5,29 @@ from .utilities import get_age_bins, get_treatment_counts
 
 class TreatmentObserver:
     """Observes dose counts for a single treatment.
+
     This component is intended for use with the ``MassTreatmentCampaign``
     component in ``vivarium_public_health``.  It expects the names of the
     doses to be supplied under the configuration key
     ``{treatment_name}.doses`` and should work with any component that
     specifies its doses in that manner.
+
     By default, this observer computes aggregate dose counts over the entire
     simulation.  It can be configured to bin these into age_groups, sexes,
     and years by setting the ``by_age``, ``by_sex``, and ``by_year``
     flags, respectively.
+
     In the model specification, your configuration for this component should
     be specified as, e.g.:
-    configuration:
-        metrics:
-            YOUR_TREATMENT_NAME:
-                by_age: True
-                by_year: False
-                by_sex: True
+
+    .. code-block:: yaml
+
+        configuration:
+            metrics:
+                {YOUR_TREATMENT_NAME}_observer:
+                    by_age: True
+                    by_year: False
+                    by_sex: True
     """
 
     configuration_defaults = {

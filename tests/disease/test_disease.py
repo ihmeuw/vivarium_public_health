@@ -133,7 +133,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
 
     # enough time has passed so living people should transition away to sick
     assert ((simulation.get_population()['alive'] == 'alive').sum() ==
-           (simulation.get_population()[disease] == 'sick').sum())
+            (simulation.get_population()[disease] == 'sick').sum())
 
 
 @pytest.mark.parametrize('test_prevalence_level', [0, 0.35, 1])
@@ -160,10 +160,12 @@ def test_prevalence_single_state_with_migration(base_config, disease, base_data,
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, 0.01), error_message
     simulation.clock.step_forward()
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
-    simulation.simulant_creator(50000)
+    simulation.simulant_creator(50000, population_configuration={'age_start': 0, 'age_end': 5,
+                                                                 'sim_state': 'time_step'})
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
     simulation.clock.step_forward()
-    simulation.simulant_creator(50000)
+    simulation.simulant_creator(50000, population_configuration={'age_start': 0, 'age_end': 5,
+                                                                 'sim_state': 'time_step'})
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
 
 
@@ -355,12 +357,12 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, disease):
 
     # birth prevalence should be used for assigning initial status to newly-borns on time steps
     simulation.clock.step_forward()
-    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0})
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0, 'sim_state': 'time_step'})
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.75, 0.01)
 
     # and prevalence should be used for ages not start = end = 0
     simulation.clock.step_forward()
-    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5})
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5, 'sim_state': 'time_step'})
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.83, 0.01)
 
 
@@ -381,10 +383,10 @@ def test_no_birth_prevalence_initial_assignment(base_config, disease):
 
     # with no birth prevalence provided, it should default to 0 for ages start = end = 0
     simulation.clock.step_forward()
-    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0})
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0, 'sim_state': 'time_step'})
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.5, 0.01)
 
     # and default to prevalence for ages not start = end = 0
     simulation.clock.step_forward()
-    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5})
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5, 'sim_state': 'time_step'})
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.67, 0.01)
