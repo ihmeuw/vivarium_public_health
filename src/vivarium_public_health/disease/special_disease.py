@@ -86,7 +86,6 @@ class RiskAttributableDisease:
 
     def setup(self, builder):
         self.recoverable = builder.configuration[self.cause.name].recoverable
-
         self.clock = builder.time.clock()
 
         if builder.configuration[self.cause.name].mortality:
@@ -95,12 +94,12 @@ class RiskAttributableDisease:
             excess_mortality_data = builder.data.load(f'{self.cause}.excess_mortality')
             builder.value.register_value_modifier('mortality_rate', self.mortality_rates)
             self._mortality = builder.value.register_value_producer(
-                f'{self.cause}.excess_mortality', source=builder.lookup.build_table(excess_mortality_data)
+                f'{self.cause.name}.excess_mortality', source=builder.lookup.build_table(excess_mortality_data)
             )
 
         disability_weight = builder.data.load(f'{self.cause}.disability_weight')
         self._disability_weight = builder.lookup.build_table(disability_weight)
-        self.disability_weight = builder.value.register_value_producer(f'{self.cause}.disability_weight',
+        self.disability_weight = builder.value.register_value_producer(f'{self.cause.name}.disability_weight',
                                                                        source=self.compute_disability_weight)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
