@@ -8,14 +8,11 @@ from .utilities import get_age_bins
 class CategoricalRiskObserver:
     """ An observer for a categorical risk factor.
 
-    This component by default observes proportion of simulants in each age
-    group who are alive and in each category of risk at the midpoint of a year
-    unless the sample date is specified in the configuration.
+    This component observes the number of simulants in each age
+    group who are alive and in each category of risk at the specified sample date each year
+    (the sample date defaults to July, 1, and can be set in the configuration).
 
-    It also collects the total number of alive simulants in each age group
-    when the proportion is collected.
-
-    configuration should be given as e.g.,
+    Here is an example configuration to change the sample date to Dec. 31:
 
     .. code-block:: yaml
 
