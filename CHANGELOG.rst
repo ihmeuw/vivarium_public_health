@@ -1,3 +1,11 @@
+**0.9.11 - 04/22/19**
+
+ - Add documentation for the data artifact.
+ - Bugfix in parameterized risk for covariates.
+ - Make disease observers work with paf of one risks.
+ - Make mortality and disability observers work with risk attributable diseases.
+ - Add simulation info to simulant creator.
+
 **0.9.10 - 03/29/19**
 
  - Bugfix in disease observer.
