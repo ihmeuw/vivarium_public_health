@@ -55,7 +55,7 @@ def write(path: str, entity_key: 'EntityKey', data: Any):
         _write_json_blob(path, entity_key, data)
 
 
-def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) -> Any:
+def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]], column_filters: Optional[List[str]]) -> Any:
     """Loads data from an hdf file.
 
     Parameters
@@ -82,11 +82,13 @@ def load(path: str, entity_key: 'EntityKey', filter_terms: Optional[List[str]]) 
                 data = json.load(file_node)
         else:
             filter_terms = _get_valid_filter_terms(filter_terms, node.table.colnames)
-            data = pd.read_hdf(path, entity_key.path, where=filter_terms)
             with pd.HDFStore(path, complevel=9, mode='r') as store:
                 metadata = store.get_storer(entity_key.path).attrs.metadata  # NOTE: must use attrs. write this up
             if 'is_empty' in metadata and metadata['is_empty']:
+                data = pd.read_hdf(path, entity_key.path, where=filter_terms)
                 data = data.set_index(list(data.columns))  # undoing transform performed on write
+            else:
+                data = pd.read_hdf(path, entity_key.path, where=filter_terms, columns=column_filters)
 
         return data
 
