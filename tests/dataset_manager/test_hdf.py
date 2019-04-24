@@ -122,7 +122,7 @@ def test_write_json(hdf_file_path, mock_key, json_data, mocker):
 
 def test_load(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
-    data = hdf.load(hdf_file_path, key, filter_terms=None)
+    data = hdf.load(hdf_file_path, key, filter_terms=None, column_filters=None)
     if 'restrictions' in key or 'versions' in key:
         assert isinstance(data, dict)
     elif 'metadata' in key:
@@ -133,7 +133,7 @@ def test_load(hdf_file_path, hdf_key):
 
 def test_load_with_invalid_filters(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
-    data = hdf.load(hdf_file_path, key, filter_terms=["fake_filter==0"])
+    data = hdf.load(hdf_file_path, key, filter_terms=["fake_filter==0"], column_filters=None)
     if 'restrictions' in key or 'versions' in key:
         assert isinstance(data, dict)
     elif 'metadata' in key:
@@ -144,7 +144,7 @@ def test_load_with_invalid_filters(hdf_file_path, hdf_key):
 
 def test_load_with_valid_filters(hdf_file_path, hdf_key):
     key = EntityKey(hdf_key)
-    data = hdf.load(hdf_file_path, key, filter_terms=["year == 2006"])
+    data = hdf.load(hdf_file_path, key, filter_terms=["year == 2006"], column_filters=None)
     if 'restrictions' in key or 'versions' in key:
         assert isinstance(data, dict)
     elif 'metadata' in key:
@@ -163,7 +163,7 @@ def test_load_filter_empty_data_frame_index(hdf_file_path, hdf_key):
     data = data.set_index(list(data.columns))
 
     hdf._write_data_frame(hdf_file_path, key, data)
-    loaded_data = hdf.load(hdf_file_path, key, filter_terms=['year == 4'])
+    loaded_data = hdf.load(hdf_file_path, key, filter_terms=['year == 4'], column_filters=None)
     loaded_data = loaded_data.reset_index()
     assert loaded_data.year.unique() == 4
 
@@ -218,7 +218,7 @@ def test_write_load_empty_data_frame_index(hdf_file_path):
     data = data.set_index(list(data.columns))
 
     hdf._write_data_frame(hdf_file_path, key, data)
-    loaded_data = hdf.load(hdf_file_path, key, filter_terms=None)
+    loaded_data = hdf.load(hdf_file_path, key, filter_terms=None, column_filters=None)
     assert loaded_data.equals(data)
 
 

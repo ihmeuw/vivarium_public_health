@@ -2,7 +2,8 @@ import pytest
 from unittest.mock import call
 from pathlib import Path
 
-from vivarium_public_health.dataset_manager.artifact import (Artifact, ArtifactException, EntityKey, _to_tree)
+from vivarium_public_health.dataset_manager.artifact import (Artifact, ArtifactException, EntityKey,
+                                                             _to_tree, _parse_draw_filters)
 
 
 @pytest.fixture()
@@ -31,7 +32,7 @@ def keys_mock():
 def hdf_mock(mocker, keys_mock):
     mock = mocker.patch('vivarium_public_health.dataset_manager.artifact.hdf')
 
-    def mock_load(_, key, __):
+    def mock_load(_, key, __, ___):
         if str(key) in keys_mock:
             if str(key) == 'metadata.keyspace':
                 return keys_mock
