@@ -113,6 +113,9 @@ class ArtifactManager:
         data = self.artifact.load(entity_key)
         if isinstance(data, pd.DataFrame):  # could be metadata dict
             data = data.reset_index()
+            draw_col = [c for c in data if 'draw' in c]
+            if draw_col:
+                data = data.rename(columns={draw_col[0]: 'value'})
         return filter_data(data, self.config_filter_term, **column_filters) if isinstance(data, pd.DataFrame) else data
 
 
