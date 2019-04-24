@@ -313,7 +313,7 @@ def _parse_draw_filters(filter_terms):
     to the list of column names. Also include 'value' column for compatibility
     with data that is long on draws."""
     if not filter_terms:
-        return []
+        return None
 
     draw_terms = []
     for term in filter_terms:
