@@ -1,3 +1,8 @@
+**0.9.12 - 04/23/19**
+
+ - Update docstring for categorical risk observer.
+ - Fix pipeline names in risk attributable disease.
+
 **0.9.11 - 04/22/19**
 
  - Add documentation for the data artifact.
