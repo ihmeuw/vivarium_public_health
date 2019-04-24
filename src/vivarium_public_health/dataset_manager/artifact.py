@@ -312,31 +312,34 @@ def _parse_draw_filters(filter_terms):
     """Given a list of filter terms, parse out any related to draws and convert
     to the list of column names. Also include 'value' column for compatibility
     with data that is long on draws."""
-    if not filter_terms:
-        return None
+    columns = None
 
-    draw_terms = []
-    for term in filter_terms:
-        # first strip out all the parentheses
-        t = re.sub('[()]', '', term)
-        # then split each condition out
-        t = re.split('[&|]', t)
-        # then split condition to see if it relates to draws
-        split_term = [re.split('([<=>in])', i) for i in t]
-        draw_terms.extend([t for t in split_term if t[0].strip() == 'draw'])
+    if filter_terms:
+        draw_terms = []
+        for term in filter_terms:
+            # first strip out all the parentheses
+            t = re.sub('[()]', '', term)
+            # then split each condition out
+            t = re.split('[&|]', t)
+            # then split condition to see if it relates to draws
+            split_term = [re.split('([<=>in])', i) for i in t]
+            draw_terms.extend([t for t in split_term if t[0].strip() == 'draw'])
 
-    if len(draw_terms) > 1:
-        raise ValueError(f'You can only supply one filter term related to draws. '
-                         f'You supplied {filter_terms}, {len(draw_terms)} of which pertain to draws.')
+        if len(draw_terms) > 1:
+            raise ValueError(f'You can only supply one filter term related to draws. '
+                             f'You supplied {filter_terms}, {len(draw_terms)} of which pertain to draws.')
 
-    # convert term to columns
-    term = [s.strip() for s in draw_terms[0] if s.strip()]
-    if len(term) == 4 and term[1].lower() == 'i' and term[2].lower() == 'n':
-        draws = [int(d) for d in term[-1][1:-1].split(',')]
-    elif (len(term) == 4 and term[1] == term[2] == '=') or (len(term) == 3 and term[1] == '='):
-        draws = [int(term[-1])]
-    else:
-        raise NotImplementedError(f'The only supported draw filters are =, ==, or in. '
-                                  f'You supplied {"".join(term)}.')
+        if draw_terms:
+            # convert term to columns
+            term = [s.strip() for s in draw_terms[0] if s.strip()]
+            if len(term) == 4 and term[1].lower() == 'i' and term[2].lower() == 'n':
+                draws = [int(d) for d in term[-1][1:-1].split(',')]
+            elif (len(term) == 4 and term[1] == term[2] == '=') or (len(term) == 3 and term[1] == '='):
+                draws = [int(term[-1])]
+            else:
+                raise NotImplementedError(f'The only supported draw filters are =, ==, or in. '
+                                          f'You supplied {"".join(term)}.')
 
-    return [f'draw_{n}' for n in draws] + ['value']
+            columns = [f'draw_{n}' for n in draws] + ['value']
+
+    return columns
