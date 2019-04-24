@@ -471,7 +471,8 @@ def test__parse_draw_filters_fail(filters, error, match):
                                                         ('==', [10]),
                                                         (' = ', [100]),
                                                         (' == ', [12]),
-                                                        (' in ', [1, 7, 160])])
+                                                        (' in ', [1, 7, 160]),
+                                                        ('    in            ', [140, 2, 14])])
 def test__parse_draw_filters_pass(draw_operator, draw_values):
     draw_filter = f'draw{draw_operator}{draw_values if "in" in draw_operator else draw_values[0]}'
     expected_cols = [f'draw_{d}' for d in draw_values] + ['value']

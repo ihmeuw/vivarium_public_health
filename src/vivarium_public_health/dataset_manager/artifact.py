@@ -330,7 +330,7 @@ def _parse_draw_filters(filter_terms):
                          f'You supplied {filter_terms}, {len(draw_terms)} of which pertain to draws.')
 
     # convert term to columns
-    term = [s.strip() for s in draw_terms[0] if s]
+    term = [s.strip() for s in draw_terms[0] if s.strip()]
     if len(term) == 4 and term[1].lower() == 'i' and term[2].lower() == 'n':
         draws = [int(d) for d in term[-1][1:-1].split(',')]
     elif (len(term) == 4 and term[1] == term[2] == '=') or (len(term) == 3 and term[1] == '='):
