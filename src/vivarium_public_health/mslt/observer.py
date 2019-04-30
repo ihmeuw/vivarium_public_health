@@ -121,13 +121,14 @@ class MorbidityMortality:
         # Re-order the table columns.
         cols = ['year_of_birth'] + self.table_cols
         data = data[cols]
-        # Calculate life expectancy and HALE for the BAU and intervention.
-        data['LE'] = self.calculate_LE(data, 'person_years', 'population')
+        # Calculate life expectancy and HALE for the BAU and intervention,
+        # with respect to the initial population, not the survivors.
+        data['LE'] = self.calculate_LE(data, 'person_years', 'prev_population')
         data['bau_LE'] = self.calculate_LE(data, 'bau_person_years',
-                                           'bau_population')
-        data['HALE'] = self.calculate_LE(data, 'HALY', 'population')
+                                           'bau_prev_population')
+        data['HALE'] = self.calculate_LE(data, 'HALY', 'prev_population')
         data['bau_HALE'] = self.calculate_LE(data, 'bau_HALY',
-                                           'bau_population')
+                                           'bau_prev_population')
         data.to_csv(self.output_file, index=False)
 
 
