@@ -35,6 +35,8 @@ then
     pushd vivarium
     pip install .
     popd
+else
+    echo no upstream branch found
 fi
 
 popd
