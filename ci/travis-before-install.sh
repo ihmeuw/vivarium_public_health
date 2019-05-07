@@ -25,19 +25,19 @@ echo branch ${branch}
 # Look for branch of same name in upstream repositories
 # when this is develop it should be present.
 # When it isn't develop, this may or may not exist
-upstream_branch="$(git ls-remote --heads https://github.com/ihmeuw/vivarium.git ${branch})"
+upstream_branch_exists="$(git ls-remote --heads https://github.com/ihmeuw/vivarium.git ${branch})"
 
 # if there is a match for upstream, use that, else fall back to develop
 # this is redundant only for a PR into develop.
 if [ -z "${upstream_branch}" ]  # checks if empty
 then
-    upstream_branch=develop
+    branch=develop
 else
     echo upstream branch found ${upstream_branch}
 fi
 
 # clone and install upstream stuff
-git clone --branch=$upstream_branch https://github.com/ihmeuw/vivarium.git
+git clone --branch=$branch https://github.com/ihmeuw/vivarium.git
 pushd vivarium
 pip install .
 popd
