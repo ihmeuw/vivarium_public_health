@@ -22,26 +22,22 @@ pip install --upgrade pip setuptools
 branch=$TRAVIS_BRANCH
 echo branch ${branch}
 
-# Look for branch of same name in upstream repositories
-# when this is develop it should be present.
-# When it isn't develop, this may or may not exist
+# Look for branch in upstream repositories
+# branch is the "target", either same name for push or target for PR
 upstream_branch_exists="$(git ls-remote --heads https://github.com/ihmeuw/vivarium.git ${branch})"
 
-# if there is a match for upstream, use that, else fall back to develop
-# this is redundant only for a PR into develop.
-if [ -z "${upstream_branch_exists}" ]  # checks if empty
+# if there is a match for upstream, use that
+if [ ! -z "${upstream_branch_exists}" ]  # checks if not-empty
 then
-    branch=develop
-else
-    echo upstream branch found ${upstream_branch}
+    echo upstream branch found for ${branch}
+    # clone and install upstream stuff if target branch exists
+    git clone --branch=$branch https://github.com/ihmeuw/vivarium.git
+    pushd vivarium
+    pip install .
+    popd
 fi
 
-# clone and install upstream stuff
-git clone --branch=$branch https://github.com/ihmeuw/vivarium.git
-pushd vivarium
-pip install .
 popd
 
-popd  # is this right ?
-
+# If no upstream match was found, this will install last release
 pip install .[test,docs]
