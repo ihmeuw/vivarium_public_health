@@ -29,7 +29,7 @@ upstream_branch_exists="$(git ls-remote --heads https://github.com/ihmeuw/vivari
 
 # if there is a match for upstream, use that, else fall back to develop
 # this is redundant only for a PR into develop.
-if [ -z "${upstream_branch}" ]  # checks if empty
+if [ -z "${upstream_branch_exists}" ]  # checks if empty
 then
     branch=develop
 else
