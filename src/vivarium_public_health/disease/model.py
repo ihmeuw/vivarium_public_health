@@ -3,7 +3,7 @@ import numbers
 import pandas as pd
 import numpy as np
 
-from vivarium import VivariumError
+from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
 from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
