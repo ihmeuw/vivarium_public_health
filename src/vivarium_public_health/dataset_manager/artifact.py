@@ -7,6 +7,7 @@ convenient access and inspection.
 from collections import defaultdict
 import logging
 from typing import List, Dict, Any
+from pathlib import Path
 
 from vivarium_public_health.dataset_manager import hdf
 
@@ -20,7 +21,6 @@ class ArtifactException(Exception):
 
 class Artifact:
     """An interface for interacting with ``vivarium`` hdf artifacts."""
-
     def __init__(self, path: str, filter_terms: List[str]=None):
         """
         Parameters
@@ -31,22 +31,28 @@ class Artifact:
             A set of terms suitable for usage with the ``where`` kwarg for ``pd.read_hdf``
         """
 
+        self.create_hdf_with_keyspace(path)
         self.path = path
         self._filter_terms = filter_terms
-
         self._cache = {}
-        self._keys = [EntityKey(k) for k in hdf.get_keys(self.path)]
+        self._keys = Keys(self.path)
+
+    @staticmethod
+    def create_hdf_with_keyspace(path):
+        if not Path(path).is_file():
+            hdf.touch(path)
+            hdf.write(path, EntityKey('metadata.keyspace'), ['metadata.keyspace'])
 
     @property
     def keys(self) -> List['EntityKey']:
         """A list of all the keys contained within the artifact."""
-        return self._keys
+        return self._keys.to_list()
 
     @property
     def filter_terms(self) -> List[str]:
         return self._filter_terms
 
-    def load(self, entity_key: str, future: bool=False) -> Any:
+    def load(self, entity_key: str) -> Any:
         """Loads the data associated with provided EntityKey.
 
         Parameters
@@ -93,6 +99,7 @@ class Artifact:
         ArtifactException :
             If the provided key already exists in the artifact.
         """
+
         entity_key = EntityKey(entity_key)
         if entity_key in self.keys:
             raise ArtifactException(f'{entity_key} already in artifact.')
@@ -114,6 +121,7 @@ class Artifact:
         ------
         ArtifactException :
             If the key is not present in the artifact."""
+
         entity_key = EntityKey(entity_key)
         if entity_key not in self.keys:
             raise ArtifactException(f'Trying to remove non-existent key {entity_key} from artifact.')
@@ -140,6 +148,7 @@ class Artifact:
             If the provided key does not already exist in the artifact.
         """
         e_key = EntityKey(entity_key)
+
         if e_key not in self.keys:
             raise ArtifactException(f'Trying to replace non-existent key {e_key} in artifact.')
         self.remove(entity_key)
@@ -258,3 +267,40 @@ def _to_tree(keys: List[EntityKey]) -> Dict[str, Dict[str, List[str]]]:
         else:
             out[k.type][k.measure] = []
     return out
+
+
+class Keys:
+    """A convenient wrapper around the keyspace which makes easier for Artifact
+     to maintain its keyspace when EntityKey is added or removed.
+     With the artifact_path, Keys object is initialized when the Artifact is
+     initialized """
+
+    keyspace_node = EntityKey('metadata.keyspace')
+
+    def __init__(self, artifact_path: str):
+        self.artifact_path = artifact_path
+        self._keys = [str(k) for k in hdf.load(self.artifact_path, EntityKey('metadata.keyspace'), None)]
+
+    def append(self, new_key: EntityKey):
+        """ Whenever the artifact gets a new key and new data, append is called to
+        remove the old keyspace and to write the updated keyspace"""
+
+        self._keys.append(str(new_key))
+        hdf.remove(self.artifact_path, self.keyspace_node)
+        hdf.write(self.artifact_path, self.keyspace_node, self._keys)
+
+    def remove(self, removing_key: EntityKey):
+        """ Whenever the artifact removes a key and data, remove is called to
+        remove the key from keyspace and write the updated keyspace."""
+
+        self._keys.remove(str(removing_key))
+        hdf.remove(self.artifact_path, self.keyspace_node)
+        hdf.write(self.artifact_path, self.keyspace_node, self._keys)
+
+    def to_list(self) -> List[EntityKey]:
+        """A list of all the EntityKeys in the associated artifact."""
+
+        return [EntityKey(k) for k in self._keys]
+
+    def __contains__(self, item):
+        return item in self._keys

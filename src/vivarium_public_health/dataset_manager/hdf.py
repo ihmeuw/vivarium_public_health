@@ -15,35 +15,26 @@ if typing.TYPE_CHECKING:
 DEFAULT_COLUMNS = {"location", "draw"}
 
 
-def touch(path: str, append: bool):
+def touch(path: str):
     """Creates an hdf file or wipes an existing file if necessary.
-
-    If the file exists and append is not true, the existing file
-    will be destroyed. If the file exists and append is true, touch
-    will do nothing.
+    If the given path is proper to create a hdf file, it creates a new hdf file.
 
     Parameters
     ----------
     path :
         The string path to the hdf file.
-    append :
-        Whether an existing artifact should be preserved and appended to
 
     Raises
     ------
-    FileNotFoundError
-        If attempting to append to a non-existent file."""
-
+    ValueError
+        If the non-proper path is given to create a hdf file.
+    """
     path = Path(path)
+    if not path.suffix == '.hdf':
+        raise ValueError(f'You provided path: {str(path)} not valid for creating hdf file.')
 
-    if not path.is_file() and append:
-        raise FileNotFoundError("You indicated you want to append to "
-                                f"an existing artifact at {path} but no "
-                                "such artifact exists. remove --append if "
-                                "you wish to create a new artifact.")
-    elif not append:
-        with tables.open_file(str(path), mode='w'):
-            pass
+    with tables.open_file(str(path), mode='w'):
+        pass
 
 
 def write(path: str, entity_key: 'EntityKey', data: Any):
@@ -103,6 +94,7 @@ def remove(path: str, entity_key: 'EntityKey'):
     ----------
     path :
         The path to the hdf file to remove the data from.
+
     entity_key :
         A representation of the internal hdf path where the data is located.
     """
@@ -152,7 +144,7 @@ def _write_data_frame(path: str, entity_key: 'EntityKey', data: pd.DataFrame):
     # that you can filter by without reading in a whole dataset.
     data_columns = DEFAULT_COLUMNS.intersection(data.columns)
 
-    with pd.HDFStore(path, complevel=9, format="table") as store:
+    with pd.HDFStore(path, complevel=9) as store:
         store.put(entity_path, data, format="table", data_columns=data_columns)
 
 

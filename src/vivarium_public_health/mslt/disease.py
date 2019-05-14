@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from . import add_year_column
-
 
 class AcuteDisease:
     """
@@ -24,10 +22,8 @@ class AcuteDisease:
 
     def setup(self, builder):
         mty_data = builder.data.load(f'acute_disease.{self.name}.mortality')
-        mty_data = add_year_column(builder, mty_data)
         mty_rate = builder.lookup.build_table(mty_data)
         yld_data = builder.data.load(f'acute_disease.{self.name}.morbidity')
-        yld_data = add_year_column(builder, yld_data)
         yld_rate = builder.lookup.build_table(yld_data)
         self.excess_mortality = builder.value.register_rate_producer(
             f'{self.name}.excess_mortality',

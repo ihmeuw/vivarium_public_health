@@ -1,18 +1,14 @@
 import pandas as pd
 import numpy as np
 
-from .data_transformations import assign_demographic_proportions, rescale_binned_proportions, smooth_ages
+from .data_transformations import (assign_demographic_proportions, rescale_binned_proportions,
+                                   smooth_ages, load_population_structure)
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 
 
 class BasePopulation:
-    """Component for producing and aging simulants based on demographic data.
-
-    Attributes
-    ----------
-    randomness : vivarium.framework.randomness.RandomnessStream
-    """
+    """Component for producing and aging simulants based on demographic data."""
 
     configuration_defaults = {
         'population': {
@@ -23,27 +19,29 @@ class BasePopulation:
     }
 
     def setup(self, builder):
-        """
-        Parameters
-        ----------
-        builder : vivarium.framework.engine.Builder
-        """
-        self.randomness = {'general_purpose': builder.randomness.get_stream('population_generation'),
-                           'bin_selection': builder.randomness.get_stream('bin_selection', for_initialization=True),
-                           'age_smoothing': builder.randomness.get_stream('age_smoothing', for_initialization=True)}
-        self.register_simulants = builder.randomness.register_simulants
         self.config = builder.configuration.population
         input_config = builder.configuration.input_data
+
+        self.randomness = {'general_purpose': builder.randomness.get_stream('population_generation'),
+                           'bin_selection': builder.randomness.get_stream('bin_selection', for_initialization=True),
+                           'age_smoothing': builder.randomness.get_stream('age_smoothing', for_initialization=True),
+                           'age_smoothing_age_bounds': builder.randomness.get_stream('age_smoothing_age_bounds',
+                                                                                     for_initialization=True)}
+        self.register_simulants = builder.randomness.register_simulants
+
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
+
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
+
         source_population_structure = load_population_structure(builder)
         source_population_structure['location'] = input_config.location
+
         self.population_data = _build_population_data_table(source_population_structure)
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
         if self.config.exit_age is not None:
-            builder.components.add_components([AgedOutSimulants()])
+            builder.components.add_components([AgeOutSimulants()])
 
     @staticmethod
     def select_sub_population_data(reference_population_data, year):
@@ -62,7 +60,7 @@ class BasePopulation:
         population-level data.  Additionally, the simulants are assigned the simulation properties
         'alive', 'entrance_time', and 'exit_time'.
 
-        The 'alive' parameter is alive or dead/
+        The 'alive' parameter is alive or dead.
         In general, most simulation components (except for those computing summary statistics)
         ignore simulants if they are not in the 'alive' category. The 'entrance_time' and
         'exit_time' categories simply mark when the simulant enters or leaves the simulation,
@@ -72,7 +70,7 @@ class BasePopulation:
 
         Parameters
         ----------
-        event : vivarium.framework.population.PopulationEvent
+        pop_data
         """
 
         age_params = {'age_start': pop_data.user_data.get('age_start', self.config.age_start),
@@ -109,21 +107,18 @@ class BasePopulation:
         return "BasePopulation()"
 
 
-class AgedOutSimulants:
-
+class AgeOutSimulants:
     """Component for handling aged-out simulants"""
 
     def setup(self, builder):
         self.config = builder.configuration.population
         self.population_view = builder.population.get_view(['age', 'exit_time', 'tracked'])
-        builder.event.register_listener('time_step__cleanup', self.agedout_handler)
+        builder.event.register_listener('time_step__cleanup', self.on_time_step_cleanup)
 
-
-    def agedout_handler(self, event):
-
+    def on_time_step_cleanup(self, event):
         population = self.population_view.get(event.index)
         max_age = float(self.config.exit_age)
-        pop = population[(population['age'] >= max_age) & (population['tracked'] == True)].copy()
+        pop = population[(population['age'] >= max_age) & population['tracked']].copy()
         if len(pop) > 0:
             pop['tracked'] = pd.Series(False, index=pop.index)
             pop['exit_time'] = event.time
@@ -259,10 +254,6 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
         Table with same columns as `simulants` and with the additional columns 'age', 'sex',  and 'location'.
     """
     pop_data = rescale_binned_proportions(pop_data, age_start, age_end)
-    pop_data['sex'] = pop_data['sex'].astype(
-        pd.api.types.CategoricalDtype(['Male', 'Female', 'Both'], ordered=False)
-    )
-
     if pop_data.empty:
         raise ValueError(
             'The age range ({}, {}) is not represented by the population data structure'.format(age_start, age_end))
@@ -276,7 +267,7 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     simulants['age'] = choices.loc[decisions, 'age'].values
     simulants['sex'] = choices.loc[decisions, 'sex'].values
     simulants['location'] = choices.loc[decisions, 'location'].values
-    simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing'])
+    simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing_age_bounds'])
     register_simulants(simulants[['entrance_time', 'age']])
     return simulants
 
@@ -306,9 +297,3 @@ def _build_population_data_table(data):
     """
     return assign_demographic_proportions(data)
 
-
-def load_population_structure(builder):
-    data = builder.data.load("population.structure", future=builder.configuration.input_data.forecast)
-    # create an age column which is the midpoint of the age group
-    data['age'] = data.apply(lambda row: (row['age_group_start'] + row['age_group_end']) / 2, axis=1)
-    return data

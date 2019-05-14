@@ -49,7 +49,7 @@ def test_general_access(base_config, base_plugins):
     metrics = Metrics()
     simulation = initialize_simulation([TestPopulation(), metrics, HealthcareAccess()],
                                        input_config=base_config, plugin_config=base_plugins)
-    simulation.data.write("healthcare_entity.outpatient_visits.annual_visits",
+    simulation.data.write("healthcare_entity.outpatient_visits.utilization",
                           build_table(annual_rate, year_start, year_end, ['age', 'year', 'sex', 'annual_visits']))
     simulation.setup()
 

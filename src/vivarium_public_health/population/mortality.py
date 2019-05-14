@@ -9,8 +9,7 @@ from .data_transformations import get_cause_deleted_mortality
 class Mortality:
 
     def setup(self, builder):
-        self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality",
-                                                           future=builder.configuration.input_data.forecast)
+        self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")
         self._cause_deleted_mortality_data = None
 
         self._root_location = builder.configuration.input_data.location
@@ -26,7 +25,6 @@ class Mortality:
         self.death_emitter = builder.event.get_emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')
         self.clock = builder.time.clock()
-        builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
         self.population_view = builder.population.get_view(
             ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location', 'years_of_life_lost'])
@@ -38,8 +36,7 @@ class Mortality:
         if self._cause_deleted_mortality_data is None:
             csmr_data = self.csmr()
             cause_deleted_mr = get_cause_deleted_mortality(self._all_cause_mortality_data, csmr_data)
-            self._cause_deleted_mortality_data = self._build_lookup_handle(
-                cause_deleted_mr)
+            self._cause_deleted_mortality_data = self._build_lookup_handle(cause_deleted_mr)
 
         return self._cause_deleted_mortality_data(index)
 
@@ -56,31 +53,8 @@ class Mortality:
 
         if not dead_pop.empty:
             dead_pop['alive'] = pd.Series('dead', index=dead_pop.index)
-
             dead_pop['exit_time'] = event.time
-
             dead_pop['years_of_life_lost'] = self.life_expectancy(dead_pop.index)
-
             self.death_emitter(event.split(dead_pop.index))
-
             self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death', 'years_of_life_lost']])
 
-    def metrics(self, index, metrics):
-        population = self.population_view.get(index)
-        the_living = population[population.alive == 'alive']
-        the_dead = population[population.alive == 'dead']
-        metrics['years_of_life_lost'] = self.life_expectancy(the_dead.index).sum()
-        metrics['total_population__living'] = len(the_living)
-        metrics['total_population__dead'] = len(the_dead)
-
-        for (condition, count) in pd.value_counts(the_dead.cause_of_death).to_dict().items():
-            metrics['death_due_to_{}'.format(condition)] = count
-
-        return metrics
-
-    @property
-    def name(self):
-        return "Mortality"
-
-    def __repr__(self):
-        return "Mortality()"

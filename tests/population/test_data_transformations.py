@@ -1,4 +1,3 @@
-from itertools import product
 import math
 
 import numpy as np
@@ -11,8 +10,6 @@ import vivarium_public_health.population.data_transformations as dt
 
 def test_assign_demographic_proportions():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
-
-    assert pop_data[pop_data.sex == 'Both'].empty
 
     assert np.allclose(pop_data['P(sex, location, age| year)'], len(pop_data.year_start.unique()) / len(pop_data))
     assert np.allclose(
