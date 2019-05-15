@@ -15,6 +15,7 @@ class SampleHistory:
     }
 
     def __init__(self):
+        self.name = f'sample_history_observer'
         self.sample_frames = {}
         self.sample_index = []
 
