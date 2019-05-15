@@ -12,7 +12,8 @@ class MissingDataError(Exception):
 
 class EnsembleSimulation:
 
-    def __init__(self, weights, mean, sd):
+    def __init__(self, risk, weights, mean, sd):
+        self.name = f'ensemble_simulation.{risk}'
         self._weights, self._parameters = self._get_parameters(weights, mean, sd)
 
     def setup(self, builder):
@@ -41,9 +42,13 @@ class EnsembleSimulation:
             x = pd.Series([])
         return x
 
+    def __repr__(self):
+        return f'EnsembleSimulation(risk={self.risk}, weights, mean, sd)'
+
 
 class SimulationDistribution:
-    def __init__(self, mean, sd, distribution=None):
+    def __init__(self, risk, mean, sd, distribution=None):
+        self.name = f'simulation_distribution.{risk}'
         self.distribution = distribution
         self._parameters = self._get_parameters(mean, sd)
 
@@ -64,17 +69,13 @@ class SimulationDistribution:
             x = pd.Series([])
         return x
 
-    @property
-    def name(self):
-        param_string = ".".join(map(lambda p: f"{p[0]}:{p[1]}", self._parameters.items()))
-        return f"SimulationDistribution.{self.distribution}.{param_string}"
-
     def __repr__(self):
-        return f"SimulationDistribution(distribution= {self.distribution}, parameters={self._parameters}"
+        return f"SimulationDistribution(risk={self.risk}, mean={self.mean}, sd={self.sd})"
 
 
 class PolytomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
+        self.name = f'polytomous_distribution.{risk}'
         self.risk = risk
         self.exposure_data = exposure_data
         self.categories = sorted([column for column in self.exposure_data if 'cat' in column],
@@ -93,19 +94,16 @@ class PolytomousDistribution:
         category_index = (exposure_sum.T < x).T.sum('columns')
         return pd.Series(np.array(self.categories)[category_index], name=self.risk + '_exposure', index=x.index)
 
-    @property
-    def name(self):
-        return f"PolytomousDistribution.{self._risk}"
-
     def __str__(self):
-        return f"PolytomousDistribution(risk= {self._risk}, categories= {self.categories}"
+        return f"PolytomousDistribution(risk= {self.risk}, categories= {self.categories}"
 
     def __repr__(self):
-        return f"PolytomousDistribution(exposure_data, risk= {self._risk}"
+        return f"PolytomousDistribution(risk= {self.risk}, exposure_data)"
 
 
 class DichotomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
+        self.name = f'dichotomous_distribution.{risk}'
         self.risk = risk
         self.exposure_data = exposure_data.drop('cat2', axis=1)
 
@@ -125,76 +123,10 @@ class DichotomousDistribution:
 
     def ppf(self, x):
         exposed = x < self.exposure_proportion(x.index)
-<<<<<<< HEAD
-
-        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self._risk + '_exposure', index=x.index)
-
-    @property
-    def name(self):
-        return f"DichotomousDistribution.{self._risk}"
+        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self.risk + '_exposure', index=x.index)
 
     def __repr__(self):
-        return f"DichotomousDistribution(exposure_data, risk= {self._risk}"
-
-
-class RebinPolytomousDistribution(DichotomousDistribution):
-    pass
-
-
-def get_distribution(risk: str, distribution_type: str, exposure_data: pd.DataFrame, **data):
-
-    if distribution_type == "dichotomous":
-        exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
-        distribution = DichotomousDistribution(exposure_data, risk)
-
-    elif distribution_type == 'polytomous':
-        SPECIAL = ['unsafe_water_source', 'low_birth_weight_and_short_gestation']
-        rebin = should_rebin(risk, data['configuration'])
-
-        if rebin and risk in SPECIAL:
-            raise NotImplementedError(f'{risk} cannot be rebinned at this point')
-
-        if rebin:
-            exposure_data = rebin_exposure_data(exposure_data)
-            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
-            distribution = RebinPolytomousDistribution(exposure_data, risk)
-        else:
-            exposure_data = pivot_age_sex_year_binned(exposure_data, 'parameter', 'value')
-            distribution = PolytomousDistribution(exposure_data, risk)
-
-    elif distribution_type in ['normal', 'lognormal', 'ensemble']:
-        exposure_sd = data['exposure_standard_deviation']
-        exposure_data = exposure_data.rename(index=str, columns={"value": "mean"})
-        exposure_sd = exposure_sd.rename(index=str, columns={"value": "standard_deviation"})
-
-        # merge to make sure we have matching mean and standard deviation
-        exposure = exposure_data.merge(exposure_sd).set_index(['year_start', 'year_end',
-                                                               'age_group_start', 'age_group_end', 'sex'])
-
-        if distribution_type == 'normal':
-            distribution = SimulationDistribution(mean=exposure['mean'], sd=exposure['standard_deviation'],
-                                                  distribution=risk_distributions.Normal)
-
-        elif distribution_type == 'lognormal':
-            distribution = SimulationDistribution(mean=exposure['mean'], sd=exposure['standard_deviation'],
-                                                  distribution=risk_distributions.LogNormal)
-
-        else:
-            weights = data['weights']
-
-            if risk == 'high_ldl_cholesterol':
-                weights = weights.drop('invgamma', axis=1)
-
-            if 'invweibull' in weights.columns and np.all(weights['invweibull'] < 0.05):
-                weights = weights.drop('invweibull', axis=1)
-
-            # weight is all same across the demo groups
-            e_weights = weights.head(1)
-
-            distribution = EnsembleSimulation(e_weights, mean=exposure['mean'], sd=exposure['standard_deviation'])
-
-=======
-        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self.risk + '_exposure', index=x.index)
+        return f"DichotomousDistribution(risk={self.risk})"
 
 
 def get_distribution(risk, distribution_type, exposure, exposure_standard_deviation, weights):
@@ -203,14 +135,14 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
     elif 'polytomous' in distribution_type:
         distribution = PolytomousDistribution(risk, exposure)
     elif distribution_type == 'normal':
-        distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
+        distribution = SimulationDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
                                               distribution=Normal)
     elif distribution_type == 'lognormal':
-        distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
+        distribution = SimulationDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
                                               distribution=LogNormal)
     elif distribution_type == 'ensemble':
-        distribution = EnsembleSimulation(weights, mean=exposure, sd=exposure_standard_deviation,)
->>>>>>> develop
+        distribution = EnsembleSimulation(risk, weights, mean=exposure, sd=exposure_standard_deviation,)
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
     return distribution
+

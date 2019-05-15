@@ -62,6 +62,7 @@ class Risk:
         risk :
             the type and name of a risk, specified as "type.name". Type is singular.
         """
+        self.name = f'risk.{risk}'
         self.risk = EntityString(risk)
         self.configuration_defaults = {f'{self.risk.name}': Risk.configuration_defaults['risk']}
 
