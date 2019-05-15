@@ -18,6 +18,9 @@ class BasePopulation:
         }
     }
 
+    def __init__(self):
+        self.name = 'base_population'
+
     def setup(self, builder):
         self.config = builder.configuration.population
         input_config = builder.configuration.input_data
@@ -98,10 +101,6 @@ class BasePopulation:
         population['age'] += step_size / SECONDS_PER_YEAR
         self.population_view.update(population)
 
-    @property
-    def name(self):
-        return "BasePopulation"
-
     def __repr__(self):
         # TODO: Make a __str__ with some info about relevant config settings?
         return "BasePopulation()"
@@ -109,6 +108,9 @@ class BasePopulation:
 
 class AgeOutSimulants:
     """Component for handling aged-out simulants"""
+
+    def __init__(self):
+        self.name = "age_out_simulants"
 
     def setup(self, builder):
         self.config = builder.configuration.population
@@ -124,12 +126,8 @@ class AgeOutSimulants:
             pop['exit_time'] = event.time
             self.population_view.update(pop)
 
-    @property
-    def name(self):
-        return "AgedOutSimulants"
-
     def __repr__(self):
-        return "AgedOutSimulants()"
+        return "AgeOutSimulants()"
 
 
 def generate_population(simulant_ids, creation_time, step_size, age_params,
