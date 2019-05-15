@@ -13,6 +13,7 @@ np.random.seed(100)
 
 class Metrics:
     def __init__(self):
+        self.name = 'test_metrics'
         self.access_count = 0
 
     def setup(self, builder):
