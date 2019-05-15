@@ -63,6 +63,9 @@ class ArtifactManager:
         }
     }
 
+    def __init__(self):
+        self.name = "artifact_manager"
+
     def setup(self, builder: Builder):
         """Performs this component's simulation setup."""
         # because not all columns are accessible via artifact filter terms, apply config filters separately
