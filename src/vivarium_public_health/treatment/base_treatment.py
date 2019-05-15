@@ -7,7 +7,7 @@ from vivarium.framework.components import ComponentConfigError
 class Treatment:
 
     def __init__(self, name, cause):
-        self.name = name
+        self.name = f'treatment.{name}.{cause}'
         self.cause = cause
         self.treatment_effects = []
 
@@ -130,10 +130,6 @@ class Treatment:
         protection = self.determine_protection(population)
         rates.loc[population.index] *= (1-protection.values)
         return rates
-
-    @property
-    def name(self):
-        return f"Treatment.{self.name}.{self.cause}"
 
     def __repr__(self):
         # TODO: What goes in the treatment effects list? Is it pretty-printable in a __str__?
