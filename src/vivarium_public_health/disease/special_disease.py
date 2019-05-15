@@ -75,6 +75,7 @@ class RiskAttributableDisease:
     }
 
     def __init__(self, cause, risk):
+        self.name = f'risk_attributable_disease.{cause}.{risk}'
         self.cause = EntityString(cause)
         self.risk = EntityString(risk)
         self.state_column = self.cause.name

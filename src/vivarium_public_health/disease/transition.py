@@ -7,7 +7,7 @@ from vivarium.framework.values import list_combiner, joint_value_post_processor
 
 class RateTransition(Transition):
     def __init__(self, input_state, output_state, get_data_functions=None, **kwargs):
-        super().__init__(input_state, output_state, probability_func=self._probability, **kwargs)
+        super().__init__(input_state, output_state, probability_func=self._probability, key='rate_transition', **kwargs)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
@@ -45,7 +45,8 @@ class RateTransition(Transition):
 
 class ProportionTransition(Transition):
     def __init__(self, input_state, output_state, get_data_functions=None, **kwargs):
-        super().__init__(input_state, output_state, probability_func=self._probability, **kwargs)
+        super().__init__(input_state, output_state, probability_func=self._probability,
+                         key='proportion_transition', **kwargs)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
