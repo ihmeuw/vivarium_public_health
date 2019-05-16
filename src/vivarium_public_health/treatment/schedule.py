@@ -7,6 +7,7 @@ class TreatmentSchedule:
 
     def __init__(self, name):
         self.name = f'treatment_schedule.{name}'
+        self.treatment_name = name
         self._schedule = pd.DataFrame()
 
     def setup(self, builder):
@@ -17,10 +18,10 @@ class TreatmentSchedule:
                                              parameter_columns=[('year', 'year_start', 'year_end')])
             for dose, dose_coverage in coverages.items()
         }
-        self.doses = builder.configuration[self.name].doses
-        self.dose_ages = builder.configuration[self.name].dose_age_range.to_dict()
+        self.doses = builder.configuration[self.treatment_name].doses
+        self.dose_ages = builder.configuration[self.treatment_name].dose_age_range.to_dict()
 
-        self.randomness = builder.randomness.get_stream(f'{self.name}_dosing')
+        self.randomness = builder.randomness.get_stream(f'{self.treatment_name}_dosing')
         self.population_view = builder.population.get_view(['age'])
         builder.population.initializes_simulants(self.add_simulants, requires_columns=['age'])
 
@@ -93,7 +94,7 @@ class TreatmentSchedule:
 
     def get_newly_dosed_simulants(self, dose, population, step_size):
         eligible_pop = population[(self._schedule.loc[population.index, dose]) &
-                                  (population[f'{self.name}_current_dose'] != dose)]
+                                  (population[f'{self.treatment_name}_current_dose'] != dose)]
         dose_age = self._schedule.loc[eligible_pop.index, f'{dose}_age']
 
         time_to_dose = eligible_pop.age * 365 + step_size.days - dose_age
@@ -101,4 +102,4 @@ class TreatmentSchedule:
         return eligible_pop[correct_age]
 
     def __repr__(self):
-        return f"TreatmentSchedule(name= {self.name})"
+        return f"TreatmentSchedule(name= {self.treatment_name})"

@@ -8,15 +8,16 @@ class Treatment:
 
     def __init__(self, name, cause):
         self.name = f'treatment.{name}.{cause}'
+        self.treatment_name = name
         self.cause = cause
         self.treatment_effects = []
 
     def setup(self, builder):
         builder.components.add_components(self.treatment_effects)
-        if self.name not in builder.configuration:
-            raise ComponentConfigError(f'No configuration found for {self.name}')
+        if self.treatment_name not in builder.configuration:
+            raise ComponentConfigError(f'No configuration found for {self.treatment_name}')
 
-        self.config = builder.configuration[self.name]
+        self.config = builder.configuration[self.treatment_name]
         self.dose_response = dict(
             onset_delay=pd.to_timedelta(self.config.dose_response.onset_delay, unit='D'),
             duration=pd.to_timedelta(self.config.dose_response.duration, unit='D'),
@@ -27,10 +28,10 @@ class Treatment:
         builder.value.register_value_modifier(f'{self.cause}.incidence_rate',
                                               modifier=self.incidence_rates)
 
-        columns = [f'{self.name}_current_dose',
-                   f'{self.name}_current_dose_event_time',
-                   f'{self.name}_previous_dose',
-                   f'{self.name}_previous_dose_event_time']
+        columns = [f'{self.treatment_name}_current_dose',
+                   f'{self.treatment_name}_current_dose_event_time',
+                   f'{self.treatment_name}_previous_dose',
+                   f'{self.treatment_name}_previous_dose_event_time']
         self.population_view = builder.population.get_view(['alive']+columns)
 
         self.clock = builder.time.clock()
@@ -43,13 +44,13 @@ class Treatment:
         raise NotImplementedError('You must supply an implementation of get_protection')
 
     def _get_dosing_status(self, population):
-        received_current_dose = population[f'{self.name}_current_dose'].notnull()
-        current_dose_full_immunity_start = (population[f'{self.name}_current_dose_event_time']
+        received_current_dose = population[f'{self.treatment_name}_current_dose'].notnull()
+        current_dose_full_immunity_start = (population[f'{self.treatment_name}_current_dose_event_time']
                                             + self.dose_response['onset_delay'])
         current_dose_giving_immunity = received_current_dose & (current_dose_full_immunity_start <= self.clock())
 
-        received_previous_dose = population[f'{self.name}_previous_dose'].notna()
-        previous_dose_full_immunity_start = (population[f'{self.name}_previous_dose_event_time']
+        received_previous_dose = population[f'{self.treatment_name}_previous_dose'].notna()
+        previous_dose_full_immunity_start = (population[f'{self.treatment_name}_previous_dose_event_time']
                                              + self.dose_response['onset_delay'])
         previous_dose_giving_immunity = (received_previous_dose
                                          & (previous_dose_full_immunity_start <= self.clock())
@@ -58,13 +59,13 @@ class Treatment:
         dosing_status = pd.DataFrame({'dose': None, 'date': pd.NaT}, index=population.index)
         #  not sure why, but pandas doesn't save the sliced data for two columns at the same time
         dosing_status.loc[current_dose_giving_immunity, 'dose'] = population.loc[
-            current_dose_giving_immunity, f'{self.name}_current_dose']
+            current_dose_giving_immunity, f'{self.treatment_name}_current_dose']
         dosing_status.loc[current_dose_giving_immunity, 'date'] = population.loc[
-            current_dose_giving_immunity, f'{self.name}_current_dose_event_time']
+            current_dose_giving_immunity, f'{self.treatment_name}_current_dose_event_time']
         dosing_status.loc[previous_dose_giving_immunity, 'dose'] = population.loc[
-            previous_dose_giving_immunity, f'{self.name}_previous_dose']
+            previous_dose_giving_immunity, f'{self.treatment_name}_previous_dose']
         dosing_status.loc[previous_dose_giving_immunity, 'date'] = population.loc[
-            previous_dose_giving_immunity, f'{self.name}_previous_dose_event_time']
+            previous_dose_giving_immunity, f'{self.treatment_name}_previous_dose_event_time']
 
         return dosing_status
 
@@ -133,4 +134,4 @@ class Treatment:
 
     def __repr__(self):
         # TODO: What goes in the treatment effects list? Is it pretty-printable in a __str__?
-        return f"Treatment(name = {self.name}, cause={self.cause})"
+        return f"Treatment(name = {self.treatment_name}, cause={self.cause})"

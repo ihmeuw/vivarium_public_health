@@ -150,7 +150,7 @@ def test_get_newly_dosed_simulants(treatment_schedule):
     tx = treatment_schedule
     age = 59.3
     pop = pd.DataFrame({'age': population_size * [age/365]})
-    pop[f'{tx.name}_current_dose'] = None
+    pop[f'{tx.treatment_name}_current_dose'] = None
     schedule = {dose: False for dose in tx.doses}
     schedule.update({f'{dose}_age': np.NaN for dose in tx.doses})
     tx._schedule = pd.DataFrame(schedule, index=pop.index)
