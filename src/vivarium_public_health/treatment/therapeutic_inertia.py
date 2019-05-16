@@ -15,8 +15,10 @@ class TherapeuticInertia:
         }
     }
 
-    def setup(self, builder):
+    def __init__(self):
         self.name = 'therapeutic_inertia'
+
+    def setup(self, builder):
         self.therapeutic_inertia_parameters = builder.configuration.therapeutic_inertia
 
         self.randomness = builder.randomness.get_stream(self.name)
