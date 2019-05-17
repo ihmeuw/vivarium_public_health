@@ -150,7 +150,7 @@ def test_get_newly_dosed_simulants(treatment_schedule):
     tx = treatment_schedule
     age = 59.3
     pop = pd.DataFrame({'age': population_size * [age/365]})
-    pop[f'{tx.name}_current_dose'] = None
+    pop[f'{tx.treatment_name}_current_dose'] = None
     schedule = {dose: False for dose in tx.doses}
     schedule.update({f'{dose}_age': np.NaN for dose in tx.doses})
     tx._schedule = pd.DataFrame(schedule, index=pop.index)
@@ -173,25 +173,25 @@ def test_get_newly_dosed_simulants(treatment_schedule):
 
     # current age = 59.3 days
     assert np.array_equal(pop[tx._schedule.first_age == 60], tx.get_newly_dosed_simulants('first', pop, step_size))
-    pop.loc[tx._schedule.first_age == 60, f'{tx.name}_current_dose'] = 'first'  # update the current dose
+    pop.loc[tx._schedule.first_age == 60, f'{tx.treatment_name}_current_dose'] = 'first'  # update the current dose
 
     # current age = 74.3 days
     age = 74.3  # days
     pop['age'] = age/365
 
     assert np.array_equal(pop[tx._schedule.first_age == 75], tx.get_newly_dosed_simulants('first', pop, step_size))
-    pop.loc[tx._schedule.first_age == 75, f'{tx.name}_current_dose'] = 'first'  # update the current dose
+    pop.loc[tx._schedule.first_age == 75, f'{tx.treatment_name}_current_dose'] = 'first'  # update the current dose
 
     # current age = 89.3 days
     age = 89.3  # days
     pop['age'] = age/365
 
     assert np.array_equal(pop[tx._schedule.first_age == 90], tx.get_newly_dosed_simulants('first', pop, step_size))
-    pop.loc[tx._schedule.first_age == 90, f'{tx.name}_current_dose'] = 'first'  # update the current dose
+    pop.loc[tx._schedule.first_age == 90, f'{tx.treatment_name}_current_dose'] = 'first'  # update the current dose
 
     # current age =179.3 days, ready for second dose
     age = 179.3  # days
     pop['age'] = age / 365
 
     assert np.array_equal(pop[tx._schedule.second == True], tx.get_newly_dosed_simulants('second', pop, step_size))
-    pop.loc[tx._schedule.second == True, f'{tx.name}_current_dose'] = 'second'  # update the current dose
+    pop.loc[tx._schedule.second == True, f'{tx.treatment_name}_current_dose'] = 'second'  # update the current dose

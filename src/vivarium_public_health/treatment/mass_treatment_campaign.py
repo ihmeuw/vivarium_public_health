@@ -53,7 +53,9 @@ class MassTreatmentCampaign:
     }
 
     def __init__(self, treatment_name, etiology):
+        self.name = f'mass_treatment_campaign.{treatment_name}.{etiology}'
         self.treatment_name = treatment_name
+        self.etiology = etiology
         self.configuration_defaults = {treatment_name: MassTreatmentCampaign.configuration_defaults['treatment']}
         self.treatment = Treatment(treatment_name, etiology)
         self.schedule = TreatmentSchedule(treatment_name)
@@ -63,10 +65,10 @@ class MassTreatmentCampaign:
         self.config = builder.configuration[self.treatment_name]
         self.clock = builder.time.clock()
 
-        columns = [f'{self.treatment.name}_current_dose',
-                   f'{self.treatment.name}_current_dose_event_time',
-                   f'{self.treatment.name}_previous_dose',
-                   f'{self.treatment.name}_previous_dose_event_time']
+        columns = [f'{self.treatment.treatment_name}_current_dose',
+                   f'{self.treatment.treatment_name}_current_dose_event_time',
+                   f'{self.treatment.treatment_name}_previous_dose',
+                   f'{self.treatment.treatment_name}_previous_dose_event_time']
         self.population_view = builder.population.get_view(['age', 'alive']+columns)
         builder.population.initializes_simulants(self.load_population_columns, creates_columns=columns)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
@@ -84,10 +86,10 @@ class MassTreatmentCampaign:
             - unless there's fertility or migration, it only happens once at the beginning of simulation
         """
         self.population_view.update(pd.DataFrame({
-            f'{self.treatment.name}_current_dose': None,
-            f'{self.treatment.name}_current_dose_event_time': pd.NaT,
-            f'{self.treatment.name}_previous_dose': None,
-            f'{self.treatment.name}_previous_dose_event_time': pd.NaT,
+            f'{self.treatment.treatment_name}_current_dose': None,
+            f'{self.treatment.treatment_name}_current_dose_event_time': pd.NaT,
+            f'{self.treatment.treatment_name}_previous_dose': None,
+            f'{self.treatment.treatment_name}_previous_dose_event_time': pd.NaT,
         }, index=event.index))
 
     def administer_treatment(self, event):
@@ -95,21 +97,24 @@ class MassTreatmentCampaign:
         for dose in self.schedule.doses:
             dosed_population = self.schedule.get_newly_dosed_simulants(dose, population, event.step_size)
 
-            dosed_population[f'{self.treatment.name}_previous_dose'] = dosed_population[
-                f'{self.treatment.name}_current_dose']
-            dosed_population[f'{self.treatment.name}_previous_dose_event_time'] = dosed_population[
-                f'{self.treatment.name}_current_dose_event_time']
+            dosed_population[f'{self.treatment.treatment_name}_previous_dose'] = dosed_population[
+                f'{self.treatment.treatment_name}_current_dose']
+            dosed_population[f'{self.treatment.treatment_name}_previous_dose_event_time'] = dosed_population[
+                f'{self.treatment.treatment_name}_current_dose_event_time']
 
-            dosed_population[f'{self.treatment.name}_current_dose'] = dose
-            dosed_population[f'{self.treatment.name}_current_dose_event_time'] = event.time
+            dosed_population[f'{self.treatment.treatment_name}_current_dose'] = dose
+            dosed_population[f'{self.treatment.treatment_name}_current_dose_event_time'] = event.time
 
             self.population_view.update(dosed_population)
 
     def metrics(self, index, metrics):
         population = self.population_view.get(index)
-        current_dose = population[f'{self.treatment.name}_current_dose'].value_counts().to_dict()
-        previous_dose = population[f'{self.treatment.name}_previous_dose'].value_counts().to_dict()
+        current_dose = population[f'{self.treatment.treatment_name}_current_dose'].value_counts().to_dict()
+        previous_dose = population[f'{self.treatment.treatment_name}_previous_dose'].value_counts().to_dict()
         for dose in self.schedule.doses:
-            metrics[f'{self.treatment.name}_{dose}_dose_current_count'] = current_dose.get(dose)
-            metrics[f'{self.treatment.name}_{dose}_dose_previous_count'] = previous_dose.get(dose)
+            metrics[f'{self.treatment.treatment_name}_{dose}_dose_current_count'] = current_dose.get(dose)
+            metrics[f'{self.treatment.treatment_name}_{dose}_dose_previous_count'] = previous_dose.get(dose)
         return metrics
+
+    def __repr__(self):
+        return f"MassTreatmentCampaign(treatment_name= {self.treatment_name}, etiology= {self.etiology})"

@@ -15,8 +15,10 @@ class TherapeuticInertia:
         }
     }
 
-    def setup(self, builder):
+    def __init__(self):
         self.name = 'therapeutic_inertia'
+
+    def setup(self, builder):
         self.therapeutic_inertia_parameters = builder.configuration.therapeutic_inertia
 
         self.randomness = builder.randomness.get_stream(self.name)
@@ -42,3 +44,11 @@ class TherapeuticInertia:
         therapeutic_inertia = scipy.stats.triang(c, loc=loc, scale=scale).rvs(random_state=seed)
 
         return therapeutic_inertia
+
+    def __str__(self):
+        return (f'TherapeuticInertia(triangle_min={self.therapeutic_inertia_parameters.triangle_min}, '
+                f'triangle_max={self.therapeutic_inertia_parameters.triangle_max}, '
+                f'triangle_mode={self.therapeutic_inertia_parameters.triangle_mode})')
+
+    def __repr__(self):
+        return 'TherapeuticInertia()'
