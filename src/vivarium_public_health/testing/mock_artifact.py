@@ -89,6 +89,7 @@ class MockArtifact():
 class MockArtifactManager(ArtifactManager):
 
     def __init__(self):
+        self.name = 'mock_artifact_manager'
         self.artifact = self._load_artifact(None)
 
     def setup(self, builder):
