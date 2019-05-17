@@ -99,6 +99,9 @@ class DelayedRisk:
         """
         self.config = builder.configuration
 
+        self.start_year = builder.configuration.time.start.year
+        self.clock = builder.time.clock()
+
         # Determine whether smoking prevalence should change over time.
         # The alternative scenario is that there is no remission; all people
         # who begin smoking will continue to smoke.
@@ -275,6 +278,9 @@ class DelayedRisk:
         - Cessation of exposure; and
         - Increased duration of time since exposure.
         """
+        if self.clock().year == self.start_year:
+            return
+
         pop = self.population_view.get(event.index)
         if pop.empty:
             return
