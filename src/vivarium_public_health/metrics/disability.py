@@ -91,6 +91,9 @@ class Disability:
         metrics.update(self.years_lived_with_disability)
         return metrics
 
+    def __repr__(self):
+        return "Disability()"
+
 
 def _disability_post_processor(value, step_size):
     return rescale_post_processor(joint_value_post_processor(value, step_size), step_size)

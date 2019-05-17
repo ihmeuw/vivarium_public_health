@@ -80,3 +80,6 @@ class PopulationObserver:
     def metrics(self, index, metrics):
         metrics.update(self.population)
         return metrics
+
+    def __repr__(self):
+        return "PopulationObserver()"

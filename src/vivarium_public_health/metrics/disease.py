@@ -50,7 +50,7 @@ class DiseaseObserver:
 
     def __init__(self, disease: str):
         self.disease = disease
-        self.name = f'{self.disease}_observer'
+        self.name = f'disease_observer.{self.disease}'
         self.configuration_defaults = {
             'metrics': {self.name: DiseaseObserver.configuration_defaults['metrics']['disease_observer']}
         }
@@ -105,3 +105,6 @@ class DiseaseObserver:
         metrics.update(self.person_time)
         metrics.update(self.prevalence)
         return metrics
+
+    def __repr__(self):
+        return "DiseaseObserver()"

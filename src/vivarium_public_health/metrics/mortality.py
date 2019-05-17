@@ -79,3 +79,6 @@ class MortalityObserver:
         metrics['total_population_dead'] = len(the_dead)
 
         return metrics
+
+    def __repr__(self):
+        return "MortalityObserver()"

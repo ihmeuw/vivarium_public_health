@@ -2,6 +2,10 @@ from code import interact
 
 
 class Inspector:
+
+    def __init__(self):
+        self.name = 'inspector'
+
     def setup(self, builder):
         self.population_view = builder.population.get_view()
         builder.event.register_listener('collect_metrics', self.inspect)
@@ -13,3 +17,6 @@ class Inspector:
             To stop the simulation use 'exit()'.
             To continue to the next time step use 'Ctrl-D' ('Ctrl-Z' on Windows).
     """.format(event.time), local={'population': self.population_view.get(event.index)})
+
+    def __repr__(self):
+        return "Inspector()"
