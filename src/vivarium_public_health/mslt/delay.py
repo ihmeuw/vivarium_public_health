@@ -232,7 +232,7 @@ class DelayedRisk:
         # Set all bins to zero, in order to create the required columns.
         pop = pd.DataFrame({}, index=pop_data.index)
         for column in self.get_bin_names():
-            pop[column] = 0
+            pop[column] = 0.0
 
         # Update the life table, so that we can then obtain a view that
         # includes the population counts.
