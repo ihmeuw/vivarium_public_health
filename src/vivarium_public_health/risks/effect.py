@@ -42,6 +42,7 @@ class RiskEffect:
             supplied in the form "entity_type.entity_name.measure"
             where entity_type should be singular (e.g., cause instead of causes).
         """
+        self.name = f'risk_effect.{risk}.{target}'
         self.risk = EntityString(risk)
         self.target = TargetString(target)
         self.configuration_defaults = {
@@ -66,3 +67,4 @@ class RiskEffect:
 
     def adjust_target(self, index, target):
         return self.exposure_effect(target, self.relative_risk(index))
+
