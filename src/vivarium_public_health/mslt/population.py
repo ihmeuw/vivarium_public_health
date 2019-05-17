@@ -54,12 +54,16 @@ class BasePopulation:
 
         self.max_age = builder.configuration.population.max_age
 
+        self.start_year = builder.configuration.time.start.year
+        self.clock = builder.time.clock()
+
         # Track all of the quantities that exist in the core spreadsheet table.
         columns = reqd_cols + zero_cols
         builder.population.initializes_simulants(self.on_initialize_simulants, creates_columns=columns)
         self.population_view = builder.population.get_view(columns + ['tracked'])
 
-        builder.event.register_listener('time_step', self.on_time_step)
+        # Age cohorts before each time-step (except the first time-step).
+        builder.event.register_listener('time_step__prepare', self.on_time_step)
 
     def on_initialize_simulants(self, _):
         """Initialize each cohort."""
@@ -68,7 +72,9 @@ class BasePopulation:
     def on_time_step(self, event):
         """Remove cohorts that have reached the maximum age."""
         pop = self.population_view.get(event.index, query='tracked == True')
-        pop['age'] += 1
+        # Only increase cohort ages after the first time-step.
+        if self.clock().year > self.start_year:
+            pop['age'] += 1
         pop.loc[pop.age > self.max_age, 'tracked'] = False
         self.population_view.update(pop)
 
