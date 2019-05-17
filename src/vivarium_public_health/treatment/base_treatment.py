@@ -133,5 +133,4 @@ class Treatment:
         return rates
 
     def __repr__(self):
-        # TODO: What goes in the treatment effects list? Is it pretty-printable in a __str__?
         return f"Treatment(name = {self.treatment_name}, cause={self.cause})"
