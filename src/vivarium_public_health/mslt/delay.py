@@ -285,7 +285,7 @@ class DelayedRisk:
         if pop.empty:
             return
         idx = pop.index
-        acmr = self.acm_rate(idx)
+        bau_acmr = self.acm_rate.source(idx)
         inc_rate = self.incidence(idx)
         rem_rate = self.remission(idx)
         int_inc_rate = self.int_incidence(idx)
@@ -296,13 +296,58 @@ class DelayedRisk:
             rem_rate = 0.0
             int_rem_rate = 0.0
 
-        # Calculate the survival rate for each bin.
+        # Identify the relevant columns for the BAU and intervention.
         bin_cols = self.get_bin_names()
-        base_surv_rate = (1 - acmr)
-        surv_rate = self.mortality_rr(idx).rpow(base_surv_rate, axis=0)
+        bau_prefix = '{}.'.format(self.name)
+        int_prefix = '{}_intervention.'.format(self.name)
+        bau_cols = [c for c in bin_cols if c.startswith(bau_prefix)]
+        int_cols = [c for c in bin_cols if c.startswith(int_prefix)]
 
-        # Account for mortality in each bin.
-        pop.loc[:, bin_cols] = pop.loc[:, bin_cols].mul(surv_rate[bin_cols])
+        # Extract the RR of mortality associated with each exposure level.
+        mort_rr = self.mortality_rr(idx)
+
+        # Normalise the survival rate; never-smokers should have a mortality
+        # rate that is lower than the ACMR, since current-smokers and
+        # previous-smokers have higher RRs of mortality.
+        weight_by_initial_prevalence = True
+        if weight_by_initial_prevalence:
+            # Load the initial exposure distribution, because it will be used
+            # to adjust the ACMR.
+            prev = self.initial_prevalence(pop.index)
+            prev = prev.loc[:, bau_cols]
+            # Multiply these fractions by the RR of mortality associated with
+            # each exposure level.
+            bau_wtd_rr = prev.mul(mort_rr.loc[:, bau_cols])
+        else:
+            # Calculate the fraction of the population in each exposure level.
+            bau_popn = pop.loc[:, bau_cols].sum(axis=1)
+            bau_prev = pop.loc[:, bau_cols].divide(bau_popn, axis=0)
+            # Multiply these fractions by the RR of mortality associated with
+            # each exposure level.
+            bau_wtd_rr = bau_prev.mul(mort_rr.loc[:, bau_cols])
+
+        # Sum these terms to obtain the net RR of mortality.
+        bau_net_rr = bau_wtd_rr.sum(axis=1)
+        # The mortality rate for never-smokers is the population ACMR divided
+        # by this net RR of mortality.
+        bau_acmr_no = bau_acmr.divide(bau_net_rr)
+
+        # Calculate the mortality risk for non-smokers.
+        bau_surv_no = 1 - np.exp(- bau_acmr_no)
+        # Calculate the survival probability for each exposure level:
+        #     (1 - mort_risk_non_smokers)^RR
+        bau_surv_rate = mort_rr.loc[:, bau_cols].rpow(1 - bau_surv_no, axis=0)
+        # Calculate the number of survivors for each exposure level (BAU).
+        pop.loc[:, bau_cols] = pop.loc[:, bau_cols].mul(bau_surv_rate)
+
+        # Calculate the number of survivors for each exposure level
+        # (intervention).
+        # NOTE: we apply the same survival rate to each exposure level for
+        # the intervention scenario as we used for the BAU scenario.
+        rename_to = {c: c.replace('.', '_intervention.')
+                     for c in bau_surv_rate.columns}
+        int_surv_rate = bau_surv_rate.rename(columns=rename_to)
+        pop.loc[:, int_cols] = pop.loc[:, int_cols].mul(int_surv_rate)
 
         # Account for transitions between bins.
         # Note that the order of evaluation matters.
