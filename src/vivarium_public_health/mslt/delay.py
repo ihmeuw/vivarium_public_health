@@ -1,5 +1,6 @@
 """Provide components to represent delayed effects."""
 import pandas as pd
+import numpy as np
 
 
 class DelayedRisk:
@@ -199,6 +200,11 @@ class DelayedRisk:
         view_columns = req_columns + new_columns
         self.population_view = builder.population.get_view(view_columns)
 
+        mortality_data = builder.data.load('cause.all_causes.mortality')
+        self.tobacco_acmr = builder.value.register_rate_producer(
+            'tobacco_acmr', source=builder.lookup.build_table(mortality_data))
+
+
     def get_bin_names(self):
         """
         Return the bin names for both the BAU and the intervention scenario.
@@ -241,6 +247,12 @@ class DelayedRisk:
 
         # Calculate the absolute prevalence by multiplying the fractional
         # prevalence by the population size for each cohort.
+        # NOTE: the number of current smokers is defined at the middle of each
+        # year; i.e., it corresponds to the person_years.
+        bau_acmr = self.tobacco_acmr.source(pop_data.index)
+        bau_probability_of_death = 1 - np.exp(- bau_acmr)
+        pop.population *= 1 - 0.5 * bau_probability_of_death
+
         prev = self.initial_prevalence(pop_data.index).mul(pop['population'], axis=0)
         self.population_view.update(prev)
 
