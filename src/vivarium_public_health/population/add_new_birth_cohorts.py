@@ -17,6 +17,9 @@ class FertilityDeterministic:
         },
     }
 
+    def __init__(self):
+        self.name = 'deterministic_fertility'
+
     def setup(self, builder):
         self.fractional_new_births = 0
         self.simulants_per_year = builder.configuration.fertility.number_of_new_simulants_each_year
@@ -47,6 +50,12 @@ class FertilityDeterministic:
                                       'age_end': 0,
                                       'sim_state': 'time_step',
                                   })
+
+    def __str__(self):
+        return f"FertilityDeterministic(fractional_new_births={self._fractional_new_births})"
+
+    def __repr__(self):
+        return "FertilityDeterministic()"
 
 
 class FertilityCrudeBirthRate:
@@ -81,6 +90,9 @@ class FertilityCrudeBirthRate:
             'time_dependent_population_fraction': False,
         }
     }
+
+    def __init__(self):
+        self.name = 'crude_birthrate_fertility'
 
     def setup(self, builder):
         self.clock = builder.time.clock()
@@ -117,11 +129,17 @@ class FertilityCrudeBirthRate:
                                       'sim_state': 'time_step',
                                   })
 
+    def __repr__(self):
+        return "FertilityCrudeBirthRate()"
+
 
 class FertilityAgeSpecificRates:
     """
     A simulant-specific model for fertility and pregnancies.
     """
+
+    def __init__(self):
+        self.name = 'age_specific_fertility'
 
     def setup(self, builder):
         """ Setup the common randomness stream and
@@ -191,3 +209,6 @@ class FertilityAgeSpecificRates:
                                         })
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
             self.population_view.update(parents)
+
+    def __repr__(self):
+        return "FertilityAgeSpecificRates()"
