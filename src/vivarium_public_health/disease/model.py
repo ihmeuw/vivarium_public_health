@@ -32,8 +32,15 @@ class DiseaseModel(Machine):
                 f"{self.cause_type}.{cause}.cause_specific_mortality")
 
     @property
+    def name(self):
+        name = "disease_model"
+        for state in self.states:
+            name += f".{state.name}"
+        return name
+
+    @property
     def condition(self):
-        return self.state_column
+        return self.cause
 
     def setup(self, builder):
         super().setup(builder)
@@ -93,7 +100,6 @@ class DiseaseModel(Machine):
         state_names = [s.state_id for s in states] + [self.initial_state]
 
         return state_names, weights_bins
-
 
     @staticmethod
     def assign_initial_status_to_simulants(simulants_df, state_names, weights_bins, propensities):
