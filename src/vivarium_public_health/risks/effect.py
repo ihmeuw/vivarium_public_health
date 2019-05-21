@@ -71,3 +71,5 @@ class RiskEffect:
     def adjust_target(self, index, target):
         return self.exposure_effect(target, self.relative_risk(index))
 
+    def __repr__(self):
+        return f"RiskEffect(risk={self.risk}, target={self.target})"

@@ -78,7 +78,7 @@ class SimulationDistribution:
         return x
 
     def __repr__(self):
-        return f"SimulationDistribution(risk={self.risk})"
+        return f"SimulationDistribution(risk={self.risk}, distribution={self.distribution.__name__.lower()})"
 
 
 class PolytomousDistribution:
