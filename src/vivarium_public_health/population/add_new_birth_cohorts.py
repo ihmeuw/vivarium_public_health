@@ -52,9 +52,6 @@ class FertilityDeterministic:
                                       'sim_state': 'time_step',
                                   })
 
-    def __str__(self):
-        return f"FertilityDeterministic(fractional_new_births={self._fractional_new_births})"
-
     def __repr__(self):
         return "FertilityDeterministic()"
 
