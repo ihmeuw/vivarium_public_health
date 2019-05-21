@@ -16,9 +16,9 @@ class DiseaseModelError(VivariumError):
 
 class DiseaseModel(Machine):
     def __init__(self, cause, initial_state=None, get_data_functions=None, cause_type="cause", **kwargs):
+        super().__init__(cause, **kwargs)
         self.cause = cause
         self.cause_type = cause_type
-        super().__init__(cause, **kwargs)
 
         if initial_state is not None:
             self.initial_state = initial_state.state_id
@@ -33,10 +33,7 @@ class DiseaseModel(Machine):
 
     @property
     def name(self):
-        name = "disease_model"
-        for state in self.states:
-            name += f".{state.name}"
-        return name
+        return f"disease_model.{self.cause}"
 
     @property
     def condition(self):

@@ -9,16 +9,15 @@ from vivarium_public_health.disease import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):
-    def __init__(self, cause, key='base_disease_state', column_name_prefix='', side_effect_function=None,
-                 cause_type="cause", **kwargs):
-        self.cause = cause
+    def __init__(self, cause, state_prefix='', side_effect_function=None, cause_type="cause", **kwargs):
+        super().__init__(state_prefix + cause)  # becomes state_id
         self.cause_type = cause_type
-        super().__init__(cause, key=key)
+        self.cause = cause
 
         self.side_effect_function = side_effect_function
 
-        self.event_time_column = column_name_prefix + self.cause + '_event_time'
-        self.event_count_column = column_name_prefix + self.cause + '_event_count'
+        self.event_time_column = self.state_id + '_event_time'
+        self.event_count_column = self.state_id + '_event_count'
 
     def setup(self, builder):
         """Performs this component's simulation setup.
@@ -114,8 +113,8 @@ class BaseDiseaseState(State):
 
 
 class SusceptibleState(BaseDiseaseState):
-    def __init__(self, cause, key='susceptible_state', column_name_prefix='susceptible_to_', *args, **kwargs):
-        super().__init__(cause, key=key, column_name_prefix=column_name_prefix, *args, **kwargs)
+    def __init__(self, cause, *args, **kwargs):
+        super().__init__(cause, state_prefix='susceptible_to_', *args, **kwargs)
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -133,8 +132,8 @@ class SusceptibleState(BaseDiseaseState):
 
 
 class RecoveredState(BaseDiseaseState):
-    def __init__(self, cause, key='recovered_state', column_name_prefix='recovered_from_', *args, **kwargs):
-        super().__init__(cause, key=key, column_name_prefix=column_name_prefix, *args, **kwargs)
+    def __init__(self, cause, *args, **kwargs):
+        super().__init__(cause, state_prefix="recovered_from_", *args, **kwargs)
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -153,11 +152,11 @@ class RecoveredState(BaseDiseaseState):
 
 class DiseaseState(BaseDiseaseState):
     """State representing a disease in a state machine model."""
-    def __init__(self, cause, key='disease_state', get_data_functions=None, cleanup_function=None, **kwargs):
+    def __init__(self, cause, get_data_functions=None, cleanup_function=None, **kwargs):
         """
         Parameters
         ----------
-        state_id : str
+        cause : str
             The name of this state.
         disability_weight : pandas.DataFrame or float, optional
             The amount of disability associated with this state.
@@ -172,7 +171,7 @@ class DiseaseState(BaseDiseaseState):
         side_effect_function : callable, optional
             A function to be called when this state is entered.
         """
-        super().__init__(cause, key=key, **kwargs)
+        super().__init__(cause, **kwargs)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
         self.cleanup_function = cleanup_function
 
@@ -308,9 +307,6 @@ class DiseaseState(BaseDiseaseState):
         return self._disability_weight(population.index) * ((population[self._model] == self.state_id)
                                                             & (population.alive == 'alive'))
 
-    def name(self):
-        return '{}'.format(self.state_id)
-
     def __repr__(self):
         return 'DiseaseState({})'.format(self.state_id)
 
@@ -331,8 +327,8 @@ class ExcessMortalityState(DiseaseState):
     excess_mortality_data : `pandas.DataFrame`
         A table of excess mortality data associated with this state.
     """
-    def __init__(self, cause, key='excess_mortality_state', **kwargs):
-        super().__init__(cause, key=key, **kwargs)
+    def __init__(self, cause, **kwargs):
+        super().__init__(cause, **kwargs)
 
     def setup(self, builder):
         """Performs this component's simulation setup.
