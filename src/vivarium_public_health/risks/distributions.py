@@ -47,7 +47,7 @@ class EnsembleSimulation:
         return x
 
     def __repr__(self):
-        return f'EnsembleSimulation(risk={self.risk}, weights, mean, sd)'
+        return f'EnsembleSimulation(risk={self.risk})'
 
 
 class SimulationDistribution:
@@ -78,7 +78,7 @@ class SimulationDistribution:
         return x
 
     def __repr__(self):
-        return f"SimulationDistribution(risk={self.risk}, mean={self.mean}, sd={self.sd})"
+        return f"SimulationDistribution(risk={self.risk})"
 
 
 class PolytomousDistribution:
@@ -105,11 +105,8 @@ class PolytomousDistribution:
         category_index = (exposure_sum.T < x).T.sum('columns')
         return pd.Series(np.array(self.categories)[category_index], name=self.risk + '_exposure', index=x.index)
 
-    def __str__(self):
-        return f"PolytomousDistribution(risk= {self.risk}, categories= {self.categories}"
-
     def __repr__(self):
-        return f"PolytomousDistribution(risk= {self.risk}, exposure_data)"
+        return f"PolytomousDistribution(risk={self.risk})"
 
 
 class DichotomousDistribution:
