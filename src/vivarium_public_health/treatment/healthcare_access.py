@@ -120,7 +120,7 @@ class HealthcareAccess:
         return adherence
 
     def __repr__(self):
-        return 'HealthcareAccess'
+        return 'HealthcareAccess()'
 
 
 class HealthcareAccessObserver:
