@@ -15,6 +15,10 @@ class Metrics:
     def __init__(self):
         self.access_count = 0
 
+    @property
+    def name(self):
+        return 'test_metrics'
+
     def setup(self, builder):
         builder.event.register_listener('general_healthcare_access', self.count_access)
 
