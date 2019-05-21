@@ -50,6 +50,10 @@ class RiskEffect:
             }
         }
 
+    @property
+    def name(self):
+        return f'risk_effect.{self.risk}.{self.target}'
+
     def setup(self, builder):
         self.randomness = builder.randomness.get_stream(f'effect_of_{self.risk.name}_on_{self.target.name}')
         self.relative_risk = builder.lookup.build_table(get_relative_risk_data(builder, self.risk,
@@ -66,3 +70,6 @@ class RiskEffect:
 
     def adjust_target(self, index, target):
         return self.exposure_effect(target, self.relative_risk(index))
+
+    def __repr__(self):
+        return f"RiskEffect(risk={self.risk}, target={self.target})"

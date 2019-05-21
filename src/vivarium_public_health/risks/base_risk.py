@@ -65,6 +65,10 @@ class Risk:
         self.risk = EntityString(risk)
         self.configuration_defaults = {f'{self.risk.name}': Risk.configuration_defaults['risk']}
 
+    @property
+    def name(self):
+        return f'risk.{self.risk}'
+
     def setup(self, builder):
         self.exposure_distribution = self._get_distribution(builder)
         builder.components.add_components([self.exposure_distribution])
@@ -95,3 +99,4 @@ class Risk:
 
     def __repr__(self):
         return f"Risk({self.risk})"
+

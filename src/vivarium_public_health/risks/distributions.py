@@ -11,8 +11,14 @@ class MissingDataError(Exception):
 
 
 class EnsembleSimulation:
-    def __init__(self, weights, mean, sd):
+
+    def __init__(self, risk, weights, mean, sd):
+        self.risk = risk
         self._weights, self._parameters = self._get_parameters(weights, mean, sd)
+
+    @property
+    def name(self):
+        return f'ensemble_simulation.{self.risk}'
 
     def setup(self, builder):
         self.weights = builder.lookup.build_table(self._weights)
@@ -40,11 +46,19 @@ class EnsembleSimulation:
             x = pd.Series([])
         return x
 
+    def __repr__(self):
+        return f'EnsembleSimulation(risk={self.risk})'
+
 
 class SimulationDistribution:
-    def __init__(self, mean, sd, distribution=None):
+    def __init__(self, risk, mean, sd, distribution=None):
+        self.risk = risk
         self.distribution = distribution
         self._parameters = self._get_parameters(mean, sd)
+
+    @property
+    def name(self):
+        return f'simulation_distribution.{self.risk}'
 
     def setup(self, builder):
         self.parameters = builder.lookup.build_table(self._parameters)
@@ -63,6 +77,9 @@ class SimulationDistribution:
             x = pd.Series([])
         return x
 
+    def __repr__(self):
+        return f"SimulationDistribution(risk={self.risk}, distribution={self.distribution.__name__.lower()})"
+
 
 class PolytomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
@@ -70,6 +87,10 @@ class PolytomousDistribution:
         self.exposure_data = exposure_data
         self.categories = sorted([column for column in self.exposure_data if 'cat' in column],
                                  key=lambda column: int(column[3:]))
+
+    @property
+    def name(self):
+        return f'polytomous_distribution.{self.risk}'
 
     def setup(self, builder):
         self.exposure = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
@@ -84,11 +105,18 @@ class PolytomousDistribution:
         category_index = (exposure_sum.T < x).T.sum('columns')
         return pd.Series(np.array(self.categories)[category_index], name=self.risk + '_exposure', index=x.index)
 
+    def __repr__(self):
+        return f"PolytomousDistribution(risk={self.risk})"
+
 
 class DichotomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
         self.risk = risk
         self.exposure_data = exposure_data.drop('cat2', axis=1)
+
+    @property
+    def name(self):
+        return f'dichotomous_distribution.{self.risk}'
 
     def setup(self, builder):
         self._base_exposure = builder.lookup.build_table(self.exposure_data)
@@ -108,6 +136,9 @@ class DichotomousDistribution:
         exposed = x < self.exposure_proportion(x.index)
         return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self.risk + '_exposure', index=x.index)
 
+    def __repr__(self):
+        return f"DichotomousDistribution(risk={self.risk})"
+
 
 def get_distribution(risk, distribution_type, exposure, exposure_standard_deviation, weights):
     if distribution_type == 'dichotomous':
@@ -115,13 +146,14 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
     elif 'polytomous' in distribution_type:
         distribution = PolytomousDistribution(risk, exposure)
     elif distribution_type == 'normal':
-        distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
+        distribution = SimulationDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
                                               distribution=Normal)
     elif distribution_type == 'lognormal':
-        distribution = SimulationDistribution(mean=exposure, sd=exposure_standard_deviation,
+        distribution = SimulationDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
                                               distribution=LogNormal)
     elif distribution_type == 'ensemble':
-        distribution = EnsembleSimulation(weights, mean=exposure, sd=exposure_standard_deviation,)
+        distribution = EnsembleSimulation(risk, weights, mean=exposure, sd=exposure_standard_deviation,)
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
     return distribution
+
