@@ -96,3 +96,6 @@ class CategoricalRiskObserver:
                     label = f'{self.risk.name}_{category}_exposed_in_{year}_among_{age_group_name}'
                     metrics[label] = sample.loc[age_id, category]
         return metrics
+
+    def __repr__(self):
+        return f"CategoricalRiskObserver({self.risk})"

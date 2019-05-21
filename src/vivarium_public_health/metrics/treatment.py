@@ -74,3 +74,6 @@ class TreatmentObserver:
     def metrics(self, index, metrics):
         metrics.update(self.counts)
         return metrics
+
+    def __repr__(self):
+        return f"TreatmentObserver({self.treatment})"
