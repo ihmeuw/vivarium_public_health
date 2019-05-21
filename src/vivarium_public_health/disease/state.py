@@ -9,11 +9,10 @@ from vivarium_public_health.disease import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):
-    def __init__(self, cause, name_prefix=None, side_effect_function=None, cause_type="cause", **kwargs):
-        self.cause = cause
+    def __init__(self, cause, name_prefix='', side_effect_function=None, cause_type="cause", **kwargs):
+        super().__init__(name_prefix + cause)  # becomes state_id
         self.cause_type = cause_type
-        cause_name = name_prefix + cause if name_prefix else cause
-        super().__init__(cause_name, **kwargs)
+        self.cause = cause
 
         self.side_effect_function = side_effect_function
 
@@ -134,7 +133,7 @@ class SusceptibleState(BaseDiseaseState):
 
 class RecoveredState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
-        super().__init__(cause, *args, name_prefix='recovered_from_', **kwargs)
+        super().__init__(cause, *args, name_prefix="recovered_from_", **kwargs)
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -157,7 +156,7 @@ class DiseaseState(BaseDiseaseState):
         """
         Parameters
         ----------
-        state_id : str
+        cause : str
             The name of this state.
         disability_weight : pandas.DataFrame or float, optional
             The amount of disability associated with this state.
@@ -307,9 +306,6 @@ class DiseaseState(BaseDiseaseState):
 
         return self._disability_weight(population.index) * ((population[self._model] == self.state_id)
                                                             & (population.alive == 'alive'))
-
-    def name(self):
-        return '{}'.format(self.state_id)
 
     def __repr__(self):
         return 'DiseaseState({})'.format(self.state_id)
