@@ -8,6 +8,10 @@ from .data_transformations import get_cause_deleted_mortality
 
 class Mortality:
 
+    @property
+    def name(self):
+        return 'mortality'
+
     def setup(self, builder):
         self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")
         self._cause_deleted_mortality_data = None
@@ -58,3 +62,5 @@ class Mortality:
             self.death_emitter(event.split(dead_pop.index))
             self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death', 'years_of_life_lost']])
 
+    def __repr__(self):
+        return "Mortality()"
