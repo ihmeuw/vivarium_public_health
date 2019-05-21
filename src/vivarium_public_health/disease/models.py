@@ -7,8 +7,11 @@ from vivarium_public_health.disease import (SusceptibleState, ExcessMortalitySta
 class SI:
 
     def __init__(self, cause: str):
-        self.name = f'SI.{cause}'
         self.cause = cause
+
+    @property
+    def name(self):
+        return f'SI.{self.cause}'
 
     def setup(self, builder):
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
@@ -32,8 +35,11 @@ class SI:
 class SIR:
 
     def __init__(self, cause: str):
-        self.name = f'SIR.{cause}'
         self.cause = cause
+
+    @property
+    def name(self):
+        return f'SIR.{self.cause}'
 
     def setup(self, builder):
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
@@ -60,8 +66,11 @@ class SIR:
 class SIS:
 
     def __init__(self, cause: str):
-        self.name = f'SIS.{cause}'
         self.cause = cause
+
+    @property
+    def name(self):
+        return f'SIS.{self.cause}'
 
     def setup(self, builder):
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
@@ -92,12 +101,15 @@ class SIS_fixed_duration:
         cause
         duration
         """
-        self.name = f'SIS_fixed_duration.{cause}.{duration}'
         self.cause = cause
         if not isinstance(duration, pd.Timedelta):
             self.duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
         else:
             self.duration = duration
+
+    @property
+    def name(self):
+        return f'SIS_fixed_duration.{self.cause}.{self.duration}'
 
     def setup(self, builder):
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
@@ -130,12 +142,15 @@ class SIR_fixed_duration:
         cause
         duration
         """
-        self.name = f'SIR_fixed_duration.{cause}.{duration}'
         self.cause = cause
         if not isinstance(duration, pd.Timedelta):
             self.duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
         else:
             self.duration = duration
+
+    @property
+    def name(self):
+        return f'SIR_fixed_duration.{self.cause}.{self.duration}'
 
     def setup(self, builder):
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
@@ -164,8 +179,11 @@ class SIR_fixed_duration:
 class NeonatalSWC_without_incidence:
 
     def __init__(self, cause: str):
-        self.name = f'NeonatalSWC_without_incidence.{cause}'
         self.cause = cause
+
+    @property
+    def name(self):
+        return f'NeonatalSWC_without_incidence.{cause}'
 
     def setup(self, builder):
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
@@ -191,8 +209,11 @@ class NeonatalSWC_without_incidence:
 class NeonatalSWC_with_incidence:
 
     def __init__(self, cause: str):
-        self.name = f'NeonatalSWC_with_incidence.{cause}'
         self.cause = cause
+
+    @property
+    def name(self):
+        return f'NeonatalSWC_with_incidence.{self.cause}'
 
     def setup(self, builder):
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
