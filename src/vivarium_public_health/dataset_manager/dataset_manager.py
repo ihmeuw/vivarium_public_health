@@ -63,8 +63,9 @@ class ArtifactManager:
         }
     }
 
-    def __init__(self):
-        self.name = "artifact_manager"
+    @property
+    def name(self):
+        return 'artifact_manager'
 
     def setup(self, builder: Builder):
         """Performs this component's simulation setup."""
