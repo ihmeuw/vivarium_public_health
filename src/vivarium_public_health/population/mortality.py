@@ -8,8 +8,9 @@ from .data_transformations import get_cause_deleted_mortality
 
 class Mortality:
 
-    def __init__(self):
-        self.name = 'mortality'
+    @property
+    def name(self):
+        return 'mortality'
 
     def setup(self, builder):
         self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")

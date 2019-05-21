@@ -18,8 +18,9 @@ class BasePopulation:
         }
     }
 
-    def __init__(self):
-        self.name = 'base_population'
+    @property
+    def name(self):
+        return "base_population"
 
     def setup(self, builder):
         self.config = builder.configuration.population
@@ -109,8 +110,9 @@ class BasePopulation:
 class AgeOutSimulants:
     """Component for handling aged-out simulants"""
 
-    def __init__(self):
-        self.name = "age_out_simulants"
+    @property
+    def name(self):
+        return "age_out_simulants"
 
     def setup(self, builder):
         self.config = builder.configuration.population

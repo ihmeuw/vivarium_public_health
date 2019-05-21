@@ -17,8 +17,9 @@ class FertilityDeterministic:
         },
     }
 
-    def __init__(self):
-        self.name = 'deterministic_fertility'
+    @property
+    def name(self):
+        return "deterministic_fertility"
 
     def setup(self, builder):
         self.fractional_new_births = 0
@@ -91,8 +92,9 @@ class FertilityCrudeBirthRate:
         }
     }
 
-    def __init__(self):
-        self.name = 'crude_birthrate_fertility'
+    @property
+    def name(self):
+        return "crude_birthrate_fertility"
 
     def setup(self, builder):
         self.clock = builder.time.clock()
@@ -138,8 +140,9 @@ class FertilityAgeSpecificRates:
     A simulant-specific model for fertility and pregnancies.
     """
 
-    def __init__(self):
-        self.name = 'age_specific_fertility'
+    @property
+    def name(self):
+        return 'age_specific_fertility'
 
     def setup(self, builder):
         """ Setup the common randomness stream and
