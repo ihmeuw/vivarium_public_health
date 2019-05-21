@@ -13,8 +13,12 @@ class MissingDataError(Exception):
 class EnsembleSimulation:
 
     def __init__(self, risk, weights, mean, sd):
-        self.name = f'ensemble_simulation.{risk}'
+        self.risk = risk
         self._weights, self._parameters = self._get_parameters(weights, mean, sd)
+
+    @property
+    def name(self):
+        return f'ensemble_simulation.{self.risk}'
 
     def setup(self, builder):
         self.weights = builder.lookup.build_table(self._weights)
@@ -48,9 +52,13 @@ class EnsembleSimulation:
 
 class SimulationDistribution:
     def __init__(self, risk, mean, sd, distribution=None):
-        self.name = f'simulation_distribution.{risk}'
+        self.risk = risk
         self.distribution = distribution
         self._parameters = self._get_parameters(mean, sd)
+
+    @property
+    def name(self):
+        return f'simulation_distribution.{self.risk}'
 
     def setup(self, builder):
         self.parameters = builder.lookup.build_table(self._parameters)
@@ -75,11 +83,14 @@ class SimulationDistribution:
 
 class PolytomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
-        self.name = f'polytomous_distribution.{risk}'
         self.risk = risk
         self.exposure_data = exposure_data
         self.categories = sorted([column for column in self.exposure_data if 'cat' in column],
                                  key=lambda column: int(column[3:]))
+
+    @property
+    def name(self):
+        return f'polytomous_distribution.{self.risk}'
 
     def setup(self, builder):
         self.exposure = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
@@ -103,9 +114,12 @@ class PolytomousDistribution:
 
 class DichotomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
-        self.name = f'dichotomous_distribution.{risk}'
         self.risk = risk
         self.exposure_data = exposure_data.drop('cat2', axis=1)
+
+    @property
+    def name(self):
+        return f'dichotomous_distribution.{self.risk}'
 
     def setup(self, builder):
         self._base_exposure = builder.lookup.build_table(self.exposure_data)
