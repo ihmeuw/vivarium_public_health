@@ -38,8 +38,9 @@ class Disability:
         }
     }
 
-    def __init__(self):
-        self.name = 'disability_observer'
+    @property
+    def name(self):
+        return 'disability_observer'
 
     def setup(self, builder):
         self.config = builder.configuration.metrics.disability
@@ -90,6 +91,9 @@ class Disability:
         metrics['years_lived_with_disability'] = total_ylds
         metrics.update(self.years_lived_with_disability)
         return metrics
+
+    def __repr__(self):
+        return "Disability()"
 
 
 def _disability_post_processor(value, step_size):
