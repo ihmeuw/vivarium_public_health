@@ -48,11 +48,11 @@ class DiseaseModel(Machine):
         builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-        self.population_view = builder.population.get_view(['age', 'sex', self.cause])
+        self.population_view = builder.population.get_view(['age', 'sex', self.state_column])
         builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[self.cause],
+                                                 creates_columns=[self.state_column],
                                                  requires_columns=['age', 'sex'])
-        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.cause))
+        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.state_column))
 
         self._propensity = pd.Series()
         self.propensity = builder.value.register_value_producer(f'{self.cause}.prevalence_propensity',
@@ -134,9 +134,9 @@ class DiseaseModel(Machine):
             condition_column = self.assign_initial_status_to_simulants(population, state_names, weights_bins,
                                                                        self.propensity(population.index))
 
-            condition_column = condition_column.rename(columns={'condition_state': self.cause})
+            condition_column = condition_column.rename(columns={'condition_state': self.state_column})
         else:
-            condition_column = pd.Series(self.initial_state, index=population.index, name=self.cause)
+            condition_column = pd.Series(self.initial_state, index=population.index, name=self.state_column)
         self.population_view.update(condition_column)
 
     def to_dot(self):
@@ -185,5 +185,5 @@ class DiseaseModel(Machine):
 
     def metrics(self, index, metrics):
         population = self.population_view.get(index, query="alive == 'alive'")
-        metrics[self.cause + '_prevalent_cases_at_sim_end'] = (population[self.cause] != 'susceptible_to_' + self.cause).sum()
+        metrics[self.state_column + '_prevalent_cases_at_sim_end'] = (population[self.state_column] != 'susceptible_to_' + self.state_column).sum()
         return metrics

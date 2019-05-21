@@ -31,6 +31,9 @@ class SI:
         builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected],
                                                         get_data_functions=disease_model_data_functions)])
 
+    def __repr__(self):
+        return f'SI({self.cause})'
+
 
 class SIR:
 
@@ -62,6 +65,9 @@ class SIR:
         builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected, recovered],
                                                         get_data_functions=disease_model_data_functions)])
 
+    def __repr__(self):
+        return f'SIR({self.cause})'
+
 
 class SIS:
 
@@ -90,6 +96,9 @@ class SIS:
 
         builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected],
                                                         get_data_functions=disease_model_data_functions)])
+
+    def __repr__(self):
+        return f'SIS({self.cause})'
 
 
 class SIS_fixed_duration:
@@ -131,6 +140,9 @@ class SIS_fixed_duration:
 
         builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected],
                                                         get_data_functions=disease_model_data_functions)])
+
+    def __repr__(self):
+        return f'SIS_fixed_duration(cause={self.cause}, duration={self.duration})'
 
 
 class SIR_fixed_duration:
@@ -175,6 +187,9 @@ class SIR_fixed_duration:
         builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected, recovered],
                                                         get_data_functions=disease_model_data_functions)])
 
+    def __repr__(self):
+        return f'SIR_fixed_duration(cause={self.cause}, duration={self.duration})'
+
 
 class NeonatalSWC_without_incidence:
 
@@ -183,7 +198,7 @@ class NeonatalSWC_without_incidence:
 
     @property
     def name(self):
-        return f'NeonatalSWC_without_incidence.{cause}'
+        return f'NeonatalSWC_without_incidence.{self.cause}'
 
     def setup(self, builder):
         only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
@@ -204,6 +219,9 @@ class NeonatalSWC_without_incidence:
 
         builder.components.add_components([DiseaseModel(self.cause, states=[healthy, with_condition],
                                                         get_data_functions=disease_model_data_functions)])
+
+    def __repr__(self):
+        return f'NeonatalSWC_without_incidence({self.cause})'
 
 
 class NeonatalSWC_with_incidence:
@@ -235,3 +253,6 @@ class NeonatalSWC_with_incidence:
 
         builder.components.add_components([DiseaseModel(self.cause, states=[healthy, with_condition],
                                                         get_data_functions=disease_model_data_functions)])
+
+    def __repr__(self):
+        return f'NeonatalSWC_with_incidence({self.cause})'
