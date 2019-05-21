@@ -75,7 +75,6 @@ class RiskAttributableDisease:
     }
 
     def __init__(self, cause, risk):
-        self.name = f'risk_attributable_disease.{cause}.{risk}'
         self.cause = EntityString(cause)
         self.risk = EntityString(risk)
         self.state_column = self.cause.name
@@ -84,6 +83,10 @@ class RiskAttributableDisease:
         self.configuration_defaults = {
             self.cause.name: RiskAttributableDisease.configuration_defaults['risk_attributable_disease']
         }
+
+    @property
+    def name(self):
+        return f'risk_attributable_disease.{self.cause}.{self.risk}'
 
     def setup(self, builder):
         self.recoverable = builder.configuration[self.cause.name].recoverable
