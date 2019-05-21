@@ -11,8 +11,9 @@ def hospitalization_side_effect_factory(male_probability, female_probability, ho
 
     class hospitalization_side_effect:
 
-        def __init__(self):
-            self.name = f'hospitalization_side_effect.{hospitalization_type}'
+        @property
+        def name(self):
+            return f'hospitalization_side_effect.{hospitalization_type}'
 
         def setup(self, builder):
             self.population_view = builder.population.get_view(['sex'])
@@ -47,8 +48,9 @@ class HealthcareAccess:
         }
     }
 
-    def __init__(self):
-        self.name = 'healthcare_access'
+    @property
+    def name(self):
+        return 'healthcare_access'
 
     def setup(self, builder):
         self.followup_adherence_parameters = builder.configuration.followup_adherence
@@ -123,8 +125,9 @@ class HealthcareAccess:
 
 class HealthcareAccessObserver:
 
-    def __init__(self):
-        self.name = 'healthcare_access_observer'
+    @property
+    def name(self):
+        return 'healthcare_access_observer'
 
     def setup(self, builder):
         ip_cost_df = builder.data.load("healthcare_entity.inpatient_visits.cost")

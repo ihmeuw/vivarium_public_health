@@ -11,11 +11,14 @@ class AbsoluteShift:
     }
 
     def __init__(self, target):
-        self.name = f'absolute_shift_wand.{target}'
         self.target = TargetString(target)
         self.configuration_defaults = {
             f'intervention_on_{self.target.name}': AbsoluteShift.configuration_defaults['intervention']
         }
+
+    @property
+    def name(self):
+        return f'absolute_shift_wand.{self.target}'
 
     def setup(self, builder):
         self.config = builder.configuration[f'intervention_on_{self.target.name}']

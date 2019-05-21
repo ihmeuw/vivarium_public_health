@@ -15,8 +15,9 @@ class TherapeuticInertia:
         }
     }
 
-    def __init__(self):
-        self.name = 'therapeutic_inertia'
+    @property
+    def name(self):
+        return 'therapeutic_inertia'
 
     def setup(self, builder):
         self.therapeutic_inertia_parameters = builder.configuration.therapeutic_inertia

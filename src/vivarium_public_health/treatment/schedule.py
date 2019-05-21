@@ -6,9 +6,12 @@ from scipy import stats
 class TreatmentSchedule:
 
     def __init__(self, name):
-        self.name = f'treatment_schedule.{name}'
         self.treatment_name = name
         self._schedule = pd.DataFrame()
+
+    @property
+    def name(self):
+        return f'treatment_schedule.{self.treatment_name}'
 
     def setup(self, builder):
 

@@ -7,10 +7,13 @@ from vivarium.framework.components import ComponentConfigError
 class Treatment:
 
     def __init__(self, name, cause):
-        self.name = f'treatment.{name}.{cause}'
         self.treatment_name = name
         self.cause = cause
         self.treatment_effects = []
+
+    @property
+    def name(self):
+        return f'treatment.{self.treatment_name}.{self.cause}'
 
     def setup(self, builder):
         builder.components.add_components(self.treatment_effects)

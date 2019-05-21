@@ -53,12 +53,15 @@ class MassTreatmentCampaign:
     }
 
     def __init__(self, treatment_name, etiology):
-        self.name = f'mass_treatment_campaign.{treatment_name}.{etiology}'
         self.treatment_name = treatment_name
         self.etiology = etiology
         self.configuration_defaults = {treatment_name: MassTreatmentCampaign.configuration_defaults['treatment']}
         self.treatment = Treatment(treatment_name, etiology)
         self.schedule = TreatmentSchedule(treatment_name)
+
+    @property
+    def name(self):
+        return f'mass_treatment_campaign.{self.treatment_name}.{self.etiology}'
 
     def setup(self, builder):
         builder.components.add_components([self.treatment, self.schedule])
