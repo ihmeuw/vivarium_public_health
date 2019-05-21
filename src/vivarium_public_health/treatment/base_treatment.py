@@ -18,7 +18,7 @@ class Treatment:
     def setup(self, builder):
         builder.components.add_components(self.treatment_effects)
         if self.treatment_name not in builder.configuration:
-            raise ComponentConfigError(f'No configuration found for {self.treatment_name}')
+            raise ComponentConfigError(f'No configuration found for {self.treatment_name}.')
 
         self.config = builder.configuration[self.treatment_name]
         self.dose_response = dict(
@@ -136,4 +136,4 @@ class Treatment:
         return rates
 
     def __repr__(self):
-        return f"Treatment(name = {self.treatment_name}, cause={self.cause})"
+        return f"Treatment(name={self.treatment_name}, cause={self.cause})"
