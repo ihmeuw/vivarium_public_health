@@ -35,10 +35,6 @@ class DiseaseModel(Machine):
     def name(self):
         return f"disease_model.{self.cause}"
 
-    @property
-    def condition(self):
-        return self.cause
-
     def setup(self, builder):
         super().setup(builder)
 
@@ -52,11 +48,11 @@ class DiseaseModel(Machine):
         builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-        self.population_view = builder.population.get_view(['age', 'sex', self.condition])
+        self.population_view = builder.population.get_view(['age', 'sex', self.cause])
         builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[self.condition],
+                                                 creates_columns=[self.cause],
                                                  requires_columns=['age', 'sex'])
-        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
+        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.cause))
 
         self._propensity = pd.Series()
         self.propensity = builder.value.register_value_producer(f'{self.cause}.prevalence_propensity',
@@ -138,9 +134,9 @@ class DiseaseModel(Machine):
             condition_column = self.assign_initial_status_to_simulants(population, state_names, weights_bins,
                                                                        self.propensity(population.index))
 
-            condition_column = condition_column.rename(columns={'condition_state': self.condition})
+            condition_column = condition_column.rename(columns={'condition_state': self.cause})
         else:
-            condition_column = pd.Series(self.initial_state, index=population.index, name=self.condition)
+            condition_column = pd.Series(self.initial_state, index=population.index, name=self.cause)
         self.population_view.update(condition_column)
 
     def to_dot(self):
@@ -189,5 +185,5 @@ class DiseaseModel(Machine):
 
     def metrics(self, index, metrics):
         population = self.population_view.get(index, query="alive == 'alive'")
-        metrics[self.condition + '_prevalent_cases_at_sim_end'] = (population[self.condition] != 'susceptible_to_' + self.condition).sum()
+        metrics[self.cause + '_prevalent_cases_at_sim_end'] = (population[self.cause] != 'susceptible_to_' + self.cause).sum()
         return metrics
