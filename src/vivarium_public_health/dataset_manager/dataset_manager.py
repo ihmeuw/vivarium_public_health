@@ -52,6 +52,9 @@ class ArtifactManagerInterface:
         """
         return self._controller.load(entity_key, **column_filters)
 
+    def __repr__(self):
+        return "ArtifactManagerInterface()"
+
 
 class ArtifactManager:
     """The controller plugin component for managing a data artifact."""
@@ -62,6 +65,10 @@ class ArtifactManager:
             'artifact_filter_term': None,
         }
     }
+
+    @property
+    def name(self):
+        return 'artifact_manager'
 
     def setup(self, builder: Builder):
         """Performs this component's simulation setup."""
@@ -112,6 +119,9 @@ class ArtifactManager:
         """
         data = self.artifact.load(entity_key)
         return filter_data(data, self.config_filter_term, **column_filters) if isinstance(data, pd.DataFrame) else data
+
+    def __repr__(self):
+        return "ArtifactManager()"
 
 
 def filter_data(data: pd.DataFrame, config_filter_term: str=None, **column_filters: _Filter) -> pd.DataFrame:
