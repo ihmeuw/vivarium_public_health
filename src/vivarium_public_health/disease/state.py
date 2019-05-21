@@ -9,8 +9,8 @@ from vivarium_public_health.disease import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):
-    def __init__(self, cause, state_prefix='', side_effect_function=None, cause_type="cause", **kwargs):
-        super().__init__(state_prefix + cause)  # becomes state_id
+    def __init__(self, cause, name_prefix='', side_effect_function=None, cause_type="cause", **kwargs):
+        super().__init__(name_prefix + cause)  # becomes state_id
         self.cause_type = cause_type
         self.cause = cause
 
@@ -114,7 +114,7 @@ class BaseDiseaseState(State):
 
 class SusceptibleState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
-        super().__init__(cause, state_prefix='susceptible_to_', *args, **kwargs)
+        super().__init__(cause, name_prefix='susceptible_to_', *args, **kwargs)
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -133,7 +133,7 @@ class SusceptibleState(BaseDiseaseState):
 
 class RecoveredState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
-        super().__init__(cause, state_prefix="recovered_from_", *args, **kwargs)
+        super().__init__(cause, name_prefix="recovered_from_", *args, **kwargs)
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
