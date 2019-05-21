@@ -38,8 +38,9 @@ class Disability:
         }
     }
 
-    def __init__(self):
-        self.name = 'disability_observer'
+    @property
+    def name(self):
+        return 'disability_observer'
 
     def setup(self, builder):
         self.config = builder.configuration.metrics.disability

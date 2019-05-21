@@ -3,8 +3,9 @@ from code import interact
 
 class Inspector:
 
-    def __init__(self):
-        self.name = 'inspector'
+    @property
+    def name(self):
+        return 'inspector'
 
     def setup(self, builder):
         self.population_view = builder.population.get_view()

@@ -33,8 +33,9 @@ class MortalityObserver:
         }
     }
 
-    def __init__(self):
-        self.name = 'mortality_observer'
+    @property
+    def name(self):
+        return 'mortality_observer'
 
     def setup(self, builder):
         self.config = builder.configuration.metrics.mortality

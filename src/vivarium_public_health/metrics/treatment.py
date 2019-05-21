@@ -41,11 +41,14 @@ class TreatmentObserver:
     }
 
     def __init__(self, treatment: str):
-        self.name = f'treatment_observer.{treatment}'
         self.treatment = treatment
         self.configuration_defaults = {
             'metrics': {self.name: TreatmentObserver.configuration_defaults['metrics']['treatment_observer']}
         }
+
+    @property
+    def name(self):
+        return f'treatment_observer.{self.treatment}'
 
     def setup(self, builder):
         self.config = builder.configuration['metrics'][self.name]

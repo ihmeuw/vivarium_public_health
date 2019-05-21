@@ -15,9 +15,12 @@ class SampleHistory:
     }
 
     def __init__(self):
-        self.name = f'sample_history_observer'
         self.sample_frames = {}
         self.sample_index = []
+
+    @property
+    def name(self):
+        return 'sample_history_observer'
 
     def setup(self, builder):
         self.config = builder.configuration.sample_history

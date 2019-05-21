@@ -40,11 +40,14 @@ class CategoricalRiskObserver:
         the type and name of a risk, specified as "type.name". Type is singular.
 
         """
-        self.name = f'categorical_risk_observer.{risk}'
         self.risk = EntityString(risk)
         self.configuration_defaults = {'metrics': {
             f'{self.risk.name}_observer': CategoricalRiskObserver.configuration_defaults['metrics']['risk_observer']
         }}
+
+    @property
+    def name(self):
+        return f'categorical_risk_observer.{self.risk}'
 
     def setup(self, builder):
         self.data = {}
