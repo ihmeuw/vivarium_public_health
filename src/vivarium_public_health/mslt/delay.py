@@ -332,6 +332,13 @@ class DelayedRisk:
         # by this net RR of mortality.
         bau_acmr_no = bau_acmr.divide(bau_net_rr)
 
+        # NOTE: adjust the RR *after* calculating the ACMR adjustments, but
+        # *before* calculating the survival probability for each exposure
+        # level.
+        penultimate_cols = [s + str(self.bin_years)
+                            for s in [bau_prefix, int_prefix]]
+        mort_rr.loc[:, penultimate_cols] = 1.0
+
         # Calculate the mortality risk for non-smokers.
         bau_surv_no = 1 - np.exp(- bau_acmr_no)
         # Calculate the survival probability for each exposure level:
