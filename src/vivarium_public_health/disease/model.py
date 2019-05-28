@@ -3,7 +3,7 @@ import numbers
 import pandas as pd
 import numpy as np
 
-from vivarium import VivariumError
+from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
 from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
@@ -16,9 +16,9 @@ class DiseaseModelError(VivariumError):
 
 class DiseaseModel(Machine):
     def __init__(self, cause, initial_state=None, get_data_functions=None, cause_type="cause", **kwargs):
+        super().__init__(cause, **kwargs)
         self.cause = cause
         self.cause_type = cause_type
-        super().__init__(cause, **kwargs)
 
         if initial_state is not None:
             self.initial_state = initial_state.state_id
@@ -32,8 +32,8 @@ class DiseaseModel(Machine):
                 f"{self.cause_type}.{cause}.cause_specific_mortality")
 
     @property
-    def condition(self):
-        return self.state_column
+    def name(self):
+        return f"disease_model.{self.cause}"
 
     def setup(self, builder):
         super().setup(builder)
@@ -48,11 +48,11 @@ class DiseaseModel(Machine):
         builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-        self.population_view = builder.population.get_view(['age', 'sex', self.condition])
+        self.population_view = builder.population.get_view(['age', 'sex', self.state_column])
         builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[self.condition],
+                                                 creates_columns=[self.state_column],
                                                  requires_columns=['age', 'sex'])
-        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
+        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.state_column))
 
         self._propensity = pd.Series()
         self.propensity = builder.value.register_value_producer(f'{self.cause}.prevalence_propensity',
@@ -94,7 +94,6 @@ class DiseaseModel(Machine):
 
         return state_names, weights_bins
 
-
     @staticmethod
     def assign_initial_status_to_simulants(simulants_df, state_names, weights_bins, propensities):
         simulants = simulants_df[['age', 'sex']].copy()
@@ -135,9 +134,9 @@ class DiseaseModel(Machine):
             condition_column = self.assign_initial_status_to_simulants(population, state_names, weights_bins,
                                                                        self.propensity(population.index))
 
-            condition_column = condition_column.rename(columns={'condition_state': self.condition})
+            condition_column = condition_column.rename(columns={'condition_state': self.state_column})
         else:
-            condition_column = pd.Series(self.initial_state, index=population.index, name=self.condition)
+            condition_column = pd.Series(self.initial_state, index=population.index, name=self.state_column)
         self.population_view.update(condition_column)
 
     def to_dot(self):
@@ -186,5 +185,5 @@ class DiseaseModel(Machine):
 
     def metrics(self, index, metrics):
         population = self.population_view.get(index, query="alive == 'alive'")
-        metrics[self.condition + '_prevalent_cases_at_sim_end'] = (population[self.condition] != 'susceptible_to_' + self.condition).sum()
+        metrics[self.state_column + '_prevalent_cases_at_sim_end'] = (population[self.state_column] != 'susceptible_to_' + self.state_column).sum()
         return metrics

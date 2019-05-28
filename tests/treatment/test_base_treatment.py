@@ -27,10 +27,10 @@ def test_population():
     tx = Treatment('test_treatment', 'test_cause')
     cols = ['active_dose',
             'immunity',
-            f'{tx.name}_current_dose',
-            f'{tx.name}_current_dose_event_time',
-            f'{tx.name}_previous_dose',
-            f'{tx.name}_previous_dose_event_time']
+            f'{tx.treatment_name}_current_dose',
+            f'{tx.treatment_name}_current_dose_event_time',
+            f'{tx.treatment_name}_previous_dose',
+            f'{tx.treatment_name}_previous_dose_event_time']
 
     # grp 1 does not get any dose and get no immunity
     grp1 = pd.DataFrame({'active_dose': None, 'immunity': None}, columns=cols, index=range(1000))
@@ -38,42 +38,42 @@ def test_population():
     # grp 2 got only one current dose and get full immunity from it
     grp2 = pd.DataFrame({'active_dose': 'first',
                          'immunity': 'full',
-                         f'{tx.name}_current_dose': 'first',
-                         f'{tx.name}_current_dose_event_time': pd.Timestamp('06-15-2005')}, index=range(1000, 2000))
+                         f'{tx.treatment_name}_current_dose': 'first',
+                         f'{tx.treatment_name}_current_dose_event_time': pd.Timestamp('06-15-2005')}, index=range(1000, 2000))
     # grp 3 got only one current dose and get waning immunity from it
     grp3 = pd.DataFrame({'active_dose': 'first',
                          'immunity': 'waning',
-                         f'{tx.name}_current_dose': 'first',
-                         f'{tx.name}_current_dose_event_time': pd.Timestamp('06-15-2004')}, index=range(2000, 3000))
+                         f'{tx.treatment_name}_current_dose': 'first',
+                         f'{tx.treatment_name}_current_dose_event_time': pd.Timestamp('06-15-2004')}, index=range(2000, 3000))
     # grp 4 got only one current dose but still do not get immunity from it
     grp4 = pd.DataFrame({'active_dose': None,
                          'immunity': None,
-                         f'{tx.name}_current_dose': 'first',
-                         f'{tx.name}_current_dose_event_time': pd.Timestamp('06-30-2005')}, index=range(3000, 4000))
+                         f'{tx.treatment_name}_current_dose': 'first',
+                         f'{tx.treatment_name}_current_dose_event_time': pd.Timestamp('06-30-2005')}, index=range(3000, 4000))
 
     # grp 5 got both current and previous doses and get full immunity from current dose
     grp5 = pd.DataFrame({'active_dose': 'second',
                          'immunity': 'full',
-                         f'{tx.name}_current_dose': 'second',
-                         f'{tx.name}_current_dose_event_time': pd.Timestamp('06-15-2005'),
-                         f'{tx.name}_previous_dose': 'first',
-                         f'{tx.name}_previous_dose_event_time': pd.Timestamp('12-15-2004')}, index=range(4000, 5000))
+                         f'{tx.treatment_name}_current_dose': 'second',
+                         f'{tx.treatment_name}_current_dose_event_time': pd.Timestamp('06-15-2005'),
+                         f'{tx.treatment_name}_previous_dose': 'first',
+                         f'{tx.treatment_name}_previous_dose_event_time': pd.Timestamp('12-15-2004')}, index=range(4000, 5000))
 
     # grp 6 got both current and previous doses and get waning immunity from current dose
     grp6 = pd.DataFrame({'active_dose': 'second',
                          'immunity': 'waning',
-                         f'{tx.name}_current_dose': 'second',
-                         f'{tx.name}_current_dose_event_time': pd.Timestamp('06-20-2004'),
-                         f'{tx.name}_previous_dose': 'first',
-                         f'{tx.name}_previous_dose_event_time': pd.Timestamp('12-15-2003')}, index=range(5000, 6000))
+                         f'{tx.treatment_name}_current_dose': 'second',
+                         f'{tx.treatment_name}_current_dose_event_time': pd.Timestamp('06-20-2004'),
+                         f'{tx.treatment_name}_previous_dose': 'first',
+                         f'{tx.treatment_name}_previous_dose_event_time': pd.Timestamp('12-15-2003')}, index=range(5000, 6000))
 
     # grp 7 got both current and previous doses but get full immunity from previous dose
     grp7 = pd.DataFrame({'active_dose': 'first',
                          'immunity': 'full',
-                         f'{tx.name}_current_dose': 'second',
-                         f'{tx.name}_current_dose_event_time': pd.Timestamp('06-30-2005'),
-                         f'{tx.name}_previous_dose': 'first',
-                         f'{tx.name}_previous_dose_event_time': pd.Timestamp('01-01-2005')}, index=range(6000, 7000))
+                         f'{tx.treatment_name}_current_dose': 'second',
+                         f'{tx.treatment_name}_current_dose_event_time': pd.Timestamp('06-30-2005'),
+                         f'{tx.treatment_name}_previous_dose': 'first',
+                         f'{tx.treatment_name}_previous_dose_event_time': pd.Timestamp('01-01-2005')}, index=range(6000, 7000))
 
     pop = pd.concat([grp1, grp2, grp3, grp4, grp5, grp6, grp7])
     return pop
@@ -133,10 +133,10 @@ def test_get_dosing_status(treatment, test_population):
     expected_dosing_status = pd.DataFrame({'dose': None, 'date': pd.NaT}, index=test_population.index)
 
     expected_dosing_status['dose'] = test_population['active_dose']
-    current_dose_active = test_population['active_dose'] == test_population[f'{tx.name}_current_dose']
-    previous_dose_active = test_population['active_dose'] == test_population[f'{tx.name}_previous_dose']
-    expected_dosing_status.loc[current_dose_active, 'date'] = test_population[f'{tx.name}_current_dose_event_time']
-    expected_dosing_status.loc[previous_dose_active, 'date'] = test_population[f'{tx.name}_previous_dose_event_time']
+    current_dose_active = test_population['active_dose'] == test_population[f'{tx.treatment_name}_current_dose']
+    previous_dose_active = test_population['active_dose'] == test_population[f'{tx.treatment_name}_previous_dose']
+    expected_dosing_status.loc[current_dose_active, 'date'] = test_population[f'{tx.treatment_name}_current_dose_event_time']
+    expected_dosing_status.loc[previous_dose_active, 'date'] = test_population[f'{tx.treatment_name}_previous_dose_event_time']
 
     no_immunity = (test_population['active_dose'].isna()) & (test_population['immunity'].isna())
     assert pd.DataFrame.equals(expected_dosing_status[no_immunity], dosing_status[no_immunity])

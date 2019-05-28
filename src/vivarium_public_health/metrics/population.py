@@ -45,8 +45,9 @@ class PopulationObserver:
         }
     }
 
-    def __init__(self):
-        self.name = 'population_observer'
+    @property
+    def name(self):
+        return 'population_observer'
 
     def setup(self, builder):
         self.config = builder.configuration.metrics.population
@@ -80,3 +81,6 @@ class PopulationObserver:
     def metrics(self, index, metrics):
         metrics.update(self.population)
         return metrics
+
+    def __repr__(self):
+        return "PopulationObserver()"

@@ -84,6 +84,10 @@ class RiskAttributableDisease:
             self.cause.name: RiskAttributableDisease.configuration_defaults['risk_attributable_disease']
         }
 
+    @property
+    def name(self):
+        return f'risk_attributable_disease.{self.cause}.{self.risk}'
+
     def setup(self, builder):
         self.recoverable = builder.configuration[self.cause.name].recoverable
         self.clock = builder.time.clock()

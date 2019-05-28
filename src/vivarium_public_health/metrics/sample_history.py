@@ -18,6 +18,10 @@ class SampleHistory:
         self.sample_frames = {}
         self.sample_index = []
 
+    @property
+    def name(self):
+        return 'sample_history_observer'
+
     def setup(self, builder):
         self.config = builder.configuration.sample_history
         self.run_id = builder.configuration.run_configuration.run_id
@@ -48,7 +52,10 @@ class SampleHistory:
         # NOTE: I'm suppressing two very noisy warnings about HDF writing that I don't think are relevant to us
         import warnings
         import tables
-        from pandas.core.common import PerformanceWarning
+        from pandas.errors import PerformanceWarning
         warnings.filterwarnings('ignore', category=PerformanceWarning)
         warnings.filterwarnings('ignore', category=tables.NaturalNameWarning)
         pd.Panel(self.sample_frames).to_hdf(self.config.path, key=self.key)
+
+    def __repr__(self):
+        return "SampleHistory()"

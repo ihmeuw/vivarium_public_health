@@ -50,10 +50,13 @@ class DiseaseObserver:
 
     def __init__(self, disease: str):
         self.disease = disease
-        self.name = f'{self.disease}_observer'
         self.configuration_defaults = {
-            'metrics': {self.name: DiseaseObserver.configuration_defaults['metrics']['disease_observer']}
+            'metrics': {f'{disease}_observer': DiseaseObserver.configuration_defaults['metrics']['disease_observer']}
         }
+
+    @property
+    def name(self):
+        return f'disease_observer.{self.disease}'
 
     def setup(self, builder):
         self.config = builder.configuration['metrics'][self.name]
@@ -105,3 +108,6 @@ class DiseaseObserver:
         metrics.update(self.person_time)
         metrics.update(self.prevalence)
         return metrics
+
+    def __repr__(self):
+        return "DiseaseObserver()"

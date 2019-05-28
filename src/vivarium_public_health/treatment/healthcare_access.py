@@ -10,6 +10,11 @@ from vivarium.framework.randomness import filter_for_probability
 def hospitalization_side_effect_factory(male_probability, female_probability, hospitalization_type):
 
     class hospitalization_side_effect:
+
+        @property
+        def name(self):
+            return f'hospitalization_side_effect.{hospitalization_type}'
+
         def setup(self, builder):
             self.population_view = builder.population.get_view(['sex'])
             self.hospitilization_emitter = builder.event.get_emitter('hospitalization')
@@ -43,8 +48,11 @@ class HealthcareAccess:
         }
     }
 
+    @property
+    def name(self):
+        return 'healthcare_access'
+
     def setup(self, builder):
-        self.name = 'healthcare_access'
         self.followup_adherence_parameters = builder.configuration.followup_adherence
         self.clock = builder.time.clock()
 
@@ -111,12 +119,17 @@ class HealthcareAccess:
                                                                         self.followup_adherence_parameters['semi_adherent_standard_deviation'])
         return adherence
 
+    def __repr__(self):
+        return 'HealthcareAccess()'
+
 
 class HealthcareAccessObserver:
 
-    def setup(self, builder):
-        self.name = 'healthcare_access_observer'
+    @property
+    def name(self):
+        return 'healthcare_access_observer'
 
+    def setup(self, builder):
         ip_cost_df = builder.data.load("healthcare_entity.inpatient_visits.cost")
         op_cost_df = builder.data.load("healthcare_entity.outpatient_visits.cost")
         self.inpatient_cost = builder.lookup.build_table(ip_cost_df)
@@ -153,3 +166,6 @@ class HealthcareAccessObserver:
             metrics[f'{key}_cost'] = value
 
         return metrics
+
+    def __repr__(self):
+        return "HealthCareAccessObserver()"
