@@ -8,6 +8,7 @@ from collections import defaultdict
 import logging
 from typing import List, Dict, Any
 from pathlib import Path
+import re
 
 from vivarium_public_health.dataset_manager import hdf
 
@@ -34,6 +35,7 @@ class Artifact:
         self.create_hdf_with_keyspace(path)
         self.path = path
         self._filter_terms = filter_terms
+        self._draw_column_filter = _parse_draw_filters(filter_terms)
         self._cache = {}
         self._keys = Keys(self.path)
 
@@ -75,7 +77,7 @@ class Artifact:
             raise ArtifactException(f"{entity_key} should be in {self.path}.")
 
         if entity_key not in self._cache:
-            data = hdf.load(self.path, entity_key, self._filter_terms)
+            data = hdf.load(self.path, entity_key, self._filter_terms, self._draw_column_filter)
 
             assert data is not None, f"Data for {entity_key} is not available. Check your model specification."
 
@@ -279,7 +281,7 @@ class Keys:
 
     def __init__(self, artifact_path: str):
         self.artifact_path = artifact_path
-        self._keys = [str(k) for k in hdf.load(self.artifact_path, EntityKey('metadata.keyspace'), None)]
+        self._keys = [str(k) for k in hdf.load(self.artifact_path, EntityKey('metadata.keyspace'), None, None)]
 
     def append(self, new_key: EntityKey):
         """ Whenever the artifact gets a new key and new data, append is called to
@@ -304,3 +306,40 @@ class Keys:
 
     def __contains__(self, item):
         return item in self._keys
+
+
+def _parse_draw_filters(filter_terms):
+    """Given a list of filter terms, parse out any related to draws and convert
+    to the list of column names. Also include 'value' column for compatibility
+    with data that is long on draws."""
+    columns = None
+
+    if filter_terms:
+        draw_terms = []
+        for term in filter_terms:
+            # first strip out all the parentheses
+            t = re.sub('[()]', '', term)
+            # then split each condition out
+            t = re.split('[&|]', t)
+            # then split condition to see if it relates to draws
+            split_term = [re.split('([<=>in])', i) for i in t]
+            draw_terms.extend([t for t in split_term if t[0].strip() == 'draw'])
+
+        if len(draw_terms) > 1:
+            raise ValueError(f'You can only supply one filter term related to draws. '
+                             f'You supplied {filter_terms}, {len(draw_terms)} of which pertain to draws.')
+
+        if draw_terms:
+            # convert term to columns
+            term = [s.strip() for s in draw_terms[0] if s.strip()]
+            if len(term) == 4 and term[1].lower() == 'i' and term[2].lower() == 'n':
+                draws = [int(d) for d in term[-1][1:-1].split(',')]
+            elif (len(term) == 4 and term[1] == term[2] == '=') or (len(term) == 3 and term[1] == '='):
+                draws = [int(term[-1])]
+            else:
+                raise NotImplementedError(f'The only supported draw filters are =, ==, or in. '
+                                          f'You supplied {"".join(term)}.')
+
+            columns = [f'draw_{n}' for n in draws] + ['value']
+
+    return columns

@@ -2,7 +2,8 @@ import pytest
 from unittest.mock import call
 from pathlib import Path
 
-from vivarium_public_health.dataset_manager.artifact import (Artifact, ArtifactException, EntityKey, _to_tree)
+from vivarium_public_health.dataset_manager.artifact import (Artifact, ArtifactException, EntityKey,
+                                                             _to_tree, _parse_draw_filters)
 
 
 @pytest.fixture()
@@ -31,7 +32,7 @@ def keys_mock():
 def hdf_mock(mocker, keys_mock):
     mock = mocker.patch('vivarium_public_health.dataset_manager.artifact.hdf')
 
-    def mock_load(_, key, __):
+    def mock_load(_, key, __, ___):
         if str(key) in keys_mock:
             if str(key) == 'metadata.keyspace':
                 return keys_mock
@@ -452,3 +453,38 @@ def test_keys_remove(tmpdir):
     test_artifact.remove('test.keys2')
     assert EntityKey('test.keys1') in test_artifact and not EntityKey('test.keys2') in test_artifact
     assert 'test.keys1' in test_keys and not 'test.keys2' in test_keys
+
+
+@pytest.mark.parametrize('filters, error, match', [(['draw == 0 & year > 2011', 'age < 2015 | draw in [1, 2, 3]'],
+                                                    ValueError, 'only supply one'),
+                                                   (['year > 2010 & age < 5 & parameter == "cat1" & '
+                                                     'draw==0 | draw==100'],
+                                                    ValueError, 'only supply one'),
+                                                   (['draw >= 10'], NotImplementedError, 'only supported'),
+                                                   (['draw<5'], NotImplementedError, 'only supported')])
+def test__parse_draw_filters_fail(filters, error, match):
+    with pytest.raises(error, match=match):
+        _parse_draw_filters(filters)
+
+
+@pytest.mark.parametrize('draw_operator, draw_values', [('=', [5]),
+                                                        ('==', [10]),
+                                                        (' = ', [100]),
+                                                        (' == ', [12]),
+                                                        (' in ', [1, 7, 160]),
+                                                        ('    in            ', [140, 2, 14])])
+def test__parse_draw_filters_pass(draw_operator, draw_values):
+    draw_filter = f'draw{draw_operator}{draw_values if "in" in draw_operator else draw_values[0]}'
+    expected_cols = [f'draw_{d}' for d in draw_values] + ['value']
+
+    assert _parse_draw_filters([draw_filter]) == expected_cols
+
+    complicated_filter = [f'year > 2010 & age < 12', 'other_col in [1, 2, 40]', 'one_more > 10']
+    for i in range(len(complicated_filter)):
+        filters = complicated_filter.copy()
+        filters[i] += " | " + draw_filter
+        assert _parse_draw_filters(filters) == expected_cols
+
+    assert _parse_draw_filters(complicated_filter + [draw_filter]) == expected_cols
+
+    assert _parse_draw_filters([]) is None
