@@ -86,6 +86,9 @@ class Disease:
         bau_prefix = self.name + '.'
         int_prefix = self.name + '_intervention.'
 
+        self.clock = builder.time.clock()
+        self.start_year = builder.configuration.time.start.year
+
         inc_data = builder.data.load(data_prefix + 'incidence')
         i = builder.lookup.build_table(inc_data)
         self.incidence = builder.value.register_rate_producer(
@@ -155,6 +158,10 @@ class Disease:
         """
         Update the disease status for both the BAU and intervention scenarios.
         """
+        # Do not update the disease status in the first year, the initial data
+        # describe the disease state at the end of the year.
+        if self.clock().year == self.start_year:
+            return
         pop = self.population_view.get(event.index)
         if pop.empty:
             return
