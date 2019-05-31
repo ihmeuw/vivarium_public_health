@@ -48,7 +48,7 @@ class Disability:
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
         self.causes = [c.state_column
-                       for c in builder.components.get_components((DiseaseModel, RiskAttributableDisease))]
+                       for c in builder.components.get_components_by_type((DiseaseModel, RiskAttributableDisease))]
         self.years_lived_with_disability = Counter()
         self.disability_weight_pipelines = {cause: builder.value.get_value(f'{cause}.disability_weight')
                                             for cause in self.causes}
