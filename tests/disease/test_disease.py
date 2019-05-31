@@ -250,7 +250,6 @@ def test_incidence(base_config, base_plugins, disease):
 
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')
-    healthy.add_transition(sick)
 
     transition = RateTransition(
         input_state=healthy, output_state=sick,
