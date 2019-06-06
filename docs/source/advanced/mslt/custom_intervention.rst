@@ -83,32 +83,20 @@ This method performs a several necessary house-keeping tasks:
   (specified in the configuration section, as shown above) and stores it in
   ``self.year``.
 
-* It stores a reference to the simulation clock in ``self.clock``, so that it
-  can detect when to come into effect.
+* It stores the simulation clock in ``self.clock``, so that it can detect when
+  this intervention comes into effect.
 
 * It registers a modifier for the ``tobacco_intervention.incidence`` rate
   (i.e., the uptake rate in the intervention scenario).
 
-* It identifies which columns it needs to access in order to move people from
-  the **currently smoking** exposure category to the **0 years
-  post-cessation** exposure category.
-  Note that these column names are defined by the risk factor component; in
-  this case, see the documentation for the
-  :meth:`~vivarium_public_health.mslt.delay.DelayedRisk.get_bin_names` method
-  of the :class:`~vivarium_public_health.mslt.delay.DelayedRisk` component.
-
-* It then informs the framework that it will need access to these exposure
-  columns, and stores this "view" in ``self.population_view``.
-
-* Finally, it registers an event handler that will be called **before** each
-  time-step (by selecting the "time_step__prepare" event) that will perform
-  the movement of people between exposure categories.
+* It registers a modifier for the ``tobacco_intervention.remission`` rate
+  (i.e., the cessation rate in the intervention scenario).
 
 .. literalinclude:: ../../../../src/vivarium_public_health/mslt/intervention.py
    :pyobject: TobaccoEradication.setup
 
-The rate modifier
-^^^^^^^^^^^^^^^^^
+The incidence modifier
+^^^^^^^^^^^^^^^^^^^^^^
 
 This method, which was registered as a modifier for the
 ``tobacco_intervention.incidence`` rate, will set the rate to zero once the
@@ -117,35 +105,25 @@ Recall that ``self.year`` is the year at which this intervention comes into
 effect.
 
 .. literalinclude:: ../../../../src/vivarium_public_health/mslt/intervention.py
-   :pyobject: TobaccoEradication.adjust_rate
+   :pyobject: TobaccoEradication.adjust_inc_rate
 
 .. note:: Once this intervention becomes active, this rate modifier applies an
    effect on every time-step.
 
-The prevalence modifier
-^^^^^^^^^^^^^^^^^^^^^^^
+The remission modifier
+^^^^^^^^^^^^^^^^^^^^^^
 
-This method, which was registered to handle the "time_step__prepare" event,
-checks if this is the year at which the intervention comes into effect (i.e.,
-``self.year``) and, if so, it moves all of the people in the **currently
+This method, which was registered as a modifier for the
+``tobacco_intervention.remission`` rate, will set the rate to one once the
+intervention is active.
+This will have the effect of moving all of the people in the **currently
 smoking** exposure category to the **0 years post-cessation** exposure
 category.
-
-There are three separate steps to make this change in exposure category:
-
-1. Retrieve the current prevalence for the **currently smoking** and the **0
-   years post-cessation** exposure categories, using the ``get`` method of
-   ``self.population_view``;
-
-2. Adjust the prevalence in each of these two exposure categories; and
-
-3. Make these changes take effect in the underlying MSLT table, using the
-   ``update`` method of ``self.population_view``.
+Recall that ``self.year`` is the year at which this intervention comes into
+effect.
 
 .. literalinclude:: ../../../../src/vivarium_public_health/mslt/intervention.py
-   :pyobject: TobaccoEradication.stop_current_use
+   :pyobject: TobaccoEradication.adjust_rem_rate
 
-.. note:: In contrast to the rate modifier method, this prevalence modifier
-   only applies an effect for a single time-step (i.e., the year that the
-   intervention comes into effect).
-   In all other years, this method returns without having any effect.
+.. note:: Once this intervention becomes active, this rate modifier applies an
+   effect on every time-step.

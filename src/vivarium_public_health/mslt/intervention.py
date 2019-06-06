@@ -165,10 +165,6 @@ class TobaccoEradication:
         rem_rate_name = '{}_intervention.remission'.format(self.exposure)
         builder.value.register_value_modifier(rem_rate_name,
                                               self.adjust_rem_rate)
-        self.prevalence_col = '{}_intervention.yes'.format(self.exposure)
-        self.remission_col = '{}_intervention.0'.format(self.exposure)
-        view_columns = [self.prevalence_col, self.remission_col]
-        self.population_view = builder.population.get_view(view_columns)
 
     def adjust_inc_rate(self, index, rates):
         this_year = self.clock().year
