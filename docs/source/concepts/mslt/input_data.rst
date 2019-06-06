@@ -222,9 +222,9 @@ The incidence effect is stored in
    2011,2012,1,2,male,1.0
    ...,...,...,...
    2120,2121,108,109,female,0.866004
-   2120,2121,108,109male,0.866004
+   2120,2121,108,109,male,0.866004
    2120,2121,109,110,female,0.866004
-   2120,2121,109,110male,0.866004
+   2120,2121,109,110,male,0.866004
 
 The remission effect is stored in
 ``risk_factor.tobacco.tax_effect_remission``:
