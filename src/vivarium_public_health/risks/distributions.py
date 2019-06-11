@@ -67,7 +67,7 @@ class SimulationDistribution:
         index = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
         mean = mean.set_index(index)['value']
         sd = sd.set_index(index)['value']
-        return self.distribution.get_params(mean, sd).reset_index()
+        return self.distribution.get_parameters(mean, sd).reset_index()
 
     def ppf(self, q):
         if not q.empty:
