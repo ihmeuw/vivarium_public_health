@@ -71,7 +71,7 @@ class SimulationDistribution:
 
     def ppf(self, q):
         if not q.empty:
-            x = self.distribution(params=self.parameters(q.index)).ppf(q)
+            x = self.distribution(parameters=self.parameters(q.index)).ppf(q)
             x[x.x.isnull()] = 0
         else:
             x = pd.Series([])
