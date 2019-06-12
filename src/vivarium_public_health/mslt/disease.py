@@ -79,6 +79,11 @@ class Disease:
 
     def __init__(self, name):
         self.name = name
+        self.configuration_defaults = {
+            self.name: {
+                'simplified_no_remission_equations': False,
+            },
+        }
 
     def setup(self, builder):
         """Load the disease prevalence and rates data."""
@@ -88,6 +93,7 @@ class Disease:
 
         self.clock = builder.time.clock()
         self.start_year = builder.configuration.time.start.year
+        self.simplified_equations = builder.configuration[self.name].simplified_no_remission_equations
 
         inc_data = builder.data.load(data_prefix + 'incidence')
         i = builder.lookup.build_table(inc_data)
@@ -180,6 +186,26 @@ class Disease:
         # number of chronic diseases, we can make some simplifications.
         if np.all(r == 0):
             r = 0
+            if self.simplified_equations:
+                # NOTE: for the 'mslt_reduce_chd' experiment, this results in a
+                # slightly lower HALY gain than that obtained when using the
+                # full equations (below).
+                new_S_bau = S_bau * np.exp(- i_bau)
+                new_S_int = S_int * np.exp(- i_int)
+                new_C_bau = C_bau * np.exp(- f) + S_bau * (1 - np.exp(- i_bau))
+                new_C_int = C_int * np.exp(- f) + S_int * (1 - np.exp(- i_int))
+                pop_update = pd.DataFrame({
+                    f'{self.name}_S': new_S_bau,
+                    f'{self.name}_C': new_C_bau,
+                    f'{self.name}_S_previous': S_bau,
+                    f'{self.name}_C_previous': C_bau,
+                    f'{self.name}_S_intervention': new_S_int,
+                    f'{self.name}_C_intervention': new_C_int,
+                    f'{self.name}_S_intervention_previous': S_int,
+                    f'{self.name}_C_intervention_previous': C_int,
+                }, index=pop.index)
+                self.population_view.update(pop_update)
+                return
 
         # Calculate common factors.
         i_bau2 = i_bau**2
