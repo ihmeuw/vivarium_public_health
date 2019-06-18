@@ -1,3 +1,12 @@
+**0.9.13 - 06/18/19**
+
+ - Move ``VivariumError`` to the correct place.
+ - Add names to all public health components.
+ - Add several missing ``__repr__``s.
+ - Modify the artifact to accept data that is wide on draws.
+ - Update components to new component manager api.
+ - Bugfix in SimulationDistribution
+ 
 **0.9.12 - 04/23/19**
 
  - Update docstring for categorical risk observer.
