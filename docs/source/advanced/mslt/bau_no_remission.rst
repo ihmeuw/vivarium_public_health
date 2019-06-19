@@ -1,5 +1,5 @@
-Constant tobacco prevalence
-===========================
+Alternative BAU: Constant tobacco prevalence
+============================================
 
 We now consider the case where the prevalence of tobacco use in each cohort
 remains constant over time --- in other words, the cessation rate is zero.

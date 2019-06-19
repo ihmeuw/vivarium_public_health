@@ -66,6 +66,8 @@ The following sequence of operations will be performed:
    :caption: Model analysis
 
    uncertainty
+   bau_no_delay
+   bau_no_remission
 
 .. toctree::
    :maxdepth: 2

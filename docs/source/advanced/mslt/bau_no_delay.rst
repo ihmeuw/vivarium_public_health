@@ -1,5 +1,5 @@
-Immediate recovery upon cessation
-=================================
+Alternative BAU: Immediate recovery upon cessation
+==================================================
 
 We now consider the case where cessation of smoking results in **immediate**
 recovery, rather than taking 20 years for the tobacco-associated relative
