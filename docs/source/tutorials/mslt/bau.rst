@@ -173,9 +173,25 @@ The contents of this file will contain the following results:
    :file: ../../_static/table_mslt_reduce_acmr_mm.csv
    :header-rows: 1
 
-We can now plot the survival of this cohort in both the BAU and intervention
-scenarios, relative to the starting population, and see how the survival rate
-has increased as a result of this intervention.
+We can examine the impact of this intervention on a single cohort (e.g.,
+non-Maori males aged 50-54 in 2011) by filtering the rows by **Year of birth**
+and **Sex**.
+We can then plot columns of interest, such as the LE and HALE for both the BAU
+and intervention scenarios:
+
+.. _mslt_reduce_acmr_LE:
+
+.. figure:: /_static/mslt_reduce_acmr_LE.png
+   :alt: The life expectancy in the BAU and intervention scenarios.
+
+   The impact of reducing the all-cause mortality rate by 5% on life
+   expectancy.
+   Results are shown for the cohort of males aged 50-54 in 2011.
+
+With some further data processing, we can also plot the survival of this
+cohort in both the BAU and intervention scenarios, relative to the starting
+population, and see how the survival rate has increased as a result of this
+intervention.
 
 .. _mslt_reduce_acmr_fig:
 
@@ -184,4 +200,4 @@ has increased as a result of this intervention.
       difference between these two rates.
 
    The impact of reducing the all-cause mortality rate by 5% on survival rate.
-   Results are shown for the cohort of males aged 50-54 in 2010.
+   Results are shown for the cohort of males aged 50-54 in 2011.
