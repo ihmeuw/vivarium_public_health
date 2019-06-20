@@ -1,0 +1,81 @@
+plugins:
+    optional:
+        data:
+            controller: "vivarium_public_health.dataset_manager.ArtifactManager"
+            builder_interface: "vivarium_public_health.dataset_manager.ArtifactManagerInterface"
+
+components:
+    vivarium_public_health:
+        mslt:
+            population:
+                - BasePopulation()
+                - Mortality()
+                - Disability()
+            delay:
+                - DelayedRisk('tobacco')
+            disease:
+                - Disease('CHD')
+                - Disease('Stroke')
+                - Disease('LungCancer')
+                - Disease('MouthandoropharynxCancer')
+                - Disease('OesophagusCancer')
+                - Disease('StomachCancer')
+                - Disease('LiverCancer')
+                - Disease('ColorectalCancer')
+                - Disease('PancreasCancer')
+                - Disease('CervicalCancer')
+                - Disease('BladderCancer')
+                - Disease('KidneyCancer')
+                - Disease('EndometrialCancer')
+                - Disease('Melanoma')
+                - Disease('ThyroidCancer')
+                - Disease('COPD')
+                - AcuteDisease('LRTI')
+            intervention:
+                - TobaccoEradication()
+            observer:
+                - MorbidityMortality()
+
+configuration:
+    input_data:
+        artifact_path: mslt_tobacco_non-maori_20-years.hdf
+        input_draw_number: 0
+    observer:
+        output_prefix: results/mslt_tobacco_non-maori_20-years_decreasing_erad
+    population:
+        # The population size here is the number of cohorts.
+        # There are 22 age bins (0-4, 5-9, ..., 105-109) for females and for
+        # males, making a total of 44 cohorts.
+        population_size: 44
+    time:
+        start:
+            year: 2011
+        end:
+            year: 2120
+        step_size: 365  # In days
+    tobacco:
+        constant_prevalence: False
+        tobacco_tax: False
+        delay: 20
+        affects:
+            # This is where the affected diseases should be listed.
+            CHD:
+            COPD:
+            BladderCancer:
+            CervicalCancer:
+            EndometrialCancer:
+            KidneyCancer:
+            LiverCancer:
+            LungCancer:
+            MouthandoropharynxCancer:
+            OesophagusCancer:
+            PancreasCancer:
+            StomachCancer:
+            ThyroidCancer:
+            Melanoma:
+            Stroke:
+            LRTI:
+    tobacco_eradication:
+        year: 2011
+    tobacco_free_generation:
+        year: 2011

@@ -19,8 +19,8 @@ to simulate simple intervention effects.
    statistics.
    Input data are shown in **bold text**, everything else is calculated within
    the life table.
+   :header: **Year**,**Age**,**Sex**,**Population**,**Mortality rate**,**Probability of death**,**Number of deaths**,**Number of survivors**,**Person years lived**,**Life expectancy**,**YLD rate**,**HALYs**,**HALE**
 
-   **Year**,**Age**,**Sex**,**Population**,**Mortality rate**,**Probability of death**,**Number of deaths**,**Number of survivors**,**Person years lived**,**Life expectancy**,**YLD rate**,**HALYs**,**HALE**
    2011,**52**,**male**,"**129,850**",**0.0030**,0.0030,390,"129,460","129,655",33.12,**0.1122**,"115,103",26.00
    2012,53,male,"129,460",**0.0032**,0.0032,413,"129,047","129,254",32.23,**0.1122**,"114,747",25.18
    ...,...,...,...,...,...,...,...,...,...,...,...,...
