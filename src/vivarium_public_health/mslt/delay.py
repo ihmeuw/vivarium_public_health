@@ -125,9 +125,11 @@ class DelayedRisk:
         self.int_incidence = builder.value.register_rate_producer(inc_int_name, source=inc_data)
 
         # Load the remission rates for the BAU and intervention scenarios.
-        rem_data = builder.lookup.build_table(
-            builder.data.load(f'risk_factor.{self.name}.remission')
-        )
+        rem_df = builder.data.load(f'risk_factor.{self.name}.remission')
+        # In the constant-prevalence case, assume there is no remission.
+        if self.constant_prevalence:
+            rem_df['remission'] = 0.0
+        rem_data = builder.lookup.build_table(rem_df)
         rem_name = '{}.remission'.format(self.name)
         rem_int_name = '{}_intervention.remission'.format(self.name)
         self.remission = builder.value.register_rate_producer(rem_name, source=rem_data)
@@ -290,11 +292,6 @@ class DelayedRisk:
         rem_rate = self.remission(idx)
         int_inc_rate = self.int_incidence(idx)
         int_rem_rate = self.int_remission(idx)
-
-        # In the constant-prevalence case, assume there is no remission.
-        if self.constant_prevalence:
-            rem_rate = 0.0
-            int_rem_rate = 0.0
 
         # Identify the relevant columns for the BAU and intervention.
         bin_cols = self.get_bin_names()
