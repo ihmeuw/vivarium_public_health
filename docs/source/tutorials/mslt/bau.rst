@@ -7,6 +7,34 @@ It comprises a population that are subject to BAU morbidity and mortality
 rates, and is the baseline against which we quantitatively evaluate the impact
 of different interventions.
 
+Defining a simulation
+---------------------
+
+Model simulations are defined by text files that describe all of the
+simulation components and configuration settings.
+These details are written in the YAML markup language, and the file names
+typically have a ``.yaml`` extension.
+
+In the intervention example presented below, we provide a step-by-step
+description of the contents of these YAML files.
+
+In brief, these files will contain three sections:
+
++ The ``plugins`` section, where we load the plugins that allow us to make use
+  of data artefacts;
+
++ The ``components`` section, where we list the simulation components that
+  define the population demographics, the BAU scenario, and the intervention;
+  and
+
++ The ``configuration`` section, where we identify the relevant data artefact,
+  and define component-specific configuration settings and other simulation
+  details.
+
+.. literalinclude:: /_static/mslt_reduce_acmr.yaml
+   :language: yaml
+   :caption: An example simulation definition.
+
 Data artefacts
 --------------
 
