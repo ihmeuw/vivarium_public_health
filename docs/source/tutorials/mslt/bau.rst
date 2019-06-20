@@ -1,6 +1,38 @@
 The business-as-usual (BAU) scenario
 ====================================
 
+The business-as-usual (BAU) scenario characterises what we expect to occur in
+the absence of any intervention.
+It comprises a population that are subject to BAU morbidity and mortality
+rates, and is the baseline against which we quantitatively evaluate the impact
+of different interventions.
+
+Data artefacts
+--------------
+
+Data artefacts collect all of the required
+:ref:`input data tables <mslt_input_data>` into a single file.
+The input data files that were used to generate the data artefacts for this
+tutorial are stored in the ``mslt_port-master/data`` directory.
+If you modify any of the input data files, you can rebuild these artefacts by
+running the provided script:
+
+.. code:: console
+
+   ./build_minimal_artifacts.py
+
+This will update the follow data artefacts:
+
++ ``mslt_tobacco_maori_20-years.hdf``: data for the Maori population, where
+  cessation of smoking results in gradual recovery over the next 20 years.
++ ``mslt_tobacco_non-maori_20-years.hdf``: data for the non-Maori population,
+  where cessation of smoking results in gradual recovery over the next 20
+  years.
++ ``mslt_tobacco_maori_0-years.hdf``: data for the Maori population, where
+  cessation of smoking results in immediate recovery.
++ ``mslt_tobacco_non-maori_0-years.hdf``: data for the non-Maori population,
+  where cessation of smoking results in immediate recovery.
+
 .. _mslt_reduce_acmr:
 
 Intervention: a reduction in mortality rate
