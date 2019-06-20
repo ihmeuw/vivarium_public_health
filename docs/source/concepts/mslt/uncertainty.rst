@@ -3,9 +3,14 @@ Uncertainty analyses
 
 In order to account for uncertainties in the input data, assumptions about the
 business-as-usual scenario, the effects of interventions, etc, we can run many
-model simulations --- each using slightly different data --- and see how the
-simulation outputs vary as a result of accounting for these sources of
-uncertainty.
+model simulations and vary the input data.
+In each simulation we randomly draw values for each input parameter from some
+probability distribution (e.g., a normal distribution, where we set the mean
+to the input value used in the BAU, and define the standard deviation).
+Accordingly, each simulation will generate different intervention effects.
+We then define the 95% uncertainty interval for each output (LYs, HALYs, LE,
+HALE) as the 2.5% and 97.5% percentiles of the values obtained over all of
+these simulations.
 
 The basic process is:
 
@@ -24,14 +29,12 @@ The basic process is:
 5. Store these samples according to the same table structure as per the
    :ref:`original data <mslt_input_data>`, with each sample represented as a
    separate row, and with one additional column (``"draw"``) that identifies
-   the sample number (:math:`1 \dots N`).
+   the draw number (:math:`1 \dots N`).
 
-This will result in a single, larger data artifact that contains all of
-samples.
+This will result in a single, larger data artifact that contains all of the
+draws.
 In a model specification, you can then identify both the data artifact **and**
-the sample number, and when the simulation is run it will automatically select
-the correct values from all data tables that contain multiple samples.
+the draw number, and when the simulation is run it will automatically select
+the correct values from all data tables that contain multiple draw.
 
-.. note:: Do not create several thousand model specifications that only differ
-   in terms of the sample number!
-   There are better ways to run multiple simulations.
+See :ref:`uncertainty_analyses` for an example of running such an analysis.

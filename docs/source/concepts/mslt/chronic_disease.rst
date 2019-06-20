@@ -1,38 +1,28 @@
 Chronic disease
 ===============
 
-To account for disease-specific morbidity and mortality, we consider chronic
-diseases as being **independent** (i.e., prevalence of one disease does not
-affect that of another) and which modify the all-cause mortality and YLD
-rates.
+To capture intervention effects, we set up multiple parallel diseases as
+separate lifetables.
+We consider chronic diseases as being independent (i.e., the prevalence of one
+disease does not affect the incidence or case fatality rate of another).
+The reason for setting up the parallel disease states is that we simulate
+intervention effects (through risk factor changes) as changes in disease
+incidence rates.
+We thus need "BAU" and "intervention" lifetables for all diseases impacted by
+the intervention.
 
-The outputs of a chronic disease are:
+The outputs of the chronic disease life tables are:
 
-* A disease-specific mortality rate; and
+* A disease-specific mortality rate, for each cohort at each year; and
 
-* A disease-specific YLD rate.
+* A disease-specific YLD rate, for each cohort at each year.
 
-These disease-specific rates in the "business-as-usual" (BAU) scenario are
-subtracted from the all-cause rates, to produce cause-deleted mortality and YLD
-rates (i.e., the mortality and YLD rates due to all causes **except** those
-explicitly modelled as arising from a specific cause).
-Each chronic disease then contributes these disease-specific rates, which are
-added to the cause-deleted mortality and YLD rates to obtain the all-cause
-rates.
-
-This has the following implications:
-
-* In the BAU scenario, modelling one or more diseases explicitly **has no
-  effect** on the all-cause mortality and YLD rates, since the
-  disease-specific rates are subtracted from the all-cause rates, and are then
-  added to the cause-deleted rates.
-
-* An intervention that affects the prevalence or impact of a disease (e.g., by
-  reducing its incidence rate) **will have an effect** on the all-cause
-  mortality and YLD rates. This is because the disease-specific rates **for
-  the BAU** are subtracted from the all-cause rates, but the disease-specific
-  rates **for the intervention scenario** are added to the cause-deleted
-  rates.
+These outputs are generated for both the BAU and intervention scenarios, with
+the difference between BAU and intervention (across all of the disease life
+tables) then being subtracted from the BAU all-cause mortality and morbidity
+rates, to create the "intervention" life table.
+We can then measure the intervention effect in terms of the differences in
+LYs, HALYs, LE, and HALE, between the BAU and intervention life tables.
 
 A chronic disease is characterised in terms of:
 
@@ -47,13 +37,13 @@ from `Barendregt et al., 2003 <https://doi.org/10.1186/1478-7954-1-4>`_.
 A key assumption in their derivation is the independence of mortality from all
 causes:
 
-   If it is assumed that mortality from all other causes is independent of the
-   disease, i.e., that it is the same for healthy and diseased people, this
-   implies that the transition hazards for incidence, remission and case
+   "If it is assumed that mortality from all other causes is independent of
+   the disease, i.e., that it is the same for healthy and diseased people,
+   this implies that the transition hazards for incidence, remission and case
    fatality are not affected by the value of the 'all other causes' mortality.
    Therefore we can set the value of mortality from all other causes to 0
    (i.e., leave it out of the equations) and still derive the right values for
-   the disease rates.
+   the disease rates."
 
 With this simplifying assumption, the system of equations are:
 

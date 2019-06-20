@@ -1,3 +1,5 @@
+.. _uncertainty_analyses:
+
 Uncertainty analyses
 ====================
 
