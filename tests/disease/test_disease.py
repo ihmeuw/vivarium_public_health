@@ -25,8 +25,7 @@ def assign_cause_mock(mocker):
 def base_data():
     def _set_prevalence(p):
         base_function = dict()
-        base_function['disability_weight'] = lambda _, __: 0
-        base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=0)
+        base_function['dwell_time'] = lambda _, __: pd.Timedelta(days=1)
         base_function['prevalence'] = lambda _, __: p
         return base_function
     return _set_prevalence
@@ -37,14 +36,15 @@ def get_test_prevalence(simulation, key):
     Helper function to calculate the prevalence for the given state(key)
     """
     try:
-        simulants_status_counts = simulation.population.population.test.value_counts().to_dict()
-        result = float(simulants_status_counts[key] / simulation.population.population.test.size)
+        simulants_status_counts = simulation.get_population().test.value_counts().to_dict()
+        result = float(simulants_status_counts[key] / simulation.get_population().test.size)
     except KeyError:
         result = 0
     return result
 
 
 def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
+
     time_step = 10
     assign_cause_mock.side_effect = lambda population, *args: pd.DataFrame(
         {'condition_state': 'healthy'}, index=population.index)
@@ -57,6 +57,7 @@ def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     healthy_state = BaseDiseaseState('healthy')
     data_function = base_data(0)
     data_function['dwell_time'] = lambda _, __: pd.Timedelta(days=28)
+    data_function['disability_weight'] = lambda _, __: 0.0
     event_state = DiseaseState('event', get_data_functions=data_function)
     done_state = BaseDiseaseState('sick')
 
@@ -71,18 +72,18 @@ def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     # Move everyone into the event state
     simulation.step()
     event_time = simulation.clock.time
-    assert np.all(simulation.population.population[disease] == 'event')
+    assert np.all(simulation.get_population()[disease] == 'event')
 
     simulation.step()
     simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    assert np.all(simulation.population.population[disease] == 'event')
+    assert np.all(simulation.get_population()[disease] == 'event')
 
     simulation.step()
     # Now enough time has passed so people should transition away
-    assert np.all(simulation.population.population[disease] == 'sick')
-    assert np.all(simulation.population.population.event_event_time == pd.to_datetime(event_time))
-    assert np.all(simulation.population.population.event_event_count == 1)
+    assert np.all(simulation.get_population()[disease] == 'sick')
+    assert np.all(simulation.get_population().event_event_time == pd.to_datetime(event_time))
+    assert np.all(simulation.get_population().event_event_count == 1)
 
 
 def test_dwell_time_with_mortality(base_config, base_plugins, disease):
@@ -100,6 +101,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     mort_get_data_funcs = {
         'dwell_time': lambda _, __: pd.Timedelta(days=14),
         'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
+        'disability_weight': lambda _, __: 0.0
     }
 
     mortality_state = ExcessMortalityState('event', get_data_functions=mort_get_data_funcs)
@@ -115,24 +117,23 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
 
     # Move everyone into the event state
     simulation.step()
-    assert np.all(simulation.population.population[disease] == 'event')
+    assert np.all(simulation.get_population()[disease] == 'event')
 
     simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    assert np.all(simulation.population.population[disease] == 'event')
+    assert np.all(simulation.get_population()[disease] == 'event')
 
     simulation.step()
 
     # Make sure some people have died and remained in event state
-    assert (simulation.population.population['alive'] == 'alive').sum() < pop_size
+    assert (simulation.get_population()['alive'] == 'alive').sum() < pop_size
 
-    assert ((simulation.population.population['alive'] == 'dead').sum() ==
-            (simulation.population.population[disease] == 'event').sum())
+    assert ((simulation.get_population()['alive'] == 'dead').sum() ==
+            (simulation.get_population()[disease] == 'event').sum())
 
     # enough time has passed so living people should transition away to sick
-    assert ((simulation.population.population['alive'] == 'alive').sum() ==
-           (simulation.population.population[disease] == 'sick').sum())
-
+    assert ((simulation.get_population()['alive'] == 'alive').sum() ==
+            (simulation.get_population()[disease] == 'sick').sum())
 
 
 @pytest.mark.parametrize('test_prevalence_level', [0, 0.35, 1])
@@ -144,9 +145,13 @@ def test_prevalence_single_state_with_migration(base_config, disease, base_data,
     properly assigned to new simulants based on the prevalence data and pre-existing simulants status
 
     """
-    healthy = BaseDiseaseState('healthy')
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
 
-    sick = DiseaseState('sick', get_data_functions=base_data(test_prevalence_level))
+    healthy = BaseDiseaseState('healthy')
+    data_funcs = base_data(test_prevalence_level)
+    data_funcs.update({'disability_weight': lambda _, __: 0.0})
+    sick = DiseaseState('sick', get_data_functions=data_funcs)
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
     base_config.update({'population': {'population_size': 50000}}, **metadata(__file__))
@@ -155,21 +160,28 @@ def test_prevalence_single_state_with_migration(base_config, disease, base_data,
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, 0.01), error_message
     simulation.clock.step_forward()
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
-    simulation.simulant_creator(50000)
+    simulation.simulant_creator(50000, population_configuration={'age_start': 0, 'age_end': 5,
+                                                                 'sim_state': 'time_step'})
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
     simulation.clock.step_forward()
-    simulation.simulant_creator(50000)
+    simulation.simulant_creator(50000, population_configuration={'age_start': 0, 'age_end': 5,
+                                                                 'sim_state': 'time_step'})
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, .01), error_message
 
 
 @pytest.mark.parametrize('test_prevalence_level',
                          [[0.15, 0.05, 0.35], [0, 0.15, 0.5], [0.2, 0.3, 0.5], [0, 0, 1], [0, 0, 0]])
 def test_prevalence_multiple_sequelae(base_config, disease, base_data, test_prevalence_level):
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+
     healthy = BaseDiseaseState('healthy')
 
     sequela = dict()
     for i, p in enumerate(test_prevalence_level):
-        sequela[i] = DiseaseState('sequela'+str(i), get_data_functions=base_data(p))
+        data_funcs = base_data(p)
+        data_funcs.update({'disability_weight': lambda _, __: 0.0})
+        sequela[i] = DiseaseState('sequela'+str(i), get_data_functions=data_funcs)
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]],
                          get_data_functions={'csmr': lambda _, __: None})
@@ -204,7 +216,7 @@ def test_mortality_rate(base_config, base_plugins, disease):
     healthy = BaseDiseaseState('healthy')
     mort_get_data_funcs = {
         'dwell_time': lambda _, __: pd.Timedelta(days=0),
-        'disability_weight': lambda _, __: 0.1,
+        'disability_weight': lambda _, __: 0.0,
         'prevalence': lambda _, __: build_table(0.000001, year_start-1, year_end,
                                                 ['age', 'year', 'sex', 'value']),
         'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
@@ -228,7 +240,7 @@ def test_mortality_rate(base_config, base_plugins, disease):
 
     simulation.step()
     # Folks instantly transition to sick so now our mortality rate should be much higher
-    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.population.population.index)['sick'])
+    assert np.allclose(from_yearly(0.7, time_step), mortality_rate(simulation.get_population().index)['sick'])
 
 
 def test_incidence(base_config, base_plugins, disease):
@@ -238,7 +250,6 @@ def test_incidence(base_config, base_plugins, disease):
 
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')
-    healthy.add_transition(sick)
 
     transition = RateTransition(
         input_state=healthy, output_state=sick,
@@ -264,7 +275,7 @@ def test_incidence(base_config, base_plugins, disease):
     simulation.step()
 
     assert np.allclose(from_yearly(0.7, time_step),
-                       incidence_rate(simulation.population.population.index), atol=0.00001)
+                       incidence_rate(simulation.get_population().index), atol=0.00001)
 
 
 def test_risk_deletion(base_config, base_plugins, disease):
@@ -300,7 +311,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
     incidence_rate = simulation.values.get_rate('sick.incidence_rate')
 
     simulation.values.register_value_modifier(
-        'sick.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end),
+        'sick.incidence_rate.paf', modifier=simulation.tables.build_table(build_table(paf, year_start, year_end),
                                                            key_columns=('sex',),
                                                            parameter_columns=[('age', 'age_group_start', 'age_group_end'),
                                                                               ('year', 'year_start', 'year_end')],
@@ -311,4 +322,70 @@ def test_risk_deletion(base_config, base_plugins, disease):
     expected_rate = base_rate * (1 - paf)
 
     assert np.allclose(from_yearly(expected_rate, time_step),
-                       incidence_rate(simulation.population.population.index), atol=0.00001)
+                       incidence_rate(simulation.get_population().index), atol=0.00001)
+
+
+def test__assign_event_time_for_prevalent_cases():
+    pop_data = pd.DataFrame(index=range(100))
+    random_func = lambda index: pd.Series(0.4, index=index)
+    current_time = pd.Timestamp(2017, 1, 10, 12)
+
+    dwell_time_func = lambda index: pd.Series(10, index=index)
+    # 10* 0.4 = 4 ; 4 days before the current time
+    expected = pd.Series(pd.Timestamp(2017, 1, 6, 12), index=pop_data.index)
+
+    assert expected.equals(DiseaseState._assign_event_time_for_prevalent_cases(pop_data, current_time, random_func,
+                                                                               dwell_time_func))
+
+
+def test_prevalence_birth_prevalence_initial_assignment(base_config, disease):
+    healthy = BaseDiseaseState('healthy')
+
+    data_funcs = {'prevalence': lambda _, __: 1,
+                  'birth_prevalence': lambda _, __: 0.5,
+                  'disability_weight': lambda _, __: 0}
+    with_condition = DiseaseState('with_condition', get_data_functions=data_funcs)
+
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition],
+                         get_data_functions={'csmr': lambda _, __: None})
+    base_config.update({'population': {'population_size': 1000, 'age_start': 0, 'age_end': 5}}, **metadata(__file__))
+    simulation = setup_simulation([TestPopulation(), model], base_config)
+
+    # prevalence should be used for assigning initial status at sim start
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 1)
+
+    # birth prevalence should be used for assigning initial status to newly-borns on time steps
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0, 'sim_state': 'time_step'})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.75, 0.01)
+
+    # and prevalence should be used for ages not start = end = 0
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5, 'sim_state': 'time_step'})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.83, 0.01)
+
+
+def test_no_birth_prevalence_initial_assignment(base_config, disease):
+    healthy = BaseDiseaseState('healthy')
+
+    data_funcs = {'prevalence': lambda _, __: 1,
+                  'disability_weight': lambda _, __: 0}
+    with_condition = DiseaseState('with_condition', get_data_functions=data_funcs)
+
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition],
+                         get_data_functions={'csmr': lambda _, __: None})
+    base_config.update({'population': {'population_size': 1000, 'age_start': 0, 'age_end': 5}}, **metadata(__file__))
+    simulation = setup_simulation([TestPopulation(), model], base_config)
+
+    # prevalence should be used for assigning initial status at sim start
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 1)
+
+    # with no birth prevalence provided, it should default to 0 for ages start = end = 0
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 0, 'sim_state': 'time_step'})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.5, 0.01)
+
+    # and default to prevalence for ages not start = end = 0
+    simulation.clock.step_forward()
+    simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5, 'sim_state': 'time_step'})
+    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.67, 0.01)

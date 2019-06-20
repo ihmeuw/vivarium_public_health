@@ -1,10 +1,10 @@
 Tutorials
 =========
+Here you'll find tutorials to introduce tools available via ``vivarium_public_health``.
 
-This section contains tutorials that demonstrate how to use the Vivarium
-Public Health library.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
+   artifact
    mslt/index

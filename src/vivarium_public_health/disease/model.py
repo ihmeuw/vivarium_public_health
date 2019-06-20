@@ -3,7 +3,7 @@ import numbers
 import pandas as pd
 import numpy as np
 
-from vivarium import VivariumError
+from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
 from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
@@ -16,9 +16,9 @@ class DiseaseModelError(VivariumError):
 
 class DiseaseModel(Machine):
     def __init__(self, cause, initial_state=None, get_data_functions=None, cause_type="cause", **kwargs):
+        super().__init__(cause, **kwargs)
         self.cause = cause
         self.cause_type = cause_type
-        super().__init__(cause, **kwargs)
 
         if initial_state is not None:
             self.initial_state = initial_state.state_id
@@ -32,11 +32,14 @@ class DiseaseModel(Machine):
                 f"{self.cause_type}.{cause}.cause_specific_mortality")
 
     @property
-    def condition(self):
-        return self.state_column
+    def name(self):
+        return f"disease_model.{self.cause}"
 
     def setup(self, builder):
         super().setup(builder)
+
+        self.configuration_age_start = builder.configuration.population.age_start
+        self.configuration_age_end = builder.configuration.population.age_end
 
         self._csmr_data = self._get_data_functions['csmr'](self.cause, builder)
         self.config = builder.configuration
@@ -45,11 +48,11 @@ class DiseaseModel(Machine):
         builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
-        self.population_view = builder.population.get_view(['age', 'sex', self.condition])
+        self.population_view = builder.population.get_view(['age', 'sex', self.state_column])
         builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[self.condition],
+                                                 creates_columns=[self.state_column],
                                                  requires_columns=['age', 'sex'])
-        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.condition))
+        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.state_column))
 
         self._propensity = pd.Series()
         self.propensity = builder.value.register_value_producer(f'{self.cause}.prevalence_propensity',
@@ -73,13 +76,13 @@ class DiseaseModel(Machine):
     def get_csmr(self):
         return self._csmr_data
 
-    def get_state_weights(self, pop_index):
-        states = [s for s in self.states if hasattr(s, 'prevalence_data') and s.prevalence_data is not None]
+    def get_state_weights(self, pop_index, prevalence_type):
+        states = [s for s in self.states if hasattr(s, f'{prevalence_type}_data') and getattr(s, f'{prevalence_type}_data') is not None]
 
         if not states:
             return states, None
 
-        weights = [s.prevalence_data(pop_index) for s in states]
+        weights = [getattr(s, f'{prevalence_type}_data')(pop_index) for s in states]
         for w in weights:
             w.reset_index(inplace=True, drop=True)
         weights += ((1 - np.sum(weights, axis=0)), )
@@ -91,7 +94,6 @@ class DiseaseModel(Machine):
 
         return state_names, weights_bins
 
-
     @staticmethod
     def assign_initial_status_to_simulants(simulants_df, state_names, weights_bins, propensities):
         simulants = simulants_df[['age', 'sex']].copy()
@@ -100,7 +102,6 @@ class DiseaseModel(Machine):
         initial_states = pd.Series(np.array(state_names)[choice_index], index=simulants.index)
 
         simulants.loc[:, 'condition_state'] = initial_states
-
         return simulants
 
     def load_population_columns(self, pop_data):
@@ -110,7 +111,21 @@ class DiseaseModel(Machine):
 
         assert self.initial_state in {s.state_id for s in self.states}
 
-        state_names, weights_bins = self.get_state_weights(pop_data.index)
+        # FIXME: this is a hack to figure out whether or not we're at the simulation start based on the fact that the
+        #  fertility components create this user data
+        if pop_data.user_data['sim_state'] == 'setup':  # simulation start
+            if self.configuration_age_start != self.configuration_age_end != 0:
+                state_names, weights_bins = self.get_state_weights(pop_data.index, "prevalence")
+            else:
+                raise NotImplementedError('We do not currently support an age 0 cohort. '
+                                          'configuration.population.age_start and configuration.population.age_end '
+                                          'cannot both be 0.')
+
+        else:  # on time step
+            if pop_data.user_data['age_start'] == pop_data.user_data['age_end'] == 0:
+                state_names, weights_bins = self.get_state_weights(pop_data.index, "birth_prevalence")
+            else:
+                state_names, weights_bins = self.get_state_weights(pop_data.index, "prevalence")
 
         if state_names and not population.empty:
             # only do this if there are states in the model that supply prevalence data
@@ -119,9 +134,9 @@ class DiseaseModel(Machine):
             condition_column = self.assign_initial_status_to_simulants(population, state_names, weights_bins,
                                                                        self.propensity(population.index))
 
-            condition_column = condition_column.rename(columns={'condition_state': self.condition})
+            condition_column = condition_column.rename(columns={'condition_state': self.state_column})
         else:
-            condition_column = pd.Series(self.initial_state, index=population.index, name=self.condition)
+            condition_column = pd.Series(self.initial_state, index=population.index, name=self.state_column)
         self.population_view.update(condition_column)
 
     def to_dot(self):
@@ -170,5 +185,5 @@ class DiseaseModel(Machine):
 
     def metrics(self, index, metrics):
         population = self.population_view.get(index, query="alive == 'alive'")
-        metrics[self.condition + '_prevalent_cases_at_sim_end'] = (population[self.condition] != 'susceptible_to_' + self.condition).sum()
+        metrics[self.state_column + '_prevalent_cases_at_sim_end'] = (population[self.state_column] != 'susceptible_to_' + self.state_column).sum()
         return metrics

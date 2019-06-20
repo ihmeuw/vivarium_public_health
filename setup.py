@@ -17,16 +17,21 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        'vivarium',
-        'numpy',
+        'vivarium>=0.8.18',
+        # FIXME: Newer versions of numpy have conflicting dependencies
+        # with pytables.
+        'numpy<=1.15.4',
         'pandas',
         'scipy',
-        'tables',
+        # FIXME: Requirement imposed by our standard data sources.
+        'tables<=3.4.0',
+        'risk_distributions>=2.0.0',
     ]
 
     test_requirements = [
         'pytest',
         'pytest-mock',
+        'hypothesis',
     ]
 
     doc_requirements = [

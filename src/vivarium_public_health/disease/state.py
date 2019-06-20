@@ -1,22 +1,21 @@
 """A toolbox for modeling diseases as state machines."""
 import pandas as pd
+import numpy as np
 
 from vivarium.framework.state_machine import State, Transient
+from vivarium.framework.values import list_combiner, joint_value_post_processor
 
 from vivarium_public_health.disease import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):
-    def __init__(self, cause, name_prefix=None, side_effect_function=None,
-                 track_events=True, cause_type="cause", **kwargs):
-        self.cause = cause
+    def __init__(self, cause, name_prefix='', side_effect_function=None, cause_type="cause", **kwargs):
+        super().__init__(name_prefix + cause)  # becomes state_id
         self.cause_type = cause_type
-        cause_name = name_prefix + cause if name_prefix else cause
-        super().__init__(cause_name, **kwargs)
+        self.cause = cause
 
         self.side_effect_function = side_effect_function
 
-        self.track_events = track_events
         self.event_time_column = self.state_id + '_event_time'
         self.event_count_column = self.state_id + '_event_count'
 
@@ -35,12 +34,12 @@ class BaseDiseaseState(State):
         self.clock = builder.time.clock()
 
         columns = [self._model, 'alive']
-        if self.track_events:
-            columns += [self.event_time_column, self.event_count_column]
+        columns += [self.event_time_column, self.event_count_column]
 
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=[self.event_time_column, self.event_count_column])
+                                                 creates_columns=[self.event_time_column, self.event_count_column],
+                                                 requires_columns=[self._model])
 
         builder.value.register_value_modifier('metrics', self.metrics)
 
@@ -54,11 +53,11 @@ class BaseDiseaseState(State):
         event_time : pandas.Timestamp
             The time at which this transition occurs.
         """
-        if self.track_events:
-            pop = self.population_view.get(index)
-            pop[self.event_time_column] = event_time
-            pop[self.event_count_column] += 1
-            self.population_view.update(pop)
+
+        pop = self.population_view.get(index)
+        pop[self.event_time_column] = event_time
+        pop[self.event_count_column] += 1
+        self.population_view.update(pop)
 
         if self.side_effect_function is not None:
             self.side_effect_function(index, event_time)
@@ -71,10 +70,10 @@ class BaseDiseaseState(State):
         event : `vivarium.framework.population.PopulationEvent`
             An event signaling the creation of new simulants.
         """
-        if self.track_events:
-            self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series(pd.NaT, index=pop_data.index),
-                                                      self.event_count_column: pd.Series(0, index=pop_data.index)},
-                                                     index=pop_data.index))
+
+        self.population_view.update(pd.DataFrame({self.event_time_column: pd.Series(pd.NaT, index=pop_data.index),
+                                                  self.event_count_column: pd.Series(0, index=pop_data.index)},
+                                                 index=pop_data.index))
 
         for transition in self.transition_set:
             if transition.start_active:
@@ -107,9 +106,9 @@ class BaseDiseaseState(State):
         -------
         `pandas.DataFrame`
             The metrics table updated to reflect new simulation state."""
-        if self.track_events:
-            population = self.population_view.get(index)
-            metrics[self.event_count_column] = population[self.event_count_column].sum()
+
+        population = self.population_view.get(index)
+        metrics[self.event_count_column] = population[self.event_count_column].sum()
         return metrics
 
 
@@ -134,7 +133,7 @@ class SusceptibleState(BaseDiseaseState):
 
 class RecoveredState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
-        super().__init__(cause, *args, name_prefix='recovered_from_', **kwargs)
+        super().__init__(cause, *args, name_prefix="recovered_from_", **kwargs)
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -157,7 +156,7 @@ class DiseaseState(BaseDiseaseState):
         """
         Parameters
         ----------
-        state_id : str
+        cause : str
             The name of this state.
         disability_weight : pandas.DataFrame or float, optional
             The amount of disability associated with this state.
@@ -171,7 +170,6 @@ class DiseaseState(BaseDiseaseState):
             The name of a column to track the number of times this state was entered.
         side_effect_function : callable, optional
             A function to be called when this state is entered.
-        track_events : bool, optional
         """
         super().__init__(cause, **kwargs)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
@@ -196,28 +194,49 @@ class DiseaseState(BaseDiseaseState):
                 f"{self.cause_type}.{cause}.disability_weight"))
         get_prevalence_func = self._get_data_functions.get(
             'prevalence', lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.prevalence"))
+        get_birth_prevalence_func = self._get_data_functions.get(
+            'birth_prevalence', lambda cause, builder: 0)
         get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: pd.Timedelta(0))
 
-        disability_weight_data = get_disability_weight_func(self.cause, builder)
         self.prevalence_data = builder.lookup.build_table(get_prevalence_func(self.cause, builder))
+        self.birth_prevalence_data = builder.lookup.build_table(get_birth_prevalence_func(self.cause, builder),
+                                                                parameter_columns=(['year', 'year_start', 'year_end'],))
         self._dwell_time = get_dwell_time_func(self.cause, builder)
+        self.randomness_prevalence = builder.randomness.get_stream(f'{self.state_id}_prevalent_cases')
 
-        if isinstance(disability_weight_data, pd.DataFrame):
-            self._disability_weight = builder.lookup.build_table(float(disability_weight_data.value))
-        elif disability_weight_data is not None:
-            self._disability_weight = builder.lookup.build_table(disability_weight_data)
-        else:
-            self._disability_weight = builder.lookup.build_table(0)
+        disability_weight_data = get_disability_weight_func(self.cause, builder)
+        if isinstance(disability_weight_data, pd.DataFrame) and len(disability_weight_data) == 1:
+            disability_weight_data = disability_weight_data.value[0]  # sequela only have single value
+        self._disability_weight = builder.lookup.build_table(disability_weight_data)
+        self.disability_weight = builder.value.register_value_producer(f'{self._model}.disability_weight',
+                                                                       source=self.compute_disability_weight)
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
         if isinstance(self._dwell_time, pd.DataFrame) or self._dwell_time.days > 0:
             self.transition_set.allow_null_transition = True
-            self.track_events = True
 
         if isinstance(self._dwell_time, pd.Timedelta):
             self._dwell_time = self._dwell_time.total_seconds() / (60*60*24)
+
         self.dwell_time = builder.value.register_value_producer(f'{self.state_id}.dwell_time',
                                                                 source=builder.lookup.build_table(self._dwell_time))
+
+    def load_population_columns(self, pop_data):
+        super().load_population_columns(pop_data)
+        simulants_with_condition = self.population_view.get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
+        if not simulants_with_condition.empty:
+            infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
+                                                                      self.randomness_prevalence.get_draw,
+                                                                      self.dwell_time)
+            infected_at.name = self.event_time_column
+            self.population_view.update(infected_at)
+
+    @staticmethod
+    def _assign_event_time_for_prevalent_cases(infected, current_time, randomness_func, dwell_time_func):
+        dwell_time = dwell_time_func(infected.index)
+        infected_at = dwell_time * randomness_func(infected.index)
+        infected_at = current_time - pd.to_timedelta(infected_at, unit='D')
+        return infected_at
 
     def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
         if source_data_type == 'rate':
@@ -261,8 +280,7 @@ class DiseaseState(BaseDiseaseState):
             A filtered index of the simulants.
         """
         population = self.population_view.get(index, query='alive == "alive"')
-        # TODO: There is an uncomfortable overlap between having a dwell time and tracking events.
-        if self.track_events:
+        if np.any(self.dwell_time(index)) > 0:
             state_exit_time = population[self.event_time_column] + pd.to_timedelta(self.dwell_time(index), unit='D')
             return population.loc[state_exit_time <= event_time].index
         else:
@@ -272,7 +290,7 @@ class DiseaseState(BaseDiseaseState):
         if self.cleanup_function is not None:
             self.cleanup_function(index, event_time)
 
-    def disability_weight(self, index):
+    def compute_disability_weight(self, index):
         """Gets the disability weight associated with this state.
 
         Parameters
@@ -288,9 +306,6 @@ class DiseaseState(BaseDiseaseState):
 
         return self._disability_weight(population.index) * ((population[self._model] == self.state_id)
                                                             & (population.alive == 'alive'))
-
-    def name(self):
-        return '{}'.format(self.state_id)
 
     def __repr__(self):
         return 'DiseaseState({})'.format(self.state_id)
@@ -325,11 +340,19 @@ class ExcessMortalityState(DiseaseState):
         super().setup(builder)
         get_excess_mortality_func = self._get_data_functions.get('excess_mortality', lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.excess_mortality"))
 
-        self.excess_mortality_data = get_excess_mortality_func(self.cause, builder)
-        excess_mortality_source = builder.lookup.build_table(self.excess_mortality_data)
+        self.base_excess_mortality = builder.lookup.build_table(get_excess_mortality_func(self.cause, builder))
         self._mortality = builder.value.register_rate_producer(f'{self.state_id}.excess_mortality',
-                                                               source=excess_mortality_source)
+                                                               source=self.effective_excess_mortality)
+        self.joint_paf = builder.value.register_value_producer(f'{self.state_id}.excess_mortality.paf',
+                                                               source=lambda idx: [builder.lookup.build_table(0)(idx)],
+                                                               preferred_combiner=list_combiner,
+                                                               preferred_post_processor=joint_value_post_processor)
         builder.value.register_value_modifier('mortality_rate', modifier=self.mortality_rates)
+
+    def effective_excess_mortality(self, index):
+        base_excess_mort = self.base_excess_mortality(index)
+        joint_mediated_paf = self.joint_paf(index)
+        return pd.Series(base_excess_mort.values * (1 - joint_mediated_paf.values), index=index)
 
     def mortality_rates(self, index, rates_df):
         """Modifies the baseline mortality rate for a simulant if they are in this state.

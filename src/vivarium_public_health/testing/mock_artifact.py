@@ -9,8 +9,6 @@ MOCKERS = {
         'cause': {
             'prevalence': 0,
             'cause_specific_mortality': 0,
-            'population_attributable_fraction': build_table([1, "test_risk"], 1990, 2018,
-                                                            ("age", "sex", "year", "value", "risk_factor")),
             'excess_mortality': 0,
             'remission': 0,
             'incidence': 0.001,
@@ -20,8 +18,10 @@ MOCKERS = {
             'distribution': lambda *args, **kwargs: 'ensemble',
             'exposure': 120,
             'exposure_standard_deviation': 15,
-            'relative_risk': build_table([1.5, "continuous", "test_cause"], 1990, 2018,
-                                         ("age", "sex", "year", "value", "parameter", "cause")),
+            'relative_risk': build_table([1.5, "continuous", "test_cause", "incidence_rate"], 1990, 2017,
+                                         ("age", "sex", "year", "value", "parameter", "cause", "affected_measure")),
+            'population_attributable_fraction': build_table([1, "test_cause_1", "incidence_rate"], 1990, 2017,
+                                                            ("age", "sex", "year", "value", "cause", "affected_measure")),
             'tmred': lambda *args, **kwargs: {
                 "distribution": "uniform",
                 "min": 80,
@@ -45,16 +45,19 @@ MOCKERS = {
             'disability_weight': pd.DataFrame({'value': [0]}),
         },
         'etiology': {
-            'population_attributable_fraction': 1,
+            'population_attributable_fraction': build_table([1, "incidence_rate"], 1990, 2017,
+                                                            ("age", "sex", "year", "value", "affected_measure")),
         },
         'healthcare_entity': {
-            'cost': build_table(0, 1990, 2018).query('sex=="Both" and age==27').drop('sex', 'columns'),
-            'annual_visits': 0,
+            'cost': build_table([0, 'outpatient_visits'], 1990, 2017,
+                                ("age", "sex", "year", "value", "healthcare_entity")),
+            'utilization': 0,
         },
         'population': {
             'structure': make_uniform_pop_data(),
-            'theoretical_minimum_risk_life_expectancy': build_table(98.0, 1990, 1990).query('sex=="Both"')\
-                .filter(['age', 'age_group_start', 'age_group_end', 'value'])
+            'theoretical_minimum_risk_life_expectancy': (build_table(98.0, 1990, 1990)
+                                                         .query('sex=="Female"')
+                                                         .filter(['age_group_start', 'age_group_end', 'value']))
         },
 }
 
@@ -87,6 +90,10 @@ class MockArtifactManager(ArtifactManager):
 
     def __init__(self):
         self.artifact = self._load_artifact(None)
+
+    @property
+    def name(self):
+        return 'mock_artifact_manager'
 
     def setup(self, builder):
         pass

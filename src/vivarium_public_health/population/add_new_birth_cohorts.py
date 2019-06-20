@@ -1,6 +1,7 @@
 """This module contains several components that  model birth rates."""
 import pandas as pd
 import numpy as np
+from vivarium_public_health.population.data_transformations import get_live_births_per_year
 
 SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate better data into gestational model (probably as a separate component)
@@ -8,142 +9,127 @@ PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
 
 
 class FertilityDeterministic:
-    """Deterministic model of births.
-
-    Attributes
-    ----------
-    fractional_new_births : float
-        A rolling record of the fractional part of new births generated
-        each time-step that allows us to
-    """
+    """Deterministic model of births."""
 
     configuration_defaults = {
-        'fertility_deterministic': {
+        'fertility': {
             'number_of_new_simulants_each_year': 1000,
         },
     }
 
-    def __init__(self):
-        self.fractional_new_births = 0
+    @property
+    def name(self):
+        return "deterministic_fertility"
 
     def setup(self, builder):
-        self.config = builder.configuration.fertility_deterministic
-        self.simulant_creator = builder.population.get_simulant_creator()
-        builder.event.register_listener('time_step', self.add_new_birth_cohort)
+        self.fractional_new_births = 0
+        self.simulants_per_year = builder.configuration.fertility.number_of_new_simulants_each_year
 
-    def add_new_birth_cohort(self, event):
-        """Deterministically adds a new set of simulants at every timestep
-        based on a parameter in the configuration.
+        self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.event.register_listener('time_step', self.on_time_step)
+
+    def on_time_step(self, event):
+        """Adds a set number of simulants to the population each time step.
 
         Parameters
         ----------
-        event : vivarium.population.PopulationEvent
+        event
             The event that triggered the function call.
-        creator : method
-            A function or method for creating a population.
         """
-
         # Assume births are uniformly distributed throughout the year.
-        step_size = event.step_size/pd.Timedelta(seconds=1)
-        simulants_to_add = (self.config.number_of_new_simulants_each_year*step_size/SECONDS_PER_YEAR
-                            + self.fractional_new_births)
+        step_size = event.step_size/pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        simulants_to_add = self.simulants_per_year*step_size + self.fractional_new_births
+
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
+
         if simulants_to_add > 0:
             self.simulant_creator(simulants_to_add,
                                   population_configuration={
                                       'age_start': 0,
                                       'age_end': 0,
+                                      'sim_state': 'time_step',
                                   })
+
+    def __repr__(self):
+        return "FertilityDeterministic()"
 
 
 class FertilityCrudeBirthRate:
-    """Population-level model of births using Crude Birth Rate.
+    """Population-level model of births using crude birth rate.
 
-    Attributes
-    ----------
-    randomness : `randomness.RandomStream`
-        A named stream of random numbers bound to vivarium's common
-        random number framework.
+    The number of births added each time step is calculated as
+
+    new_births = sim_pop_size_t0 * live_births / true_pop_size * step_size
+
+    Where
+
+    sim_pop_size_t0 = the initial simulation population size
+    live_births = annual number of live births in the true population
+    true_pop_size = the true population size
+
+    This component has configuration flags that determine whether the
+    live births and the true population size should vary with time.
 
     Notes
     -----
-    The OECD definition of Crude Birthrate can be found on their
+    The OECD definition of crude birth rate can be found on their
     website_, while a more thorough discussion of fertility and
     birth rate models can be found on Wikipedia_ or in demography
     textbooks.
-
     .. _website: https://stats.oecd.org/glossary/detail.asp?ID=490
     .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
     """
-    def setup(self, builder):
-        self._population_data = builder.data.load("population.structure")
-        self._birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
-        if 'exit_age' in builder.configuration.population:
-            self.exit_age = builder.configuration.population.exit_age
-        else:
-            self.exit_age = None
-        self.randomness = builder.randomness.get_stream('crude_birth_rate')
-        self.simulant_creator = builder.population.get_simulant_creator()
-        builder.event.register_listener('time_step', self.add_new_birth_cohort)
 
-    def add_new_birth_cohort(self, event):
+    configuration_defaults = {
+        'fertility': {
+            'time_dependent_live_births': True,
+            'time_dependent_population_fraction': False,
+        }
+    }
+
+    @property
+    def name(self):
+        return "crude_birthrate_fertility"
+
+    def setup(self, builder):
+        self.clock = builder.time.clock()
+
+        self.birth_rate = get_live_births_per_year(builder)
+
+        self.randomness = builder.randomness.get_stream('crude_birth_rate')
+
+        self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.event.register_listener('time_step', self.on_time_step)
+
+    def on_time_step(self, event):
         """Adds new simulants every time step based on the Crude Birth Rate
         and an assumption that birth is a Poisson process
-
         Parameters
         ----------
-        event : vivarium.population.PopulationEvent
+        event
             The event that triggered the function call.
-        creator : method
-            A function or method for creating a population.
-
-        Notes
-        -----
-        The method for computing the Crude Birth Rate employed here is
-        approximate.
-
         """
-        # FIXME: We are pulling data every time here.  Use the value pipeline system.
-        birth_rate = self._get_birth_rate(event.time.year)
-        population_size = len(event.index)
-        step_size = event.step_size / pd.Timedelta(seconds=1)
+        birth_rate = self.birth_rate.at[self.clock().year]
+        step_size = event.step_size / pd.Timedelta(seconds=SECONDS_PER_YEAR)
 
-        mean_births = birth_rate*population_size*step_size/SECONDS_PER_YEAR
-
+        mean_births = birth_rate * step_size
         # Assume births occur as a Poisson process
         r = np.random.RandomState(seed=self.randomness.get_seed())
         simulants_to_add = r.poisson(mean_births)
+
         if simulants_to_add > 0:
             self.simulant_creator(simulants_to_add,
                                   population_configuration={
                                       'age_start': 0,
                                       'age_end': 0,
+                                      'sim_state': 'time_step',
                                   })
 
-    def _get_birth_rate(self, year):
-        """Computes a crude birth rate from demographic data in a given year.
-
-        Parameters
-        ----------
-        year : int
-            The year we want the birth rate for.
-
-        Returns
-        -------
-        float
-            The crude birth rate of the population in the given year in
-            births per person per year.
-        """
-        population_table = self._population_data.query("year == @year and sex == 'Both'")
-        births = float(self._birth_data.query('sex == "Both"').set_index(['year']).loc[year].mean_value)
-
-        if self.exit_age is not None:
-            population = population_table.query("age < @self.exit_age").population.sum()
-        else:
-            population = population_table.population.sum()
-
-        return births / population
+    def __repr__(self):
+        return "FertilityCrudeBirthRate()"
 
 
 class FertilityAgeSpecificRates:
@@ -151,21 +137,22 @@ class FertilityAgeSpecificRates:
     A simulant-specific model for fertility and pregnancies.
     """
 
+    @property
+    def name(self):
+        return 'age_specific_fertility'
+
     def setup(self, builder):
         """ Setup the common randomness stream and
         age-specific fertility lookup tables.
-
         Parameters
         ----------
         builder : vivarium.engine.Builder
             Framework coordination object.
-
         """
-
         self.randomness = builder.randomness.get_stream('fertility')
-        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")[['year', 'year_start', 'year_end',
-                                                                                         'age', 'age_group_start',
-                                                                                         'age_group_end', 'value']]
+        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
+        asfr_data = asfr_data[asfr_data.sex == 'Female'][['year_start', 'year_end',
+                                                          'age_group_start', 'age_group_end', 'mean_value']]
         asfr_source = builder.lookup.build_table(asfr_data, key_columns=(),
                                                  parameter_columns=[('age', 'age_group_start', 'age_group_end'),
                                                                     ('year', 'year_start', 'year_end')],)
@@ -193,13 +180,10 @@ class FertilityAgeSpecificRates:
 
     def step(self, event):
         """Produces new children and updates parent status on time steps.
-
         Parameters
         ----------
         event : vivarium.population.PopulationEvent
             The event that triggered the function call.
-        creator : method
-            A function or method for creating a population.
         """
         # Get a view on all living women who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
@@ -221,6 +205,10 @@ class FertilityAgeSpecificRates:
                                         population_configuration={
                                             'age_start': 0,
                                             'age_end': 0,
+                                            'sim_state': 'time_step',
                                         })
             parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
             self.population_view.update(parents)
+
+    def __repr__(self):
+        return "FertilityAgeSpecificRates()"
