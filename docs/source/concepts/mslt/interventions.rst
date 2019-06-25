@@ -42,9 +42,9 @@ Tobacco-free generation
 
 For this intervention, we assume that individuals born after a certain year
 :math:`Y` will be unable to purchase tobacco and therefore will never smoke.
-This will have one effect (where we assume that all uptake occurs at age 21):
+This will have one effect (where we assume that all uptake occurs at age 20):
 
-* From year :math:`Y + 21`, the uptake rate will be zero.
+* From year :math:`Y + 20`, the uptake rate will be zero.
 
 Tobacco tax
 -----------
