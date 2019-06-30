@@ -1,3 +1,17 @@
+"""
+================================
+Vivarium Public Health Interface
+================================
+
+This module contains a wrapper around the vivarium interactive interface
+to include the boilerplate for setting up modules with a data artifact.
+
+.. deprecated::
+
+   This interface is deprecated. It was a bad idea. Use the vivarium
+   interactive interface.
+
+"""
 import vivarium.interface.interactive as vi
 from vivarium.framework.configuration import build_model_specification
 from vivarium.framework.plugins import PluginManager

@@ -1,3 +1,12 @@
+"""
+==============
+Sample History
+==============
+
+This module contains tools for observing complex individual trajectories
+through the simulation.
+
+"""
 import pandas as pd
 
 

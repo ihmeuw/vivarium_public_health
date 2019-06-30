@@ -1,4 +1,11 @@
-"""A toolbox for modeling diseases as state machines."""
+"""
+==============
+Disease States
+==============
+
+This module contains tools to manage standard disease states.
+
+"""
 import pandas as pd
 import numpy as np
 

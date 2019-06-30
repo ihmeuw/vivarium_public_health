@@ -1,3 +1,13 @@
+"""
+=========
+Utilities
+=========
+
+This module contains utility classes and functions for use across
+vivarium public health components.
+
+"""
+
 
 class EntityString(str):
     """Convenience class for representing entities as strings."""

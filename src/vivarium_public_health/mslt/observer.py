@@ -1,5 +1,12 @@
-"""This module provides classes that record various outputs of interest."""
+"""
+=========
+Observers
+=========
 
+This module contains tools for recording various outputs of interest in
+multi-state lifetable simulations.
+
+"""
 import numpy as np
 import pandas as pd
 import itertools

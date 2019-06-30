@@ -1,3 +1,12 @@
+"""
+===================
+Risk Exposure Model
+===================
+
+This module contains tools for modeling categorical and continuous risk
+exposure.
+
+"""
 import pandas as pd
 
 from vivarium_public_health.utilities import EntityString

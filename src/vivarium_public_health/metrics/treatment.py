@@ -1,3 +1,12 @@
+"""
+==================
+Treatment Observer
+==================
+
+This module contains tools for observing multi-dose treatment counts
+in the simulation.
+
+"""
 from collections import Counter
 
 from .utilities import get_age_bins, get_treatment_counts

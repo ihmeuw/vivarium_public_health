@@ -1,3 +1,12 @@
+"""
+=============================
+Mass Treatment Campaign Model
+=============================
+
+This module contains a model for a mass treatment campaign treatment model
+such as a vaccine schedule.
+
+"""
 import pandas as pd
 
 from .base_treatment import Treatment

@@ -1,8 +1,14 @@
-"""This module provides tools for interacting with data artifacts.
+"""
+=================
+The Data Artifact
+=================
 
-A data artifact is a hdf archive on disk intended to package up all data relevant
-to a particular simulation. This module provides a class to wrap that hdf file for
-convenient access and inspection.
+This module provides tools for interacting with data artifacts.
+
+A data artifact is a hdf archive on disk intended to package up all data
+relevant to a particular simulation. This module provides a class to wrap that
+hdf file for convenient access and inspection.
+
 """
 from collections import defaultdict
 import logging

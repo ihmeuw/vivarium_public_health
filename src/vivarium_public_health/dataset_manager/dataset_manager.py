@@ -1,4 +1,12 @@
-"""A vivarium plugin for managing complex data."""
+"""
+====================
+The Artifact Manager
+====================
+
+This module contains the :class:`ArtifactManager`, a ``vivarium`` plugin
+for handling complex data bound up in a data artifact.
+
+"""
 import logging
 from pathlib import Path
 from typing import Union, Sequence

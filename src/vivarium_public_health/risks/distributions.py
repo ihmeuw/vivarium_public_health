@@ -1,3 +1,12 @@
+"""
+=================================
+Risk Exposure Distribution Models
+=================================
+
+This module contains tools for modeling several different risk
+exposure distributions.
+
+"""
 import numpy as np
 import pandas as pd
 
