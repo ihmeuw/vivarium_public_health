@@ -4,7 +4,7 @@ Utilities
 =========
 
 This module contains utility classes and functions for use across
-vivarium public health components.
+vivarium_public_health components.
 
 """
 
