@@ -3,7 +3,7 @@
 Treatment Schedule Model
 ========================
 
-This module contains to model for a treatment schedule for an intervention
+This module contains a model for a treatment schedule for an intervention
 with several doses.  It's meant to plug in to the MassTreatmentCampaign
 component.
 
