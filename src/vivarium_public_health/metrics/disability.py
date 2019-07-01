@@ -4,7 +4,7 @@ Disability Observer
 ===================
 
 This module contains tools for observing years lived with disability (YLDs)
-in a simulation.
+in the simulation.
 
 """
 from collections import Counter
