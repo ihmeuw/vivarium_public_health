@@ -1,3 +1,13 @@
+"""
+==========================
+Simple Intervention Models
+==========================
+
+This module contains simple intervention models that work at the population
+level by providing direct shifts to epidemiological measures.
+
+"""
+
 from vivarium_public_health.utilities import TargetString
 
 

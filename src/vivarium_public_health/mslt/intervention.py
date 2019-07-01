@@ -1,4 +1,12 @@
-"""Provide components to represent common forms of intervention."""
+"""
+===================
+Intervention Models
+===================
+
+This module contains tools for modeling interventions in multi-state lifetable
+simulations.
+
+"""
 
 
 class ModifyDiseaseRate:

@@ -1,4 +1,12 @@
-"""Provide components to represent delayed effects."""
+"""
+===============
+Delayed Effects
+===============
+
+This module contains tools to represent delayed effects in a multi-state
+lifetable simulation.
+
+"""
 import pandas as pd
 
 

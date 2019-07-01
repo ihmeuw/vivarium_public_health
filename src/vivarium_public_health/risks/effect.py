@@ -1,3 +1,12 @@
+"""
+==================
+Risk Effect Models
+==================
+
+This module contains tools for modeling the relationship between risk
+exposure models and disease models.
+
+"""
 
 from vivarium_public_health.utilities import EntityString, TargetString
 from .data_transformations import (get_relative_risk_data, get_population_attributable_fraction_data,

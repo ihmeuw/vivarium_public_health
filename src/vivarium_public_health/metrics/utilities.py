@@ -1,3 +1,12 @@
+"""
+=================
+Metrics Utilities
+=================
+
+This module contains shared utilities for querying, parsing, and transforming
+simulation data to support particular observations during the simulation.
+
+"""
 from collections import ChainMap
 from string import Template
 from typing import Union, List, Tuple, Dict, Callable

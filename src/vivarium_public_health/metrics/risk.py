@@ -1,3 +1,11 @@
+"""
+==============
+Risk Observers
+==============
+
+This module contains tools for observing risk exposure during the simulation.
+
+"""
 import pandas as pd
 from vivarium_public_health.utilities import EntityString
 

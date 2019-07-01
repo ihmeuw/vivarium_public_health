@@ -1,4 +1,11 @@
-"""This module contains several components that  model birth rates."""
+"""
+================
+Fertility Models
+================
+
+This module contains several different models of fertility.
+
+"""
 import pandas as pd
 import numpy as np
 from vivarium_public_health.population.data_transformations import get_live_births_per_year

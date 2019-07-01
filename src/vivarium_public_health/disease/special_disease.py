@@ -1,3 +1,11 @@
+"""
+========================
+"Special" Disease Models
+========================
+
+This module contains frequently used, but non-standard disease models.
+
+"""
 import pandas as pd
 import re
 from operator import lt, gt

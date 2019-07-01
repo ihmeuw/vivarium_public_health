@@ -1,3 +1,12 @@
+"""
+======================
+Treatment Effect Model
+======================
+
+This module contains tools for modeling the impacts of treatments with a
+multiple dose schedule.
+
+"""
 import numpy as np
 import pandas as pd
 

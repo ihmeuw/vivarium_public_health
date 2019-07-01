@@ -1,3 +1,12 @@
+"""
+==================
+Mock Data Artifact
+==================
+
+This module contains a mock version of the artifact manager for use with
+testing vivarium_public_health components.
+
+"""
 import pandas as pd
 
 from vivarium.testing_utilities import build_table

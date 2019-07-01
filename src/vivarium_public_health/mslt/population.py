@@ -1,5 +1,13 @@
+"""
+==================
+Demographic Models
+==================
+
+This module contains tools for modeling the core demography in
+multi-state lifetable simulations.
+
+"""
 import numpy as np
-import pandas as pd
 
 
 class BasePopulation:

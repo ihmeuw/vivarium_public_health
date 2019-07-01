@@ -1,3 +1,12 @@
+"""
+===============================
+Population Data Transformations
+===============================
+
+This module contains tools for handling raw demographic data and transforming
+it into different distributions for sampling.
+
+"""
 from collections import namedtuple
 
 import numpy as np

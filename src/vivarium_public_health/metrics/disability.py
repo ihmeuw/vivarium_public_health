@@ -1,3 +1,12 @@
+"""
+===================
+Disability Observer
+===================
+
+This module contains tools for observing years lived with disability (YLDs)
+in the simulation.
+
+"""
 from collections import Counter
 
 import pandas as pd

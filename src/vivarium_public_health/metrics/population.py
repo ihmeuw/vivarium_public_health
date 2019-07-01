@@ -1,3 +1,12 @@
+"""
+===================
+Population Observer
+===================
+
+This module contains tools for observing population counts during the
+simulation.
+
+"""
 from collections import Counter
 
 import pandas as pd
