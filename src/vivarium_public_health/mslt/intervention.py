@@ -28,25 +28,6 @@ class ModifyAllCauseMortality:
         return rates * self.scale
 
 
-class ModifyAllCauseMortality:
-    """
-    Interventions that modify the all-cause mortality rate.
-    """
-    def __init__(self, name):
-        self.name = name
-
-    def setup(self, builder):
-        self.config = builder.configuration
-        self.scale = self.config.intervention[self.name]["scale"]
-        if self.scale < 0:
-            raise ValueError('Invalid scale: {}'.format(self.scale))
-        builder.value.register_value_modifier('mortality_rate',
-                                              self.mortality_adjustment)
-
-    def mortality_adjustment(self, index, rates):
-        return rates * self.scale
-
-
 class ModifyDiseaseRate:
     """Interventions that modify a rate associated with a chronic disease."""
     def __init__(self, name, disease, rate):
