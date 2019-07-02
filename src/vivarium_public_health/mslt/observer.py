@@ -7,36 +7,77 @@ This module contains tools for recording various outputs of interest in
 multi-state lifetable simulations.
 
 """
-import numpy as np
 import pandas as pd
-import itertools
+
+
+def output_file(config, suffix, sep='_', ext='csv'):
+    """
+    Determine the output file name for an observer, based on the prefix
+    defined in ``config.observer.output_prefix`` and the (optional)
+    ``config.input_data.input_draw_number``.
+    :param config: The builder configuration object.
+    :param suffix: The observer-specific suffix.
+    :param sep: The separator between prefix, suffix, and draw number.
+    :param ext: The output file extension.
+    """
+    if 'observer' not in config:
+        raise ValueError('observer.output_prefix not defined')
+    if 'output_prefix' not in config.observer:
+        raise ValueError('observer.output_prefix not defined')
+    prefix = config.observer.output_prefix
+    if 'input_draw_number' in config.input_data:
+        draw = config.input_data.input_draw_number
+    else:
+        draw = 0
+    output_file = prefix + sep + suffix
+    if draw > 0:
+        output_file += '{}{}'.format(sep, draw)
+    output_file += '.{}'.format(ext)
+    return output_file
 
 
 class MorbidityMortality:
     """
     This class records the all-cause morbidity and mortality rates for each
     cohort at each year of the simulation.
+    :param output_suffix: The suffix for the CSV file in which to record the
+        morbidity and mortality data.
     """
 
-    def __init__(self, output_file):
+    def __init__(self, output_suffix='mm'):
         """
-        :param output_file: The name of the CSV file in which to record the
-            morbidity and mortality data.
+        :param output_suffix: The suffix for the CSV file in which to record
+            the morbidity and mortality data.
         """
-        self.output_file = output_file
+        self.output_suffix = output_suffix
 
     def setup(self, builder):
-        columns = ['age', 'sex']
+        # Record the key columns from the core multi-state life table.
+        columns = ['age', 'sex',
+                   'population', 'bau_population',
+                   'acmr', 'bau_acmr',
+                   'pr_death', 'bau_pr_death',
+                   'deaths', 'bau_deaths',
+                   'yld_rate', 'bau_yld_rate',
+                   'person_years', 'bau_person_years',
+                   'HALY', 'bau_HALY']
         self.population_view = builder.population.get_view(columns)
-        self.yld_rate = builder.value.get_value('yld_rate')
-        self.acm_rate = builder.value.get_value('mortality_rate')
         self.clock = builder.time.clock()
         builder.event.register_listener('collect_metrics', self.on_collect_metrics)
         builder.event.register_listener('simulation_end', self.write_output)
         self.tables = []
         self.table_cols = ['sex', 'age', 'year',
-                           'bau_yld_rate', 'bau_mortality_rate',
-                           'int_yld_rate', 'int_mortality_rate']
+                           'population', 'bau_population',
+                           'prev_population', 'bau_prev_population',
+                           'acmr', 'bau_acmr',
+                           'pr_death', 'bau_pr_death',
+                           'deaths', 'bau_deaths',
+                           'yld_rate', 'bau_yld_rate',
+                           'person_years', 'bau_person_years',
+                           'HALY', 'bau_HALY']
+
+        self.output_file = output_file(builder.configuration,
+                                       self.output_suffix)
 
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
@@ -45,11 +86,31 @@ class MorbidityMortality:
             return
 
         pop['year'] = self.clock().year
-        pop['bau_yld_rate'] = self.yld_rate.source(event.index)
-        pop['bau_mortality_rate'] = self.acm_rate.source(event.index)
-        pop['int_yld_rate'] = self.yld_rate(event.index)
-        pop['int_mortality_rate'] = self.acm_rate(event.index)
+        # Record the population size prior to the deaths.
+        pop['prev_population'] = pop['population'] + pop['deaths']
+        pop['bau_prev_population'] = pop['bau_population'] + pop['bau_deaths']
         self.tables.append(pop[self.table_cols])
+
+    def calculate_LE(self, table, py_col, denom_col):
+        """
+        Calculate the life expectancy for each cohort at each time-step.
+        :param table: The population life table.
+        :param py_col: The name of the person-years column.
+        :param denom_col: The name of the population denominator column.
+        :returns: The life expectancy for each table row, represented as a
+            pandas.Series object.
+        """
+        # Group the person-years by cohort.
+        group_cols = ['year_of_birth', 'sex']
+        subset_cols = group_cols + [py_col]
+        grouped = table.loc[:, subset_cols].groupby(by=group_cols)[py_col]
+        # Calculate the reverse-cumulative sums of the adjusted person-years
+        # (i.e., the present and future person-years) by:
+        #   (a) reversing the adjusted person-years values in each cohort;
+        #   (b) calculating the cumulative sums in each cohort; and
+        #   (c) restoring the original order.
+        cumsum = grouped.apply(lambda x: pd.Series(x[::-1].cumsum()).iloc[::-1])
+        return cumsum / table[denom_col]
 
     def write_output(self, event):
         data = pd.concat(self.tables, ignore_index=True)
@@ -62,6 +123,14 @@ class MorbidityMortality:
         # Re-order the table columns.
         cols = ['year_of_birth'] + self.table_cols
         data = data[cols]
+        # Calculate life expectancy and HALE for the BAU and intervention,
+        # with respect to the initial population, not the survivors.
+        data['LE'] = self.calculate_LE(data, 'person_years', 'prev_population')
+        data['bau_LE'] = self.calculate_LE(data, 'bau_person_years',
+                                           'bau_prev_population')
+        data['HALE'] = self.calculate_LE(data, 'HALY', 'prev_population')
+        data['bau_HALE'] = self.calculate_LE(data, 'bau_HALY',
+                                           'bau_prev_population')
         data.to_csv(self.output_file, index=False)
 
 
@@ -69,16 +138,21 @@ class Disease:
     """
     This class records the disease incidence rate and disease prevalence for
     each cohort at each year of the simulation.
+    :param name: The name of the chronic disease.
+    :param output_suffix: The suffix for the CSV file in which to record the
+        disease data.
     """
 
-    def __init__(self, name, output_file):
+    def __init__(self, name, output_suffix=None):
         """
-        :param name: The name of the disease.
-        :param output_file: The name of the CSV file in which to record the
-            disease data.
+        :param name: The name of the chronic disease.
+        :param output_suffix: The suffix for the CSV file in which to record
+            the disease data.
         """
         self.name = name
-        self.output_file = output_file
+        if output_suffix is None:
+            output_suffix = name.lower()
+        self.output_suffix = output_suffix
 
     def setup(self, builder):
         bau_incidence_value = '{}.incidence'.format(self.name)
@@ -102,8 +176,11 @@ class Disease:
         self.tables = []
         self.table_cols = ['sex', 'age', 'year',
                            'bau_incidence', 'int_incidence',
-                           'bau_prevalence', 'int_prevalence']
+                           'bau_prevalence', 'int_prevalence',
+                           'bau_deaths', 'int_deaths']
         self.clock = builder.time.clock()
+        self.output_file = output_file(builder.configuration,
+                                       self.output_suffix)
 
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
@@ -116,6 +193,8 @@ class Disease:
         pop['int_incidence'] = self.int_incidence(event.index)
         pop['bau_prevalence'] = pop[self.bau_C_col] / (pop[self.bau_C_col] + pop[self.bau_S_col])
         pop['int_prevalence'] = pop[self.int_C_col] / (pop[self.bau_C_col] + pop[self.bau_S_col])
+        pop['bau_deaths'] = 1000 - pop[self.bau_S_col] - pop[self.bau_C_col]
+        pop['int_deaths'] = 1000 - pop[self.int_S_col] - pop[self.int_C_col]
         self.tables.append(pop.loc[:, self.table_cols])
 
     def write_output(self, event):
@@ -136,180 +215,95 @@ class Disease:
         data.to_csv(self.output_file, index=False)
 
 
-class AdjustedPYandLE:
+class TobaccoPrevalence:
     """
-    This class calculates the adjusted person-years and the adjusted
-    life-expectancy for each cohort at each year of the simulation.
+    This class records the prevalence of tobacco use in the population.
+    :param output_suffix: The suffix for the CSV file in which to record the
+        prevalence data.
     """
 
-    def __init__(self, output_file=None, unadjusted=True):
-        """
-        :param output_file: The name of the CSV file in which to record the
-            adjusted person-years and adjusted life-expectancy data.
-        :param unadjusted: Whether to also record unadjusted person-years and
-            life-expectancy data.
-        """
-        self.output_file = output_file
-        self.unadjusted = unadjusted
+    def __init__(self, output_suffix='tobacco'):
+        self.output_suffix = output_suffix
+        self.name = 'tobacco'
 
     def setup(self, builder):
-        self.age_group_end = builder.configuration.population.max_age
-        self.time_span = builder.configuration.time
-        self.yld_rate = builder.value.get_value('yld_rate')
-        self.acm_rate = builder.value.get_value('mortality_rate')
-        view_cols = ['age', 'sex', 'population', 'bau_population']
-        # TODO: ugly hack, can't extract mortality rate when initialising
-        #       simulants unless the diseases have already been initialised.
-        extra_cols = ['CHD_S']
-        # extra_cols = []
-        req_cols = view_cols + extra_cols
-        builder.population.initializes_simulants(self.on_initialize,
-                                                 requires_columns=req_cols)
-        self.population_view = builder.population.get_view(view_cols)
+        self.config = builder.configuration
         self.clock = builder.time.clock()
-        builder.event.register_listener('collect_metrics', self.on_collect_metrics)
-        builder.event.register_listener('simulation_end', self.finalise_output)
-        self.idx_cols = ['age', 'sex', 'year']
+        self.bin_years = int(self.config[self.name]['delay'])
 
-    def create_table(self, min_age, min_year):
-        """
-        Create an empty data frame to hold all of the adjusted person-year and
-        adjusted life-expectancy values that will be produced during a
-        simulation.
-        """
-        ages = range(min_age, self.age_group_end + 1)
-        sexes = ['male', 'female']
-        years = range(min_year, self.time_span.end.year + 1)
-        # NOTE: columns must be in the same order as self.idx_cols.
-        rows = list(itertools.product(ages, sexes, years))
-        self.data = pd.DataFrame(rows, columns=self.idx_cols)
-        self.data.set_index(self.idx_cols)
-        self.data['PYadj'] = np.nan
-        self.data['PY'] = np.nan
-        self.data['population'] = np.nan
-        self.data['bau_PYadj'] = np.nan
-        self.data['bau_PY'] = np.nan
-        self.data['bau_population'] = np.nan
+        view_columns = ['age', 'sex', 'bau_population', 'population'] + self.get_bin_names()
+        self.population_view = builder.population.get_view(view_columns)
 
-    def record_person_years(self, idx):
+        self.tables = []
+        self.table_cols = ['age', 'sex', 'year',
+                           'bau_no', 'bau_yes', 'bau_previously', 'bau_population',
+                           'int_no', 'int_yes', 'int_previously', 'int_population']
+
+        builder.event.register_listener('collect_metrics',
+                                        self.on_collect_metrics)
+        builder.event.register_listener('simulation_end',
+                                        self.write_output)
+        self.output_file = output_file(builder.configuration,
+                                       self.output_suffix)
+
+    def get_bin_names(self):
         """
-        Record the un-adjusted and adjusted person-years for the BAU and the
-        intervention.
+        Return the bin names for both the BAU and the intervention scenario.
+        These names take the following forms:
+        - ``"name.no"``: The number of people who have never been exposed.
+        - ``"name.yes"``: The number of people currently exposed.
+        - ``"name.N"``: The number of people N years post-exposure.
+          - The final bin is the number of people :math:`\ge N` years
+            post-exposure.
+        The intervention bin names take the form ``"name_intervention.X"``.
         """
-        pop = self.population_view.get(idx)
+        if self.bin_years == 0:
+            delay_bins = [str(0)]
+        else:
+            delay_bins = [str(s) for s in range(self.bin_years + 2)]
+        bins = ['no', 'yes'] + delay_bins
+        bau_bins = ['{}.{}'.format(self.name, bin) for bin in bins]
+        int_bins = ['{}_intervention.{}'.format(self.name, bin) for bin in bins]
+        all_bins = bau_bins + int_bins
+        return all_bins
+
+    def on_collect_metrics(self, event):
+        pop = self.population_view.get(event.index)
         if len(pop.index) == 0:
             # No tracked population remains.
             return
 
+        bau_cols = [c for c in pop.columns.values
+                    if c.startswith('{}.'.format(self.name))]
+        int_cols = [c for c in pop.columns.values
+                    if c.startswith('{}_intervention.'.format(self.name))]
+
+        bau_denom = pop.reindex(columns=bau_cols).sum(axis=1)
+        int_denom = pop.reindex(columns=int_cols).sum(axis=1)
+
+        # Normalise prevalence with respect to the total population.
+        pop['bau_no'] = pop['{}.no'.format(self.name)] / bau_denom
+        pop['bau_yes'] = pop['{}.yes'.format(self.name)] / bau_denom
+        pop['bau_previously'] = 1 - pop['bau_no'] - pop['bau_yes']
+        pop['int_no'] = pop['{}_intervention.no'.format(self.name)] / int_denom
+        pop['int_yes'] = pop['{}_intervention.yes'.format(self.name)] / int_denom
+        pop['int_previously'] = 1 - pop['int_no'] - pop['int_yes']
+
+        pop = pop.rename(columns={'population': 'int_population'})
+
         pop['year'] = self.clock().year
+        self.tables.append(pop.reindex(columns=self.table_cols).reset_index(drop=True))
 
-        # Calculate (adjusted) person-years for the intervention.
-        int_pr_death = 1 - np.exp(- self.acm_rate(idx))
-        pop['PY'] = pop['population'] * (1 - 0.5 * int_pr_death)
-        pop['PYadj'] = pop['PY'] * (1 - self.yld_rate(idx))
 
-        # Calculate (adjusted) person-years for the BAU.
-        bau_pr_death = 1 - np.exp(- self.acm_rate.source(idx))
-        pop['bau_PY'] = pop['bau_population'] * (1 - 0.5 * bau_pr_death)
-        pop['bau_PYadj'] = pop['bau_PY'] * (1 - self.yld_rate.source(idx))
-
-        # Determine if any strata statistics need to be updated.
-        df = self.data.merge(pop, on=self.idx_cols, how='left',
-                             suffixes=('', '_new'))
-        if len(df.index) == 0:
-            # No strata to update.
-            return
-
-        # Determine which strata to update.
-        new_vals = df['PYadj_new'].notna()
-
-        # Update (adjusted) person-years and population denominators.
-        int_cols = ['PY', 'PYadj', 'population']
-        bau_cols = ['bau_{}'.format(c) for c in int_cols]
-        for col in int_cols + bau_cols:
-            new_col = '{}_new'.format(col)
-            self.data.loc[new_vals, col] = df.loc[new_vals, new_col]
-
-    def on_initialize(self, pop_data):
-        """
-        Calculate adjusted person-years and adjusted life-expectancy before
-        the first time-step.
-        """
-        idx = pop_data.index
-        pop = self.population_view.get(idx)
-        self.create_table(pop['age'].min(), self.clock().year)
-        self.record_person_years(idx)
-
-    def on_collect_metrics(self, event):
-        """
-        Calculate adjusted person-years for the current year.
-        """
-        self.record_person_years(event.index)
-
-    def get_table(self):
-        """
-        Return a Pandas data frame that contains the adjusted person-years and
-        adjusted life-expectancy for each cohort at each year of the
-        simulation.
-        """
-        mask = self.data['PYadj'].notna()
-        return self.data.loc[mask].sort_index()
-
-    def to_csv(self, filename):
-        """
-        Save the adjusted person-years and the adjusted life-expectancy data
-        to a CSV file.
-        """
-        self.get_table().to_csv(filename, index=False)
-
-    def calculate_life_expectancy(self, py_col, le_col, denom_col):
-        # Group the person-years by cohort.
-        group_cols = ['year_of_birth', 'sex']
-        subset_cols = group_cols + [py_col]
-        grouped = self.data.loc[:, subset_cols].groupby(by=group_cols)[py_col]
-        # Calculate the reverse-cumulative sums of the adjusted person-years
-        # (i.e., the present and future person-years) by:
-        #   (a) reversing the adjusted person-years values in each cohort;
-        #   (b) calculating the cumulative sums in each cohort; and
-        #   (c) restoring the original order.
-        cumsum = grouped.apply(lambda x: pd.Series(x[::-1].cumsum()).iloc[::-1])
-        self.data[le_col] = cumsum / self.data[denom_col]
-
-    def finalise_output(self, event):
-        """
-        Calculate the adjusted life-expectancy for each cohort at each year of
-        the simulation, now that the simulation has finished and the adjusted
-        person-years for each cohort at each year have been calculated.
-
-        If an output file name was provided to the constructor, this method
-        will also save these data to a CSV file.
-        """
-        # Identify each generation by their year of birth.
-        self.data['year_of_birth'] = self.data['year'] - self.data['age']
+    def write_output(self, event):
+        data = pd.concat(self.tables, ignore_index=True)
+        data['year_of_birth'] = data['year'] - data['age']
         # Sort the table by cohort (i.e., generation and sex), and then by
         # calendar year, so that results are output in the same order as in
         # the spreadsheet models.
-        self.data = self.data.sort_values(by=['year_of_birth', 'sex', 'age'],
-                                          axis=0)
-        self.data = self.data.reset_index(drop=True)
-        # Calculate (adjusted) life expectancy for BAU and the intervention.
-        self.calculate_life_expectancy('PY', 'LE', 'population')
-        self.calculate_life_expectancy('PYadj', 'LEadj', 'population')
-        self.calculate_life_expectancy('bau_PY', 'bau_LE', 'bau_population')
-        self.calculate_life_expectancy('bau_PYadj', 'bau_LEadj', 'bau_population')
-        # Calculate differences between the BAU and the intervention.
-        self.data['diff_LE'] = self.data['LE'] - self.data['bau_LE']
-        self.data['diff_PY'] = self.data['PY'] - self.data['bau_PY']
-        self.data['diff_LEadj'] = self.data['LEadj'] - self.data['bau_LEadj']
-        self.data['diff_PYadj'] = self.data['PYadj'] - self.data['bau_PYadj']
-        # Re-order the columns to better reflect how the spreadsheet model
-        # tables are arranged.
-        cols = ['year_of_birth', 'sex', 'age', 'year',
-                'population', 'bau_population',
-                'PYadj', 'LEadj', 'bau_PYadj', 'bau_LEadj',
-                'diff_LEadj', 'diff_PYadj']
-        if self.unadjusted:
-            cols.extend(['PY', 'LE', 'bau_PY', 'bau_LE', 'diff_PY', 'diff_LE'])
-        self.data = self.data[cols]
-        if self.output_file is not None:
-            self.to_csv(self.output_file)
+        data = data.sort_values(by=['year_of_birth', 'sex', 'age'], axis=0)
+        data = data.reset_index(drop=True)
+        # Re-order the table columns.
+        cols = ['year_of_birth'] + self.table_cols
+        data = data.reindex(columns=cols)
+        data.to_csv(self.output_file, index=False)

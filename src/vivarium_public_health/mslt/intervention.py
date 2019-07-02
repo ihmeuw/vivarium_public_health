@@ -9,6 +9,25 @@ simulations.
 """
 
 
+class ModifyAllCauseMortality:
+    """
+    Interventions that modify the all-cause mortality rate.
+    """
+    def __init__(self, name):
+        self.name = name
+
+    def setup(self, builder):
+        self.config = builder.configuration
+        self.scale = self.config.intervention[self.name]["scale"]
+        if self.scale < 0:
+            raise ValueError('Invalid scale: {}'.format(self.scale))
+        builder.value.register_value_modifier('mortality_rate',
+                                              self.mortality_adjustment)
+
+    def mortality_adjustment(self, index, rates):
+        return rates * self.scale
+
+
 class ModifyDiseaseRate:
     """Interventions that modify a rate associated with a chronic disease."""
     def __init__(self, name, disease, rate):
@@ -63,7 +82,6 @@ class ModifyDiseaseMorbidity(ModifyDiseaseRate):
 class ModifyAcuteDiseaseIncidence:
     """
     Interventions that modify an acute disease incidence rate.
-
     Note that this intervention will simply modify both the disability rate
     and the mortality rate for the chosen acute disease.
     """
@@ -119,3 +137,51 @@ class ModifyAcuteDiseaseMortality:
 
     def mortality_adjustment(self, index, rates):
         return rates * self.scale
+
+
+class TobaccoFreeGeneration:
+    """Eradicate tobacco uptake at some point in time."""
+    def __init__(self):
+        self.exposure = 'tobacco'
+
+    def setup(self, builder):
+        self.year = builder.configuration['tobacco_free_generation'].year
+        self.clock = builder.time.clock()
+        rate_name = '{}_intervention.incidence'.format(self.exposure)
+        builder.value.register_value_modifier(rate_name, self.adjust_rate)
+
+    def adjust_rate(self, index, rates):
+        this_year = self.clock().year
+        if this_year >= self.year:
+            return 0.0 * rates
+        else:
+            return rates
+
+
+class TobaccoEradication:
+    """Eradicate all tobacco use at some point in time."""
+    def __init__(self):
+        self.exposure = 'tobacco'
+
+    def setup(self, builder):
+        self.year = builder.configuration['tobacco_eradication'].year
+        self.clock = builder.time.clock()
+        inc_rate_name = '{}_intervention.incidence'.format(self.exposure)
+        builder.value.register_value_modifier(inc_rate_name,
+                                              self.adjust_inc_rate)
+        rem_rate_name = '{}_intervention.remission'.format(self.exposure)
+        builder.value.register_value_modifier(rem_rate_name,
+                                              self.adjust_rem_rate)
+
+    def adjust_inc_rate(self, index, rates):
+        this_year = self.clock().year
+        if this_year >= self.year:
+            return 0.0 * rates
+        else:
+            return rates
+
+    def adjust_rem_rate(self, index, rates):
+        this_year = self.clock().year
+        if this_year >= self.year:
+            rates[:] = 1.0
+        return rates

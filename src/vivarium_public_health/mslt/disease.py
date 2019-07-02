@@ -17,19 +17,18 @@ class AcuteDisease:
     time-step size, that it is not meaningful to talk about prevalence.
     Instead, it simply contributes an excess mortality rate, and/or a
     disability rate.
-
     Interventions may affect these rates:
-
     - `<disease>_intervention.excess_mortality`
     - `<disease>_intervention.yld_rate`
-
-    where `<disease>` is the name given to an acute disease object.
+    where `<disease>` is the name as provided to the constructor.
+    :param name: The disease name (referred to as `<disease>` here).
     """
 
     def __init__(self, name):
         self.name = name
 
     def setup(self, builder):
+        """Load the morbidity and mortality data."""
         mty_data = builder.data.load(f'acute_disease.{self.name}.mortality')
         mty_rate = builder.lookup.build_table(mty_data)
         yld_data = builder.data.load(f'acute_disease.{self.name}.morbidity')
@@ -50,26 +49,52 @@ class AcuteDisease:
         builder.value.register_value_modifier('yld_rate', self.disability_adjustment)
 
     def mortality_adjustment(self, index, mortality_rate):
+        """
+        Adjust the all-cause mortality rate in the intervention scenario, to
+        account for any change in prevalence (relative to the BAU scenario).
+        """
         delta = self.int_excess_mortality(index) - self.excess_mortality(index)
         return mortality_rate + delta
 
     def disability_adjustment(self, index, yld_rate):
+        """
+        Adjust the years lost due to disability (YLD) rate in the intervention
+        scenario, to account for any change in prevalence (relative to the BAU
+        scenario).
+        """
         delta = self.int_disability_rate(index) - self.disability_rate(index)
         return yld_rate + delta
 
 
 class Disease:
     """
-    A more efficient version of the Disease class.
+    This component characterises a chronic disease.
+    It defines the following rates, which may be affected by interventions:
+    - `<disease>_intervention.incidence`
+    - `<disease>_intervention.remission`
+    - `<disease>_intervention.mortality`
+    - `<disease>_intervention.morbidity`
+    where `<disease>` is the name as provided to the constructor.
+    :param name: The disease name (referred to as `<disease>` here).
     """
 
     def __init__(self, name):
         self.name = name
+        self.configuration_defaults = {
+            self.name: {
+                'simplified_no_remission_equations': False,
+            },
+        }
 
     def setup(self, builder):
+        """Load the disease prevalence and rates data."""
         data_prefix = 'chronic_disease.{}.'.format(self.name)
         bau_prefix = self.name + '.'
         int_prefix = self.name + '_intervention.'
+
+        self.clock = builder.time.clock()
+        self.start_year = builder.configuration.time.start.year
+        self.simplified_equations = builder.configuration[self.name].simplified_no_remission_equations
 
         inc_data = builder.data.load(data_prefix + 'incidence')
         i = builder.lookup.build_table(inc_data)
@@ -118,6 +143,9 @@ class Disease:
             self.on_time_step_prepare)
 
     def on_initialize_simulants(self, pop_data):
+        """
+        Initialize the test population for which this disease is modelled.
+        """
         C = 1000 * self.initial_prevalence(pop_data.index)
         S = 1000 - C
 
@@ -134,8 +162,17 @@ class Disease:
         self.population_view.update(pop)
 
     def on_time_step_prepare(self, event):
-        idx = event.index
-        pop = self.population_view.get(idx)
+        """
+        Update the disease status for both the BAU and intervention scenarios.
+        """
+        # Do not update the disease status in the first year, the initial data
+        # describe the disease state at the end of the year.
+        if self.clock().year == self.start_year:
+            return
+        pop = self.population_view.get(event.index)
+        if pop.empty:
+            return
+        idx = pop.index
         S_bau, C_bau = pop[f'{self.name}_S'], pop[f'{self.name}_C']
         S_int = pop[f'{self.name}_S_intervention']
         C_int = pop[f'{self.name}_C_intervention']
@@ -150,6 +187,26 @@ class Disease:
         # number of chronic diseases, we can make some simplifications.
         if np.all(r == 0):
             r = 0
+            if self.simplified_equations:
+                # NOTE: for the 'mslt_reduce_chd' experiment, this results in a
+                # slightly lower HALY gain than that obtained when using the
+                # full equations (below).
+                new_S_bau = S_bau * np.exp(- i_bau)
+                new_S_int = S_int * np.exp(- i_int)
+                new_C_bau = C_bau * np.exp(- f) + S_bau * (1 - np.exp(- i_bau))
+                new_C_int = C_int * np.exp(- f) + S_int * (1 - np.exp(- i_int))
+                pop_update = pd.DataFrame({
+                    f'{self.name}_S': new_S_bau,
+                    f'{self.name}_C': new_C_bau,
+                    f'{self.name}_S_previous': S_bau,
+                    f'{self.name}_C_previous': C_bau,
+                    f'{self.name}_S_intervention': new_S_int,
+                    f'{self.name}_C_intervention': new_C_int,
+                    f'{self.name}_S_intervention_previous': S_int,
+                    f'{self.name}_C_intervention_previous': C_int,
+                }, index=pop.index)
+                self.population_view.update(pop_update)
+                return
 
         # Calculate common factors.
         i_bau2 = i_bau**2
@@ -218,6 +275,11 @@ class Disease:
         self.population_view.update(pop_update)
 
     def mortality_adjustment(self, index, mortality_rate):
+        """
+        Adjust the all-cause mortality rate in the intervention scenario, to
+        account for any change in disease prevalence (relative to the BAU
+        scenario).
+        """
         pop = self.population_view.get(index)
 
         S, C = pop[f'{self.name}_S'], pop[f'{self.name}_C']
@@ -238,6 +300,11 @@ class Disease:
         return mortality_rate + delta
 
     def disability_adjustment(self, index, yld_rate):
+        """
+        Adjust the years lost due to disability (YLD) rate in the intervention
+        scenario, to account for any change in disease prevalence (relative to
+        the BAU scenario).
+        """
         pop = self.population_view.get(index)
 
         S, S_prev = pop[f'{self.name}_S'], pop[f'{self.name}_S_previous']
