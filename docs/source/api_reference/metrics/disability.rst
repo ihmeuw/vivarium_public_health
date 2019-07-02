@@ -1,4 +1,1 @@
-Disability
-==========
-
 .. automodule:: vivarium_public_health.metrics.disability

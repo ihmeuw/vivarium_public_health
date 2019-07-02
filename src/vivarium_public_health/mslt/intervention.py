@@ -1,4 +1,31 @@
-"""Provide components to represent common forms of intervention."""
+"""
+===================
+Intervention Models
+===================
+
+This module contains tools for modeling interventions in multi-state lifetable
+simulations.
+
+"""
+
+
+class ModifyAllCauseMortality:
+    """
+    Interventions that modify the all-cause mortality rate.
+    """
+    def __init__(self, name):
+        self.name = name
+
+    def setup(self, builder):
+        self.config = builder.configuration
+        self.scale = self.config.intervention[self.name]["scale"]
+        if self.scale < 0:
+            raise ValueError('Invalid scale: {}'.format(self.scale))
+        builder.value.register_value_modifier('mortality_rate',
+                                              self.mortality_adjustment)
+
+    def mortality_adjustment(self, index, rates):
+        return rates * self.scale
 
 
 class ModifyAllCauseMortality:
@@ -74,7 +101,6 @@ class ModifyDiseaseMorbidity(ModifyDiseaseRate):
 class ModifyAcuteDiseaseIncidence:
     """
     Interventions that modify an acute disease incidence rate.
-
     Note that this intervention will simply modify both the disability rate
     and the mortality rate for the chosen acute disease.
     """

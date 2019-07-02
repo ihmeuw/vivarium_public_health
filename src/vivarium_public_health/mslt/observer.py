@@ -1,5 +1,12 @@
-"""This module provides classes that record various outputs of interest."""
+"""
+=========
+Observers
+=========
 
+This module contains tools for recording various outputs of interest in
+multi-state lifetable simulations.
+
+"""
 import numpy as np
 import pandas as pd
 import itertools
@@ -10,7 +17,6 @@ def output_file(config, suffix, sep='_', ext='csv'):
     Determine the output file name for an observer, based on the prefix
     defined in ``config.observer.output_prefix`` and the (optional)
     ``config.input_data.input_draw_number``.
-
     :param config: The builder configuration object.
     :param suffix: The observer-specific suffix.
     :param sep: The separator between prefix, suffix, and draw number.
@@ -36,7 +42,6 @@ class MorbidityMortality:
     """
     This class records the all-cause morbidity and mortality rates for each
     cohort at each year of the simulation.
-
     :param output_suffix: The suffix for the CSV file in which to record the
         morbidity and mortality data.
     """
@@ -91,7 +96,6 @@ class MorbidityMortality:
     def calculate_LE(self, table, py_col, denom_col):
         """
         Calculate the life expectancy for each cohort at each time-step.
-
         :param table: The population life table.
         :param py_col: The name of the person-years column.
         :param denom_col: The name of the population denominator column.
@@ -136,7 +140,6 @@ class Disease:
     """
     This class records the disease incidence rate and disease prevalence for
     each cohort at each year of the simulation.
-
     :param name: The name of the chronic disease.
     :param output_suffix: The suffix for the CSV file in which to record the
         disease data.
@@ -217,7 +220,6 @@ class Disease:
 class TobaccoPrevalence:
     """
     This class records the prevalence of tobacco use in the population.
-
     :param output_suffix: The suffix for the CSV file in which to record the
         prevalence data.
     """
@@ -249,16 +251,12 @@ class TobaccoPrevalence:
     def get_bin_names(self):
         """
         Return the bin names for both the BAU and the intervention scenario.
-
         These names take the following forms:
-
         - ``"name.no"``: The number of people who have never been exposed.
         - ``"name.yes"``: The number of people currently exposed.
         - ``"name.N"``: The number of people N years post-exposure.
-
           - The final bin is the number of people :math:`\ge N` years
             post-exposure.
-
         The intervention bin names take the form ``"name_intervention.X"``.
         """
         if self.bin_years == 0:

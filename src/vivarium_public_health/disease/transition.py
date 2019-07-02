@@ -1,3 +1,11 @@
+"""
+===================
+Disease Transitions
+===================
+
+This module contains tools to model transitions between disease states.
+
+"""
 import pandas as pd
 
 from vivarium.framework.state_machine import Transition

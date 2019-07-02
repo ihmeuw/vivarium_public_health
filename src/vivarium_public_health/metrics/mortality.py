@@ -1,3 +1,12 @@
+"""
+==================
+Mortality Observer
+==================
+
+This module contains tools for observing all-cause, cause-specific, and
+excess mortality in the simulation.
+
+"""
 from vivarium_public_health.disease import DiseaseModel, RiskAttributableDisease
 from .utilities import get_age_bins, get_person_time, get_deaths, get_years_of_life_lost
 

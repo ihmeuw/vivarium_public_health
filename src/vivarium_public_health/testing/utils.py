@@ -1,3 +1,12 @@
+"""
+=================
+Testing Utilities
+=================
+
+This module contains data generation tools for testing vivarium_public_health
+components.
+
+"""
 from itertools import product
 
 import pandas as pd

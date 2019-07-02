@@ -1,3 +1,13 @@
+"""
+=================
+The Disease Model
+=================
+
+This module contains a state machine driver for disease models.  Its primary
+function is to provide coordination across a set of disease states and
+transitions at simulation initialization and during transitions.
+
+"""
 import numbers
 
 import pandas as pd

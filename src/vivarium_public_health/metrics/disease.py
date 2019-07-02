@@ -1,3 +1,12 @@
+"""
+================
+Disease Observer
+================
+
+This module contains tools for observing disease incidence and prevalence
+in the simulation.
+
+"""
 from collections import Counter
 
 import pandas as pd

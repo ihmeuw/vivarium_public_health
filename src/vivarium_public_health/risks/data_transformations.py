@@ -1,3 +1,12 @@
+"""
+=========================
+Risk Data Transformations
+=========================
+
+This module contains tools for handling raw risk exposure and relative
+risk data and performing any necessary data transformations.
+
+"""
 from typing import Union
 
 import numpy as np

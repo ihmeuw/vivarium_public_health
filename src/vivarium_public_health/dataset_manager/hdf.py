@@ -1,4 +1,11 @@
-"""A convenience wrapper around tables and pd.HDFStore."""
+"""
+=============
+HDF Interface
+=============
+
+A convenience wrapper around tables and pd.HDFStore.
+
+"""
 import json
 from pathlib import Path
 import typing

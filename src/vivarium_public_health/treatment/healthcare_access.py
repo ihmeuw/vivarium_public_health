@@ -1,3 +1,12 @@
+"""
+=======================
+Healthcare Access Model
+=======================
+
+This module contains tools for modeling patient access to healthcare based on
+utilization rates.
+
+"""
 from collections import defaultdict
 
 import numpy as np

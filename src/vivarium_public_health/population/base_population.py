@@ -1,3 +1,12 @@
+"""
+=========================
+The Core Population Model
+=========================
+
+This module contains tools for sampling and assigning core demographic
+characteristics to simulants.
+
+"""
 import pandas as pd
 import numpy as np
 

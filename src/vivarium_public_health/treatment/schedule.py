@@ -1,3 +1,13 @@
+"""
+========================
+Treatment Schedule Model
+========================
+
+This module contains a model for a treatment schedule for an intervention
+with several doses.  It's meant to plug in to the MassTreatmentCampaign
+component.
+
+"""
 import numpy as np
 import pandas as pd
 from scipy import stats

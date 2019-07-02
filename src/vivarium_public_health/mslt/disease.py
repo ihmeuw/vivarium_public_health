@@ -1,3 +1,12 @@
+"""
+==============
+Disease Models
+==============
+
+This module contains tools for modeling diseases in multi-state lifetable
+simulations.
+
+"""
 import numpy as np
 import pandas as pd
 
@@ -8,9 +17,7 @@ class AcuteDisease:
     time-step size, that it is not meaningful to talk about prevalence.
     Instead, it simply contributes an excess mortality rate, and/or a
     disability rate.
-
     Interventions may affect these rates:
-
     - `<disease>_intervention.excess_mortality`
     - `<disease>_intervention.yld_rate`
 
