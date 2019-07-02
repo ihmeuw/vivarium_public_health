@@ -7,9 +7,7 @@ This module contains tools for recording various outputs of interest in
 multi-state lifetable simulations.
 
 """
-import numpy as np
 import pandas as pd
-import itertools
 
 
 def output_file(config, suffix, sep='_', ext='csv'):
