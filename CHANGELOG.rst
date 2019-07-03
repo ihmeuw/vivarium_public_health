@@ -1,3 +1,8 @@
+**0.9.14 - 07/03/19**
+
+ - Update api documentation format.
+ - Bring in MSLT components.
+
 **0.9.13 - 06/18/19**
 
  - Move ``VivariumError`` to the correct place.
@@ -6,7 +11,7 @@
  - Modify the artifact to accept data that is wide on draws.
  - Update components to new component manager api.
  - Bugfix in SimulationDistribution
- 
+
 **0.9.12 - 04/23/19**
 
  - Update docstring for categorical risk observer.
