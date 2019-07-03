@@ -1,3 +1,7 @@
+**0.9.15 - 07/03/19**
+
+ - Fix docstring formatting.
+
 **0.9.14 - 07/03/19**
 
  - Update api documentation format.
