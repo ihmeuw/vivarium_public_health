@@ -16,21 +16,31 @@ from vivarium_public_health.risks.data_transformations import get_distribution, 
 class Risk:
     """A model for a risk factor defined by either a continuous or a categorical
     value. For example,
-    (1) high systolic blood pressure as a risk where the SBP is not dichotomized
-        into hypotension and normal but is treated as the actual SBP measurement.
-    (2) smoking as two categories: current smoker and non-smoker.
+
+    #. high systolic blood pressure as a risk where the SBP is not dichotomized
+       into hypotension and normal but is treated as the actual SBP
+       measurement.
+    #. smoking as two categories: current smoker and non-smoker.
+
     This component can source data either from builder.data or from parameters
     supplied in the configuration. If data is derived from the configuration, it
     must be an integer or float expressing the desired exposure level or a
-    covariate name that is intended to be used as
-    a proxy. For example, for a risk named "risk", the configuration could look
-    like this:
-    (1) configuration:
-            risk:
-                exposure: 1.0
-    (2) configuration:
-            risk:
-                exposure: proxy_covariate
+    covariate name that is intended to be used as a proxy. For example, for a
+    risk named "risk", the configuration could look like this:
+
+    .. code-block:: yaml
+
+       configuration:
+           risk:
+               exposure: 1.0
+
+    or
+
+    .. code-block:: yaml
+
+       configuration:
+           risk:
+               exposure: proxy_covariate
 
     For polytomous risks, you can also provide an optional 'rebinned_exposed'
     block in the configuration to indicate that the risk should be rebinned
@@ -41,9 +51,11 @@ class Risk:
     with an exposed category containing cat1 and cat2 and an unexposed category
     containing cat3 and cat4, the configuration could look like this:
 
-    configuration:
-        risk:
-            rebinned_exposed: ['cat1', 'cat2']
+    .. code-block:: yaml
+
+       configuration:
+           risk:
+              rebinned_exposed: ['cat1', 'cat2']
 
     For alternative risk factors, you must provide a 'category_thresholds'
     block in the in configuration to dictate the thresholds that should be
@@ -51,9 +63,12 @@ class Risk:
     exclusive with providing 'rebinned_exposed' categories. For a risk named
     "risk", the configuration could look like:
 
-    configuration:
-        risk:
-            category_thresholds: [7, 8, 9]
+    .. code-block:: yaml
+
+       configuration:
+           risk:
+               category_thresholds: [7, 8, 9]
+
     """
 
     configuration_defaults = {

@@ -7,6 +7,8 @@ This module contains tools for making crude adjustments to rates in
 multi-state lifetable simulations.
 
 """
+
+
 class MortalityShift:
 
     def setup(self, builder):

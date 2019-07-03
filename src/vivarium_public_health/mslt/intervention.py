@@ -10,9 +10,7 @@ simulations.
 
 
 class ModifyAllCauseMortality:
-    """
-    Interventions that modify the all-cause mortality rate.
-    """
+    """Interventions that modify the all-cause mortality rate."""
     def __init__(self, name):
         self.name = name
 

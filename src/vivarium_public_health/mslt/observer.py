@@ -15,10 +15,18 @@ def output_file(config, suffix, sep='_', ext='csv'):
     Determine the output file name for an observer, based on the prefix
     defined in ``config.observer.output_prefix`` and the (optional)
     ``config.input_data.input_draw_number``.
-    :param config: The builder configuration object.
-    :param suffix: The observer-specific suffix.
-    :param sep: The separator between prefix, suffix, and draw number.
-    :param ext: The output file extension.
+
+    Parameters
+    ----------
+    config
+        The builder configuration object.
+    suffix
+        The observer-specific suffix.
+    sep
+        The separator between prefix, suffix, and draw number.
+    ext
+        The output file extension.
+
     """
     if 'observer' not in config:
         raise ValueError('observer.output_prefix not defined')
@@ -29,26 +37,27 @@ def output_file(config, suffix, sep='_', ext='csv'):
         draw = config.input_data.input_draw_number
     else:
         draw = 0
-    output_file = prefix + sep + suffix
+    out_file = prefix + sep + suffix
     if draw > 0:
-        output_file += '{}{}'.format(sep, draw)
-    output_file += '.{}'.format(ext)
-    return output_file
+        out_file += '{}{}'.format(sep, draw)
+    out_file += '.{}'.format(ext)
+    return out_file
 
 
 class MorbidityMortality:
     """
     This class records the all-cause morbidity and mortality rates for each
     cohort at each year of the simulation.
-    :param output_suffix: The suffix for the CSV file in which to record the
+
+    Parameters
+    ----------
+    output_suffix
+        The suffix for the CSV file in which to record the
         morbidity and mortality data.
+
     """
 
     def __init__(self, output_suffix='mm'):
-        """
-        :param output_suffix: The suffix for the CSV file in which to record
-            the morbidity and mortality data.
-        """
         self.output_suffix = output_suffix
 
     def setup(self, builder):
@@ -92,13 +101,22 @@ class MorbidityMortality:
         self.tables.append(pop[self.table_cols])
 
     def calculate_LE(self, table, py_col, denom_col):
-        """
-        Calculate the life expectancy for each cohort at each time-step.
-        :param table: The population life table.
-        :param py_col: The name of the person-years column.
-        :param denom_col: The name of the population denominator column.
-        :returns: The life expectancy for each table row, represented as a
+        """Calculate the life expectancy for each cohort at each time-step.
+
+        Parameters
+        ----------
+        table
+            The population life table.
+        py_col
+            The name of the person-years column.
+        denom_col
+            The name of the population denominator column.
+
+        Returns
+        -------
+            The life expectancy for each table row, represented as a
             pandas.Series object.
+
         """
         # Group the person-years by cohort.
         group_cols = ['year_of_birth', 'sex']
@@ -138,17 +156,18 @@ class Disease:
     """
     This class records the disease incidence rate and disease prevalence for
     each cohort at each year of the simulation.
-    :param name: The name of the chronic disease.
-    :param output_suffix: The suffix for the CSV file in which to record the
+
+    Parameters
+    ----------
+    name
+        The name of the chronic disease.
+    output_suffix
+        The suffix for the CSV file in which to record the
         disease data.
+
     """
 
     def __init__(self, name, output_suffix=None):
-        """
-        :param name: The name of the chronic disease.
-        :param output_suffix: The suffix for the CSV file in which to record
-            the disease data.
-        """
         self.name = name
         if output_suffix is None:
             output_suffix = name.lower()
@@ -216,10 +235,14 @@ class Disease:
 
 
 class TobaccoPrevalence:
-    """
-    This class records the prevalence of tobacco use in the population.
-    :param output_suffix: The suffix for the CSV file in which to record the
+    """This class records the prevalence of tobacco use in the population.
+
+    Parameters
+    ----------
+    output_suffix
+        The suffix for the CSV file in which to record the
         prevalence data.
+
     """
 
     def __init__(self, output_suffix='tobacco'):
@@ -247,15 +270,22 @@ class TobaccoPrevalence:
                                        self.output_suffix)
 
     def get_bin_names(self):
-        """
-        Return the bin names for both the BAU and the intervention scenario.
+        """Return the bin names for both the BAU and the intervention scenario.
+
         These names take the following forms:
-        - ``"name.no"``: The number of people who have never been exposed.
-        - ``"name.yes"``: The number of people currently exposed.
-        - ``"name.N"``: The number of people N years post-exposure.
-          - The final bin is the number of people :math:`\ge N` years
-            post-exposure.
+
+        ``"name.no"``
+            The number of people who have never been exposed.
+        ``"name.yes"``
+            The number of people currently exposed.
+        ``"name.N"``
+            The number of people N years post-exposure.
+
+        The final bin is the number of people :math:`\ge N` years
+        post-exposure.
+
         The intervention bin names take the form ``"name_intervention.X"``.
+
         """
         if self.bin_years == 0:
             delay_bins = [str(0)]
@@ -293,7 +323,6 @@ class TobaccoPrevalence:
 
         pop['year'] = self.clock().year
         self.tables.append(pop.reindex(columns=self.table_cols).reset_index(drop=True))
-
 
     def write_output(self, event):
         data = pd.concat(self.tables, ignore_index=True)

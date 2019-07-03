@@ -17,11 +17,19 @@ class AcuteDisease:
     time-step size, that it is not meaningful to talk about prevalence.
     Instead, it simply contributes an excess mortality rate, and/or a
     disability rate.
+
     Interventions may affect these rates:
+
     - `<disease>_intervention.excess_mortality`
     - `<disease>_intervention.yld_rate`
+
     where `<disease>` is the name as provided to the constructor.
-    :param name: The disease name (referred to as `<disease>` here).
+
+    Parameters
+    ----------
+    name
+        The disease name (referred to as `<disease>` here).
+
     """
 
     def __init__(self, name):
@@ -67,15 +75,22 @@ class AcuteDisease:
 
 
 class Disease:
-    """
-    This component characterises a chronic disease.
+    """This component characterises a chronic disease.
+
     It defines the following rates, which may be affected by interventions:
+
     - `<disease>_intervention.incidence`
     - `<disease>_intervention.remission`
     - `<disease>_intervention.mortality`
     - `<disease>_intervention.morbidity`
+
     where `<disease>` is the name as provided to the constructor.
-    :param name: The disease name (referred to as `<disease>` here).
+
+    Parameters
+    ----------
+    name
+        The disease name (referred to as `<disease>` here).
+
     """
 
     def __init__(self, name):
@@ -143,9 +158,7 @@ class Disease:
             self.on_time_step_prepare)
 
     def on_initialize_simulants(self, pop_data):
-        """
-        Initialize the test population for which this disease is modelled.
-        """
+        """Initialize the test population for which this disease is modeled."""
         C = 1000 * self.initial_prevalence(pop_data.index)
         S = 1000 - C
 

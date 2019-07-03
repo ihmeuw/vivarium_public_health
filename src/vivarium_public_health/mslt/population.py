@@ -17,11 +17,11 @@ class BasePopulation:
 
     The configuration options for this component are:
 
-    - ``population_size``: The number of population cohorts (**must be
-      specified**).
-
-    - ``max_age``: The age at which cohorts are removed from the population
-      (default: 110).
+    ``population_size``
+        The number of population cohorts (**must be specified**).
+    ``max_age``
+        The age at which cohorts are removed from the population
+        (default: 110).
 
     .. code-block:: yaml
 
@@ -29,6 +29,7 @@ class BasePopulation:
            population:
                population_size: 44 # Male and female 5-year cohorts, 0 to 109.
                max_age: 110        # The age at which cohorts are removed.
+
     """
 
     configuration_defaults = {
@@ -36,7 +37,6 @@ class BasePopulation:
             'max_age': 110,
         }
     }
-    """Define the default age at which cohorts are removed."""
 
     def setup(self, builder):
         """Load the population data."""

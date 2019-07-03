@@ -155,6 +155,7 @@ def generate_population(simulant_ids, creation_time, step_size, age_params,
         Dictionary with keys
             age_start : Start of an age range
             age_end : End of an age range
+
         The latter two keys can have values specified to generate simulants over an age range.
     population_data : pandas.DataFrame
         Table with columns 'age', 'age_group_start', 'age_group_end', 'sex', 'year',
@@ -170,15 +171,22 @@ def generate_population(simulant_ids, creation_time, step_size, age_params,
     -------
     simulants : pandas.DataFrame
         Table with columns
-            'entrance_time' : The `pandas.Timestamp` describing when the simulant entered
+            'entrance_time'
+                The `pandas.Timestamp` describing when the simulant entered
                 the simulation. Set to `creation_time` for all simulants.
-            'exit_time' : The `pandas.Timestamp` describing when the simulant exited
+            'exit_time'
+                The `pandas.Timestamp` describing when the simulant exited
                 the simulation. Set initially to `pandas.NaT`.
-            'alive' : One of 'alive' or 'dead' indicating how the simulation
+            'alive'
+                One of 'alive' or 'dead' indicating how the simulation
                 interacts with the simulant.
-            'age' : The age of the simulant at the current time step.
-            'location' : The location indicating where the simulant resides.
-            'sex' : Either 'Male' or 'Female'.  The sex of the simulant.
+            'age'
+                The age of the simulant at the current time step.
+            'location'
+                The location indicating where the simulant resides.
+            'sex'
+                Either 'Male' or 'Female'.  The sex of the simulant.
+
     """
     simulants = pd.DataFrame({'entrance_time': pd.Series(creation_time, index=simulant_ids),
                               'exit_time': pd.Series(pd.NaT, index=simulant_ids),

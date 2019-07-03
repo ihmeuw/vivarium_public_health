@@ -15,36 +15,50 @@ class DelayedRisk:
     """
     A delayed risk represents an exposure whose impact takes time to come into
     effect (e.g., smoking uptake and cessation).
+
     The data required by this component are:
-    - Initial prevalence: the initial level of exposure and post-exposure.
-    - Incidence rate: the rate at which people begin to be exposed;
-      - This should be specified separately for the BAU and the intervention
-        scenario.
-    - Remission rate: the rate at which people stop being exposed;
-      - This should be specified separately for the BAU and the intervention
-        scenario.
-    - Relative risk of mortality for:
-      - Currently exposed (e.g., currently smoking); and
-      - Post-exposure (e.g., stopped smoking :math:`0..N` years ago).
-    - Disease-specific relative risks for:
-      - Currently exposed (e.g., currently smoking); and
-      - Post-exposure (e.g., stopped smoking :math:`0..N` years ago).
-    .. note:: The relative risks are defined in relation to the pre-exposure
+
+    Initial prevalence
+        The initial level of exposure and post-exposure.
+    Incidence rate
+        The rate at which people begin to be exposed. This should be specified
+        separately for the BAU and the intervention scenario.
+    Remission rate
+        The rate at which people stop being exposed. This should be specified
+        separately for the BAU and the intervention scenario.
+    Relative risk of mortality for currently exposed
+        (e.g., currently smoking); and
+    Relative risk of mortality for post-exposure
+        (e.g., stopped smoking :math:`0..N` years ago).
+    Disease-specific relative risks for currently exposed
+        (e.g., currently smoking)
+    Disease-specific relative risks for post-exposure
+        (e.g., stopped smoking :math:`0..N` years ago).
+
+    .. note::
+
+       The relative risks are defined in relation to the pre-exposure
        group (whose relative risks are therefore defined to be :math:`1`).
+
+
     The configuration options for this component are:
-    - ``constant_prevalence`` (boolean, default is ``False``): if this is set
-      to ``True``, the remission rate in both the BAU and intervention will be
-      kept fixed at 0 (i.e., no remission).
-    - ``tobacco_tax`` (boolean, default is ``False``): if this is set to
-      ``True``, additional scaling effects are applied to both the incidence
-      and remission rates.
-    - ``delay`` (integer, default is ``20``): the number of years, after
-      remission, during which relative risks decrease back to their baseline
-      values.
+
+    ``constant_prevalence`` (boolean, default is ``False``)
+        If this is set to ``True``, the remission rate in both the BAU and
+        intervention will be kept fixed at 0 (i.e., no remission).
+    ``tobacco_tax`` (boolean, default is ``False``)
+        If this is set to ``True``, additional scaling effects are applied to
+        both the incidence and remission rates.
+    ``delay`` (integer, default is ``20``)
+        The number of years, after remission, during which relative risks
+        decrease back to their baseline values.
+
     Identify the disease(s) for which this delayed risk will have an effect in
     the simulation configuration. For example, to modify the incidence of CHD
     and stroke, this would look like:
+
     .. code-block:: yaml
+
        components:
            mslt_port:
                population:
@@ -68,9 +82,12 @@ class DelayedRisk:
                    Stroke:
     """
 
-    def __init__(self, name):
+    def __init__(self, name: str):
         """
-        :param name: The name of the exposure (e.g., ``"tobacco"``).
+        Parameters
+        ----------
+        name
+            The name of the exposure (e.g., ``"tobacco"``).
         """
         self.name = name
         self.configuration_defaults = {
@@ -82,8 +99,8 @@ class DelayedRisk:
         }
 
     def setup(self, builder):
-        """
-        Configure the delayed risk component.
+        """Configure the delayed risk component.
+
         This involves loading the required data tables, registering event
         handlers and rate modifiers, and setting up the population view.
         """
@@ -199,16 +216,21 @@ class DelayedRisk:
         self.tobacco_acmr = builder.value.register_rate_producer(
             'tobacco_acmr', source=builder.lookup.build_table(mortality_data))
 
-
     def get_bin_names(self):
-        """
-        Return the bin names for both the BAU and the intervention scenario.
+        """Return the bin names for both the BAU and the intervention scenario.
+
         These names take the following forms:
-        - ``"name.no"``: The number of people who have never been exposed.
-        - ``"name.yes"``: The number of people currently exposed.
-        - ``"name.N"``: The number of people N years post-exposure.
-          - The final bin is the number of people :math:`\ge N` years
-            post-exposure.
+
+        ``"name.no"``
+            The number of people who have never been exposed.
+        ``"name.yes"``
+            The number of people currently exposed.
+        ``"name.N"``
+            The number of people N years post-exposure.
+
+        The final bin is the number of people :math:`\ge N` years
+        post-exposure.
+
         The intervention bin names take the form ``"name_intervention.X"``.
         """
         if self.bin_years == 0:
@@ -257,12 +279,13 @@ class DelayedRisk:
         self.population_view.update(int_prev)
 
     def on_time_step_prepare(self, event):
-        """
-        Account for transitions between bins, and for mortality rates.
+        """Account for transitions between bins, and for mortality rates.
+
         These transitions include:
-        - New exposures;
-        - Cessation of exposure; and
-        - Increased duration of time since exposure.
+        - New exposures
+        - Cessation of exposure
+        - Increased duration of time since exposure
+
         """
         if self.clock().year == self.start_year:
             return
@@ -388,13 +411,18 @@ class DelayedRisk:
         self.population_view.update(pop)
 
     def register_modifier(self, builder, disease):
-        """
-        Register that a disease incidence rate will be modified by this
+        """Register that a disease incidence rate will be modified by this
         delayed risk in the intervention scenario.
-        :param builder: The builder object for the simulation, which provides
+
+        Parameters
+        ----------
+        builder
+            The builder object for the simulation, which provides
             access to event handlers and rate modifiers.
-        :param disease: The name of the disease whose incidence rate will be
+        disease
+            The name of the disease whose incidence rate will be
             modified.
+
         """
         # NOTE: we need to modify different rates for chronic and acute
         # diseases. For now, register modifiers for all possible rates.
@@ -407,11 +435,17 @@ class DelayedRisk:
             builder.value.register_value_modifier(rate_name, modifier)
 
     def incidence_adjustment(self, disease, index, incidence_rate):
-        """
-        Modify a disease incidence rate in the intervention scenario.
-        :param disease: The name of the disease.
-        :param index: The index into the population life table.
-        :param incidence_rate: The un-adjusted disease incidence rate.
+        """Modify a disease incidence rate in the intervention scenario.
+
+        Parameters
+        ----------
+        disease
+            The name of the disease.
+        index
+            The index into the population life table.
+        incidence_rate
+            The un-adjusted disease incidence rate.
+
         """
         # Multiply the population in each bin by the associated relative risk.
         bin_cols = self.get_bin_names()

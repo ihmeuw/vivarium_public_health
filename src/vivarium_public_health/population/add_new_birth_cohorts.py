@@ -82,11 +82,12 @@ class FertilityCrudeBirthRate:
     Notes
     -----
     The OECD definition of crude birth rate can be found on their
-    website_, while a more thorough discussion of fertility and
-    birth rate models can be found on Wikipedia_ or in demography
+    `website <https://stats.oecd.org/glossary/detail.asp?ID=490>`_,
+    while a more thorough discussion of fertility and
+    birth rate models can be found on
+    `Wikipedia <https://en.wikipedia.org/wiki/Birth_rate>`_ or in demography
     textbooks.
-    .. _website: https://stats.oecd.org/glossary/detail.asp?ID=490
-    .. _Wikipedia: https://en.wikipedia.org/wiki/Birth_rate
+
     """
 
     configuration_defaults = {

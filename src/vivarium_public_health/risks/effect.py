@@ -19,10 +19,14 @@ class RiskEffect:
     builder.data or from parameters supplied in the configuration.
     For a risk named 'risk' that affects 'affected_risk' and 'affected_cause',
     the configuration would look like:
-    configuration:
-        effect_of_risk_on_affected_risk:
-            exposure_parameters: 2
-            incidence_rate: 10
+
+    .. code-block:: yaml
+
+       configuration:
+           effect_of_risk_on_affected_risk:
+               exposure_parameters: 2
+               incidence_rate: 10
+
     """
 
     configuration_defaults = {

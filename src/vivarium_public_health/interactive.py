@@ -6,7 +6,7 @@ Vivarium Public Health Interface
 This module contains a wrapper around the vivarium interactive interface
 to include the boilerplate for setting up modules with a data artifact.
 
-.. deprecated::
+.. warning::
 
    This interface is deprecated. It was a bad idea. Use the vivarium
    interactive interface.
