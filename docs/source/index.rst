@@ -9,5 +9,5 @@ Vivarium Public Health Documentation
    :caption: Contents:
 
    tutorials/index
-   api_reference
+   api_reference/index
 
