@@ -43,6 +43,16 @@ def observer_config(request):
     return c
 
 
+@pytest.fixture()
+def builder(mocker):
+    builder = mocker.MagicMock()
+    df = pd.DataFrame({'age_group_start': [0, 1, 4],
+                       'age_group_name': ['youngest', 'younger', 'young'],
+                       'age_group_end': [1, 4, 6]})
+    builder.data.load.return_value = df
+    return builder
+
+
 @pytest.mark.parametrize('reference, test', product([QueryString(''), QueryString('abc')], [QueryString(''), '']))
 def test_query_string_empty(reference, test):
     result = str(reference)
@@ -580,21 +590,14 @@ def test_get_years_lived_with_disability(ages_and_bins, sexes, observer_config):
                                                                         (1, 4, {4}),
                                                                         (1, 3, {3}),
                                                                         (0, 6, {1, 4, 6})])
-def test_get_age_bins(mocker, base_config, age_start, exit_age, result_age_end_values):
+def test_get_age_bins(builder, base_config, age_start, exit_age, result_age_end_values):
     base_config.update({
         'population': {
             'age_start': age_start,
             'exit_age': exit_age
         }
     }, **metadata(__file__))
-
-    builder = mocker.MagicMock()
     builder.configuration = base_config
-    df = pd.DataFrame({'age_group_start': [0, 1, 4],
-                       'age_group_name': ['youngest', 'younger', 'young'],
-                       'age_group_end': [1, 4, 6]})
-    builder.data.load.return_value = df
-
     df = get_age_bins(builder)
     assert set(df.age_group_end) == result_age_end_values
 
