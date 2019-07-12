@@ -585,12 +585,13 @@ def test_get_years_lived_with_disability(ages_and_bins, sexes, observer_config):
     assert np.isclose(values.pop(), 2 * expected_value)
 
 
-@pytest.mark.parametrize('age_start, exit_age, result_age_end_values', [(2, 5, {4, 5}),
-                                                                        (0, None, {1, 4, 6}),
-                                                                        (1, 4, {4}),
-                                                                        (1, 3, {3}),
-                                                                        (0, 6, {1, 4, 6})])
-def test_get_age_bins(builder, base_config, age_start, exit_age, result_age_end_values):
+@pytest.mark.parametrize('age_start, exit_age, result_age_end_values, result_age_start_values',
+                         [(2, 5, {4, 5}, {2, 4}),
+                          (0, None, {1, 4, 6}, {0, 1, 4}),
+                          (1, 4, {4}, {1}),
+                          (1, 3, {3}, {1}),
+                          (0.8, 6, {1, 4, 6}, {0.8, 1, 4})])
+def test_get_age_bins(builder, base_config, age_start, exit_age, result_age_end_values, result_age_start_values):
     base_config.update({
         'population': {
             'age_start': age_start,
@@ -600,4 +601,5 @@ def test_get_age_bins(builder, base_config, age_start, exit_age, result_age_end_
     builder.configuration = base_config
     df = get_age_bins(builder)
     assert set(df.age_group_end) == result_age_end_values
+    assert set(df.age_group_start) == result_age_start_values
 
