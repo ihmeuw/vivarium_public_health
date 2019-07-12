@@ -4,12 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from vivarium.testing_utilities import metadata
 from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplate, to_years, get_output_template,
                                                       get_susceptible_person_time, get_disease_event_counts,
                                                       get_treatment_counts, get_age_sex_filter_and_iterables,
                                                       get_time_iterable, get_lived_in_span, get_person_time_in_span,
                                                       get_deaths, get_years_of_life_lost,
-                                                      get_years_lived_with_disability,
+                                                      get_years_lived_with_disability, get_age_bins,
                                                       _MIN_YEAR, _MAX_YEAR, _MIN_AGE, _MAX_AGE)
 
 
@@ -572,3 +573,28 @@ def test_get_years_lived_with_disability(ages_and_bins, sexes, observer_config):
     values = set(ylds.values())
     assert len(values) == 1
     assert np.isclose(values.pop(), 2 * expected_value)
+
+
+@pytest.mark.parametrize('age_start, exit_age, result_age_end_values', [(2, 5, {4, 5}),
+                                                                        (0, None, {1, 4, 6}),
+                                                                        (1, 4, {4}),
+                                                                        (1, 3, {3}),
+                                                                        (0, 6, {1, 4, 6})])
+def test_get_age_bins(mocker, base_config, age_start, exit_age, result_age_end_values):
+    base_config.update({
+        'population': {
+            'age_start': age_start,
+            'exit_age': exit_age
+        }
+    }, **metadata(__file__))
+
+    builder = mocker.MagicMock()
+    builder.configuration = base_config
+    df = pd.DataFrame({'age_group_start': [0, 1, 4],
+                       'age_group_name': ['youngest', 'younger', 'young'],
+                       'age_group_end': [1, 4, 6]})
+    builder.data.load.return_value = df
+
+    df = get_age_bins(builder)
+    assert set(df.age_group_end) == result_age_end_values
+
