@@ -1,3 +1,7 @@
+**0.9.16 - 07/16/19**
+
+ - Update observers to not report ages younger than those modeled.
+
 **0.9.15 - 07/03/19**
 
  - Fix docstring formatting.

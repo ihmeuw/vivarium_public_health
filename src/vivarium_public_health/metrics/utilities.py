@@ -137,6 +137,13 @@ def get_age_bins(builder) -> pd.DataFrame:
 
     """
     age_bins = builder.data.load('population.age_bins')
+
+    # Works based on the fact that currently only models with age_start = 0 can include fertility
+    age_start = builder.configuration.population.age_start
+    min_bin_start = age_bins.age_group_start[np.asscalar(np.digitize(age_start, age_bins.age_group_end))]
+    age_bins = age_bins[age_bins.age_group_start >= min_bin_start]
+    age_bins.loc[age_bins.age_group_start < age_start, 'age_group_start'] = age_start
+
     exit_age = builder.configuration.population.exit_age
     if exit_age:
         age_bins = age_bins[age_bins.age_group_start < exit_age]
