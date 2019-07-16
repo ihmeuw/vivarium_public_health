@@ -12,7 +12,11 @@ simulations.
 class ModifyAllCauseMortality:
     """Interventions that modify the all-cause mortality rate."""
     def __init__(self, name):
-        self.name = name
+        self._name = name
+        
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         self.config = builder.configuration
@@ -29,9 +33,13 @@ class ModifyAllCauseMortality:
 class ModifyDiseaseRate:
     """Interventions that modify a rate associated with a chronic disease."""
     def __init__(self, name, disease, rate):
-        self.name = name
+        self._name = name
         self.disease = disease
         self.rate = rate
+
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         self.config = builder.configuration
@@ -85,7 +93,11 @@ class ModifyAcuteDiseaseIncidence:
     """
 
     def __init__(self, name):
-        self.name = name
+        self._name = name
+        
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         self.config = builder.configuration
@@ -105,7 +117,11 @@ class ModifyAcuteDiseaseMorbidity:
     """Interventions that modify an acute disease disability rate."""
 
     def __init__(self, name):
-        self.name = name
+        self._name = name
+        
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         self.config = builder.configuration
@@ -123,7 +139,11 @@ class ModifyAcuteDiseaseMortality:
     """Interventions that modify an acute disease fatality rate."""
 
     def __init__(self, name):
-        self.name = name
+        self._name = name
+        
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         self.config = builder.configuration
@@ -141,6 +161,10 @@ class TobaccoFreeGeneration:
     """Eradicate tobacco uptake at some point in time."""
     def __init__(self):
         self.exposure = 'tobacco'
+        
+    @property
+    def name(self):
+        return 'tobacco_free_generation'
 
     def setup(self, builder):
         self.year = builder.configuration['tobacco_free_generation'].year
@@ -160,6 +184,10 @@ class TobaccoEradication:
     """Eradicate all tobacco use at some point in time."""
     def __init__(self):
         self.exposure = 'tobacco'
+        
+    @property
+    def name(self):
+        return 'tobacco_eradication'
 
     def setup(self, builder):
         self.year = builder.configuration['tobacco_eradication'].year

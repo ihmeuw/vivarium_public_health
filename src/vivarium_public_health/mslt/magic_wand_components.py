@@ -10,6 +10,10 @@ multi-state lifetable simulations.
 
 
 class MortalityShift:
+    
+    @property
+    def name(self):
+        return 'mortality_shift'
 
     def setup(self, builder):
         builder.value.register_value_modifier('mortality_rate', self.mortality_adjustment)
@@ -19,6 +23,10 @@ class MortalityShift:
 
 
 class YLDShift:
+    
+    @property
+    def name(self):
+        return 'yld_shift'
 
     def setup(self, builder):
         builder.value.register_value_modifier('yld_rate', self.disability_adjustment)
@@ -30,7 +38,11 @@ class YLDShift:
 class IncidenceShift:
 
     def __init__(self, name):
-        self.name = name
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         builder.value.register_value_modifier(f'{self.name}_intervention.incidence', self.incidence_adjustment)
@@ -42,7 +54,11 @@ class IncidenceShift:
 class ModifyAcuteDiseaseYLD:
 
     def __init__(self, name):
-        self.name = name
+        self._name = name
+        
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         self.config = builder.configuration
@@ -60,7 +76,11 @@ class ModifyAcuteDiseaseYLD:
 class ModifyAcuteDiseaseMortality:
 
     def __init__(self, name):
-        self.name = name
+        self._name = name
+    
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         self.config = builder.configuration

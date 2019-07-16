@@ -33,7 +33,11 @@ class AcuteDisease:
     """
 
     def __init__(self, name):
-        self.name = name
+        self._name = name
+        
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         """Load the morbidity and mortality data."""
@@ -94,12 +98,16 @@ class Disease:
     """
 
     def __init__(self, name):
-        self.name = name
+        self._name = name
         self.configuration_defaults = {
             self.name: {
                 'simplified_no_remission_equations': False,
             },
         }
+        
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         """Load the disease prevalence and rates data."""

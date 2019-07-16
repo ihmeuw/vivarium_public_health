@@ -89,7 +89,7 @@ class DelayedRisk:
         name
             The name of the exposure (e.g., ``"tobacco"``).
         """
-        self.name = name
+        self._name = name
         self.configuration_defaults = {
             name: {
                 'constant_prevalence': False,
@@ -97,6 +97,10 @@ class DelayedRisk:
                 'delay': 20,
             },
         }
+        
+    @property
+    def name(self):
+        return self._name
 
     def setup(self, builder):
         """Configure the delayed risk component.

@@ -38,26 +38,23 @@ class BasePopulation:
         }
     }
 
+    @property
+    def name(self):
+        return 'base_population'
+    
     def setup(self, builder):
         """Load the population data."""
-        reqd_cols = ['age', 'sex', 'population', 'bau_population']
-        zero_cols = ['acmr', 'bau_acmr',
-                     'pr_death', 'bau_pr_death', 'deaths', 'bau_deaths',
-                     'yld_rate', 'bau_yld_rate',
-                     'person_years', 'bau_person_years',
-                     'HALY', 'bau_HALY']
+        columns = ['age', 'sex', 'population', 'bau_population',
+                   'acmr', 'bau_acmr',
+                   'pr_death', 'bau_pr_death', 'deaths', 'bau_deaths',
+                   'yld_rate', 'bau_yld_rate',
+                   'person_years', 'bau_person_years',
+                   'HALY', 'bau_HALY']
 
-        self.pop_data = builder.data.load('population.structure')
-
-        # Check that this table contains the required columns.
-        present = set(reqd_cols) & set(self.pop_data.columns)
-        if len(present) != len(reqd_cols):
-            missing = set(reqd_cols) - set(self.pop_data.columns)
-            msg = f'Table population.structure is missing columns: {missing}'
-            raise ValueError(msg)
-
+        self.pop_data = load_population_data(builder)
+        
         # Create additional columns with placeholder (zero) values.
-        for column in zero_cols:
+        for column in self.pop_data.columns.difference(columns):
             self.pop_data.loc[:, column] = 0.0
 
         self.max_age = builder.configuration.population.max_age
@@ -66,7 +63,6 @@ class BasePopulation:
         self.clock = builder.time.clock()
 
         # Track all of the quantities that exist in the core spreadsheet table.
-        columns = reqd_cols + zero_cols
         builder.population.initializes_simulants(self.on_initialize_simulants, creates_columns=columns)
         self.population_view = builder.population.get_view(columns + ['tracked'])
 
@@ -92,6 +88,10 @@ class Mortality:
     This component reduces the population size of each cohort over time,
     according to the all-cause mortality rate.
     """
+    
+    @property
+    def name(self):
+        return 'mortality'
 
     def setup(self, builder):
         """Load the all-cause mortality rate."""
@@ -138,6 +138,10 @@ class Disability:
     cohort over time, according to the years lost due to disability (YLD)
     rate.
     """
+    
+    @property
+    def name(self):
+        return 'disability'
 
     def setup(self, builder):
         """Load the years lost due to disability (YLD) rate."""
@@ -165,3 +169,10 @@ class Disability:
         pop.HALY = pop.person_years * (1 - pop.yld_rate)
         pop.bau_HALY = pop.bau_person_years * (1 - pop.bau_yld_rate)
         self.population_view.update(pop)
+
+
+def load_population_data(builder):
+    pop_data = builder.data.load('population.structure')
+    pop_data = pop_data[['age', 'sex', 'value']].rename(columns={'value': 'population'})
+    pop_data['bau_population'] = pop_data['population']
+    return pop_data

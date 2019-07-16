@@ -60,6 +60,10 @@ class MorbidityMortality:
     def __init__(self, output_suffix='mm'):
         self.output_suffix = output_suffix
 
+    @property
+    def name(self):
+        return 'morbidity_mortality_observer'
+
     def setup(self, builder):
         # Record the key columns from the core multi-state life table.
         columns = ['age', 'sex',
@@ -168,10 +172,14 @@ class Disease:
     """
 
     def __init__(self, name, output_suffix=None):
-        self.name = name
+        self._name = name
         if output_suffix is None:
             output_suffix = name.lower()
         self.output_suffix = output_suffix
+        
+    @property
+    def name(self):
+        return f'{self._name}_observer'
 
     def setup(self, builder):
         bau_incidence_value = '{}.incidence'.format(self.name)
@@ -247,12 +255,15 @@ class TobaccoPrevalence:
 
     def __init__(self, output_suffix='tobacco'):
         self.output_suffix = output_suffix
-        self.name = 'tobacco'
+    
+    @property
+    def name(self):
+        return 'tobacco_prevalence_observer'
 
     def setup(self, builder):
         self.config = builder.configuration
         self.clock = builder.time.clock()
-        self.bin_years = int(self.config[self.name]['delay'])
+        self.bin_years = int(self.config['tobacco']['delay'])
 
         view_columns = ['age', 'sex', 'bau_population', 'population'] + self.get_bin_names()
         self.population_view = builder.population.get_view(view_columns)
@@ -292,8 +303,8 @@ class TobaccoPrevalence:
         else:
             delay_bins = [str(s) for s in range(self.bin_years + 2)]
         bins = ['no', 'yes'] + delay_bins
-        bau_bins = ['{}.{}'.format(self.name, bin) for bin in bins]
-        int_bins = ['{}_intervention.{}'.format(self.name, bin) for bin in bins]
+        bau_bins = ['{}.{}'.format('tobacco', bin) for bin in bins]
+        int_bins = ['{}_intervention.{}'.format('tobacco', bin) for bin in bins]
         all_bins = bau_bins + int_bins
         return all_bins
 
@@ -304,19 +315,19 @@ class TobaccoPrevalence:
             return
 
         bau_cols = [c for c in pop.columns.values
-                    if c.startswith('{}.'.format(self.name))]
+                    if c.startswith('{}.'.format('tobacco'))]
         int_cols = [c for c in pop.columns.values
-                    if c.startswith('{}_intervention.'.format(self.name))]
+                    if c.startswith('{}_intervention.'.format('tobacco'))]
 
         bau_denom = pop.reindex(columns=bau_cols).sum(axis=1)
         int_denom = pop.reindex(columns=int_cols).sum(axis=1)
 
         # Normalise prevalence with respect to the total population.
-        pop['bau_no'] = pop['{}.no'.format(self.name)] / bau_denom
-        pop['bau_yes'] = pop['{}.yes'.format(self.name)] / bau_denom
+        pop['bau_no'] = pop['{}.no'.format('tobacco')] / bau_denom
+        pop['bau_yes'] = pop['{}.yes'.format('tobacco')] / bau_denom
         pop['bau_previously'] = 1 - pop['bau_no'] - pop['bau_yes']
-        pop['int_no'] = pop['{}_intervention.no'.format(self.name)] / int_denom
-        pop['int_yes'] = pop['{}_intervention.yes'.format(self.name)] / int_denom
+        pop['int_no'] = pop['{}_intervention.no'.format('tobacco')] / int_denom
+        pop['int_yes'] = pop['{}_intervention.yes'.format('tobacco')] / int_denom
         pop['int_previously'] = 1 - pop['int_no'] - pop['int_yes']
 
         pop = pop.rename(columns={'population': 'int_population'})
