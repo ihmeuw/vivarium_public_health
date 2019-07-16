@@ -80,6 +80,8 @@ class SimulationDistribution:
 
     def ppf(self, q):
         if not q.empty:
+            q[q >= 0.999] = 0.998
+            q[q <= 0.001] = 0.0011
             x = self.distribution(parameters=self.parameters(q.index)).ppf(q)
             x[x.isnull()] = 0
         else:
@@ -165,4 +167,3 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
     return distribution
-
