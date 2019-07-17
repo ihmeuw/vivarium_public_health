@@ -43,10 +43,7 @@ class EnsembleSimulation:
 
     def ppf(self, q):
         if not q.empty:
-            # We limit valid propensity to [0.001 0.999]. Beyond that bound values return NaN and then become zero,
-            # which is nonsensical. We avoid the inclusive limit to protect ourselves from a math error.
-            q[q >= 0.999] = 0.998
-            q[q <= 0.001] = 0.0011
+            q = clip(q)
             weights = self.weights(q.index)
             parameters = {name: parameter(q.index) for name, parameter in self.parameters.items()}
             x = EnsembleDistribution(weights, parameters).ppf(q)
@@ -80,8 +77,7 @@ class SimulationDistribution:
 
     def ppf(self, q):
         if not q.empty:
-            q[q >= 0.999] = 0.998
-            q[q <= 0.001] = 0.0011
+            q = clip(q)
             x = self.distribution(parameters=self.parameters(q.index)).ppf(q)
             x[x.isnull()] = 0
         else:
@@ -167,3 +163,20 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
     return distribution
+
+
+def clip(q):
+    """Adjust the percentile boundary casses.
+
+    The  risk distributions package uses the 99.9th and 0.001st percentiles
+    of a log-normal distribution as the bounds of the distribution support.
+    This is bound up in the GBD risk factor PAF calculation process.
+    We'll clip the distribution tails so we don't get NaNs back from the
+    distribution calls
+
+    """
+    Q_LOWER_BOUND = 0.0011
+    Q_UPPER_BOUND = 0.998
+    q[q > Q_UPPER_BOUND] = Q_UPPER_BOUND
+    q[q < Q_LOWER_BOUND] = Q_LOWER_BOUND
+    return q
