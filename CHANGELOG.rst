@@ -1,3 +1,8 @@
+**0.9.17 - 07/17/19**
+
+ - Add names to mslt components.
+ - Clip non-ensemble distribution percentiles.
+ 
 **0.9.16 - 07/16/19**
 
  - Update observers to not report ages younger than those modeled.
