@@ -67,9 +67,7 @@ class MassTreatmentCampaign:
         self.config = builder.configuration[self.treatment_name]
         self.clock = builder.time.clock()
 
-        self.start_date = pd.Timestamp(**builder.configuration.time['start'].to_dict())
         self.intervention_date = pd.Timestamp(**self.config['intervention_start_date'].to_dict())
-        self.end_date = pd.Timestamp(**builder.configuration.time['end'].to_dict())
 
         columns = [f'{self.treatment.name}_current_dose',
                    f'{self.treatment.name}_current_dose_event_time',
