@@ -3,18 +3,9 @@ import pandas as pd
 from .base_treatment import Treatment
 from .schedule import TreatmentSchedule
 
-from pudb import set_trace
-
 class MassTreatmentCampaign:
 
     configuration_defaults = {
-        'time': {
-            "intervention_start_date": {
-                "year": 2030,
-                "month": 1,
-                "day": 1
-            }
-        },
         'treatment': {
             'doses': ['first', 'second', 'booster', 'catchup'],
             'dose_response': {
@@ -57,6 +48,11 @@ class MassTreatmentCampaign:
                 'booster': 0.9,
                 'catchup': 0.1,
             },
+            "intervention_start_date": {
+                "year": 2030,
+                "month": 1,
+                "day": 1
+            }
         }
     }
 
@@ -67,14 +63,12 @@ class MassTreatmentCampaign:
         self.schedule = TreatmentSchedule(treatment_name)
 
     def setup(self, builder):
-        #set_trace()
         builder.components.add_components([self.treatment, self.schedule])
         self.config = builder.configuration[self.treatment_name]
         self.clock = builder.time.clock()
 
         self.start_date = pd.Timestamp(**builder.configuration.time['start'].to_dict())
-        self.intervention_date = pd.Timestamp(
-                **MassTreatmentCampaign.configuration_defaults['time']['intervention_start_date'])
+        self.intervention_date = pd.Timestamp(**self.config['intervention_start_date'].to_dict())
         self.end_date = pd.Timestamp(**builder.configuration.time['end'].to_dict())
 
         columns = [f'{self.treatment.name}_current_dose',
