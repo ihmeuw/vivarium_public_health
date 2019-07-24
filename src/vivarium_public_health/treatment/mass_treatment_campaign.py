@@ -3,7 +3,6 @@ import pandas as pd
 from .base_treatment import Treatment
 from .schedule import TreatmentSchedule
 
-
 class MassTreatmentCampaign:
 
     configuration_defaults = {
@@ -49,6 +48,11 @@ class MassTreatmentCampaign:
                 'booster': 0.9,
                 'catchup': 0.1,
             },
+            "intervention_start_date": {
+                "year": 2030,
+                "month": 1,
+                "day": 1
+            }
         }
     }
 
@@ -62,6 +66,8 @@ class MassTreatmentCampaign:
         builder.components.add_components([self.treatment, self.schedule])
         self.config = builder.configuration[self.treatment_name]
         self.clock = builder.time.clock()
+
+        self.intervention_date = pd.Timestamp(**self.config['intervention_start_date'].to_dict())
 
         columns = [f'{self.treatment.name}_current_dose',
                    f'{self.treatment.name}_current_dose_event_time',
@@ -91,19 +97,20 @@ class MassTreatmentCampaign:
         }, index=event.index))
 
     def administer_treatment(self, event):
-        population = self.population_view.get(event.index, 'alive' == True)
-        for dose in self.schedule.doses:
-            dosed_population = self.schedule.get_newly_dosed_simulants(dose, population, event.step_size)
+        if self.intervention_date <= event.time:
+            population = self.population_view.get(event.index, 'alive' == True)
+            for dose in self.schedule.doses:
+                dosed_population = self.schedule.get_newly_dosed_simulants(dose, population, event.step_size)
 
-            dosed_population[f'{self.treatment.name}_previous_dose'] = dosed_population[
-                f'{self.treatment.name}_current_dose']
-            dosed_population[f'{self.treatment.name}_previous_dose_event_time'] = dosed_population[
-                f'{self.treatment.name}_current_dose_event_time']
+                dosed_population[f'{self.treatment.name}_previous_dose'] = dosed_population[
+                    f'{self.treatment.name}_current_dose']
+                dosed_population[f'{self.treatment.name}_previous_dose_event_time'] = dosed_population[
+                    f'{self.treatment.name}_current_dose_event_time']
 
-            dosed_population[f'{self.treatment.name}_current_dose'] = dose
-            dosed_population[f'{self.treatment.name}_current_dose_event_time'] = event.time
+                dosed_population[f'{self.treatment.name}_current_dose'] = dose
+                dosed_population[f'{self.treatment.name}_current_dose_event_time'] = event.time
 
-            self.population_view.update(dosed_population)
+                self.population_view.update(dosed_population)
 
     def metrics(self, index, metrics):
         population = self.population_view.get(index)
