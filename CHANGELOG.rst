@@ -1,3 +1,7 @@
+**0.8.21 - 07/25/19**
+
+ - Add intervention start date. Pin Vivarium and Pandas.
+
 **0.8.20 - 03/27/19**
 
  - Update to handle newest version of Vivarium, including no longer having both sexes in build_table.
