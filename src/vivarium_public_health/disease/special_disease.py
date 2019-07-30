@@ -200,5 +200,8 @@ class RiskAttributableDisease:
         return rates_df
 
     def compute_disability_weight(self, index):
-        population = self.population_view.get(index, query=f'alive=="alive" and {self.cause.name}=="{self.cause.name}"')
-        return self._disability_weight(population.index)
+        disability_weight = pd.Series(0, index=index)
+        with_condition = self.population_view.get(index, 
+                                                  query=f'alive=="alive" and {self.cause.name}=="{self.cause.name}"')
+        disability_weight.loc[with_condition.index] = self._disability_weight(with_condition.index) 
+        return disability_weight
