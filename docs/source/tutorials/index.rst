@@ -7,3 +7,4 @@ Here you'll find tutorials to introduce tools available via ``vivarium_public_he
    :maxdepth: 1
 
    artifact
+   risk_exposure
