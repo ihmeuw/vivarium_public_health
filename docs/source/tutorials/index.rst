@@ -5,5 +5,7 @@ Here you'll find tutorials to introduce tools available via ``vivarium_public_he
 
 .. toctree::
    :maxdepth: 1
+   :glob:
 
-   artifact
+   *
+   */index

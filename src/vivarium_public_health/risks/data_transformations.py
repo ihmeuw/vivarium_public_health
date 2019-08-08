@@ -182,7 +182,7 @@ def load_relative_risk_data(builder, risk: EntityString, target: TargetString,
         relative_risk_data = _make_relative_risk_data(builder, float(relative_risk_source['relative_risk']))
 
     else:  # distribution
-        parameters = {k: v.get_value() for k, v in relative_risk_source.items() if v.get_value() is not None}
+        parameters = {k: v for k, v in relative_risk_source.items() if v is not None}
         random_state = np.random.RandomState(randomness.get_seed())
         cat1_value = generate_relative_risk_from_distribution(random_state, parameters)
         relative_risk_data = _make_relative_risk_data(builder, cat1_value)
@@ -204,8 +204,10 @@ def generate_relative_risk_from_distribution(random_state: np.random.RandomState
     if 'mean' in parameters:  # normal distribution
         rr_value = random_state.normal(parameters['mean'], parameters['se'])
     elif 'log_mean' in parameters:  # log distribution
-        rr_value = np.exp(parameters['log_se'] * random_state.randn()
-                          + parameters['log_mean'] + random_state.normal(0, parameters['tau_squared']))
+        log_value = parameters['log_mean'] + parameters['log_se']*random_state.randn()
+        if parameters['tau_squared']:
+            log_value += random_state.normal(0, parameters['tau_squared'])
+        rr_value = np.exp(log_value)
     else:
         raise NotImplementedError(f'Only normal distributions (supplying mean and se) and log distributions '
                                   f'(supplying log_mean, log_se, and tau_squared) are currently supported.')
