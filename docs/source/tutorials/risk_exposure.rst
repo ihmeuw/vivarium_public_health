@@ -8,7 +8,7 @@ of some health attributes on others:
 - :class:`~vivarium_public_health.risks.Risk`: Model of the underlying
   exposure based on a continuous or categorical distribution.
 - :class:`~vivarium_public_health.risks.RiskEffect`: Model of the impact of
-  different exposure levels another health attribute.
+  different exposure levels on another health attribute.
 
 The standard model is to think of exposure to environmental, metabolic, and
 behavioral risk factors and their impact on disease incidence rates. However,
@@ -29,7 +29,7 @@ Exposure Models
 ---------------
 
 We model exposure using the :class:`~vivarium_public_health.risks.Risk`
-component. Consider it's configuration options:
+component. Consider its configuration options:
 
 - ``"exposure"``: This option represents the exposure data source. It defaults
   to the value ``"data"``.
@@ -183,7 +183,7 @@ In practice, coverage gaps have a dichotomous distribution, so the
 The ``alternative_risk_factor`` is an entity type that indicates we have
 both continuous and categorical representations of the exposure. They are used
 when an intervention acts on a continuous exposure representation, but the
-the effects of the exposure are specified in terms of the categorical
+effects of the exposure are specified in terms of the categorical
 exposure representation.
 
 The only relevant configuration option is the ``"category_thresholds"``
@@ -246,7 +246,7 @@ at its configuration options:
   distribution with ``"log_mean"`` and ``"log_se"``.
 
 When a :class:`~vivarium_public_health.risks.RiskEffect` is created, it
-takes two arguments, the name of the exposure model, and the name of the
+takes two arguments: the name of the exposure model and the name of the
 target attribute that should be altered. The exposure model should be named
 the same as the argument to :class:`~vivarium_public_health.risks.Risk`
 and the target attribute should be in the form ``<type>.<name>.<measure>``.
@@ -393,7 +393,7 @@ and is not required to use the lognormal distribution.
 
 Like the normal distribution, values below one will be clipped and set to one.
 All three parameters, the ``"log_mean"``, the ``"log_sd"`` and the
-``"tau_squared"`` should be greater than zero if provided.
+``"tau_squared"``, should be greater than zero if provided.
 
 .. note::
 
