@@ -12,7 +12,6 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-from vivarium.framework.event import Event
 from vivarium.framework.randomness import filter_for_probability
 
 
@@ -35,8 +34,7 @@ def hospitalization_side_effect_factory(male_probability, female_probability, ho
             pop.loc[pop.sex == 'Female', 'probability'] = female_probability
             effective_population = filter_for_probability('Hospitalization due to {}'.format(hospitalization_type),
                                                           pop.index, pop.probability)
-            new_event = Event(effective_population)
-            self.hospitilization_emitter(new_event)
+            self.hospitilization_emitter(effective_population)
 
     return hospitalization_side_effect()
 
@@ -107,8 +105,8 @@ class HealthcareAccess:
         general_access = self.randomness_general_access.filter_for_rate(may_do_general_access,
                                                          self.utilization_rate(population.index))
 
-        self.general_healthcare_access_emitter(Event(general_access))
-        self.followup_healthcare_access_emitter(Event(to_followup_pop))
+        self.general_healthcare_access_emitter(general_access)
+        self.followup_healthcare_access_emitter(to_followup_pop)
 
     def on_healthcare_access(self, event):
         self.population_view.update(pd.DataFrame({'healthcare_last_visit_date': event.time}, index=event.index))
