@@ -24,10 +24,10 @@ def base_config():
 
 @pytest.fixture(scope='module')
 def base_plugins():
-    config = {'optional': {
+    config = {'required': {
                   'data': {
                       'controller': 'vivarium_public_health.testing.mock_artifact.MockArtifactManager',
-                      'builder_interface': 'vivarium_public_health.dataset_manager.ArtifactManagerInterface'
+                      'builder_interface': 'vivarium.framework.artifact.ArtifactInterface'
                   }
              }
     }

@@ -11,7 +11,8 @@ import pandas as pd
 
 from vivarium.testing_utilities import build_table
 
-from vivarium_public_health.dataset_manager import ArtifactManager, EntityKey
+from vivarium.framework.artifact import ArtifactManager
+
 from .utils import make_uniform_pop_data
 
 MOCKERS = {
@@ -78,16 +79,17 @@ class MockArtifact():
 
     def load(self, entity_key):
         if entity_key in self.mocks:
-            value = self.mocks[entity_key]
-        else:
-            assert entity_key.type in self.mocks
-            assert entity_key.measure in self.mocks[entity_key.type]
-            value = self.mocks[entity_key.type][entity_key.measure]
+            return self.mocks[entity_key]
 
-            if callable(value):
-                value = value(entity_key)
-            elif not isinstance(value, (pd.DataFrame, pd.Series)):
-                value = build_table(value, 1990, 2018)
+        entity_type, *_, entity_measure = entity_key.split('.')
+        assert entity_type in self.mocks
+        assert entity_measure in self.mocks[entity_type]
+        value = self.mocks[entity_type][entity_measure]
+
+        if callable(value):
+            value = value(entity_key)
+        elif not isinstance(value, (pd.DataFrame, pd.Series)):
+            value = build_table(value, 1990, 2018)
 
         return value
 
@@ -108,10 +110,10 @@ class MockArtifactManager(ArtifactManager):
         pass
 
     def load(self, entity_key, *args, **kwargs):
-        return self.artifact.load(EntityKey(entity_key))
+        return self.artifact.load(entity_key)
 
     def write(self, entity_key, data):
-        self.artifact.write(EntityKey(entity_key), data)
+        self.artifact.write(entity_key, data)
 
     def _load_artifact(self, _):
         return MockArtifact()
