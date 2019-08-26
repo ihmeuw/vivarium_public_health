@@ -23,7 +23,7 @@ class BaseDiseaseState(State):
 
         self.side_effect_function = side_effect_function
         if self.side_effect_function is not None:
-            self.sub_components.append(side_effect_function)
+            self._sub_components.append(side_effect_function)
 
         self.event_time_column = self.state_id + '_event_time'
         self.event_count_column = self.state_id + '_event_count'
