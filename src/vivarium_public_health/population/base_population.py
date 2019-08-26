@@ -27,6 +27,9 @@ class BasePopulation:
         }
     }
 
+    def __init__(self):
+        self.sub_components = [AgeOutSimulants()]
+
     @property
     def name(self):
         return "base_population"
@@ -53,8 +56,6 @@ class BasePopulation:
         self.population_data = _build_population_data_table(source_population_structure)
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
-        if self.config.exit_age is not None:
-            builder.components.add_components([AgeOutSimulants()])
 
     @staticmethod
     def select_sub_population_data(reference_population_data, year):
@@ -124,6 +125,8 @@ class AgeOutSimulants:
         return "age_out_simulants"
 
     def setup(self, builder):
+        if builder.configuration.population.exit_age is None:
+            return
         self.config = builder.configuration.population
         self.population_view = builder.population.get_view(['age', 'exit_time', 'tracked'])
         builder.event.register_listener('time_step__cleanup', self.on_time_step_cleanup)

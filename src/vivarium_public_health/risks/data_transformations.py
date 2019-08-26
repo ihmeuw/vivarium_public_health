@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 
 from vivarium.framework.randomness import RandomnessStream
-from vivarium_public_health.risks import distributions
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
@@ -34,10 +33,10 @@ def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
 # Exposure data handlers #
 ##########################
 
-def get_distribution(builder, risk: EntityString):
+def get_distribution_data(builder, risk: EntityString):
     validate_distribution_data_source(builder, risk)
     data = load_distribution_data(builder, risk)
-    return distributions.get_distribution(risk.name, **data)
+    return data
 
 
 def get_exposure_post_processor(builder, risk: EntityString):

@@ -22,6 +22,8 @@ class BaseDiseaseState(State):
         self.cause = cause
 
         self.side_effect_function = side_effect_function
+        if self.side_effect_function is not None:
+            self.sub_components.append(side_effect_function)
 
         self.event_time_column = self.state_id + '_event_time'
         self.event_count_column = self.state_id + '_event_count'
@@ -35,8 +37,6 @@ class BaseDiseaseState(State):
             Interface to several simulation tools.
         """
         super().setup(builder)
-        if self.side_effect_function is not None:
-            builder.components.add_components([self.side_effect_function])
 
         self.clock = builder.time.clock()
 
@@ -120,6 +120,7 @@ class BaseDiseaseState(State):
 
 
 class SusceptibleState(BaseDiseaseState):
+
     def __init__(self, cause, *args, **kwargs):
         super().__init__(cause, *args, name_prefix='susceptible_to_', **kwargs)
 
@@ -139,6 +140,7 @@ class SusceptibleState(BaseDiseaseState):
 
 
 class RecoveredState(BaseDiseaseState):
+
     def __init__(self, cause, *args, **kwargs):
         super().__init__(cause, *args, name_prefix="recovered_from_", **kwargs)
 
@@ -204,6 +206,10 @@ class DiseaseState(BaseDiseaseState):
         get_birth_prevalence_func = self._get_data_functions.get(
             'birth_prevalence', lambda cause, builder: 0)
         get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: pd.Timedelta(0))
+        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
+        if not only_morbid:
+            self.mortality_effect = MortalityEffect(self)
+            self.mortality_effect.setup(builder)
 
         self.prevalence_data = builder.lookup.build_table(get_prevalence_func(self.cause, builder))
         self.birth_prevalence_data = builder.lookup.build_table(get_birth_prevalence_func(self.cause, builder),
@@ -324,33 +330,23 @@ class TransientDiseaseState(BaseDiseaseState, Transient):
         return 'TransientDiseaseState(name={})'.format(self.state_id)
 
 
-class ExcessMortalityState(DiseaseState):
-    """State representing a disease with excess mortality in a state machine model.
-
-    Attributes
-    ----------
-    state_id : str
-        The name of this state.
-    excess_mortality_data : `pandas.DataFrame`
-        A table of excess mortality data associated with this state.
-    """
-    def __init__(self, cause, **kwargs):
-        super().__init__(cause, **kwargs)
+class MortalityEffect:
+    """Mixin adding an effect on mortality for a disease state."""
+    def __init__(self, state):
+        self._state = state
 
     def setup(self, builder):
-        """Performs this component's simulation setup.
-        Parameters
-        ----------
-        builder : `engine.Builder`
-            Interface to several simulation tools.
-        """
-        super().setup(builder)
-        get_excess_mortality_func = self._get_data_functions.get('excess_mortality', lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.excess_mortality"))
+        get_excess_mortality_func = self._state._get_data_functions.get(
+            'excess_mortality',
+            lambda cause, builder: builder.data.load(f"{self._state.cause_type}.{cause}.excess_mortality")
+        )
 
-        self.base_excess_mortality = builder.lookup.build_table(get_excess_mortality_func(self.cause, builder))
-        self._mortality = builder.value.register_rate_producer(f'{self.state_id}.excess_mortality',
+        self.base_excess_mortality = builder.lookup.build_table(
+            get_excess_mortality_func(self._state.cause, builder)
+        )
+        self._mortality = builder.value.register_rate_producer(f'{self._state.state_id}.excess_mortality',
                                                                source=self.effective_excess_mortality)
-        self.joint_paf = builder.value.register_value_producer(f'{self.state_id}.excess_mortality.paf',
+        self.joint_paf = builder.value.register_value_producer(f'{self._state.state_id}.excess_mortality.paf',
                                                                source=lambda idx: [builder.lookup.build_table(0)(idx)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
@@ -371,14 +367,14 @@ class ExcessMortalityState(DiseaseState):
         rates_df : `pandas.DataFrame`
 
         """
-        population = self.population_view.get(index)
+        population = self._state.population_view.get(index)
         rate = (self._mortality(population.index, skip_post_processor=True)
-                * (population[self._model] == self.state_id))
+                * (population[self._state._model] == self._state.state_id))
         if isinstance(rates_df, pd.Series):
-            rates_df = pd.DataFrame({rates_df.name: rates_df, self.state_id: rate})
+            rates_df = pd.DataFrame({rates_df.name: rates_df, self._state.state_id: rate})
         else:
-            rates_df[self.state_id] = rate
+            rates_df[self._state.state_id] = rate
         return rates_df
 
     def __str__(self):
-        return 'ExcessMortalityState({})'.format(self.state_id)
+        return 'ExcessMortalityState({})'.format(self._state.state_id)

@@ -16,7 +16,7 @@ import numpy as np
 from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
-from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
+from vivarium_public_health.disease import (SusceptibleState, TransientDiseaseState,
                                         RateTransition, ProportionTransition)
 
 
@@ -37,10 +37,6 @@ class DiseaseModel(Machine):
 
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
-        if 'csmr' not in self._get_data_functions:
-            self._get_data_functions['csmr'] = lambda cause, builder: builder.data.load(
-                f"{self.cause_type}.{cause}.cause_specific_mortality")
-
     @property
     def name(self):
         return f"disease_model.{self.cause}"
@@ -51,7 +47,15 @@ class DiseaseModel(Machine):
         self.configuration_age_start = builder.configuration.population.age_start
         self.configuration_age_end = builder.configuration.population.age_end
 
-        self._csmr_data = self._get_data_functions['csmr'](self.cause, builder)
+        if 'csmr' not in self._get_data_functions:
+            only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
+            if only_morbid:
+                self._csmr_data = None
+            else:
+                self._csmr_data = builder.data.load(f"{self.cause_type}.{self.cause}.cause_specific_mortality")
+        else:
+            self._csmr_data = self._get_data_functions['csmr'](self.cause, builder)
+
         self.config = builder.configuration
         self._interpolation_order = builder.configuration.interpolation.order
 
@@ -160,9 +164,7 @@ class DiseaseModel(Machine):
         from graphviz import Digraph
         dot = Digraph(format='png')
         for state in self.states:
-            if isinstance(state, ExcessMortalityState):
-                dot.node(state.state_id, color='red')
-            elif isinstance(state, TransientDiseaseState):
+            if isinstance(state, TransientDiseaseState):
                 dot.node(state.state_id, style='dashed', color='orange')
             elif isinstance(state, SusceptibleState):
                 dot.node(state.state_id, color='green')

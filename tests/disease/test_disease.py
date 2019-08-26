@@ -6,7 +6,7 @@ from vivarium.framework.utilities import from_yearly
 from vivarium.testing_utilities import build_table, TestPopulation, metadata
 from vivarium.interface.interactive import setup_simulation
 
-from vivarium_public_health.disease import (BaseDiseaseState, DiseaseState, ExcessMortalityState,
+from vivarium_public_health.disease import (BaseDiseaseState, DiseaseState,
                                             RateTransition, DiseaseModel)
 from vivarium_public_health.population import Mortality
 
@@ -43,7 +43,7 @@ def get_test_prevalence(simulation, key):
     return result
 
 
-def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
+def test_dwell_time(assign_cause_mock, base_config, base_plugins, disease, base_data):
 
     time_step = 10
     assign_cause_mock.side_effect = lambda population, *args: pd.DataFrame(
@@ -67,7 +67,7 @@ def test_dwell_time(assign_cause_mock, base_config, disease, base_data):
     model = DiseaseModel(disease, initial_state=healthy_state, states=[healthy_state, event_state, done_state],
                          get_data_functions={'csmr': lambda _, __: None})
 
-    simulation = setup_simulation([TestPopulation(), model], base_config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
 
     # Move everyone into the event state
     simulation.step()
@@ -104,7 +104,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
         'disability_weight': lambda _, __: 0.0
     }
 
-    mortality_state = ExcessMortalityState('event', get_data_functions=mort_get_data_funcs)
+    mortality_state = DiseaseState('event', get_data_functions=mort_get_data_funcs)
     done_state = BaseDiseaseState('sick')
 
     healthy_state.add_transition(mortality_state)
@@ -137,7 +137,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
 
 
 @pytest.mark.parametrize('test_prevalence_level', [0, 0.35, 1])
-def test_prevalence_single_state_with_migration(base_config, disease, base_data, test_prevalence_level):
+def test_prevalence_single_state_with_migration(base_config, base_plugins, disease, base_data, test_prevalence_level):
     """
     Test the prevalence for the single state over newly migrated population.
     Start with the initial population, check the prevalence for initial assignment.
@@ -155,7 +155,7 @@ def test_prevalence_single_state_with_migration(base_config, disease, base_data,
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick],
                          get_data_functions={'csmr': lambda _, __: None})
     base_config.update({'population': {'population_size': 50000}}, **metadata(__file__))
-    simulation = setup_simulation([TestPopulation(), model], base_config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
     error_message = "initial status of simulants should be matched to the prevalence data."
     assert np.isclose(get_test_prevalence(simulation, 'sick'), test_prevalence_level, 0.01), error_message
     simulation.clock.step_forward()
@@ -171,7 +171,7 @@ def test_prevalence_single_state_with_migration(base_config, disease, base_data,
 
 @pytest.mark.parametrize('test_prevalence_level',
                          [[0.15, 0.05, 0.35], [0, 0.15, 0.5], [0.2, 0.3, 0.5], [0, 0, 1], [0, 0, 0]])
-def test_prevalence_multiple_sequelae(base_config, disease, base_data, test_prevalence_level):
+def test_prevalence_multiple_sequelae(base_config, base_plugins, disease, base_data, test_prevalence_level):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
 
@@ -186,7 +186,7 @@ def test_prevalence_multiple_sequelae(base_config, disease, base_data, test_prev
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]],
                          get_data_functions={'csmr': lambda _, __: None})
     base_config.update({'population': {'population_size': 100000}}, **metadata(__file__))
-    simulation = setup_simulation([TestPopulation(), model], base_config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
     error_message = "initial sequela status of simulants should be matched to the prevalence data."
     assert np.allclose([get_test_prevalence(simulation, 'sequela0'),
                         get_test_prevalence(simulation, 'sequela1'),
@@ -222,7 +222,7 @@ def test_mortality_rate(base_config, base_plugins, disease):
         'excess_mortality': lambda _, __: build_table(0.7, year_start-1, year_end),
     }
 
-    mortality_state = ExcessMortalityState('sick', get_data_functions=mort_get_data_funcs)
+    mortality_state = DiseaseState('sick', get_data_functions=mort_get_data_funcs)
 
     healthy.add_transition(mortality_state)
 
@@ -338,7 +338,7 @@ def test__assign_event_time_for_prevalent_cases():
                                                                                dwell_time_func))
 
 
-def test_prevalence_birth_prevalence_initial_assignment(base_config, disease):
+def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugins, disease):
     healthy = BaseDiseaseState('healthy')
 
     data_funcs = {'prevalence': lambda _, __: 1,
@@ -349,7 +349,7 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, disease):
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition],
                          get_data_functions={'csmr': lambda _, __: None})
     base_config.update({'population': {'population_size': 1000, 'age_start': 0, 'age_end': 5}}, **metadata(__file__))
-    simulation = setup_simulation([TestPopulation(), model], base_config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
 
     # prevalence should be used for assigning initial status at sim start
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 1)
@@ -365,7 +365,7 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, disease):
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.83, 0.01)
 
 
-def test_no_birth_prevalence_initial_assignment(base_config, disease):
+def test_no_birth_prevalence_initial_assignment(base_config, base_plugins, disease):
     healthy = BaseDiseaseState('healthy')
 
     data_funcs = {'prevalence': lambda _, __: 1,
@@ -375,7 +375,7 @@ def test_no_birth_prevalence_initial_assignment(base_config, disease):
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition],
                          get_data_functions={'csmr': lambda _, __: None})
     base_config.update({'population': {'population_size': 1000, 'age_start': 0, 'age_end': 5}}, **metadata(__file__))
-    simulation = setup_simulation([TestPopulation(), model], base_config)
+    simulation = setup_simulation([TestPopulation(), model], base_config, base_plugins)
 
     # prevalence should be used for assigning initial status at sim start
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 1)

@@ -23,6 +23,7 @@ MOCKERS = {
             'remission': 0,
             'incidence': 0.001,
             'disability_weight': pd.DataFrame({'value': [0]}),
+            'restrictions': lambda *args, **kwargs: {'yld_only': False}
         },
         'risk_factor': {
             'distribution': lambda *args, **kwargs: 'ensemble',
