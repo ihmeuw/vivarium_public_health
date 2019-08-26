@@ -1,7 +1,9 @@
-import pytest
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-
+import pytest
+from vivarium import ConfigTree
 from vivarium.testing_utilities import TestPopulation, metadata, build_table
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
@@ -10,6 +12,7 @@ from vivarium_public_health.population import FertilityDeterministic, FertilityC
 
 @pytest.fixture()
 def config(base_config):
+
     base_config.update({
         'population': {
             'population_size': 10000,
@@ -19,7 +22,7 @@ def config(base_config):
         'time': {
             'step_size': 10,
             }
-        }, **metadata(__file__))
+        }, source=str(Path(__file__).resolve()), layer='override')
     return base_config
 
 
@@ -74,7 +77,6 @@ def test_FertilityCrudeBirthRate_extrapolate_fail(config, base_plugins):
         'time': {
             'start': {'year': 2016},
             'end': {'year': 2025},
-            'step_size': 30,
         },
     })
     components = [TestPopulation(), FertilityCrudeBirthRate()]
@@ -86,8 +88,13 @@ def test_FertilityCrudeBirthRate_extrapolate_fail(config, base_plugins):
         simulation.setup()
 
 
-def test_FertilityCrudeBirthRate_extrapolate(config, base_plugins):
-    config.update({
+def test_FertilityCrudeBirthRate_extrapolate(base_config, base_plugins):
+    base_config.update({
+        'population': {
+            'population_size': 10000,
+            'age_start': 0,
+            'age_end': 125,
+        },
         'interpolation': {
             'extrapolate': True
         },
@@ -97,12 +104,12 @@ def test_FertilityCrudeBirthRate_extrapolate(config, base_plugins):
             'step_size': 365,
         },
     })
-    pop_size = config.population.population_size
+    pop_size = base_config.population.population_size
     true_pop_size = 8000  # What's available in the mock artifact
     live_births_by_sex = 500
     components = [TestPopulation(), FertilityCrudeBirthRate()]
 
-    simulation = initialize_simulation(components, config, base_plugins)
+    simulation = initialize_simulation(components, base_config, base_plugins)
     simulation.data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data(live_births_by_sex))
     simulation.setup()
 

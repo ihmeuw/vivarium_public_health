@@ -1,11 +1,11 @@
-import pytest
+from pathlib import Path
 
+import pytest
 from vivarium.framework.configuration import build_simulation_configuration
-from vivarium.testing_utilities import metadata
 from vivarium.config_tree import ConfigTree
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture()
 def base_config():
     config = build_simulation_configuration()
 
@@ -17,7 +17,7 @@ def base_config():
         },
         'randomness': {'key_columns': ['entrance_time', 'age']},
         'input_data': {'location': 'Kenya'},
-    }, **metadata(__file__))
+    }, source=str(Path(__file__).resolve()), layer='model_override')
 
     return config
 
