@@ -3,7 +3,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import ConfigTree
 from vivarium.testing_utilities import TestPopulation, metadata, build_table
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
