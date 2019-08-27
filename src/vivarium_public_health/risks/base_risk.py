@@ -90,11 +90,15 @@ class Risk:
         self.risk = EntityString(risk)
         self.configuration_defaults = {f'{self.risk.name}': Risk.configuration_defaults['risk']}
         self.exposure_distribution = SimulationDistribution(self.risk)
-        self.sub_components = [self.exposure_distribution]
+        self._sub_components = [self.exposure_distribution]
 
     @property
     def name(self):
         return f'risk.{self.risk}'
+
+    @property
+    def sub_components(self):
+        return self._sub_components
 
     def setup(self, builder):
         self.randomness = builder.randomness.get_stream(f'initial_{self.risk.name}_propensity')

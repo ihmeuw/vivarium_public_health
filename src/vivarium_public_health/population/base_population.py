@@ -28,11 +28,15 @@ class BasePopulation:
     }
 
     def __init__(self):
-        self.sub_components = [AgeOutSimulants()]
+        self._sub_components = [AgeOutSimulants()]
 
     @property
     def name(self):
         return "base_population"
+
+    @property
+    def sub_components(self):
+        return self._sub_components
 
     def setup(self, builder):
         self.config = builder.configuration.population
