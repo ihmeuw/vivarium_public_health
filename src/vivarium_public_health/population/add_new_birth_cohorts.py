@@ -8,11 +8,12 @@ This module contains several different models of fertility.
 """
 import pandas as pd
 import numpy as np
+
+from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import get_live_births_per_year
 
-SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate better data into gestational model (probably as a separate component)
-PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
+PREGNANCY_DURATION = pd.Timedelta(days=9*utilities.DAYS_PER_MONTH)
 
 
 class FertilityDeterministic:
@@ -45,7 +46,7 @@ class FertilityDeterministic:
             The event that triggered the function call.
         """
         # Assume births are uniformly distributed throughout the year.
-        step_size = event.step_size/pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        step_size = utilities.to_years(event.step_size)
         simulants_to_add = self.simulants_per_year*step_size + self.fractional_new_births
 
         self.fractional_new_births = simulants_to_add % 1
@@ -121,7 +122,7 @@ class FertilityCrudeBirthRate:
             The event that triggered the function call.
         """
         birth_rate = self.birth_rate.at[self.clock().year]
-        step_size = event.step_size / pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        step_size = utilities.to_years(event.step_size)
 
         mean_births = birth_rate * step_size
         # Assume births occur as a Poisson process
@@ -181,7 +182,7 @@ class FertilityAgeSpecificRates:
 
         # Do the naive thing, set so all women can have children
         # and none of them have had a child in the last year.
-        last_birth_time[women] = pop_data.creation_time - pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        last_birth_time[women] = pop_data.creation_time - pd.Timedelta(days=utilities.DAYS_PER_YEAR)
 
         self.population_view.update(last_birth_time)
         self.population_view.update(pd.Series(-1, name='parent_id', index=pop_data.index, dtype=np.int64))
