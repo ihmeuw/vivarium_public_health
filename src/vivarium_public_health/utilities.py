@@ -7,6 +7,9 @@ This module contains utility classes and functions for use across
 vivarium_public_health components.
 
 """
+from typing import Union
+
+import pandas as pd
 
 
 class EntityString(str):
@@ -57,3 +60,20 @@ class TargetString(str):
                 f'You must specify the target as "affected_entity_type.affected_entity_name.affected_measure".'
                 f'You specified {self}.')
         return split[0], split[1], split[2]
+
+
+DAYS_PER_YEAR = 365.25
+DAYS_PER_MONTH = DAYS_PER_YEAR / 12
+
+
+def to_time_delta(span_in_days: Union[int, float, str]):
+    span_in_days = float(span_in_days)
+    days, remainder = span_in_days // 1, span_in_days % 1
+    hours, remainder = (24 * remainder) // 24, (24 * remainder) % 24
+    minutes = (60 * remainder) // 60
+    return pd.Timedelta(days=days, hours=hours, minutes=minutes)
+
+
+def to_years(time: pd.Timedelta) -> float:
+    """Converts a time delta to a float for years."""
+    return time / pd.Timedelta(days=DAYS_PER_YEAR)

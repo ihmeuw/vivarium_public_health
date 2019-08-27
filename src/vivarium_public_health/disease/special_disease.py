@@ -6,11 +6,12 @@
 This module contains frequently used, but non-standard disease models.
 
 """
-import pandas as pd
-import re
-from operator import lt, gt
-
 from collections import namedtuple
+from operator import lt, gt
+import re
+
+import pandas as pd
+
 from vivarium_public_health.utilities import EntityString
 
 
@@ -168,16 +169,16 @@ class RiskAttributableDisease:
             threshold_val = re.findall("[-+]?\d*\.?\d+", threshold)
 
             if len(threshold_val) != 1:
-                raise ValueError(f'Your {threshold} is an incorrect threshold format. It should include "<" or ">" along'
-                                 f' with an integer or float number. Your threshold does not include a number or more '
-                                 'than one number.')
+                raise ValueError(f'Your {threshold} is an incorrect threshold format. It should include '
+                                 f'"<" or ">" along with an integer or float number. Your threshold does not '
+                                 f'include a number or more than one number.')
 
             allowed_operator = {'<', '>'}
             threshold_op = [s for s in threshold.split(threshold_val[0]) if s]
             #  if threshold_op has more than 1 operators or 0 operator
             if len(threshold_op) != 1 or not allowed_operator.intersection(threshold_op):
-                raise ValueError(f'Your {threshold} is an incorrect threshold format. It should include "<" or ">" along'
-                                 f' with an integer or float number.')
+                raise ValueError(f'Your {threshold} is an incorrect threshold format. It should include '
+                                 f'"<" or ">" along with an integer or float number.')
 
             op = gt if threshold_op[0] == ">" else lt
             threshold = Threshold(op, float(threshold_val[0]))
@@ -201,7 +202,7 @@ class RiskAttributableDisease:
 
     def compute_disability_weight(self, index):
         disability_weight = pd.Series(0, index=index)
-        with_condition = self.population_view.get(index, 
+        with_condition = self.population_view.get(index,
                                                   query=f'alive=="alive" and {self.cause.name}=="{self.cause.name}"')
-        disability_weight.loc[with_condition.index] = self._disability_weight(with_condition.index) 
+        disability_weight.loc[with_condition.index] = self._disability_weight(with_condition.index)
         return disability_weight

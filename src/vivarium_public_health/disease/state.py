@@ -8,7 +8,6 @@ This module contains tools to manage standard disease states.
 """
 import pandas as pd
 import numpy as np
-
 from vivarium.framework.state_machine import State, Transient
 from vivarium.framework.values import list_combiner, joint_value_post_processor
 

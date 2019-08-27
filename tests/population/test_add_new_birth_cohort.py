@@ -6,6 +6,7 @@ import pytest
 from vivarium.testing_utilities import TestPopulation, metadata, build_table
 from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
+from vivarium_public_health import utilities
 from vivarium_public_health.population import FertilityDeterministic, FertilityCrudeBirthRate, FertilityAgeSpecificRates
 
 
@@ -50,7 +51,7 @@ def test_FertilityDeterministic(config):
 
     assert num_steps == num_days // step_size
     assert np.all(pop.alive == 'alive')
-    assert int(num_days * annual_new_simulants / 365) == len(pop.age) - pop_size
+    assert int(num_days * annual_new_simulants / utilities.DAYS_PER_YEAR) == len(pop.age) - pop_size
 
 
 def test_FertilityCrudeBirthRate(config, base_plugins):

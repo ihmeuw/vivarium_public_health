@@ -118,5 +118,3 @@ class MockArtifactManager(ArtifactManager):
 
     def _load_artifact(self, _):
         return MockArtifact()
-
-

@@ -47,7 +47,8 @@ def get_exposure_post_processor(builder, risk: EntityString):
         categories = [f'cat{i}' for i in range(1, len(thresholds))]
 
         def post_processor(exposure, _):
-            return pd.Series(pd.cut(exposure, thresholds, labels=categories), index=exposure.index).astype(str)
+            return pd.Series(pd.cut(exposure, thresholds, labels=categories),
+                             index=exposure.index).astype(str)
     else:
         post_processor = None
 
