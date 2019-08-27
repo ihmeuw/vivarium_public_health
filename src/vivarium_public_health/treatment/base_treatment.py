@@ -18,14 +18,12 @@ class Treatment:
     def __init__(self, name, cause):
         self.treatment_name = name
         self.cause = cause
-        self.treatment_effects = []
 
     @property
     def name(self):
         return f'treatment.{self.treatment_name}.{self.cause}'
 
     def setup(self, builder):
-        builder.components.add_components(self.treatment_effects)
         if self.treatment_name not in builder.configuration:
             raise ComponentConfigError(f'No configuration found for {self.treatment_name}.')
 

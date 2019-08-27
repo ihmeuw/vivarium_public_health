@@ -67,13 +67,17 @@ class MassTreatmentCampaign:
         self.configuration_defaults = {treatment_name: MassTreatmentCampaign.configuration_defaults['treatment']}
         self.treatment = Treatment(treatment_name, etiology)
         self.schedule = TreatmentSchedule(treatment_name)
+        self._sub_components = [self.treatment, self.schedule]
 
     @property
     def name(self):
         return f'mass_treatment_campaign.{self.treatment_name}.{self.etiology}'
 
+    @property
+    def sub_components(self):
+        return self._sub_components
+
     def setup(self, builder):
-        builder.components.add_components([self.treatment, self.schedule])
         self.config = builder.configuration[self.treatment_name]
         self.clock = builder.time.clock()
 

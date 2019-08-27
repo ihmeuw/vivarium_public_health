@@ -13,10 +13,36 @@ import pandas as pd
 from risk_distributions import EnsembleDistribution, Normal, LogNormal
 
 from vivarium.framework.values import list_combiner, joint_value_post_processor
+from vivarium_public_health.risks.data_transformations import get_distribution_data
 
 
 class MissingDataError(Exception):
     pass
+
+
+# FIXME: This is a hack.  It's wrapping up an adaptor pattern in another
+# adaptor pattern, which is gross, but would require some more difficult
+# refactoring which is thorougly out of scope right now. -J.C. 8/25/19
+class SimulationDistribution:
+    """Wrapper around a variety of distribution implementations."""
+
+    def __init__(self, risk):
+        self.risk = risk
+
+    @property
+    def name(self):
+        return f'{self.risk}.exposure_distribution'
+
+    def setup(self, builder):
+        distribution_data = get_distribution_data(builder, self.risk)
+        self.implementation = get_distribution(self.risk, **distribution_data)
+        self.implementation.setup(builder)
+
+    def ppf(self, q):
+        return self.implementation.ppf(q)
+
+    def __repr__(self):
+        return f'ExposureDistribution({self.risk})'
 
 
 class EnsembleSimulation:
@@ -24,10 +50,6 @@ class EnsembleSimulation:
     def __init__(self, risk, weights, mean, sd):
         self.risk = risk
         self._weights, self._parameters = self._get_parameters(weights, mean, sd)
-
-    @property
-    def name(self):
-        return f'ensemble_simulation.{self.risk}'
 
     def setup(self, builder):
         self.weights = builder.lookup.build_table(self._weights)
@@ -56,7 +78,7 @@ class EnsembleSimulation:
         return f'EnsembleSimulation(risk={self.risk})'
 
 
-class SimulationDistribution:
+class ContinuousDistribution:
     def __init__(self, risk, mean, sd, distribution=None):
         self.risk = risk
         self.distribution = distribution
@@ -153,10 +175,10 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
     elif 'polytomous' in distribution_type:
         distribution = PolytomousDistribution(risk, exposure)
     elif distribution_type == 'normal':
-        distribution = SimulationDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
+        distribution = ContinuousDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
                                               distribution=Normal)
     elif distribution_type == 'lognormal':
-        distribution = SimulationDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
+        distribution = ContinuousDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
                                               distribution=LogNormal)
     elif distribution_type == 'ensemble':
         distribution = EnsembleSimulation(risk, weights, mean=exposure, sd=exposure_standard_deviation,)
