@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from vivarium_public_health import utilities
+
 
 class TreatmentSchedule:
 
@@ -110,7 +112,7 @@ class TreatmentSchedule:
                                   (population[f'{self.treatment_name}_current_dose'] != dose)]
         dose_age = self._schedule.loc[eligible_pop.index, f'{dose}_age']
 
-        time_to_dose = eligible_pop.age * 365 + step_size.days - dose_age
+        time_to_dose = eligible_pop.age * utilities.DAYS_PER_YEAR + step_size.days - dose_age
         correct_age = np.abs(time_to_dose) < step_size.days / 2
         return eligible_pop[correct_age]
 

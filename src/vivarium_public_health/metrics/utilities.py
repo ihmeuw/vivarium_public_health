@@ -16,6 +16,8 @@ import pandas as pd
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.values import Pipeline
 
+from vivarium_public_health.utilities import to_years
+
 _MIN_AGE = 0.
 _MAX_AGE = 150.
 _MIN_YEAR = 1900
@@ -621,8 +623,3 @@ def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
 
     pop.cause_of_death = pop.cause_of_death.apply(_clean)
     return pop
-
-
-def to_years(time: pd.Timedelta) -> float:
-    """Converts a time delta to a float for years."""
-    return time / pd.Timedelta(days=365.25)

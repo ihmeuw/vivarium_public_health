@@ -17,7 +17,7 @@ from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
 from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, TransientDiseaseState,
-                                        RateTransition, ProportionTransition)
+                                            RateTransition, ProportionTransition)
 
 
 class DiseaseModelError(VivariumError):
@@ -87,7 +87,8 @@ class DiseaseModel(Machine):
         return self._csmr_data
 
     def get_state_weights(self, pop_index, prevalence_type):
-        states = [s for s in self.states if hasattr(s, f'{prevalence_type}_data') and getattr(s, f'{prevalence_type}_data') is not None]
+        states = [s for s in self.states
+                  if hasattr(s, f'{prevalence_type}_data') and getattr(s, f'{prevalence_type}_data') is not None]
 
         if not states:
             return states, None

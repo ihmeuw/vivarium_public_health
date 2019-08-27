@@ -32,5 +32,3 @@ def make_uniform_pop_data(age_bin_midpoint=False):
     if age_bin_midpoint:  # used for population tests
         pop['age'] = pop.apply(lambda row: (row['age_group_start'] + row['age_group_end']) / 2, axis=1)
     return pop
-
-

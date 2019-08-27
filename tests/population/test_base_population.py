@@ -1,12 +1,13 @@
+from pathlib import Path
 import math
 
 import numpy as np
 import pandas as pd
 import pytest
-
-from vivarium.testing_utilities import get_randomness, metadata
+from vivarium.testing_utilities import get_randomness
 from vivarium.interface.interactive import setup_simulation
 
+from vivarium_public_health import utilities
 import vivarium_public_health.population.base_population as bp
 import vivarium_public_health.population.data_transformations as dt
 from vivarium_public_health.testing.utils import make_uniform_pop_data
@@ -19,11 +20,7 @@ def config(base_config):
             'age_start': 0,
             'age_end': 110,
         },
-        'input_data': {
-            'location_id': 180,
-            'use_subregions': False,
-        }
-    }, **metadata(__file__))
+    }, source=str(Path(__file__).resolve()), layer='model_override')
     return base_config
 
 
@@ -108,12 +105,12 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
     for column in pop:
         assert pop[column].equals(sims[column])
 
-    final_ages = pop.age + num_days/365
+    final_ages = pop.age + num_days / utilities.DAYS_PER_YEAR
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
 
     pop = simulation.get_population()
-    assert np.allclose(pop.age, final_ages, atol=0.5/365)  # Within a half of a day.
+    assert np.allclose(pop.age, final_ages, atol=0.5 / utilities.DAYS_PER_YEAR)  # Within a half of a day.
 
 
 def test_age_out_simulants(config, base_plugins):
@@ -201,7 +198,7 @@ def test__assign_demography_with_initial_age(config):
 
     assert len(simulants) == len(simulants.age.unique())
     assert simulants.age.min() > initial_age
-    assert simulants.age.max() < initial_age + step_size.days/365.0
+    assert simulants.age.max() < initial_age + utilities.to_years(step_size)
     assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, abs_tol=0.01)
     for location in simulants.location.unique():
         assert math.isclose(len(simulants[simulants.location == location]) / len(simulants),
@@ -214,14 +211,14 @@ def test__assign_demography_with_initial_age_zero(config):
     simulants = make_base_simulants()
     initial_age = 0
     r = {k: get_randomness() for k in ['general_purpose', 'bin_selection', 'age_smoothing']}
-    step_size = pd.Timedelta(days=config.time.step_size)
+    step_size = utilities.to_time_delta(config.time.step_size)
 
     simulants = bp._assign_demography_with_initial_age(simulants, pop_data, initial_age,
                                                        step_size, r, lambda *args, **kwargs: None)
 
     assert len(simulants) == len(simulants.age.unique())
     assert simulants.age.min() > initial_age
-    assert simulants.age.max() < initial_age + step_size.days / 365.0
+    assert simulants.age.max() < initial_age + utilities.to_years(step_size)
     assert math.isclose(len(simulants[simulants.sex == 'Male']) / len(simulants), 0.5, abs_tol=0.01)
     for location in simulants.location.unique():
         assert math.isclose(len(simulants[simulants.location == location]) / len(simulants),
@@ -266,7 +263,7 @@ def test__assign_demography_with_age_bounds():
     assert age_deltas.max() < 100 * age_bin_width * num_bins / n  # Make sure there are no big age gaps.
 
 
-def test__assign_demography_withq_age_bounds_error():
+def test__assign_demography_with_age_bounds_error():
     pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     simulants = make_base_simulants()
     age_start, age_end = 110, 120

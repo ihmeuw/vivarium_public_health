@@ -10,10 +10,10 @@ characteristics to simulants.
 import pandas as pd
 import numpy as np
 
-from .data_transformations import (assign_demographic_proportions, rescale_binned_proportions,
-                                   smooth_ages, load_population_structure)
-
-SECONDS_PER_YEAR = 365.25*24*60*60
+from vivarium_public_health import utilities
+from vivarium_public_health.population.data_transformations import (assign_demographic_proportions,
+                                                                    rescale_binned_proportions,
+                                                                    smooth_ages, load_population_structure)
 
 
 class BasePopulation:
@@ -106,9 +106,8 @@ class BasePopulation:
         ----------
         event : vivarium.framework.population.PopulationEvent
         """
-        step_size = event.step_size/pd.Timedelta(seconds=1)
         population = self.population_view.get(event.index, query="alive == 'alive'")
-        population['age'] += step_size / SECONDS_PER_YEAR
+        population['age'] += utilities.to_years(event.step_size)
         self.population_view.update(population)
 
     def __repr__(self):
@@ -217,7 +216,7 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age,
         The age to assign the new simulants.
     randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
         Source of random number generation within the vivarium common random number framework.
-    step_size : float
+    step_size : pandas.Timedelta
         The size of the initial time step.
     register_simulants : Callable
         A function to register the new simulants with the CRN framework.
@@ -232,7 +231,7 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age,
     if pop_data.empty:
         raise ValueError('The age {} is not represented by the population data structure'.format(initial_age))
 
-    age_fuzz = randomness_streams['age_smoothing'].get_draw(simulants.index) * step_size / pd.Timedelta(days=365)
+    age_fuzz = randomness_streams['age_smoothing'].get_draw(simulants.index) * utilities.to_years(step_size)
     simulants['age'] = initial_age + age_fuzz
     register_simulants(simulants[['entrance_time', 'age']])
 
