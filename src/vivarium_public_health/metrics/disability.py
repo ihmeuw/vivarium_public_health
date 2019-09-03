@@ -16,7 +16,7 @@ from vivarium_public_health.disease import DiseaseModel, RiskAttributableDisease
 from .utilities import get_age_bins, get_years_lived_with_disability
 
 
-class Disability:
+class DisabilityObserver:
     """Counts years lived with disability.
 
     By default, this counts both aggregate and cause-specific years lived
@@ -102,7 +102,7 @@ class Disability:
         return metrics
 
     def __repr__(self):
-        return "Disability()"
+        return "DisabilityObserver()"
 
 
 def _disability_post_processor(value, step_size):
