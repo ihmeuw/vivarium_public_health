@@ -123,7 +123,7 @@ class DiseaseModel(Machine):
         return simulants
 
     def load_population_columns(self, pop_data):
-        population = self.population_view.get(pop_data.index, omit_missing_columns=True)
+        population = self.population_view.subview(['age', 'sex']).get(pop_data.index)
 
         self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))
 
