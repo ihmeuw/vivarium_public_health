@@ -11,7 +11,7 @@ def disease_mock(mocker):
         test_disease = RiskAttributableDisease('cause.test_cause', 'risk_factor.test_risk')
         test_disease.distribution = distribution
         test_disease.population_view = mocker.Mock()
-        test_disease._mortality = mocker.Mock()
+        test_disease._excess_mortality_rate = mocker.Mock()
         return test_disease
     return disease_with_distribution
 
@@ -81,7 +81,7 @@ def test_mortality_rate_pandas_series(disease_mock):
     expected_mortality_values = pd.Series(current_disease_status, name=disease.cause.name,
                                           index=test_index).map({disease.cause.name: 0.05,
                                                                  f'susceptible_to_{disease.cause.name}': 0})
-    disease._mortality.return_value = expected_mortality_values
+    disease._excess_mortality_rate.return_value = expected_mortality_values
     rates_df = pd.Series(0, index=test_index, name='death_due_to_other_causes')
     expected = pd.DataFrame({'death_due_to_other_causes': 0, disease.cause.name: expected_mortality_values},
                             index=test_index)
@@ -100,7 +100,7 @@ def test_mortality_rate_pandas_dataframe(disease_mock):
     expected_mortality_values = pd.Series(current_disease_status, name=disease.cause.name,
                                           index=test_index).map({disease.cause.name: 0.05,
                                                                  f'susceptible_to_{disease.cause.name}': 0})
-    disease._mortality.return_value = expected_mortality_values
+    disease._excess_mortality_rate.return_value = expected_mortality_values
     rates_df = pd.DataFrame({'death_due_to_other_causes': 0, 'another_test_cause': 0.001}, index=test_index)
     expected = pd.DataFrame({'death_due_to_other_causes': 0, 'another_test_cause': 0.001,
                              disease.cause.name: expected_mortality_values}, index=test_index)

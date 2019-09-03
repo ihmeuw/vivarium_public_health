@@ -353,15 +353,15 @@ def _compute_ages(uniform_rv, start, height, slope, normalization):
         return start + height / slope * (np.sqrt(1 + 2 * normalization * slope / height ** 2 * uniform_rv) - 1)
 
 
-def get_cause_deleted_mortality(all_cause_mortality, list_of_csmrs):
+def get_cause_deleted_mortality_rate(all_cause_mortality_rate, list_of_csmrs):
     index_cols = ['age_group_start', 'age_group_end', 'sex', 'year_start', 'year_end']
-    all_cause_mortality = all_cause_mortality.set_index(index_cols).copy()
+    all_cause_mortality_rate = all_cause_mortality_rate.set_index(index_cols).copy()
     for csmr in list_of_csmrs:
         if csmr is None:
             continue
-        all_cause_mortality = all_cause_mortality.subtract(csmr.set_index(index_cols)).dropna()
+        all_cause_mortality_rate = all_cause_mortality_rate.subtract(csmr.set_index(index_cols)).dropna()
 
-    return all_cause_mortality.reset_index().rename(columns={'value': 'death_due_to_other_causes'})
+    return all_cause_mortality_rate.reset_index().rename(columns={'value': 'death_due_to_other_causes'})
 
 
 def load_population_structure(builder):

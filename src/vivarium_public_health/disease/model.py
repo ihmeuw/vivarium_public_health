@@ -47,7 +47,7 @@ class DiseaseModel(Machine):
         self.configuration_age_start = builder.configuration.population.age_start
         self.configuration_age_end = builder.configuration.population.age_end
 
-        cause_specific_mortality_rate = self.load_csmr_data(builder)
+        cause_specific_mortality_rate = self.load_cause_specific_mortality_rate_data(builder)
         self.cause_specific_mortality_rate = builder.lookup.build_table(cause_specific_mortality_rate)
         builder.value.register_value_modifier('cause_specific_mortality_rate',
                                               self.adjust_cause_specific_mortality_rate)
@@ -67,15 +67,15 @@ class DiseaseModel(Machine):
         builder.event.register_listener('time_step', self.time_step_handler)
         builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
 
-    def load_csmr_data(self, builder):
-        if 'csmr' not in self._get_data_functions:
+    def load_cause_specific_mortality_rate_data(self, builder):
+        if 'cause_specific_mortality_rate' not in self._get_data_functions:
             only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
             if only_morbid:
                 csmr_data = 0
             else:
                 csmr_data = builder.data.load(f"{self.cause_type}.{self.cause}.cause_specific_mortality")
         else:
-            csmr_data = self._get_data_functions['csmr'](self.cause, builder)
+            csmr_data = self._get_data_functions['cause_specific_mortality_rate'](self.cause, builder)
         return csmr_data
 
     def adjust_cause_specific_mortality_rate(self, index, rate):

@@ -106,8 +106,8 @@ class RiskAttributableDisease:
             builder.value.register_value_modifier('csmr_data', lambda: csmr_data)
             excess_mortality_data = builder.data.load(f'{self.cause}.excess_mortality')
             builder.value.register_value_modifier('mortality_rate', self.mortality_rates)
-            self._mortality = builder.value.register_value_producer(
-                f'{self.cause.name}.excess_mortality', source=builder.lookup.build_table(excess_mortality_data)
+            self._excess_mortality_rate = builder.value.register_value_producer(
+                f'{self.cause.name}.excess_mortality_rate', source=builder.lookup.build_table(excess_mortality_data)
             )
 
         disability_weight = builder.data.load(f'{self.cause}.disability_weight')
@@ -192,7 +192,7 @@ class RiskAttributableDisease:
 
     def mortality_rates(self, index, rates_df):
         population = self.population_view.get(index)
-        rate = (self._mortality(population.index, skip_post_processor=True)
+        rate = (self._excess_mortality_rate(population.index, skip_post_processor=True)
                 * (population[self.cause.name] == self.cause.name))
         if isinstance(rates_df, pd.Series):
             rates_df = pd.DataFrame({rates_df.name: rates_df, self.cause.name: rate})
