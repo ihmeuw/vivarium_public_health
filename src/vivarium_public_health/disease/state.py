@@ -345,8 +345,9 @@ class MortalityEffect:
         )
         self._mortality = builder.value.register_rate_producer(f'{self._state.state_id}.excess_mortality',
                                                                source=self.effective_excess_mortality)
+        paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(f'{self._state.state_id}.excess_mortality.paf',
-                                                               source=lambda idx: [builder.lookup.build_table(0)(idx)],
+                                                               source=lambda idx: [paf(idx)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
         builder.value.register_value_modifier('mortality_rate', modifier=self.mortality_rates)

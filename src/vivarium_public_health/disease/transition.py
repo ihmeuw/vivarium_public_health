@@ -22,8 +22,9 @@ class RateTransition(Transition):
         rate_data, pipeline_name = self._get_rate_data(builder)
         self.base_rate = builder.lookup.build_table(rate_data)
         self.effective_rate = builder.value.register_rate_producer(pipeline_name, source=self.rates)
+        paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(f'{pipeline_name}.paf',
-                                                               source=lambda index: [builder.lookup.build_table(0)(index)],
+                                                               source=lambda index: [paf(index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
 
