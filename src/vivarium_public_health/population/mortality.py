@@ -10,9 +10,6 @@ disease models to contribute cause-specific and excess mortality.
 import pandas as pd
 
 from vivarium.framework.utilities import rate_to_probability
-from vivarium.framework.values import list_combiner
-
-from .data_transformations import get_cause_deleted_mortality
 
 
 class Mortality:

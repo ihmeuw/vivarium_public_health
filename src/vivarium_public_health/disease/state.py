@@ -336,24 +336,26 @@ class MortalityEffect:
 
     def setup(self, builder):
         get_excess_mortality_func = self._state._get_data_functions.get(
-            'excess_mortality',
+            'excess_mortality_rate',
             lambda cause, builder: builder.data.load(f"{self._state.cause_type}.{cause}.excess_mortality")
         )
 
-        self.base_excess_mortality = builder.lookup.build_table(
+        self.base_excess_mortality_rate = builder.lookup.build_table(
             get_excess_mortality_func(self._state.cause, builder)
         )
-        self._mortality = builder.value.register_rate_producer(f'{self._state.state_id}.excess_mortality',
-                                                               source=self.effective_excess_mortality)
+        self._excess_mortality_rate = builder.value.register_rate_producer(
+            f'{self._state.state_id}.excess_mortality_rate', source=self.effective_excess_mortality_rate)
         paf = builder.lookup.build_table(0)
-        self.joint_paf = builder.value.register_value_producer(f'{self._state.state_id}.excess_mortality.paf',
-                                                               source=lambda idx: [paf(idx)],
-                                                               preferred_combiner=list_combiner,
-                                                               preferred_post_processor=joint_value_post_processor)
+        self.joint_paf = builder.value.register_value_producer(
+            f'{self._state.state_id}.excess_mortality_rate.population_attributable_fraction',
+            source=lambda idx: [paf(idx)],
+            preferred_combiner=list_combiner,
+            preferred_post_processor=joint_value_post_processor
+        )
         builder.value.register_value_modifier('mortality_rate', modifier=self.mortality_rates)
 
-    def effective_excess_mortality(self, index):
-        base_excess_mort = self.base_excess_mortality(index)
+    def effective_excess_mortality_rate(self, index):
+        base_excess_mort = self.base_excess_mortality_rate(index)
         joint_mediated_paf = self.joint_paf(index)
         return pd.Series(base_excess_mort.values * (1 - joint_mediated_paf.values), index=index)
 
@@ -368,7 +370,7 @@ class MortalityEffect:
 
         """
         population = self._state.population_view.get(index)
-        rate = (self._mortality(population.index, skip_post_processor=True)
+        rate = (self._excess_mortality_rate(population.index, skip_post_processor=True)
                 * (population[self._state._model] == self._state.state_id))
         if isinstance(rates_df, pd.Series):
             rates_df = pd.DataFrame({rates_df.name: rates_df, self._state.state_id: rate})

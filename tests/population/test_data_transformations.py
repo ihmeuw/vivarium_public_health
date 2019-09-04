@@ -129,19 +129,3 @@ def test__construct_sampling_parameters():
 def test__compute_ages():
     assert dt._compute_ages(1, 10, 12, 0, 33) == 10 + 33/12*1
     assert dt._compute_ages(1, 10, 12, 5, 33) == 10 + 12/5*(np.sqrt(1+2*33*5/12**2*1) - 1)
-
-
-def test_get_cause_deleted_mortality():
-    year_start = 1990
-    year_end = 2010
-    all_cause_rate = 15
-    cause_specific_rate = 1
-    num_csmrs = 5
-
-    all_cause_mr = build_table(all_cause_rate, year_start, year_end)
-    csmrs = [build_table(cause_specific_rate, year_start, year_end) for _ in range(num_csmrs)]
-    cause_deleted_mr = dt.get_cause_deleted_mortality(all_cause_mr, csmrs)
-
-    assert np.allclose(cause_deleted_mr.death_due_to_other_causes, all_cause_rate - num_csmrs*cause_specific_rate)
-
-
