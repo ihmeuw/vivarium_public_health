@@ -177,7 +177,7 @@ class FertilityAgeSpecificRates:
     def update_state_table(self, pop_data):
         """ Adds 'last_birth_time' and 'parent' columns to the state table."""
 
-        women = self.population_view.get(pop_data.index, query="sex == 'Female'", omit_missing_columns=True).index
+        women = self.population_view.subview(['sex']).get(pop_data.index, query="sex == 'Female'").index
         last_birth_time = pd.Series(pd.NaT, name='last_birth_time', index=pop_data.index)
 
         # Do the naive thing, set so all women can have children
