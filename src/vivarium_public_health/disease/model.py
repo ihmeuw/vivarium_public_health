@@ -19,6 +19,7 @@ from vivarium.framework.state_machine import Machine
 from vivarium_public_health.disease import (SusceptibleState, TransientDiseaseState,
                                             RateTransition, ProportionTransition)
 
+
 class DiseaseModelError(VivariumError):
     pass
 
@@ -46,19 +47,11 @@ class DiseaseModel(Machine):
         self.configuration_age_start = builder.configuration.population.age_start
         self.configuration_age_end = builder.configuration.population.age_end
 
-        if 'csmr' not in self._get_data_functions:
-            only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
-            if only_morbid:
-                self._csmr_data = None
-            else:
-                self._csmr_data = builder.data.load(f"{self.cause_type}.{self.cause}.cause_specific_mortality")
-        else:
-            self._csmr_data = self._get_data_functions['csmr'](self.cause, builder)
+        cause_specific_mortality_rate = self.load_csmr_data(builder)
+        self.cause_specific_mortality_rate = builder.lookup.build_table(cause_specific_mortality_rate)
+        builder.value.register_value_modifier('cause_specific_mortality_rate',
+                                              self.adjust_cause_specific_mortality_rate)
 
-        self.config = builder.configuration
-        self._interpolation_order = builder.configuration.interpolation.order
-
-        builder.value.register_value_modifier('csmr_data', modifier=self.get_csmr)
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
         self.population_view = builder.population.get_view(['age', 'sex', self.state_column])
@@ -74,6 +67,20 @@ class DiseaseModel(Machine):
         builder.event.register_listener('time_step', self.time_step_handler)
         builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
 
+    def load_csmr_data(self, builder):
+        if 'csmr' not in self._get_data_functions:
+            only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
+            if only_morbid:
+                csmr_data = 0
+            else:
+                csmr_data = builder.data.load(f"{self.cause_type}.{self.cause}.cause_specific_mortality")
+        else:
+            csmr_data = self._get_data_functions['csmr'](self.cause, builder)
+        return csmr_data
+
+    def adjust_cause_specific_mortality_rate(self, index, rate):
+        return rate + self.cause_specific_mortality_rate(index)
+
     def _get_default_initial_state(self):
         susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]
         if len(susceptible_states) != 1:
@@ -85,9 +92,6 @@ class DiseaseModel(Machine):
 
     def time_step__cleanup_handler(self, event):
         self.cleanup(event.index, event.time)
-
-    def get_csmr(self):
-        return self._csmr_data
 
     def get_state_weights(self, pop_index, prevalence_type):
         states = [s for s in self.states

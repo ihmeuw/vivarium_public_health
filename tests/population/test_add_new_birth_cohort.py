@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, metadata, build_table
-from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population import FertilityDeterministic, FertilityCrudeBirthRate, FertilityAgeSpecificRates
@@ -45,7 +45,7 @@ def test_FertilityDeterministic(config):
     }, **metadata(__file__))
 
     components = [TestPopulation(), FertilityDeterministic()]
-    simulation = setup_simulation(components, config)
+    simulation = InteractiveContext(components=components, configuration=config)
     num_steps = simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population()
 
@@ -58,8 +58,11 @@ def test_FertilityCrudeBirthRate(config, base_plugins):
     pop_size = config.population.population_size
     num_days = 100
     components = [TestPopulation(), FertilityCrudeBirthRate()]
-    simulation = initialize_simulation(components, config, base_plugins)
-    simulation.data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data())
+    simulation = InteractiveContext(components=components,
+                                    configuration=config,
+                                    plugin_configuration=base_plugins,
+                                    setup=False)
+    simulation._data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data())
 
     simulation.setup()
     simulation.run_for(duration=pd.Timedelta(days=num_days))
@@ -81,8 +84,11 @@ def test_FertilityCrudeBirthRate_extrapolate_fail(config, base_plugins):
     })
     components = [TestPopulation(), FertilityCrudeBirthRate()]
 
-    simulation = initialize_simulation(components, config, base_plugins)
-    simulation.data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data())
+    simulation = InteractiveContext(components=components,
+                                    configuration=config,
+                                    plugin_configuration=base_plugins,
+                                    setup=False)
+    simulation._data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data())
 
     with pytest.raises(ValueError):
         simulation.setup()
@@ -109,8 +115,11 @@ def test_FertilityCrudeBirthRate_extrapolate(base_config, base_plugins):
     live_births_by_sex = 500
     components = [TestPopulation(), FertilityCrudeBirthRate()]
 
-    simulation = initialize_simulation(components, base_config, base_plugins)
-    simulation.data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data(live_births_by_sex))
+    simulation = simulation = InteractiveContext(components=components,
+                                                 configuration=base_config,
+                                                 plugin_configuration=base_plugins,
+                                                 setup=False)
+    simulation._data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data(live_births_by_sex))
     simulation.setup()
 
     birth_rate = []
@@ -137,14 +146,17 @@ def test_fertility_module(base_config, base_plugins):
     }, layer='override')
 
     components = [TestPopulation(), FertilityAgeSpecificRates()]
-    simulation = initialize_simulation(components, base_config, base_plugins)
+    simulation = simulation = InteractiveContext(components=components,
+                                                 configuration=base_config,
+                                                 plugin_configuration=base_plugins,
+                                                 setup=False)
 
     asfr_data = build_table(0.05, 1990, 2017).rename(columns={'value': 'mean_value'})
-    simulation.data.write("covariate.age_specific_fertility_rate.estimate", asfr_data)
+    simulation._data.write("covariate.age_specific_fertility_rate.estimate", asfr_data)
 
     simulation.setup()
 
-    time_start = simulation.clock.time
+    time_start = simulation._clock.time
 
     assert 'last_birth_time' in simulation.get_population().columns,\
         'expect Fertility module to update state table.'
