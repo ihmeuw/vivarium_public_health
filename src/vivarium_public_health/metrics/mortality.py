@@ -58,8 +58,8 @@ class MortalityObserver:
 
         life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
         self.life_expectancy = builder.lookup.build_table(life_expectancy_data, key_columns=[],
-                                                          parameter_columns=[('age', 'age_group_start',
-                                                                              'age_group_end')])
+                                                          parameter_columns=[('age', 'age_start',
+                                                                              'age_end')])
 
         columns_required = ['tracked', 'alive', 'entrance_time', 'exit_time', 'cause_of_death',
                             'years_of_life_lost', 'age']

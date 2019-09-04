@@ -22,7 +22,7 @@ from vivarium_public_health.utilities import EntityString, TargetString
 
 def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
     """Pivots data that is long on categories to be wide."""
-    key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+    key_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
     key_cols = [k for k in key_cols if k in data.columns]
     data = data.pivot_table(index=key_cols, columns='parameter', values='value').reset_index()
     data.columns.name = None
@@ -295,7 +295,7 @@ def get_population_attributable_fraction_data(builder, risk: EntityString,
         paf_data = (paf_data[correct_target]
                     .drop(['affected_entity', 'affected_measure'], 'columns'))
     else:
-        key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        key_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
         exposure_data = get_exposure_data(builder, risk).set_index(key_cols)
         relative_risk_data = get_relative_risk_data(builder, risk, target, randomness).set_index(key_cols)
         mean_rr = (exposure_data * relative_risk_data).sum(axis=1)

@@ -56,7 +56,7 @@ class EnsembleSimulation:
         self.parameters = {k: builder.lookup.build_table(v) for k, v in self._parameters.items()}
 
     def _get_parameters(self, weights, mean, sd):
-        index_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        index_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
         weights = weights.set_index(index_cols)
         mean = mean.set_index(index_cols)['value']
         sd = sd.set_index(index_cols)['value']
@@ -92,7 +92,7 @@ class ContinuousDistribution:
         self.parameters = builder.lookup.build_table(self._parameters)
 
     def _get_parameters(self, mean, sd):
-        index = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        index = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
         mean = mean.set_index(index)['value']
         sd = sd.set_index(index)['value']
         return self.distribution.get_parameters(mean=mean, sd=sd).reset_index()

@@ -80,7 +80,7 @@ class CategoricalRiskObserver:
             exposure = self.exposure(pop.index)
 
             for group, age_group in self.age_bins.iterrows():
-                start, end = age_group.age_group_start, age_group.age_group_end
+                start, end = age_group.age_start, age_group.age_end
                 in_group = pop[(pop.age >= start) & (pop.age < end)]
                 sample.loc[group] = exposure.loc[in_group.index].value_counts()
 
