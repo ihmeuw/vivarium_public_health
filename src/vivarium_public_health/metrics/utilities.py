@@ -134,22 +134,22 @@ def get_age_bins(builder) -> pd.DataFrame:
 
     Returns
     -------
-        DataFrame with columns ``age_group_name``, ``age_group_start``,
-        and ``age_group_end``.
+        DataFrame with columns ``age_group_name``, ``age_start``,
+        and ``age_end``.
 
     """
     age_bins = builder.data.load('population.age_bins')
 
     # Works based on the fact that currently only models with age_start = 0 can include fertility
     age_start = builder.configuration.population.age_start
-    min_bin_start = age_bins.age_group_start[np.asscalar(np.digitize(age_start, age_bins.age_group_end))]
-    age_bins = age_bins[age_bins.age_group_start >= min_bin_start]
-    age_bins.loc[age_bins.age_group_start < age_start, 'age_group_start'] = age_start
+    min_bin_start = age_bins.age_start[np.asscalar(np.digitize(age_start, age_bins.age_end))]
+    age_bins = age_bins[age_bins.age_start >= min_bin_start]
+    age_bins.loc[age_bins.age_start < age_start, 'age_start'] = age_start
 
     exit_age = builder.configuration.population.exit_age
     if exit_age:
-        age_bins = age_bins[age_bins.age_group_start < exit_age]
-        age_bins.loc[age_bins.age_group_end > exit_age, 'age_group_end'] = exit_age
+        age_bins = age_bins[age_bins.age_start < exit_age]
+        age_bins.loc[age_bins.age_end > exit_age, 'age_end'] = exit_age
     return age_bins
 
 
@@ -216,11 +216,11 @@ def get_age_sex_filter_and_iterables(config: Dict[str, bool], age_bins: pd.DataF
     if config['by_age']:
         ages = list(age_bins.set_index('age_group_name').iterrows())
         if in_span:
-            age_sex_filter += '{age_group_start} < age_at_span_end and age_at_span_start < {age_group_end}'
+            age_sex_filter += '{age_start} < age_at_span_end and age_at_span_start < {age_end}'
         else:
-            age_sex_filter += '{age_group_start} <= age and age < {age_group_end}'
+            age_sex_filter += '{age_start} <= age and age < {age_end}'
     else:
-        ages = [('all_ages', pd.Series({'age_group_start': _MIN_AGE, 'age_group_end': _MAX_AGE}))]
+        ages = [('all_ages', pd.Series({'age_start': _MIN_AGE, 'age_end': _MAX_AGE}))]
 
     if config['by_sex']:
         sexes = ['Male', 'Female']
@@ -288,7 +288,7 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTempla
     config
         A dict with ``by_age`` and ``by_sex`` keys and boolean values.
     age_bins
-        A dataframe with ``age_group_start`` and ``age_group_end`` columns.
+        A dataframe with ``age_start`` and ``age_end`` columns.
 
     Returns
     -------
@@ -301,9 +301,9 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTempla
     group_counts = {}
 
     for group, age_group in ages:
-        start, end = age_group.age_group_start, age_group.age_group_end
+        start, end = age_group.age_start, age_group.age_end
         for sex in sexes:
-            filter_kwargs = {'age_group_start': start, 'age_group_end': end, 'sex': sex, 'age_group': group}
+            filter_kwargs = {'age_start': start, 'age_end': end, 'sex': sex, 'age_group': group}
             group_key = base_key.substitute(**filter_kwargs)
             group_filter = base_filter.format(**filter_kwargs)
             in_group = pop.query(group_filter) if group_filter and not pop.empty else pop
@@ -437,7 +437,7 @@ def get_person_time_in_span(lived_in_span: pd.DataFrame, base_filter: QueryStrin
     config
         A dict with ``by_age`` and ``by_sex`` keys and boolean values.
     age_bins
-        A dataframe with ``age_group_start`` and ``age_group_end`` columns.
+        A dataframe with ``age_start`` and ``age_end`` columns.
 
     Returns
     -------
@@ -449,10 +449,10 @@ def get_person_time_in_span(lived_in_span: pd.DataFrame, base_filter: QueryStrin
     base_filter += age_sex_filter
 
     for group, age_bin in ages:
-        a_start, a_end = age_bin.age_group_start, age_bin.age_group_end
+        a_start, a_end = age_bin.age_start, age_bin.age_end
         for sex in sexes:
-            filter_kwargs = {'sex': sex, 'age_group_start': a_start,
-                             'age_group_end': a_end, 'age_group': group}
+            filter_kwargs = {'sex': sex, 'age_start': a_start,
+                             'age_end': a_end, 'age_group': group}
 
             key = span_key.substitute(**filter_kwargs)
             group_filter = base_filter.format(**filter_kwargs)
@@ -484,7 +484,7 @@ def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timesta
     sim_end
         The simulation end time.
     age_bins
-        A dataframe with ``age_group_start`` and ``age_group_end`` columns.
+        A dataframe with ``age_start`` and ``age_end`` columns.
     causes
         List of causes present in the simulation.
 
@@ -530,7 +530,7 @@ def get_years_of_life_lost(pop: pd.DataFrame, config: Dict[str, bool], sim_start
     sim_end
         The simulation end time.
     age_bins
-        A dataframe with ``age_group_start`` and ``age_group_end`` columns.
+        A dataframe with ``age_start`` and ``age_end`` columns.
     life_expectancy
         A lookup table that takes in a pandas index and returns the life
         expectancy of the each individual represented by the index.
@@ -581,7 +581,7 @@ def get_years_lived_with_disability(pop: pd.DataFrame, config: Dict[str, bool], 
     step_size
         The size of the current time step.
     age_bins
-        A dataframe with ``age_group_start`` and ``age_group_end`` columns.
+        A dataframe with ``age_start`` and ``age_end`` columns.
     disability_weights
         A mapping between causes and their disability weight pipelines.
     causes

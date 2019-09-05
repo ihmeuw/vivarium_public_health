@@ -71,11 +71,11 @@
 #     for cat, value in zip (['cat1', 'cat2'], [0.6, 0.4]):
 #         expected.append(build_table([cat, value], year_start, year_end, ('age', 'year', 'sex', 'parameter', 'value')))
 #
-#     expected = pd.concat(expected).loc[:, ['age_group_start', 'age_group_end', 'year_start',
+#     expected = pd.concat(expected).loc[:, ['age_start', 'age_end', 'year_start',
 #                                            'year_end', 'sex', 'parameter', 'value']]
 #     rebinned = distributions.rebin_exposure_data(test_df).loc[:, expected.columns]
-#     expected = expected.set_index(['age_group_start', 'year_start', 'sex'])
-#     rebinned = rebinned.set_index(['age_group_start', 'year_start', 'sex'])
+#     expected = expected.set_index(['age_start', 'year_start', 'sex'])
+#     rebinned = rebinned.set_index(['age_start', 'year_start', 'sex'])
 #
 #     assert np.allclose(expected.value[expected.parameter == 'cat1'], rebinned.value[rebinned.parameter=='cat1'])
 #     assert np.allclose(expected.value[expected.parameter == 'cat2'], rebinned.value[rebinned.parameter == 'cat2'])

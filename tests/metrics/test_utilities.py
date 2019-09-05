@@ -23,8 +23,8 @@ def ages_and_bins(request):
 
     ages = np.linspace(age_min, age_max - age_groups/num_ages, num_ages)
     bin_ages, step = np.linspace(age_min, age_max, age_groups, endpoint=False, retstep=True)
-    age_bins = pd.DataFrame({'age_group_start': bin_ages,
-                             'age_group_end': bin_ages + step,
+    age_bins = pd.DataFrame({'age_start': bin_ages,
+                             'age_end': bin_ages + step,
                              'age_group_name': [str(name) for name in range(len(bin_ages))]})
 
     return ages, age_bins
@@ -46,9 +46,9 @@ def observer_config(request):
 @pytest.fixture()
 def builder(mocker):
     builder = mocker.MagicMock()
-    df = pd.DataFrame({'age_group_start': [0, 1, 4],
+    df = pd.DataFrame({'age_start': [0, 1, 4],
                        'age_group_name': ['youngest', 'younger', 'young'],
-                       'age_group_end': [1, 4, 6]})
+                       'age_end': [1, 4, 6]})
     builder.data.load.return_value = df
     return builder
 
@@ -140,7 +140,7 @@ def test_get_age_sex_filter_and_iterables(ages_and_bins, observer_config):
 
     assert isinstance(age_sex_filter, QueryString)
     if observer_config['by_age'] and observer_config['by_sex']:
-        assert age_sex_filter == '{age_group_start} <= age and age < {age_group_end} and sex == "{sex}"'
+        assert age_sex_filter == '{age_start} <= age and age < {age_end} and sex == "{sex}"'
 
         for (g1, s1), (g2, s2) in zip(ages, age_bins.set_index('age_group_name').iterrows()):
             assert g1 == g2
@@ -149,7 +149,7 @@ def test_get_age_sex_filter_and_iterables(ages_and_bins, observer_config):
         assert sexes == ['Male', 'Female']
 
     elif observer_config['by_age']:
-        assert age_sex_filter == '{age_group_start} <= age and age < {age_group_end}'
+        assert age_sex_filter == '{age_start} <= age and age < {age_end}'
 
         for (g1, s1), (g2, s2) in zip(ages, age_bins.set_index('age_group_name').iterrows()):
             assert g1 == g2
@@ -162,8 +162,8 @@ def test_get_age_sex_filter_and_iterables(ages_and_bins, observer_config):
         assert len(ages) == 1
         group, data = ages[0]
         assert group == 'all_ages'
-        assert data['age_group_start'] == _MIN_AGE
-        assert data['age_group_end'] == _MAX_AGE
+        assert data['age_start'] == _MIN_AGE
+        assert data['age_end'] == _MAX_AGE
 
         assert sexes == ['Male', 'Female']
 
@@ -173,8 +173,8 @@ def test_get_age_sex_filter_and_iterables(ages_and_bins, observer_config):
         assert len(ages) == 1
         group, data = ages[0]
         assert group == 'all_ages'
-        assert data['age_group_start'] == _MIN_AGE
-        assert data['age_group_end'] == _MAX_AGE
+        assert data['age_start'] == _MIN_AGE
+        assert data['age_end'] == _MAX_AGE
 
         assert sexes == ['Both']
 
@@ -185,7 +185,7 @@ def test_get_age_sex_filter_and_iterables_with_span(ages_and_bins, observer_conf
 
     assert isinstance(age_sex_filter, QueryString)
     if observer_config['by_age'] and observer_config['by_sex']:
-        expected = '{age_group_start} < age_at_span_end and age_at_span_start < {age_group_end} and sex == "{sex}"'
+        expected = '{age_start} < age_at_span_end and age_at_span_start < {age_end} and sex == "{sex}"'
         assert age_sex_filter == expected
 
         for (g1, s1), (g2, s2) in zip(ages, age_bins.set_index('age_group_name').iterrows()):
@@ -195,7 +195,7 @@ def test_get_age_sex_filter_and_iterables_with_span(ages_and_bins, observer_conf
         assert sexes == ['Male', 'Female']
 
     elif observer_config['by_age']:
-        assert age_sex_filter == '{age_group_start} < age_at_span_end and age_at_span_start < {age_group_end}'
+        assert age_sex_filter == '{age_start} < age_at_span_end and age_at_span_start < {age_end}'
 
         for (g1, s1), (g2, s2) in zip(ages, age_bins.set_index('age_group_name').iterrows()):
             assert g1 == g2
@@ -208,8 +208,8 @@ def test_get_age_sex_filter_and_iterables_with_span(ages_and_bins, observer_conf
         assert len(ages) == 1
         group, data = ages[0]
         assert group == 'all_ages'
-        assert data['age_group_start'] == _MIN_AGE
-        assert data['age_group_end'] == _MAX_AGE
+        assert data['age_start'] == _MIN_AGE
+        assert data['age_end'] == _MAX_AGE
 
         assert sexes == ['Male', 'Female']
 
@@ -219,8 +219,8 @@ def test_get_age_sex_filter_and_iterables_with_span(ages_and_bins, observer_conf
         assert len(ages) == 1
         group, data = ages[0]
         assert group == 'all_ages'
-        assert data['age_group_start'] == _MIN_AGE
-        assert data['age_group_end'] == _MAX_AGE
+        assert data['age_start'] == _MIN_AGE
+        assert data['age_end'] == _MAX_AGE
 
         assert sexes == ['Both']
 
@@ -420,8 +420,8 @@ def test_get_lived_in_span_no_one_in_span():
 
 def test_get_person_time_in_span(ages_and_bins, observer_config):
     _, age_bins = ages_and_bins
-    start = int(age_bins.age_group_start.min())
-    end = int(age_bins.age_group_end.max())
+    start = int(age_bins.age_start.min())
+    end = int(age_bins.age_end.max())
     n_ages = len(list(range(start, end)))
     n_bins = len(age_bins)
     segments_per_age = [(i + 1)*(n_ages - i) for i in range(n_ages)]
@@ -600,6 +600,6 @@ def test_get_age_bins(builder, base_config, age_start, exit_age, result_age_end_
     }, **metadata(__file__))
     builder.configuration = base_config
     df = get_age_bins(builder)
-    assert set(df.age_group_end) == result_age_end_values
-    assert set(df.age_group_start) == result_age_start_values
+    assert set(df.age_end) == result_age_end_values
+    assert set(df.age_start) == result_age_start_values
 

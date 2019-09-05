@@ -68,7 +68,7 @@ MOCKERS = {
             'structure': make_uniform_pop_data(),
             'theoretical_minimum_risk_life_expectancy': (build_table(98.0, 1990, 1990)
                                                          .query('sex=="Female"')
-                                                         .filter(['age_group_start', 'age_group_end', 'value']))
+                                                         .filter(['age_start', 'age_end', 'value']))
         },
 }
 

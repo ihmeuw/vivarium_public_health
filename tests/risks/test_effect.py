@@ -44,7 +44,7 @@
 #     rates = simulation.values.register_rate_producer('test_cause.incidence_rate')
 #     rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
 #                                                  key_columns=('sex',),
-#                                                  parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+#                                                  parameter_columns=[('age', 'age_start', 'age_end'),
 #                                                                     ('year', 'year_start', 'year_end')],
 #                                                  value_columns=None)
 #
@@ -52,7 +52,7 @@
 #     other_rates = simulation.values.register_rate_producer('some_other_cause.incidence_rate')
 #     other_rates.source = simulation.tables.build_table(build_table(0.01, year_start, year_end),
 #                                                        key_columns=('sex',),
-#                                                        parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+#                                                        parameter_columns=[('age', 'age_start', 'age_end'),
 #                                                                           ('year', 'year_start', 'year_end')],
 #                                                        value_columns=None)
 #
@@ -215,7 +215,7 @@
 #
 #     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
 #     incidence_rate.source = simulation.tables.build_table(risk_data['incidence_rate'], key_columns=('sex',),
-#                                                           parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+#                                                           parameter_columns=[('age', 'age_start', 'age_end'),
 #                                                                              ('year', 'year_start', 'year_end')],
 #                                                           value_columns=None)
 #
@@ -251,7 +251,7 @@
 #     incidence_rate = simulation.values.register_rate_producer(affected_causes[0]+'.incidence_rate')
 #     incidence_rate.source = simulation.tables.build_table(risk_data['incidence_rate'],
 #                                                           key_columns=('sex',),
-#                                                           parameter_columns=[('age', 'age_group_start', 'age_group_end'),
+#                                                           parameter_columns=[('age', 'age_start', 'age_end'),
 #                                                                              ('year', 'year_start', 'year_end')],
 #                                                           value_columns=None)
 #
