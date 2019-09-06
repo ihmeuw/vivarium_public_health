@@ -310,7 +310,7 @@ def get_population_attributable_fraction_data(builder, risk: EntityString,
 def validate_distribution_data_source(builder, risk: EntityString):
     """Checks that the exposure distribution specification is valid."""
     exposure_type = builder.configuration[risk.name]['exposure']
-    rebin = builder.configuration[risk.name]['rebin']
+    rebin = builder.configuration[risk.name]['rebinned_exposed']
     category_thresholds = builder.configuration[risk.name]['category_thresholds']
 
     if risk.type == 'alternative_risk_factor':
