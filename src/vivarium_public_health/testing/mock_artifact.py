@@ -18,10 +18,10 @@ from .utils import make_uniform_pop_data
 MOCKERS = {
         'cause': {
             'prevalence': 0,
-            'cause_specific_mortality': 0,
-            'excess_mortality': 0,
-            'remission': 0,
-            'incidence': 0.001,
+            'cause_specific_mortality_rate': 0,
+            'excess_mortality_rate': 0,
+            'remission_rate': 0,
+            'incidence_rate': 0.001,
             'disability_weight': pd.DataFrame({'value': [0]}),
             'restrictions': lambda *args, **kwargs: {'yld_only': False}
         },
@@ -49,10 +49,10 @@ MOCKERS = {
         },
         'sequela': {
             'prevalence': 0,
-            'cause_specific_mortality': 0,
-            'excess_mortality': 0,
-            'remission': 0,
-            'incidence': 0.001,
+            'cause_specific_mortality_rate': 0,
+            'excess_mortality_rate': 0,
+            'remission_rate': 0,
+            'incidence_rate': 0.001,
             'disability_weight': pd.DataFrame({'value': [0]}),
         },
         'etiology': {
@@ -62,7 +62,7 @@ MOCKERS = {
         'healthcare_entity': {
             'cost': build_table([0, 'outpatient_visits'], 1990, 2017,
                                 ("age", "sex", "year", "value", "healthcare_entity")),
-            'utilization': 0,
+            'utilization_rate': 0,
         },
         'population': {
             'structure': make_uniform_pop_data(),

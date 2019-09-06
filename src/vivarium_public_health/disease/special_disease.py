@@ -102,9 +102,9 @@ class RiskAttributableDisease:
         self.clock = builder.time.clock()
 
         if builder.configuration[self.cause.name].mortality:
-            csmr_data = builder.data.load(f'cause.{self.cause.name}.cause_specific_mortality')
+            csmr_data = builder.data.load(f'cause.{self.cause.name}.cause_specific_mortality_rate')
             builder.value.register_value_modifier('csmr_data', lambda: csmr_data)
-            excess_mortality_data = builder.data.load(f'{self.cause}.excess_mortality')
+            excess_mortality_data = builder.data.load(f'{self.cause}.excess_mortality_rate')
             builder.value.register_value_modifier('mortality_rate', self.mortality_rates)
             self._excess_mortality_rate = builder.value.register_value_producer(
                 f'{self.cause.name}.excess_mortality_rate', source=builder.lookup.build_table(excess_mortality_data)
