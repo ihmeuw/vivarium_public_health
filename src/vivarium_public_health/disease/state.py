@@ -127,7 +127,7 @@ class SusceptibleState(BaseDiseaseState):
         if source_data_type == 'rate':
             if get_data_functions is None:
                 get_data_functions = {
-                    'incidence_rate': lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.incidence")
+                    'incidence_rate': lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.incidence_rate")
                 }
             elif 'incidence_rate' not in get_data_functions:
                 raise ValueError('You must supply an incidence rate function.')
@@ -147,7 +147,7 @@ class RecoveredState(BaseDiseaseState):
         if source_data_type == 'rate':
             if get_data_functions is None:
                 get_data_functions = {
-                    'incidence_rate': lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.incidence")
+                    'incidence_rate': lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.incidence_rate")
                 }
             elif 'incidence_rate' not in get_data_functions:
                 raise ValueError('You must supply an incidence rate function.')
@@ -254,7 +254,7 @@ class DiseaseState(BaseDiseaseState):
         if source_data_type == 'rate':
             if get_data_functions is None:
                 get_data_functions = {
-                    'remission_rate': lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.remission")
+                    'remission_rate': lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.remission_rate")
                 }
             elif 'remission_rate' not in get_data_functions:
                 raise ValueError('You must supply a remission rate function.')
@@ -337,7 +337,7 @@ class MortalityEffect:
     def setup(self, builder):
         get_excess_mortality_func = self._state._get_data_functions.get(
             'excess_mortality_rate',
-            lambda cause, builder: builder.data.load(f"{self._state.cause_type}.{cause}.excess_mortality")
+            lambda cause, builder: builder.data.load(f"{self._state.cause_type}.{cause}.excess_mortality_rate")
         )
 
         self.base_excess_mortality_rate = builder.lookup.build_table(

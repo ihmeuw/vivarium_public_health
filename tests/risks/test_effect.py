@@ -384,17 +384,17 @@
 #
 # def test_RiskEffect_excess_mortality(base_config, base_plugins):
 #     dummy_risk = Risk("risk_factor.test_risk")
-#     dummy_effect = RiskEffect("risk_factor.test_risk", "cause.test_cause.excess_mortality")
+#     dummy_effect = RiskEffect("risk_factor.test_risk", "cause.test_cause.excess_mortality_rate")
 #     time_step = pd.Timedelta(days=base_config.time.step_size)
 #
 #     base_config.update({'test_risk': {'exposure': 1}}, layer='override')
-#     base_config.update({'effect_of_test_risk_on_test_cause': {'excess_mortality': 50}})
+#     base_config.update({'effect_of_test_risk_on_test_cause': {'excess_mortality_rate': 50}})
 #
 #     simulation = initialize_simulation([TestPopulation(), dummy_risk, dummy_effect],
 #                                        input_config=base_config, plugin_config=base_plugins)
 #     simulation.setup()
 #
-#     em = simulation.values.register_rate_producer('test_cause.excess_mortality',
+#     em = simulation.values.register_rate_producer('test_cause.excess_mortality_rate',
 #                                                   source=lambda index: pd.Series(0.1, index=index))
 #
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))

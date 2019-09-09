@@ -31,7 +31,7 @@
 #                                                                 ['age', 'year', 'sex', 'value']),
 #                         'disability_weight': lambda _, __: 0.0,
 #                         'dwell_time': lambda _, __: pd.Timedelta(days=1),
-#                         'excess_mortality': lambda _, __: build_table(0, year_start-1, year_end)}
+#                         'excess_mortality_rate': lambda _, __: build_table(0, year_start-1, year_end)}
 #
 #     asymptomatic_disease_state = ExcessMortalityState('asymptomatic', get_data_functions=asymp_data_funcs)
 #     asymptomatic_disease_model = DiseaseModel('asymptomatic',
@@ -47,7 +47,7 @@
 #                                                                   ['age', 'year', 'sex', 'value']),
 #                           'disability_weight': lambda _, __: 0.2,
 #                           'dwell_time': lambda _, __: pd.Timedelta(days=1),
-#                           'excess_mortality': lambda _, __: build_table(0, year_start-1, year_end)}
+#                           'excess_mortality_rate': lambda _, __: build_table(0, year_start-1, year_end)}
 #         flu = ExcessMortalityState('flu', get_data_functions=flu_data_funcs)
 #         flu_model = DiseaseModel('flu', states=[flu],
 #                                  initial_state=flu,
@@ -59,7 +59,7 @@
 #                                                                     ['age', 'year', 'sex', 'value']),
 #                             'disability_weight': lambda _, __: 0.4,
 #                             'dwell_time': lambda _, __: pd.Timedelta(days=1),
-#                             'excess_mortality': lambda _, __: build_table(0, year_start-1, year_end)}
+#                             'excess_mortality_rate': lambda _, __: build_table(0, year_start-1, year_end)}
 #         mumps = ExcessMortalityState('mumps', get_data_functions=mumps_data_funcs)
 #         mumps_model = DiseaseModel('mumps', states=[mumps],
 #                                    initial_state=mumps,
@@ -71,7 +71,7 @@
 #                                                                      ['age', 'year', 'sex', 'value']),
 #                              'disability_weight': lambda _, __: 0.4,
 #                              'dwell_time': lambda _, __: pd.Timedelta(days=1),
-#                              'excess_mortality': lambda _, __: build_table(0.005, year_start-1, year_end)}
+#                              'excess_mortality_rate': lambda _, __: build_table(0.005, year_start-1, year_end)}
 #         deadly = ExcessMortalityState('deadly', get_data_functions=deadly_data_funcs)
 #         healthy = DiseaseState('healthy', get_data_functions=deadly_data_funcs)
 #         deadly_model = DiseaseModel('deadly', initial_state=healthy,

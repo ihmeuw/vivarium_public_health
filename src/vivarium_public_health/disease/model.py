@@ -73,7 +73,7 @@ class DiseaseModel(Machine):
             if only_morbid:
                 csmr_data = 0
             else:
-                csmr_data = builder.data.load(f"{self.cause_type}.{self.cause}.cause_specific_mortality")
+                csmr_data = builder.data.load(f"{self.cause_type}.{self.cause}.cause_specific_mortality_rate")
         else:
             csmr_data = self._get_data_functions['cause_specific_mortality_rate'](self.cause, builder)
         return csmr_data

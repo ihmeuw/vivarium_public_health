@@ -19,7 +19,7 @@ class Mortality:
         return 'mortality'
 
     def setup(self, builder):
-        all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")
+        all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
         self.all_cause_mortality_rate = builder.lookup.build_table(all_cause_mortality_data)
         self.cause_specific_mortality_rate = builder.value.register_value_producer(
             'cause_specific_mortality_rate', source=builder.lookup.build_table(0)

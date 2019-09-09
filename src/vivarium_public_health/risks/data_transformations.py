@@ -310,7 +310,7 @@ def get_population_attributable_fraction_data(builder, risk: EntityString,
 def validate_distribution_data_source(builder, risk: EntityString):
     """Checks that the exposure distribution specification is valid."""
     exposure_type = builder.configuration[risk.name]['exposure']
-    rebin = builder.configuration[risk.name]['rebin']
+    rebin = builder.configuration[risk.name]['rebinned_exposed']
     category_thresholds = builder.configuration[risk.name]['category_thresholds']
 
     if risk.type == 'alternative_risk_factor':
@@ -336,7 +336,7 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
     source_key = f'effect_of_{risk.name}_on_{target.name}'
     relative_risk_source = builder.configuration[source_key][target.measure]
 
-    provided_keys = set(k for k, v in relative_risk_source.items() if isinstance(v.get_value(), (int, float)))
+    provided_keys = set(k for k, v in relative_risk_source.to_dict().items() if isinstance(v, (int, float)))
 
     source_map = {'data': set(),
                   'relative risk value': {'relative_risk'},

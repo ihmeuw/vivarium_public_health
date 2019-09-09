@@ -252,7 +252,7 @@ def test_incidence(base_config, base_plugins, disease):
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')
 
-    key = f"sequela.acute_myocardial_infarction_first_2_days.incidence"
+    key = f"sequela.acute_myocardial_infarction_first_2_days.incidence_rate"
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
@@ -287,7 +287,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
 
     healthy = BaseDiseaseState('healthy')
     sick = BaseDiseaseState('sick')
-    key = "sequela.acute_myocardial_infarction_first_2_days.incidence"
+    key = "sequela.acute_myocardial_infarction_first_2_days.incidence_rate"
     transition = RateTransition(
         input_state=healthy, output_state=sick,
         get_data_functions={
