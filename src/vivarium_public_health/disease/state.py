@@ -205,7 +205,7 @@ class DiseaseState(BaseDiseaseState):
         get_birth_prevalence_func = self._get_data_functions.get(
             'birth_prevalence', lambda cause, builder: 0)
         get_dwell_time_func = self._get_data_functions.get('dwell_time', lambda *args, **kwargs: pd.Timedelta(0))
-        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
+        only_morbid = builder.data.load(f'cause.{self._model}.restrictions')['yld_only']
         if not only_morbid:
             self.mortality_effect = MortalityEffect(self)
             self.mortality_effect.setup(builder)
