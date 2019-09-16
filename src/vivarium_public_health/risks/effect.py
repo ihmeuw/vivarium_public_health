@@ -80,7 +80,8 @@ class RiskEffect:
 
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}',
                                               modifier=self.adjust_target,
-                                              requires_values=[f'{self.risk.name}.exposure'])
+                                              requires_values=[f'{self.risk.name}.exposure'],
+                                              requires_columns=['age', 'sex'])
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}.paf',
                                               modifier=self.population_attributable_fraction,
                                               requires_columns=['age', 'sex'])

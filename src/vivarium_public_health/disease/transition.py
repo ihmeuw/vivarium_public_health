@@ -23,7 +23,8 @@ class RateTransition(Transition):
         self.base_rate = builder.lookup.build_table(rate_data)
         self.transition_rate = builder.value.register_rate_producer(pipeline_name,
                                                                     source=self.compute_transition_rate,
-                                                                    requires_columns=['age', 'sex', 'alive'])
+                                                                    requires_columns=['age', 'sex', 'alive'],
+                                                                    requires_values=[f'{pipeline_name}.paf'])
         paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(f'{pipeline_name}.paf',
                                                                source=lambda index: [paf(index)],
