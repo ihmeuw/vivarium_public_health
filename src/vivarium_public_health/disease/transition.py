@@ -19,16 +19,29 @@ class RateTransition(Transition):
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     def setup(self, builder):
-        rate_data, pipeline_name = self._get_rate_data(builder)
+        rate_data, pipeline_name = self.load_transition_rate_data(builder)
         self.base_rate = builder.lookup.build_table(rate_data)
-        self.effective_rate = builder.value.register_rate_producer(pipeline_name, source=self.rates)
+        self.transition_rate = builder.value.register_rate_producer(pipeline_name,
+                                                                    source=self.compute_transition_rate,
+                                                                    requires_columns=['age', 'sex', 'alive'],
+                                                                    requires_values=[f'{pipeline_name}.paf'])
         paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(f'{pipeline_name}.paf',
                                                                source=lambda index: [paf(index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=joint_value_post_processor)
 
-    def _get_rate_data(self, builder):
+        self.population_view = builder.population.get_view(['alive'])
+
+    def compute_transition_rate(self, index):
+        transition_rate = pd.Series(0, index=index)
+        living = self.population_view.get(index, query='alive == "alive"').index
+        base_rates = self.base_rate(living)
+        joint_paf = self.joint_paf(living)
+        transition_rate.loc[living] = base_rates * (1 - joint_paf)
+        return transition_rate
+
+    def load_transition_rate_data(self, builder):
         if 'incidence_rate' in self._get_data_functions:
             rate_data = self._get_data_functions['incidence_rate'](self.output_state.cause, builder)
             pipeline_name = f'{self.output_state.state_id}.incidence_rate'
@@ -40,13 +53,7 @@ class RateTransition(Transition):
         return rate_data, pipeline_name
 
     def _probability(self, index):
-        return rate_to_probability(self.effective_rate(index))
-
-    def rates(self, index):
-        base_rates = self.base_rate(index)
-        joint_mediated_paf = self.joint_paf(index)
-        # risk-deleted incidence is calculated by taking incidence and multiplying it by (1 - Joint PAF)
-        return pd.Series(base_rates.values * (1 - joint_mediated_paf.values), index=index)
+        return rate_to_probability(self.transition_rate(index))
 
     def __str__(self):
         return f'RateTransition(from={self.input_state.state_id}, to={self.output_state.state_id})'

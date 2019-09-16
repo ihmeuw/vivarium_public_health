@@ -52,7 +52,8 @@ class BasePopulation:
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
 
         self.population_view = builder.population.get_view(columns)
-        builder.population.initializes_simulants(self.generate_base_population, creates_columns=columns)
+        builder.population.initializes_simulants(self.generate_base_population,
+                                                 creates_columns=columns)
 
         source_population_structure = load_population_structure(builder)
         source_population_structure['location'] = input_config.location

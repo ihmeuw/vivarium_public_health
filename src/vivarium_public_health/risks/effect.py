@@ -69,6 +69,7 @@ class RiskEffect:
 
     def setup(self, builder):
         self.randomness = builder.randomness.get_stream(f'effect_of_{self.risk.name}_on_{self.target.name}')
+
         self.relative_risk = builder.lookup.build_table(get_relative_risk_data(builder, self.risk,
                                                                                self.target, self.randomness))
         self.population_attributable_fraction = builder.lookup.build_table(
@@ -77,9 +78,13 @@ class RiskEffect:
 
         self.exposure_effect = get_exposure_effect(builder, self.risk)
 
-        builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}', modifier=self.adjust_target)
+        builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}',
+                                              modifier=self.adjust_target,
+                                              requires_values=[f'{self.risk.name}.exposure'],
+                                              requires_columns=['age', 'sex'])
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}.paf',
-                                              modifier=self.population_attributable_fraction)
+                                              modifier=self.population_attributable_fraction,
+                                              requires_columns=['age', 'sex'])
 
     def adjust_target(self, index, target):
         return self.exposure_effect(target, self.relative_risk(index))

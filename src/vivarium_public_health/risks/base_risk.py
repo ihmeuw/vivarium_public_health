@@ -109,6 +109,7 @@ class Risk:
         self.exposure = builder.value.register_value_producer(
             f'{self.risk.name}.exposure',
             source=self.get_current_exposure,
+            requires_columns=['age', 'sex'],
             preferred_post_processor=get_exposure_post_processor(builder, self.risk)
         )
 

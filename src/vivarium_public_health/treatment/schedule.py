@@ -38,7 +38,13 @@ class TreatmentSchedule:
 
         self.randomness = builder.randomness.get_stream(f'{self.treatment_name}_dosing')
         self.population_view = builder.population.get_view(['age'])
-        builder.population.initializes_simulants(self.add_simulants, requires_columns=['age'])
+        builder.population.initializes_simulants(self.on_initialize_simulants,
+                                                 requires_columns=['age'],
+                                                 requires_streams=[f'{self.treatment_name}_dosing'])
+
+    def on_initialize_simulants(self, pop_data):
+        if not pop_data.index.empty:
+            self._schedule = self._schedule.append(self.determine_who_should_receive_dose_and_when(pop_data))
 
     def _get_coverage(self, builder):
         return self.get_coverage(builder)
@@ -54,11 +60,7 @@ class TreatmentSchedule:
     def determine_dose_eligibility(current_schedule, dose, index):
         raise NotImplementedError
 
-    def add_simulants(self, simulant_data):
-        if not simulant_data.index.empty:
-            self._schedule = self._schedule.append(self.determine_who_should_receive_dose_and_when(simulant_data))
-
-    def determine_who_should_receive_dose_and_when(self, simulant_data):
+    def determine_who_should_receive_dose_and_when(self, pop_data):
         """Determine who/when will get each dose and record it in the self.vaccination DataFrame
         Parameters:
         vaccination: data frame having the same index as newly added simulants. By default filled with False/NaT
@@ -73,10 +75,10 @@ class TreatmentSchedule:
 
         schedule = {dose: False for dose in self.doses}
         schedule.update({f'{dose}_age': np.NaN for dose in self.doses})
-        schedule = pd.DataFrame(schedule, index=simulant_data.index)
+        schedule = pd.DataFrame(schedule, index=pop_data.index)
         for dose in self.doses:
-            dosed_index = self._determine_who_should_receive_dose(dose, simulant_data, schedule)
-            age_at_dose = self._determine_when_should_receive_dose(dose, simulant_data)
+            dosed_index = self._determine_who_should_receive_dose(dose, pop_data, schedule)
+            age_at_dose = self._determine_when_should_receive_dose(dose, pop_data)
             schedule.loc[dosed_index, dose] = True
             schedule.loc[dosed_index, f'{dose}_age'] = age_at_dose[dosed_index]
         return schedule  # in days
