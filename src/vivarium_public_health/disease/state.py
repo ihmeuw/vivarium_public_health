@@ -254,7 +254,8 @@ class DiseaseState(BaseDiseaseState):
         Returns
         -------
         `pandas.Series`
-            An iterable of disability weights indexed by the provided `index`."""
+            An iterable of disability weights indexed by the provided `index`.
+        """
         disability_weight = pd.Series(0, index=index)
         with_condition = self.with_condition(index)
         disability_weight.loc[with_condition] = self.disability_weight(with_condition)
