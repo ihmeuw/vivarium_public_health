@@ -50,82 +50,23 @@ class DiseaseModel(Machine):
         cause_specific_mortality_rate = self.load_cause_specific_mortality_rate_data(builder)
         self.cause_specific_mortality_rate = builder.lookup.build_table(cause_specific_mortality_rate)
         builder.value.register_value_modifier('cause_specific_mortality_rate',
-                                              self.adjust_cause_specific_mortality_rate)
+                                              self.adjust_cause_specific_mortality_rate,
+                                              requires_columns=['age', 'sex'])
 
         builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
         self.population_view = builder.population.get_view(['age', 'sex', self.state_column])
-        builder.population.initializes_simulants(self.load_population_columns,
+        builder.population.initializes_simulants(self.on_initialize_simulants,
                                                  creates_columns=[self.state_column],
-                                                 requires_columns=['age', 'sex'])
-        self.randomness = builder.randomness.get_stream('{}_initial_states'.format(self.state_column))
+                                                 requires_columns=['age', 'sex'],
+                                                 requires_streams=[f'{self.state_column}_initial_states'])
+        self.randomness = builder.randomness.get_stream(f'{self.state_column}_initial_states')
 
-        self._propensity = pd.Series()
-        self.propensity = builder.value.register_value_producer(f'{self.cause}.prevalence_propensity',
-                                                                source=lambda index: self._propensity[index])
+        builder.event.register_listener('time_step', self.on_time_step)
+        builder.event.register_listener('time_step__cleanup', self.on_time_step_cleanup)
 
-        builder.event.register_listener('time_step', self.time_step_handler)
-        builder.event.register_listener('time_step__cleanup', self.time_step__cleanup_handler)
-
-    def load_cause_specific_mortality_rate_data(self, builder):
-        if 'cause_specific_mortality_rate' not in self._get_data_functions:
-            only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
-            if only_morbid:
-                csmr_data = 0
-            else:
-                csmr_data = builder.data.load(f"{self.cause_type}.{self.cause}.cause_specific_mortality_rate")
-        else:
-            csmr_data = self._get_data_functions['cause_specific_mortality_rate'](self.cause, builder)
-        return csmr_data
-
-    def adjust_cause_specific_mortality_rate(self, index, rate):
-        return rate + self.cause_specific_mortality_rate(index)
-
-    def _get_default_initial_state(self):
-        susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]
-        if len(susceptible_states) != 1:
-            raise DiseaseModelError("Disease model must have exactly one SusceptibleState.")
-        return susceptible_states[0].state_id
-
-    def time_step_handler(self, event):
-        self.transition(event.index, event.time)
-
-    def time_step__cleanup_handler(self, event):
-        self.cleanup(event.index, event.time)
-
-    def get_state_weights(self, pop_index, prevalence_type):
-        states = [s for s in self.states
-                  if hasattr(s, f'{prevalence_type}_data') and getattr(s, f'{prevalence_type}_data') is not None]
-
-        if not states:
-            return states, None
-
-        weights = [getattr(s, f'{prevalence_type}_data')(pop_index) for s in states]
-        for w in weights:
-            w.reset_index(inplace=True, drop=True)
-        weights += ((1 - np.sum(weights, axis=0)), )
-
-        weights = np.array(weights).T
-        weights_bins = np.cumsum(weights, axis=1)
-
-        state_names = [s.state_id for s in states] + [self.initial_state]
-
-        return state_names, weights_bins
-
-    @staticmethod
-    def assign_initial_status_to_simulants(simulants_df, state_names, weights_bins, propensities):
-        simulants = simulants_df[['age', 'sex']].copy()
-
-        choice_index = (propensities.values[np.newaxis].T > weights_bins).sum(axis=1)
-        initial_states = pd.Series(np.array(state_names)[choice_index], index=simulants.index)
-
-        simulants.loc[:, 'condition_state'] = initial_states
-        return simulants
-
-    def load_population_columns(self, pop_data):
+    def on_initialize_simulants(self, pop_data):
         population = self.population_view.subview(['age', 'sex']).get(pop_data.index)
-
-        self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))
 
         assert self.initial_state in {s.state_id for s in self.states}
 
@@ -150,12 +91,67 @@ class DiseaseModel(Machine):
             population['sex_id'] = population.sex.apply({'Male': 1, 'Female': 2}.get)
 
             condition_column = self.assign_initial_status_to_simulants(population, state_names, weights_bins,
-                                                                       self.propensity(population.index))
+                                                                       self.randomness.get_draw(population.index))
 
             condition_column = condition_column.rename(columns={'condition_state': self.state_column})
         else:
             condition_column = pd.Series(self.initial_state, index=population.index, name=self.state_column)
         self.population_view.update(condition_column)
+
+    def on_time_step(self, event):
+        self.transition(event.index, event.time)
+
+    def on_time_step_cleanup(self, event):
+        self.cleanup(event.index, event.time)
+
+    def load_cause_specific_mortality_rate_data(self, builder):
+        if 'cause_specific_mortality_rate' not in self._get_data_functions:
+            only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
+            if only_morbid:
+                csmr_data = 0
+            else:
+                csmr_data = builder.data.load(f"{self.cause_type}.{self.cause}.cause_specific_mortality_rate")
+        else:
+            csmr_data = self._get_data_functions['cause_specific_mortality_rate'](self.cause, builder)
+        return csmr_data
+
+    def adjust_cause_specific_mortality_rate(self, index, rate):
+        return rate + self.cause_specific_mortality_rate(index)
+
+    def _get_default_initial_state(self):
+        susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]
+        if len(susceptible_states) != 1:
+            raise DiseaseModelError("Disease model must have exactly one SusceptibleState.")
+        return susceptible_states[0].state_id
+
+    def get_state_weights(self, pop_index, prevalence_type):
+        states = [s for s in self.states
+                  if hasattr(s, f'{prevalence_type}') and getattr(s, f'{prevalence_type}') is not None]
+
+        if not states:
+            return states, None
+
+        weights = [getattr(s, f'{prevalence_type}')(pop_index) for s in states]
+        for w in weights:
+            w.reset_index(inplace=True, drop=True)
+        weights += ((1 - np.sum(weights, axis=0)), )
+
+        weights = np.array(weights).T
+        weights_bins = np.cumsum(weights, axis=1)
+
+        state_names = [s.state_id for s in states] + [self.initial_state]
+
+        return state_names, weights_bins
+
+    @staticmethod
+    def assign_initial_status_to_simulants(simulants_df, state_names, weights_bins, propensities):
+        simulants = simulants_df[['age', 'sex']].copy()
+
+        choice_index = (propensities.values[np.newaxis].T > weights_bins).sum(axis=1)
+        initial_states = pd.Series(np.array(state_names)[choice_index], index=simulants.index)
+
+        simulants.loc[:, 'condition_state'] = initial_states
+        return simulants
 
     def to_dot(self):
         """Produces a ball and stick graph of this state machine.
@@ -201,5 +197,6 @@ class DiseaseModel(Machine):
 
     def metrics(self, index, metrics):
         population = self.population_view.get(index, query="alive == 'alive'")
-        metrics[self.state_column + '_prevalent_cases_at_sim_end'] = (population[self.state_column] != 'susceptible_to_' + self.state_column).sum()
+        prevalent_cases = (population[self.state_column] != 'susceptible_to_' + self.state_column).sum()
+        metrics[self.state_column + '_prevalent_cases_at_sim_end'] = prevalent_cases
         return metrics

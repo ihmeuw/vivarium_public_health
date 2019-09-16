@@ -85,14 +85,14 @@ class MassTreatmentCampaign:
                    f'{self.treatment.treatment_name}_current_dose_event_time',
                    f'{self.treatment.treatment_name}_previous_dose',
                    f'{self.treatment.treatment_name}_previous_dose_event_time']
-        self.population_view = builder.population.get_view(['age', 'alive']+columns)
-        builder.population.initializes_simulants(self.load_population_columns, creates_columns=columns)
-        builder.value.register_value_modifier('metrics', modifier=self.metrics)
-        builder.event.register_listener('time_step', self.administer_treatment)
+        self.population_view = builder.population.get_view(['alive', 'age'] + columns)
+        builder.population.initializes_simulants(self.on_initialize_simulants,
+                                                 creates_columns=columns)
 
-        return
+        builder.event.register_listener('time_step', self.on_time_step)
+        builder.value.register_value_modifier('metrics', modifier=self.metrics, requires_columns=columns)
 
-    def load_population_columns(self, event):
+    def on_initialize_simulants(self, event):
         """Adds this components columns to the simulation state table.
 
         Parameters
@@ -108,8 +108,8 @@ class MassTreatmentCampaign:
             f'{self.treatment.treatment_name}_previous_dose_event_time': pd.NaT,
         }, index=event.index))
 
-    def administer_treatment(self, event):
-        population = self.population_view.get(event.index, 'alive' == True)
+    def on_time_step(self, event):
+        population = self.population_view.get(event.index, query='alive == "alive"')
         for dose in self.schedule.doses:
             dosed_population = self.schedule.get_newly_dosed_simulants(dose, population, event.step_size)
 
