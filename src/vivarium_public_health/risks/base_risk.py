@@ -103,20 +103,24 @@ class Risk:
     def setup(self, builder):
         self.randomness = builder.randomness.get_stream(f'initial_{self.risk.name}_propensity')
 
-        self._propensity = pd.Series()
+        propensity_col = f'{self.risk.name}_propensity'
         self.propensity = builder.value.register_value_producer(f'{self.risk.name}.propensity',
-                                                                source=lambda index: self._propensity[index])
+                                                                source=lambda index: self.population_view.get(index)[propensity_col],
+                                                                requires_columns=[propensity_col])
         self.exposure = builder.value.register_value_producer(
             f'{self.risk.name}.exposure',
             source=self.get_current_exposure,
             requires_columns=['age', 'sex'],
+            requires_values=[f'{self.risk.name}.propensity'],
             preferred_post_processor=get_exposure_post_processor(builder, self.risk)
         )
 
-        builder.population.initializes_simulants(self.on_initialize_simulants)
+        self.population_view = builder.population.get_view([propensity_col])
+        builder.population.initializes_simulants(self.on_initialize_simulants, creates_columns=[propensity_col],
+                                                 requires_streams=[f'initial_{self.risk.name}_propensity'])
 
     def on_initialize_simulants(self, pop_data):
-        self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))
+        self.population_view.update(self.randomness.get_draw(pop_data.index))
 
     def get_current_exposure(self, index):
         propensity = self.propensity(index)
