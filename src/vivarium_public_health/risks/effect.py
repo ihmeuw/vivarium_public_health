@@ -70,13 +70,11 @@ class RiskEffect:
     def setup(self, builder):
         self.randomness = builder.randomness.get_stream(f'effect_of_{self.risk.name}_on_{self.target.name}')
 
-        self.relative_risk = builder.lookup.build_table(get_relative_risk_data(builder, self.risk,
-                                                                               self.target, self.randomness))
-        self.population_attributable_fraction = builder.lookup.build_table(
-            get_population_attributable_fraction_data(builder, self.risk, self.target, self.randomness)
-        )
-
-        self.exposure_effect = get_exposure_effect(builder, self.risk)
+        relative_risk_data = self.load_relative_risk_data(builder)
+        self.relative_risk = builder.lookup.build_table(relative_risk_data)
+        population_attributable_fraction_data = self.load_population_attributable_fraction_data(builder)
+        self.population_attributable_fraction = builder.lookup.build_table(population_attributable_fraction_data)
+        self.exposure_effect = self.load_exposure_effect(builder)
 
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}',
                                               modifier=self.adjust_target,
@@ -88,6 +86,15 @@ class RiskEffect:
 
     def adjust_target(self, index, target):
         return self.exposure_effect(target, self.relative_risk(index))
+
+    def load_relative_risk_data(self, builder):
+        return get_relative_risk_data(builder, self.risk, self.target, self.randomness)
+
+    def load_population_attributable_fraction_data(self, builder):
+        return get_population_attributable_fraction_data(builder, self.risk, self.target, self.randomness)
+
+    def load_exposure_effect(self, builder):
+        return get_exposure_effect(builder, self.risk)
 
     def __repr__(self):
         return f"RiskEffect(risk={self.risk}, target={self.target})"
