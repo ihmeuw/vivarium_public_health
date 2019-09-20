@@ -68,7 +68,9 @@ class RiskEffect:
         return f'risk_effect.{self.risk}.{self.target}'
 
     def setup(self, builder):
-        self.randomness = builder.randomness.get_stream(f'effect_of_{self.risk.name}_on_{self.target.name}')
+        self.randomness = builder.randomness.get_stream(
+            f'effect_of_{self.risk.name}_on_{self.target.name}.{self.target.measure}'
+        )
 
         relative_risk_data = self.load_relative_risk_data(builder)
         self.relative_risk = builder.lookup.build_table(relative_risk_data)
