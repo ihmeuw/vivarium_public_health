@@ -88,6 +88,7 @@ class RiskAttributableDisease:
         self.cause = EntityString(cause)
         self.risk = EntityString(risk)
         self.state_column = self.cause.name
+        self.state_id = self.cause.name
         self.diseased_event_time_column = f'{self.cause.name}_event_time'
         self.susceptible_event_time_column = f'susceptible_to_{self.cause.name}_event_time'
         self.configuration_defaults = {
