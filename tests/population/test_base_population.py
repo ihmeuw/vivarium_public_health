@@ -74,7 +74,7 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
     sims = make_full_simulants()
     start_population_size = len(sims)
 
-    generate_population_mock.return_value = sims
+    generate_population_mock.return_value = sims.drop(columns=['tracked'])
 
     base_pop = bp.BasePopulation()
 
