@@ -309,8 +309,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
                 modifier=simulation._tables.build_table(
                     build_table(paf, year_start, year_end),
                     key_columns=('sex',),
-                    parameter_columns=[('age', 'age_start', 'age_end'),
-                                       ('year', 'year_start', 'year_end')],
+                    parameter_columns=['age', 'year'],
                     value_columns=None
                 )
             )
