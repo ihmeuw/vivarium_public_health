@@ -192,19 +192,25 @@ class DiseaseState(BaseDiseaseState):
         super().setup(builder)
 
         prevalence_data = self.load_prevalence_data(builder)
-        self.prevalence = builder.lookup.build_table(prevalence_data)
+        self.prevalence = builder.lookup.build_table(prevalence_data, key_columns=['sex'],
+                                                     parameter_columns=['age', 'year'])
 
         birth_prevalence_data = self.load_birth_prevalence_data(builder)
         self.birth_prevalence = builder.lookup.build_table(birth_prevalence_data,
-                                                           parameter_columns=(['year', 'year_start', 'year_end'],))
+                                                           key_columns=['sex'],
+                                                           parameter_columns=['year'])
 
         dwell_time_data = self.load_dwell_time_data(builder)
         self.dwell_time = builder.value.register_value_producer(f'{self.state_id}.dwell_time',
-                                                                source=builder.lookup.build_table(dwell_time_data),
+                                                                source=builder.lookup.build_table(dwell_time_data,
+                                                                                                  key_columns=['sex'],
+                                                                                                  parameter_columns=
+                                                                                                  ['age', 'year']),
                                                                 requires_columns=['age', 'sex'])
 
         disability_weight_data = self.load_disability_weight_data(builder)
-        self.base_disability_weight = builder.lookup.build_table(disability_weight_data)
+        self.base_disability_weight = builder.lookup.build_table(disability_weight_data, key_columns=['sex'],
+                                                                 parameter_columns=['age', 'year'])
         self.disability_weight = builder.value.register_value_producer(
             f'{self.state_id}.disability_weight',
             source=self.compute_disability_weight,
@@ -213,7 +219,8 @@ class DiseaseState(BaseDiseaseState):
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
         excess_mortality_data = self.load_excess_mortality_rate_data(builder)
-        self.base_excess_mortality_rate = builder.lookup.build_table(excess_mortality_data)
+        self.base_excess_mortality_rate = builder.lookup.build_table(excess_mortality_data, key_columns=['sex'],
+                                                                     parameter_columns=['age', 'year'])
         self.excess_mortality_rate = builder.value.register_rate_producer(
             f'{self.state_id}.excess_mortality_rate',
             source=self.compute_excess_mortality_rate,

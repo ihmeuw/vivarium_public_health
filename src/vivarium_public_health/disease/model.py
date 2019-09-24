@@ -48,7 +48,9 @@ class DiseaseModel(Machine):
         self.configuration_age_end = builder.configuration.population.age_end
 
         cause_specific_mortality_rate = self.load_cause_specific_mortality_rate_data(builder)
-        self.cause_specific_mortality_rate = builder.lookup.build_table(cause_specific_mortality_rate)
+        self.cause_specific_mortality_rate = builder.lookup.build_table(cause_specific_mortality_rate,
+                                                                        key_columns=['sex'],
+                                                                        parameter_columns=['age', 'year'])
         builder.value.register_value_modifier('cause_specific_mortality_rate',
                                               self.adjust_cause_specific_mortality_rate,
                                               requires_columns=['age', 'sex'])
