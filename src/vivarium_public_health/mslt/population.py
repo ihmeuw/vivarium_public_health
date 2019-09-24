@@ -54,7 +54,9 @@ class BasePopulation:
         self.pop_data = load_population_data(builder)
         
         # Create additional columns with placeholder (zero) values.
-        for column in self.pop_data.columns.difference(columns):
+        for column in columns:
+            if column in self.pop_data.columns:
+                continue
             self.pop_data.loc[:, column] = 0.0
 
         self.max_age = builder.configuration.population.max_age
