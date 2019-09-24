@@ -31,9 +31,8 @@ class Mortality:
                                                                    requires_columns=['age', 'sex'])
 
         life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
-        self.life_expectancy = builder.lookup.build_table(life_expectancy_data,
-                                                          key_columns=[],
-                                                          parameter_columns=[('age', 'age_start', 'age_end')])
+        self.life_expectancy = builder.lookup.build_table(life_expectancy_data, key_columns=[],
+                                                          parameter_columns=['age'])
 
         self.random = builder.randomness.get_stream('mortality_handler')
         self.clock = builder.time.clock()
