@@ -399,8 +399,8 @@ class DelayedRisk:
             # causes additional remission.
             tax_inc = self.tax_effect_inc(idx)
             tax_rem = self.tax_effect_rem(idx)
-            int_inc *= tax_inc
-            int_rem += (1 - tax_rem) * pop[col_int_yes]
+            int_inc = int_inc * tax_inc
+            int_rem = int_rem + (1 - tax_rem) * pop[col_int_yes]
 
         # Apply the incidence rate to the never-exposed population.
         pop[col_no] = pop[col_no] - inc
