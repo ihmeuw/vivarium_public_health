@@ -20,7 +20,7 @@ class RateTransition(Transition):
 
     def setup(self, builder):
         rate_data, pipeline_name = self.load_transition_rate_data(builder)
-        self.base_rate = builder.lookup.build_table(rate_data)
+        self.base_rate = builder.lookup.build_table(rate_data, key_columns=['sex'], parameter_columns=['age', 'year'])
         self.transition_rate = builder.value.register_rate_producer(pipeline_name,
                                                                     source=self.compute_transition_rate,
                                                                     requires_columns=['age', 'sex', 'alive'],
@@ -70,7 +70,8 @@ class ProportionTransition(Transition):
         if get_proportion_func is None:
             raise ValueError('Must supply a proportion function')
         self._proportion_data = get_proportion_func(self.output_state.cause, builder)
-        self.proportion = builder.lookup.build_table(self._proportion_data)
+        self.proportion = builder.lookup.build_table(self._proportion_data, key_columns=['sex'],
+                                                     parameter_columns=['age', 'year'])
 
     def _probability(self, index):
         return self.proportion(index)

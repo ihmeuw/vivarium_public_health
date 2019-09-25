@@ -73,9 +73,12 @@ class RiskEffect:
         )
 
         relative_risk_data = self.load_relative_risk_data(builder)
-        self.relative_risk = builder.lookup.build_table(relative_risk_data)
+        self.relative_risk = builder.lookup.build_table(relative_risk_data, key_columns=['sex'],
+                                                        parameter_columns=['age', 'year'])
         population_attributable_fraction_data = self.load_population_attributable_fraction_data(builder)
-        self.population_attributable_fraction = builder.lookup.build_table(population_attributable_fraction_data)
+        self.population_attributable_fraction = builder.lookup.build_table(population_attributable_fraction_data,
+                                                                           key_columns=['sex'],
+                                                                           parameter_columns=['age', 'year'])
         self.exposure_effect = self.load_exposure_effect(builder)
 
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}',
