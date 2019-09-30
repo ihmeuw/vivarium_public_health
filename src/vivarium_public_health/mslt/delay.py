@@ -123,12 +123,12 @@ class DelayedRisk:
         self.bin_years = int(self.config[self.name]['delay'])
 
         # Load the initial prevalence.
-        prev_data = builder.data.load(f'risk_factor.{self.name}.prevalence')
+        prev_data = pivot_load(builder,f'risk_factor.{self.name}.prevalence')
         self.initial_prevalence = builder.lookup.build_table(prev_data)
 
         # Load the incidence rates for the BAU and intervention scenarios.
         inc_data = builder.lookup.build_table(
-            builder.data.load(f'risk_factor.{self.name}.incidence')
+            pivot_load(builder,f'risk_factor.{self.name}.incidence')
         )
         inc_name = '{}.incidence'.format(self.name)
         inc_int_name = '{}_intervention.incidence'.format(self.name)
@@ -136,7 +136,7 @@ class DelayedRisk:
         self.int_incidence = builder.value.register_rate_producer(inc_int_name, source=inc_data)
 
         # Load the remission rates for the BAU and intervention scenarios.
-        rem_df = builder.data.load(f'risk_factor.{self.name}.remission')
+        rem_df = pivot_load(builder,f'risk_factor.{self.name}.remission')
         # In the constant-prevalence case, assume there is no remission.
         if self.constant_prevalence:
             rem_df['remission'] = 0.0
@@ -150,7 +150,7 @@ class DelayedRisk:
         # This requires having access to the life table mortality rate, and
         # also the relative risks associated with each bin.
         self.acm_rate = builder.value.get_value('mortality_rate')
-        mort_rr_data = builder.data.load(f'risk_factor.{self.name}.mortality_relative_risk')
+        mort_rr_data = pivot_load(builder,f'risk_factor.{self.name}.mortality_relative_risk')
         self.mortality_rr = builder.lookup.build_table(mort_rr_data)
 
         # Register a modifier for each disease affected by this delayed risk.
@@ -159,7 +159,7 @@ class DelayedRisk:
             self.register_modifier(builder, disease)
 
         # Load the disease-specific relative risks for each exposure bin.
-        dis_rr_data = builder.data.load(f'risk_factor.{self.name}.disease_relative_risk')
+        dis_rr_data = pivot_load(builder,f'risk_factor.{self.name}.disease_relative_risk')
 
         # Check that the relative risk table includes required columns.
         key_columns = ['age_group_start', 'age_group_end', 'sex',
@@ -203,8 +203,8 @@ class DelayedRisk:
             requires_columns=req_columns)
 
         # Load the effects of a tobacco tax.
-        tax_inc = builder.data.load(f'risk_factor.{self.name}.tax_effect_incidence')
-        tax_rem = builder.data.load(f'risk_factor.{self.name}.tax_effect_remission')
+        tax_inc = pivot_load(builder,f'risk_factor.{self.name}.tax_effect_incidence')
+        tax_rem = pivot_load(builder,f'risk_factor.{self.name}.tax_effect_remission')
         self.tax_effect_inc = builder.lookup.build_table(tax_inc)
         self.tax_effect_rem = builder.lookup.build_table(tax_rem)
 
@@ -216,7 +216,7 @@ class DelayedRisk:
         view_columns = req_columns + new_columns
         self.population_view = builder.population.get_view(view_columns)
 
-        mortality_data = builder.data.load('cause.all_causes.mortality')
+        mortality_data = pivot_load(builder,'cause.all_causes.mortality')
         self.tobacco_acmr = builder.value.register_rate_producer(
             'tobacco_acmr', source=builder.lookup.build_table(mortality_data))
 
@@ -399,8 +399,8 @@ class DelayedRisk:
             # causes additional remission.
             tax_inc = self.tax_effect_inc(idx)
             tax_rem = self.tax_effect_rem(idx)
-            int_inc *= tax_inc
-            int_rem += (1 - tax_rem) * pop[col_int_yes]
+            int_inc = int_inc * tax_inc
+            int_rem = int_rem + (1 - tax_rem) * pop[col_int_yes]
 
         # Apply the incidence rate to the never-exposed population.
         pop[col_no] = pop[col_no] - inc
@@ -477,3 +477,18 @@ class DelayedRisk:
         pif = (mean_bau_rr - mean_int_rr) / mean_bau_rr
         pif = pif.fillna(0.0)
         return incidence_rate * (1 - pif)
+
+def pivot_load(builder, entity_key):
+    """Helper method for loading dataframe from artifact.
+
+    Performs a long to wide conversion if dataframe has an index column
+    named 'measure'.
+
+    """
+    data = builder.data.load(entity_key)
+
+    if 'measure' in data.columns :
+        data  = data.pivot_table(index = [i for i in data.columns if i not in ['measure','value']], columns = 'measure', \
+        values = 'value').rename_axis(None,axis = 1).reset_index()
+    
+    return data    
