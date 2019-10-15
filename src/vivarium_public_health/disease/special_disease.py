@@ -104,7 +104,8 @@ class RiskAttributableDisease:
         self.clock = builder.time.clock()
 
         disability_weight_data = builder.data.load(f'{self.cause}.disability_weight')
-        self.base_disability_weight = builder.lookup.build_table(disability_weight_data)
+        self.base_disability_weight = builder.lookup.build_table(disability_weight_data, key_columns=['sex'],
+                                                                 parameter_columns=['age', 'year'])
         self.disability_weight = builder.value.register_value_producer(
             f'{self.cause.name}.disability_weight',
             source=self.compute_disability_weight,
@@ -119,7 +120,8 @@ class RiskAttributableDisease:
                                               requires_columns=['age', 'sex'])
 
         excess_mortality_data = self.load_excess_mortality_rate_data(builder)
-        self.base_excess_mortality_rate = builder.lookup.build_table(excess_mortality_data)
+        self.base_excess_mortality_rate = builder.lookup.build_table(excess_mortality_data, key_columns=['sex'],
+                                                                     parameter_columns=['age', 'year'])
         self.excess_mortality_rate = builder.value.register_value_producer(
             f'{self.cause.name}.excess_mortality_rate',
             source=self.compute_excess_mortality_rate,

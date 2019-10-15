@@ -52,8 +52,10 @@ class EnsembleSimulation:
         self._weights, self._parameters = self._get_parameters(weights, mean, sd)
 
     def setup(self, builder):
-        self.weights = builder.lookup.build_table(self._weights)
-        self.parameters = {k: builder.lookup.build_table(v) for k, v in self._parameters.items()}
+        self.weights = builder.lookup.build_table(self._weights, key_columns=['sex'],
+                                                  parameter_columns=['age', 'year'])
+        self.parameters = {k: builder.lookup.build_table(v, key_columns=['sex'], parameter_columns=['age', 'year'])
+                           for k, v in self._parameters.items()}
 
     def _get_parameters(self, weights, mean, sd):
         index_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
@@ -89,7 +91,8 @@ class ContinuousDistribution:
         return f'simulation_distribution.{self.risk}'
 
     def setup(self, builder):
-        self.parameters = builder.lookup.build_table(self._parameters)
+        self.parameters = builder.lookup.build_table(self._parameters, key_columns=['sex'],
+                                                     parameter_columns=['age', 'year'])
 
     def _get_parameters(self, mean, sd):
         index = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
@@ -123,7 +126,10 @@ class PolytomousDistribution:
 
     def setup(self, builder):
         self.exposure = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
-                                                              source=builder.lookup.build_table(self.exposure_data))
+                                                              source=builder.lookup.build_table(self.exposure_data,
+                                                                                                key_columns=['sex'],
+                                                                                                parameter_columns=
+                                                                                                ['age', 'year']))
 
     def ppf(self, x):
         exposure = self.exposure(x.index)
@@ -148,7 +154,8 @@ class DichotomousDistribution:
         return f'dichotomous_distribution.{self.risk}'
 
     def setup(self, builder):
-        self._base_exposure = builder.lookup.build_table(self.exposure_data)
+        self._base_exposure = builder.lookup.build_table(self.exposure_data, key_columns=['sex'],
+                                                         parameter_columns=['age', 'year'])
         self.exposure_proportion = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
                                                                          source=self.exposure)
         self.joint_paf = builder.value.register_value_producer(f'{self.risk}.exposure_parameters.paf',
