@@ -12,7 +12,7 @@ import pandas as pd
 
 from risk_distributions import EnsembleDistribution, Normal, LogNormal
 
-from vivarium.framework.values import list_combiner, joint_value_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium_public_health.risks.data_transformations import get_distribution_data
 
 
@@ -154,7 +154,7 @@ class DichotomousDistribution:
         self.joint_paf = builder.value.register_value_producer(f'{self.risk}.exposure_parameters.paf',
                                                                source=lambda index: [builder.lookup.build_table(0)(index)],
                                                                preferred_combiner=list_combiner,
-                                                               preferred_post_processor=joint_value_post_processor)
+                                                               preferred_post_processor=union_post_processor)
 
     def exposure(self, index):
         base_exposure = self._base_exposure(index).values
