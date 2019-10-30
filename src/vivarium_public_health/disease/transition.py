@@ -10,7 +10,7 @@ import pandas as pd
 
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.utilities import rate_to_probability
-from vivarium.framework.values import list_combiner, joint_value_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor
 
 
 class RateTransition(Transition):
@@ -29,7 +29,7 @@ class RateTransition(Transition):
         self.joint_paf = builder.value.register_value_producer(f'{pipeline_name}.paf',
                                                                source=lambda index: [paf(index)],
                                                                preferred_combiner=list_combiner,
-                                                               preferred_post_processor=joint_value_post_processor)
+                                                               preferred_post_processor=union_post_processor)
 
         self.population_view = builder.population.get_view(['alive'])
 

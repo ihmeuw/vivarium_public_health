@@ -10,7 +10,7 @@ in the simulation.
 from collections import Counter
 
 import pandas as pd
-from vivarium.framework.values import list_combiner, joint_value_post_processor, rescale_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor, rescale_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from .utilities import get_age_bins, get_years_lived_with_disability
@@ -106,4 +106,4 @@ class DisabilityObserver:
 
 
 def _disability_post_processor(value, step_size):
-    return rescale_post_processor(joint_value_post_processor(value, step_size), step_size)
+    return rescale_post_processor(union_post_processor(value, step_size), step_size)

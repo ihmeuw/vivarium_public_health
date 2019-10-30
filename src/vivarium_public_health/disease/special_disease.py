@@ -11,7 +11,7 @@ from operator import lt, gt
 import re
 
 import pandas as pd
-from vivarium.framework.values import list_combiner, joint_value_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.utilities import EntityString
 
@@ -133,7 +133,7 @@ class RiskAttributableDisease:
             f'{self.cause.name}.excess_mortality_rate.population_attributable_fraction',
             source=lambda idx: [paf(idx)],
             preferred_combiner=list_combiner,
-            preferred_post_processor=joint_value_post_processor
+            preferred_post_processor=union_post_processor
         )
         builder.value.register_value_modifier('mortality_rate',
                                               modifier=self.adjust_mortality_rate,
