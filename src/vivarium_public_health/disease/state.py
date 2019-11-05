@@ -9,7 +9,7 @@ This module contains tools to manage standard disease states.
 import pandas as pd
 import numpy as np
 from vivarium.framework.state_machine import State, Transient
-from vivarium.framework.values import list_combiner, joint_value_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease import RateTransition, ProportionTransition
 
@@ -232,7 +232,7 @@ class DiseaseState(BaseDiseaseState):
             f'{self.state_id}.excess_mortality_rate.population_attributable_fraction',
             source=lambda idx: [paf(idx)],
             preferred_combiner=list_combiner,
-            preferred_post_processor=joint_value_post_processor
+            preferred_post_processor=union_post_processor
         )
         builder.value.register_value_modifier('mortality_rate',
                                               modifier=self.adjust_mortality_rate,
