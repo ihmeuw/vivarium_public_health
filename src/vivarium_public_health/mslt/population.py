@@ -117,12 +117,12 @@ class Mortality:
         pop = self.population_view.get(event.index)
         if pop.empty:
             return
-        probability_of_death = 1 - np.exp(-self.mortality_rate(event.index))
         pop.acmr = self.mortality_rate(event.index)
+        probability_of_death = 1 - np.exp(-pop.acmr)
         deaths = pop.population * probability_of_death
         pop.population *= 1 - probability_of_death
-        bau_probability_of_death = 1 - np.exp(-self.mortality_rate.source(event.index))
         pop.bau_acmr = self.mortality_rate.source(event.index)
+        bau_probability_of_death = 1 - np.exp(-pop.bau_acmr)
         bau_deaths = pop.bau_population * bau_probability_of_death
         pop.bau_population *= 1 - bau_probability_of_death
         pop.pr_death = probability_of_death
