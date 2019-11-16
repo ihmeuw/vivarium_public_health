@@ -178,7 +178,11 @@ class FertilityAgeSpecificRates:
         pop = self.population_view.subview(['sex']).get(pop_data.index)
         women = pop.loc[pop.sex == 'Female'].index
 
-        pop_update = pd.DataFrame({'last_birth_time': pd.NaT, 'parent_id': -1}, index=pop_data.index)
+        if pop_data.user_data['sim_state'] == 'setup':
+            parent_id = -1
+        else:  # 'sim_state' == 'time_step'
+            parent_id = pop_data.user_data['parent_ids']
+        pop_update = pd.DataFrame({'last_birth_time': pd.NaT, 'parent_id': parent_id}, index=pop_data.index)
         # FIXME: This is a misuse of the column and makes it invalid for
         #    tracking metrics.
         # Do the naive thing, set so all women can have children
@@ -210,14 +214,13 @@ class FertilityAgeSpecificRates:
         # who their mother was.
         num_babies = len(had_children)
         if num_babies:
-            idx = self.simulant_creator(num_babies,
-                                        population_configuration={
-                                            'age_start': 0,
-                                            'age_end': 0,
-                                            'sim_state': 'time_step',
-                                        })
-            parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
-            self.population_view.update(parents)
+            self.simulant_creator(num_babies,
+                                  population_configuration={
+                                      'age_start': 0,
+                                      'age_end': 0,
+                                      'sim_state': 'time_step',
+                                      'parent_ids': had_children.index
+                                  })
 
     def load_age_specific_fertility_rate_data(self, builder):
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")

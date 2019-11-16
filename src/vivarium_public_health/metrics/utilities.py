@@ -33,6 +33,7 @@ class QueryString(str):
 
     Examples
     --------
+    >>> from vivarium_public_health.metrics.utilities import QueryString
     >>> s = QueryString('')
     >>> s
     ''
