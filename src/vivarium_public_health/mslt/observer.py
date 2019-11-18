@@ -182,15 +182,15 @@ class Disease:
         return f'{self._name}_observer'
 
     def setup(self, builder):
-        bau_incidence_value = '{}.incidence'.format(self.name)
-        int_incidence_value = '{}_intervention.incidence'.format(self.name)
+        bau_incidence_value = '{}.incidence'.format(self._name)
+        int_incidence_value = '{}_intervention.incidence'.format(self._name)
         self.bau_incidence = builder.value.get_value(bau_incidence_value)
         self.int_incidence = builder.value.get_value(int_incidence_value)
 
-        self.bau_S_col = '{}_S'.format(self.name)
-        self.bau_C_col = '{}_C'.format(self.name)
-        self.int_S_col = '{}_S_intervention'.format(self.name)
-        self.int_C_col = '{}_C_intervention'.format(self.name)
+        self.bau_S_col = '{}_S'.format(self._name)
+        self.bau_C_col = '{}_C'.format(self._name)
+        self.int_S_col = '{}_S_intervention'.format(self._name)
+        self.int_C_col = '{}_C_intervention'.format(self._name)
 
         columns = ['age', 'sex',
                    self.bau_S_col, self.bau_C_col,
@@ -229,7 +229,7 @@ class Disease:
         data['diff_incidence'] = data['int_incidence'] - data['bau_incidence']
         data['diff_prevalence'] = data['int_prevalence'] - data['bau_prevalence']
         data['year_of_birth'] = data['year'] - data['age']
-        data['disease'] = self.name
+        data['disease'] = self._name
         # Sort the table by cohort (i.e., generation and sex), and then by
         # calendar year, so that results are output in the same order as in
         # the spreadsheet models.

@@ -214,8 +214,8 @@ class Disease:
                 # full equations (below).
                 new_S_bau = S_bau * np.exp(- i_bau)
                 new_S_int = S_int * np.exp(- i_int)
-                new_C_bau = C_bau * np.exp(- f) + S_bau * (1 - np.exp(- i_bau))
-                new_C_int = C_int * np.exp(- f) + S_int * (1 - np.exp(- i_int))
+                new_C_bau = C_bau * np.exp(- f) + S_bau - new_S_bau
+                new_C_int = C_int * np.exp(- f) + S_int - new_S_int
                 pop_update = pd.DataFrame({
                     f'{self.name}_S': new_S_bau,
                     f'{self.name}_C': new_C_bau,

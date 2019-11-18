@@ -1,3 +1,10 @@
+**0.9.19 - 09/30/19**
+
+ - Add python and vivarium to the intersphinx mapping.
+ - Bring in docs for non-standard risks.
+ - Bugfix in parameterized risk component.
+ - Update MSLT code to appropriate names/data artifact usage.
+
 **0.9.18 - 07/29/19**
 
  - Pin pandas version to be compatible with tables.
