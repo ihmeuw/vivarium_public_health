@@ -8,11 +8,12 @@ This module contains several different models of fertility.
 """
 import pandas as pd
 import numpy as np
+
+from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import get_live_births_per_year
 
-SECONDS_PER_YEAR = 365.25*24*60*60
 # TODO: Incorporate better data into gestational model (probably as a separate component)
-PREGNANCY_DURATION = pd.Timedelta(days=9*30.5)
+PREGNANCY_DURATION = pd.Timedelta(days=9*utilities.DAYS_PER_MONTH)
 
 
 class FertilityDeterministic:
@@ -45,7 +46,7 @@ class FertilityDeterministic:
             The event that triggered the function call.
         """
         # Assume births are uniformly distributed throughout the year.
-        step_size = event.step_size/pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        step_size = utilities.to_years(event.step_size)
         simulants_to_add = self.simulants_per_year*step_size + self.fractional_new_births
 
         self.fractional_new_births = simulants_to_add % 1
@@ -102,12 +103,10 @@ class FertilityCrudeBirthRate:
         return "crude_birthrate_fertility"
 
     def setup(self, builder):
-        self.clock = builder.time.clock()
-
         self.birth_rate = get_live_births_per_year(builder)
 
+        self.clock = builder.time.clock()
         self.randomness = builder.randomness.get_stream('crude_birth_rate')
-
         self.simulant_creator = builder.population.get_simulant_creator()
 
         builder.event.register_listener('time_step', self.on_time_step)
@@ -121,7 +120,7 @@ class FertilityCrudeBirthRate:
             The event that triggered the function call.
         """
         birth_rate = self.birth_rate.at[self.clock().year]
-        step_size = event.step_size / pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        step_size = utilities.to_years(event.step_size)
 
         mean_births = birth_rate * step_size
         # Assume births occur as a Poisson process
@@ -157,36 +156,42 @@ class FertilityAgeSpecificRates:
         builder : vivarium.engine.Builder
             Framework coordination object.
         """
+        age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
+        fertility_rate = builder.lookup.build_table(age_specific_fertility_rate, parameter_columns=['age', 'year'])
+        self.fertility_rate = builder.value.register_rate_producer('fertility rate',
+                                                                   source=fertility_rate,
+                                                                   requires_columns=['age'])
+
         self.randomness = builder.randomness.get_stream('fertility')
-        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
-        asfr_data = asfr_data[asfr_data.sex == 'Female'][['year_start', 'year_end',
-                                                          'age_group_start', 'age_group_end', 'mean_value']]
-        asfr_source = builder.lookup.build_table(asfr_data, key_columns=(),
-                                                 parameter_columns=[('age', 'age_group_start', 'age_group_end'),
-                                                                    ('year', 'year_start', 'year_end')],)
-        self.asfr = builder.value.register_rate_producer('fertility rate', source=asfr_source)
+
         self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id'])
         self.simulant_creator = builder.population.get_simulant_creator()
-        builder.population.initializes_simulants(self.update_state_table,
+
+        builder.population.initializes_simulants(self.on_initialize_simulants,
                                                  creates_columns=['last_birth_time', 'parent_id'],
                                                  requires_columns=['sex'])
 
-        builder.event.register_listener('time_step', self.step)
+        builder.event.register_listener('time_step', self.on_time_step)
 
-    def update_state_table(self, pop_data):
+    def on_initialize_simulants(self, pop_data):
         """ Adds 'last_birth_time' and 'parent' columns to the state table."""
+        pop = self.population_view.subview(['sex']).get(pop_data.index)
+        women = pop.loc[pop.sex == 'Female'].index
 
-        women = self.population_view.get(pop_data.index, query="sex == 'Female'", omit_missing_columns=True).index
-        last_birth_time = pd.Series(pd.NaT, name='last_birth_time', index=pop_data.index)
-
+        if pop_data.user_data['sim_state'] == 'setup':
+            parent_id = -1
+        else:  # 'sim_state' == 'time_step'
+            parent_id = pop_data.user_data['parent_ids']
+        pop_update = pd.DataFrame({'last_birth_time': pd.NaT, 'parent_id': parent_id}, index=pop_data.index)
+        # FIXME: This is a misuse of the column and makes it invalid for
+        #    tracking metrics.
         # Do the naive thing, set so all women can have children
         # and none of them have had a child in the last year.
-        last_birth_time[women] = pop_data.creation_time - pd.Timedelta(seconds=SECONDS_PER_YEAR)
+        pop_update.loc[women, 'last_birth_time'] = pop_data.creation_time - pd.Timedelta(days=utilities.DAYS_PER_YEAR)
 
-        self.population_view.update(last_birth_time)
-        self.population_view.update(pd.Series(-1, name='parent_id', index=pop_data.index, dtype=np.int64))
+        self.population_view.update(pop_update)
 
-    def step(self, event):
+    def on_time_step(self, event):
         """Produces new children and updates parent status on time steps.
         Parameters
         ----------
@@ -199,7 +204,7 @@ class FertilityAgeSpecificRates:
         can_have_children = population.last_birth_time < nine_months_ago
         eligible_women = population[can_have_children]
 
-        rate_series = self.asfr(eligible_women.index)
+        rate_series = self.fertility_rate(eligible_women.index)
         had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
 
         had_children.loc[:, 'last_birth_time'] = event.time
@@ -209,14 +214,19 @@ class FertilityAgeSpecificRates:
         # who their mother was.
         num_babies = len(had_children)
         if num_babies:
-            idx = self.simulant_creator(num_babies,
-                                        population_configuration={
-                                            'age_start': 0,
-                                            'age_end': 0,
-                                            'sim_state': 'time_step',
-                                        })
-            parents = pd.Series(data=had_children.index, index=idx, name='parent_id')
-            self.population_view.update(parents)
+            self.simulant_creator(num_babies,
+                                  population_configuration={
+                                      'age_start': 0,
+                                      'age_end': 0,
+                                      'sim_state': 'time_step',
+                                      'parent_ids': had_children.index
+                                  })
+
+    def load_age_specific_fertility_rate_data(self, builder):
+        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
+        columns = ['year_start', 'year_end', 'age_start', 'age_end', 'mean_value']
+        asfr_data = asfr_data.loc[asfr_data.sex == 'Female'][columns]
+        return asfr_data
 
     def __repr__(self):
         return "FertilityAgeSpecificRates()"

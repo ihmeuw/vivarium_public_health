@@ -10,7 +10,8 @@ exposure.
 import pandas as pd
 
 from vivarium_public_health.utilities import EntityString
-from vivarium_public_health.risks.data_transformations import get_distribution, get_exposure_post_processor
+from vivarium_public_health.risks.distributions import SimulationDistribution
+from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 
 
 class Risk:
@@ -88,39 +89,42 @@ class Risk:
         """
         self.risk = EntityString(risk)
         self.configuration_defaults = {f'{self.risk.name}': Risk.configuration_defaults['risk']}
+        self.exposure_distribution = SimulationDistribution(self.risk)
+        self._sub_components = [self.exposure_distribution]
 
     @property
     def name(self):
         return f'risk.{self.risk}'
 
-    def setup(self, builder):
-        self.exposure_distribution = self._get_distribution(builder)
-        builder.components.add_components([self.exposure_distribution])
+    @property
+    def sub_components(self):
+        return self._sub_components
 
+    def setup(self, builder):
         self.randomness = builder.randomness.get_stream(f'initial_{self.risk.name}_propensity')
 
-        self._propensity = pd.Series()
+        propensity_col = f'{self.risk.name}_propensity'
         self.propensity = builder.value.register_value_producer(f'{self.risk.name}.propensity',
-                                                                source=lambda index: self._propensity[index])
+                                                                source=lambda index: self.population_view.get(index)[propensity_col],
+                                                                requires_columns=[propensity_col])
         self.exposure = builder.value.register_value_producer(
             f'{self.risk.name}.exposure',
             source=self.get_current_exposure,
+            requires_columns=['age', 'sex'],
+            requires_values=[f'{self.risk.name}.propensity'],
             preferred_post_processor=get_exposure_post_processor(builder, self.risk)
         )
 
-        builder.population.initializes_simulants(self.on_initialize_simulants)
+        self.population_view = builder.population.get_view([propensity_col])
+        builder.population.initializes_simulants(self.on_initialize_simulants, creates_columns=[propensity_col],
+                                                 requires_streams=[f'initial_{self.risk.name}_propensity'])
 
     def on_initialize_simulants(self, pop_data):
-        self._propensity = self._propensity.append(self.randomness.get_draw(pop_data.index))
+        self.population_view.update(self.randomness.get_draw(pop_data.index))
 
     def get_current_exposure(self, index):
         propensity = self.propensity(index)
-
         return pd.Series(self.exposure_distribution.ppf(propensity), index=index)
-
-    def _get_distribution(self, builder):
-        return get_distribution(builder, self.risk)
 
     def __repr__(self):
         return f"Risk({self.risk})"
-

@@ -12,11 +12,37 @@ import pandas as pd
 
 from risk_distributions import EnsembleDistribution, Normal, LogNormal
 
-from vivarium.framework.values import list_combiner, joint_value_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor
+from vivarium_public_health.risks.data_transformations import get_distribution_data
 
 
 class MissingDataError(Exception):
     pass
+
+
+# FIXME: This is a hack.  It's wrapping up an adaptor pattern in another
+# adaptor pattern, which is gross, but would require some more difficult
+# refactoring which is thorougly out of scope right now. -J.C. 8/25/19
+class SimulationDistribution:
+    """Wrapper around a variety of distribution implementations."""
+
+    def __init__(self, risk):
+        self.risk = risk
+
+    @property
+    def name(self):
+        return f'{self.risk}.exposure_distribution'
+
+    def setup(self, builder):
+        distribution_data = get_distribution_data(builder, self.risk)
+        self.implementation = get_distribution(self.risk, **distribution_data)
+        self.implementation.setup(builder)
+
+    def ppf(self, q):
+        return self.implementation.ppf(q)
+
+    def __repr__(self):
+        return f'ExposureDistribution({self.risk})'
 
 
 class EnsembleSimulation:
@@ -25,16 +51,14 @@ class EnsembleSimulation:
         self.risk = risk
         self._weights, self._parameters = self._get_parameters(weights, mean, sd)
 
-    @property
-    def name(self):
-        return f'ensemble_simulation.{self.risk}'
-
     def setup(self, builder):
-        self.weights = builder.lookup.build_table(self._weights)
-        self.parameters = {k: builder.lookup.build_table(v) for k, v in self._parameters.items()}
+        self.weights = builder.lookup.build_table(self._weights, key_columns=['sex'],
+                                                  parameter_columns=['age', 'year'])
+        self.parameters = {k: builder.lookup.build_table(v, key_columns=['sex'], parameter_columns=['age', 'year'])
+                           for k, v in self._parameters.items()}
 
     def _get_parameters(self, weights, mean, sd):
-        index_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        index_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
         weights = weights.set_index(index_cols)
         mean = mean.set_index(index_cols)['value']
         sd = sd.set_index(index_cols)['value']
@@ -56,7 +80,7 @@ class EnsembleSimulation:
         return f'EnsembleSimulation(risk={self.risk})'
 
 
-class SimulationDistribution:
+class ContinuousDistribution:
     def __init__(self, risk, mean, sd, distribution=None):
         self.risk = risk
         self.distribution = distribution
@@ -67,10 +91,11 @@ class SimulationDistribution:
         return f'simulation_distribution.{self.risk}'
 
     def setup(self, builder):
-        self.parameters = builder.lookup.build_table(self._parameters)
+        self.parameters = builder.lookup.build_table(self._parameters, key_columns=['sex'],
+                                                     parameter_columns=['age', 'year'])
 
     def _get_parameters(self, mean, sd):
-        index = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        index = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
         mean = mean.set_index(index)['value']
         sd = sd.set_index(index)['value']
         return self.distribution.get_parameters(mean=mean, sd=sd).reset_index()
@@ -101,7 +126,10 @@ class PolytomousDistribution:
 
     def setup(self, builder):
         self.exposure = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
-                                                              source=builder.lookup.build_table(self.exposure_data))
+                                                              source=builder.lookup.build_table(self.exposure_data,
+                                                                                                key_columns=['sex'],
+                                                                                                parameter_columns=
+                                                                                                ['age', 'year']))
 
     def ppf(self, x):
         exposure = self.exposure(x.index)
@@ -126,13 +154,14 @@ class DichotomousDistribution:
         return f'dichotomous_distribution.{self.risk}'
 
     def setup(self, builder):
-        self._base_exposure = builder.lookup.build_table(self.exposure_data)
+        self._base_exposure = builder.lookup.build_table(self.exposure_data, key_columns=['sex'],
+                                                         parameter_columns=['age', 'year'])
         self.exposure_proportion = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
                                                                          source=self.exposure)
         self.joint_paf = builder.value.register_value_producer(f'{self.risk}.exposure_parameters.paf',
                                                                source=lambda index: [builder.lookup.build_table(0)(index)],
                                                                preferred_combiner=list_combiner,
-                                                               preferred_post_processor=joint_value_post_processor)
+                                                               preferred_post_processor=union_post_processor)
 
     def exposure(self, index):
         base_exposure = self._base_exposure(index).values
@@ -153,10 +182,10 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
     elif 'polytomous' in distribution_type:
         distribution = PolytomousDistribution(risk, exposure)
     elif distribution_type == 'normal':
-        distribution = SimulationDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
+        distribution = ContinuousDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
                                               distribution=Normal)
     elif distribution_type == 'lognormal':
-        distribution = SimulationDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
+        distribution = ContinuousDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
                                               distribution=LogNormal)
     elif distribution_type == 'ensemble':
         distribution = EnsembleSimulation(risk, weights, mean=exposure, sd=exposure_standard_deviation,)

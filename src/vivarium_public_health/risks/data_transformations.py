@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 
 from vivarium.framework.randomness import RandomnessStream
-from vivarium_public_health.risks import distributions
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
@@ -23,7 +22,7 @@ from vivarium_public_health.utilities import EntityString, TargetString
 
 def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
     """Pivots data that is long on categories to be wide."""
-    key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+    key_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
     key_cols = [k for k in key_cols if k in data.columns]
     data = data.pivot_table(index=key_cols, columns='parameter', values='value').reset_index()
     data.columns.name = None
@@ -34,10 +33,10 @@ def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
 # Exposure data handlers #
 ##########################
 
-def get_distribution(builder, risk: EntityString):
+def get_distribution_data(builder, risk: EntityString):
     validate_distribution_data_source(builder, risk)
     data = load_distribution_data(builder, risk)
-    return distributions.get_distribution(risk.name, **data)
+    return data
 
 
 def get_exposure_post_processor(builder, risk: EntityString):
@@ -48,7 +47,8 @@ def get_exposure_post_processor(builder, risk: EntityString):
         categories = [f'cat{i}' for i in range(1, len(thresholds))]
 
         def post_processor(exposure, _):
-            return pd.Series(pd.cut(exposure, thresholds, labels=categories), index=exposure.index).astype(str)
+            return pd.Series(pd.cut(exposure, thresholds, labels=categories),
+                             index=exposure.index).astype(str)
     else:
         post_processor = None
 
@@ -295,7 +295,7 @@ def get_population_attributable_fraction_data(builder, risk: EntityString,
         paf_data = (paf_data[correct_target]
                     .drop(['affected_entity', 'affected_measure'], 'columns'))
     else:
-        key_cols = ['sex', 'age_group_start', 'age_group_end', 'year_start', 'year_end']
+        key_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
         exposure_data = get_exposure_data(builder, risk).set_index(key_cols)
         relative_risk_data = get_relative_risk_data(builder, risk, target, randomness).set_index(key_cols)
         mean_rr = (exposure_data * relative_risk_data).sum(axis=1)
@@ -310,7 +310,7 @@ def get_population_attributable_fraction_data(builder, risk: EntityString,
 def validate_distribution_data_source(builder, risk: EntityString):
     """Checks that the exposure distribution specification is valid."""
     exposure_type = builder.configuration[risk.name]['exposure']
-    rebin = builder.configuration[risk.name]['rebin']
+    rebin = builder.configuration[risk.name]['rebinned_exposed']
     category_thresholds = builder.configuration[risk.name]['category_thresholds']
 
     if risk.type == 'alternative_risk_factor':
@@ -336,7 +336,7 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
     source_key = f'effect_of_{risk.name}_on_{target.name}'
     relative_risk_source = builder.configuration[source_key][target.measure]
 
-    provided_keys = set(k for k, v in relative_risk_source.items() if isinstance(v.get_value(), (int, float)))
+    provided_keys = set(k for k, v in relative_risk_source.to_dict().items() if isinstance(v, (int, float)))
 
     source_map = {'data': set(),
                   'relative risk value': {'relative_risk'},

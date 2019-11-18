@@ -9,259 +9,98 @@ disease models.
 """
 import pandas as pd
 
-from vivarium_public_health.disease import (SusceptibleState, ExcessMortalityState, RecoveredState,
-                                            DiseaseState, DiseaseModel)
+from vivarium_public_health.disease import SusceptibleState, RecoveredState, DiseaseState, DiseaseModel
 
 
-class SI:
+def SI(cause: str) -> DiseaseModel:
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause)
 
-    def __init__(self, cause: str):
-        self.cause = cause
+    healthy.allow_self_transitions()
+    healthy.add_transition(infected, source_data_type='rate')
+    infected.allow_self_transitions()
 
-    @property
-    def name(self):
-        return f'SI.{self.cause}'
+    return DiseaseModel(cause, states=[healthy, infected])
 
-    def setup(self, builder):
-        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
-        disease_model_data_functions = {}
 
-        healthy = SusceptibleState(self.cause)
-        if only_morbid:
-            infected = DiseaseState(self.cause)
-            disease_model_data_functions['csmr'] = lambda _, __: None
-        else:
-            infected = ExcessMortalityState(self.cause)
+def SIR(cause: str) -> DiseaseModel:
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause)
+    recovered = RecoveredState(cause)
 
-        healthy.allow_self_transitions()
-        healthy.add_transition(infected, source_data_type='rate')
-        infected.allow_self_transitions()
+    healthy.allow_self_transitions()
+    healthy.add_transition(infected, source_data_type='rate')
+    infected.allow_self_transitions()
+    infected.add_transition(recovered, source_data_type='rate')
+    recovered.allow_self_transitions()
 
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected],
-                                                        get_data_functions=disease_model_data_functions)])
+    return DiseaseModel(cause, states=[healthy, infected, recovered])
 
-    def __repr__(self):
-        return f'SI({self.cause})'
 
+def SIS(cause: str) -> DiseaseModel:
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause)
 
-class SIR:
+    healthy.allow_self_transitions()
+    healthy.add_transition(infected, source_data_type='rate')
+    infected.allow_self_transitions()
+    infected.add_transition(healthy, source_data_type='rate')
 
-    def __init__(self, cause: str):
-        self.cause = cause
+    return DiseaseModel(cause, states=[healthy, infected])
 
-    @property
-    def name(self):
-        return f'SIR.{self.cause}'
 
-    def setup(self, builder):
-        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
-        disease_model_data_functions = {}
+def SIS_fixed_duration(cause: str, duration: str) -> DiseaseModel:
+    duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
 
-        healthy = SusceptibleState(self.cause)
-        if only_morbid:
-            infected = DiseaseState(self.cause)
-            disease_model_data_functions['csmr'] = lambda _, __: None
-        else:
-            infected = ExcessMortalityState(self.cause)
-        recovered = RecoveredState(self.cause)
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause, get_data_functions={'dwell_time': lambda _, __: duration})
 
-        healthy.allow_self_transitions()
-        healthy.add_transition(infected, source_data_type='rate')
-        infected.allow_self_transitions()
-        infected.add_transition(recovered, source_data_type='rate')
-        recovered.allow_self_transitions()
-
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected, recovered],
-                                                        get_data_functions=disease_model_data_functions)])
+    healthy.allow_self_transitions()
+    healthy.add_transition(infected, source_data_type='rate')
+    infected.add_transition(healthy)
+    infected.allow_self_transitions()
 
-    def __repr__(self):
-        return f'SIR({self.cause})'
-
+    return DiseaseModel(cause, states=[healthy, infected])
 
-class SIS:
-
-    def __init__(self, cause: str):
-        self.cause = cause
-
-    @property
-    def name(self):
-        return f'SIS.{self.cause}'
-
-    def setup(self, builder):
-        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
-        disease_model_data_functions = {}
-
-        healthy = SusceptibleState(self.cause)
-        if only_morbid:
-            infected = DiseaseState(self.cause)
-            disease_model_data_functions['csmr'] = lambda _, __: None
-        else:
-            infected = ExcessMortalityState(self.cause)
-
-        healthy.allow_self_transitions()
-        healthy.add_transition(infected, source_data_type='rate')
-        infected.allow_self_transitions()
-        infected.add_transition(healthy, source_data_type='rate')
-
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected],
-                                                        get_data_functions=disease_model_data_functions)])
 
-    def __repr__(self):
-        return f'SIS({self.cause})'
-
+def SIR_fixed_duration(cause: str, duration: str) -> DiseaseModel:
+    duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
 
-class SIS_fixed_duration:
-
-    def __init__(self, cause: str, duration: str):
-        """
-        Parameters
-        ----------
-        cause
-        duration
-        """
-        self.cause = cause
-        if not isinstance(duration, pd.Timedelta):
-            self.duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
-        else:
-            self.duration = duration
-
-    @property
-    def name(self):
-        return f'SIS_fixed_duration.{self.cause}.{self.duration}'
-
-    def setup(self, builder):
-        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
-        disease_model_data_functions = {}
-
-        healthy = SusceptibleState(self.cause)
-        if only_morbid:
-            infected = DiseaseState(self.cause,
-                                    get_data_functions={'dwell_time': lambda _, __: self.duration})
-            disease_model_data_functions['csmr'] = lambda _, __: None
-        else:
-            infected = ExcessMortalityState(self.cause,
-                                            get_data_functions={'dwell_time': lambda _, __: self.duration})
-
-        healthy.allow_self_transitions()
-        healthy.add_transition(infected, source_data_type='rate')
-        infected.add_transition(healthy)
-        infected.allow_self_transitions()
-
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected],
-                                                        get_data_functions=disease_model_data_functions)])
-
-    def __repr__(self):
-        return f'SIS_fixed_duration(cause={self.cause}, duration={self.duration})'
-
-
-class SIR_fixed_duration:
-
-    def __init__(self, cause: str, duration: str):
-        """
-        Parameters
-        ----------
-        cause
-        duration
-        """
-        self.cause = cause
-        if not isinstance(duration, pd.Timedelta):
-            self.duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
-        else:
-            self.duration = duration
-
-    @property
-    def name(self):
-        return f'SIR_fixed_duration.{self.cause}.{self.duration}'
-
-    def setup(self, builder):
-        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
-        disease_model_data_functions = {}
-
-        healthy = SusceptibleState(self.cause)
-        if only_morbid:
-            infected = DiseaseState(self.cause,
-                                    get_data_functions={'dwell_time': lambda _, __: self.duration})
-            disease_model_data_functions['csmr'] = lambda _, __: None
-        else:
-            infected = ExcessMortalityState(self.cause,
-                                            get_data_functions={'dwell_time': lambda _, __: self.duration})
-        recovered = RecoveredState(self.cause)
-
-        healthy.allow_self_transitions()
-        healthy.add_transition(infected, source_data_type='rate')
-        infected.allow_self_transitions()
-        infected.add_transition(recovered)
-        recovered.allow_self_transitions()
-
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, infected, recovered],
-                                                        get_data_functions=disease_model_data_functions)])
-
-    def __repr__(self):
-        return f'SIR_fixed_duration(cause={self.cause}, duration={self.duration})'
-
-
-class NeonatalSWC_without_incidence:
-
-    def __init__(self, cause: str):
-        self.cause = cause
-
-    @property
-    def name(self):
-        return f'NeonatalSWC_without_incidence.{self.cause}'
-
-    def setup(self, builder):
-        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
-        disease_model_data_functions = {}
-
-        healthy = SusceptibleState(self.cause)
-
-        with_condition_data_functions = {'birth_prevalence':
-                                         lambda cause, builder: builder.data.load(f"cause.{cause}.birth_prevalence")}
-        if only_morbid:
-            with_condition = DiseaseState(self.cause, get_data_functions=with_condition_data_functions)
-            disease_model_data_functions['csmr'] = lambda _, __: None
-        else:
-            with_condition = ExcessMortalityState(self.cause, get_data_functions=with_condition_data_functions)
-
-        healthy.allow_self_transitions()
-        with_condition.allow_self_transitions()
-
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, with_condition],
-                                                        get_data_functions=disease_model_data_functions)])
-
-    def __repr__(self):
-        return f'NeonatalSWC_without_incidence({self.cause})'
-
-
-class NeonatalSWC_with_incidence:
-
-    def __init__(self, cause: str):
-        self.cause = cause
-
-    @property
-    def name(self):
-        return f'NeonatalSWC_with_incidence.{self.cause}'
-
-    def setup(self, builder):
-        only_morbid = builder.data.load(f'cause.{self.cause}.restrictions')['yld_only']
-        disease_model_data_functions = {}
-
-        healthy = SusceptibleState(self.cause)
-
-        with_condition_data_functions = {'birth_prevalence':
-                                         lambda cause, builder: builder.data.load(f"cause.{cause}.birth_prevalence")}
-        if only_morbid:
-            with_condition = DiseaseState(self.cause, get_data_functions=with_condition_data_functions)
-            disease_model_data_functions['csmr'] = lambda _, __: None
-        else:
-            with_condition = ExcessMortalityState(self.cause, get_data_functions=with_condition_data_functions)
-
-        healthy.allow_self_transitions()
-        healthy.add_transition(with_condition, source_data_type='rate')
-        with_condition.allow_self_transitions()
-
-        builder.components.add_components([DiseaseModel(self.cause, states=[healthy, with_condition],
-                                                        get_data_functions=disease_model_data_functions)])
-
-    def __repr__(self):
-        return f'NeonatalSWC_with_incidence({self.cause})'
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause, get_data_functions={'dwell_time': lambda _, __: duration})
+    recovered = RecoveredState(cause)
+
+    healthy.allow_self_transitions()
+    healthy.add_transition(infected, source_data_type='rate')
+    infected.add_transition(recovered)
+    infected.allow_self_transitions()
+    recovered.allow_self_transitions()
+
+    return DiseaseModel(cause, states=[healthy, infected])
+
+
+def NeonatalSWC_without_incidence(cause):
+    with_condition_data_functions = {'birth_prevalence':
+                                     lambda cause, builder: builder.data.load(f"cause.{cause}.birth_prevalence")}
+
+    healthy = SusceptibleState(cause)
+    with_condition = DiseaseState(cause, get_data_functions=with_condition_data_functions)
+
+    healthy.allow_self_transitions()
+    with_condition.allow_self_transitions()
+
+    return DiseaseModel(cause, states=[healthy, with_condition])
+
+
+def NeonatalSWC_with_incidence(cause):
+    with_condition_data_functions = {'birth_prevalence':
+                                     lambda cause, builder: builder.data.load(f"cause.{cause}.birth_prevalence")}
+
+    healthy = SusceptibleState(cause)
+    with_condition = DiseaseState(cause, get_data_functions=with_condition_data_functions)
+
+    healthy.allow_self_transitions()
+    healthy.add_transition(with_condition, source_data_type='rate')
+    with_condition.allow_self_transitions()
+
+    return DiseaseModel(cause, states=[healthy, with_condition])

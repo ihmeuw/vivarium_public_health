@@ -10,13 +10,13 @@ in the simulation.
 from collections import Counter
 
 import pandas as pd
-from vivarium.framework.values import list_combiner, joint_value_post_processor, rescale_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor, rescale_post_processor
 
-from vivarium_public_health.disease import DiseaseModel, RiskAttributableDisease
+from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from .utilities import get_age_bins, get_years_lived_with_disability
 
 
-class Disability:
+class DisabilityObserver:
     """Counts years lived with disability.
 
     By default, this counts both aggregate and cause-specific years lived
@@ -56,8 +56,8 @@ class Disability:
         self.age_bins = get_age_bins(builder)
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
-        self.causes = [c.state_column
-                       for c in builder.components.get_components_by_type((DiseaseModel, RiskAttributableDisease))]
+        self.causes = [c.state_id
+                       for c in builder.components.get_components_by_type((DiseaseState, RiskAttributableDisease))]
         self.years_lived_with_disability = Counter()
         self.disability_weight_pipelines = {cause: builder.value.get_value(f'{cause}.disability_weight')
                                             for cause in self.causes}
@@ -102,8 +102,8 @@ class Disability:
         return metrics
 
     def __repr__(self):
-        return "Disability()"
+        return "DisabilityObserver()"
 
 
 def _disability_post_processor(value, step_size):
-    return rescale_post_processor(joint_value_post_processor(value, step_size), step_size)
+    return rescale_post_processor(union_post_processor(value, step_size), step_size)

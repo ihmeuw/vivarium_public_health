@@ -33,7 +33,8 @@ class AbsoluteShift:
     def setup(self, builder):
         self.config = builder.configuration[f'intervention_on_{self.target.name}']
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}',
-                                              modifier=self.intervention_effect)
+                                              modifier=self.intervention_effect,
+                                              requires_columns=['age'])
         self.population_view = builder.population.get_view(['age'])
 
     def intervention_effect(self, index, value):

@@ -7,7 +7,7 @@ This module contains tools for observing all-cause, cause-specific, and
 excess mortality in the simulation.
 
 """
-from vivarium_public_health.disease import DiseaseModel, RiskAttributableDisease
+from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from .utilities import get_age_bins, get_person_time, get_deaths, get_years_of_life_lost
 
 
@@ -53,13 +53,12 @@ class MortalityObserver:
         self.start_time = self.clock()
         self.initial_pop_entrance_time = self.start_time - self.step_size()
         self.age_bins = get_age_bins(builder)
-        diseases = builder.components.get_components_by_type((DiseaseModel, RiskAttributableDisease))
-        self.causes = [c.state_column for c in diseases] + ['other_causes']
+        diseases = builder.components.get_components_by_type((DiseaseState, RiskAttributableDisease))
+        self.causes = [c.state_id for c in diseases] + ['other_causes']
 
         life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
         self.life_expectancy = builder.lookup.build_table(life_expectancy_data, key_columns=[],
-                                                          parameter_columns=[('age', 'age_group_start',
-                                                                              'age_group_end')])
+                                                          parameter_columns=['age'])
 
         columns_required = ['tracked', 'alive', 'entrance_time', 'exit_time', 'cause_of_death',
                             'years_of_life_lost', 'age']

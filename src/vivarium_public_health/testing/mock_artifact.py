@@ -11,17 +11,19 @@ import pandas as pd
 
 from vivarium.testing_utilities import build_table
 
-from vivarium_public_health.dataset_manager import ArtifactManager, EntityKey
+from vivarium.framework.artifact import ArtifactManager
+
 from .utils import make_uniform_pop_data
 
 MOCKERS = {
         'cause': {
             'prevalence': 0,
-            'cause_specific_mortality': 0,
-            'excess_mortality': 0,
-            'remission': 0,
-            'incidence': 0.001,
+            'cause_specific_mortality_rate': 0,
+            'excess_mortality_rate': 0,
+            'remission_rate': 0,
+            'incidence_rate': 0.001,
             'disability_weight': pd.DataFrame({'value': [0]}),
+            'restrictions': lambda *args, **kwargs: {'yld_only': False}
         },
         'risk_factor': {
             'distribution': lambda *args, **kwargs: 'ensemble',
@@ -47,10 +49,10 @@ MOCKERS = {
         },
         'sequela': {
             'prevalence': 0,
-            'cause_specific_mortality': 0,
-            'excess_mortality': 0,
-            'remission': 0,
-            'incidence': 0.001,
+            'cause_specific_mortality_rate': 0,
+            'excess_mortality_rate': 0,
+            'remission_rate': 0,
+            'incidence_rate': 0.001,
             'disability_weight': pd.DataFrame({'value': [0]}),
         },
         'etiology': {
@@ -60,13 +62,13 @@ MOCKERS = {
         'healthcare_entity': {
             'cost': build_table([0, 'outpatient_visits'], 1990, 2017,
                                 ("age", "sex", "year", "value", "healthcare_entity")),
-            'utilization': 0,
+            'utilization_rate': 0,
         },
         'population': {
             'structure': make_uniform_pop_data(),
             'theoretical_minimum_risk_life_expectancy': (build_table(98.0, 1990, 1990)
                                                          .query('sex=="Female"')
-                                                         .filter(['age_group_start', 'age_group_end', 'value']))
+                                                         .filter(['age_start', 'age_end', 'value']))
         },
 }
 
@@ -78,16 +80,17 @@ class MockArtifact():
 
     def load(self, entity_key):
         if entity_key in self.mocks:
-            value = self.mocks[entity_key]
-        else:
-            assert entity_key.type in self.mocks
-            assert entity_key.measure in self.mocks[entity_key.type]
-            value = self.mocks[entity_key.type][entity_key.measure]
+            return self.mocks[entity_key]
 
-            if callable(value):
-                value = value(entity_key)
-            elif not isinstance(value, (pd.DataFrame, pd.Series)):
-                value = build_table(value, 1990, 2018)
+        entity_type, *_, entity_measure = entity_key.split('.')
+        assert entity_type in self.mocks
+        assert entity_measure in self.mocks[entity_type]
+        value = self.mocks[entity_type][entity_measure]
+
+        if callable(value):
+            value = value(entity_key)
+        elif not isinstance(value, (pd.DataFrame, pd.Series)):
+            value = build_table(value, 1990, 2018)
 
         return value
 
@@ -108,12 +111,10 @@ class MockArtifactManager(ArtifactManager):
         pass
 
     def load(self, entity_key, *args, **kwargs):
-        return self.artifact.load(EntityKey(entity_key))
+        return self.artifact.load(entity_key)
 
     def write(self, entity_key, data):
-        self.artifact.write(EntityKey(entity_key), data)
+        self.artifact.write(entity_key, data)
 
     def _load_artifact(self, _):
         return MockArtifact()
-
-

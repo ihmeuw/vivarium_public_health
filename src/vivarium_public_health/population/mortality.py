@@ -10,9 +10,6 @@ disease models to contribute cause-specific and excess mortality.
 import pandas as pd
 
 from vivarium.framework.utilities import rate_to_probability
-from vivarium.framework.values import list_combiner
-
-from .data_transformations import get_cause_deleted_mortality
 
 
 class Mortality:
@@ -22,42 +19,39 @@ class Mortality:
         return 'mortality'
 
     def setup(self, builder):
-        self._all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality")
-        self._cause_deleted_mortality_data = None
+        all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
+        self.all_cause_mortality_rate = builder.lookup.build_table(all_cause_mortality_data, key_columns=['sex'],
+                                                                   parameter_columns=['age', 'year'])
 
-        self._root_location = builder.configuration.input_data.location
-        self._build_lookup_handle = builder.lookup.build_table
+        self.cause_specific_mortality_rate = builder.value.register_value_producer(
+            'cause_specific_mortality_rate', source=builder.lookup.build_table(0)
+        )
 
-        self.csmr = builder.value.register_value_producer('csmr_data', source=list, preferred_combiner=list_combiner)
-        self.mortality_rate = builder.value.register_rate_producer('mortality_rate', source=self.mortality_rate_source)
+        self.mortality_rate = builder.value.register_rate_producer('mortality_rate',
+                                                                   source=self.calculate_mortality_rate,
+                                                                   requires_columns=['age', 'sex'])
 
         life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
-        self.life_expectancy = builder.lookup.build_table(life_expectancy_data, key_columns=[],
-                                                          parameter_columns=[('age','age_group_start', 'age_group_end')])
+        self.life_expectancy = builder.lookup.build_table(life_expectancy_data, parameter_columns=['age'])
 
-        self.death_emitter = builder.event.get_emitter('deaths')
         self.random = builder.randomness.get_stream('mortality_handler')
         self.clock = builder.time.clock()
 
-        self.population_view = builder.population.get_view(
-            ['cause_of_death', 'alive', 'exit_time', 'age', 'sex', 'location', 'years_of_life_lost'])
-        builder.population.initializes_simulants(self.load_population_columns,
-                                                 creates_columns=['cause_of_death', 'years_of_life_lost'])
-        builder.event.register_listener('time_step', self.mortality_handler, priority=0)
+        columns_created = ['cause_of_death', 'years_of_life_lost']
+        view_columns = columns_created + ['alive', 'exit_time', 'age', 'sex', 'location']
+        self.population_view = builder.population.get_view(view_columns)
+        builder.population.initializes_simulants(self.on_initialize_simulants,
+                                                 creates_columns=columns_created)
 
-    def mortality_rate_source(self, index):
-        if self._cause_deleted_mortality_data is None:
-            csmr_data = self.csmr()
-            cause_deleted_mr = get_cause_deleted_mortality(self._all_cause_mortality_data, csmr_data)
-            self._cause_deleted_mortality_data = self._build_lookup_handle(cause_deleted_mr)
+        builder.event.register_listener('time_step', self.on_time_step, priority=0)
 
-        return self._cause_deleted_mortality_data(index)
+    def on_initialize_simulants(self, pop_data):
+        pop_update = pd.DataFrame({'cause_of_death': 'not_dead',
+                                   'years_of_life_lost': 0.},
+                                  index=pop_data.index)
+        self.population_view.update(pop_update)
 
-    def load_population_columns(self, pop_data):
-        self.population_view.update(pd.DataFrame({'cause_of_death': 'not_dead',
-                                                  'years_of_life_lost': 0.}, index=pop_data.index))
-
-    def mortality_handler(self, event):
+    def on_time_step(self, event):
         pop = self.population_view.get(event.index, query="alive =='alive'")
         prob_df = rate_to_probability(pd.DataFrame(self.mortality_rate(pop.index)))
         prob_df['no_death'] = 1-prob_df.sum(axis=1)
@@ -68,8 +62,13 @@ class Mortality:
             dead_pop['alive'] = pd.Series('dead', index=dead_pop.index)
             dead_pop['exit_time'] = event.time
             dead_pop['years_of_life_lost'] = self.life_expectancy(dead_pop.index)
-            self.death_emitter(event.split(dead_pop.index))
             self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death', 'years_of_life_lost']])
+
+    def calculate_mortality_rate(self, index):
+        acmr = self.all_cause_mortality_rate(index)
+        csmr = self.cause_specific_mortality_rate(index, skip_post_processor=True)
+        cause_deleted_mortality_rate = acmr - csmr
+        return pd.DataFrame({'other_causes': cause_deleted_mortality_rate})
 
     def __repr__(self):
         return "Mortality()"

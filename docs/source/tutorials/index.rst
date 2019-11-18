@@ -8,4 +8,3 @@ Here you'll find tutorials to introduce tools available via ``vivarium_public_he
    :glob:
 
    *
-   */index

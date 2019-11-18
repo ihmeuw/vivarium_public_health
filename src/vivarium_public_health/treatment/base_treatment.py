@@ -18,14 +18,12 @@ class Treatment:
     def __init__(self, name, cause):
         self.treatment_name = name
         self.cause = cause
-        self.treatment_effects = []
 
     @property
     def name(self):
         return f'treatment.{self.treatment_name}.{self.cause}'
 
     def setup(self, builder):
-        builder.components.add_components(self.treatment_effects)
         if self.treatment_name not in builder.configuration:
             raise ComponentConfigError(f'No configuration found for {self.treatment_name}.')
 
@@ -37,14 +35,16 @@ class Treatment:
         )
         self.protection = self._get_protection(builder)
 
-        builder.value.register_value_modifier(f'{self.cause}.incidence_rate',
-                                              modifier=self.incidence_rates)
-
-        columns = [f'{self.treatment_name}_current_dose',
+        columns = ['alive',
+                   f'{self.treatment_name}_current_dose',
                    f'{self.treatment_name}_current_dose_event_time',
                    f'{self.treatment_name}_previous_dose',
                    f'{self.treatment_name}_previous_dose_event_time']
-        self.population_view = builder.population.get_view(['alive']+columns)
+        self.population_view = builder.population.get_view(columns)
+
+        builder.value.register_value_modifier(f'{self.cause}.incidence_rate',
+                                              modifier=self.incidence_rates,
+                                              requires_columns=columns)
 
         self.clock = builder.time.clock()
 
@@ -74,6 +74,7 @@ class Treatment:
             current_dose_giving_immunity, f'{self.treatment_name}_current_dose']
         dosing_status.loc[current_dose_giving_immunity, 'date'] = population.loc[
             current_dose_giving_immunity, f'{self.treatment_name}_current_dose_event_time']
+
         dosing_status.loc[previous_dose_giving_immunity, 'dose'] = population.loc[
             previous_dose_giving_immunity, f'{self.treatment_name}_previous_dose']
         dosing_status.loc[previous_dose_giving_immunity, 'date'] = population.loc[

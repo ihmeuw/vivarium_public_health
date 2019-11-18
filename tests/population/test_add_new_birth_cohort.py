@@ -1,15 +1,18 @@
-import pytest
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-
+import pytest
+from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, metadata, build_table
-from vivarium.interface.interactive import setup_simulation, initialize_simulation
 
+from vivarium_public_health import utilities
 from vivarium_public_health.population import FertilityDeterministic, FertilityCrudeBirthRate, FertilityAgeSpecificRates
 
 
 @pytest.fixture()
 def config(base_config):
+
     base_config.update({
         'population': {
             'population_size': 10000,
@@ -19,14 +22,14 @@ def config(base_config):
         'time': {
             'step_size': 10,
             }
-        }, **metadata(__file__))
+        }, source=str(Path(__file__).resolve()), layer='override')
     return base_config
 
 
 def crude_birth_rate_data(live_births=500):
     return (build_table(['mean_value', live_births], 1990, 2017, ('age', 'year', 'sex', 'parameter', 'value'))
-            .query('age_group_start == 25 and sex != "Both"')
-            .drop(['age_group_start', 'age_group_end'], 'columns'))
+            .query('age_start == 25 and sex != "Both"')
+            .drop(['age_start', 'age_end'], 'columns'))
 
 
 def test_FertilityDeterministic(config):
@@ -42,21 +45,24 @@ def test_FertilityDeterministic(config):
     }, **metadata(__file__))
 
     components = [TestPopulation(), FertilityDeterministic()]
-    simulation = setup_simulation(components, config)
+    simulation = InteractiveContext(components=components, configuration=config)
     num_steps = simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population()
 
     assert num_steps == num_days // step_size
     assert np.all(pop.alive == 'alive')
-    assert int(num_days * annual_new_simulants / 365) == len(pop.age) - pop_size
+    assert int(num_days * annual_new_simulants / utilities.DAYS_PER_YEAR) == len(pop.age) - pop_size
 
 
 def test_FertilityCrudeBirthRate(config, base_plugins):
     pop_size = config.population.population_size
     num_days = 100
     components = [TestPopulation(), FertilityCrudeBirthRate()]
-    simulation = initialize_simulation(components, config, base_plugins)
-    simulation.data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data())
+    simulation = InteractiveContext(components=components,
+                                    configuration=config,
+                                    plugin_configuration=base_plugins,
+                                    setup=False)
+    simulation._data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data())
 
     simulation.setup()
     simulation.run_for(duration=pd.Timedelta(days=num_days))
@@ -74,20 +80,27 @@ def test_FertilityCrudeBirthRate_extrapolate_fail(config, base_plugins):
         'time': {
             'start': {'year': 2016},
             'end': {'year': 2025},
-            'step_size': 30,
         },
     })
     components = [TestPopulation(), FertilityCrudeBirthRate()]
 
-    simulation = initialize_simulation(components, config, base_plugins)
-    simulation.data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data())
+    simulation = InteractiveContext(components=components,
+                                    configuration=config,
+                                    plugin_configuration=base_plugins,
+                                    setup=False)
+    simulation._data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data())
 
     with pytest.raises(ValueError):
         simulation.setup()
 
 
-def test_FertilityCrudeBirthRate_extrapolate(config, base_plugins):
-    config.update({
+def test_FertilityCrudeBirthRate_extrapolate(base_config, base_plugins):
+    base_config.update({
+        'population': {
+            'population_size': 10000,
+            'age_start': 0,
+            'age_end': 125,
+        },
         'interpolation': {
             'extrapolate': True
         },
@@ -97,13 +110,16 @@ def test_FertilityCrudeBirthRate_extrapolate(config, base_plugins):
             'step_size': 365,
         },
     })
-    pop_size = config.population.population_size
+    pop_size = base_config.population.population_size
     true_pop_size = 8000  # What's available in the mock artifact
     live_births_by_sex = 500
     components = [TestPopulation(), FertilityCrudeBirthRate()]
 
-    simulation = initialize_simulation(components, config, base_plugins)
-    simulation.data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data(live_births_by_sex))
+    simulation = simulation = InteractiveContext(components=components,
+                                                 configuration=base_config,
+                                                 plugin_configuration=base_plugins,
+                                                 setup=False)
+    simulation._data.write("covariate.live_births_by_sex.estimate", crude_birth_rate_data(live_births_by_sex))
     simulation.setup()
 
     birth_rate = []
@@ -130,14 +146,17 @@ def test_fertility_module(base_config, base_plugins):
     }, layer='override')
 
     components = [TestPopulation(), FertilityAgeSpecificRates()]
-    simulation = initialize_simulation(components, base_config, base_plugins)
+    simulation = simulation = InteractiveContext(components=components,
+                                                 configuration=base_config,
+                                                 plugin_configuration=base_plugins,
+                                                 setup=False)
 
     asfr_data = build_table(0.05, 1990, 2017).rename(columns={'value': 'mean_value'})
-    simulation.data.write("covariate.age_specific_fertility_rate.estimate", asfr_data)
+    simulation._data.write("covariate.age_specific_fertility_rate.estimate", asfr_data)
 
     simulation.setup()
 
-    time_start = simulation.clock.time
+    time_start = simulation._clock.time
 
     assert 'last_birth_time' in simulation.get_population().columns,\
         'expect Fertility module to update state table.'
