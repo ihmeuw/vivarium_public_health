@@ -158,8 +158,9 @@ class DichotomousDistribution:
                                                          parameter_columns=['age', 'year'])
         self.exposure_proportion = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
                                                                          source=self.exposure)
+        base_paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(f'{self.risk}.exposure_parameters.paf',
-                                                               source=lambda index: [builder.lookup.build_table(0)(index)],
+                                                               source=lambda index: [base_paf(index)],
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=union_post_processor)
 
