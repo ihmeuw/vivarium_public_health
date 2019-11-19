@@ -1,3 +1,30 @@
+**0.10.0 - 11/18/19**
+
+ - Update vivarium event system usage to no longer require explicit use of
+   events.
+ - Move Artifact to vivarium.
+ - Clean up utility functions location and usage.
+ - Consistent preference of pathlib over os.path
+ - Small API updates for configuration.
+ - Restructure components to allow all subcomponents to be created during
+   initialization.
+ - Remove healthcare access component.
+ - Restructure mortality calculation in a style more consistent with
+   risk-disease pairs.
+ - Update to new API for simulation creation.
+ - Remove usages of 'omit_missing_columns' in favor of population subviews.
+ - Be consistent about rate naming conventions.
+ - Rename Disability component to DisabilityObserver.
+ - Rename 'age_group_start' and 'age_group_end' to 'age_start' and 'age_end'
+   in data and lookup table usage.
+ - Have components specify all necessary dependencies for the resources
+   (pipelines, state table columns, and randomness streams) that they manage.
+ - Update risk effect to make it easier to extend.
+ - Allow lookup table specification without naming bin columns in data.
+ - Update joint_value_postprocessor to union_postprocessor
+ - Clean up some of the MSLT calculations
+ - Dichotomous distribution bugfix
+
 **0.9.19 - 09/30/19**
 
  - Add python and vivarium to the intersphinx mapping.
