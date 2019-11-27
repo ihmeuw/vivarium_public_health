@@ -69,13 +69,13 @@ class BasePopulation:
         self.population_view = builder.population.get_view(columns + ['tracked'])
 
         # Age cohorts before each time-step (except the first time-step).
-        builder.event.register_listener('time_step__prepare', self.on_time_step)
+        builder.event.register_listener('time_step__prepare', self.on_time_step_prepare)
 
     def on_initialize_simulants(self, _):
         """Initialize each cohort."""
         self.population_view.update(self.pop_data)
 
-    def on_time_step(self, event):
+    def on_time_step_prepare(self, event):
         """Remove cohorts that have reached the maximum age."""
         pop = self.population_view.get(event.index, query='tracked == True')
         # Only increase cohort ages after the first time-step.
