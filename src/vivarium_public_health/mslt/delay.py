@@ -170,7 +170,7 @@ class DelayedRisk:
         dis_rr_data = pivot_load(builder,f'risk_factor.{self.name}.disease_relative_risk')
 
         # Check that the relative risk table includes required columns.
-        key_columns = ['age_group_start', 'age_group_end', 'sex',
+        key_columns = ['age_start', 'age_end', 'sex',
                        'year_start', 'year_end']
         if set(key_columns) & set(dis_rr_data.columns) != set(key_columns):
             # Fallback option, handle tables that do not define bin edges.
