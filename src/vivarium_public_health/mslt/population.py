@@ -99,7 +99,9 @@ class Mortality:
         """Load the all-cause mortality rate."""
         mortality_data = builder.data.load('cause.all_causes.mortality')
         self.mortality_rate = builder.value.register_rate_producer(
-            'mortality_rate', source=builder.lookup.build_table(mortality_data))
+            'mortality_rate', source=builder.lookup.build_table(mortality_data, 
+                                                                key_columns=['sex'], 
+                                                                parameter_columns=['age','year']))
 
         builder.event.register_listener('time_step', self.on_time_step)
 
@@ -148,7 +150,9 @@ class Disability:
     def setup(self, builder):
         """Load the years lost due to disability (YLD) rate."""
         yld_data = builder.data.load('cause.all_causes.disability_rate')
-        yld_rate = builder.lookup.build_table(yld_data)
+        yld_rate = builder.lookup.build_table(yld_data, 
+                                              key_columns=['sex'], 
+                                              parameter_columns=['age','year'])
         self.yld_rate = builder.value.register_rate_producer('yld_rate', source=yld_rate)
 
         builder.event.register_listener('time_step', self.on_time_step)

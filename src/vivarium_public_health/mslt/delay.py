@@ -124,11 +124,15 @@ class DelayedRisk:
 
         # Load the initial prevalence.
         prev_data = pivot_load(builder,f'risk_factor.{self.name}.prevalence')
-        self.initial_prevalence = builder.lookup.build_table(prev_data)
+        self.initial_prevalence = builder.lookup.build_table(prev_data,
+                                                             key_columns=['sex'], 
+                                                             parameter_columns=['age','year'])
 
         # Load the incidence rates for the BAU and intervention scenarios.
         inc_data = builder.lookup.build_table(
-            pivot_load(builder,f'risk_factor.{self.name}.incidence')
+            pivot_load(builder,f'risk_factor.{self.name}.incidence'), 
+                       key_columns=['sex'], 
+                       parameter_columns=['age','year']
         )
         inc_name = '{}.incidence'.format(self.name)
         inc_int_name = '{}_intervention.incidence'.format(self.name)
@@ -140,7 +144,9 @@ class DelayedRisk:
         # In the constant-prevalence case, assume there is no remission.
         if self.constant_prevalence:
             rem_df['remission'] = 0.0
-        rem_data = builder.lookup.build_table(rem_df)
+        rem_data = builder.lookup.build_table(rem_df, 
+                                              key_columns=['sex'], 
+                                              parameter_columns=['age','year'])
         rem_name = '{}.remission'.format(self.name)
         rem_int_name = '{}_intervention.remission'.format(self.name)
         self.remission = builder.value.register_rate_producer(rem_name, source=rem_data)
@@ -151,7 +157,9 @@ class DelayedRisk:
         # also the relative risks associated with each bin.
         self.acm_rate = builder.value.get_value('mortality_rate')
         mort_rr_data = pivot_load(builder,f'risk_factor.{self.name}.mortality_relative_risk')
-        self.mortality_rr = builder.lookup.build_table(mort_rr_data)
+        self.mortality_rr = builder.lookup.build_table(mort_rr_data, 
+                                                       key_columns=['sex'], 
+                                                       parameter_columns=['age','year'])
 
         # Register a modifier for each disease affected by this delayed risk.
         diseases = self.config[self.name].affects.keys()
@@ -192,7 +200,9 @@ class DelayedRisk:
                 # NOTE: avoid SettingWithCopyWarning
                 rr_data.loc[:, int_col[column]] = rr_data[column]
             rr_data = rr_data.rename(columns=bau_col)
-            self.dis_rr[disease] = builder.lookup.build_table(rr_data)
+            self.dis_rr[disease] = builder.lookup.build_table(rr_data, 
+                                                              key_columns=['sex'], 
+                                                              parameter_columns=['age','year'])
 
         # Add a handler to create the exposure bin columns.
         req_columns = ['age', 'sex', 'population']
@@ -205,8 +215,12 @@ class DelayedRisk:
         # Load the effects of a tobacco tax.
         tax_inc = pivot_load(builder,f'risk_factor.{self.name}.tax_effect_incidence')
         tax_rem = pivot_load(builder,f'risk_factor.{self.name}.tax_effect_remission')
-        self.tax_effect_inc = builder.lookup.build_table(tax_inc)
-        self.tax_effect_rem = builder.lookup.build_table(tax_rem)
+        self.tax_effect_inc = builder.lookup.build_table(tax_inc, 
+                                                         key_columns=['sex'], 
+                                                         parameter_columns=['age','year'])
+        self.tax_effect_rem = builder.lookup.build_table(tax_rem, 
+                                                         key_columns=['sex'], 
+                                                         parameter_columns=['age','year'])
 
         # Add a handler to move people from one bin to the next.
         builder.event.register_listener('time_step__prepare',
@@ -218,7 +232,9 @@ class DelayedRisk:
 
         mortality_data = pivot_load(builder,'cause.all_causes.mortality')
         self.tobacco_acmr = builder.value.register_rate_producer(
-            'tobacco_acmr', source=builder.lookup.build_table(mortality_data))
+            'tobacco_acmr', source=builder.lookup.build_table(mortality_data, 
+                                                              key_columns=['sex'], 
+                                                              parameter_columns=['age','year']))
 
     def get_bin_names(self):
         """Return the bin names for both the BAU and the intervention scenario.
