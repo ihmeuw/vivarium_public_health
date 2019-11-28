@@ -1,3 +1,7 @@
+**0.10.1 - 11/27/19**
+
+ - Update MSLT components to new vivarium APIs.
+
 **0.10.0 - 11/18/19**
 
  - Update vivarium event system usage to no longer require explicit use of

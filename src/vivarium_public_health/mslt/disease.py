@@ -42,9 +42,13 @@ class AcuteDisease:
     def setup(self, builder):
         """Load the morbidity and mortality data."""
         mty_data = builder.data.load(f'acute_disease.{self.name}.mortality')
-        mty_rate = builder.lookup.build_table(mty_data)
+        mty_rate = builder.lookup.build_table(mty_data, 
+                                              key_columns=['sex'], 
+                                              parameter_columns=['age','year'])
         yld_data = builder.data.load(f'acute_disease.{self.name}.morbidity')
-        yld_rate = builder.lookup.build_table(yld_data)
+        yld_rate = builder.lookup.build_table(yld_data,
+                                              key_columns=['sex'], 
+                                              parameter_columns=['age','year'])
         self.excess_mortality = builder.value.register_rate_producer(
             f'{self.name}.excess_mortality',
             source=mty_rate)
@@ -120,29 +124,39 @@ class Disease:
         self.simplified_equations = builder.configuration[self.name].simplified_no_remission_equations
 
         inc_data = builder.data.load(data_prefix + 'incidence')
-        i = builder.lookup.build_table(inc_data)
+        i = builder.lookup.build_table(inc_data, 
+                                       key_columns=['sex'], 
+                                       parameter_columns=['age','year'])
         self.incidence = builder.value.register_rate_producer(
             bau_prefix + 'incidence', source=i)
         self.incidence_intervention = builder.value.register_rate_producer(
             int_prefix + 'incidence', source=i)
 
         rem_data = builder.data.load(data_prefix + 'remission')
-        r = builder.lookup.build_table(rem_data)
+        r = builder.lookup.build_table(rem_data, 
+                                       key_columns=['sex'], 
+                                       parameter_columns=['age','year'])
         self.remission = builder.value.register_rate_producer(
             bau_prefix + 'remission', source=r)
 
         mty_data = builder.data.load(data_prefix + 'mortality')
-        f = builder.lookup.build_table(mty_data)
+        f = builder.lookup.build_table(mty_data, 
+                                       key_columns=['sex'], 
+                                       parameter_columns=['age','year'])
         self.excess_mortality = builder.value.register_rate_producer(
             bau_prefix + 'excess_mortality', source=f)
 
         yld_data = builder.data.load(data_prefix + 'morbidity')
-        yld_rate = builder.lookup.build_table(yld_data)
+        yld_rate = builder.lookup.build_table(yld_data, 
+                                              key_columns=['sex'], 
+                                              parameter_columns=['age','year'])
         self.disability_rate = builder.value.register_rate_producer(
             bau_prefix + 'yld_rate', source=yld_rate)
 
         prev_data = builder.data.load(data_prefix + 'prevalence')
-        self.initial_prevalence = builder.lookup.build_table(prev_data)
+        self.initial_prevalence = builder.lookup.build_table(prev_data, 
+                                                             key_columns=['sex'], 
+                                                             parameter_columns=['age','year'])
 
         builder.value.register_value_modifier(
             'mortality_rate', self.mortality_adjustment)

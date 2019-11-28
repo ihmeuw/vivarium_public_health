@@ -69,13 +69,13 @@ class BasePopulation:
         self.population_view = builder.population.get_view(columns + ['tracked'])
 
         # Age cohorts before each time-step (except the first time-step).
-        builder.event.register_listener('time_step__prepare', self.on_time_step)
+        builder.event.register_listener('time_step__prepare', self.on_time_step_prepare)
 
     def on_initialize_simulants(self, _):
         """Initialize each cohort."""
         self.population_view.update(self.pop_data)
 
-    def on_time_step(self, event):
+    def on_time_step_prepare(self, event):
         """Remove cohorts that have reached the maximum age."""
         pop = self.population_view.get(event.index, query='tracked == True')
         # Only increase cohort ages after the first time-step.
@@ -99,7 +99,9 @@ class Mortality:
         """Load the all-cause mortality rate."""
         mortality_data = builder.data.load('cause.all_causes.mortality')
         self.mortality_rate = builder.value.register_rate_producer(
-            'mortality_rate', source=builder.lookup.build_table(mortality_data))
+            'mortality_rate', source=builder.lookup.build_table(mortality_data, 
+                                                                key_columns=['sex'], 
+                                                                parameter_columns=['age','year']))
 
         builder.event.register_listener('time_step', self.on_time_step)
 
@@ -148,7 +150,9 @@ class Disability:
     def setup(self, builder):
         """Load the years lost due to disability (YLD) rate."""
         yld_data = builder.data.load('cause.all_causes.disability_rate')
-        yld_rate = builder.lookup.build_table(yld_data)
+        yld_rate = builder.lookup.build_table(yld_data, 
+                                              key_columns=['sex'], 
+                                              parameter_columns=['age','year'])
         self.yld_rate = builder.value.register_rate_producer('yld_rate', source=yld_rate)
 
         builder.event.register_listener('time_step', self.on_time_step)
