@@ -1,3 +1,7 @@
+**0.10.2 - 11/29/19**
+
+ - Fix disease observer bug that prevented it from loading its configuration.
+
 **0.10.1 - 11/27/19**
 
  - Update MSLT components to new vivarium APIs.
