@@ -68,7 +68,7 @@ class DiseaseObserver:
         return f'disease_observer.{self.disease}'
 
     def setup(self, builder):
-        self.config = builder.configuration['metrics'][self.name]
+        self.config = builder.configuration['metrics'][f'{self.disease}_observer']
         self.clock = builder.time.clock()
         self.age_bins = get_age_bins(builder)
         self.counts = Counter()
