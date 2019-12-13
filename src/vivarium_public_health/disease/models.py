@@ -76,7 +76,7 @@ def SIR_fixed_duration(cause: str, duration: str) -> DiseaseModel:
     infected.allow_self_transitions()
     recovered.allow_self_transitions()
 
-    return DiseaseModel(cause, states=[healthy, infected])
+    return DiseaseModel(cause, states=[healthy, infected, recovered])
 
 
 def NeonatalSWC_without_incidence(cause):
