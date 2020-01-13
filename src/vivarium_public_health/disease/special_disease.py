@@ -185,7 +185,7 @@ class RiskAttributableDisease:
     def compute_disability_weight(self, index):
         disability_weight = pd.Series(0, index=index)
         with_condition = self.with_condition(index)
-        disability_weight.loc[with_condition] = self.disability_weight(with_condition)
+        disability_weight.loc[with_condition] = self.base_disability_weight(with_condition)
         return disability_weight
 
     def compute_excess_mortality_rate(self, index):
