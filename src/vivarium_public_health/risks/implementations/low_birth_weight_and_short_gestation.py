@@ -1,11 +1,9 @@
 """
-Low birth weight and short gestation is a non-standard risk implementation
-that has been used in several public health models. It assigns exposure
-to low birth weight and short gestation in a correlated manner.
+Low birth weight and short gestation (LBWSG) is a non-standard risk
+implementation that has been used in several public health models.
 
 Note that because the input data is so large, it relies on a custom relative
 risk data loader that expects data saved in keys by draw.
-
 """
 from typing import Tuple
 from pathlib import Path
