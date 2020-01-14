@@ -114,7 +114,9 @@ class RiskAttributableDisease:
         builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
 
         cause_specific_mortality_rate = self.load_cause_specific_mortality_rate_data(builder)
-        self.cause_specific_mortality_rate = builder.lookup.build_table(cause_specific_mortality_rate)
+        self.cause_specific_mortality_rate = builder.lookup.build_table(cause_specific_mortality_rate,
+                                                                        key_columns=['sex'],
+                                                                        parameter_columns=['age', 'year'])
         builder.value.register_value_modifier('cause_specific_mortality_rate',
                                               self.adjust_cause_specific_mortality_rate,
                                               requires_columns=['age', 'sex'])
@@ -183,7 +185,7 @@ class RiskAttributableDisease:
     def compute_disability_weight(self, index):
         disability_weight = pd.Series(0, index=index)
         with_condition = self.with_condition(index)
-        disability_weight.loc[with_condition] = self.disability_weight(with_condition)
+        disability_weight.loc[with_condition] = self.base_disability_weight(with_condition)
         return disability_weight
 
     def compute_excess_mortality_rate(self, index):
