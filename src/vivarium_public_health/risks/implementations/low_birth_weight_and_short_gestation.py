@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-import vivarium_public_health.risks.data_transformations as data_transformations
+from vivarium_public_health.risks import data_transformations as data_transformations
 from vivarium_public_health.utilities import EntityString, TargetString
 from vivarium_public_health.risks.data_transformations import validate_relative_risk_data_source
 from vivarium_public_health.risks.data_transformations import rebin_relative_risk_data
