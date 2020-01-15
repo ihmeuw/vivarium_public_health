@@ -1,3 +1,8 @@
+**0.10.4 - 01/14/20**
+
+ - Fix regression bug in RiskAttributableDisease
+ - Introduce low birth weight and short gestation risk and risk effect
+
 **0.10.3 - 12/13/19**
 
  - Fix regression bug in SIR_fixed_duration.
