@@ -55,8 +55,6 @@ class DiseaseModel(Machine):
                                               self.adjust_cause_specific_mortality_rate,
                                               requires_columns=['age', 'sex'])
 
-        builder.value.register_value_modifier('metrics', modifier=self.metrics)
-
         self.population_view = builder.population.get_view(['age', 'sex', self.state_column])
         builder.population.initializes_simulants(self.on_initialize_simulants,
                                                  creates_columns=[self.state_column],
@@ -196,9 +194,3 @@ class DiseaseModel(Machine):
                     else:
                         dot.edge(state.state_id, state.state_id, style='dotted')
         return dot
-
-    def metrics(self, index, metrics):
-        population = self.population_view.get(index, query="alive == 'alive'")
-        prevalent_cases = (population[self.state_column] != 'susceptible_to_' + self.state_column).sum()
-        metrics[self.state_column + '_prevalent_cases_at_sim_end'] = prevalent_cases
-        return metrics
