@@ -46,8 +46,6 @@ class BaseDiseaseState(State):
                                                  creates_columns=columns_created,
                                                  requires_columns=[self._model])
 
-        builder.value.register_value_modifier('metrics', self.metrics)
-
     def on_initialize_simulants(self, pop_data):
         """Adds this state's columns to the simulation state table."""
         for transition in self.transition_set:
@@ -90,25 +88,6 @@ class BaseDiseaseState(State):
             t = transition_map[source_data_type](self, output, get_data_functions, **kwargs)
             self.transition_set.append(t)
             return t
-
-    def metrics(self, index, metrics):
-        """Records data for simulation post-processing.
-
-        Parameters
-        ----------
-        index : iterable of ints
-            An iterable of integer labels for the simulants.
-        metrics : `pandas.DataFrame`
-            A table for recording simulation events of interest in post-processing.
-
-        Returns
-        -------
-        `pandas.DataFrame`
-            The metrics table updated to reflect new simulation state."""
-
-        population = self.population_view.get(index)
-        metrics[self.event_count_column] = population[self.event_count_column].sum()
-        return metrics
 
 
 class SusceptibleState(BaseDiseaseState):
