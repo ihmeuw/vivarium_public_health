@@ -21,6 +21,7 @@ class BasePopulation:
 
     configuration_defaults = {
         'population': {
+            'population_size': 1000,
             'age_start': 0,
             'age_end': 125,
             'exit_age': None,
@@ -52,6 +53,7 @@ class BasePopulation:
         columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
 
         self.population_view = builder.population.get_view(columns)
+        builder.population.register_simulant_creator('initial_population', self.create_initial_population)
         builder.population.initializes_simulants(self.generate_base_population,
                                                  creates_columns=columns)
 
@@ -61,6 +63,11 @@ class BasePopulation:
         self.population_data = _build_population_data_table(source_population_structure)
 
         builder.event.register_listener('time_step', self.on_time_step, priority=8)
+
+    def create_initial_population(self, simulant_creator, pop_data):
+        age_params = {'age_start': self.config.age_start, 'age_end': self.config.age_end}
+        pop_data.update(age_params)
+        simulant_creator(self.config.population_size, pop_data)
 
     @staticmethod
     def select_sub_population_data(reference_population_data, year):
@@ -91,16 +98,13 @@ class BasePopulation:
         ----------
         pop_data
         """
-
-        age_params = {'age_start': pop_data.user_data.get('age_start', self.config.age_start),
-                      'age_end': pop_data.user_data.get('age_end', self.config.age_end)}
-
         sub_pop_data = self.select_sub_population_data(self.population_data, pop_data.creation_time.year)
 
         self.population_view.update(generate_population(simulant_ids=pop_data.index,
                                                         creation_time=pop_data.creation_time,
                                                         step_size=pop_data.creation_window,
-                                                        age_params=age_params,
+                                                        age_params={'age_start': pop_data.get('age_start'),
+                                                                    'age_end': pop_data.get('age_end')},
                                                         population_data=sub_pop_data,
                                                         randomness_streams=self.randomness,
                                                         register_simulants=self.register_simulants))
