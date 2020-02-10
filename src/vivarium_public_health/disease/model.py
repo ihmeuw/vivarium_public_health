@@ -8,16 +8,13 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
-import numbers
-
 import pandas as pd
 import numpy as np
 
 from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
-from vivarium_public_health.disease import (SusceptibleState, TransientDiseaseState,
-                                            RateTransition, ProportionTransition)
+from vivarium_public_health.disease import SusceptibleState
 
 
 class DiseaseModelError(VivariumError):
