@@ -12,7 +12,6 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from vivarium.framework.randomness import RandomnessStream
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
@@ -153,9 +152,9 @@ def _rebin_exposure_data(exposure_data: pd.DataFrame, rebin_exposed_categories: 
 # Relative risk data handlers #
 ###############################
 
-def get_relative_risk_data(builder, risk: EntityString, target: TargetString, randomness: RandomnessStream):
+def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
     source_type = validate_relative_risk_data_source(builder, risk, target)
-    relative_risk_data = load_relative_risk_data(builder, risk, target, source_type, randomness)
+    relative_risk_data = load_relative_risk_data(builder, risk, target, source_type)
     relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
 
     if get_distribution_type(builder, risk) in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
@@ -167,8 +166,7 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString, ra
     return relative_risk_data
 
 
-def load_relative_risk_data(builder, risk: EntityString, target: TargetString,
-                            source_type: str, randomness: RandomnessStream):
+def load_relative_risk_data(builder, risk: EntityString, target: TargetString, source_type: str):
     relative_risk_source = builder.configuration[f'effect_of_{risk.name}_on_{target.name}'][target.measure]
 
     if source_type == 'data':
@@ -183,7 +181,9 @@ def load_relative_risk_data(builder, risk: EntityString, target: TargetString,
 
     else:  # distribution
         parameters = {k: v for k, v in relative_risk_source.items() if v is not None}
-        random_state = np.random.RandomState(randomness.get_seed())
+        random_state = np.random.RandomState(
+            builder.randomness.get_seed(f'effect_of_{risk.name}_on_{target.name}.{target.measure}')
+        )
         cat1_value = generate_relative_risk_from_distribution(random_state, parameters)
         relative_risk_data = _make_relative_risk_data(builder, cat1_value)
 
@@ -283,8 +283,7 @@ def get_exposure_effect(builder, risk: EntityString):
 # Population attributable fraction data handlers #
 ##################################################
 
-def get_population_attributable_fraction_data(builder, risk: EntityString,
-                                              target: TargetString, randomness: RandomnessStream):
+def get_population_attributable_fraction_data(builder, risk: EntityString, target: TargetString):
     exposure_source = builder.configuration[f'{risk.name}']['exposure']
     rr_source_type = validate_relative_risk_data_source(builder, risk, target)
 
@@ -297,7 +296,7 @@ def get_population_attributable_fraction_data(builder, risk: EntityString,
     else:
         key_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
         exposure_data = get_exposure_data(builder, risk).set_index(key_cols)
-        relative_risk_data = get_relative_risk_data(builder, risk, target, randomness).set_index(key_cols)
+        relative_risk_data = get_relative_risk_data(builder, risk, target).set_index(key_cols)
         mean_rr = (exposure_data * relative_risk_data).sum(axis=1)
         paf_data = ((mean_rr - 1)/mean_rr).reset_index().rename(columns={0: 'value'})
     return paf_data
