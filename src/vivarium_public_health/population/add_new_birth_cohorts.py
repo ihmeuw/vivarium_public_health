@@ -106,7 +106,7 @@ class FertilityCrudeBirthRate:
         self.birth_rate = get_live_births_per_year(builder)
 
         self.clock = builder.time.clock()
-        self.randomness = builder.randomness.get_stream('crude_birth_rate')
+        self.randomness = builder.randomness
         self.simulant_creator = builder.population.get_simulant_creator()
 
         builder.event.register_listener('time_step', self.on_time_step)
@@ -124,7 +124,7 @@ class FertilityCrudeBirthRate:
 
         mean_births = birth_rate * step_size
         # Assume births occur as a Poisson process
-        r = np.random.RandomState(seed=self.randomness.get_seed())
+        r = np.random.RandomState(seed=self.randomness.get_seed('crude_birth_rate'))
         simulants_to_add = r.poisson(mean_births)
 
         if simulants_to_add > 0:
