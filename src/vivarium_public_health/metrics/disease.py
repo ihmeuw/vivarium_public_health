@@ -22,10 +22,10 @@ class DiseaseObserver:
     configured to bin these into age_groups, sexes, and years by setting
     the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
 
-    It also records prevalent cases on a particular sample date each year.
-    These will also be binned based on the flags set for the observer.
-    Additionally, the sample date is configurable and defaults to July 1st
-    of each year.
+    It also can record prevalent cases on a particular sample date each year,
+    though by default this is disabled. These will also be binned based on the
+    flags set for the observer. Additionally, the sample date is configurable
+    and defaults to July 1st of each year.
 
     In the model specification, your configuration for this component should
     be specified as, e.g.:
@@ -38,9 +38,11 @@ class DiseaseObserver:
                     by_age: True
                     by_year: False
                     by_sex: True
-                    prevalence_sample_date:
-                        month: 4
-                        day: 10
+                    sample_prevalence:
+                        sample: True
+                        date:
+                            month: 4
+                            day: 10
 
     """
     configuration_defaults = {
@@ -49,10 +51,13 @@ class DiseaseObserver:
                 'by_age': False,
                 'by_year': False,
                 'by_sex': False,
-                'prevalence_sample_date': {
-                    'month': 7,
-                    'day': 1,
-                }
+                'sample_prevalence': {
+                    'sample': False,
+                    'date': {
+                        'month': 7,
+                        'day': 1,
+                    }
+                },
             }
         }
     }
@@ -97,7 +102,7 @@ class DiseaseObserver:
                                                             self.clock().year, event.step_size, self.age_bins)
         self.person_time.update(person_time_this_step)
 
-        if self.should_sample(event.time):
+        if self._should_sample(event.time):
             point_prevalence = get_prevalent_cases(pop, self.config.to_dict(), self.disease, event.time, self.age_bins)
             self.prevalence.update(point_prevalence)
 
@@ -107,10 +112,13 @@ class DiseaseObserver:
                                                             event.time, self.age_bins)
         self.counts.update(disease_events_this_step)
 
-    def should_sample(self, event_time: pd.Timestamp) -> bool:
+    def _should_sample(self, event_time: pd.Timestamp) -> bool:
         """Returns true if we should sample on this time step."""
-        sample_date = pd.Timestamp(year=event_time.year, **self.config.prevalence_sample_date.to_dict())
-        return self.clock() <= sample_date < event_time
+        should_sample = self.config.sample_prevalence.sample
+        if should_sample:
+            sample_date = pd.Timestamp(year=event_time.year, **self.config.sample_prevalence.date.to_dict())
+            should_sample &= self.clock() <= sample_date < event_time
+        return should_sample
 
     def metrics(self, index, metrics):
         metrics.update(self.counts)
