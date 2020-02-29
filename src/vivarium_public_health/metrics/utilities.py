@@ -481,7 +481,6 @@ def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timesta
     """
     base_filter = QueryString('alive == "dead" and cause_of_death == "death_due_to_{cause}"')
     base_key = get_output_template(**config)
-    pop = clean_cause_of_death(pop)
 
     time_spans = get_time_iterable(config, sim_start, sim_end)
 
@@ -530,7 +529,6 @@ def get_years_of_life_lost(pop: pd.DataFrame, config: Dict[str, bool], sim_start
     """
     base_filter = QueryString('alive == "dead" and cause_of_death == "death_due_to_{cause}"')
     base_key = get_output_template(**config)
-    pop = clean_cause_of_death(pop)
 
     time_spans = get_time_iterable(config, sim_start, sim_end)
 
@@ -594,16 +592,3 @@ def get_years_lived_with_disability(pop: pd.DataFrame, config: Dict[str, bool], 
 
     return years_lived_with_disability
 
-
-def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
-    """Standardizes cause of death names to all read ``death_due_to_cause``."""
-
-    def _clean(cod: str) -> str:
-        if 'death' in cod or 'dead' in cod:
-            pass
-        else:
-            cod = f'death_due_to_{cod}'
-        return cod
-
-    pop.cause_of_death = pop.cause_of_death.apply(_clean)
-    return pop
