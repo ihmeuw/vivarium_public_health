@@ -419,9 +419,9 @@ def rescale_final_age_bin(builder, population_data):
     if exit_age:
         population_data = population_data.loc[population_data['age_start'] < exit_age]
         cut_bin_idx = (exit_age <= population_data['age_end'])
-        population_data.loc[cut_bin_idx, 'value'] *= ((exit_age - population_data.loc[cut_bin_idx, 'age_start'])
-                                                      / (population_data.loc[cut_bin_idx, 'age_end']
-                                                         - population_data.loc[cut_bin_idx, 'age_start']))
+        cut_age_start = population_data.loc[cut_bin_idx, 'age_start']
+        cut_age_end = population_data.loc[cut_bin_idx, 'age_end']
+        population_data.loc[cut_bin_idx, 'value'] *= ((exit_age - cut_age_start) / (cut_age_end - cut_age_start))
         population_data.loc[cut_bin_idx, 'age_end'] = exit_age
     return population_data
 
