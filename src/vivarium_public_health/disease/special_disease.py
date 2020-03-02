@@ -229,7 +229,7 @@ class RiskAttributableDisease:
 
         else:  # continuous
             Threshold = namedtuple('Threshold', ['operator', 'value'])
-            threshold_val = re.findall("[-+]?\d*\.?\d+", threshold)
+            threshold_val = re.findall(r"[-+]?\d*\.?\d+", threshold)
 
             if len(threshold_val) != 1:
                 raise ValueError(f'Your {threshold} is an incorrect threshold format. It should include '

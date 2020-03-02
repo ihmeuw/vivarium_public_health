@@ -162,7 +162,7 @@ def _add_edge_age_groups(pop_data):
     # We're doing the multiplication to ensure we get the correct data shape and index.
     upper_bin[other_cols] = 0 * pop_data.loc[pop_data['age_end'] == max_valid_age, other_cols]
 
-    pop_data = pd.concat([lower_bin, pop_data, upper_bin]).reset_index()
+    pop_data = pd.concat([lower_bin, pop_data, upper_bin], sort=False).reset_index()
 
     pop_data = pop_data.rename(columns={'level_0': 'location', 'level_1': 'year_start',
                                         'level_2': 'year_end', 'level_3': 'sex'})
