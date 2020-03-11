@@ -18,6 +18,13 @@ from vivarium_public_health.utilities import to_years
 if typing.TYPE_CHECKING:
     from vivarium.framework.engine import Builder
 
+# I'm trying to think about how we make these things easier to subclass.
+# Perhaps if we are careful we can avoid subclassing by being clever in metrics
+# but I think we'll run into too many special cases.
+#
+# I'm thinking that maybe we can design inheritance simply around overriding
+# properties.
+
 
 class DisabilityObserver:
 
