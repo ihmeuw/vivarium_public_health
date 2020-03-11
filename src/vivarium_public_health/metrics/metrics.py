@@ -10,6 +10,7 @@ class Metrics:
 
     configuration_defaults = {
         'metrics': {
+            # Attempt to make the stratification parameters global.
             'stratification_params': []
         }
     }
@@ -21,6 +22,7 @@ class Metrics:
 
     def setup(self, builder: 'Builder'):
         self.config = builder.configuration.metrics
+        # Age needs to be rebinned into age groups for stratification.
         if 'age_group' in self.config.stratification_params:
             age_bins = self.get_age_bins(builder)
             target_col = 'age'
@@ -28,12 +30,14 @@ class Metrics:
             bins = age_bins.age_start.to_list() + [age_bins.age_end.iloc[-1]]
             labels = age_bins.age_group_name.str.replace(' ', '_').str.lower().to_list()
             builder.results.add_binner(target_col, result_col, bins, labels, include_lowest=True)
+        # Map the datetime columns into int columns for year stratification.
         if 'year' in self.config.stratification_params:
             for time_type in ['current', 'event', 'entrance', 'exit']:
                 builder.results.add_mapper(f'{time_type}_time', f'{time_type}_year',
                                            lambda x: x.dt.year, is_vectorized=True)
 
-    def get_age_bins(self, builder: 'Builder'):
+    @staticmethod
+    def get_age_bins(builder: 'Builder'):
         age_bins = builder.data.load('population.age_bins')
 
         # Works based on the fact that currently only models with age_start = 0 can include fertility
