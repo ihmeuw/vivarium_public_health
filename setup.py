@@ -26,6 +26,7 @@ if __name__ == "__main__":
         # FIXME: Requirement imposed by our standard data sources.
         'tables',
         'risk_distributions>=2.0.2',
+        'pytest'
     ]
 
     test_requirements = [
