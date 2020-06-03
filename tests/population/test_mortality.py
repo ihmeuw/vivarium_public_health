@@ -14,7 +14,7 @@ from vivarium_public_health.population import Mortality
 def config(base_config):
 
     # change this to you own path
-    path_dir= '../daedalus/data/'
+    path_dir= 'data/'
     # file should have columns -> PID,location,sex,age,ethnicity
     filename = 'Testfile.csv'
 
