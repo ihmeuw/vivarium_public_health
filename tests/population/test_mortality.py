@@ -12,7 +12,13 @@ from vivarium_public_health.population import Mortality
 
 @pytest.fixture()
 def config(base_config):
-    path_to_pop_file= '/Users/crangelsmith/PycharmProjects/daedalus/data/Testfile.csv'
+
+    # change this to you own path
+    path_dir= '../daedalus/data/'
+    # file should have columns -> PID,location,sex,age,ethnicity
+    filename = 'Testfile.csv'
+
+    path_to_pop_file= "{}/{}".format(path_dir, filename)
     pop_size = len(pd.read_csv(path_to_pop_file))
 
     base_config.update({
