@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium_public_health.population.spenser_population import TestPopulation, metadata, build_table
+from vivarium_public_health.population.spenser_population import TestPopulation, metadata, build_table, build_mortality_table
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population import Mortality
@@ -26,7 +26,7 @@ def config(base_config):
         'population': {
             'population_size': pop_size,
             'age_start': 0,
-            'age_end': 125,
+            'age_end': 100,
         },
         'time': {
             'step_size': 10,
@@ -51,13 +51,16 @@ def test_Mortality(config, base_plugins):
                                     plugin_configuration=base_plugins,
                                     setup=False)
 
-    asfr_data = build_table(0.5, 2011, 2011).rename(columns={'value': 'mean_value'})
+    asfr_data = build_mortality_table(config.path_to_pop_file,2011,2012,config.population.age_start,config.population.age_end)
 
     simulation._data.write("cause.all_causes.cause_specific_mortality_rate", asfr_data)
 
     simulation.setup()
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population()
+
+    print ('alive',len(pop[pop['alive']=='alive']))
+    print ('dead',len(pop[pop['alive']!='alive']))
 
     assert (np.all(pop.alive == 'alive') == False)
 

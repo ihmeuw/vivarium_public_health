@@ -32,7 +32,7 @@ class NonCRNTestPopulation:
         self.config = builder.configuration
         self.randomness = builder.randomness.get_stream('population_age_fuzz', for_initialization=True)
         #columns = ['age', 'sex', 'location', 'alive', 'entrance_time', 'exit_time']
-        columns =  ['age','sex','location','alive','entrance_time', 'exit_time']
+        columns =  ['age','sex','location','ethnicity','alive','entrance_time', 'exit_time']
         self.population_view = builder.population.get_view(columns)
 
         builder.population.initializes_simulants(self.generate_test_population,
@@ -175,3 +175,31 @@ def reset_mocks(mocks):
 
 def metadata(file_path):
     return {'layer': 'override', 'source': str(Path(file_path).resolve())}
+
+def build_mortality_table(input_df, year_start, year_end, age_start,age_end):
+
+    '''Make a mortality table based on the input data'''
+
+    df = pd.read_csv(input_df)
+
+    unique_locations = np.unique(df['location'])
+    unique_sex = np.unique(df['sex'])
+    unique_ethnicity = np.unique(df['ethnicity'])
+
+    list_dic = []
+    for loc in unique_locations:
+        #for eth in unique_ethnicity:
+        for age in range(age_start,age_end):
+            for sex in unique_sex:
+
+                mean_value = abs(1- (age_end- age))/1000
+                value = np.random.normal(mean_value,mean_value*0.05)
+
+                dict= {'location':loc,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
+
+           # dict= {'location':loc,'ethnicity':eth,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
+                list_dic.append(dict)
+
+
+    return pd.DataFrame(list_dic)
+
