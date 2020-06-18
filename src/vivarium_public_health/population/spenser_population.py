@@ -96,6 +96,7 @@ def _build_population(core_population, path_to_data_file):
          'sex': core_population_['sex'],
          'alive': pd.Series('alive', index=index),
          'location': core_population_['location'],
+         'ethnicity': core_population_['ethnicity'],
          'exit_time': pd.NaT, },
         index=index)
     return population
@@ -192,8 +193,8 @@ def build_mortality_table(input_df, year_start, year_end, age_start,age_end):
         for age in range(age_start,age_end):
             for sex in unique_sex:
 
-                mean_value = abs(1- (age_end- age))/1000
-                value = np.random.normal(mean_value,mean_value*0.05)
+                    mean_value = abs(1- (age_end- age))/1000
+                    value = np.random.normal(mean_value,mean_value*0.05)
 
                 dict= {'location':loc,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
 
