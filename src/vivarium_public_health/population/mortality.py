@@ -20,16 +20,16 @@ class Mortality:
 
     def setup(self, builder):
         all_cause_mortality_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
-        self.all_cause_mortality_rate = builder.lookup.build_table(all_cause_mortality_data, key_columns=['sex','location'],
+        self.all_cause_mortality_rate = builder.lookup.build_table(all_cause_mortality_data, key_columns=['sex','location','ethnicity'],
                                                                    parameter_columns=['age', 'year'])
 
         self.cause_specific_mortality_rate = builder.value.register_value_producer(
-            'cause_specific_mortality_rate', source=builder.lookup.build_table(0)
+             'cause_specific_mortality_rate', source=builder.lookup.build_table(0)
         )
 
         self.mortality_rate = builder.value.register_rate_producer('mortality_rate',
                                                                    source=self.calculate_mortality_rate,
-                                                                   requires_columns=['sex','location'])
+                                                                   requires_columns=['sex','location','ethnicity'])
 
         life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
         self.life_expectancy = builder.lookup.build_table(life_expectancy_data, parameter_columns=['age'])
