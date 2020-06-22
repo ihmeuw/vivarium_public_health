@@ -14,7 +14,7 @@ import pandas as pd
 from vivarium.framework import randomness
 
 
-class NonCRNTestPopulation:
+class TestPopulation():
 
     configuration_defaults = {
         'population': {
@@ -26,44 +26,19 @@ class NonCRNTestPopulation:
 
     @property
     def name(self):
-        return "non_crn_test_population"
+        return "spenser_population"
 
     def setup(self, builder):
+
         self.config = builder.configuration
         self.randomness = builder.randomness.get_stream('population_age_fuzz', for_initialization=True)
-        #columns = ['age', 'sex', 'location', 'alive', 'entrance_time', 'exit_time']
-        columns =  ['age','sex','location','ethnicity','alive','entrance_time', 'exit_time']
+        columns = ['age', 'sex', 'location', 'ethnicity', 'alive', 'entrance_time', 'exit_time']
         self.population_view = builder.population.get_view(columns)
 
         builder.population.initializes_simulants(self.generate_test_population,
                                                  creates_columns=columns)
-
         builder.event.register_listener('time_step', self.age_simulants)
 
-    def generate_test_population(self, pop_data):
-
-        age_start = pop_data.user_data.get('age_start', self.config.population.age_start)
-        age_end = pop_data.user_data.get('age_end', self.config.population.age_end)
-        location = self.config.input_data.location
-
-        population = _non_crn_build_population(pop_data.index, age_start, age_end, location,
-                                               pop_data.creation_time, pop_data.creation_window, self.randomness)
-        self.population_view.update(population)
-
-    def age_simulants(self, event):
-        population = self.population_view.get(event.index, query="alive == 'alive'")
-        population['age'] += event.step_size / pd.Timedelta(days=365)
-        self.population_view.update(population)
-
-
-class TestPopulation(NonCRNTestPopulation):
-
-    @property
-    def name(self):
-        return "test_population"
-
-    def setup(self, builder):
-        super().setup(builder)
         self.age_randomness = builder.randomness.get_stream('age_initialization', for_initialization=True)
         self.register = builder.randomness.register_simulants
 
@@ -84,6 +59,12 @@ class TestPopulation(NonCRNTestPopulation):
         population = _build_population(core_population,self.config.path_to_pop_file)
         self.population_view.update(population)
 
+    def age_simulants(self, event):
+        population = self.population_view.get(event.index, query="alive == 'alive'")
+        population['age'] += event.step_size / pd.Timedelta(days=365)
+        self.population_view.update(population)
+
+
 
 def _build_population(core_population, path_to_data_file):
 
@@ -102,21 +83,6 @@ def _build_population(core_population, path_to_data_file):
     return population
 
 
-def _non_crn_build_population(index, age_start, age_end, location, creation_time, creation_window, randomness_stream):
-    if age_start == age_end:
-        age = randomness_stream.get_draw(index) * (creation_window / pd.Timedelta(days=365)) + age_start
-    else:
-        age = randomness_stream.get_draw(index)*(age_end - age_start) + age_start
-
-    population = pd.DataFrame(
-        {'age': age,
-         'sex': randomness_stream.choice(index, ['Male', 'Female'], additional_key='sex_choice'),
-         'alive': pd.Series('alive', index=index),
-         'location': location,
-         'entrance_time': creation_time,
-         'exit_time': pd.NaT, },
-        index=index)
-    return population
 
 
 def build_table(value, year_start, year_end, columns=('age', 'year', 'sex', 'value')):
@@ -165,7 +131,7 @@ def make_dummy_column(name, initial_value):
     return DummyColumnMaker()
 
 
-def get_randomness(key='test', clock=lambda: pd.Timestamp(1990, 7, 2), seed=12345, for_initialization=False):
+def get_randomness(key='test', clock=lambda: pd.Timestamp(2011, 1, 1), seed=12345, for_initialization=False):
     return randomness.RandomnessStream(key, clock, seed=seed, for_initialization=for_initialization)
 
 
