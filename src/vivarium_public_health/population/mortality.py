@@ -23,15 +23,12 @@ class Mortality:
         self.all_cause_mortality_rate = builder.lookup.build_table(all_cause_mortality_data, key_columns=['sex','location','ethnicity'],
                                                                    parameter_columns=['age', 'year'])
 
-        self.cause_specific_mortality_rate = builder.value.register_value_producer(
-             'cause_specific_mortality_rate', source=builder.lookup.build_table(0)
-        )
 
         self.mortality_rate = builder.value.register_rate_producer('mortality_rate',
                                                                    source=self.calculate_mortality_rate,
                                                                    requires_columns=['sex','location','ethnicity'])
 
-        life_expectancy_data = builder.data.load("population.theoretical_minimum_risk_life_expectancy")
+        life_expectancy_data = 81.16 #based on data
         self.life_expectancy = builder.lookup.build_table(life_expectancy_data, parameter_columns=['age'])
 
         self.random = builder.randomness.get_stream('mortality_handler')
@@ -61,14 +58,12 @@ class Mortality:
         if not dead_pop.empty:
             dead_pop['alive'] = pd.Series('dead', index=dead_pop.index)
             dead_pop['exit_time'] = event.time
-            dead_pop['years_of_life_lost'] = self.life_expectancy(dead_pop.index)
+            dead_pop['years_of_life_lost'] = self.life_expectancy(dead_pop.index) -  pop.iloc[dead_pop.index]['age']
             self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death', 'years_of_life_lost']])
 
     def calculate_mortality_rate(self, index):
-        acmr = self.all_cause_mortality_rate(index)
-        csmr = self.cause_specific_mortality_rate(index, skip_post_processor=True)
-        cause_deleted_mortality_rate = acmr - csmr
-        return pd.DataFrame({'other_causes': cause_deleted_mortality_rate})
+        mortality_rate = self.all_cause_mortality_rate(index)
+        return pd.DataFrame({'all_causes': mortality_rate})
 
     def __repr__(self):
         return "Mortality()"
