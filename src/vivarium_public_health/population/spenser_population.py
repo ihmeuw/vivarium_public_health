@@ -238,7 +238,7 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
                         value = sub_df[column].values[0]
                     else:
                         value = 0
-                        print('Problem, more than one value in this category')
+                        print('Problem, more or less than one value in this category')
 
 
                     # create the rate row.
