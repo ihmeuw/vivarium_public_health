@@ -174,20 +174,37 @@ def build_mortality_table(input_df, year_start, year_end, age_start,age_end):
 
     return pd.DataFrame(list_dic)
 
-def transform_mortality_table(input_df, year_start, year_end,age_start,age_end):
+def transform_mortality_table(df, year_start, year_end, age_start, age_end):
 
-    '''Make a mortality table based on the input data'''
+    """Function that transform an input rate dataframe into a format readable for vivarium
+    public health.
 
-    df = pd.read_csv(input_df)
+    Parameters:
+    df (dataframe): Input dataframe with rates produced by LEEDS
+    year_start (int): Year for the interpolation to start
+    year_end (int): Year for the interpolation to finish
+    age_start (int): Minimum age observed in the rate table
+    age_end (int): Maximum age observed in the rate table
 
+    Returns:
+    df (dataframe): A dataframe with the right vph format.
+    """
+
+
+    # get the unique values observed on the rate data
     unique_locations = np.unique(df['LAD.code'])
-    unique_sex = [1,2]
     unique_ethnicity = np.unique(df['ETH.group'])
+    unique_sex = [1,2]
 
-    ethnicity_map = {(eth, eth.position) for eth in unique_ethnicity}
+    # create a dictionary between ethnicity code an number (observed in the data), this is a mock and
+    # needs to be imported from the correct mapping
+    eth_dictionary = {}
+    counter = 0
+    for i in unique_ethnicity:
+        eth_dictionary[str(i)] = counter
+        counter += 1
 
-
-
+    # loop over the observed values to fill the ne dataframe
     list_dic = []
     for loc in unique_locations:
 
@@ -195,33 +212,37 @@ def transform_mortality_table(input_df, year_start, year_end,age_start,age_end):
 
         for eth in unique_ethnicity:
 
+            eth_index = eth_dictionary[eth]
             sub_df = sub_df[sub_df['ETH.group'] == eth]
 
             for sex in unique_sex:
 
+                # columns are separated for male and female rates
                 if sex ==1:
-                    sufix = 'M'
+                    column_suffix = 'M'
                 else:
-                    sufix = 'F'
+                    column_suffix = 'F'
 
                 for age in range(age_start,age_end):
 
+                    # cater for particular cases (age less than 1 and more than 100).
                     if age == -1:
-
-                        column = sufix+'B.0'
-
+                        column = column_suffix+'B.0'
                     elif age ==100:
-                        column = sufix+'100.101p'
-
+                        column = column_suffix+'100.101p'
                     else:
-                        column = sufix+str(age)+'.'+str(age+1)
+                        # columns parsed to the rigth name (eg 'M.50.51' for a male between 50 and 51 yo)
+                        column = column_suffix+str(age)+'.'+str(age+1)
 
                     if sub_df[column].shape[0] == 1:
                         value = sub_df[column].values[0]
                     else:
+                        value = 0
                         print('Problem, more than one value in this category')
 
-                    dict= {'location':loc,'ethnicity':eth,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
+
+                    # create the rate row.
+                    dict= {'location':loc,'ethnicity':eth_index,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
                     list_dic.append(dict)
 
 
