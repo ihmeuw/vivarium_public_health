@@ -174,3 +174,55 @@ def build_mortality_table(input_df, year_start, year_end, age_start,age_end):
 
     return pd.DataFrame(list_dic)
 
+def transform_mortality_table(input_df, year_start, year_end,age_start,age_end):
+
+    '''Make a mortality table based on the input data'''
+
+    df = pd.read_csv(input_df)
+
+    unique_locations = np.unique(df['LAD.code'])
+    unique_sex = [1,2]
+    unique_ethnicity = np.unique(df['ETH.group'])
+
+    ethnicity_map = {(eth, eth.position) for eth in unique_ethnicity}
+
+
+
+    list_dic = []
+    for loc in unique_locations:
+
+        sub_df = df[df['LAD.code'] == loc]
+
+        for eth in unique_ethnicity:
+
+            sub_df = sub_df[sub_df['ETH.group'] == eth]
+
+            for sex in unique_sex:
+
+                if sex ==1:
+                    sufix = 'M'
+                else:
+                    sufix = 'F'
+
+                for age in range(age_start,age_end):
+
+                    if age == -1:
+
+                        column = sufix+'B.0'
+
+                    elif age ==100:
+                        column = sufix+'100.101p'
+
+                    else:
+                        column = sufix+str(age)+'.'+str(age+1)
+
+                    if sub_df[column].shape[0] == 1:
+                        value = sub_df[column].values[0]
+                    else:
+                        print('Problem, more than one value in this category')
+
+                    dict= {'location':loc,'ethnicity':eth,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
+                    list_dic.append(dict)
+
+
+    return pd.DataFrame(list_dic)
