@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium_public_health.population.spenser_population import TestPopulation, build_mortality_table
+from vivarium_public_health.population.spenser_population import TestPopulation, build_mortality_table, transform_mortality_table
 from vivarium_public_health.population import Mortality
 
 
@@ -12,22 +12,30 @@ from vivarium_public_health.population import Mortality
 def config(base_config):
 
     # change this to you own path
-    path_dir= 'data/'
-    # file should have columns -> PID,location,sex,age,ethnicity
-    filename = 'Testfile.csv'
+    path_dir= 'persistant_data/'
 
-    path_to_pop_file= "{}/{}".format(path_dir, filename)
+    # file should have columns -> PID,location,sex,age,ethnicity
+    filename_pop = 'Testfile.csv'
+    # mortality file provided by N. Lomax
+    filename_mortality_rate = 'Mortality2011_LEEDS1_2.csv'
+
+    path_to_pop_file= "{}/{}".format(path_dir,filename_pop)
+    path_to_mortality_file= "{}/{}".format(path_dir,filename_mortality_rate)
+
     pop_size = len(pd.read_csv(path_to_pop_file))
 
     base_config.update({
+
         'path_to_pop_file':path_to_pop_file,
+        'path_to_mortality_file': path_to_mortality_file,
+
         'population': {
             'population_size': pop_size,
             'age_start': 0,
             'age_end': 100,
         },
         'time': {
-            'step_size': 1,
+            'step_size': 10,
             },
         }, source=str(Path(__file__).resolve()))
     return base_config
@@ -42,7 +50,14 @@ def test_Mortality(config, base_plugins):
                                     plugin_configuration=base_plugins,
                                     setup=False)
 
-    asfr_data = build_mortality_table(config.path_to_pop_file,2011,2012,config.population.age_start,config.population.age_end)
+
+
+    df = pd.read_csv(config.path_to_mortality_file)
+
+    # to save time, only look at locatiosn existing on the test dataset.
+    mortality_rate_df = df[(df['LAD.code']=='E09000002') | (df['LAD.code']=='E09000003')]
+
+    asfr_data = transform_mortality_table(mortality_rate_df,2011,2012,config.population.age_start,config.population.age_end)
 
     simulation._data.write("cause.all_causes.cause_specific_mortality_rate", asfr_data)
 
