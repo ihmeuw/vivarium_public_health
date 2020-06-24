@@ -196,13 +196,7 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
     unique_ethnicity = np.unique(df['ETH.group'])
     unique_sex = [1,2]
 
-    # create a dictionary between ethnicity code an number (observed in the data), this is a mock and
-    # needs to be imported from the correct mapping
-    eth_dictionary = {}
-    counter = 0
-    for i in unique_ethnicity:
-        eth_dictionary[str(i)] = counter
-        counter += 1
+
 
     # loop over the observed values to fill the ne dataframe
     list_dic = []
@@ -212,7 +206,6 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
 
         for eth in unique_ethnicity:
 
-            eth_index = eth_dictionary[eth]
             sub_loc_eth_df = sub_loc_df[sub_loc_df['ETH.group'] == eth]
 
             for sex in unique_sex:
@@ -242,7 +235,7 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
 
 
                     # create the rate row.
-                    dict= {'location':loc,'ethnicity':eth_index,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
+                    dict= {'location':loc,'ethnicity':eth,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
                     list_dic.append(dict)
 
 
