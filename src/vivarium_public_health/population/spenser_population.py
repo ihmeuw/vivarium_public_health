@@ -208,12 +208,12 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
     list_dic = []
     for loc in unique_locations:
 
-        sub_df = df[df['LAD.code'] == loc]
+        sub_loc_df = df[df['LAD.code'] == loc]
 
         for eth in unique_ethnicity:
 
             eth_index = eth_dictionary[eth]
-            sub_df = sub_df[sub_df['ETH.group'] == eth]
+            sub_loc_eth_df = sub_loc_df[sub_loc_df['ETH.group'] == eth]
 
             for sex in unique_sex:
 
@@ -234,8 +234,8 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
                         # columns parsed to the rigth name (eg 'M.50.51' for a male between 50 and 51 yo)
                         column = column_suffix+str(age)+'.'+str(age+1)
 
-                    if sub_df[column].shape[0] == 1:
-                        value = sub_df[column].values[0]
+                    if sub_loc_eth_df[column].shape[0] == 1:
+                        value = sub_loc_eth_df[column].values[0]
                     else:
                         value = 0
                         print('Problem, more or less than one value in this category')
