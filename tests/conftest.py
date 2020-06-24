@@ -11,9 +11,9 @@ def base_config():
 
     config.update({
         'time': {
-            'start': {'year': 1990},
-            'end': {'year': 2010},
-            'step_size': 30.5
+            'start': {'year': 2011},
+            'end': {'year': 2012},
+            'step_size': 10
         },
         'randomness': {'key_columns': ['entrance_time', 'age']},
         'input_data': {'location': 'Kenya'},

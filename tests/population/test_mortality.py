@@ -4,9 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium_public_health.population.spenser_population import TestPopulation, metadata, build_table, build_mortality_table
-
-from vivarium_public_health import utilities
+from vivarium_public_health.population.spenser_population import TestPopulation, build_mortality_table
 from vivarium_public_health.population import Mortality
 
 
@@ -29,21 +27,14 @@ def config(base_config):
             'age_end': 100,
         },
         'time': {
-            'step_size': 10,
-            }
+            'step_size': 1,
+            },
         }, source=str(Path(__file__).resolve()))
     return base_config
 
 
-def crude_death_rate_data(live_births=500):
-    return (build_table(['mean_value', live_births], 1990, 2017, ('age', 'year', 'sex', 'parameter', 'value'))
-            .query('age_start == 25 and sex != "Both"')
-            .drop(['age_start', 'age_end'], 'columns'))
-
-
 
 def test_Mortality(config, base_plugins):
-    pop_size = config.population.population_size
     num_days = 365
     components = [TestPopulation(), Mortality()]
     simulation = InteractiveContext(components=components,
