@@ -174,6 +174,54 @@ def build_mortality_table(input_df, year_start, year_end, age_start,age_end):
 
     return pd.DataFrame(list_dic)
 
+
+def build_fertility_table(input_df, year_start, year_end, age_start, age_end):
+    '''Make a mock fertility table based on the input data'''
+
+    df = pd.read_csv(input_df)
+
+    unique_locations = np.unique(df['location'])
+    unique_sex = np.unique(df['sex'])
+    unique_ethnicity = np.unique(df['ethnicity'])
+
+    list_dic = []
+    for loc in unique_locations:
+        for eth in unique_ethnicity:
+            for age in range(age_start, age_end):
+                for sex in unique_sex:
+                    if sex == 2:
+                        mean_value = 1
+                        value = np.random.normal(mean_value, mean_value * 0.05)
+
+                        dict = {'location': loc, 'ethnicity': eth, 'age_start': age, 'age_end': age + 1, 'sex': sex,
+                                'year_start': year_start, 'year_end': year_end, 'mean_value': value}
+                        list_dic.append(dict)
+    return pd.DataFrame(list_dic)
+
+def build_fertility_table(input_df, year_start, year_end, age_start, age_end):
+    '''Make a mock fertility table based on the input data'''
+
+    df = pd.read_csv(input_df)
+
+    unique_locations = np.unique(df['location'])
+    unique_sex = np.unique(df['sex'])
+    unique_ethnicity = np.unique(df['ethnicity'])
+
+    list_dic = []
+    for loc in unique_locations:
+        for eth in unique_ethnicity:
+            for age in range(age_start, age_end):
+                for sex in unique_sex:
+                    if sex == 2:
+                        mean_value = 1
+                        value = np.random.normal(mean_value, mean_value * 0.05)
+
+                        dict = {'location': loc, 'ethnicity': eth, 'age_start': age, 'age_end': age + 1, 'sex': sex,
+                                'year_start': year_start, 'year_end': year_end, 'mean_value': value}
+                        list_dic.append(dict)
+    return pd.DataFrame(list_dic)
+
+
 def transform_mortality_table(df, year_start, year_end, age_start, age_end):
 
     """Function that transform an input rate dataframe into a format readable for vivarium
@@ -232,7 +280,6 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
                     else:
                         value = 0
                         print('Problem, more or less than one value in this category')
-
 
                     # create the rate row.
                     dict= {'location':loc,'ethnicity':eth,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
