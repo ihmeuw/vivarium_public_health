@@ -221,8 +221,8 @@ def build_fertility_table(input_df, year_start, year_end, age_start, age_end):
                         list_dic.append(dict)
     return pd.DataFrame(list_dic)
 
-  
-  def transform_mortality_table(df, year_start, year_end, age_start, age_end):
+
+def transform_mortality_table(df, year_start, year_end, age_start, age_end):
 
     """Function that transform an input rate dataframe into a format readable for vivarium
     public health.
@@ -280,7 +280,6 @@ def build_fertility_table(input_df, year_start, year_end, age_start, age_end):
                     else:
                         value = 0
                         print('Problem, more or less than one value in this category')
-
 
                     # create the rate row.
                     dict= {'location':loc,'ethnicity':eth,'age_start':age,'age_end':age+1,'sex':sex,'year_start':year_start,'year_end':year_end, 'mean_value':value}
