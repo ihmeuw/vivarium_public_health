@@ -14,7 +14,7 @@ from vivarium_public_health.population import FertilityAgeSpecificRates
 def config(base_config):
     # change this to you own path
     # IDEA make sure test files are contained within tests/data?
-    path_dir = 'data'
+    path_dir = 'persistant_data'
     # file should have columns -> PID,location,sex,age,ethnicity
     filename = 'Testfile.csv'
 
