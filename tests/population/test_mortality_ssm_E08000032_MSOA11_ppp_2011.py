@@ -16,7 +16,7 @@ def config(base_config):
     path_dir= 'persistant_data/'
 
     # read a dataset from daedalus, change columns to be readable by vivarium
-    prepare_dataset(dataset_path="../daedalus/persistent_data/ssm_E08000032_MSOA11_ppp_2011.csv", 
+    prepare_dataset(dataset_path="./persistant_data/1000rows_ssm_E08000032_MSOA11_ppp_2011.csv", 
                     output_path="./persistant_data/test_ssm_E08000032_MSOA11_ppp_2011.csv"
                    )
 
