@@ -287,3 +287,39 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
 
 
     return pd.DataFrame(list_dic)
+
+def prepare_dataset(dataset_path="../daedalus/persistent_data/ssm_E08000032_MSOA11_ppp_2011.csv",
+                    output_path="./persistant_data/test_ssm_E08000032_MSOA11_ppp_2011.csv",
+                    columns_map={"Area": "location",
+                                 "DC1117EW_C_SEX": "sex",
+                                 "DC1117EW_C_AGE": "age",
+                                 "DC2101EW_C_ETHPUK11": "ethnicity"},
+                    location_code="E08000032",
+                    lookup_ethnicity="persistant_data/ethnic_lookup.csv"):
+    """Read in a dataset (normally stored on daedalus) and convert it into a format readable by vivarium
+
+    Args:
+        dataset_path (str, optional): path to the original population dataset (normally located at daedalus).
+        output_path (str, optional): write the output file in this path.
+        columns_map (dict, optional): change the name of columns according to columns_map.
+        location_code (str, optional): if specified, set the location code.
+        lookup_ethnicity (str, optional): how to map ethnicity from digits to strings.
+    """
+    # read the dataset
+    dataset = pd.read_csv(dataset_path)
+    if columns_map:
+        # rename columns
+        dataset = dataset.rename(columns=columns_map)
+    if lookup_ethnicity:
+        # map ethnicity from digits to strings as specified in the lookup_ethnicity file
+        lookup = pd.read_csv(lookup_ethnicity)
+        code_ethnicity = dict(zip(lookup['Base population file (persistent data) From "C_ETHPUK11"'], 
+                                  lookup['Rate to use (from NewEthpop outputs) Code']))
+        dataset.replace({"ethnicity": code_ethnicity}, inplace=True)
+        print("\n\nWARNING: BLO ethnicity is removed from the dataset")
+        dataset = dataset[~dataset['ethnicity'].isin(["BLO"])]
+    if location_code:
+        dataset['location'] = location_code
+
+    dataset.to_csv(output_path, index=False)
+    print(f"\nWrite the dataset at: {output_path}")
