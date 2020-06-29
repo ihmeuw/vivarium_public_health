@@ -168,7 +168,7 @@ class FertilityAgeSpecificRates:
 
         self.randomness = builder.randomness.get_stream('fertility')
 
-        self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id'])
+        self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id','ethnicity', 'location','age'])
         self.simulant_creator = builder.population.get_simulant_creator()
 
         builder.population.initializes_simulants(self.on_initialize_simulants,
@@ -226,6 +226,19 @@ class FertilityAgeSpecificRates:
                                       'sim_state': 'time_step',
                                       'parent_ids': had_children.index
                                   })
+
+            # assign sex, ethnicity and location to the new born babies in this time step
+            new_babies = self.population_view.get(event.index, query='alive == "alive" and parent_id != -1 and sex == "nan"')
+
+            if new_babies.shape[0] != 0:
+
+                new_babies['location'] = self.population_view.get(event.index).iloc[new_babies['parent_id']]['location'].values
+                new_babies['ethnicity'] = self.population_view.get(event.index).iloc[new_babies['parent_id']]['ethnicity'].values
+
+                new_babies['sex'] = self.randomness.choice(new_babies.index, [1.0, 2.0], additional_key='sex_choice')
+                new_babies['age'] = 0.0
+
+                self.population_view.update(new_babies[['location','ethnicity','sex','age']])
 
     def load_age_specific_fertility_rate_data(self, builder):
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
