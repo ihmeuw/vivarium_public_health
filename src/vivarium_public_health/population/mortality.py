@@ -58,7 +58,7 @@ class Mortality:
         if not dead_pop.empty:
             dead_pop['alive'] = pd.Series('dead', index=dead_pop.index)
             dead_pop['exit_time'] = event.time
-            dead_pop['years_of_life_lost'] = self.life_expectancy(dead_pop.index) -  pop.iloc[dead_pop.index]['age']
+            dead_pop['years_of_life_lost'] = self.life_expectancy(dead_pop.index) -  pop.loc[dead_pop.index]['age']
             self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death', 'years_of_life_lost']])
 
     def calculate_mortality_rate(self, index):
