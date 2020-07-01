@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium_public_health.population.spenser_population import TestPopulation, build_fertility_table
+from vivarium_public_health.population.spenser_population import TestPopulation, build_fertility_table, transform_rate_table
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population import FertilityAgeSpecificRates
@@ -20,9 +20,17 @@ def config(base_config):
 
     path_to_pop_file = "{}/{}".format(path_dir, filename)
     pop_size = len(pd.read_csv(path_to_pop_file))
+
+    # mortality file provided by N. Lomax
+    filename_fertility_rate = 'Fertility2011_LEEDS1_2.csv'
+    path_to_fertility_file = "{}/{}".format(path_dir, filename_fertility_rate)
+
+
     # FIXME could push this config up to base config in conftest.py? Exists in mortality as well.
     base_config.update({
         'path_to_pop_file': path_to_pop_file,
+        'path_to_fertility_file': path_to_fertility_file,
+
         'population': {
             'population_size': pop_size,
             'age_start': 0,
@@ -37,15 +45,21 @@ def config(base_config):
 
 def test_fertility_module(config, base_plugins):
     start_population_size = config.population.population_size
-    num_days = 365
+    num_days = 365*3
     components = [TestPopulation(), FertilityAgeSpecificRates()]
     simulation = InteractiveContext(components=components,
                                     configuration=config,
                                     plugin_configuration=base_plugins,
                                     setup=False)
 
+    df = pd.read_csv(config.path_to_fertility_file)
+
+    # to save time, only look at locatiosn existing on the test dataset.
+    fertility_rate_df = df[(df['LAD.code'] == 'E09000002') | (df['LAD.code'] == 'E09000003')]
+
+    asfr_data = transform_rate_table(fertility_rate_df, 2011, 2012, 10,50,[2])
+
     # Mock Fertility Data
-    asfr_data = build_fertility_table(config.path_to_pop_file,2011,2012,config.population.age_start,config.population.age_end)
     simulation._data.write("covariate.age_specific_fertility_rate.estimate", asfr_data)
 
     simulation.setup()
