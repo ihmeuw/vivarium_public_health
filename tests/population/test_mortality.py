@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium_public_health.population.spenser_population import TestPopulation, build_mortality_table, transform_mortality_table
+from vivarium_public_health.population.spenser_population import TestPopulation, build_mortality_table, transform_rate_table
 from vivarium_public_health.population import Mortality
 
 
@@ -57,7 +57,7 @@ def test_Mortality(config, base_plugins):
     # to save time, only look at locatiosn existing on the test dataset.
     mortality_rate_df = df[(df['LAD.code']=='E09000002') | (df['LAD.code']=='E09000003')]
 
-    asfr_data = transform_mortality_table(mortality_rate_df,2011,2012,config.population.age_start,config.population.age_end)
+    asfr_data = transform_rate_table(mortality_rate_df, 2011, 2012, config.population.age_start, config.population.age_end)
 
     simulation._data.write("cause.all_causes.cause_specific_mortality_rate", asfr_data)
 
