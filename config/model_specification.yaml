@@ -1,10 +1,11 @@
-list_components: [TestPopulation(), Mortality()]
+list_components: [TestPopulation(), FertilityAgeSpecificRates(), Mortality()]
 
 paths:
     # file should have columns -> PID,location,sex,age,ethnicity
     # if prepare_data (see below), this is normally the same as prepare_data["path_to_output"]
     path_to_pop_file: '../persistant_data/test_ssm_E08000032_MSOA11_ppp_2011.csv' 
     path_to_mortality_file: '../persistant_data/Mortality2011_LEEDS1_2.csv'
+    path_to_fertility_file: '../persistant_data/Fertility2011_LEEDS1_2.csv'
 
 prepare_data:
     prepare: True   # if False, none of the following options will be used
