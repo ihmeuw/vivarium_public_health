@@ -222,7 +222,7 @@ def build_fertility_table(input_df, year_start, year_end, age_start, age_end):
     return pd.DataFrame(list_dic)
 
 
-def transform_mortality_table(df, year_start, year_end, age_start, age_end):
+def transform_rate_table(df, year_start, year_end, age_start, age_end, unique_sex = [1, 2]):
 
     """Function that transform an input rate dataframe into a format readable for vivarium
     public health.
@@ -233,6 +233,7 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
     year_end (int): Year for the interpolation to finish
     age_start (int): Minimum age observed in the rate table
     age_end (int): Maximum age observed in the rate table
+    unique_sex (list of ints): Sex of indivuals to be considered
 
     Returns:
     df (dataframe): A dataframe with the right vph format.
@@ -242,7 +243,6 @@ def transform_mortality_table(df, year_start, year_end, age_start, age_end):
     # get the unique values observed on the rate data
     unique_locations = np.unique(df['LAD.code'])
     unique_ethnicity = np.unique(df['ETH.group'])
-    unique_sex = [1,2]
 
 
 
