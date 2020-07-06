@@ -49,7 +49,7 @@ class Mortality:
         self.population_view.update(pop_update)
 
     def on_time_step(self, event):
-        pop = self.population_view.get(event.index, query="alive =='alive'")
+        pop = self.population_view.get(event.index, query="alive =='alive' and sex != 'nan'")
         prob_df = rate_to_probability(pd.DataFrame(self.mortality_rate(pop.index)))
         prob_df['no_death'] = 1-prob_df.sum(axis=1)
         prob_df['cause_of_death'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
