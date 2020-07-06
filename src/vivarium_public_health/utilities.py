@@ -10,7 +10,13 @@ vivarium_public_health components.
 from typing import Union
 
 import pandas as pd
+import yaml
 
+def read_config_file(filename=r'../config/model_specification.yaml'):
+    """read a config file"""
+    with open(filename) as inp_file_io:
+        inp_file = yaml.load(inp_file_io, Loader=yaml.FullLoader)
+    return inp_file
 
 class EntityString(str):
     """Convenience class for representing entities as strings."""
