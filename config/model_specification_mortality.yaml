@@ -1,4 +1,4 @@
-list_components: [TestPopulation(), FertilityAgeSpecificRates(), Mortality()]
+list_components: [TestPopulation(), Mortality()]
 
 paths:
     # file should have columns -> PID,location,sex,age,ethnicity
@@ -29,7 +29,7 @@ configuration:
     time:
         start: {year: 2011, month: 1, day: 1}
         end:   {year: 2012, month: 1, day: 1}
-        step_size: 1  # Days
+        step_size: 10  # Days
     population:
         population_size: 0 # 1 Base
         age_start: 0
