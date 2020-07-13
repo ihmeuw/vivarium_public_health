@@ -1,0 +1,36 @@
+list_components: [TestPopulation(), Mortality()]
+
+paths:
+    # file should have columns -> PID,location,sex,age,ethnicity
+    # if prepare_data (see below), this is normally the same as prepare_data["path_to_output"]
+    path_to_pop_file: '../persistant_data/test_ssm_E08000032_MSOA11_ppp_2011.csv' 
+    path_to_mortality_file: '../persistant_data/Mortality2011_LEEDS1_2.csv'
+    path_to_fertility_file: '../persistant_data/Fertility2011_LEEDS1_2.csv'
+
+prepare_data:
+    prepare: True   # if False, none of the following options will be used
+    path_to_dataset: '../../daedalus/persistent_data/ssm_E08000032_MSOA11_ppp_2011.csv'
+    #path_to_dataset: '../persistant_data/1000rows_ssm_E08000032_MSOA11_ppp_2011.csv'
+    
+    # normally the same as path_to_pop_file
+    path_to_output: '../persistant_data/test_ssm_E08000032_MSOA11_ppp_2011.csv' 
+    path_to_lookup_ethnicity: '../persistant_data/ethnic_lookup.csv'
+    columns_map: {"Area": "location", 
+                  "DC1117EW_C_SEX": "sex",
+                  "DC1117EW_C_AGE": "age",
+                  "DC2101EW_C_ETHPUK11": "ethnicity"}
+    location_code: "E08000032" # if set, change all locations to this location code
+
+configuration:
+    randomness:
+        key_columns: ['entrance_time', 'age']
+    input_data:
+        location: 'UK'
+    time:
+        start: {year: 2011, month: 1, day: 1}
+        end:   {year: 2012, month: 1, day: 1}
+        step_size: 10  # Days
+    population:
+        population_size: 0 # 1 Base
+        age_start: 0
+        age_end: 100
