@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium_public_health.population.spenser_population import TestPopulation, build_mortality_table, transform_rate_table
+from vivarium_public_health.population.spenser_population import TestPopulation, compute_migration_rates, transform_rate_table
 from vivarium_public_health.population import Mortality
 from vivarium_public_health.population import FertilityAgeSpecificRates
 
@@ -23,6 +23,11 @@ def config(base_config):
     filename_fertility_rate = 'Fertility2011_LEEDS1_2.csv'
     path_to_fertility_file = "{}/{}".format(path_dir, filename_fertility_rate)
 
+    filename_emigration_name = 'Emig_2011_2012_LEEDS2.csv'
+    path_to_emigration_file = "{}/{}".format(path_dir, filename_emigration_name)
+
+    filename_total_population = 'MY2011AGEN.csv'
+    path_to_total_population_file = "{}/{}".format(path_dir, filename_total_population)
 
     path_to_pop_file= "{}/{}".format(path_dir,filename_pop)
     path_to_mortality_file= "{}/{}".format(path_dir,filename_mortality_rate)
@@ -34,6 +39,8 @@ def config(base_config):
         'path_to_pop_file':path_to_pop_file,
         'path_to_mortality_file': path_to_mortality_file,
         'path_to_fertility_file': path_to_fertility_file,
+        'path_to_emigration_file': path_to_emigration_file,
+        'path_to_total_population_file': path_to_total_population_file,
 
         'population': {
             'population_size': pop_size,
@@ -70,8 +77,19 @@ def test_pipeline(config, base_plugins):
     df_fertility = pd.read_csv(config.path_to_fertility_file)
     fertility_rate_df = df_fertility[(df_fertility['LAD.code'] == 'E09000002') | (df_fertility['LAD.code'] == 'E09000003')]
     asfr_data_fertility = transform_rate_table(fertility_rate_df, 2011, 2012, 10, 50, [2])
-    # Mock Fertility Data
     simulation._data.write("covariate.age_specific_fertility_rate.estimate", asfr_data_fertility)
+
+    # setup emigration rates
+
+    df_emigration = pd.read_csv(config.path_to_emigration_file)
+    df_total_population = pd.read_csv(config.path_to_total_population_file)
+    df_emigration = df_emigration[
+        (df_emigration['LAD.code'] == 'E09000002') | (df_emigration['LAD.code'] == 'E09000003')]
+    df_total_population = df_total_population[
+        (df_total_population['LAD'] == 'E09000002') | (df_total_population['LAD'] == 'E09000003')]
+    asfr_data_migration = compute_migration_rates(df_emigration, df_total_population, 2011, 2012, config.population.age_start, config.population.age_end)
+    # Mock Fertility Data
+    simulation._data.write("covariate.age_specific_migration_rate.estimate", asfr_data_fertility)
 
     simulation.setup()
     time_start = simulation._clock.time
