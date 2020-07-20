@@ -7,6 +7,7 @@ paths:
     path_to_mortality_file: '../persistant_data/Mortality2011_LEEDS1_2.csv'
     path_to_fertility_file: '../persistant_data/Fertility2011_LEEDS1_2.csv'
     path_to_emigration_file: '../persistant_data/Emig_2011_2012_LEEDS2.csv'
+    path_to_immigration_file: '../persistant_data/Immig_2011_2012_LEEDS2.csv'
     path_to_total_population_file: '../persistant_data/MY2011AGEN.csv'
 
 prepare_data:
@@ -21,7 +22,7 @@ prepare_data:
                   "DC1117EW_C_SEX": "sex",
                   "DC1117EW_C_AGE": "age",
                   "DC2101EW_C_ETHPUK11": "ethnicity"}
-    location_code: "E08000032" # if set, change all locations to this location code
+    location_code: "E09000002" # if set, change all locations to this location code
 
 configuration:
     randomness:
