@@ -67,7 +67,7 @@ def config(base_config):
 def test_pipeline(config, base_plugins):
     start_population_size = config.population.population_size
 
-    num_days = 365*10
+    num_days = 365*2
     components = [TestPopulation(), FertilityAgeSpecificRates(), Mortality(), Emigration(), Immigration()]
     simulation = InteractiveContext(components=components,
                                     configuration=config,
