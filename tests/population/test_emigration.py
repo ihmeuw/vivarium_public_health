@@ -46,7 +46,7 @@ def config(base_config):
 
 
 
-def test_pipeline(config, base_plugins):
+def test_emigration(config, base_plugins):
     start_population_size = config.population.population_size
 
     num_days = 365*10

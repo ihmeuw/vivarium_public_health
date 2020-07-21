@@ -7,6 +7,8 @@ from vivarium import InteractiveContext
 from vivarium_public_health.population.spenser_population import TestPopulation, compute_migration_rates, transform_rate_table
 from vivarium_public_health.population import Mortality
 from vivarium_public_health.population import FertilityAgeSpecificRates
+from vivarium_public_health.population import Emigration
+
 
 
 @pytest.fixture()
@@ -58,8 +60,8 @@ def config(base_config):
 def test_pipeline(config, base_plugins):
     start_population_size = config.population.population_size
 
-    num_days = 365*3
-    components = [TestPopulation(), FertilityAgeSpecificRates() ,Mortality()]
+    num_days = 365*10
+    components = [TestPopulation(), FertilityAgeSpecificRates() ,Mortality(),Emigration()]
     simulation = InteractiveContext(components=components,
                                     configuration=config,
                                     plugin_configuration=base_plugins,
@@ -104,9 +106,12 @@ def test_pipeline(config, base_plugins):
     pop = simulation.get_population()
 
     print ('alive',len(pop[pop['alive']=='alive']))
-    print ('dead',len(pop[pop['alive']!='alive']))
+    print ('dead',len(pop[pop['alive']=='dead']))
+    print ('emigrated',len(pop[pop['alive']=='emigrated']))
 
     assert (np.all(pop.alive == 'alive') == False)
+    assert len(pop[pop['emigrated']=='Yes']) > 0, 'expect migration'
+
 
     assert len(pop.age) > start_population_size, 'expect new simulants'
 
