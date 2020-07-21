@@ -198,30 +198,6 @@ def build_fertility_table(input_df, year_start, year_end, age_start, age_end):
                         list_dic.append(dict)
     return pd.DataFrame(list_dic)
 
-def build_fertility_table(input_df, year_start, year_end, age_start, age_end):
-    '''Make a mock fertility table based on the input data'''
-
-    df = pd.read_csv(input_df)
-
-    unique_locations = np.unique(df['location'])
-    unique_sex = np.unique(df['sex'])
-    unique_ethnicity = np.unique(df['ethnicity'])
-
-    list_dic = []
-    for loc in unique_locations:
-        for eth in unique_ethnicity:
-            for age in range(age_start, age_end):
-                for sex in unique_sex:
-                    if sex == 2:
-                        mean_value = 1
-                        value = np.random.normal(mean_value, mean_value * 0.05)
-
-                        dict = {'location': loc, 'ethnicity': eth, 'age_start': age, 'age_end': age + 1, 'sex': sex,
-                                'year_start': year_start, 'year_end': year_end, 'mean_value': value}
-                        list_dic.append(dict)
-    return pd.DataFrame(list_dic)
-
-
 def transform_rate_table(df, year_start, year_end, age_start, age_end, unique_sex = [1, 2]):
 
     """Function that transform an input rate dataframe into a format readable for vivarium
@@ -325,7 +301,7 @@ def prepare_dataset(dataset_path="../daedalus/persistent_data/ssm_E08000032_MSOA
     print(f"\nWrite the dataset at: {output_path}")
 
 
-def compute_migration_rates(df_migration_numbers, df_population_total, year_start, year_end, age_start, age_end, unique_sex = [1, 2]):
+def compute_migration_rates(df_migration_numbers, df_population_total, year_start, year_end, age_start, age_end, unique_sex = [1, 2], normalize=True):
     """Function that computes the migration (this can be immigration or emigration) rates based on the an input dataframe containing the total values of
      migration seen and an input dataframe containing the total population values. The rate is the ratio between both and its retuned as a rate
       table in a format readable for vivarium public health.
@@ -339,6 +315,7 @@ def compute_migration_rates(df_migration_numbers, df_population_total, year_star
       age_start (int): Minimum age observed in the rate table
       age_end (int): Maximum age observed in the rate table
       unique_sex (list of ints): Sex of indivuals to be considered
+      normalize (True/False): divide by the number of population
 
       Returns:
       df (dataframe): A dataframe with the right vph format.
@@ -383,7 +360,10 @@ def compute_migration_rates(df_migration_numbers, df_population_total, year_star
                         colum_total = column_suffix + str(age)
 
                     if sub_loc_eth_df[column].shape[0] == 1 and sub_loc_eth_df_total[colum_total].sum()!=0:
-                        value = sub_loc_eth_df[column].values[0]/sub_loc_eth_df_total[colum_total].sum()
+                        if normalize:
+                            value = sub_loc_eth_df[column].values[0]/sub_loc_eth_df_total[colum_total].sum()
+                        else:
+                            value = sub_loc_eth_df[column].values[0]
                     else:
                         value = 0
 
