@@ -24,7 +24,7 @@ class Emigration:
 
 
         self.emigration_rate = builder.value.register_rate_producer('emigration_rate',
-                                                                    source=self.calculate_mortality_rate,
+                                                                    source=self.calculate_emigration_rate,
                                                                     requires_columns=['sex','location','ethnicity'])
 
 
@@ -57,7 +57,7 @@ class Emigration:
             emigrated_pop['exit_time'] = event.time
             self.population_view.update(emigrated_pop[['alive', 'exit_time', 'emigrated']])
 
-    def calculate_mortality_rate(self, index):
+    def calculate_emigration_rate(self, index):
         emigration_rate = self.all_cause_emigration_rate(index)
         return pd.DataFrame({'emigrated': emigration_rate})
 
