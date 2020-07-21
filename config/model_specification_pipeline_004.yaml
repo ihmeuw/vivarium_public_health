@@ -1,4 +1,5 @@
-list_components: [TestPopulation(), FertilityAgeSpecificRates(), Mortality()]
+#list_components: [TestPopulation(), FertilityAgeSpecificRates(), Mortality()]
+list_components: [TestPopulation(), Mortality(), Immigration()]
 
 paths:
     # file should have columns -> PID,location,sex,age,ethnicity
