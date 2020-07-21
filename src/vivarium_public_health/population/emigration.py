@@ -1,10 +1,9 @@
 """
 ========================
-The Core Mortality Model
+The Core Emigration Model
 ========================
 
-This module contains tools modeling all cause mortality and hooks for
-disease models to contribute cause-specific and excess mortality.
+This module contains tools modeling Emigration
 
 """
 import pandas as pd
@@ -19,7 +18,7 @@ class Emigration:
         return 'emigration'
 
     def setup(self, builder):
-        emigration_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
+        emigration_data = builder.data.load("covariate.age_specific_migration_rate.estimate")
         self.all_cause_emigration_rate = builder.lookup.build_table(emigration_data, key_columns=['sex', 'location', 'ethnicity'],
                                                                     parameter_columns=['age', 'year'])
 
@@ -41,7 +40,7 @@ class Emigration:
         builder.event.register_listener('time_step', self.on_time_step, priority=0)
 
     def on_initialize_simulants(self, pop_data):
-        pop_update = pd.DataFrame({'emigrated': 'No'},
+        pop_update = pd.DataFrame({'emigrated': 'no_emigration'},
                                   index=pop_data.index)
         self.population_view.update(pop_update)
 
@@ -50,7 +49,7 @@ class Emigration:
         prob_df = rate_to_probability(pd.DataFrame(self.emigration_rate(pop.index)))
         prob_df['no_emigration'] = 1-prob_df.sum(axis=1)
         prob_df['emigrated'] = self.random.choice(prob_df.index, prob_df.columns, prob_df)
-        emigrated_pop = prob_df.query('emigrated != "No"').copy()
+        emigrated_pop = prob_df.query('emigrated != "no_emigration"').copy()
 
         if not emigrated_pop.empty:
             emigrated_pop['alive'] = pd.Series('emigrated', index=emigrated_pop.index)
@@ -63,4 +62,4 @@ class Emigration:
         return pd.DataFrame({'emigrated': emigration_rate})
 
     def __repr__(self):
-        return "Mortality()"
+        return "Emigration()"
