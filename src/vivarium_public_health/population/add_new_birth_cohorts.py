@@ -182,10 +182,10 @@ class FertilityAgeSpecificRates:
         pop = self.population_view.subview(['sex']).get(pop_data.index)
         women = pop.loc[pop.sex == 2].index
 
-        if pop_data.user_data['sim_state'] == 'setup':
-            parent_id = -1
-        else:  # 'sim_state' == 'time_step'
+        if pop_data.user_data['sim_state'] == 'time_step':
             parent_id = pop_data.user_data['parent_ids']
+        else:
+            parent_id = -1
         pop_update = pd.DataFrame({'last_birth_time': pd.NaT, 'parent_id': parent_id}, index=pop_data.index)
         # FIXME: This is a misuse of the column and makes it invalid for
         #    tracking metrics.
