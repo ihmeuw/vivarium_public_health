@@ -41,7 +41,7 @@ class ImmigrationDeterministic:
         step_size = utilities.to_years(event.step_size)
         simulants_to_add = self.simulants_per_year*step_size + self.fractional_new_immigrations
 
-        self.fractional_new_births = simulants_to_add % 1
+        self.fractional_new_immigrations = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
 
         if simulants_to_add > 0:
