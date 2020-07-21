@@ -106,3 +106,10 @@ venv.bak/
 
 # Pycharm project settings
 .idea/
+
+# vscode
+.vscode/
+
+# others
+.history/
+default.profraw
