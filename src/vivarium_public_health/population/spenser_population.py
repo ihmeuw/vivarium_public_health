@@ -386,7 +386,6 @@ def compute_migration_rates(df_migration_numbers, df_population_total, year_star
                         value = sub_loc_eth_df[column].values[0]/sub_loc_eth_df_total[colum_total].sum()
                     else:
                         value = 0
-                        print('Problem, more or less than one value in this category')
 
                     # create the rate row.
                     dict = {'location': loc, 'ethnicity': eth, 'age_start': age, 'age_end': age + 1, 'sex': sex,
