@@ -34,7 +34,7 @@ class ImmigrationDeterministic:
     def on_initialize_simulants(self, pop_data):
         if pop_data.user_data['sim_state'] == 'time_step_imm':
             pop_update = pd.DataFrame({'immigrated': 'Yes'},
-                                    index=-1*pop_data.index)
+                                    index=pop_data.index)
         else:
             pop_update = pd.DataFrame({'immigrated': 'no_immigration'},
                                     index=pop_data.index)

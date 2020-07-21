@@ -66,7 +66,7 @@ def config(base_config):
 def test_pipeline(config, base_plugins):
     start_population_size = config.population.population_size
 
-    num_days = 365*10
+    num_days = 365*1
     components = [TestPopulation(), FertilityAgeSpecificRates(), Mortality(), Emigration(), Immigration()]
     simulation = InteractiveContext(components=components,
                                     configuration=config,
@@ -138,5 +138,8 @@ def test_pipeline(config, base_plugins):
     assert len(pop.age) > start_population_size, 'expect new simulants'
 
     for i in range(start_population_size, len(pop)):
-        assert pop.loc[pop.iloc[i].parent_id].last_birth_time >= time_start, 'expect all children to have mothers who' \
+        # skip immigrated population
+        if pop.loc[i].immigrated == 'Yes':
+            continue
+        assert pop.loc[pop.loc[i].parent_id].last_birth_time >= time_start, 'expect all children to have mothers who' \
                                                                              ' gave birth after the simulation starts.'
