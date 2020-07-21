@@ -8,6 +8,7 @@ from vivarium_public_health.population.spenser_population import TestPopulation,
 from vivarium_public_health.population import Mortality
 from vivarium_public_health.population import FertilityAgeSpecificRates
 from vivarium_public_health.population import Emigration
+from vivarium_public_health.population import ImmigrationDeterministic as Immigration
 
 
 
@@ -31,8 +32,12 @@ def config(base_config):
     filename_total_population = 'MY2011AGEN.csv'
     path_to_total_population_file = "{}/{}".format(path_dir, filename_total_population)
 
+    # immigration file provided by N. Lomax
+    filename_immigration_rate = 'Immig_2011_2012_LEEDS2.csv'
+
     path_to_pop_file= "{}/{}".format(path_dir,filename_pop)
     path_to_mortality_file= "{}/{}".format(path_dir,filename_mortality_rate)
+    path_to_immigration_file = "{}/{}".format(path_dir, filename_immigration_rate)
 
     pop_size = len(pd.read_csv(path_to_pop_file))
 
@@ -43,6 +48,7 @@ def config(base_config):
         'path_to_fertility_file': path_to_fertility_file,
         'path_to_emigration_file': path_to_emigration_file,
         'path_to_total_population_file': path_to_total_population_file,
+        'path_to_immigration_file': path_to_immigration_file,
 
         'population': {
             'population_size': pop_size,
@@ -92,6 +98,25 @@ def test_pipeline(config, base_plugins):
     asfr_data_emigration = compute_migration_rates(df_emigration, df_total_population, 2011, 2012, config.population.age_start, config.population.age_end)
     # Mock Fertility Data
     simulation._data.write("covariate.age_specific_migration_rate.estimate", asfr_data_emigration)
+
+    # setup immigration rates
+    df_immigration = pd.read_csv(config.path_to_immigration_file)
+    df_immigration = df_immigration[
+        (df_immigration['LAD.code'] == 'E09000002') | (df_immigration['LAD.code'] == 'E09000003') ]
+
+    asfr_data_immigration = compute_migration_rates(df_immigration, df_total_population,
+                                                    2011,
+                                                    2012,
+                                                    config.population.age_start,
+                                                    config.population.age_end,
+                                                    normalize=False
+                                                    )
+
+    # read total immigrants from the file
+    total_immigrants = int(df_immigration[df_immigration.columns[4:]].sum().sum())
+
+    simulation._data.write("cause.all_causes.cause_specific_immigration_rate", asfr_data_immigration)
+    simulation._data.write("cause.all_causes.cause_specific_total_immigrants_per_year", total_immigrants)
 
     simulation.setup()
     time_start = simulation._clock.time
