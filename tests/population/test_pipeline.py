@@ -38,6 +38,7 @@ def config(base_config):
 
     path_to_pop_file= "{}/{}".format(path_dir,filename_pop)
     path_to_mortality_file= "{}/{}".format(path_dir,filename_mortality_rate)
+    path_to_immigration_file = "{}/{}".format(path_dir, filename_immigration_rate)
 
     pop_size = len(pd.read_csv(path_to_pop_file))
 
@@ -99,15 +100,15 @@ def test_pipeline(config, base_plugins):
     # setup immigration rates
     df_immigration = pd.read_csv(config.path_to_immigration_file)
     df_immigration = df_immigration[
-        (df_immigration['LAD.code'] == 'E09000002')]
-    
-    asfr_data_immigration = compute_migration_rates(df_immigration, df_total_population, 
-                                                    2011, 
-                                                    2012, 
-                                                    config.population.age_start, 
+        (df_immigration['LAD.code'] == 'E09000002') | (df_immigration['LAD.code'] == 'E09000003') ]
+
+    asfr_data_immigration = compute_migration_rates(df_immigration, df_total_population,
+                                                    2011,
+                                                    2012,
+                                                    config.population.age_start,
                                                     config.population.age_end,
                                                     normalize=False
-                                                   )
+                                                    )
 
     # read total immigrants from the file
     total_immigrants = int(df_immigration[df_immigration.columns[4:]].sum().sum())
