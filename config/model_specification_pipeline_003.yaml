@@ -1,4 +1,4 @@
-list_components: [TestPopulation(), Mortality(), Immigration()]
+list_components: [TestPopulation(), FertilityAgeSpecificRates(), Mortality()]
 
 paths:
     # file should have columns -> PID,location,sex,age,ethnicity
@@ -22,7 +22,7 @@ prepare_data:
                   "DC1117EW_C_SEX": "sex",
                   "DC1117EW_C_AGE": "age",
                   "DC2101EW_C_ETHPUK11": "ethnicity"}
-    location_code: "E09000002" # if set, change all locations to this location code
+    location_code: "E08000032" # if set, change all locations to this location code
 
 configuration:
     randomness:
