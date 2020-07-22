@@ -26,8 +26,21 @@ class ImmigrationDeterministic:
         self.simulants_per_year = builder.data.load("cause.all_causes.cause_specific_total_immigrants_per_year") 
 
         self.simulant_creator = builder.population.get_simulant_creator()
-        self.population_view = builder.population.get_view(['sex', 'ethnicity', 'location', 'age'])
+        self.population_view = builder.population.get_view(['immigrated', 'sex', 'ethnicity', 'location', 'age'])
+        builder.population.initializes_simulants(self.on_initialize_simulants,
+                                                 creates_columns=["immigrated"])
         builder.event.register_listener('time_step', self.on_time_step)
+
+    def on_initialize_simulants(self, pop_data):
+        if pop_data.user_data['sim_state'] == 'time_step_imm':
+            pop_update = pd.DataFrame({'immigrated': 'Yes'},
+                                    index=pop_data.index)
+        else:
+            pop_update = pd.DataFrame({'immigrated': 'no_immigration'},
+                                    index=pop_data.index)
+
+
+        self.population_view.update(pop_update)
 
     def on_time_step(self, event):
         """Adds a set number of simulants to the population each time step.
@@ -48,12 +61,15 @@ class ImmigrationDeterministic:
             self.simulant_creator(simulants_to_add,
                                   population_configuration={
                                       'age_start': 0,
-                                      'age_end': 0,
-                                      'sim_state': 'time_step',
+                                      'age_end': 100,
+                                      'sim_state': 'time_step_imm',
+                                      'immigrated': "Yes"
                                   })
         
         # XXX make sure this does not conflict with fertility XXX
         new_residents = self.population_view.get(event.index, query='sex == "nan"')
+        
+        new_residents = new_residents.query('immigrated != "no_immigration"').copy()
         if len(new_residents) > 0:
             # sample residents using the immigration rates
             sample_resident = self.asfr_data_immigration.sample(len(new_residents), weights="mean_value", replace=True)
@@ -61,8 +77,9 @@ class ImmigrationDeterministic:
             new_residents["ethnicity"] = sample_resident["ethnicity"].values
             new_residents["location"] = sample_resident["location"].values
             new_residents["age"] = sample_resident["age_start"].values.astype(float)
+            new_residents["immigrated"] = "Yes"
 
-            self.population_view.update(new_residents[['location', 'ethnicity', 'sex', 'age']])
+            self.population_view.update(new_residents[['immigrated', 'location', 'ethnicity', 'sex', 'age']])
 
 
     def __repr__(self):
