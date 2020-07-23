@@ -65,7 +65,7 @@ def test_emigration(config, base_plugins):
         (df_emigration['LAD.code'] == 'E09000002') | (df_emigration['LAD.code'] == 'E09000003')]
     df_total_population = df_total_population[
         (df_total_population['LAD'] == 'E09000002') | (df_total_population['LAD'] == 'E09000003')]
-    asfr_data_emigration = compute_migration_rates(df_emigration, df_total_population, 2011, 2012, config.population.age_start, config.population.age_end)
+    asfr_data_emigration = compute_migration_rates(df_emigration, df_total_population, 2011, 2012, config.population.age_start, config.population.age_end,aggregate_over=75)
     # Mock emigration Data
     simulation._data.write("covariate.age_specific_migration_rate.estimate", asfr_data_emigration)
 
