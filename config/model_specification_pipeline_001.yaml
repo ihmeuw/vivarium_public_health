@@ -1,4 +1,4 @@
-list_components: [TestPopulation(), Mortality(), Immigration()]
+list_components: [TestPopulation(), Mortality()]
 
 paths:
     # file should have columns -> PID,location,sex,age,ethnicity
@@ -6,9 +6,6 @@ paths:
     path_to_pop_file: '../persistant_data/test_ssm_E08000032_MSOA11_ppp_2011.csv' 
     path_to_mortality_file: '../persistant_data/Mortality2011_LEEDS1_2.csv'
     path_to_fertility_file: '../persistant_data/Fertility2011_LEEDS1_2.csv'
-    path_to_emigration_file: '../persistant_data/Emig_2011_2012_LEEDS2.csv'
-    path_to_immigration_file: '../persistant_data/Immig_2011_2012_LEEDS2.csv'
-    path_to_total_population_file: '../persistant_data/MY2011AGEN.csv'
 
 prepare_data:
     prepare: True   # if False, none of the following options will be used
