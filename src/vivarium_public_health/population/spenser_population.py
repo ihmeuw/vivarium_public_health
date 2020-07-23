@@ -301,7 +301,7 @@ def prepare_dataset(dataset_path="../daedalus/persistent_data/ssm_E08000032_MSOA
     print(f"\nWrite the dataset at: {output_path}")
 
 
-def compute_migration_rates(df_migration_numbers, df_population_total, year_start, year_end, age_start, age_end, unique_sex = [1, 2], normalize=True):
+def compute_migration_rates(df_migration_numbers, df_population_total, year_start, year_end, age_start, age_end, unique_sex = [1, 2], normalize=True, aggregate_over=-1):
     """Function that computes the migration (this can be immigration or emigration) rates based on the an input dataframe containing the total values of
      migration seen and an input dataframe containing the total population values. The rate is the ratio between both and its retuned as a rate
       table in a format readable for vivarium public health.
@@ -316,7 +316,7 @@ def compute_migration_rates(df_migration_numbers, df_population_total, year_star
       age_end (int): Maximum age observed in the rate table
       unique_sex (list of ints): Sex of indivuals to be considered
       normalize (True/False): divide by the number of population
-
+      aggregate_over (int): In case we want to aggregate values over certain age. Default is -1 which means no aggregation.
       Returns:
       df (dataframe): A dataframe with the right vph format.
       """
@@ -346,6 +346,8 @@ def compute_migration_rates(df_migration_numbers, df_population_total, year_star
                 else:
                     column_suffix = 'F'
 
+                age_sum_values = []
+                age_total_values = []
                 for age in range(age_start, age_end):
 
                     # cater for particular cases (age less than 1 and more than 100).
@@ -365,12 +367,28 @@ def compute_migration_rates(df_migration_numbers, df_population_total, year_star
                         else:
                             value = sub_loc_eth_df[column].values[0]
                     else:
-                        value = 0
+                        value = 0.0
+                    if (age < aggregate_over) | (aggregate_over==-1):
 
-                    # create the rate row.
-                    dict = {'location': loc, 'ethnicity': eth, 'age_start': age, 'age_end': age + 1, 'sex': sex,
-                            'year_start': year_start, 'year_end': year_end, 'mean_value': value}
-                    list_dic.append(dict)
+                        # create the rate row.
+                        dict = {'location': loc, 'ethnicity': eth, 'age_start': age, 'age_end': age + 1, 'sex': sex,
+                                'year_start': year_start, 'year_end': year_end, 'mean_value': value}
+                        list_dic.append(dict)
+                    else:
+                        age_sum_values.append(sub_loc_eth_df[column].values[0])
+                        age_total_values.append(sub_loc_eth_df_total[colum_total].sum())
+
+                if aggregate_over != -1:
+                    value = sum(age_sum_values) / sum(age_total_values)
+
+                    for age in range(aggregate_over,age_end):
+                       # create the rate row.
+                       dict = {'location': loc, 'ethnicity': eth, 'age_start': age, 'age_end': age + 1, 'sex': sex,
+                                'year_start': year_start, 'year_end': year_end, 'mean_value': value}
+                       list_dic.append(dict)
+
+
+
 
     return pd.DataFrame(list_dic)
 
