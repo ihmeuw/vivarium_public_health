@@ -379,7 +379,11 @@ def compute_migration_rates(df_migration_numbers, df_population_total, year_star
                         age_total_values.append(sub_loc_eth_df_total[colum_total].sum())
 
                 if aggregate_over != -1:
-                    value = sum(age_sum_values) / sum(age_total_values)
+                    if normalize:
+
+                        value = sum(age_sum_values) / sum(age_total_values)
+                    else:
+                        value = sum(age_sum_values)
 
                     for age in range(aggregate_over,age_end):
                        # create the rate row.
