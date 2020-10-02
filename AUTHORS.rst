@@ -11,11 +11,14 @@ Authors
 - Zachary Dingels <dingelsz@uw.edu>
 - Kate Wilson <kwilson7@uw.edu>
 - Kjell Swedin <kjells@uw.edu>
+- Rajan Mudambi <rmudambi@uw.edu>
+- Matthew Kappel <mkappel@uw.edu>
 
 Current Maintainers
 -------------------
 
 - James Collins <collijk@uw.edu>
-- Cody Horst <chorst@uw.edu>
 - Kjell Swedin <kjells@uw.edu>
 - Abraham Flaxman <abie@uw.edu>
+- Rajan Mudambi <rmudambi@uw.edu>
+- Matthew Kappel <mkappel@uw.edu>
