@@ -7,7 +7,7 @@ import pytest
 from vivarium.testing_utilities import metadata
 from vivarium_public_health.metrics.utilities import (QueryString, OutputTemplate, to_years, get_output_template,
                                                       get_susceptible_person_time, get_disease_event_counts,
-                                                      get_treatment_counts, get_age_sex_filter_and_iterables,
+                                                      get_age_sex_filter_and_iterables,
                                                       get_time_iterable, get_lived_in_span, get_person_time_in_span,
                                                       get_deaths, get_years_of_life_lost,
                                                       get_years_lived_with_disability, get_age_bins,
@@ -314,38 +314,6 @@ def test_get_disease_event_counts(ages_and_bins, sexes, observer_config):
     pop = pd.concat([pop, pop], axis=0, ignore_index=True)
 
     counts = get_disease_event_counts(pop, observer_config, disease, event_time, age_bins)
-
-    values = set(counts.values())
-    assert len(values) == 1
-    assert np.isclose(values.pop(), 2 * expected_value)
-
-
-def test_get_treatment_counts(ages_and_bins, sexes, observer_config):
-    ages, age_bins = ages_and_bins
-    treatment = 'test_treatment'
-    event_time = pd.Timestamp('1-1-2017')
-    dose_times = [event_time, event_time - pd.Timedelta(days=7)]
-    doses = ['dose_1', 'dose_2']
-    pop = pd.DataFrame(list(product(ages, sexes, dose_times, doses)),
-                       columns=['age', 'sex', f'{treatment}_current_dose_event_time', f'{treatment}_current_dose'])
-    # Shuffle the rows
-    pop = pop.sample(frac=1).reset_index(drop=True)
-
-    counts = get_treatment_counts(pop, observer_config, treatment, doses, event_time, age_bins)
-
-    values = set(counts.values())
-    assert len(values) == 1
-    expected_value = len(pop) / (len(dose_times) * len(doses))
-    if observer_config['by_sex']:
-        expected_value /= 2
-    if observer_config['by_age']:
-        expected_value /= len(age_bins)
-    assert np.isclose(values.pop(), expected_value)
-
-    # Doubling pop should double counts
-    pop = pd.concat([pop, pop], axis=0, ignore_index=True)
-
-    counts = get_treatment_counts(pop, observer_config, treatment, doses, event_time, age_bins)
 
     values = set(counts.values())
     assert len(values) == 1

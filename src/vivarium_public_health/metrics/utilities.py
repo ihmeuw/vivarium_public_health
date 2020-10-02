@@ -346,23 +346,6 @@ def get_population_counts(pop, config, event_time, age_bins):
     return get_group_counts(pop, base_filter, base_key, config, age_bins)
 
 
-def get_treatment_counts(pop, config, treatment, doses, event_time, age_bins):
-    base_key = get_output_template(**config).substitute(year=event_time.year)
-    # Can't use query with time stamps, so filter
-    pop = pop.loc[pop[f'{treatment}_current_dose_event_time'] == event_time]
-    base_filter = QueryString('')
-
-    dose_counts = {}
-    for dose in doses:
-        dose_filter = base_filter + f'{treatment}_current_dose == "{dose}"'
-        group_counts = get_group_counts(pop, dose_filter, base_key, config, age_bins)
-        for group_key, count in group_counts.items():
-            group_key = group_key.substitute(measure=f'{treatment}_{dose}_count')
-            dose_counts[group_key] = count
-
-    return dose_counts
-
-
 def get_person_time(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timestamp,
                     sim_end: pd.Timestamp, age_bins: pd.DataFrame) -> Dict[str, float]:
     base_key = get_output_template(**config).substitute(measure='person_time')

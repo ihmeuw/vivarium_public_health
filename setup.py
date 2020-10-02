@@ -17,11 +17,10 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        'vivarium>=0.9.1',
-        # FIXME: Newer versions of numpy have conflicting dependencies
-        # with pytables.
+        'vivarium>=0.10.0',
+        # FIXME: Newer versions of numpy have conflicting dependencies with pytables.
         'numpy<=1.15.4',
-        'pandas<0.25',
+        'pandas>=0.24.0,<0.25',
         'scipy',
         # FIXME: Requirement imposed by our standard data sources.
         'tables<=3.4.0',

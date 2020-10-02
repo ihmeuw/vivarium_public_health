@@ -31,13 +31,11 @@ class TherapeuticInertia:
     def setup(self, builder):
         self.therapeutic_inertia_parameters = builder.configuration.therapeutic_inertia
 
-        self.randomness = builder.randomness.get_stream(self.name)
-
-        self._therapeutic_inertia = self.initialize_therapeutic_inertia()
+        self._therapeutic_inertia = self.initialize_therapeutic_inertia(builder)
         ti_source = lambda index: pd.Series(self._therapeutic_inertia, index=index)
         self.therapeutic_inertia = builder.value.register_value_producer('therapeutic_inertia', source=ti_source)
 
-    def initialize_therapeutic_inertia(self):
+    def initialize_therapeutic_inertia(self, builder):
         triangle_min = self.therapeutic_inertia_parameters.triangle_min
         triangle_max = self.therapeutic_inertia_parameters.triangle_max
         triangle_mode = self.therapeutic_inertia_parameters.triangle_mode
@@ -50,7 +48,7 @@ class TherapeuticInertia:
         else:
             c = (triangle_mode - loc) / scale
 
-        seed = self.randomness.get_seed()
+        seed = builder.randomness.get_seed(self.name)
         therapeutic_inertia = scipy.stats.triang(c, loc=loc, scale=scale).rvs(random_state=seed)
 
         return therapeutic_inertia

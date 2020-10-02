@@ -8,16 +8,13 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
-import numbers
-
 import pandas as pd
 import numpy as np
 
 from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
-from vivarium_public_health.disease import (SusceptibleState, TransientDiseaseState,
-                                            RateTransition, ProportionTransition)
+from vivarium_public_health.disease import SusceptibleState
 
 
 class DiseaseModelError(VivariumError):
@@ -54,8 +51,6 @@ class DiseaseModel(Machine):
         builder.value.register_value_modifier('cause_specific_mortality_rate',
                                               self.adjust_cause_specific_mortality_rate,
                                               requires_columns=['age', 'sex'])
-
-        builder.value.register_value_modifier('metrics', modifier=self.metrics)
 
         self.population_view = builder.population.get_view(['age', 'sex', self.state_column])
         builder.population.initializes_simulants(self.on_initialize_simulants,
@@ -154,51 +149,3 @@ class DiseaseModel(Machine):
 
         simulants.loc[:, 'condition_state'] = initial_states
         return simulants
-
-    def to_dot(self):
-        """Produces a ball and stick graph of this state machine.
-
-        Returns
-        -------
-        `graphviz.Digraph`
-            A ball and stick visualization of this state machine.
-        """
-        from graphviz import Digraph
-        dot = Digraph(format='png')
-        for state in self.states:
-            if isinstance(state, TransientDiseaseState):
-                dot.node(state.state_id, style='dashed', color='orange')
-            elif isinstance(state, SusceptibleState):
-                dot.node(state.state_id, color='green')
-            else:
-                dot.node(state.state_id, color='orange')
-            for transition in state.transition_set:
-                if transition._active_index is not None:  # Transition is a triggered transition
-                    dot.attr('edge', style='bold')
-                else:
-                    dot.attr('edge', style='plain')
-
-                if isinstance(transition, RateTransition):
-                    dot.edge(state.state_id, transition.output_state.state_id, transition.label(), color='blue')
-                elif isinstance(transition, ProportionTransition):
-                    dot.edge(state.state_id, transition.output_state.state_id, transition.label(), color='purple')
-                else:
-                    dot.edge(state.state_id, transition.output_state.state_id, transition.label(), color='black')
-
-            if state.transition_set.allow_null_transition:
-                if hasattr(state, '_dwell_time'):
-                    if isinstance(state._dwell_time, numbers.Number):
-                        if state._dwell_time != 0:
-                            label = "dwell_time: {}".format(state._dwell_time)
-                            dot.edge(state.state_id, state.state_id, label, style='dotted')
-                        else:
-                            dot.edge(state.state_id, state.state_id, style='plain')
-                    else:
-                        dot.edge(state.state_id, state.state_id, style='dotted')
-        return dot
-
-    def metrics(self, index, metrics):
-        population = self.population_view.get(index, query="alive == 'alive'")
-        prevalent_cases = (population[self.state_column] != 'susceptible_to_' + self.state_column).sum()
-        metrics[self.state_column + '_prevalent_cases_at_sim_end'] = prevalent_cases
-        return metrics

@@ -68,10 +68,6 @@ class RiskEffect:
         return f'risk_effect.{self.risk}.{self.target}'
 
     def setup(self, builder):
-        self.randomness = builder.randomness.get_stream(
-            f'effect_of_{self.risk.name}_on_{self.target.name}.{self.target.measure}'
-        )
-
         relative_risk_data = self.load_relative_risk_data(builder)
         self.relative_risk = builder.lookup.build_table(relative_risk_data, key_columns=['sex'],
                                                         parameter_columns=['age', 'year'])
@@ -93,10 +89,10 @@ class RiskEffect:
         return self.exposure_effect(target, self.relative_risk(index))
 
     def load_relative_risk_data(self, builder):
-        return get_relative_risk_data(builder, self.risk, self.target, self.randomness)
+        return get_relative_risk_data(builder, self.risk, self.target)
 
     def load_population_attributable_fraction_data(self, builder):
-        return get_population_attributable_fraction_data(builder, self.risk, self.target, self.randomness)
+        return get_population_attributable_fraction_data(builder, self.risk, self.target)
 
     def load_exposure_effect(self, builder):
         return get_exposure_effect(builder, self.risk)
