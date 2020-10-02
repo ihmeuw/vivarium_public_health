@@ -1,3 +1,14 @@
+**0.10.5 - 10/2/20**
+ - Remove code from shigella vaccine
+ - Remove sample history observer
+ - Update randomness implementation to be consistent with latest version of
+   vivarium
+ - Make prevalence sampling configurable
+ - Refactor to avoid warnings
+ - Clarify cut age bin math
+ - Pin to pandas 0.24.x
+ - Fix Travis validation issues
+
 **0.10.4 - 01/14/20**
 
  - Fix regression bug in RiskAttributableDisease
