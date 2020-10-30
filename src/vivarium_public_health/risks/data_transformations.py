@@ -180,7 +180,7 @@ def load_relative_risk_data(builder, risk: EntityString, target: TargetString, s
         relative_risk_data = _make_relative_risk_data(builder, float(relative_risk_source['relative_risk']))
 
     else:  # distribution
-        parameters = {k: v for k, v in relative_risk_source.items() if v is not None}
+        parameters = {k: v for k, v in relative_risk_source.to_dict().items() if v is not None}
         random_state = np.random.RandomState(
             builder.randomness.get_seed(f'effect_of_{risk.name}_on_{target.name}.{target.measure}')
         )
