@@ -1,3 +1,6 @@
+**0.10.6 - 11/5/20**
+ - Fix bug when risk effects are defined by a distribution
+
 **0.10.5 - 10/2/20**
  - Remove code from shigella vaccine
  - Remove sample history observer

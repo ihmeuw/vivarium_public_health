@@ -24,7 +24,7 @@ if __name__ == "__main__":
         'scipy',
         # FIXME: Requirement imposed by our standard data sources.
         'tables<=3.4.0',
-        'risk_distributions>=2.0.2',
+        'risk_distributions>=2.0.3',
     ]
 
     test_requirements = [
