@@ -28,13 +28,13 @@ jobs:
           activate-environment: test_env_python${{ matrix.python-version }}
           python-version: ${{ matrix.python-version }}
       - name: Retrieve upstream branch if exists
-          run: |
-            echo "Cloning upstream branch: $BRANCH"
-            git clone --branch=$BRANCH https://github.com/ihmeuw/vivarium.git
-            pushd vivarium
-            pip install .
-            popd
-          if: git ls-remote --heads https://github.com/ihmeuw/vivarium.git $BRANCH
+        run: |
+          echo "Cloning upstream branch: $BRANCH"
+          git clone --branch=$BRANCH https://github.com/ihmeuw/vivarium.git
+          pushd vivarium
+          pip install .
+          popd
+        if: git ls-remote --heads https://github.com/ihmeuw/vivarium.git $BRANCH
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
