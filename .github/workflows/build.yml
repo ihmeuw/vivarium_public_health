@@ -27,9 +27,9 @@ jobs:
       - name: check for upstream branch
         run: |
           if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_REF##*/} == "0"; then
-            echo "::set-env name=upstream_exist::true"
+            echo "{upstream_exist}={true}" >> $GITHUB_ENV
           else
-            echo "::set-env name=upstream_exist::false"
+            echo "{upstream_exist}={false}" >> $GITHUB_ENV
           fi
       - name: Retrieve upstream branch if exists
         if: env.upstream_exist == 'true'
