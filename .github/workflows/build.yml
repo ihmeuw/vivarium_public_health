@@ -28,7 +28,7 @@ jobs:
           activate-environment: test_env_python${{ matrix.python-version }}
           python-version: ${{ matrix.python-version }}
       - name: Retrieve upstream branch if exists
-        if: "git ls-remote --heads https://github.com/ihmeuw/vivarium.git $BRANCH"
+        if: ${{ git ls-remote --heads https://github.com/ihmeuw/vivarium.git $BRANCH }}
           run: |
             echo "Cloning upstream branch: $BRANCH"
             git clone --branch=$BRANCH https://github.com/ihmeuw/vivarium.git
