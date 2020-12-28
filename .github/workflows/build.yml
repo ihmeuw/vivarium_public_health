@@ -30,4 +30,4 @@ jobs:
           pip install .[dev]
       - name: Test
         run: |
-          pytest .tests/
+          pytest ./tests
