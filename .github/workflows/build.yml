@@ -34,7 +34,7 @@ jobs:
           pushd vivarium
           pip install .
           popd
-        if: git ls-remote --heads https://github.com/ihmeuw/vivarium.git $BRANCH
+        if: ${{ git ls-remote --heads https://github.com/ihmeuw/vivarium.git $BRANCH }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
