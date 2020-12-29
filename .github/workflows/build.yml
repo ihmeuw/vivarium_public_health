@@ -38,13 +38,18 @@ jobs:
           conda list
       - name: check for upstream branch
         run: |
-          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_REF##*/} == "0"; then
+          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_HEAD_REF} == "0"; then
             echo "{upstream_exist}={true}" >> $GITHUB_ENV
           else
             echo "{upstream_exist}={false}" >> $GITHUB_ENV
           fi
+      - name: debug000
+        run: |
+          echo ==============
+          echo $env
+          echo ^^^^^^^^^^^^^^
       - name: Retrieve upstream branch if exists
-        if: $upstream_exist == 'true'
+        if: env.upstream_exist == 'true'
         run: |
           echo "Cloning upstream branch: ${GITHUB_REF##*/}"
           git clone --branch=${GITHUB_REF##*/} https://github.com/ihmeuw/vivarium.git
