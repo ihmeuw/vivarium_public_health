@@ -47,7 +47,7 @@ jobs:
         run: |
           cat $GITHUB_ENV
       - name: Retrieve upstream branch if exists
-        if: $env.upstream_exist == 'true'
+        if: env.upstream_exist == 'true'
         run: |
           echo "Cloning upstream branch: ${GITHUB_REF##*/}"
           git clone --branch=${GITHUB_REF##*/} https://github.com/ihmeuw/vivarium.git
