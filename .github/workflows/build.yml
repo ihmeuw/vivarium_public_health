@@ -36,12 +36,13 @@ jobs:
         run: |
           conda info
           conda list
+          echo KJELL - ${GITHUB_REF##*/}
       - name: check for upstream branch
         run: |
           if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_REF##*/} == "0"; then
-            echo "{upstream_exist}={true}" >> $GITHUB_ENV
+            echo "upstream_exist=true" >> $GITHUB_ENV
           else
-            echo "{upstream_exist}={false}" >> $GITHUB_ENV
+            echo "upstream_exist=false" >> $GITHUB_ENV
           fi
       - name: debug000
         run: |
