@@ -44,7 +44,7 @@ jobs:
           else
             echo "upstream_exist=false" >> $GITHUB_ENV
           fi
-      - name: debug000
+      - name: print environment values
         run: |
           cat $GITHUB_ENV
       - name: Retrieve upstream branch if exists
