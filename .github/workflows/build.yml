@@ -38,8 +38,6 @@ jobs:
           conda list
       - name: check for upstream branch
         run: |
-          # the --exit-code switch changes behavior to return 2 if nothing is found. By default 
-          #  successful contact with the server, regardless of whether a branch is found, returns 0
           if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_REF##*/} == "0"; then
             echo "{upstream_exist}={true}" >> $GITHUB_ENV
           else
