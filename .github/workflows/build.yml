@@ -36,8 +36,7 @@ jobs:
         run: |
           conda info
           conda list
-          echo KJELL - ${GITHUB_REF##*/}
-          echo KJELL2 - ${GITHUB_HEAD_REF}
+          echo GITHUB_HEAD_REF = ${GITHUB_HEAD_REF}
       - name: check for upstream branch
         run: |
           if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_HEAD_REF} == "0"; then
@@ -51,8 +50,8 @@ jobs:
       - name: Retrieve upstream branch if exists
         if: env.upstream_exist == 'true'
         run: |
-          echo "Cloning upstream branch: ${GITHUB_REF##*/}"
-          git clone --branch=${GITHUB_REF##*/} https://github.com/ihmeuw/vivarium.git
+          echo "Cloning upstream branch: ${GITHUB_HEAD_REF}"
+          git clone --branch=${GITHUB_HEAD_REF} https://github.com/ihmeuw/vivarium.git
           pushd vivarium
           pip install .
           popd
