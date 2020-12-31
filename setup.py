@@ -18,12 +18,10 @@ if __name__ == "__main__":
 
     install_requirements = [
         'vivarium>=0.10.0',
-        # FIXME: Newer versions of numpy have conflicting dependencies with pytables.
-        'numpy<=1.15.4',
-        'pandas>=0.24.0,<0.25',
+        'numpy',
+        'pandas',
         'scipy',
-        # FIXME: Requirement imposed by our standard data sources.
-        'tables<=3.4.0',
+        'tables',
         'risk_distributions>=2.0.3',
     ]
 
