@@ -1,3 +1,7 @@
+**0.10.7 - 1/5/21**
+ - Github actions replaces Travis for CI
+ - Unpin pandas and numpy
+
 **0.10.6 - 11/5/20**
  - Fix bug when risk effects are defined by a distribution
 
