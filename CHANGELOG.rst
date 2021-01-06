@@ -1,3 +1,6 @@
+**0.10.8 - 1/5/21**
+ - Fix deploy script
+
 **0.10.7 - 1/5/21**
  - Github actions replaces Travis for CI
  - Unpin pandas and numpy
