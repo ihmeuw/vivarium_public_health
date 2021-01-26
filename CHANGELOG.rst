@@ -1,3 +1,6 @@
+**0.10.7 - 01/25/21**
+ - Improve performance of polytomous risk ppf calculations
+
 **0.10.6 - 11/5/20**
  - Fix bug when risk effects are defined by a distribution
 
