@@ -137,7 +137,7 @@ class PolytomousDistribution:
         if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
             raise MissingDataError('All exposure data returned as 0.')
         exposure_sum = sorted_exposures.cumsum(axis='columns')
-        category_index = (exposure_sum.T < x).T.sum('columns')
+        category_index = pd.concat([exposure_sum[c] < x for c in exposure_sum.columns], axis=1).sum(axis=1)
         return pd.Series(np.array(self.categories)[category_index], name=self.risk + '_exposure', index=x.index)
 
     def __repr__(self):
