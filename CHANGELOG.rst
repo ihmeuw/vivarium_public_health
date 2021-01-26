@@ -1,3 +1,6 @@
+**0.10.9 - 01/25/21**
+ - Improve performance of polytomous risk ppf calculations
+
 **0.10.8 - 1/5/21**
  - Fix deploy script
 
