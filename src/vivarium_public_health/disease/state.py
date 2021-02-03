@@ -27,6 +27,7 @@ class BaseDiseaseState(State):
         self.event_time_column = self.state_id + '_event_time'
         self.event_count_column = self.state_id + '_event_count'
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder):
         """Performs this component's simulation setup.
 
@@ -160,6 +161,7 @@ class DiseaseState(BaseDiseaseState):
             raise ValueError('If you do not provide a cause, you must supply'
                              'custom data gathering functions for disability_weight, prevalence, and dwell_time.')
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder):
         """Performs this component's simulation setup.
 
@@ -180,12 +182,11 @@ class DiseaseState(BaseDiseaseState):
                                                            parameter_columns=['year'])
 
         dwell_time_data = self.load_dwell_time_data(builder)
-        self.dwell_time = builder.value.register_value_producer(f'{self.state_id}.dwell_time',
-                                                                source=builder.lookup.build_table(dwell_time_data,
-                                                                                                  key_columns=['sex'],
-                                                                                                  parameter_columns=
-                                                                                                  ['age', 'year']),
-                                                                requires_columns=['age', 'sex'])
+        self.dwell_time = builder.value.register_value_producer(
+            f'{self.state_id}.dwell_time',
+            source=builder.lookup.build_table(dwell_time_data, key_columns=['sex'], parameter_columns=['age', 'year']),
+            requires_columns=['age', 'sex']
+        )
 
         disability_weight_data = self.load_disability_weight_data(builder)
         self.base_disability_weight = builder.lookup.build_table(disability_weight_data, key_columns=['sex'],
@@ -287,8 +288,8 @@ class DiseaseState(BaseDiseaseState):
                 get_data_functions = {
                     'remission_rate': lambda cause, builder: builder.data.load(f"{self.cause_type}.{cause}.remission_rate")
                 }
-            elif 'remission_rate' not in get_data_functions:
-                raise ValueError('You must supply a remission rate function.')
+            elif 'remission_rate' not in get_data_functions and 'transition_rate' not in get_data_functions:
+                raise ValueError('You must supply a transition rate or remission rate function.')
         elif source_data_type == 'proportion':
             if 'proportion' not in get_data_functions:
                 raise ValueError('You must supply a proportion function.')

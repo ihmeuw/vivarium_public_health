@@ -18,6 +18,7 @@ class RateTransition(Transition):
         super().__init__(input_state, output_state, probability_func=self._probability, **kwargs)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder):
         rate_data, pipeline_name = self.load_transition_rate_data(builder)
         self.base_rate = builder.lookup.build_table(rate_data, key_columns=['sex'], parameter_columns=['age', 'year'])
@@ -48,6 +49,10 @@ class RateTransition(Transition):
         elif 'remission_rate' in self._get_data_functions:
             rate_data = self._get_data_functions['remission_rate'](self.output_state.cause, builder)
             pipeline_name = f'{self.input_state.state_id}.remission_rate'
+        elif 'transition_rate' in self._get_data_functions:
+            rate_data = self._get_data_functions['transition_rate'](builder, self.input_state.cause,
+                                                                    self.output_state.cause)
+            pipeline_name = f'{self.input_state.cause}_to_{self.output_state.cause}.transition_rate'
         else:
             raise ValueError("No valid data functions supplied.")
         return rate_data, pipeline_name
@@ -64,6 +69,7 @@ class ProportionTransition(Transition):
         super().__init__(input_state, output_state, probability_func=self._probability, **kwargs)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder):
         super().setup(builder)
         get_proportion_func = self._get_data_functions.get('proportion', None)
