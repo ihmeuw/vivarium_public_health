@@ -625,7 +625,7 @@ def get_state_person_time(pop: pd.DataFrame, config: Dict[str, bool],
                           state_machine: str, state: str, current_year: Union[str, int],
                           step_size: pd.Timedelta, age_bins: pd.DataFrame) -> Dict[str, float]:
     """Custom person time getter that handles state column name assumptions"""
-    base_key = get_output_template(**config).substitute(measure=f'state_person_time_{state}',
+    base_key = get_output_template(**config).substitute(measure=f'{state}_person_time',
                                                         year=current_year)
     base_filter = QueryString(f'alive == "alive" and {state_machine} == "{state}"')
     person_time = get_group_counts(pop, base_filter, base_key, config, age_bins,
@@ -649,7 +649,7 @@ def get_transition_count(pop: pd.DataFrame, config: Dict[str, bool],
     event_this_step = ((pop[f'previous_{state_machine}'] == transition.from_state)
                        & (pop[state_machine] == transition.to_state))
     transitioned_pop = pop.loc[event_this_step]
-    base_key = get_output_template(**config).substitute(measure=f'event_count_{transition}',
+    base_key = get_output_template(**config).substitute(measure=f'{transition}_event_count',
                                                         year=event_time.year)
     base_filter = QueryString('')
     transition_count = get_group_counts(transitioned_pop, base_filter, base_key, config, age_bins)
