@@ -11,7 +11,8 @@ from collections import Counter
 
 import pandas as pd
 
-from .utilities import get_age_bins, get_disease_event_counts, get_susceptible_person_time, get_prevalent_cases
+from .utilities import (get_age_bins, get_prevalent_cases, get_states_transitions,
+                        get_state_person_time, get_transition_count, TransitionString)
 
 
 class DiseaseObserver:
@@ -80,7 +81,14 @@ class DiseaseObserver:
         self.person_time = Counter()
         self.prevalence = Counter()
 
-        columns_required = ['alive', f'{self.disease}', f'{self.disease}_event_time']
+        comps = builder.components.list_components()
+        self.states, self.transitions = get_states_transitions(self.disease, comps)
+
+        self.previous_state_column = f'previous_{self.disease}'
+        builder.population.initializes_simulants(self.on_initialize_simulants,
+                                                 creates_columns=[self.previous_state_column])
+
+        columns_required = ['alive', f'{self.disease}', f'{self.disease}_event_time', self.previous_state_column]
         if self.config.by_age:
             columns_required += ['age']
         if self.config.by_sex:
@@ -94,13 +102,23 @@ class DiseaseObserver:
         builder.event.register_listener('time_step__prepare', self.on_time_step_prepare)
         builder.event.register_listener('collect_metrics', self.on_collect_metrics)
 
+    def on_initialize_simulants(self, pop_data):
+        self.population_view.update(pd.Series('', index=pop_data.index, name=self.previous_state_column))
+
     def on_time_step_prepare(self, event):
         pop = self.population_view.get(event.index)
-        # Ignoring the edge case where the step spans a new year.
-        # Accrue all counts and time to the current year.
-        person_time_this_step = get_susceptible_person_time(pop, self.config.to_dict(), self.disease,
-                                                            self.clock().year, event.step_size, self.age_bins)
-        self.person_time.update(person_time_this_step)
+
+        for state in self.states:
+            # noinspection PyTypeChecker
+            state_person_time_this_step = get_state_person_time(pop, self.config, self.disease,
+                                                                state, self.clock().year, event.step_size,
+                                                                self.age_bins)
+            self.person_time.update(state_person_time_this_step)
+
+        # This enables tracking of transitions between states
+        prior_state_pop = self.population_view.get(event.index)
+        prior_state_pop[self.previous_state_column] = prior_state_pop[self.disease]
+        self.population_view.update(prior_state_pop)
 
         if self._should_sample(event.time):
             point_prevalence = get_prevalent_cases(pop, self.config.to_dict(), self.disease, event.time, self.age_bins)
@@ -108,9 +126,11 @@ class DiseaseObserver:
 
     def on_collect_metrics(self, event):
         pop = self.population_view.get(event.index)
-        disease_events_this_step = get_disease_event_counts(pop, self.config.to_dict(), self.disease,
-                                                            event.time, self.age_bins)
-        self.counts.update(disease_events_this_step)
+        for transition in self.transitions:
+            # noinspection PyTypeChecker
+            transition_counts_this_step = get_transition_count(pop, self.config, self.disease,
+                                                               TransitionString(transition), event.time, self.age_bins)
+            self.counts.update(transition_counts_this_step)
 
     def _should_sample(self, event_time: pd.Timestamp) -> bool:
         """Returns true if we should sample on this time step."""
