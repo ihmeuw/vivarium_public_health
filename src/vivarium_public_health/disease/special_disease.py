@@ -13,6 +13,7 @@ import re
 import pandas as pd
 from vivarium.framework.values import list_combiner, union_post_processor
 
+from vivarium_public_health.disease import SusceptibleState, RecoveredState, DiseaseState
 from vivarium_public_health.utilities import EntityString
 
 
@@ -97,10 +98,15 @@ class RiskAttributableDisease:
 
     @property
     def name(self):
-        return f'risk_attributable_disease.{self.cause}.{self.risk}'
+        return f'disease_model.{self.cause.name}'
+
+    @property
+    def states(self):
+        return self._states
 
     def setup(self, builder):
         self.recoverable = builder.configuration[self.cause.name].recoverable
+        self._states = self.initialize_states()
         self.clock = builder.time.clock()
 
         disability_weight_data = builder.data.load(f'{self.cause}.disability_weight')
@@ -266,4 +272,21 @@ class RiskAttributableDisease:
         else:
             emr_data = 0
         return emr_data
+
+    def initialize_states(self):
+        healthy = SusceptibleState(self.cause.name)
+        affected = DiseaseState(self.cause.name)
+
+        healthy.allow_self_transitions()
+        healthy.add_transition(affected, source_data_type='rate')
+        affected.allow_self_transitions()
+        affected.add_transition(healthy, source_data_type='rate')
+
+        states = [healthy, affected]
+        if self.recoverable:
+            recovered = RecoveredState(self.cause.name)
+            affected.add_transition(recovered, source_data_type='rate')
+            states.append(recovered)
+
+        return states
 

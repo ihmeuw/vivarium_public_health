@@ -9,12 +9,14 @@ simulation data to support particular observations during the simulation.
 """
 from collections import ChainMap
 from string import Template
-from typing import Union, List, Tuple, Dict, Callable, Any
+from typing import Union, List, Tuple, Dict, Callable
 
 import numpy as np
 import pandas as pd
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.values import Pipeline
+from vivarium_public_health.disease.model import DiseaseModel
+from vivarium_public_health.disease.special_disease import RiskAttributableDisease
 
 from vivarium_public_health.utilities import to_years
 
@@ -609,16 +611,15 @@ def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
     return pop
 
 
-def get_states_transitions(disease: str, comps: Dict[str, Any]) -> Tuple[(List[str], List[str])]:
-    states = [s.name.split('.')[1] for s in comps[f'disease_model.{disease}'].states]
-    transition_keys = [k for k in comps.keys() if disease in k and 'transition_set' in k]
+def get_states_transitions(comp: Union[DiseaseModel, RiskAttributableDisease]) -> Tuple[(List[str], List[str])]:
+    states = {s.name.split('.')[1]: s for s in comp.states}
+
     transitions = []
-    for key in transition_keys:
-        trans =  comps[key].sub_components
-        for t in trans:
-            _, _, init_state, _, end_state = t.name.split('.')
+    for state in states.values():
+        for trans in state.transition_set.transitions:
+            _, _, init_state, _, end_state = trans.name.split('.')
             transitions.append(f'{init_state}_TO_{end_state}')
-    return (states, transitions)
+    return ([*states], transitions)
 
 
 def get_state_person_time(pop: pd.DataFrame, config: Dict[str, bool],

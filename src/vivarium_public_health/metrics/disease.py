@@ -11,6 +11,14 @@ from collections import Counter
 
 import pandas as pd
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from vivarium.framework.engine import Builder
+
+from vivarium_public_health.disease import DiseaseModel
+from vivarium_public_health.disease.special_disease import RiskAttributableDisease
+
 from .utilities import (get_age_bins, get_prevalent_cases, get_states_transitions,
                         get_state_person_time, get_transition_count, TransitionString)
 
@@ -73,7 +81,7 @@ class DiseaseObserver:
     def name(self):
         return f'disease_observer.{self.disease}'
 
-    def setup(self, builder):
+    def setup(self, builder: "Builder"):
         self.config = builder.configuration['metrics'][f'{self.disease}_observer']
         self.clock = builder.time.clock()
         self.age_bins = get_age_bins(builder)
@@ -81,8 +89,8 @@ class DiseaseObserver:
         self.person_time = Counter()
         self.prevalence = Counter()
 
-        comps = builder.components.list_components()
-        self.states, self.transitions = get_states_transitions(self.disease, comps)
+        comp = builder.components.get_component(f'disease_model.{self.disease}')
+        self.states, self.transitions = get_states_transitions(comp)
 
         self.previous_state_column = f'previous_{self.disease}'
         builder.population.initializes_simulants(self.on_initialize_simulants,
