@@ -11,10 +11,6 @@ transitions at simulation initialization and during transitions.
 import pandas as pd
 import numpy as np
 
-from functools import lru_cache as cache
-# available in 3.8
-# from functools import cached_property   
-
 from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
@@ -43,12 +39,10 @@ class DiseaseModel(Machine):
         return f"disease_model.{self.cause}"
 
     @property
-    @cache
     def state_names(self):
         return [s.name.split('.')[1] for s in self.states]
 
     @property
-    @cache
     def transition_names(self):
         states = {s.name.split('.')[1]: s for s in self.states}
         transitions = []

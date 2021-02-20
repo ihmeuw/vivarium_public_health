@@ -9,6 +9,7 @@ from vivarium.testing_utilities import build_table, TestPopulation, metadata
 
 from vivarium_public_health.disease import (BaseDiseaseState, DiseaseState,
                                             RateTransition, DiseaseModel)
+from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.population import Mortality
 
 
@@ -395,3 +396,14 @@ def test_no_birth_prevalence_initial_assignment(base_config, base_plugins, disea
     simulation._clock.step_forward()
     simulation.simulant_creator(1000, population_configuration={'age_start': 0, 'age_end': 5, 'sim_state': 'time_step'})
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.67, 0.01)
+
+
+def test_state_transition_names(disease):
+    with_condition = DiseaseState('diarrheal_diseases')
+    healthy = SusceptibleState('diarrheal_diseases')
+    healthy.add_transition(with_condition)
+    with_condition.add_transition(healthy)
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+    assert set(model.state_names) == set(['diarrheal_diseases', 'susceptible_to_diarrheal_diseases'])
+    assert set(model.transition_names) == set(['diarrheal_diseases_TO_susceptible_to_diarrheal_diseases',
+                                            'susceptible_to_diarrheal_diseases_TO_diarrheal_diseases'])

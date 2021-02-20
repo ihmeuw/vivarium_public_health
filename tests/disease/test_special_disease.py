@@ -87,3 +87,11 @@ def test_mortality_rate_pandas_dataframe(disease_mock):
                              disease.cause.name: expected_mortality_values}, index=test_index)
 
     assert np.all(expected == disease.adjust_mortality_rate(test_index, rates_df))
+
+
+def test_state_transition_names():
+    disease = 'vitamin_a_deficiency'
+    model = RiskAttributableDisease(f'cause.{disease}', f'risk_factor.{disease}')
+    assert set(model.state_names) == set([disease, f'susceptible_to_{disease}'])
+    assert set(model.transition_names) == set([f'{disease}_TO_susceptible_to_{disease}',
+                                             f'susceptible_to_{disease}_TO_{disease}'])
