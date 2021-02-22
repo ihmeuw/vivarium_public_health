@@ -89,9 +89,23 @@ def test_mortality_rate_pandas_dataframe(disease_mock):
     assert np.all(expected == disease.adjust_mortality_rate(test_index, rates_df))
 
 
-def test_state_transition_names():
-    disease = 'vitamin_a_deficiency'
+test_data = [
+    ('disease_no_recovery', False),
+    ('disease_with_recovery', True),
+]
+
+@pytest.mark.parametrize('disease, recoverable', test_data)
+def test_state_transition_names(disease, recoverable):
     model = RiskAttributableDisease(f'cause.{disease}', f'risk_factor.{disease}')
-    assert set(model.state_names) == set([disease, f'susceptible_to_{disease}'])
-    assert set(model.transition_names) == set([f'{disease}_TO_susceptible_to_{disease}',
-                                             f'susceptible_to_{disease}_TO_{disease}'])
+    model.recoverable = recoverable
+    model.adjust_state_and_transitions()
+    states = [disease, f'susceptible_to_{disease}']
+    transitions = [
+        f'{disease}_TO_susceptible_to_{disease}',
+        f'susceptible_to_{disease}_TO_{disease}',
+    ]
+    if recoverable:
+        states.append(f'recovered_from_{disease}')
+        transitions.append(f'{disease}_TO_recovered_from_{disease}')
+    assert set(model.state_names) == set(states)
+    assert set(model.transition_names) == set(transitions)

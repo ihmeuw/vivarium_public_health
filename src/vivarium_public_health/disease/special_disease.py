@@ -271,7 +271,7 @@ class RiskAttributableDisease:
 
     def adjust_state_and_transitions(self):
         if self.recoverable:
-            self._state_names.append('recovered_from_{self.cause.name}')
+            self._state_names.append(f'recovered_from_{self.cause.name}')
             self._transition_names.append(f'{self.cause.name}_TO_recovered_from_{self.cause.name}')
 
     def load_cause_specific_mortality_rate_data(self, builder):
