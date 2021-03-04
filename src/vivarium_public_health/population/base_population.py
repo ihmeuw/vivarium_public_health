@@ -38,9 +38,9 @@ class BasePopulation:
     def sub_components(self):
         return self._sub_components
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder):
         self.config = builder.configuration.population
-        input_config = builder.configuration.input_data
 
         self.randomness = {'general_purpose': builder.randomness.get_stream('population_generation'),
                            'bin_selection': builder.randomness.get_stream('bin_selection', for_initialization=True),
@@ -56,7 +56,6 @@ class BasePopulation:
                                                  creates_columns=columns)
 
         source_population_structure = load_population_structure(builder)
-        source_population_structure['location'] = input_config.location
 
         self.population_data = _build_population_data_table(source_population_structure)
 
@@ -128,6 +127,7 @@ class AgeOutSimulants:
     def name(self):
         return "age_out_simulants"
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder):
         if builder.configuration.population.exit_age is None:
             return
@@ -320,4 +320,3 @@ def _build_population_data_table(data):
             'P(age | year, sex, location)' : Conditional probability of age given year, sex, and location.
     """
     return assign_demographic_proportions(data)
-

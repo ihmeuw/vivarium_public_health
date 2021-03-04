@@ -368,6 +368,7 @@ def load_population_structure(builder):
     data = builder.data.load("population.structure")
     # create an age column which is the midpoint of the age group
     data['age'] = data.apply(lambda row: (row['age_start'] + row['age_end']) / 2, axis=1)
+    data['location'] = builder.data.load('population.location')
     return data
 
 
