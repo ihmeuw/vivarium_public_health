@@ -87,7 +87,6 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
     time_start = simulation._clock.time
 
     pop_structure = simulation._data.load('population.structure')
-    pop_structure['location'] = simulation.configuration.input_data.location
     uniform_pop = dt.assign_demographic_proportions(pop_structure)
 
     assert base_pop.population_data.equals(uniform_pop)
