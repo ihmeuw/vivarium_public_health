@@ -16,7 +16,6 @@ def base_config():
             'step_size': 30.5
         },
         'randomness': {'key_columns': ['entrance_time', 'age']},
-        'input_data': {'location': 'Kenya'},
     }, source=str(Path(__file__).resolve()), layer='model_override')
 
     return config
