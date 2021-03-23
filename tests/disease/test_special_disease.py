@@ -101,11 +101,9 @@ def test_state_transition_names(disease, recoverable):
     model.adjust_state_and_transitions()
     states = [disease, f'susceptible_to_{disease}']
     transitions = [
-        f'{disease}_TO_susceptible_to_{disease}',
         f'susceptible_to_{disease}_TO_{disease}',
     ]
     if recoverable:
-        states.append(f'recovered_from_{disease}')
-        transitions.append(f'{disease}_TO_recovered_from_{disease}')
+        transitions.append(f'{disease}_TO_susceptible_to_{disease}')
     assert set(model.state_names) == set(states)
     assert set(model.transition_names) == set(transitions)

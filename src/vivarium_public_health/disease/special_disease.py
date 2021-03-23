@@ -99,8 +99,7 @@ class RiskAttributableDisease:
             self.cause.name: RiskAttributableDisease.configuration_defaults['risk_attributable_disease']
         }
         self._state_names = [f'{self.cause.name}', f'susceptible_to_{self.cause.name}']
-        self._transition_names = [f'susceptible_to_{self.cause.name}_TO_{self.cause.name}',
-                                    f'{self.cause.name}_TO_susceptible_to_{self.cause.name}']
+        self._transition_names = [f'susceptible_to_{self.cause.name}_TO_{self.cause.name}']
 
     @property
     def name(self):
@@ -271,8 +270,7 @@ class RiskAttributableDisease:
 
     def adjust_state_and_transitions(self):
         if self.recoverable:
-            self._state_names.append(f'recovered_from_{self.cause.name}')
-            self._transition_names.append(f'{self.cause.name}_TO_recovered_from_{self.cause.name}')
+            self._transition_names.append(f'{self.cause.name}_TO_susceptible_to_{self.cause.name}')
 
     def load_cause_specific_mortality_rate_data(self, builder):
         if builder.configuration[self.cause.name].mortality:
