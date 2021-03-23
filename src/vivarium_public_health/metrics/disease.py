@@ -11,8 +11,8 @@ from collections import Counter
 
 import pandas as pd
 
-from .utilities import (get_age_bins, get_prevalent_cases, get_states_transitions,
-                        get_state_person_time, get_transition_count, TransitionString)
+from .utilities import (get_age_bins, get_prevalent_cases, get_state_person_time,
+                        get_transition_count, TransitionString)
 
 
 class DiseaseObserver:
@@ -81,8 +81,9 @@ class DiseaseObserver:
         self.person_time = Counter()
         self.prevalence = Counter()
 
-        comps = builder.components.list_components()
-        self.states, self.transitions = get_states_transitions(self.disease, comps)
+        comp = builder.components.get_component(f'disease_model.{self.disease}')
+        self.states = comp.state_names
+        self.transitions = comp.transition_names
 
         self.previous_state_column = f'previous_{self.disease}'
         builder.population.initializes_simulants(self.on_initialize_simulants,

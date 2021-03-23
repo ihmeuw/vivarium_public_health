@@ -38,8 +38,12 @@ class RiskAttributableDisease:
     that disease is defined by the exposure level ">" than threshold level
     or, "<" than threshold level, respectively.
 
-    For categorical risks, the threshold
-    should be provided as a list of categories.
+    For categorical risks, the threshold should be provided as a
+    list of categories. This list contains the categories that indicate
+    the simulant is experiencing the condition. For a dichotomous risk
+    there will be 2 categories. By convention ``cat1`` is used to 
+    indicate the with condition state and would be the single item in
+    the ``threshold`` setting list.
 
     In addition to the threshold level, you may configure whether
     there is any mortality associated with this disease with the
@@ -94,13 +98,24 @@ class RiskAttributableDisease:
         self.configuration_defaults = {
             self.cause.name: RiskAttributableDisease.configuration_defaults['risk_attributable_disease']
         }
+        self._state_names = [f'{self.cause.name}', f'susceptible_to_{self.cause.name}']
+        self._transition_names = [f'susceptible_to_{self.cause.name}_TO_{self.cause.name}']
 
     @property
     def name(self):
-        return f'risk_attributable_disease.{self.cause}.{self.risk}'
+        return f'disease_model.{self.cause.name}'
+
+    @property
+    def state_names(self):
+        return self._state_names
+
+    @property
+    def transition_names(self):
+        return self._transition_names
 
     def setup(self, builder):
         self.recoverable = builder.configuration[self.cause.name].recoverable
+        self.adjust_state_and_transitions()
         self.clock = builder.time.clock()
 
         disability_weight_data = builder.data.load(f'{self.cause}.disability_weight')
@@ -253,6 +268,10 @@ class RiskAttributableDisease:
 
         return filter_function
 
+    def adjust_state_and_transitions(self):
+        if self.recoverable:
+            self._transition_names.append(f'{self.cause.name}_TO_susceptible_to_{self.cause.name}')
+
     def load_cause_specific_mortality_rate_data(self, builder):
         if builder.configuration[self.cause.name].mortality:
             csmr_data = builder.data.load(f'cause.{self.cause.name}.cause_specific_mortality_rate')
@@ -266,4 +285,3 @@ class RiskAttributableDisease:
         else:
             emr_data = 0
         return emr_data
-

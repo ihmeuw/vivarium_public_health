@@ -38,6 +38,21 @@ class DiseaseModel(Machine):
     def name(self):
         return f"disease_model.{self.cause}"
 
+    @property
+    def state_names(self):
+        return [s.name.split('.')[1] for s in self.states]
+
+    @property
+    def transition_names(self):
+        states = {s.name.split('.')[1]: s for s in self.states}
+        transitions = []
+        for state in states.values():
+            for trans in state.transition_set.transitions:
+                _, _, init_state, _, end_state = trans.name.split('.')
+                transitions.append(f'{init_state}_TO_{end_state}')
+        return transitions
+
+
     def setup(self, builder):
         super().setup(builder)
 

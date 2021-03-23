@@ -609,18 +609,6 @@ def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
     return pop
 
 
-def get_states_transitions(disease: str, comps: Dict[str, Any]) -> Tuple[(List[str], List[str])]:
-    states = [s.name.split('.')[1] for s in comps[f'disease_model.{disease}'].states]
-    transition_keys = [k for k in comps.keys() if disease in k and 'transition_set' in k]
-    transitions = []
-    for key in transition_keys:
-        trans =  comps[key].sub_components
-        for t in trans:
-            _, _, init_state, _, end_state = t.name.split('.')
-            transitions.append(f'{init_state}_TO_{end_state}')
-    return (states, transitions)
-
-
 def get_state_person_time(pop: pd.DataFrame, config: Dict[str, bool],
                           state_machine: str, state: str, current_year: Union[str, int],
                           step_size: pd.Timedelta, age_bins: pd.DataFrame) -> Dict[str, float]:
