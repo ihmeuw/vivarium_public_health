@@ -8,6 +8,7 @@ it into different distributions for sampling.
 
 """
 from collections import namedtuple
+from math import isclose
 
 import numpy as np
 import pandas as pd
@@ -347,7 +348,7 @@ def _compute_ages(uniform_rv, start, height, slope, normalization):
     numpy.ndarray or float
         Smoothed ages from one half of the age bin distribution.
     """
-    if slope == 0:
+    if isclose(slope, 0, abs_tol=1e-09):
         return start + normalization / height * uniform_rv
     else:
         return start + height / slope * (np.sqrt(1 + 2 * normalization * slope / height ** 2 * uniform_rv) - 1)
