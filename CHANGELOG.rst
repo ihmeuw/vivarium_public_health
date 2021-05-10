@@ -1,3 +1,10 @@
+**0.10.10 - 05/10/21**
+ - Improve standard DiseaseObserver
+ - Add 'transition rate' to the RateTransition object
+ - Add state and transition names to DiseaseModel and RiskAttributableDisease
+ - Get location from artifact rather than config file
+ - Fix bug that resulted in non-unique initializations of populations
+
 **0.10.9 - 01/25/21**
  - Improve performance of polytomous risk ppf calculations
 
