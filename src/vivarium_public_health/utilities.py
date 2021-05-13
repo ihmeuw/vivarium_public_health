@@ -8,7 +8,6 @@ vivarium_public_health components.
 
 """
 from typing import Union
-from time import
 
 import pandas as pd
 
