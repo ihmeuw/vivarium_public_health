@@ -347,7 +347,7 @@ def _compute_ages(uniform_rv, start, height, slope, normalization):
     numpy.ndarray or float
         Smoothed ages from one half of the age bin distribution.
     """
-    if slope < np.finfo(np.float32).eps:
+    if abs(slope) < np.finfo(np.float32).eps:
         return start + normalization / height * uniform_rv
     else:
         return start + height / slope * (np.sqrt(1 + 2 * normalization * slope / height ** 2 * uniform_rv) - 1)
