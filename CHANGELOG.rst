@@ -1,3 +1,6 @@
+**0.10.11 - 05/18/21**
+ - Fix bug in computing ages from an age distribution
+
 **0.10.10 - 05/10/21**
  - Improve standard DiseaseObserver
  - Add 'transition rate' to the RateTransition object
