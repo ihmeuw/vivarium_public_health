@@ -15,6 +15,10 @@ from vivarium_public_health.disease import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):
+    @property
+    def columns_created(self):
+        return [self.event_time_column, self.event_count_column]
+
     def __init__(self, cause, name_prefix='', side_effect_function=None, cause_type="cause", **kwargs):
         super().__init__(name_prefix + cause)  # becomes state_id
         self.cause_type = cause_type
@@ -40,11 +44,10 @@ class BaseDiseaseState(State):
 
         self.clock = builder.time.clock()
 
-        columns_created = [self.event_time_column, self.event_count_column]
-        view_columns = columns_created + [self._model, 'alive']
+        view_columns = self.columns_created + [self._model, 'alive']
         self.population_view = builder.population.get_view(view_columns)
         builder.population.initializes_simulants(self.on_initialize_simulants,
-                                                 creates_columns=columns_created,
+                                                 creates_columns=self.columns_created,
                                                  requires_columns=[self._model])
 
     def on_initialize_simulants(self, pop_data):
