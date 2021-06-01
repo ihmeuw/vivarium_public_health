@@ -225,7 +225,7 @@ class DiseaseState(BaseDiseaseState):
 
     def on_initialize_simulants(self, pop_data):
         super().on_initialize_simulants(pop_data)
-        simulants_with_condition = self.population_view.get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
+        simulants_with_condition = self.population_view.subview([self._model]).get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
         if not simulants_with_condition.empty:
             infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
                                                                       self.randomness_prevalence.get_draw,
