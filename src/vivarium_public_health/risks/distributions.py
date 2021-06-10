@@ -7,6 +7,7 @@ This module contains tools for modeling several different risk
 exposure distributions.
 
 """
+import typing
 import numpy as np
 import pandas as pd
 
@@ -14,6 +15,9 @@ from risk_distributions import EnsembleDistribution, Normal, LogNormal
 
 from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium_public_health.risks.data_transformations import get_distribution_data
+
+if typing.TYPE_CHECKING:
+    from vivarium.framework.engine import Builder
 
 
 class MissingDataError(Exception):
@@ -56,6 +60,7 @@ class EnsembleSimulation:
                                                   parameter_columns=['age', 'year'])
         self.parameters = {k: builder.lookup.build_table(v, key_columns=['sex'], parameter_columns=['age', 'year'])
                            for k, v in self._parameters.items()}
+        self.randomness = builder.randomness.get_stream('ensemble_propensity')
 
     def _get_parameters(self, weights, mean, sd):
         index_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
@@ -70,7 +75,7 @@ class EnsembleSimulation:
             q = clip(q)
             weights = self.weights(q.index)
             parameters = {name: parameter(q.index) for name, parameter in self.parameters.items()}
-            x = EnsembleDistribution(weights, parameters).ppf(q)
+            x = EnsembleDistribution(weights, parameters).ppf(q, self.randomness.get_draw(q.index))
             x[x.isnull()] = 0
         else:
             x = pd.Series([])
