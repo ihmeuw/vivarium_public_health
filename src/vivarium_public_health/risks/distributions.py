@@ -91,7 +91,7 @@ class EnsembleSimulation:
             q = clip(q)
             weights = self.weights(q.index)
             parameters = {name: parameter(q.index) for name, parameter in self.parameters.items()}
-            ensemble_propensity = self.population_view.get_view(q.index)
+            ensemble_propensity = self.population_view.get(q.index).iloc[:,0]
             x = EnsembleDistribution(weights, parameters).ppf(q, ensemble_propensity)
             x[x.isnull()] = 0
         else:
