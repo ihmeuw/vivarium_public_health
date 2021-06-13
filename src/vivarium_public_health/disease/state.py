@@ -15,9 +15,6 @@ from vivarium_public_health.disease import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):
-    @property
-    def columns_created(self):
-        return [self.event_time_column, self.event_count_column]
 
     def __init__(self, cause, name_prefix='', side_effect_function=None, cause_type="cause", **kwargs):
         super().__init__(name_prefix + cause)  # becomes state_id
@@ -30,6 +27,10 @@ class BaseDiseaseState(State):
 
         self.event_time_column = self.state_id + '_event_time'
         self.event_count_column = self.state_id + '_event_count'
+
+    @property
+    def columns_created(self):
+        return [self.event_time_column, self.event_count_column]
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder):

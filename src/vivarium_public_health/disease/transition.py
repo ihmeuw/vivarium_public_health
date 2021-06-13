@@ -6,20 +6,30 @@ Disease Transitions
 This module contains tools to model transitions between disease states.
 
 """
+from typing import Callable, Dict, TYPE_CHECKING
+
 import pandas as pd
 
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.utilities import rate_to_probability
 from vivarium.framework.values import list_combiner, union_post_processor
 
+if TYPE_CHECKING:
+    from vivarium.framework.engine import Builder
+    from vivarium_public_health.disease.state import BaseDiseaseState
+
 
 class RateTransition(Transition):
-    def __init__(self, input_state, output_state, get_data_functions=None, **kwargs):
+    def __init__(self,
+                 input_state: BaseDiseaseState,
+                 output_state: BaseDiseaseState,
+                 get_data_functions: Dict[str, Callable[[str, 'Builder'], pd.DataFrame]] = None,
+                 **kwargs):
         super().__init__(input_state, output_state, probability_func=self._probability, **kwargs)
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder):
+    def setup(self, builder: 'Builder'):
         rate_data, pipeline_name = self.load_transition_rate_data(builder)
         self.base_rate = builder.lookup.build_table(rate_data, key_columns=['sex'], parameter_columns=['age', 'year'])
         self.transition_rate = builder.value.register_rate_producer(pipeline_name,
@@ -34,7 +44,7 @@ class RateTransition(Transition):
 
         self.population_view = builder.population.get_view(['alive'])
 
-    def compute_transition_rate(self, index):
+    def compute_transition_rate(self, index: pd.Index) -> pd.Series:
         transition_rate = pd.Series(0, index=index)
         living = self.population_view.get(index, query='alive == "alive"').index
         base_rates = self.base_rate(living)
@@ -42,7 +52,7 @@ class RateTransition(Transition):
         transition_rate.loc[living] = base_rates * (1 - joint_paf)
         return transition_rate
 
-    def load_transition_rate_data(self, builder):
+    def load_transition_rate_data(self, builder: 'Builder'):
         if 'incidence_rate' in self._get_data_functions:
             rate_data = self._get_data_functions['incidence_rate'](self.output_state.cause, builder)
             pipeline_name = f'{self.output_state.state_id}.incidence_rate'
