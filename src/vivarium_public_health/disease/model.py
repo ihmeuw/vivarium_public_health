@@ -53,6 +53,7 @@ class DiseaseModel(Machine):
         return transitions
 
     def setup(self, builder):
+        """Perform this component's setup."""
         super().setup(builder)
 
         self.configuration_age_start = builder.configuration.population.age_start

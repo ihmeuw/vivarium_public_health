@@ -64,7 +64,6 @@ jobs:
           pytest ./tests
       - name: Doc build
         run: |
-          make clean -C docs/
           make html -C docs/ SPHINXOPTS="-W --keep-going -n"
       - name: Doctest
         run: |
