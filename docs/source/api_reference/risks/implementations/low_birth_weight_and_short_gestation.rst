@@ -1,0 +1,1 @@
+.. automodule:: vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation

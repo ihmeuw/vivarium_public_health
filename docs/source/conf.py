@@ -189,7 +189,8 @@ texinfo_documents = [
 intersphinx_mapping = {'python': ('https://docs.python.org/3.8', None),
                        'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
                        'tables': ('https://www.pytables.org/', None),
-                       'numpy': ('https://numpy.org/doc/stable/', None)}
+                       'numpy': ('https://numpy.org/doc/stable/', None),
+                       'vivarium': ('https://vivarium.readthedocs.io/en/latest/', None)}
 
 
 # -- Autodoc configuration ------------------------------------------------

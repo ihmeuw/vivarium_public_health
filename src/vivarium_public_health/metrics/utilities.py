@@ -9,7 +9,7 @@ simulation data to support particular observations during the simulation.
 """
 from collections import ChainMap
 from string import Template
-from typing import Union, List, Tuple, Dict, Callable, Any
+from typing import Union, List, Tuple, Dict, Callable
 
 import numpy as np
 import pandas as pd
@@ -65,7 +65,7 @@ class SubstituteString(str):
     Meant to be used with the OutputTemplate.
 
     """
-    def substitute(self, *_, **__):
+    def substitute(self, *_, **__) -> 'SubstituteString':
         """No-op method for consistency with OutputTemplate."""
         return self
 
@@ -95,7 +95,7 @@ class OutputTemplate(Template):
             mapping = args[0]
         return self, mapping
 
-    def substitute(*args, **kws):
+    def substitute(*args, **kws) -> Union[SubstituteString, 'OutputTemplate']:
         """Substitutes provided values into the template.
 
         Users are allowed to pass any dictionary like object whose keys match
@@ -105,6 +105,7 @@ class OutputTemplate(Template):
 
         Returns
         -------
+        Union[SubstituteString, OutputTemplate]
             Another output template with the provided values substituted in
             to the template placeholders if any placeholders remain,
             otherwise a completed ``SubstituteString``.
@@ -171,6 +172,7 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool, **_) -> Outpu
 
     Returns
     -------
+    OutputTemplate
         A template string with measure and possibly additional criteria.
 
     """
@@ -184,8 +186,10 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool, **_) -> Outpu
     return OutputTemplate(template)
 
 
-def get_age_sex_filter_and_iterables(config: Dict[str, bool], age_bins: pd.DataFrame, in_span: bool = False) -> (
-        QueryString, Tuple[List[Tuple[str, pd.Series]], List[str]]):
+def get_age_sex_filter_and_iterables(config: Dict[str, bool],
+                                     age_bins: pd.DataFrame,
+                                     in_span: bool = False) -> Tuple[QueryString,
+                                                                     Tuple[List[Tuple[str, pd.Series]], List[str]]]:
     """Constructs a filter and a set of iterables for age and sex.
 
     The constructed filter and iterables are based on configuration for the
@@ -206,9 +210,9 @@ def get_age_sex_filter_and_iterables(config: Dict[str, bool], age_bins: pd.DataF
 
     Returns
     -------
-    age_sex_filter
+    QueryString
         A filter on age and sex for use with DataFrame.query
-    (ages, sexes)
+    Tuple[List[Tuple[str, pd.Series]], List[str]]
         Iterables for the age and sex groups partially defining the bins
         for the observers.
 
@@ -232,7 +236,8 @@ def get_age_sex_filter_and_iterables(config: Dict[str, bool], age_bins: pd.DataF
     return age_sex_filter, (ages, sexes)
 
 
-def get_time_iterable(config: Dict[str, bool], sim_start: pd.Timestamp,
+def get_time_iterable(config: Dict[str, bool],
+                      sim_start: pd.Timestamp,
                       sim_end: pd.Timestamp) -> List[Tuple[str, Tuple[pd.Timestamp, pd.Timestamp]]]:
     """Constructs an iterable for time bins.
 
@@ -251,7 +256,7 @@ def get_time_iterable(config: Dict[str, bool], sim_start: pd.Timestamp,
 
     Returns
     -------
-    time_spans
+    List[Tuple[str, Tuple[pandas.Timestamp, pandas.Timestamp]]]
         Iterable for the time groups partially defining the bins
         for the observers.
 
@@ -264,9 +269,13 @@ def get_time_iterable(config: Dict[str, bool], sim_start: pd.Timestamp,
     return time_spans
 
 
-def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTemplate,
-                     config: Dict[str, bool], age_bins: pd.DataFrame,
-                     aggregate: Callable = len) -> Dict[Union[SubstituteString, OutputTemplate], Union[int, float]]:
+def get_group_counts(pop: pd.DataFrame,
+                     base_filter: str,
+                     base_key: OutputTemplate,
+                     config: Dict[str, bool],
+                     age_bins: pd.DataFrame,
+                     aggregate: Callable[[pd.DataFrame], Union[int, float]] = len
+                     ) -> Dict[Union[SubstituteString, OutputTemplate], Union[int, float]]:
     """Gets a count of people in a custom subgroup.
 
     The user is responsible for providing a default filter (e.g. only alive
@@ -290,9 +299,12 @@ def get_group_counts(pop: pd.DataFrame, base_filter: str, base_key: OutputTempla
         A dict with ``by_age`` and ``by_sex`` keys and boolean values.
     age_bins
         A dataframe with ``age_start`` and ``age_end`` columns.
+    aggregate
+        Transformation used to produce the aggregate.
 
     Returns
     -------
+    Dict[Union[SubstituteString, OutputTemplate], Union[int, float]]
         A dictionary of output_key, count pairs where the output key is a
         string or template representing the sub groups.
     """
@@ -376,7 +388,7 @@ def get_lived_in_span(pop: pd.DataFrame, t_start: pd.Timestamp, t_end: pd.Timest
 
     Returns
     -------
-    lived_in_span
+    pandas.DataFrame
         A table representing the population who lived some amount of time
         within the time span with all columns provided in the original
         table and additional columns 'age_at_span_start' and 'age_at_span_end'
@@ -425,6 +437,7 @@ def get_person_time_in_span(lived_in_span: pd.DataFrame, base_filter: QueryStrin
 
     Returns
     -------
+    Dict[Union[SubstituteString, OutputTemplate], float]
         A dictionary of output_key, person_time pairs where the output key
         corresponds to a particular demographic group.
     """
@@ -474,7 +487,7 @@ def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timesta
 
     Returns
     -------
-    deaths
+    Dict[str, int]
         A dictionary of output_key, death_count pairs where the output_key
         represents a particular demographic subgroup.
 
@@ -496,8 +509,13 @@ def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timesta
     return deaths
 
 
-def get_years_of_life_lost(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timestamp, sim_end: pd.Timestamp,
-                           age_bins: pd.DataFrame, life_expectancy: LookupTable, causes: List[str]) -> Dict[str, float]:
+def get_years_of_life_lost(pop: pd.DataFrame,
+                           config: Dict[str, bool],
+                           sim_start: pd.Timestamp,
+                           sim_end: pd.Timestamp,
+                           age_bins: pd.DataFrame,
+                           life_expectancy: LookupTable,
+                           causes: List[str]) -> Dict[str, float]:
     """Counts the years of life lost by cause.
 
     Parameters
@@ -523,7 +541,7 @@ def get_years_of_life_lost(pop: pd.DataFrame, config: Dict[str, bool], sim_start
 
     Returns
     -------
-    years_of_life_lost
+    Dict[str, float]
         A dictionary of output_key, yll_count pairs where the output_key
         represents a particular demographic subgroup.
 
@@ -546,9 +564,13 @@ def get_years_of_life_lost(pop: pd.DataFrame, config: Dict[str, bool], sim_start
     return years_of_life_lost
 
 
-def get_years_lived_with_disability(pop: pd.DataFrame, config: Dict[str, bool], current_year: int,
-                                    step_size: pd.Timedelta, age_bins: pd.DataFrame,
-                                    disability_weights: Dict[str, Pipeline], causes: List[str]) -> Dict[str, float]:
+def get_years_lived_with_disability(pop: pd.DataFrame,
+                                    config: Dict[str, bool],
+                                    current_year: int,
+                                    step_size: pd.Timedelta,
+                                    age_bins: pd.DataFrame,
+                                    disability_weights: Dict[str, Pipeline],
+                                    causes: List[str]) -> Dict[str, float]:
     """Counts the years lived with disability by cause in the time step.
 
     Parameters
@@ -573,7 +595,7 @@ def get_years_lived_with_disability(pop: pd.DataFrame, config: Dict[str, bool], 
 
     Returns
     -------
-    years_lived_with_disability
+    Dict[str, float]
         A dictionary of output_key, yld_count pairs where the output_key
         represents a particular demographic subgroup.
 
