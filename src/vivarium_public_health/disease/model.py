@@ -52,7 +52,6 @@ class DiseaseModel(Machine):
                 transitions.append(f'{init_state}_TO_{end_state}')
         return transitions
 
-
     def setup(self, builder):
         super().setup(builder)
 
