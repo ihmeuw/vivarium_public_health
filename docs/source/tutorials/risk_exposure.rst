@@ -5,10 +5,10 @@ Non-standard Risk Exposure and Effect Models
 :mod:`vivarium_public_health` provides two components for modeling the impact
 of some health attributes on others:
 
-- :class:`~vivarium_public_health.risks.Risk`: Model of the underlying
-  exposure based on a continuous or categorical distribution.
-- :class:`~vivarium_public_health.risks.RiskEffect`: Model of the impact of
-  different exposure levels on another health attribute.
+- :class:`~vivarium_public_health.risks.base_risk.Risk`: Model of the
+  underlying exposure based on a continuous or categorical distribution.
+- :class:`~vivarium_public_health.risks.effect.RiskEffect`: Model of the
+  impact of different exposure levels on another health attribute.
 
 The standard model is to think of exposure to environmental, metabolic, and
 behavioral risk factors and their impact on disease incidence rates. However,
@@ -16,10 +16,10 @@ we've found many situations to extend this model to other attributes, such as
 interventions and their impacts on other risks, diseases, or mortality itself.
 
 In order to support these extended models, we've made the
-:class:`~vivarium_public_health.risks.Risk` and
-:class:`~vivarium_public_health.risks.RiskEffect` components configurable.
-This tutorial explains the various configuration options you can use with
-these two components.
+:class:`~vivarium_public_health.risks.base_risk.Risk` and
+:class:`~vivarium_public_health.risks.effect.RiskEffect` components
+configurable. This tutorial explains the various configuration options you can
+use with these two components.
 
 .. contents:
    :local:
@@ -28,8 +28,9 @@ these two components.
 Exposure Models
 ---------------
 
-We model exposure using the :class:`~vivarium_public_health.risks.Risk`
-component. Consider its configuration options:
+We model exposure using the
+:class:`~vivarium_public_health.risks.base_risk.Risk` component.
+Consider its configuration options:
 
 - ``"exposure"``: This option represents the exposure data source. It defaults
   to the value ``"data"``.
@@ -41,13 +42,13 @@ component. Consider its configuration options:
   continuous exposure models into a categorical model. It defaults to an
   empty list, indicating that the underlying exposure model should be used.
 
-The name input when the :class:`~vivarium_public_health.risks.Risk` is created
-also has an impact on the behavior. Names are provided as ``<type>.<name>``
-where ``type`` refers to the type of entity being modeled and ``name`` is
-the name of the entity.  Available types are ``"risk_factor"``,
-``"coverage_gap"``, and ``"alternative_risk_factor"``.  Some configuration
-options are only available for certain entity types, as summarized in the
-table below.
+The name input when the :class:`~vivarium_public_health.risks.base_risk.Risk`
+is created also has an impact on the behavior. Names are provided
+as ``<type>.<name>`` where ``type`` refers to the type of entity being
+modeled and ``name`` is the name of the entity.  Available types are
+``"risk_factor"``, ``"coverage_gap"``, and ``"alternative_risk_factor"``.
+Some configuration options are only available for certain entity types, as
+summarized in the table below.
 
 .. list-table:: Configuration Options
    :widths: 20 20 20 20
@@ -95,7 +96,7 @@ the component to use its defaults with
 
 We declare the component but don't declare any configuration options for it.
 This will cause the risk component to look up any available exposure
-information in the :class:`~vivarium_public_health.dataset_manager.Artifact`
+information in the :class:`~vivarium.framework.artifact.artifact.Artifact`
 and use the data as presented.
 
 If we change the ``"exposure"`` option to the name of a covariate as
@@ -112,7 +113,7 @@ If we change the ``"exposure"`` option to the name of a covariate as
            exposure: covariate.my_covariate
 
 the component will look for the covariate estimate in the
-:class:`~vivarium_public_health.dataset_manager.Artifact` rather than for
+:class:`~vivarium.framework.artifact.artifact.Artifact` rather than for
 the risk factor exposure. Only covariates with a proportion estimate can be
 substituted for risk exposure. The covariate proportion will be used as the
 proportion of people exposed to the risk factor.
@@ -152,8 +153,8 @@ This will reformat the exposure data to consider anyone in "cat1", "cat2", or
 "cat3" as exposed, and all other exposure categories as unexposed.
 
 Using the ``"rebinned_exposure"`` option will cause the relative risk
-for all :class:`~vivarium_public_health.risks.RiskEffect` components to
-also be rebinned.
+for all :class:`~vivarium_public_health.risks.effect.RiskEffect`
+components to also be rebinned.
 
 .. note::
 
@@ -221,8 +222,8 @@ configuration options all correspond to generating a relative risk for
 the exposed population from a set of parameters.
 
 We model exposure effects using the
-:class:`~vivarium_public_health.risks.RiskEffect` component.  Let's look
-at its configuration options:
+:class:`~vivarium_public_health.risks.effect.RiskEffect` component.
+Let's look at its configuration options:
 
 - ``"relative_risk"``: Option for specifying a relative risk value directly.
   If provided, no other configuration options may be specified.
@@ -245,15 +246,15 @@ at its configuration options:
   supplied when specifying a relative risk to be drawn with a lognormal
   distribution with ``"log_mean"`` and ``"log_se"``.
 
-When a :class:`~vivarium_public_health.risks.RiskEffect` is created, it
+When a :class:`~vivarium_public_health.risks.effect.RiskEffect` is created, it
 takes two arguments: the name of the exposure model and the name of the
 target attribute that should be altered. The exposure model should be named
-the same as the argument to :class:`~vivarium_public_health.risks.Risk`
+the same as the argument to :class:`~vivarium_public_health.risks.base_risk.Risk`
 and the target attribute should be in the form ``<type>.<name>.<measure>``.
 ``type`` and ``name`` specify the entity the effect targets and ``measure``
-tells the :class:`~vivarium_public_health.risks.RiskEffect` which specific
+tells the :class:`~vivarium_public_health.risks.effect.RiskEffect` which specific
 attribute of the entity to alter. Common targets are exposure for other
-:class:`~vivarium_public_health.risks.Risk` entities and incidence rates for
+:class:`~vivarium_public_health.risks.base_risk.Risk` entities and incidence rates for
 diseases.
 
 The Default Case
@@ -274,15 +275,15 @@ up with something like:
 
 In this situation, the :mod:`vivarium_public_health` components will assume
 all parameters will come from data.  The
-:class:`~vivarium_public_health.disease.SIS` component will load measures
+:class:`~vivarium_public_health.disease.models.SIS` component will load measures
 like prevalence, incidence rate, excess mortality rate, and others to inform
 the initialization and dynamics of the model.  The
-:class:`~vivarium_public_health.risks.Risk` will load exposure information.
-The :class:`~vivarium_public_health.risks.RiskEffect` will load the
+:class:`~vivarium_public_health.risks.base_risk.Risk` will load exposure information.
+The :class:`~vivarium_public_health.risks.effect.RiskEffect` will load the
 population attributable fraction and the relative risk associated with the
 risk-cause pair, and link the disease and risk model with this data.
 
-The configuration block for :class:`~vivarium_public_health.risks.RiskEffect`
+The configuration block for :class:`~vivarium_public_health.risks.effect.RiskEffect`
 is specified as
 
 .. code-block:: yaml
@@ -293,9 +294,9 @@ is specified as
                ...options...
 
 where ``<exposure_entity_name>`` is the ``<name>`` provided to the associated
-:class:`~vivarium_public_health.risks.Risk` component and the
+:class:`~vivarium_public_health.risks.base_risk.Risk` component and the
 ``<target_entity_name>`` is the name provided to the component used in
-the target, usually another :class:`~vivarium_public_health.risks.Risk` or
+the target, usually another :class:`~vivarium_public_health.risks.base_risk.Risk` or
 a disease model.
 
 Specifying a Relative Risk Value
@@ -321,7 +322,7 @@ is to specify a single value for the relative risk.
                relative_risk: 20
 
 For this to work, the exposure modeled by the
-:class:`~vivarium_public_health.risks.Risk` must be a dichotomous exposure
+:class:`~vivarium_public_health.risks.base_risk.Risk` must be a dichotomous exposure
 (only exposed or not exposed).  The ``"relative_risk"`` option provided will
 be assigned and used for the exposed group.  Specifying a relative risk
 this way will cause the population attributable fraction to be calculated
@@ -397,7 +398,7 @@ All three parameters, the ``"log_mean"``, the ``"log_sd"`` and the
 
 .. note::
 
-   The parameterized :class:`~vivarium_public_health.risks.RiskEffect` can
+   The parameterized :class:`~vivarium_public_health.risks.effect.RiskEffect` can
    be used with a parameterized version of the
-   :class:`vivarium_public_health.risks.Risk`.  The only requirement
+   :class:`vivarium_public_health.risks.base_risk.Risk`.  The only requirement
    for use is that exposure model be dichotomous.

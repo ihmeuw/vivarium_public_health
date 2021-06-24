@@ -67,7 +67,7 @@ class BaseDiseaseState(State):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
         event_time : pandas.Timestamp
             The time at which this transition occurs.
@@ -239,7 +239,7 @@ class DiseaseState(BaseDiseaseState):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
 
         Returns
@@ -265,7 +265,7 @@ class DiseaseState(BaseDiseaseState):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
         rates_df : `pandas.DataFrame`
 
@@ -304,7 +304,7 @@ class DiseaseState(BaseDiseaseState):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
         event_time : pandas.Timestamp
             The time at which this transition occurs.
@@ -319,12 +319,12 @@ class DiseaseState(BaseDiseaseState):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
 
         Returns
         -------
-        iterable of ints
+        pd.Index
             A filtered index of the simulants.
         """
         population = self.population_view.get(index, query='alive == "alive"')
