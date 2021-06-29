@@ -74,7 +74,7 @@ class EnsembleSimulation:
                                                  creates_columns=[self._propensity],
                                                  requires_streams=[self._propensity])
 
-    def on_initialize_simulants(self, pop_data: 'SimulantData'):
+    def on_initialize_simulants(self, pop_data):
         ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(self._propensity)
         self.population_view.update(ensemble_propensity)
 
