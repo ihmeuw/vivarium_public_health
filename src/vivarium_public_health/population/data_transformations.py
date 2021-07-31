@@ -380,7 +380,10 @@ def get_live_births_per_year(builder):
     population_data = rescale_final_age_bin(builder, population_data)
 
     initial_population_size = builder.configuration.population.population_size
-    population_data = population_data.groupby(['year_start'])['value'].sum()
+    age_end = builder.configuration.population.age_end
+
+    population_data = (population_data[population_data.age_end <= age_end]
+                       .groupby(['year_start']))['value'].sum()
     birth_data = (birth_data[birth_data.parameter == 'mean_value']
                   .drop('parameter', 'columns')
                   .groupby(['year_start'])['value'].sum())
