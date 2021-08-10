@@ -1,3 +1,8 @@
+**0.10.12 - 08/10/21**
+ - Fix bugs in DiseaseState
+ - Improve functionality of ensemble distributions
+ - Improve CI
+
 **0.10.11 - 05/18/21**
  - Fix bug in computing ages from an age distribution
 
