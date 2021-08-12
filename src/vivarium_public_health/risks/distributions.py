@@ -7,6 +7,7 @@ This module contains tools for modeling several different risk
 exposure distributions.
 
 """
+import typing
 import numpy as np
 import pandas as pd
 
@@ -14,6 +15,9 @@ from risk_distributions import EnsembleDistribution, Normal, LogNormal
 
 from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium_public_health.risks.data_transformations import get_distribution_data
+
+if typing.TYPE_CHECKING:
+    from vivarium.framework.engine import Builder
 
 
 class MissingDataError(Exception):
@@ -51,11 +55,28 @@ class EnsembleSimulation:
         self.risk = risk
         self._weights, self._parameters = self._get_parameters(weights, mean, sd)
 
+    @property
+    def name(self):
+        return f'ensemble_simulation.{self.risk}'
+
     def setup(self, builder):
         self.weights = builder.lookup.build_table(self._weights, key_columns=['sex'],
                                                   parameter_columns=['age', 'year'])
         self.parameters = {k: builder.lookup.build_table(v, key_columns=['sex'], parameter_columns=['age', 'year'])
                            for k, v in self._parameters.items()}
+
+        self._propensity = f'ensemble_propensity_{self.risk}'
+        self.randomness = builder.randomness.get_stream(self._propensity)
+
+        self.population_view = builder.population.get_view([self._propensity])
+
+        builder.population.initializes_simulants(self.on_initialize_simulants,
+                                                 creates_columns=[self._propensity],
+                                                 requires_streams=[self._propensity])
+
+    def on_initialize_simulants(self, pop_data):
+        ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(self._propensity)
+        self.population_view.update(ensemble_propensity)
 
     def _get_parameters(self, weights, mean, sd):
         index_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
@@ -70,7 +91,8 @@ class EnsembleSimulation:
             q = clip(q)
             weights = self.weights(q.index)
             parameters = {name: parameter(q.index) for name, parameter in self.parameters.items()}
-            x = EnsembleDistribution(weights, parameters).ppf(q)
+            ensemble_propensity = self.population_view.get(q.index).iloc[:,0]
+            x = EnsembleDistribution(weights, parameters).ppf(q, ensemble_propensity)
             x[x.isnull()] = 0
         else:
             x = pd.Series([])

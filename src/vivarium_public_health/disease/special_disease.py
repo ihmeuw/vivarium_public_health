@@ -219,9 +219,9 @@ class RiskAttributableDisease:
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
-        rates_df : `pandas.DataFrame`
+        rates_df
 
         """
         rate = self.excess_mortality_rate(index, skip_post_processor=True)

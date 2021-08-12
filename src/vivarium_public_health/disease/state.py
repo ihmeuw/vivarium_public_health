@@ -6,15 +6,18 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
+from typing import Callable, Dict
+
 import pandas as pd
 import numpy as np
-from vivarium.framework.state_machine import State, Transient
+from vivarium.framework.state_machine import State, Transient, Transition
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):
+
     def __init__(self, cause, name_prefix='', side_effect_function=None, cause_type="cause", **kwargs):
         super().__init__(name_prefix + cause)  # becomes state_id
         self.cause_type = cause_type
@@ -26,6 +29,10 @@ class BaseDiseaseState(State):
 
         self.event_time_column = self.state_id + '_event_time'
         self.event_count_column = self.state_id + '_event_count'
+
+    @property
+    def columns_created(self):
+        return [self.event_time_column, self.event_count_column]
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder):
@@ -40,11 +47,10 @@ class BaseDiseaseState(State):
 
         self.clock = builder.time.clock()
 
-        columns_created = [self.event_time_column, self.event_count_column]
-        view_columns = columns_created + [self._model, 'alive']
+        view_columns = self.columns_created + [self._model, 'alive']
         self.population_view = builder.population.get_view(view_columns)
         builder.population.initializes_simulants(self.on_initialize_simulants,
-                                                 creates_columns=columns_created,
+                                                 creates_columns=self.columns_created,
                                                  requires_columns=[self._model])
 
     def on_initialize_simulants(self, pop_data):
@@ -63,7 +69,7 @@ class BaseDiseaseState(State):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
         event_time : pandas.Timestamp
             The time at which this transition occurs.
@@ -77,11 +83,28 @@ class BaseDiseaseState(State):
         if self.side_effect_function is not None:
             self.side_effect_function(index, event_time)
 
-    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
-        transition_map = {'rate': RateTransition, 'proportion': ProportionTransition}
+    def add_transition(self, output: State, source_data_type: str = None,
+                       get_data_functions: Dict[str, Callable] = None, **kwargs) -> Transition:
+        """Builds a transition from this state to the given state.
 
-        if source_data_type is not None and source_data_type not in transition_map:
-            raise ValueError(f"Unrecognized data type {source_data_type}")
+        Parameters
+        ----------
+        output
+            The end state after the transition.
+
+        source_data_type
+            the type of transition: either 'rate' or 'proportion'
+
+        get_data_functions
+            map from transition type to the function to pull that transition's data
+
+        Returns
+        -------
+        vivarium.framework.state_machine.Transition
+            The created transition object.
+
+        """
+        transition_map = {'rate': RateTransition, 'proportion': ProportionTransition}
 
         if not source_data_type:
             return super().add_transition(output, **kwargs)
@@ -89,6 +112,8 @@ class BaseDiseaseState(State):
             t = transition_map[source_data_type](self, output, get_data_functions, **kwargs)
             self.transition_set.append(t)
             return t
+        else:
+            raise ValueError(f"Unrecognized data type {source_data_type}")
 
 
 class SusceptibleState(BaseDiseaseState):
@@ -96,7 +121,8 @@ class SusceptibleState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
         super().__init__(cause, *args, name_prefix='susceptible_to_', **kwargs)
 
-    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+    def add_transition(self, output: State, source_data_type: str = None,
+                       get_data_functions: Dict[str, Callable] = None, **kwargs) -> Transition:
         if source_data_type == 'rate':
             if get_data_functions is None:
                 get_data_functions = {
@@ -116,7 +142,8 @@ class RecoveredState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
         super().__init__(cause, *args, name_prefix="recovered_from_", **kwargs)
 
-    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+    def add_transition(self, output: State, source_data_type: str = None,
+                       get_data_functions: Dict[str, Callable] = None, **kwargs) -> Transition:
         if source_data_type == 'rate':
             if get_data_functions is None:
                 get_data_functions = {
@@ -222,7 +249,7 @@ class DiseaseState(BaseDiseaseState):
 
     def on_initialize_simulants(self, pop_data):
         super().on_initialize_simulants(pop_data)
-        simulants_with_condition = self.population_view.get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
+        simulants_with_condition = self.population_view.subview([self._model]).get(pop_data.index, query=f'{self._model}=="{self.state_id}"')
         if not simulants_with_condition.empty:
             infected_at = self._assign_event_time_for_prevalent_cases(simulants_with_condition, self.clock(),
                                                                       self.randomness_prevalence.get_draw,
@@ -235,7 +262,7 @@ class DiseaseState(BaseDiseaseState):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
 
         Returns
@@ -261,7 +288,7 @@ class DiseaseState(BaseDiseaseState):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
         rates_df : `pandas.DataFrame`
 
@@ -282,7 +309,8 @@ class DiseaseState(BaseDiseaseState):
         infected_at = current_time - pd.to_timedelta(infected_at, unit='D')
         return infected_at
 
-    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+    def add_transition(self, output: State, source_data_type: str = None,
+                       get_data_functions: Dict[str, Callable] = None, **kwargs) -> Transition:
         if source_data_type == 'rate':
             if get_data_functions is None:
                 get_data_functions = {
@@ -300,7 +328,7 @@ class DiseaseState(BaseDiseaseState):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
         event_time : pandas.Timestamp
             The time at which this transition occurs.
@@ -315,12 +343,12 @@ class DiseaseState(BaseDiseaseState):
 
         Parameters
         ----------
-        index : iterable of ints
+        index
             An iterable of integer labels for the simulants.
 
         Returns
         -------
-        iterable of ints
+        pd.Index
             A filtered index of the simulants.
         """
         population = self.population_view.get(index, query='alive == "alive"')

@@ -109,7 +109,8 @@ class BasePopulation:
 
         Parameters
         ----------
-        event : vivarium.framework.population.PopulationEvent
+        event : vivarium.framework.event.Event
+
         """
         population = self.population_view.get(event.index, query="alive == 'alive'")
         population['age'] += utilities.to_years(event.step_size)
@@ -154,7 +155,7 @@ def generate_population(simulant_ids, creation_time, step_size, age_params,
 
     Parameters
     ----------
-    simulant_ids : iterable of ints
+    simulant_ids
         Values to serve as the index in the newly generated simulant DataFrame.
     creation_time : pandas.Timestamp
         The simulation time when the simulants are created.
