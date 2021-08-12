@@ -6,9 +6,11 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
+from typing import Callable, Dict
+
 import pandas as pd
 import numpy as np
-from vivarium.framework.state_machine import State, Transient
+from vivarium.framework.state_machine import State, Transient, Transition
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease import RateTransition, ProportionTransition
@@ -81,11 +83,28 @@ class BaseDiseaseState(State):
         if self.side_effect_function is not None:
             self.side_effect_function(index, event_time)
 
-    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
-        transition_map = {'rate': RateTransition, 'proportion': ProportionTransition}
+    def add_transition(self, output: State, source_data_type: str = None,
+                       get_data_functions: Dict[str, Callable] = None, **kwargs) -> Transition:
+        """Builds a transition from this state to the given state.
 
-        if source_data_type is not None and source_data_type not in transition_map:
-            raise ValueError(f"Unrecognized data type {source_data_type}")
+        Parameters
+        ----------
+        output
+            The end state after the transition.
+
+        source_data_type
+            the type of transition: either 'rate' or 'proportion'
+
+        get_data_functions
+            map from transition type to the function to pull that transition's data
+
+        Returns
+        -------
+        vivarium.framework.state_machine.Transition
+            The created transition object.
+
+        """
+        transition_map = {'rate': RateTransition, 'proportion': ProportionTransition}
 
         if not source_data_type:
             return super().add_transition(output, **kwargs)
@@ -93,6 +112,8 @@ class BaseDiseaseState(State):
             t = transition_map[source_data_type](self, output, get_data_functions, **kwargs)
             self.transition_set.append(t)
             return t
+        else:
+            raise ValueError(f"Unrecognized data type {source_data_type}")
 
 
 class SusceptibleState(BaseDiseaseState):
@@ -100,7 +121,8 @@ class SusceptibleState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
         super().__init__(cause, *args, name_prefix='susceptible_to_', **kwargs)
 
-    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+    def add_transition(self, output: State, source_data_type: str = None,
+                       get_data_functions: Dict[str, Callable] = None, **kwargs) -> Transition:
         if source_data_type == 'rate':
             if get_data_functions is None:
                 get_data_functions = {
@@ -120,7 +142,8 @@ class RecoveredState(BaseDiseaseState):
     def __init__(self, cause, *args, **kwargs):
         super().__init__(cause, *args, name_prefix="recovered_from_", **kwargs)
 
-    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+    def add_transition(self, output: State, source_data_type: str = None,
+                       get_data_functions: Dict[str, Callable] = None, **kwargs) -> Transition:
         if source_data_type == 'rate':
             if get_data_functions is None:
                 get_data_functions = {
@@ -286,7 +309,8 @@ class DiseaseState(BaseDiseaseState):
         infected_at = current_time - pd.to_timedelta(infected_at, unit='D')
         return infected_at
 
-    def add_transition(self, output, source_data_type=None, get_data_functions=None, **kwargs):
+    def add_transition(self, output: State, source_data_type: str = None,
+                       get_data_functions: Dict[str, Callable] = None, **kwargs) -> Transition:
         if source_data_type == 'rate':
             if get_data_functions is None:
                 get_data_functions = {
