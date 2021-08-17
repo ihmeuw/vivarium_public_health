@@ -35,7 +35,7 @@ class SimulationDistribution:
 
     @property
     def name(self):
-        return f'{self.risk}.exposure_distribution'
+        return f"{self.risk}.exposure_distribution"
 
     def setup(self, builder):
         distribution_data = get_distribution_data(builder, self.risk)
@@ -46,52 +46,67 @@ class SimulationDistribution:
         return self.implementation.ppf(q)
 
     def __repr__(self):
-        return f'ExposureDistribution({self.risk})'
+        return f"ExposureDistribution({self.risk})"
 
 
 class EnsembleSimulation:
-
     def __init__(self, risk, weights, mean, sd):
         self.risk = risk
         self._weights, self._parameters = self._get_parameters(weights, mean, sd)
 
     @property
     def name(self):
-        return f'ensemble_simulation.{self.risk}'
+        return f"ensemble_simulation.{self.risk}"
 
     def setup(self, builder):
-        self.weights = builder.lookup.build_table(self._weights, key_columns=['sex'],
-                                                  parameter_columns=['age', 'year'])
-        self.parameters = {k: builder.lookup.build_table(v, key_columns=['sex'], parameter_columns=['age', 'year'])
-                           for k, v in self._parameters.items()}
+        self.weights = builder.lookup.build_table(
+            self._weights, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
+        self.parameters = {
+            k: builder.lookup.build_table(
+                v, key_columns=["sex"], parameter_columns=["age", "year"]
+            )
+            for k, v in self._parameters.items()
+        }
 
-        self._propensity = f'ensemble_propensity_{self.risk}'
+        self._propensity = f"ensemble_propensity_{self.risk}"
         self.randomness = builder.randomness.get_stream(self._propensity)
 
         self.population_view = builder.population.get_view([self._propensity])
 
-        builder.population.initializes_simulants(self.on_initialize_simulants,
-                                                 creates_columns=[self._propensity],
-                                                 requires_streams=[self._propensity])
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            creates_columns=[self._propensity],
+            requires_streams=[self._propensity],
+        )
 
     def on_initialize_simulants(self, pop_data):
-        ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(self._propensity)
+        ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(
+            self._propensity
+        )
         self.population_view.update(ensemble_propensity)
 
     def _get_parameters(self, weights, mean, sd):
-        index_cols = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
+        index_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
         weights = weights.set_index(index_cols)
-        mean = mean.set_index(index_cols)['value']
-        sd = sd.set_index(index_cols)['value']
-        weights, parameters = EnsembleDistribution.get_parameters(weights, mean=mean, sd=sd)
-        return weights.reset_index(), {name: p.reset_index() for name, p in parameters.items()}
+        mean = mean.set_index(index_cols)["value"]
+        sd = sd.set_index(index_cols)["value"]
+        weights, parameters = EnsembleDistribution.get_parameters(
+            weights, mean=mean, sd=sd
+        )
+        return (
+            weights.reset_index(),
+            {name: p.reset_index() for name, p in parameters.items()},
+        )
 
     def ppf(self, q):
         if not q.empty:
             q = clip(q)
             weights = self.weights(q.index)
-            parameters = {name: parameter(q.index) for name, parameter in self.parameters.items()}
-            ensemble_propensity = self.population_view.get(q.index).iloc[:,0]
+            parameters = {
+                name: parameter(q.index) for name, parameter in self.parameters.items()
+            }
+            ensemble_propensity = self.population_view.get(q.index).iloc[:, 0]
             x = EnsembleDistribution(weights, parameters).ppf(q, ensemble_propensity)
             x[x.isnull()] = 0
         else:
@@ -99,7 +114,7 @@ class EnsembleSimulation:
         return x
 
     def __repr__(self):
-        return f'EnsembleSimulation(risk={self.risk})'
+        return f"EnsembleSimulation(risk={self.risk})"
 
 
 class ContinuousDistribution:
@@ -110,16 +125,17 @@ class ContinuousDistribution:
 
     @property
     def name(self):
-        return f'simulation_distribution.{self.risk}'
+        return f"simulation_distribution.{self.risk}"
 
     def setup(self, builder):
-        self.parameters = builder.lookup.build_table(self._parameters, key_columns=['sex'],
-                                                     parameter_columns=['age', 'year'])
+        self.parameters = builder.lookup.build_table(
+            self._parameters, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
 
     def _get_parameters(self, mean, sd):
-        index = ['sex', 'age_start', 'age_end', 'year_start', 'year_end']
-        mean = mean.set_index(index)['value']
-        sd = sd.set_index(index)['value']
+        index = ["sex", "age_start", "age_end", "year_start", "year_end"]
+        mean = mean.set_index(index)["value"]
+        sd = sd.set_index(index)["value"]
         return self.distribution.get_parameters(mean=mean, sd=sd).reset_index()
 
     def ppf(self, q):
@@ -139,28 +155,39 @@ class PolytomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
         self.risk = risk
         self.exposure_data = exposure_data
-        self.categories = sorted([column for column in self.exposure_data if 'cat' in column],
-                                 key=lambda column: int(column[3:]))
+        self.categories = sorted(
+            [column for column in self.exposure_data if "cat" in column],
+            key=lambda column: int(column[3:]),
+        )
 
     @property
     def name(self):
-        return f'polytomous_distribution.{self.risk}'
+        return f"polytomous_distribution.{self.risk}"
 
     def setup(self, builder):
-        self.exposure = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
-                                                              source=builder.lookup.build_table(self.exposure_data,
-                                                                                                key_columns=['sex'],
-                                                                                                parameter_columns=
-                                                                                                ['age', 'year']))
+        self.exposure = builder.value.register_value_producer(
+            f"{self.risk}.exposure_parameters",
+            source=builder.lookup.build_table(
+                self.exposure_data,
+                key_columns=["sex"],
+                parameter_columns=["age", "year"],
+            ),
+        )
 
     def ppf(self, x):
         exposure = self.exposure(x.index)
         sorted_exposures = exposure[self.categories]
         if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
-            raise MissingDataError('All exposure data returned as 0.')
-        exposure_sum = sorted_exposures.cumsum(axis='columns')
-        category_index = pd.concat([exposure_sum[c] < x for c in exposure_sum.columns], axis=1).sum(axis=1)
-        return pd.Series(np.array(self.categories)[category_index], name=self.risk + '_exposure', index=x.index)
+            raise MissingDataError("All exposure data returned as 0.")
+        exposure_sum = sorted_exposures.cumsum(axis="columns")
+        category_index = pd.concat(
+            [exposure_sum[c] < x for c in exposure_sum.columns], axis=1
+        ).sum(axis=1)
+        return pd.Series(
+            np.array(self.categories)[category_index],
+            name=self.risk + "_exposure",
+            index=x.index,
+        )
 
     def __repr__(self):
         return f"PolytomousDistribution(risk={self.risk})"
@@ -169,49 +196,63 @@ class PolytomousDistribution:
 class DichotomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
         self.risk = risk
-        self.exposure_data = exposure_data.drop('cat2', axis=1)
+        self.exposure_data = exposure_data.drop("cat2", axis=1)
 
     @property
     def name(self):
-        return f'dichotomous_distribution.{self.risk}'
+        return f"dichotomous_distribution.{self.risk}"
 
     def setup(self, builder):
-        self._base_exposure = builder.lookup.build_table(self.exposure_data, key_columns=['sex'],
-                                                         parameter_columns=['age', 'year'])
-        self.exposure_proportion = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
-                                                                         source=self.exposure)
+        self._base_exposure = builder.lookup.build_table(
+            self.exposure_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
+        self.exposure_proportion = builder.value.register_value_producer(
+            f"{self.risk}.exposure_parameters", source=self.exposure
+        )
         base_paf = builder.lookup.build_table(0)
-        self.joint_paf = builder.value.register_value_producer(f'{self.risk}.exposure_parameters.paf',
-                                                               source=lambda index: [base_paf(index)],
-                                                               preferred_combiner=list_combiner,
-                                                               preferred_post_processor=union_post_processor)
+        self.joint_paf = builder.value.register_value_producer(
+            f"{self.risk}.exposure_parameters.paf",
+            source=lambda index: [base_paf(index)],
+            preferred_combiner=list_combiner,
+            preferred_post_processor=union_post_processor,
+        )
 
     def exposure(self, index):
         base_exposure = self._base_exposure(index).values
         joint_paf = self.joint_paf(index).values
-        return pd.Series(base_exposure * (1-joint_paf), index=index, name='values')
+        return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
 
     def ppf(self, x):
         exposed = x < self.exposure_proportion(x.index)
-        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self.risk + '_exposure', index=x.index)
+        return pd.Series(
+            exposed.replace({True: "cat1", False: "cat2"}),
+            name=self.risk + "_exposure",
+            index=x.index,
+        )
 
     def __repr__(self):
         return f"DichotomousDistribution(risk={self.risk})"
 
 
-def get_distribution(risk, distribution_type, exposure, exposure_standard_deviation, weights):
-    if distribution_type == 'dichotomous':
+def get_distribution(
+    risk, distribution_type, exposure, exposure_standard_deviation, weights
+):
+    if distribution_type == "dichotomous":
         distribution = DichotomousDistribution(risk, exposure)
-    elif 'polytomous' in distribution_type:
+    elif "polytomous" in distribution_type:
         distribution = PolytomousDistribution(risk, exposure)
-    elif distribution_type == 'normal':
-        distribution = ContinuousDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
-                                              distribution=Normal)
-    elif distribution_type == 'lognormal':
-        distribution = ContinuousDistribution(risk, mean=exposure, sd=exposure_standard_deviation,
-                                              distribution=LogNormal)
-    elif distribution_type == 'ensemble':
-        distribution = EnsembleSimulation(risk, weights, mean=exposure, sd=exposure_standard_deviation,)
+    elif distribution_type == "normal":
+        distribution = ContinuousDistribution(
+            risk, mean=exposure, sd=exposure_standard_deviation, distribution=Normal
+        )
+    elif distribution_type == "lognormal":
+        distribution = ContinuousDistribution(
+            risk, mean=exposure, sd=exposure_standard_deviation, distribution=LogNormal
+        )
+    elif distribution_type == "ensemble":
+        distribution = EnsembleSimulation(
+            risk, weights, mean=exposure, sd=exposure_standard_deviation,
+        )
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
     return distribution

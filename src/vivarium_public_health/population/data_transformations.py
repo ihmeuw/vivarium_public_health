@@ -30,25 +30,25 @@ def assign_demographic_proportions(population_data):
         various population levels.
     """
 
-    population_data['P(sex, location, age| year)'] = (
-        population_data
-            .groupby('year_start', as_index=False)
-            .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
-            .reset_index(level=0).value
+    population_data["P(sex, location, age| year)"] = (
+        population_data.groupby("year_start", as_index=False)
+        .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
+        .reset_index(level=0)
+        .value
     )
 
-    population_data['P(sex, location | age, year)'] = (
-        population_data
-            .groupby(['age', 'year_start'], as_index=False)
-            .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
-            .reset_index(level=0).value
+    population_data["P(sex, location | age, year)"] = (
+        population_data.groupby(["age", "year_start"], as_index=False)
+        .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
+        .reset_index(level=0)
+        .value
     )
 
-    population_data['P(age | year, sex, location)'] = (
-        population_data
-            .groupby(['year_start', 'sex', 'location'], as_index=False)
-            .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
-            .reset_index(level=0).value
+    population_data["P(age | year, sex, location)"] = (
+        population_data.groupby(["year_start", "sex", "location"], as_index=False)
+        .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
+        .reset_index(level=0)
+        .value
     )
 
     return population_data
@@ -81,40 +81,52 @@ def rescale_binned_proportions(pop_data, age_start, age_end):
         values are rescaled to reflect their smaller representation.
     """
     if age_start > pop_data.age_end.max():
-        raise ValueError('Provided population data is insufficient to model the requested age range.')
+        raise ValueError(
+            "Provided population data is insufficient to model the requested age range."
+        )
 
     age_start = max(pop_data.age_start.min(), age_start)
     age_end = min(pop_data.age_end.max(), age_end) - 1e-8
     pop_data = _add_edge_age_groups(pop_data.copy())
 
-    columns_to_scale = ['P(sex, location, age| year)', 'P(age | year, sex, location)', 'value']
-    for _, sub_pop in pop_data.groupby(['sex', 'location']):
+    columns_to_scale = [
+        "P(sex, location, age| year)",
+        "P(age | year, sex, location)",
+        "value",
+    ]
+    for _, sub_pop in pop_data.groupby(["sex", "location"]):
 
-        min_bin = sub_pop[(sub_pop.age_start <= age_start) & (age_start < sub_pop.age_end)]
+        min_bin = sub_pop[
+            (sub_pop.age_start <= age_start) & (age_start < sub_pop.age_end)
+        ]
         padding_bin = sub_pop[sub_pop.age_end == float(min_bin.age_start)]
 
-        min_scale = ((float(min_bin.age_end) - age_start)
-                     / float(min_bin.age_end - min_bin.age_start))
+        min_scale = (float(min_bin.age_end) - age_start) / float(
+            min_bin.age_end - min_bin.age_start
+        )
 
-        remainder = pop_data.loc[min_bin.index, columns_to_scale].values * (1 - min_scale)
+        remainder = pop_data.loc[min_bin.index, columns_to_scale].values * (
+            1 - min_scale
+        )
         pop_data.loc[min_bin.index, columns_to_scale] *= min_scale
         pop_data.loc[padding_bin.index, columns_to_scale] += remainder
 
-        pop_data.loc[min_bin.index, 'age_start'] = age_start
-        pop_data.loc[padding_bin.index, 'age_end'] = age_start
+        pop_data.loc[min_bin.index, "age_start"] = age_start
+        pop_data.loc[padding_bin.index, "age_end"] = age_start
 
         max_bin = sub_pop[(sub_pop.age_end > age_end) & (age_end >= sub_pop.age_start)]
         padding_bin = sub_pop[sub_pop.age_start == float(max_bin.age_end)]
 
-        max_scale = ((age_end - float(max_bin.age_start))
-                     / float(max_bin.age_end - max_bin.age_start))
+        max_scale = (age_end - float(max_bin.age_start)) / float(
+            max_bin.age_end - max_bin.age_start
+        )
 
         remainder = pop_data.loc[max_bin.index, columns_to_scale] * (1 - max_scale)
         pop_data.loc[max_bin.index, columns_to_scale] *= max_scale
         pop_data.loc[padding_bin.index, columns_to_scale] += remainder.values
 
-        pop_data.loc[max_bin.index, 'age_end'] = age_end
-        pop_data.loc[padding_bin.index, 'age_start'] = age_end
+        pop_data.loc[max_bin.index, "age_end"] = age_end
+        pop_data.loc[padding_bin.index, "age_start"] = age_end
 
     return pop_data
 
@@ -132,46 +144,69 @@ def _add_edge_age_groups(pop_data):
     -------
     pandas.DataFrame
     """
-    index_cols = ['location', 'year_start', 'year_end', 'sex']
-    age_cols = ['age', 'age_start', 'age_end']
+    index_cols = ["location", "year_start", "year_end", "sex"]
+    age_cols = ["age", "age_start", "age_end"]
     other_cols = [c for c in pop_data.columns if c not in index_cols + age_cols]
     pop_data = pop_data.set_index(index_cols)
 
     # For the lower bin, we want constant interpolation off the left side
-    min_valid_age = pop_data['age_start'].min()
+    min_valid_age = pop_data["age_start"].min()
     # This bin width needs to be the same as the lowest bin.
-    min_pad_age = min_valid_age - (pop_data['age_end'].min() - min_valid_age)
+    min_pad_age = min_valid_age - (pop_data["age_end"].min() - min_valid_age)
     min_pad_age_midpoint = (min_valid_age + min_pad_age) * 0.5
 
-    lower_bin = pd.DataFrame({'age_start': min_pad_age,
-                              'age_end': min_valid_age,
-                              'age': min_pad_age_midpoint}, index=pop_data.index.unique())
-    lower_bin[other_cols] = pop_data.loc[pop_data['age_start'] == min_valid_age, other_cols]
+    lower_bin = pd.DataFrame(
+        {
+            "age_start": min_pad_age,
+            "age_end": min_valid_age,
+            "age": min_pad_age_midpoint,
+        },
+        index=pop_data.index.unique(),
+    )
+    lower_bin[other_cols] = pop_data.loc[
+        pop_data["age_start"] == min_valid_age, other_cols
+    ]
 
     # For the upper bin, we want our interpolation to go to zero.
-    max_valid_age = pop_data['age_end'].max()
+    max_valid_age = pop_data["age_end"].max()
     # This bin width is not arbitrary.  It effects the rate at which our interpolation zeros out.
     # Since for the 2016 round the maximum age is 125, we're assuming almost no one lives past that age,
     # so we make this bin 1 week.  A more robust technique for this would be better.
-    max_pad_age = max_valid_age + 7/365
+    max_pad_age = max_valid_age + 7 / 365
     max_pad_age_midpoint = (max_valid_age + max_pad_age) * 0.5
 
-    upper_bin = pd.DataFrame({'age_start': max_valid_age,
-                              'age_end': max_pad_age,
-                              'age': max_pad_age_midpoint}, index=pop_data.index.unique())
+    upper_bin = pd.DataFrame(
+        {
+            "age_start": max_valid_age,
+            "age_end": max_pad_age,
+            "age": max_pad_age_midpoint,
+        },
+        index=pop_data.index.unique(),
+    )
     # We're doing the multiplication to ensure we get the correct data shape and index.
-    upper_bin[other_cols] = 0 * pop_data.loc[pop_data['age_end'] == max_valid_age, other_cols]
+    upper_bin[other_cols] = (
+        0 * pop_data.loc[pop_data["age_end"] == max_valid_age, other_cols]
+    )
 
     pop_data = pd.concat([lower_bin, pop_data, upper_bin], sort=False).reset_index()
 
-    pop_data = pop_data.rename(columns={'level_0': 'location', 'level_1': 'year_start',
-                                        'level_2': 'year_end', 'level_3': 'sex'})
-    return pop_data[index_cols + age_cols + other_cols].sort_values(
-        by=['location', 'year_start', 'year_end', 'age']).reset_index(drop=True)
+    pop_data = pop_data.rename(
+        columns={
+            "level_0": "location",
+            "level_1": "year_start",
+            "level_2": "year_end",
+            "level_3": "sex",
+        }
+    )
+    return (
+        pop_data[index_cols + age_cols + other_cols]
+        .sort_values(by=["location", "year_start", "year_end", "age"])
+        .reset_index(drop=True)
+    )
 
 
-AgeValues = namedtuple('AgeValues', ['current', 'young', 'old'])
-EndpointValues = namedtuple('EndpointValues', ['left', 'right'])
+AgeValues = namedtuple("AgeValues", ["current", "young", "old"])
+EndpointValues = namedtuple("EndpointValues", ["left", "right"])
 
 
 def smooth_ages(simulants, population_data, randomness):
@@ -194,19 +229,22 @@ def smooth_ages(simulants, population_data, randomness):
         Table with same columns as `simulants` with ages smoothed out within the age bins.
     """
     simulants = simulants.copy()
-    for (sex, location), sub_pop in population_data.groupby(['sex', 'location']):
+    for (sex, location), sub_pop in population_data.groupby(["sex", "location"]):
 
         ages = sorted(sub_pop.age.unique())
-        younger = [float(sub_pop.loc[sub_pop.age == ages[0], 'age_start'])] + ages[:-1]
-        older = ages[1:] + [float(sub_pop.loc[sub_pop.age == ages[-1], 'age_end'])]
+        younger = [float(sub_pop.loc[sub_pop.age == ages[0], "age_start"])] + ages[:-1]
+        older = ages[1:] + [float(sub_pop.loc[sub_pop.age == ages[-1], "age_end"])]
 
         uniform_all = randomness.get_draw(simulants.index)
 
         for age_set in zip(ages, younger, older):
             age = AgeValues(*age_set)
 
-            has_correct_demography = ((simulants.age == age.current)
-                                      & (simulants.sex == sex) & (simulants.location == location))
+            has_correct_demography = (
+                (simulants.age == age.current)
+                & (simulants.sex == sex)
+                & (simulants.location == location)
+            )
             affected = simulants[has_correct_demography]
 
             if affected.empty:
@@ -214,7 +252,9 @@ def smooth_ages(simulants, population_data, randomness):
 
             # bin endpoints
             endpoints, proportions = _get_bins_and_proportions(sub_pop, age)
-            pdf, slope, area, cdf_inflection_point = _construct_sampling_parameters(age, endpoints, proportions)
+            pdf, slope, area, cdf_inflection_point = _construct_sampling_parameters(
+                age, endpoints, proportions
+            )
 
             # Make a draw from a uniform distribution
             uniform_rv = uniform_all.loc[affected.index]
@@ -222,10 +262,16 @@ def smooth_ages(simulants, population_data, randomness):
             left_sims = affected[uniform_rv <= cdf_inflection_point]
             right_sims = affected[uniform_rv > cdf_inflection_point]
 
-            simulants.loc[left_sims.index, 'age'] = _compute_ages(uniform_rv[left_sims.index],
-                                                                  endpoints.left, pdf.left, slope.left, area)
-            simulants.loc[right_sims.index, 'age'] = _compute_ages(uniform_rv[right_sims.index] - cdf_inflection_point,
-                                                                   age.current, proportions.current, slope.right, area)
+            simulants.loc[left_sims.index, "age"] = _compute_ages(
+                uniform_rv[left_sims.index], endpoints.left, pdf.left, slope.left, area
+            )
+            simulants.loc[right_sims.index, "age"] = _compute_ages(
+                uniform_rv[right_sims.index] - cdf_inflection_point,
+                age.current,
+                proportions.current,
+                slope.right,
+                area,
+            )
 
     return simulants
 
@@ -251,26 +297,42 @@ def _get_bins_and_proportions(pop_data, age):
         The `AgeValues` tuple has values
             (proportion of pop in current bin, proportion of pop in previous bin, proportion of pop in next bin)
     """
-    left = float(pop_data.loc[pop_data.age == age.current, 'age_start'])
-    right = float(pop_data.loc[pop_data.age == age.current, 'age_end'])
+    left = float(pop_data.loc[pop_data.age == age.current, "age_start"])
+    right = float(pop_data.loc[pop_data.age == age.current, "age_end"])
 
-    if not pop_data.loc[pop_data.age == age.young, 'age_start'].empty:
-        lower_left = float(pop_data.loc[pop_data.age == age.young, 'age_start'])
+    if not pop_data.loc[pop_data.age == age.young, "age_start"].empty:
+        lower_left = float(pop_data.loc[pop_data.age == age.young, "age_start"])
     else:
         lower_left = left
-    if not pop_data.loc[pop_data.age == age.old, 'age_end'].empty:
-        upper_right = float(pop_data.loc[pop_data.age == age.old, 'age_end'])
+    if not pop_data.loc[pop_data.age == age.old, "age_end"].empty:
+        upper_right = float(pop_data.loc[pop_data.age == age.old, "age_end"])
     else:
         upper_right = right
 
     # proportion in this bin and the neighboring bins
-    proportion_column = 'P(age | year, sex, location)'
+    proportion_column = "P(age | year, sex, location)"
     # Here we make the assumption that P(left < age < right | year, sex, location)  = p * (right - left)
     # in order to back out a point estimate for the probability density at the center of the interval.
     # This not the best assumption, but it'll do.
-    p_age = float(pop_data.loc[pop_data.age == age.current, proportion_column]/(right - left))
-    p_young = float(pop_data.loc[pop_data.age == age.young, proportion_column]/(left - lower_left)) if age.young != left else p_age
-    p_old = float(pop_data.loc[pop_data.age == age.old, proportion_column]/(upper_right - right)) if age.old != right else 0
+    p_age = float(
+        pop_data.loc[pop_data.age == age.current, proportion_column] / (right - left)
+    )
+    p_young = (
+        float(
+            pop_data.loc[pop_data.age == age.young, proportion_column]
+            / (left - lower_left)
+        )
+        if age.young != left
+        else p_age
+    )
+    p_old = (
+        float(
+            pop_data.loc[pop_data.age == age.old, proportion_column]
+            / (upper_right - right)
+        )
+        if age.old != right
+        else 0
+    )
 
     return EndpointValues(left, right), AgeValues(p_age, p_young, p_old)
 
@@ -302,12 +364,16 @@ def _construct_sampling_parameters(age, endpoint, proportion):
     """
     # pdf value at bin endpoints
 
-    pdf_left = ((proportion.current - proportion.young) / (age.current - age.young)
-                * (endpoint.left - age.young) + proportion.young)
-    pdf_right = ((proportion.old - proportion.current) / (age.old - age.current)
-                 * (endpoint.right - age.current) + proportion.current)
-    area = 0.5 * ((proportion.current + pdf_left) * (age.current - endpoint.left)
-                  + (pdf_right + proportion.current) * (endpoint.right - age.current))
+    pdf_left = (proportion.current - proportion.young) / (age.current - age.young) * (
+        endpoint.left - age.young
+    ) + proportion.young
+    pdf_right = (proportion.old - proportion.current) / (age.old - age.current) * (
+        endpoint.right - age.current
+    ) + proportion.current
+    area = 0.5 * (
+        (proportion.current + pdf_left) * (age.current - endpoint.left)
+        + (pdf_right + proportion.current) * (endpoint.right - age.current)
+    )
 
     pdf = EndpointValues(pdf_left, pdf_right)
 
@@ -317,7 +383,9 @@ def _construct_sampling_parameters(age, endpoint, proportion):
     slope = EndpointValues(m_left, m_right)
 
     # The decision bound on the uniform rv.
-    cdf_inflection_point = 1 / (2 * area) * (proportion.current + pdf.left) * (age.current - endpoint.left)
+    cdf_inflection_point = (
+        1 / (2 * area) * (proportion.current + pdf.left) * (age.current - endpoint.left)
+    )
 
     return pdf, slope, area, cdf_inflection_point
 
@@ -350,25 +418,33 @@ def _compute_ages(uniform_rv, start, height, slope, normalization):
     if abs(slope) < np.finfo(np.float32).eps:
         return start + normalization / height * uniform_rv
     else:
-        return start + height / slope * (np.sqrt(1 + 2 * normalization * slope / height ** 2 * uniform_rv) - 1)
+        return start + height / slope * (
+            np.sqrt(1 + 2 * normalization * slope / height ** 2 * uniform_rv) - 1
+        )
 
 
 def get_cause_deleted_mortality_rate(all_cause_mortality_rate, list_of_csmrs):
-    index_cols = ['age_start', 'age_end', 'sex', 'year_start', 'year_end']
+    index_cols = ["age_start", "age_end", "sex", "year_start", "year_end"]
     all_cause_mortality_rate = all_cause_mortality_rate.set_index(index_cols).copy()
     for csmr in list_of_csmrs:
         if csmr is None:
             continue
-        all_cause_mortality_rate = all_cause_mortality_rate.subtract(csmr.set_index(index_cols)).dropna()
+        all_cause_mortality_rate = all_cause_mortality_rate.subtract(
+            csmr.set_index(index_cols)
+        ).dropna()
 
-    return all_cause_mortality_rate.reset_index().rename(columns={'value': 'death_due_to_other_causes'})
+    return all_cause_mortality_rate.reset_index().rename(
+        columns={"value": "death_due_to_other_causes"}
+    )
 
 
 def load_population_structure(builder):
     data = builder.data.load("population.structure")
     # create an age column which is the midpoint of the age group
-    data['age'] = data.apply(lambda row: (row['age_start'] + row['age_end']) / 2, axis=1)
-    data['location'] = builder.data.load('population.location')
+    data["age"] = data.apply(
+        lambda row: (row["age_start"] + row["age_end"]) / 2, axis=1
+    )
+    data["location"] = builder.data.load("population.location")
     return data
 
 
@@ -380,13 +456,19 @@ def get_live_births_per_year(builder):
     population_data = rescale_final_age_bin(builder, population_data)
 
     initial_population_size = builder.configuration.population.population_size
-    population_data = population_data.groupby(['year_start'])['value'].sum()
-    birth_data = (birth_data[birth_data.parameter == 'mean_value']
-                  .drop('parameter', 'columns')
-                  .groupby(['year_start'])['value'].sum())
+    population_data = population_data.groupby(["year_start"])["value"].sum()
+    birth_data = (
+        birth_data[birth_data.parameter == "mean_value"]
+        .drop("parameter", "columns")
+        .groupby(["year_start"])["value"]
+        .sum()
+    )
 
     start_year = builder.configuration.time.start.year
-    if builder.configuration.interpolation.extrapolate and start_year > birth_data.index.max():
+    if (
+        builder.configuration.interpolation.extrapolate
+        and start_year > birth_data.index.max()
+    ):
         start_year = birth_data.index.max()
 
     if not builder.configuration.fertility.time_dependent_live_births:
@@ -398,41 +480,56 @@ def get_live_births_per_year(builder):
     live_birth_rate = initial_population_size / population_data * birth_data
 
     if isinstance(live_birth_rate, (int, float)):
-        live_birth_rate = pd.Series(live_birth_rate, index=pd.RangeIndex(builder.configuration.time.start.year,
-                                                                         builder.configuration.time.end.year + 1,
-                                                                         name='year'))
+        live_birth_rate = pd.Series(
+            live_birth_rate,
+            index=pd.RangeIndex(
+                builder.configuration.time.start.year,
+                builder.configuration.time.end.year + 1,
+                name="year",
+            ),
+        )
     else:
-        live_birth_rate = (live_birth_rate
-                           .reset_index()
-                           .rename(columns={'year_start': 'year'})
-                           .set_index('year')
-                           .value)
+        live_birth_rate = (
+            live_birth_rate.reset_index()
+            .rename(columns={"year_start": "year"})
+            .set_index("year")
+            .value
+        )
         exceeds_data = builder.configuration.time.end.year > live_birth_rate.index.max()
         if exceeds_data:
-            new_index = pd.RangeIndex(live_birth_rate.index.min(), builder.configuration.time.end.year + 1)
-            live_birth_rate = live_birth_rate.reindex(new_index,
-                                                      fill_value=live_birth_rate.at[live_birth_rate.index.max()])
+            new_index = pd.RangeIndex(
+                live_birth_rate.index.min(), builder.configuration.time.end.year + 1
+            )
+            live_birth_rate = live_birth_rate.reindex(
+                new_index, fill_value=live_birth_rate.at[live_birth_rate.index.max()]
+            )
     return live_birth_rate
 
 
 def rescale_final_age_bin(builder, population_data):
-    exit_age = builder.configuration.population.to_dict().get('exit_age', None)
+    exit_age = builder.configuration.population.to_dict().get("exit_age", None)
     if exit_age:
-        population_data = population_data.loc[population_data['age_start'] < exit_age]
-        cut_bin_idx = (exit_age <= population_data['age_end'])
-        cut_age_start = population_data.loc[cut_bin_idx, 'age_start']
-        cut_age_end = population_data.loc[cut_bin_idx, 'age_end']
-        population_data.loc[cut_bin_idx, 'value'] *= ((exit_age - cut_age_start) / (cut_age_end - cut_age_start))
-        population_data.loc[cut_bin_idx, 'age_end'] = exit_age
+        population_data = population_data.loc[population_data["age_start"] < exit_age]
+        cut_bin_idx = exit_age <= population_data["age_end"]
+        cut_age_start = population_data.loc[cut_bin_idx, "age_start"]
+        cut_age_end = population_data.loc[cut_bin_idx, "age_end"]
+        population_data.loc[cut_bin_idx, "value"] *= (exit_age - cut_age_start) / (
+            cut_age_end - cut_age_start
+        )
+        population_data.loc[cut_bin_idx, "age_end"] = exit_age
     return population_data
 
 
 def validate_crude_birth_rate_data(builder, data_year_max):
-    exit_age = builder.configuration.population.to_dict().get('exit_age', None)
+    exit_age = builder.configuration.population.to_dict().get("exit_age", None)
     if exit_age and builder.configuration.population.age_end != exit_age:
-        raise ValueError('If you specify an exit age, the initial population age end must be the same '
-                         'for the crude birth rate calculation to work.')
+        raise ValueError(
+            "If you specify an exit age, the initial population age end must be the same "
+            "for the crude birth rate calculation to work."
+        )
 
     exceeds_data = builder.configuration.time.end.year > data_year_max
     if exceeds_data and not builder.configuration.interpolation.extrapolate:
-        raise ValueError('Trying to extrapolate beyond the end of available birth data.')
+        raise ValueError(
+            "Trying to extrapolate beyond the end of available birth data."
+        )

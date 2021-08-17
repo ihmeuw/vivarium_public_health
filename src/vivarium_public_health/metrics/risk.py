@@ -29,15 +29,9 @@ class CategoricalRiskObserver:
                 month: 12
                 day: 31
     """
+
     configuration_defaults = {
-        'metrics': {
-            'risk_observer': {
-                'sample_date': {
-                    'month': 7,
-                    'day': 1
-                }
-            }
-        }
+        "metrics": {"risk_observer": {"sample_date": {"month": 7, "day": 1}}}
     }
 
     def __init__(self, risk: str):
@@ -49,27 +43,35 @@ class CategoricalRiskObserver:
 
         """
         self.risk = EntityString(risk)
-        self.configuration_defaults = {'metrics': {
-            f'{self.risk.name}_observer': CategoricalRiskObserver.configuration_defaults['metrics']['risk_observer']
-        }}
+        self.configuration_defaults = {
+            "metrics": {
+                f"{self.risk.name}_observer": CategoricalRiskObserver.configuration_defaults[
+                    "metrics"
+                ][
+                    "risk_observer"
+                ]
+            }
+        }
 
     @property
     def name(self):
-        return f'categorical_risk_observer.{self.risk}'
+        return f"categorical_risk_observer.{self.risk}"
 
     def setup(self, builder):
         self.data = {}
-        self.config = builder.configuration[f'metrics'][f'{self.risk.name}_observer']
+        self.config = builder.configuration[f"metrics"][f"{self.risk.name}_observer"]
         self.clock = builder.time.clock()
-        self.categories = builder.data.load(f'{self.risk}.categories')
+        self.categories = builder.data.load(f"{self.risk}.categories")
         self.age_bins = get_age_bins(builder)
 
-        self.population_view = builder.population.get_view(['alive', 'age'], query='alive == "alive"')
+        self.population_view = builder.population.get_view(
+            ["alive", "age"], query='alive == "alive"'
+        )
 
-        self.exposure = builder.value.get_value(f'{self.risk.name}.exposure')
-        builder.value.register_value_modifier('metrics', self.metrics)
+        self.exposure = builder.value.get_value(f"{self.risk.name}.exposure")
+        builder.value.register_value_modifier("metrics", self.metrics)
 
-        builder.event.register_listener('collect_metrics', self.on_collect_metrics)
+        builder.event.register_listener("collect_metrics", self.on_collect_metrics)
 
     def on_collect_metrics(self, event):
         """Records counts of risk exposed by category."""
@@ -88,12 +90,16 @@ class CategoricalRiskObserver:
 
     def should_sample(self, event_time: pd.Timestamp) -> bool:
         """Returns true if we should sample on this time step."""
-        sample_date = pd.Timestamp(event_time.year, self.config.sample_date.month, self.config.sample_date.day)
+        sample_date = pd.Timestamp(
+            event_time.year, self.config.sample_date.month, self.config.sample_date.day
+        )
         return self.clock() <= sample_date < event_time
 
     def generate_sampling_frame(self) -> pd.DataFrame:
         """Generates an empty sampling data frame."""
-        sample = pd.DataFrame({f'{cat}': 0 for cat in self.categories}, index=self.age_bins.index)
+        sample = pd.DataFrame(
+            {f"{cat}": 0 for cat in self.categories}, index=self.age_bins.index
+        )
         return sample
 
     def metrics(self, index, metrics):
@@ -101,7 +107,7 @@ class CategoricalRiskObserver:
             age_group_name = age_group.age_group_name.replace(" ", "_").lower()
             for year, sample in self.data.items():
                 for category in sample.columns:
-                    label = f'{self.risk.name}_{category}_exposed_in_{year}_among_{age_group_name}'
+                    label = f"{self.risk.name}_{category}_exposed_in_{year}_among_{age_group_name}"
                     metrics[label] = sample.loc[age_id, category]
         return metrics
 
