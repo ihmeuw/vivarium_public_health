@@ -274,7 +274,9 @@ def get_exposure_effect(builder, risk: EntityString):
     else:
         def exposure_effect(rates, rr):
             exposure = risk_exposure(rr.index)
-            return rates * (rr.lookup(exposure.index, exposure))
+            df = pd.concat([exposure, rr], axis=1)
+            effect = rates * df.apply(lambda x: x[x[risk.name]], axis=1)
+            return effect
 
     return exposure_effect
 
