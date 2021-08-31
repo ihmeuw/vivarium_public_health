@@ -1,3 +1,10 @@
+**0.10.13 - 08/31/21**
+ - implement categorical risk observer
+ - fix pandas warning in application of risk effect
+ - fix column name bug
+ - improve performance of reshaping
+ - require 2.0.6 and later of risk_distributions
+
 **0.10.12 - 08/10/21**
  - Fix bugs in DiseaseState
  - Improve functionality of ensemble distributions
