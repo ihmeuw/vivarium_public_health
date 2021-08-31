@@ -272,11 +272,20 @@ def get_exposure_effect(builder, risk: EntityString):
             relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
             return rates * relative_risk
     else:
-        def exposure_effect(rates, rr):
-            exposure = pd.Series(risk_exposure(rr.index), name=risk.name)
-            df = pd.concat([exposure, rr], axis=1)
-            effect = rates * df.apply(lambda x: x[x[risk.name]], axis=1)
-            return effect
+        def exposure_effect(rates, rr: pd.DataFrame) -> pd.Series:
+            index_columns = ['index', risk.name]
+
+            exposure = risk_exposure(rr.index).reset_index()
+            exposure.columns = index_columns
+            exposure = exposure.set_index(index_columns)
+
+            relative_risk = rr.stack().reset_index()
+            relative_risk.columns = index_columns + ['value']
+            relative_risk = relative_risk.set_index(index_columns)
+
+            effect = relative_risk.loc[exposure.index, 'value'].droplevel(risk.name)
+            affected_rates = rates * effect
+            return affected_rates
 
     return exposure_effect
 
