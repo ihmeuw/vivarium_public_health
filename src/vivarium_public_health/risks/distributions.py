@@ -7,17 +7,14 @@ This module contains tools for modeling several different risk
 exposure distributions.
 
 """
-import typing
 import numpy as np
 import pandas as pd
 
 from risk_distributions import EnsembleDistribution, Normal, LogNormal
 
+from vivarium.framework.engine import Builder
 from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium_public_health.risks.data_transformations import get_distribution_data
-
-if typing.TYPE_CHECKING:
-    from vivarium.framework.engine import Builder
 
 
 class MissingDataError(Exception):
@@ -146,21 +143,22 @@ class PolytomousDistribution:
     def name(self):
         return f'polytomous_distribution.{self.risk}'
 
-    def setup(self, builder):
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder):
         self.exposure = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
                                                               source=builder.lookup.build_table(self.exposure_data,
                                                                                                 key_columns=['sex'],
                                                                                                 parameter_columns=
                                                                                                 ['age', 'year']))
 
-    def ppf(self, x):
+    def ppf(self, x: pd.Series) -> pd.Series:
         exposure = self.exposure(x.index)
         sorted_exposures = exposure[self.categories]
         if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
             raise MissingDataError('All exposure data returned as 0.')
         exposure_sum = sorted_exposures.cumsum(axis='columns')
         category_index = pd.concat([exposure_sum[c] < x for c in exposure_sum.columns], axis=1).sum(axis=1)
-        return pd.Series(np.array(self.categories)[category_index], name=self.risk + '_exposure', index=x.index)
+        return pd.Series(np.array(self.categories)[category_index], name=self.risk + '.exposure', index=x.index)
 
     def __repr__(self):
         return f"PolytomousDistribution(risk={self.risk})"
@@ -175,7 +173,8 @@ class DichotomousDistribution:
     def name(self):
         return f'dichotomous_distribution.{self.risk}'
 
-    def setup(self, builder):
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder):
         self._base_exposure = builder.lookup.build_table(self.exposure_data, key_columns=['sex'],
                                                          parameter_columns=['age', 'year'])
         self.exposure_proportion = builder.value.register_value_producer(f'{self.risk}.exposure_parameters',
@@ -186,14 +185,14 @@ class DichotomousDistribution:
                                                                preferred_combiner=list_combiner,
                                                                preferred_post_processor=union_post_processor)
 
-    def exposure(self, index):
+    def exposure(self, index: pd.Index) -> pd.Series:
         base_exposure = self._base_exposure(index).values
         joint_paf = self.joint_paf(index).values
         return pd.Series(base_exposure * (1-joint_paf), index=index, name='values')
 
-    def ppf(self, x):
+    def ppf(self, x: pd.Series) -> pd.Series:
         exposed = x < self.exposure_proportion(x.index)
-        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self.risk + '_exposure', index=x.index)
+        return pd.Series(exposed.replace({True: 'cat1', False: 'cat2'}), name=self.risk + '.exposure', index=x.index)
 
     def __repr__(self):
         return f"DichotomousDistribution(risk={self.risk})"
