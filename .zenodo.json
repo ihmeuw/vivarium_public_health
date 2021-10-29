@@ -1,0 +1,67 @@
+{
+  "license": "BSD-3-Clause",
+  "title": "ihmeuw/vivarium_public_health: Archival release",
+  "upload_type": "software",
+  "creators": [
+    {
+      "orcid": "0000-0001-7633-7804",
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "James Collins"
+    },
+    {
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Alec Deason"
+    },
+    {
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Everett Mumford"
+    },
+    {
+      "orcid": "0000-0003-0778-295X",
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Kjell Swedin"
+    },
+    {
+      "orcid": "0000-0001-8649-7561",
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Rajan Mudambi"
+    },
+    {
+      "orcid": "0000-0002-6538-2615",
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Kate Wilson"
+    },
+    {
+      "orcid": "0000-0001-6033-4713",
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Abraham Flaxman"
+    },
+    {
+      "affiliation": "University of Melbourne",
+      "name": "Patrick Andersen"
+    },
+    {
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Michelle Park"
+    },
+    {
+      "orcid": "0000-0003-2430-5661",
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Matthew Kappel"
+    },
+    {
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Cody Horst"
+    },
+    {
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Rob Moss"
+    },
+    {
+      "affiliation": "Institute for Health Metrics and Evaluation",
+      "name": "Christine Allen"
+    }
+  ],
+  "access_right": "open",
+  "description": "Archival release of Vivarium Public Health, a Python package providing Vivarium microsimulation tools used to model diseases and interventions."
+}
