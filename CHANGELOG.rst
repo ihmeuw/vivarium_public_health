@@ -1,3 +1,7 @@
+**0.10.14 - 10/29/21**
+ - Update license to BSD 3-clause
+ - Add .zenodo.json metadata replacing AUTHORS.rst
+
 **0.10.13 - 08/31/21**
  - implement categorical risk observer
  - fix pandas warning in application of risk effect
