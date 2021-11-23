@@ -1,2 +1,3 @@
-from .therapeutic_inertia import TherapeuticInertia
-from .magic_wand import AbsoluteShift
+from vivarium_public_health.treatment.magic_wand import AbsoluteShift
+from vivarium_public_health.treatment.scale_up import LinearScaleUpIntervention
+from vivarium_public_health.treatment.therapeutic_inertia import TherapeuticInertia
