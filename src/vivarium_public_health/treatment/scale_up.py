@@ -19,7 +19,7 @@ from vivarium.framework.values import Pipeline
 from vivarium_public_health.utilities import EntityString
 
 
-class LinearScaleUpIntervention:
+class LinearScaleUp:
     """
     A model for applying a linear scale-up to an intervention.
 
