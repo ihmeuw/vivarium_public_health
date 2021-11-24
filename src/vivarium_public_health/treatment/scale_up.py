@@ -50,6 +50,19 @@ class LinearScaleUp:
 
     """
 
+    configuration_defaults = {
+        "treatment": {
+            "start": {
+                "date": 'start',
+                "value": 'data',
+            },
+            "end": {
+                "date": 'end',
+                "value": 'data',
+            },
+        }
+    }
+
     def __init__(self, treatment: str):
         """
         Parameters
@@ -58,6 +71,14 @@ class LinearScaleUp:
             the type and name of a treatment, specified as "type.name". Type is singular.
         """
         self.treatment = EntityString(treatment)
+        self.configuration_defaults = self.get_configuration_defaults()
+
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    def get_configuration_defaults(self) -> Dict[str, Dict]:
+        return {self.configuration_key: LinearScaleUp.configuration_defaults["treatment"]}
 
     ##############
     # Properties #
@@ -70,21 +91,6 @@ class LinearScaleUp:
     @property
     def configuration_key(self):
         return f"{self.treatment.name}_scale_up"
-
-    @property
-    def configuration_defaults(self) -> Dict[str, Dict]:
-        return {
-            self.configuration_key: {
-                "start": {
-                    "date": 'start',
-                    "value": 'data',
-                },
-                "end": {
-                    "date": 'end',
-                    "value": 'data',
-                },
-            }
-        }
 
     #################
     # Setup methods #
