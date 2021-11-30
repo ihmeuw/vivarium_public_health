@@ -139,6 +139,7 @@ class Risk:
         self.propensity = self.get_propensity_pipeline(builder)
         self.exposure = self.get_exposure_pipeline(builder)
         self.population_view = self.get_population_view(builder)
+
         self.register_simulant_initializer(builder)
 
     def get_randomness_stream(self, builder) -> RandomnessStream:
