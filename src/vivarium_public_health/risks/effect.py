@@ -86,7 +86,7 @@ class RiskEffect:
     ##############
 
     @property
-    def name(self):
+    def name(self) -> str:
         return f'risk_effect.{self.risk}.{self.target}'
 
     #################
@@ -94,21 +94,21 @@ class RiskEffect:
     #################
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
-        self.relative_risk = self.get_relative_risk_lookup_table(builder)
-        self.population_attributable_fraction = self.get_population_attributable_fraction_lookup_table(builder)
+    def setup(self, builder: Builder) -> None:
+        self.relative_risk = self.get_relative_risk_source(builder)
+        self.population_attributable_fraction = self.get_population_attributable_fraction_source(builder)
         self.target_modifier = self.get_target_modifier(builder)
 
         self.register_target_modifier(builder)
         self.register_paf_modifier(builder)
 
-    def get_relative_risk_lookup_table(self, builder: Builder) -> LookupTable:
+    def get_relative_risk_source(self, builder: Builder) -> LookupTable:
         relative_risk_data = get_relative_risk_data(builder, self.risk, self.target)
         return builder.lookup.build_table(relative_risk_data,
                                           key_columns=['sex'],
                                           parameter_columns=['age', 'year'])
 
-    def get_population_attributable_fraction_lookup_table(self, builder: Builder) -> LookupTable:
+    def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
         paf_data = get_population_attributable_fraction_data(builder, self.risk, self.target)
         return builder.lookup.build_table(paf_data,
                                           key_columns=['sex'],

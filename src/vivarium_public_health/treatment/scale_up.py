@@ -89,7 +89,7 @@ class LinearScaleUp:
         return f'{self.treatment.name}_intervention'
 
     @property
-    def configuration_key(self):
+    def configuration_key(self) -> str:
         return f"{self.treatment.name}_scale_up"
 
     #################
@@ -97,7 +97,7 @@ class LinearScaleUp:
     #################
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
+    def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
         self.is_intervention_scenario = self.get_is_intervention_scenario(builder)
         self.clock = self.get_clock(builder)

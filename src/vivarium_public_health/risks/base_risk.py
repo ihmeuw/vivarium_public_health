@@ -134,7 +134,7 @@ class Risk:
     #################
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
+    def setup(self, builder: Builder) -> None:
         self.randomness = self.get_randomness_stream(builder)
         self.propensity = self.get_propensity_pipeline(builder)
         self.exposure = self.get_exposure_pipeline(builder)
