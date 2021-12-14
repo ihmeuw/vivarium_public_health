@@ -8,9 +8,17 @@ exposure models and disease models.
 
 """
 
+from typing import Callable, Dict
+
+import pandas as pd
+
+from vivarium.framework.engine import Builder
+from vivarium.framework.lookup import LookupTable
+
+from vivarium_public_health.risks.data_transformations import (get_relative_risk_data,
+                                                               get_population_attributable_fraction_data,
+                                                               get_exposure_effect)
 from vivarium_public_health.utilities import EntityString, TargetString
-from .data_transformations import (get_relative_risk_data, get_population_attributable_fraction_data,
-                                   get_exposure_effect)
 
 
 class RiskEffect:
@@ -57,45 +65,70 @@ class RiskEffect:
         """
         self.risk = EntityString(risk)
         self.target = TargetString(target)
-        self.configuration_defaults = {
+        self.configuration_defaults = self.get_configuration_defaults()
+
+    def __repr__(self):
+        return f"RiskEffect(risk={self.risk}, target={self.target})"
+
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    def get_configuration_defaults(self) -> Dict[str, Dict]:
+        return {
             f'effect_of_{self.risk.name}_on_{self.target.name}': {
                 self.target.measure: RiskEffect.configuration_defaults['effect_of_risk_on_target']['measure']
             }
         }
 
+    ##############
+    # Properties #
+    ##############
+
     @property
-    def name(self):
+    def name(self) -> str:
         return f'risk_effect.{self.risk}.{self.target}'
 
-    def setup(self, builder):
-        relative_risk_data = self.load_relative_risk_data(builder)
-        self.relative_risk = builder.lookup.build_table(relative_risk_data, key_columns=['sex'],
-                                                        parameter_columns=['age', 'year'])
-        population_attributable_fraction_data = self.load_population_attributable_fraction_data(builder)
-        self.population_attributable_fraction = builder.lookup.build_table(population_attributable_fraction_data,
-                                                                           key_columns=['sex'],
-                                                                           parameter_columns=['age', 'year'])
-        self.exposure_effect = self.load_exposure_effect(builder)
+    #################
+    # Setup methods #
+    #################
 
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder) -> None:
+        self.relative_risk = self.get_relative_risk_source(builder)
+        self.population_attributable_fraction = self.get_population_attributable_fraction_source(builder)
+        self.target_modifier = self.get_target_modifier(builder)
+
+        self.register_target_modifier(builder)
+        self.register_paf_modifier(builder)
+
+    def get_relative_risk_source(self, builder: Builder) -> LookupTable:
+        relative_risk_data = get_relative_risk_data(builder, self.risk, self.target)
+        return builder.lookup.build_table(relative_risk_data,
+                                          key_columns=['sex'],
+                                          parameter_columns=['age', 'year'])
+
+    def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
+        paf_data = get_population_attributable_fraction_data(builder, self.risk, self.target)
+        return builder.lookup.build_table(paf_data,
+                                          key_columns=['sex'],
+                                          parameter_columns=['age', 'year'])
+
+    def get_target_modifier(self, builder: Builder) -> Callable[[pd.Index, pd.Series], pd.Series]:
+        exposure_effect = get_exposure_effect(builder, self.risk)
+
+        def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
+            return exposure_effect(target, self.relative_risk(index))
+
+        return adjust_target
+
+    def register_target_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}',
-                                              modifier=self.adjust_target,
+                                              modifier=self.target_modifier,
                                               requires_values=[f'{self.risk.name}.exposure'],
                                               requires_columns=['age', 'sex'])
+
+    def register_paf_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}.paf',
                                               modifier=self.population_attributable_fraction,
                                               requires_columns=['age', 'sex'])
-
-    def adjust_target(self, index, target):
-        return self.exposure_effect(target, self.relative_risk(index))
-
-    def load_relative_risk_data(self, builder):
-        return get_relative_risk_data(builder, self.risk, self.target)
-
-    def load_population_attributable_fraction_data(self, builder):
-        return get_population_attributable_fraction_data(builder, self.risk, self.target)
-
-    def load_exposure_effect(self, builder):
-        return get_exposure_effect(builder, self.risk)
-
-    def __repr__(self):
-        return f"RiskEffect(risk={self.risk}, target={self.target})"
