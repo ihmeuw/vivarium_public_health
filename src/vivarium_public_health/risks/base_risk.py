@@ -7,7 +7,14 @@ This module contains tools for modeling categorical and continuous risk
 exposure.
 
 """
+from typing import Dict, List
+
 import pandas as pd
+
+from vivarium.framework.engine import Builder
+from vivarium.framework.population import PopulationView, SimulantData
+from vivarium.framework.randomness import RandomnessStream
+from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.utilities import EntityString
 from vivarium_public_health.risks.distributions import SimulationDistribution
@@ -88,43 +95,93 @@ class Risk:
             the type and name of a risk, specified as "type.name". Type is singular.
         """
         self.risk = EntityString(risk)
-        self.configuration_defaults = {f'{self.risk.name}': Risk.configuration_defaults['risk']}
-        self.exposure_distribution = SimulationDistribution(self.risk)
+        self.configuration_defaults = self.get_configuration_defaults()
+        self.exposure_distribution = self.get_exposure_distribution()
         self._sub_components = [self.exposure_distribution]
 
+        self._randomness_stream_name = f'initial_{self.risk.name}_propensity'
+        self.propensity_column_name = f'{self.risk.name}_propensity'
+        self.propensity_pipeline_name = f'{self.risk.name}.propensity'
+        self.exposure_pipeline_name = f'{self.risk.name}.exposure'
+
+    def __repr__(self) -> str:
+        return f"Risk({self.risk})"
+
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    def get_configuration_defaults(self) -> Dict[str, Dict]:
+        return {self.risk.name: Risk.configuration_defaults["risk"]}
+
+    def get_exposure_distribution(self) -> SimulationDistribution:
+        return SimulationDistribution(self.risk)
+
+    ##############
+    # Properties #
+    ##############
+
     @property
-    def name(self):
+    def name(self) -> str:
         return f'risk.{self.risk}'
 
     @property
-    def sub_components(self):
+    def sub_components(self) -> List:
         return self._sub_components
 
-    def setup(self, builder):
-        self.randomness = builder.randomness.get_stream(f'initial_{self.risk.name}_propensity')
+    #################
+    # Setup methods #
+    #################
 
-        propensity_col = f'{self.risk.name}_propensity'
-        self.propensity = builder.value.register_value_producer(f'{self.risk.name}.propensity',
-                                                                source=lambda index: self.population_view.get(index)[propensity_col],
-                                                                requires_columns=[propensity_col])
-        self.exposure = builder.value.register_value_producer(
-            f'{self.risk.name}.exposure',
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder):
+        self.randomness = self.get_randomness_stream(builder)
+        self.propensity = self.get_propensity_pipeline(builder)
+        self.exposure = self.get_exposure_pipeline(builder)
+        self.population_view = self.get_population_view(builder)
+        self.register_simulant_initializer(builder)
+
+    def get_randomness_stream(self, builder) -> RandomnessStream:
+        return builder.randomness.get_stream(self._randomness_stream_name)
+
+    def get_propensity_pipeline(self, builder: Builder) -> Pipeline:
+        return builder.value.register_value_producer(
+            self.propensity_pipeline_name,
+            source=lambda index: self.population_view.get(index)[self.propensity_column_name],
+            requires_columns=[self.propensity_column_name]
+        )
+
+    def get_exposure_pipeline(self, builder: Builder) -> Pipeline:
+        return builder.value.register_value_producer(
+            self.exposure_pipeline_name,
             source=self.get_current_exposure,
             requires_columns=['age', 'sex'],
-            requires_values=[f'{self.risk.name}.propensity'],
+            requires_values=[self.propensity_pipeline_name],
             preferred_post_processor=get_exposure_post_processor(builder, self.risk)
         )
 
-        self.population_view = builder.population.get_view([propensity_col])
-        builder.population.initializes_simulants(self.on_initialize_simulants, creates_columns=[propensity_col],
-                                                 requires_streams=[f'initial_{self.risk.name}_propensity'])
+    def get_population_view(self, builder: Builder) -> PopulationView:
+        return builder.population.get_view([self.propensity_column_name])
 
-    def on_initialize_simulants(self, pop_data):
-        self.population_view.update(self.randomness.get_draw(pop_data.index))
+    def register_simulant_initializer(self, builder: Builder) -> None:
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            creates_columns=[self.propensity_column_name],
+            requires_streams=[self._randomness_stream_name]
+        )
 
-    def get_current_exposure(self, index):
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        self.population_view.update(pd.Series(self.randomness.get_draw(pop_data.index),
+                                              name=self.propensity_column_name))
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def get_current_exposure(self, index: pd.Index) -> pd.Series:
         propensity = self.propensity(index)
         return pd.Series(self.exposure_distribution.ppf(propensity), index=index)
-
-    def __repr__(self):
-        return f"Risk({self.risk})"
