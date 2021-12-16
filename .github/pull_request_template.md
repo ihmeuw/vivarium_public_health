@@ -1,14 +1,14 @@
 ## Title: Summary, imperative, start upper case, don't end with a period
 <!-- Ideally, <=50 chars. 50 chars is here..: -->
 
-## Description
+### Description
 <!-- For use in commit message, wrap at 72 chars. 72 chars is here: -->
 - *Category*: <!-- one of bugfix, feature, refactor, POC, CI/infrastructure, documentation, other/misc -->
 - *JIRA issue*: <!-- [MIC-XYZ](https://jira.ihme.washington.edu/browse/MIC-XYZ) -->
 
 <!-- Change description – why, what, anything unexplained by the above -->
 
-## Testing
+### Testing
 <!--
 Details on how code was verified, any unit tests local for the
 repo, regression testing, etc. At a minimum, this should include an
