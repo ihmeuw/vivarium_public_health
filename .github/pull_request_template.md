@@ -3,7 +3,8 @@
 
 ### Description
 <!-- For use in commit message, wrap at 72 chars. 72 chars is here: -->
-- *Category*: <!-- one of bugfix, feature, refactor, POC, CI/infrastructure, documentation, other/misc -->
+- *Category*: <!-- one of bugfix, feature, refactor, POC, CI/infrastructure, documentation, 
+                   revert, test, release, other/misc -->
 - *JIRA issue*: <!-- [MIC-XYZ](https://jira.ihme.washington.edu/browse/MIC-XYZ) -->
 
 <!-- Change description – why, what, anything unexplained by the above -->
