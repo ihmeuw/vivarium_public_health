@@ -12,6 +12,7 @@ from typing import Callable
 import pandas as pd
 
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
@@ -77,7 +78,7 @@ class Mortality:
     def _get_mortality_rate(self, builder: Builder) -> Pipeline:
         return builder.value.register_rate_producer(
             self.mortality_rate_pipeline_name,
-            source=self.calculate_mortality_rate,
+            source=self._calculate_mortality_rate,
             requires_columns=['age', 'sex']
         )
 
@@ -110,7 +111,7 @@ class Mortality:
         )
         self.population_view.update(pop_update)
 
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event) -> None:
         pop = self.population_view.get(event.index, query="alive =='alive'")
         prob_df = rate_to_probability(pd.DataFrame(self.mortality_rate(pop.index)))
         prob_df['no_death'] = 1-prob_df.sum(axis=1)
@@ -123,7 +124,11 @@ class Mortality:
             dead_pop['years_of_life_lost'] = self.life_expectancy(dead_pop.index)
             self.population_view.update(dead_pop[['alive', 'exit_time', 'cause_of_death', 'years_of_life_lost']])
 
-    def calculate_mortality_rate(self, index):
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def _calculate_mortality_rate(self, index: pd.Index) -> pd.DataFrame:
         acmr = self.all_cause_mortality_rate(index)
         csmr = self.cause_specific_mortality_rate(index, skip_post_processor=True)
         cause_deleted_mortality_rate = acmr - csmr
