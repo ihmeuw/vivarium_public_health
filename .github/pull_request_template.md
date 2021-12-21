@@ -7,7 +7,10 @@
                    revert, test, release, other/misc -->
 - *JIRA issue*: <!-- [MIC-XYZ](https://jira.ihme.washington.edu/browse/MIC-XYZ) -->
 
-<!-- Change description – why, what, anything unexplained by the above -->
+<!-- 
+Change description – why, what, anything unexplained by the above.
+Include guidance to reviewers if changes are complex.
+--> 
 
 ### Testing
 <!--
@@ -17,8 +20,3 @@ integration test for a framework change. Consider: plots, images,
 (small) csv file.
 -->
 
-<!--
-For engineering review:
-    Discussion topic: how much detail?
-    Discussion topic: what should be included in testing? 
--->
