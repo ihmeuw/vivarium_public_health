@@ -71,13 +71,13 @@ class LinearScaleUp:
             the type and name of a treatment, specified as "type.name". Type is singular.
         """
         self.treatment = EntityString(treatment)
-        self.configuration_defaults = self.get_configuration_defaults()
+        self.configuration_defaults = self._get_configuration_defaults()
 
     ##########################
     # Initialization methods #
     ##########################
 
-    def get_configuration_defaults(self) -> Dict[str, Dict]:
+    def _get_configuration_defaults(self) -> Dict[str, Dict]:
         return {self.configuration_key: LinearScaleUp.configuration_defaults["treatment"]}
 
     ##############
@@ -99,29 +99,29 @@ class LinearScaleUp:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
-        self.is_intervention_scenario = self.get_is_intervention_scenario(builder)
-        self.clock = self.get_clock(builder)
-        self.scale_up_start_date, self.scale_up_end_date = self.get_scale_up_date_endpoints(builder)
-        self.scale_up_start_value, self.scale_up_end_value = self.get_scale_up_value_endpoints(builder)
+        self.is_intervention_scenario = self._get_is_intervention_scenario(builder)
+        self.clock = self._get_clock(builder)
+        self.scale_up_start_date, self.scale_up_end_date = self._get_scale_up_date_endpoints(builder)
+        self.scale_up_start_value, self.scale_up_end_value = self._get_scale_up_value_endpoints(builder)
 
-        required_columns = self.get_required_columns()
-        self.pipelines = self.get_required_pipelines(builder)
+        required_columns = self._get_required_columns()
+        self.pipelines = self._get_required_pipelines(builder)
 
-        self.register_intervention_modifiers(builder)
+        self._register_intervention_modifiers(builder)
 
         if required_columns:
-            self.population_view = self.get_population_view(builder, required_columns)
+            self.population_view = self._get_population_view(builder, required_columns)
 
     # noinspection PyMethodMayBeStatic
-    def get_is_intervention_scenario(self, builder: Builder) -> bool:
+    def _get_is_intervention_scenario(self, builder: Builder) -> bool:
         return builder.configuration.intervention.scenario != 'baseline'
 
     # noinspection PyMethodMayBeStatic
-    def get_clock(self, builder: Builder) -> Callable[[], Time]:
+    def _get_clock(self, builder: Builder) -> Callable[[], Time]:
         return builder.time.clock()
 
     # noinspection PyMethodMayBeStatic
-    def get_scale_up_date_endpoints(self, builder: Builder) -> Tuple[datetime, datetime]:
+    def _get_scale_up_date_endpoints(self, builder: Builder) -> Tuple[datetime, datetime]:
         scale_up_config = builder.configuration[self.configuration_key]
 
         def get_endpoint(endpoint_type: str) -> datetime:
@@ -133,12 +133,12 @@ class LinearScaleUp:
 
         return get_endpoint('start'), get_endpoint('end')
 
-    def get_scale_up_value_endpoints(self, builder: Builder) -> Tuple[LookupTable, LookupTable]:
+    def _get_scale_up_value_endpoints(self, builder: Builder) -> Tuple[LookupTable, LookupTable]:
         scale_up_config = builder.configuration[self.configuration_key]
 
         def get_endpoint_value(endpoint_type: str) -> LookupTable:
             if scale_up_config[endpoint_type]['value'] == 'data':
-                endpoint = self.get_endpoint_value_from_data(builder, endpoint_type)
+                endpoint = self._get_endpoint_value_from_data(builder, endpoint_type)
             else:
                 endpoint = builder.lookup.build_table(scale_up_config[endpoint_type]['value'])
             return endpoint
@@ -146,28 +146,28 @@ class LinearScaleUp:
         return get_endpoint_value('start'), get_endpoint_value('end')
 
     # noinspection PyMethodMayBeStatic
-    def get_required_columns(self) -> List[str]:
+    def _get_required_columns(self) -> List[str]:
         return []
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def get_required_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
+    def _get_required_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
         return {}
 
-    def register_intervention_modifiers(self, builder: Builder):
+    def _register_intervention_modifiers(self, builder: Builder):
         builder.value.register_value_modifier(
             f'{self.treatment}.exposure_parameters',
-            modifier=self.coverage_effect,
+            modifier=self._coverage_effect,
         )
 
     # noinspection PyMethodMayBeStatic
-    def get_population_view(self, builder: Builder, required_columns: List[str]) -> PopulationView:
+    def _get_population_view(self, builder: Builder, required_columns: List[str]) -> PopulationView:
         return builder.population.get_view(required_columns)
 
     ##################################
     # Pipeline sources and modifiers #
     ##################################
 
-    def coverage_effect(self, idx: pd.Index, target: pd.Series) -> pd.Series:
+    def _coverage_effect(self, idx: pd.Index, target: pd.Series) -> pd.Series:
         if not self.is_intervention_scenario or self.clock() < self.scale_up_start_date:
             scale_up_progress = 0.0
         elif self.scale_up_start_date <= self.clock() < self.scale_up_end_date:
@@ -176,14 +176,14 @@ class LinearScaleUp:
         else:
             scale_up_progress = 1.0
 
-        target = self.apply_scale_up(idx, target, scale_up_progress) if scale_up_progress else target
+        target = self._apply_scale_up(idx, target, scale_up_progress) if scale_up_progress else target
         return target
 
     ##################
     # Helper methods #
     ##################
 
-    def get_endpoint_value_from_data(self, builder: Builder, endpoint_type: str) -> LookupTable:
+    def _get_endpoint_value_from_data(self, builder: Builder, endpoint_type: str) -> LookupTable:
         if endpoint_type == 'start':
             endpoint_data = builder.data.load(f'{self.treatment}.exposure')
         elif endpoint_type == 'end':
@@ -192,7 +192,7 @@ class LinearScaleUp:
             raise ValueError(f'Invalid endpoint type {endpoint_type}. Allowed types are "start" and "end".')
         return builder.lookup.build_table(endpoint_data)
 
-    def apply_scale_up(self, idx: pd.Index, target: pd.Series, scale_up_progress: float) -> pd.Series:
+    def _apply_scale_up(self, idx: pd.Index, target: pd.Series, scale_up_progress: float) -> pd.Series:
         start_value = self.scale_up_start_value(idx)
         end_value = self.scale_up_end_value(idx)
         value_increase = scale_up_progress * (end_value - start_value)
