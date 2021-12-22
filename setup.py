@@ -17,40 +17,37 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        'vivarium>=0.10.1',
-        'numpy',
-        'pandas',
-        'scipy',
-        'tables',
-        'risk_distributions>=2.0.6',
+        "vivarium>=0.10.1",
+        "numpy",
+        "pandas",
+        "scipy",
+        "tables",
+        "risk_distributions>=2.0.6",
     ]
 
     test_requirements = [
-        'pytest',
-        'pytest-mock',
-        'hypothesis',
+        "pytest",
+        "pytest-mock",
+        "hypothesis",
     ]
 
     doc_requirements = [
-        'sphinx>=4.0',
-        'sphinx-rtd-theme',
-        'sphinx-click',
-        'IPython',
-        'matplotlib'
+        "sphinx>=4.0",
+        "sphinx-rtd-theme",
+        "sphinx-click",
+        "IPython",
+        "matplotlib",
     ]
 
     setup(
-        name=about['__title__'],
-        version=about['__version__'],
-
-        description=about['__summary__'],
+        name=about["__title__"],
+        version=about["__version__"],
+        description=about["__summary__"],
         long_description=long_description,
-        license=about['__license__'],
+        license=about["__license__"],
         url=about["__uri__"],
-
         author=about["__author__"],
         author_email=about["__email__"],
-
         classifiers=[
             "Intended Audience :: Developers",
             "Intended Audience :: Education",
@@ -73,18 +70,15 @@ if __name__ == "__main__":
             "Topic :: Scientific/Engineering :: Physics",
             "Topic :: Software Development :: Libraries",
         ],
-
-        package_dir={'': 'src'},
-        packages=find_packages(where='src'),
+        package_dir={"": "src"},
+        packages=find_packages(where="src"),
         include_package_data=True,
-
         install_requires=install_requirements,
         tests_require=test_requirements,
         extras_require={
-            'docs': doc_requirements,
-            'test': test_requirements,
-            'dev': doc_requirements + test_requirements,
+            "docs": doc_requirements,
+            "test": test_requirements,
+            "dev": doc_requirements + test_requirements,
         },
-
         zip_safe=False,
     )

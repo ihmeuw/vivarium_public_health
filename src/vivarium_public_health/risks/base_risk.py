@@ -18,7 +18,9 @@ from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.utilities import EntityString
 from vivarium_public_health.risks.distributions import SimulationDistribution
-from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
+from vivarium_public_health.risks.data_transformations import (
+    get_exposure_post_processor,
+)
 
 
 class Risk:
@@ -80,11 +82,7 @@ class Risk:
     """
 
     configuration_defaults = {
-        "risk": {
-            "exposure": 'data',
-            "rebinned_exposed": [],
-            "category_thresholds": [],
-        }
+        "risk": {"exposure": "data", "rebinned_exposed": [], "category_thresholds": [],}
     }
 
     def __init__(self, risk: str):
@@ -99,10 +97,10 @@ class Risk:
         self.exposure_distribution = self._get_exposure_distribution()
         self._sub_components = [self.exposure_distribution]
 
-        self._randomness_stream_name = f'initial_{self.risk.name}_propensity'
-        self.propensity_column_name = f'{self.risk.name}_propensity'
-        self.propensity_pipeline_name = f'{self.risk.name}.propensity'
-        self.exposure_pipeline_name = f'{self.risk.name}.exposure'
+        self._randomness_stream_name = f"initial_{self.risk.name}_propensity"
+        self.propensity_column_name = f"{self.risk.name}_propensity"
+        self.propensity_pipeline_name = f"{self.risk.name}.propensity"
+        self.exposure_pipeline_name = f"{self.risk.name}.exposure"
 
     def __repr__(self) -> str:
         return f"Risk({self.risk})"
@@ -123,7 +121,7 @@ class Risk:
 
     @property
     def name(self) -> str:
-        return f'risk.{self.risk}'
+        return f"risk.{self.risk}"
 
     @property
     def sub_components(self) -> List:
@@ -148,17 +146,19 @@ class Risk:
     def _get_propensity_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.propensity_pipeline_name,
-            source=lambda index: self.population_view.get(index)[self.propensity_column_name],
-            requires_columns=[self.propensity_column_name]
+            source=lambda index: self.population_view.get(index)[
+                self.propensity_column_name
+            ],
+            requires_columns=[self.propensity_column_name],
         )
 
     def _get_exposure_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.exposure_pipeline_name,
             source=self._get_current_exposure,
-            requires_columns=['age', 'sex'],
+            requires_columns=["age", "sex"],
             requires_values=[self.propensity_pipeline_name],
-            preferred_post_processor=get_exposure_post_processor(builder, self.risk)
+            preferred_post_processor=get_exposure_post_processor(builder, self.risk),
         )
 
     def _get_population_view(self, builder: Builder) -> PopulationView:
@@ -168,7 +168,7 @@ class Risk:
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             creates_columns=[self.propensity_column_name],
-            requires_streams=[self._randomness_stream_name]
+            requires_streams=[self._randomness_stream_name],
         )
 
     ########################
@@ -176,8 +176,12 @@ class Risk:
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        self.population_view.update(pd.Series(self.randomness.get_draw(pop_data.index),
-                                              name=self.propensity_column_name))
+        self.population_view.update(
+            pd.Series(
+                self.randomness.get_draw(pop_data.index),
+                name=self.propensity_column_name,
+            )
+        )
 
     ##################################
     # Pipeline sources and modifiers #

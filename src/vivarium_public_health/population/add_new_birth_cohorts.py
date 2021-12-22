@@ -10,19 +10,19 @@ import pandas as pd
 import numpy as np
 
 from vivarium_public_health import utilities
-from vivarium_public_health.population.data_transformations import get_live_births_per_year
+from vivarium_public_health.population.data_transformations import (
+    get_live_births_per_year,
+)
 
 # TODO: Incorporate better data into gestational model (probably as a separate component)
-PREGNANCY_DURATION = pd.Timedelta(days=9*utilities.DAYS_PER_MONTH)
+PREGNANCY_DURATION = pd.Timedelta(days=9 * utilities.DAYS_PER_MONTH)
 
 
 class FertilityDeterministic:
     """Deterministic model of births."""
 
     configuration_defaults = {
-        'fertility': {
-            'number_of_new_simulants_each_year': 1000,
-        },
+        "fertility": {"number_of_new_simulants_each_year": 1000,},
     }
 
     @property
@@ -31,11 +31,13 @@ class FertilityDeterministic:
 
     def setup(self, builder):
         self.fractional_new_births = 0
-        self.simulants_per_year = builder.configuration.fertility.number_of_new_simulants_each_year
+        self.simulants_per_year = (
+            builder.configuration.fertility.number_of_new_simulants_each_year
+        )
 
         self.simulant_creator = builder.population.get_simulant_creator()
 
-        builder.event.register_listener('time_step', self.on_time_step)
+        builder.event.register_listener("time_step", self.on_time_step)
 
     def on_time_step(self, event):
         """Adds a set number of simulants to the population each time step.
@@ -47,18 +49,22 @@ class FertilityDeterministic:
         """
         # Assume births are uniformly distributed throughout the year.
         step_size = utilities.to_years(event.step_size)
-        simulants_to_add = self.simulants_per_year*step_size + self.fractional_new_births
+        simulants_to_add = (
+            self.simulants_per_year * step_size + self.fractional_new_births
+        )
 
         self.fractional_new_births = simulants_to_add % 1
         simulants_to_add = int(simulants_to_add)
 
         if simulants_to_add > 0:
-            self.simulant_creator(simulants_to_add,
-                                  population_configuration={
-                                      'age_start': 0,
-                                      'age_end': 0,
-                                      'sim_state': 'time_step',
-                                  })
+            self.simulant_creator(
+                simulants_to_add,
+                population_configuration={
+                    "age_start": 0,
+                    "age_end": 0,
+                    "sim_state": "time_step",
+                },
+            )
 
     def __repr__(self):
         return "FertilityDeterministic()"
@@ -92,9 +98,9 @@ class FertilityCrudeBirthRate:
     """
 
     configuration_defaults = {
-        'fertility': {
-            'time_dependent_live_births': True,
-            'time_dependent_population_fraction': False,
+        "fertility": {
+            "time_dependent_live_births": True,
+            "time_dependent_population_fraction": False,
         }
     }
 
@@ -109,7 +115,7 @@ class FertilityCrudeBirthRate:
         self.randomness = builder.randomness
         self.simulant_creator = builder.population.get_simulant_creator()
 
-        builder.event.register_listener('time_step', self.on_time_step)
+        builder.event.register_listener("time_step", self.on_time_step)
 
     def on_time_step(self, event):
         """Adds new simulants every time step based on the Crude Birth Rate
@@ -124,16 +130,18 @@ class FertilityCrudeBirthRate:
 
         mean_births = birth_rate * step_size
         # Assume births occur as a Poisson process
-        r = np.random.RandomState(seed=self.randomness.get_seed('crude_birth_rate'))
+        r = np.random.RandomState(seed=self.randomness.get_seed("crude_birth_rate"))
         simulants_to_add = r.poisson(mean_births)
 
         if simulants_to_add > 0:
-            self.simulant_creator(simulants_to_add,
-                                  population_configuration={
-                                      'age_start': 0,
-                                      'age_end': 0,
-                                      'sim_state': 'time_step',
-                                  })
+            self.simulant_creator(
+                simulants_to_add,
+                population_configuration={
+                    "age_start": 0,
+                    "age_end": 0,
+                    "sim_state": "time_step",
+                },
+            )
 
     def __repr__(self):
         return "FertilityCrudeBirthRate()"
@@ -146,7 +154,7 @@ class FertilityAgeSpecificRates:
 
     @property
     def name(self):
-        return 'age_specific_fertility'
+        return "age_specific_fertility"
 
     def setup(self, builder):
         """ Setup the common randomness stream and
@@ -156,38 +164,50 @@ class FertilityAgeSpecificRates:
         builder : vivarium.engine.Builder
             Framework coordination object.
         """
-        age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
-        fertility_rate = builder.lookup.build_table(age_specific_fertility_rate, parameter_columns=['age', 'year'])
-        self.fertility_rate = builder.value.register_rate_producer('fertility rate',
-                                                                   source=fertility_rate,
-                                                                   requires_columns=['age'])
+        age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(
+            builder
+        )
+        fertility_rate = builder.lookup.build_table(
+            age_specific_fertility_rate, parameter_columns=["age", "year"]
+        )
+        self.fertility_rate = builder.value.register_rate_producer(
+            "fertility rate", source=fertility_rate, requires_columns=["age"]
+        )
 
-        self.randomness = builder.randomness.get_stream('fertility')
+        self.randomness = builder.randomness.get_stream("fertility")
 
-        self.population_view = builder.population.get_view(['last_birth_time', 'sex', 'parent_id'])
+        self.population_view = builder.population.get_view(
+            ["last_birth_time", "sex", "parent_id"]
+        )
         self.simulant_creator = builder.population.get_simulant_creator()
 
-        builder.population.initializes_simulants(self.on_initialize_simulants,
-                                                 creates_columns=['last_birth_time', 'parent_id'],
-                                                 requires_columns=['sex'])
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            creates_columns=["last_birth_time", "parent_id"],
+            requires_columns=["sex"],
+        )
 
-        builder.event.register_listener('time_step', self.on_time_step)
+        builder.event.register_listener("time_step", self.on_time_step)
 
     def on_initialize_simulants(self, pop_data):
         """ Adds 'last_birth_time' and 'parent' columns to the state table."""
-        pop = self.population_view.subview(['sex']).get(pop_data.index)
-        women = pop.loc[pop.sex == 'Female'].index
+        pop = self.population_view.subview(["sex"]).get(pop_data.index)
+        women = pop.loc[pop.sex == "Female"].index
 
-        if pop_data.user_data['sim_state'] == 'setup':
+        if pop_data.user_data["sim_state"] == "setup":
             parent_id = -1
         else:  # 'sim_state' == 'time_step'
-            parent_id = pop_data.user_data['parent_ids']
-        pop_update = pd.DataFrame({'last_birth_time': pd.NaT, 'parent_id': parent_id}, index=pop_data.index)
+            parent_id = pop_data.user_data["parent_ids"]
+        pop_update = pd.DataFrame(
+            {"last_birth_time": pd.NaT, "parent_id": parent_id}, index=pop_data.index
+        )
         # FIXME: This is a misuse of the column and makes it invalid for
         #    tracking metrics.
         # Do the naive thing, set so all women can have children
         # and none of them have had a child in the last year.
-        pop_update.loc[women, 'last_birth_time'] = pop_data.creation_time - pd.Timedelta(days=utilities.DAYS_PER_YEAR)
+        pop_update.loc[
+            women, "last_birth_time"
+        ] = pop_data.creation_time - pd.Timedelta(days=utilities.DAYS_PER_YEAR)
 
         self.population_view.update(pop_update)
 
@@ -200,32 +220,38 @@ class FertilityAgeSpecificRates:
         """
         # Get a view on all living women who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
-        population = self.population_view.get(event.index, query='alive == "alive" and sex =="Female"')
+        population = self.population_view.get(
+            event.index, query='alive == "alive" and sex =="Female"'
+        )
         can_have_children = population.last_birth_time < nine_months_ago
         eligible_women = population[can_have_children]
 
         rate_series = self.fertility_rate(eligible_women.index)
-        had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
+        had_children = self.randomness.filter_for_rate(
+            eligible_women, rate_series
+        ).copy()
 
-        had_children.loc[:, 'last_birth_time'] = event.time
-        self.population_view.update(had_children['last_birth_time'])
+        had_children.loc[:, "last_birth_time"] = event.time
+        self.population_view.update(had_children["last_birth_time"])
 
         # If children were born, add them to the state table and record
         # who their mother was.
         num_babies = len(had_children)
         if num_babies:
-            self.simulant_creator(num_babies,
-                                  population_configuration={
-                                      'age_start': 0,
-                                      'age_end': 0,
-                                      'sim_state': 'time_step',
-                                      'parent_ids': had_children.index
-                                  })
+            self.simulant_creator(
+                num_babies,
+                population_configuration={
+                    "age_start": 0,
+                    "age_end": 0,
+                    "sim_state": "time_step",
+                    "parent_ids": had_children.index,
+                },
+            )
 
     def load_age_specific_fertility_rate_data(self, builder):
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
-        columns = ['year_start', 'year_end', 'age_start', 'age_end', 'mean_value']
-        asfr_data = asfr_data.loc[asfr_data.sex == 'Female'][columns]
+        columns = ["year_start", "year_end", "age_start", "age_end", "mean_value"]
+        asfr_data = asfr_data.loc[asfr_data.sex == "Female"][columns]
         return asfr_data
 
     def __repr__(self):
