@@ -67,6 +67,9 @@ class RiskEffect:
         self.target = TargetString(target)
         self.configuration_defaults = self._get_configuration_defaults()
 
+        self.target_pipeline_name = f'{self.target.name}.{self.target.measure}'
+        self.target_paf_pipeline_name = f'{self.target_pipeline_name}.paf'
+
     def __repr__(self):
         return f"RiskEffect(risk={self.risk}, target={self.target})"
 
@@ -123,12 +126,16 @@ class RiskEffect:
         return adjust_target
 
     def _register_target_modifier(self, builder: Builder) -> None:
-        builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}',
-                                              modifier=self.target_modifier,
-                                              requires_values=[f'{self.risk.name}.exposure'],
-                                              requires_columns=['age', 'sex'])
+        builder.value.register_value_modifier(
+            self.target_pipeline_name,
+            modifier=self.target_modifier,
+            requires_values=[f'{self.risk.name}.exposure'],
+            requires_columns=['age', 'sex']
+        )
 
     def _register_paf_modifier(self, builder: Builder) -> None:
-        builder.value.register_value_modifier(f'{self.target.name}.{self.target.measure}.paf',
-                                              modifier=self.population_attributable_fraction,
-                                              requires_columns=['age', 'sex'])
+        builder.value.register_value_modifier(
+            self.target_paf_pipeline_name,
+            modifier=self.population_attributable_fraction,
+            requires_columns=['age', 'sex']
+        )
