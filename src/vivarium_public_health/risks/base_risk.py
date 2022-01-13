@@ -148,7 +148,12 @@ class Risk:
     def _get_propensity_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.propensity_pipeline_name,
-            source=lambda index: self.population_view.get(index)[self.propensity_column_name],
+            source=lambda index: (
+                self.population_view
+                .subview([self.propensity_column_name])
+                .get(index)
+                .squeeze()
+            ),
             requires_columns=[self.propensity_column_name]
         )
 
