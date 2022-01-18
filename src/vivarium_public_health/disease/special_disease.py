@@ -101,6 +101,9 @@ class RiskAttributableDisease:
         self._state_names = [f'{self.cause.name}', f'susceptible_to_{self.cause.name}']
         self._transition_names = [f'susceptible_to_{self.cause.name}_TO_{self.cause.name}']
 
+        self.excess_mortality_rate_pipeline_name = f'{self.cause.name}.excess_mortality_rate'
+        self.excess_mortality_rate_paf_pipeline_name = f'{self.excess_mortality_rate_pipeline_name}.paf'
+
     @property
     def name(self):
         return f'disease_model.{self.cause.name}'
@@ -113,6 +116,7 @@ class RiskAttributableDisease:
     def transition_names(self):
         return self._transition_names
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder):
         self.recoverable = builder.configuration[self.cause.name].recoverable
         self.adjust_state_and_transitions()
@@ -140,21 +144,21 @@ class RiskAttributableDisease:
         self.base_excess_mortality_rate = builder.lookup.build_table(excess_mortality_data, key_columns=['sex'],
                                                                      parameter_columns=['age', 'year'])
         self.excess_mortality_rate = builder.value.register_value_producer(
-            f'{self.cause.name}.excess_mortality_rate',
+            self.excess_mortality_rate_pipeline_name,
             source=self.compute_excess_mortality_rate,
             requires_columns=['age', 'sex', 'alive', self.cause.name],
-            requires_values=[f'{self.cause.name}.excess_mortality_rate.population_attributable_fraction']
+            requires_values=[self.excess_mortality_rate_paf_pipeline_name]
         )
         paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(
-            f'{self.cause.name}.excess_mortality_rate.population_attributable_fraction',
+            self.excess_mortality_rate_paf_pipeline_name,
             source=lambda idx: [paf(idx)],
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor
         )
         builder.value.register_value_modifier('mortality_rate',
                                               modifier=self.adjust_mortality_rate,
-                                              requires_values=[f'{self.cause.name}.excess_mortality_rate'])
+                                              requires_values=[self.excess_mortality_rate_pipeline_name])
 
         distribution = builder.data.load(f'{self.risk}.distribution')
         exposure_pipeline = builder.value.get_value(f'{self.risk.name}.exposure')
