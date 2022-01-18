@@ -152,7 +152,7 @@ class Risk:
                 self.population_view
                 .subview([self.propensity_column_name])
                 .get(index)
-                .squeeze()
+                .squeeze(axis=1)
             ),
             requires_columns=[self.propensity_column_name]
         )
