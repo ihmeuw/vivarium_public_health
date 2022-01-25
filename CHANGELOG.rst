@@ -1,4 +1,4 @@
-**0.10.14 - 10/29/21**
+**0.10.15 - 01/25/22**
  - Implement LinearScaleUp component
  - Refactor Risk, RiskEffect, and Mortality components for inheritance
  - Added pull request template
