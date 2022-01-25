@@ -1,4 +1,11 @@
 **0.10.14 - 10/29/21**
+ - Implement LinearScaleUp component
+ - Refactor Risk, RiskEffect, and Mortality components for inheritance
+ - Added pull request template
+ - Fix bug in excess mortality pipeline name
+ - Fix bug in risk propensity pipeline
+
+**0.10.14 - 10/29/21**
  - Update license to BSD 3-clause
  - Add .zenodo.json metadata replacing AUTHORS.rst
 
