@@ -180,6 +180,10 @@ class DiseaseState(BaseDiseaseState):
             A function to be called when this state is entered.
         """
         super().__init__(cause, **kwargs)
+
+        self.excess_mortality_rate_pipeline_name = f'{self.state_id}.excess_mortality_rate'
+        self.excess_mortality_rate_paf_pipeline_name = f'{self.excess_mortality_rate_pipeline_name}.paf'
+
         self._get_data_functions = get_data_functions if get_data_functions is not None else {}
         self.cleanup_function = cleanup_function
 
@@ -229,21 +233,21 @@ class DiseaseState(BaseDiseaseState):
         self.base_excess_mortality_rate = builder.lookup.build_table(excess_mortality_data, key_columns=['sex'],
                                                                      parameter_columns=['age', 'year'])
         self.excess_mortality_rate = builder.value.register_rate_producer(
-            f'{self.state_id}.excess_mortality_rate',
+            self.excess_mortality_rate_pipeline_name,
             source=self.compute_excess_mortality_rate,
             requires_columns=['age', 'sex', 'alive', self._model],
-            requires_values=[f'{self.state_id}.excess_mortality_rate.population_attributable_fraction']
+            requires_values=[self.excess_mortality_rate_paf_pipeline_name]
         )
         paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(
-            f'{self.state_id}.excess_mortality_rate.population_attributable_fraction',
+            self.excess_mortality_rate_paf_pipeline_name,
             source=lambda idx: [paf(idx)],
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor
         )
         builder.value.register_value_modifier('mortality_rate',
                                               modifier=self.adjust_mortality_rate,
-                                              requires_values=[f'{self.state_id}.excess_mortality_rate'])
+                                              requires_values=[self.excess_mortality_rate_pipeline_name])
 
         self.randomness_prevalence = builder.randomness.get_stream(f'{self.state_id}_prevalent_cases')
 

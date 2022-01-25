@@ -418,7 +418,7 @@ def get_live_births_per_year(builder):
 def rescale_final_age_bin(builder, population_data):
     exit_age = builder.configuration.population.to_dict().get('exit_age', None)
     if exit_age:
-        population_data = population_data.loc[population_data['age_start'] < exit_age]
+        population_data = population_data.loc[population_data['age_start'] < exit_age].copy()
         cut_bin_idx = (exit_age <= population_data['age_end'])
         cut_age_start = population_data.loc[cut_bin_idx, 'age_start']
         cut_age_end = population_data.loc[cut_bin_idx, 'age_end']
