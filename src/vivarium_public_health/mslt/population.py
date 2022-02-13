@@ -33,26 +33,38 @@ class BasePopulation:
     """
 
     configuration_defaults = {
-        'population': {
-            'max_age': 110,
+        "population": {
+            "max_age": 110,
         }
     }
 
     @property
     def name(self):
-        return 'base_population'
-    
+        return "base_population"
+
     def setup(self, builder):
         """Load the population data."""
-        columns = ['age', 'sex', 'population', 'bau_population',
-                   'acmr', 'bau_acmr',
-                   'pr_death', 'bau_pr_death', 'deaths', 'bau_deaths',
-                   'yld_rate', 'bau_yld_rate',
-                   'person_years', 'bau_person_years',
-                   'HALY', 'bau_HALY']
+        columns = [
+            "age",
+            "sex",
+            "population",
+            "bau_population",
+            "acmr",
+            "bau_acmr",
+            "pr_death",
+            "bau_pr_death",
+            "deaths",
+            "bau_deaths",
+            "yld_rate",
+            "bau_yld_rate",
+            "person_years",
+            "bau_person_years",
+            "HALY",
+            "bau_HALY",
+        ]
 
         self.pop_data = load_population_data(builder)
-        
+
         # Create additional columns with placeholder (zero) values.
         for column in columns:
             if column in self.pop_data.columns:
@@ -65,11 +77,13 @@ class BasePopulation:
         self.clock = builder.time.clock()
 
         # Track all of the quantities that exist in the core spreadsheet table.
-        builder.population.initializes_simulants(self.on_initialize_simulants, creates_columns=columns)
-        self.population_view = builder.population.get_view(columns + ['tracked'])
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants, creates_columns=columns
+        )
+        self.population_view = builder.population.get_view(columns + ["tracked"])
 
         # Age cohorts before each time-step (except the first time-step).
-        builder.event.register_listener('time_step__prepare', self.on_time_step_prepare)
+        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
 
     def on_initialize_simulants(self, _):
         """Initialize each cohort."""
@@ -77,11 +91,11 @@ class BasePopulation:
 
     def on_time_step_prepare(self, event):
         """Remove cohorts that have reached the maximum age."""
-        pop = self.population_view.get(event.index, query='tracked == True')
+        pop = self.population_view.get(event.index, query="tracked == True")
         # Only increase cohort ages after the first time-step.
         if self.clock().year > self.start_year:
-            pop['age'] += 1
-        pop.loc[pop.age > self.max_age, 'tracked'] = False
+            pop["age"] += 1
+        pop.loc[pop.age > self.max_age, "tracked"] = False
         self.population_view.update(pop)
 
 
@@ -90,26 +104,37 @@ class Mortality:
     This component reduces the population size of each cohort over time,
     according to the all-cause mortality rate.
     """
-    
+
     @property
     def name(self):
-        return 'mortality'
+        return "mortality"
 
     def setup(self, builder):
         """Load the all-cause mortality rate."""
-        mortality_data = builder.data.load('cause.all_causes.mortality')
+        mortality_data = builder.data.load("cause.all_causes.mortality")
         self.mortality_rate = builder.value.register_rate_producer(
-            'mortality_rate', source=builder.lookup.build_table(mortality_data, 
-                                                                key_columns=['sex'], 
-                                                                parameter_columns=['age','year']))
+            "mortality_rate",
+            source=builder.lookup.build_table(
+                mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
+            ),
+        )
 
-        builder.event.register_listener('time_step', self.on_time_step)
+        builder.event.register_listener("time_step", self.on_time_step)
 
-        self.population_view = builder.population.get_view(['population', 'bau_population',
-                                                            'acmr', 'bau_acmr',
-                                                            'pr_death', 'bau_pr_death',
-                                                            'deaths', 'bau_deaths',
-                                                            'person_years', 'bau_person_years'])
+        self.population_view = builder.population.get_view(
+            [
+                "population",
+                "bau_population",
+                "acmr",
+                "bau_acmr",
+                "pr_death",
+                "bau_pr_death",
+                "deaths",
+                "bau_deaths",
+                "person_years",
+                "bau_person_years",
+            ]
+        )
 
     def on_time_step(self, event):
         """
@@ -142,25 +167,31 @@ class Disability:
     cohort over time, according to the years lost due to disability (YLD)
     rate.
     """
-    
+
     @property
     def name(self):
-        return 'disability'
+        return "disability"
 
     def setup(self, builder):
         """Load the years lost due to disability (YLD) rate."""
-        yld_data = builder.data.load('cause.all_causes.disability_rate')
-        yld_rate = builder.lookup.build_table(yld_data, 
-                                              key_columns=['sex'], 
-                                              parameter_columns=['age','year'])
-        self.yld_rate = builder.value.register_rate_producer('yld_rate', source=yld_rate)
+        yld_data = builder.data.load("cause.all_causes.disability_rate")
+        yld_rate = builder.lookup.build_table(
+            yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
+        self.yld_rate = builder.value.register_rate_producer("yld_rate", source=yld_rate)
 
-        builder.event.register_listener('time_step', self.on_time_step)
+        builder.event.register_listener("time_step", self.on_time_step)
 
-        self.population_view = builder.population.get_view([
-            'bau_yld_rate', 'yld_rate',
-            'bau_person_years', 'person_years',
-            'bau_HALY', 'HALY'])
+        self.population_view = builder.population.get_view(
+            [
+                "bau_yld_rate",
+                "yld_rate",
+                "bau_person_years",
+                "person_years",
+                "bau_HALY",
+                "HALY",
+            ]
+        )
 
     def on_time_step(self, event):
         """
@@ -178,7 +209,7 @@ class Disability:
 
 
 def load_population_data(builder):
-    pop_data = builder.data.load('population.structure')
-    pop_data = pop_data[['age', 'sex', 'value']].rename(columns={'value': 'population'})
-    pop_data['bau_population'] = pop_data['population']
+    pop_data = builder.data.load("population.structure")
+    pop_data = pop_data[["age", "sex", "value"]].rename(columns={"value": "population"})
+    pop_data["bau_population"] = pop_data["population"]
     return pop_data
