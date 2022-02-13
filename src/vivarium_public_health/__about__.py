@@ -7,10 +7,10 @@ __title__ = "vivarium_public_health"
 __summary__ = "Components for modelling diseases, risks, and interventions with ``vivarium``"
 __uri__ = "https://github.com/ihmeuw/vivarium_public_health"
 
-__version__ = "0.10.15"
+__version__ = "0.10.16"
 
 __author__ = "The vivarium_public_health developers"
 __email__ = "vivarium.dev@gmail.com"
 
 __license__ = "BSD-3-Clause"
-__copyright__ = f"Copyright 2021 {__author__}"
+__copyright__ = f"Copyright 2022 {__author__}"

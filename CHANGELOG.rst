@@ -1,3 +1,7 @@
+**0.10.16 - 02/13/22**
+
+ - Update CI
+
 **0.10.15 - 01/25/22**
  - Implement LinearScaleUp component
  - Refactor Risk, RiskEffect, and Mortality components for inheritance
