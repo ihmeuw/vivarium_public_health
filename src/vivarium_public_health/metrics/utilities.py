@@ -9,7 +9,7 @@ simulation data to support particular observations during the simulation.
 """
 from collections import ChainMap
 from string import Template
-from typing import Union, List, Tuple, Dict, Callable
+from typing import Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -18,8 +18,8 @@ from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.utilities import to_years
 
-_MIN_AGE = 0.
-_MAX_AGE = 150.
+_MIN_AGE = 0.0
+_MAX_AGE = 150.0
 _MIN_YEAR = 1900
 _MAX_YEAR = 2100
 
@@ -46,16 +46,17 @@ class QueryString(str):
     'abc and def'
 
     """
-    def __add__(self, other: Union[str, 'QueryString']) -> 'QueryString':
+
+    def __add__(self, other: Union[str, "QueryString"]) -> "QueryString":
         if self:
             if other:
-                return QueryString(str(self) + ' and ' + str(other))
+                return QueryString(str(self) + " and " + str(other))
             else:
                 return self
         else:
             return QueryString(other)
 
-    def __radd__(self, other: Union[str, 'QueryString']) -> 'QueryString':
+    def __radd__(self, other: Union[str, "QueryString"]) -> "QueryString":
         return QueryString(other) + self
 
 
@@ -65,28 +66,31 @@ class SubstituteString(str):
     Meant to be used with the OutputTemplate.
 
     """
-    def substitute(self, *_, **__) -> 'SubstituteString':
+
+    def substitute(self, *_, **__) -> "SubstituteString":
         """No-op method for consistency with OutputTemplate."""
         return self
 
 
 class OutputTemplate(Template):
     """Output string template that enforces standardized formatting."""
+
     @staticmethod
     def format_template_value(value):
         """Formatting helper method for substituting values into a template."""
-        return str(value).replace(' ', '_').lower()
+        return str(value).replace(" ", "_").lower()
 
     @staticmethod
     def get_mapping(*args, **kws):
         """Gets a consistent mapping from args passed to substitute."""
         # This is copied directly from the first part of Template.substitute
         if not args:
-            raise TypeError("descriptor 'substitute' of 'Template' object "
-                            "needs an argument")
+            raise TypeError(
+                "descriptor 'substitute' of 'Template' object " "needs an argument"
+            )
         self, *args = args  # allow the "self" keyword be passed
         if len(args) > 1:
-            raise TypeError('Too many positional arguments')
+            raise TypeError("Too many positional arguments")
         if not args:
             mapping = dict(kws)
         elif kws:
@@ -95,7 +99,7 @@ class OutputTemplate(Template):
             mapping = args[0]
         return self, mapping
 
-    def substitute(*args, **kws) -> Union[SubstituteString, 'OutputTemplate']:
+    def substitute(*args, **kws) -> Union[SubstituteString, "OutputTemplate"]:
         """Substitutes provided values into the template.
 
         Users are allowed to pass any dictionary like object whose keys match
@@ -140,18 +144,18 @@ def get_age_bins(builder) -> pd.DataFrame:
         and ``age_end``.
 
     """
-    age_bins = builder.data.load('population.age_bins')
+    age_bins = builder.data.load("population.age_bins")
 
     # Works based on the fact that currently only models with age_start = 0 can include fertility
     age_start = builder.configuration.population.age_start
     min_bin_start = age_bins.age_start[np.asscalar(np.digitize(age_start, age_bins.age_end))]
     age_bins = age_bins[age_bins.age_start >= min_bin_start]
-    age_bins.loc[age_bins.age_start < age_start, 'age_start'] = age_start
+    age_bins.loc[age_bins.age_start < age_start, "age_start"] = age_start
 
     exit_age = builder.configuration.population.exit_age
     if exit_age:
         age_bins = age_bins[age_bins.age_start < exit_age]
-        age_bins.loc[age_bins.age_end > exit_age, 'age_end'] = exit_age
+        age_bins.loc[age_bins.age_end > exit_age, "age_end"] = exit_age
     return age_bins
 
 
@@ -176,20 +180,19 @@ def get_output_template(by_age: bool, by_sex: bool, by_year: bool, **_) -> Outpu
         A template string with measure and possibly additional criteria.
 
     """
-    template = '${measure}'
+    template = "${measure}"
     if by_year:
-        template += '_in_${year}'
+        template += "_in_${year}"
     if by_sex:
-        template += '_among_${sex}'
+        template += "_among_${sex}"
     if by_age:
-        template += '_in_age_group_${age_group}'
+        template += "_in_age_group_${age_group}"
     return OutputTemplate(template)
 
 
-def get_age_sex_filter_and_iterables(config: Dict[str, bool],
-                                     age_bins: pd.DataFrame,
-                                     in_span: bool = False) -> Tuple[QueryString,
-                                                                     Tuple[List[Tuple[str, pd.Series]], List[str]]]:
+def get_age_sex_filter_and_iterables(
+    config: Dict[str, bool], age_bins: pd.DataFrame, in_span: bool = False
+) -> Tuple[QueryString, Tuple[List[Tuple[str, pd.Series]], List[str]]]:
     """Constructs a filter and a set of iterables for age and sex.
 
     The constructed filter and iterables are based on configuration for the
@@ -218,27 +221,29 @@ def get_age_sex_filter_and_iterables(config: Dict[str, bool],
 
     """
     age_sex_filter = QueryString("")
-    if config['by_age']:
-        ages = list(age_bins.set_index('age_group_name').iterrows())
+    if config["by_age"]:
+        ages = list(age_bins.set_index("age_group_name").iterrows())
         if in_span:
-            age_sex_filter += '{age_start} < age_at_span_end and age_at_span_start < {age_end}'
+            age_sex_filter += (
+                "{age_start} < age_at_span_end and age_at_span_start < {age_end}"
+            )
         else:
-            age_sex_filter += '{age_start} <= age and age < {age_end}'
+            age_sex_filter += "{age_start} <= age and age < {age_end}"
     else:
-        ages = [('all_ages', pd.Series({'age_start': _MIN_AGE, 'age_end': _MAX_AGE}))]
+        ages = [("all_ages", pd.Series({"age_start": _MIN_AGE, "age_end": _MAX_AGE}))]
 
-    if config['by_sex']:
-        sexes = ['Male', 'Female']
+    if config["by_sex"]:
+        sexes = ["Male", "Female"]
         age_sex_filter += 'sex == "{sex}"'
     else:
-        sexes = ['Both']
+        sexes = ["Both"]
 
     return age_sex_filter, (ages, sexes)
 
 
-def get_time_iterable(config: Dict[str, bool],
-                      sim_start: pd.Timestamp,
-                      sim_end: pd.Timestamp) -> List[Tuple[str, Tuple[pd.Timestamp, pd.Timestamp]]]:
+def get_time_iterable(
+    config: Dict[str, bool], sim_start: pd.Timestamp, sim_end: pd.Timestamp
+) -> List[Tuple[str, Tuple[pd.Timestamp, pd.Timestamp]]]:
     """Constructs an iterable for time bins.
 
     The constructed iterable are based on configuration for the observer
@@ -261,21 +266,29 @@ def get_time_iterable(config: Dict[str, bool],
         for the observers.
 
     """
-    if config['by_year']:
-        time_spans = [(year, (pd.Timestamp(f'1-1-{year}'), pd.Timestamp(f'1-1-{year + 1}')))
-                      for year in range(sim_start.year, sim_end.year + 1)]
+    if config["by_year"]:
+        time_spans = [
+            (year, (pd.Timestamp(f"1-1-{year}"), pd.Timestamp(f"1-1-{year + 1}")))
+            for year in range(sim_start.year, sim_end.year + 1)
+        ]
     else:
-        time_spans = [('all_years', (pd.Timestamp(f'1-1-{_MIN_YEAR}'), pd.Timestamp(f'1-1-{_MAX_YEAR}')))]
+        time_spans = [
+            (
+                "all_years",
+                (pd.Timestamp(f"1-1-{_MIN_YEAR}"), pd.Timestamp(f"1-1-{_MAX_YEAR}")),
+            )
+        ]
     return time_spans
 
 
-def get_group_counts(pop: pd.DataFrame,
-                     base_filter: str,
-                     base_key: OutputTemplate,
-                     config: Dict[str, bool],
-                     age_bins: pd.DataFrame,
-                     aggregate: Callable[[pd.DataFrame], Union[int, float]] = len
-                     ) -> Dict[Union[SubstituteString, OutputTemplate], Union[int, float]]:
+def get_group_counts(
+    pop: pd.DataFrame,
+    base_filter: str,
+    base_key: OutputTemplate,
+    config: Dict[str, bool],
+    age_bins: pd.DataFrame,
+    aggregate: Callable[[pd.DataFrame], Union[int, float]] = len,
+) -> Dict[Union[SubstituteString, OutputTemplate], Union[int, float]]:
     """Gets a count of people in a custom subgroup.
 
     The user is responsible for providing a default filter (e.g. only alive
@@ -316,7 +329,12 @@ def get_group_counts(pop: pd.DataFrame,
     for group, age_group in ages:
         start, end = age_group.age_start, age_group.age_end
         for sex in sexes:
-            filter_kwargs = {'age_start': start, 'age_end': end, 'sex': sex, 'age_group': group}
+            filter_kwargs = {
+                "age_start": start,
+                "age_end": end,
+                "sex": sex,
+                "age_group": group,
+            }
             group_key = base_key.substitute(**filter_kwargs)
             group_filter = base_filter.format(**filter_kwargs)
             in_group = pop.query(group_filter) if group_filter and not pop.empty else pop
@@ -327,40 +345,59 @@ def get_group_counts(pop: pd.DataFrame,
 
 
 def get_susceptible_person_time(pop, config, disease, current_year, step_size, age_bins):
-    base_key = get_output_template(**config).substitute(measure=f'{disease}_susceptible_person_time', year=current_year)
+    base_key = get_output_template(**config).substitute(
+        measure=f"{disease}_susceptible_person_time", year=current_year
+    )
     base_filter = QueryString(f'alive == "alive" and {disease} == "susceptible_to_{disease}"')
-    person_time = get_group_counts(pop, base_filter, base_key, config, age_bins,
-                                   aggregate=lambda x: len(x) * to_years(step_size))
+    person_time = get_group_counts(
+        pop,
+        base_filter,
+        base_key,
+        config,
+        age_bins,
+        aggregate=lambda x: len(x) * to_years(step_size),
+    )
     return person_time
 
 
 def get_disease_event_counts(pop, config, disease, event_time, age_bins):
-    base_key = get_output_template(**config).substitute(measure=f'{disease}_counts', year=event_time.year)
+    base_key = get_output_template(**config).substitute(
+        measure=f"{disease}_counts", year=event_time.year
+    )
     # Can't use query with time stamps, so filter
-    pop = pop.loc[pop[f'{disease}_event_time'] == event_time]
-    base_filter = QueryString('')
+    pop = pop.loc[pop[f"{disease}_event_time"] == event_time]
+    base_filter = QueryString("")
     return get_group_counts(pop, base_filter, base_key, config, age_bins)
 
 
 def get_prevalent_cases(pop, config, disease, event_time, age_bins):
     config = config.copy()
-    config['by_year'] = True  # This is always an annual point estimate
-    base_key = get_output_template(**config).substitute(measure=f'{disease}_prevalent_cases', year=event_time.year)
+    config["by_year"] = True  # This is always an annual point estimate
+    base_key = get_output_template(**config).substitute(
+        measure=f"{disease}_prevalent_cases", year=event_time.year
+    )
     base_filter = QueryString(f'alive == "alive" and {disease} != "susceptible_to_{disease}"')
     return get_group_counts(pop, base_filter, base_key, config, age_bins)
 
 
 def get_population_counts(pop, config, event_time, age_bins):
     config = config.copy()
-    config['by_year'] = True  # This is always an annual point estimate
-    base_key = get_output_template(**config).substitute(measure=f'population_count', year=event_time.year)
+    config["by_year"] = True  # This is always an annual point estimate
+    base_key = get_output_template(**config).substitute(
+        measure=f"population_count", year=event_time.year
+    )
     base_filter = QueryString(f'alive == "alive"')
     return get_group_counts(pop, base_filter, base_key, config, age_bins)
 
 
-def get_person_time(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timestamp,
-                    sim_end: pd.Timestamp, age_bins: pd.DataFrame) -> Dict[str, float]:
-    base_key = get_output_template(**config).substitute(measure='person_time')
+def get_person_time(
+    pop: pd.DataFrame,
+    config: Dict[str, bool],
+    sim_start: pd.Timestamp,
+    sim_end: pd.Timestamp,
+    age_bins: pd.DataFrame,
+) -> Dict[str, float]:
+    base_key = get_output_template(**config).substitute(measure="person_time")
     base_filter = QueryString("")
     time_spans = get_time_iterable(config, sim_start, sim_end)
 
@@ -368,12 +405,16 @@ def get_person_time(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Ti
     for year, (t_start, t_end) in time_spans:
         year_key = base_key.substitute(year=year)
         lived_in_span = get_lived_in_span(pop, t_start, t_end)
-        person_time_in_span = get_person_time_in_span(lived_in_span, base_filter, year_key, config, age_bins)
+        person_time_in_span = get_person_time_in_span(
+            lived_in_span, base_filter, year_key, config, age_bins
+        )
         person_time.update(person_time_in_span)
     return person_time
 
 
-def get_lived_in_span(pop: pd.DataFrame, t_start: pd.Timestamp, t_end: pd.Timestamp) -> pd.DataFrame:
+def get_lived_in_span(
+    pop: pd.DataFrame, t_start: pd.Timestamp, t_end: pd.Timestamp
+) -> pd.DataFrame:
     """Gets a subset of the population that lived in the time span.
 
     Parameters
@@ -398,23 +439,29 @@ def get_lived_in_span(pop: pd.DataFrame, t_start: pd.Timestamp, t_end: pd.Timest
         be greater than the age at the simulant's exit time.
 
     """
-    lived_in_span = pop.loc[(t_start < pop['exit_time']) & (pop['entrance_time'] < t_end)]
+    lived_in_span = pop.loc[(t_start < pop["exit_time"]) & (pop["entrance_time"] < t_end)]
 
     span_entrance_time = lived_in_span.entrance_time.copy()
     span_entrance_time.loc[t_start > span_entrance_time] = t_start
     span_exit_time = lived_in_span.exit_time.copy()
     span_exit_time.loc[t_end < span_exit_time] = t_end
 
-    lived_in_span.loc[:, 'age_at_span_end'] = lived_in_span.age - to_years(lived_in_span.exit_time
-                                                                           - span_exit_time)
-    lived_in_span.loc[:, 'age_at_span_start'] = lived_in_span.age - to_years(lived_in_span.exit_time
-                                                                             - span_entrance_time)
+    lived_in_span.loc[:, "age_at_span_end"] = lived_in_span.age - to_years(
+        lived_in_span.exit_time - span_exit_time
+    )
+    lived_in_span.loc[:, "age_at_span_start"] = lived_in_span.age - to_years(
+        lived_in_span.exit_time - span_entrance_time
+    )
     return lived_in_span
 
 
-def get_person_time_in_span(lived_in_span: pd.DataFrame, base_filter: QueryString,
-                            span_key: OutputTemplate, config: Dict[str, bool],
-                            age_bins: pd.DataFrame) -> Dict[Union[SubstituteString, OutputTemplate], float]:
+def get_person_time_in_span(
+    lived_in_span: pd.DataFrame,
+    base_filter: QueryString,
+    span_key: OutputTemplate,
+    config: Dict[str, bool],
+    age_bins: pd.DataFrame,
+) -> Dict[Union[SubstituteString, OutputTemplate], float]:
     """Counts the amount of person time lived in a particular time span.
 
     Parameters
@@ -442,19 +489,27 @@ def get_person_time_in_span(lived_in_span: pd.DataFrame, base_filter: QueryStrin
         corresponds to a particular demographic group.
     """
     person_time = {}
-    age_sex_filter, (ages, sexes) = get_age_sex_filter_and_iterables(config, age_bins, in_span=True)
+    age_sex_filter, (ages, sexes) = get_age_sex_filter_and_iterables(
+        config, age_bins, in_span=True
+    )
     base_filter += age_sex_filter
 
     for group, age_bin in ages:
         a_start, a_end = age_bin.age_start, age_bin.age_end
         for sex in sexes:
-            filter_kwargs = {'sex': sex, 'age_start': a_start,
-                             'age_end': a_end, 'age_group': group}
+            filter_kwargs = {
+                "sex": sex,
+                "age_start": a_start,
+                "age_end": a_end,
+                "age_group": group,
+            }
 
             key = span_key.substitute(**filter_kwargs)
             group_filter = base_filter.format(**filter_kwargs)
 
-            in_group = lived_in_span.query(group_filter) if group_filter else lived_in_span.copy()
+            in_group = (
+                lived_in_span.query(group_filter) if group_filter else lived_in_span.copy()
+            )
             age_start = np.maximum(in_group.age_at_span_start, a_start)
             age_end = np.minimum(in_group.age_at_span_end, a_end)
 
@@ -463,8 +518,14 @@ def get_person_time_in_span(lived_in_span: pd.DataFrame, base_filter: QueryStrin
     return person_time
 
 
-def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timestamp,
-               sim_end: pd.Timestamp, age_bins: pd.DataFrame, causes: List[str]) -> Dict[str, int]:
+def get_deaths(
+    pop: pd.DataFrame,
+    config: Dict[str, bool],
+    sim_start: pd.Timestamp,
+    sim_end: pd.Timestamp,
+    age_bins: pd.DataFrame,
+    causes: List[str],
+) -> Dict[str, int]:
     """Counts the number of deaths by cause.
 
     Parameters
@@ -502,20 +563,24 @@ def get_deaths(pop: pd.DataFrame, config: Dict[str, bool], sim_start: pd.Timesta
     for year, (t_start, t_end) in time_spans:
         died_in_span = pop[(t_start <= pop.exit_time) & (pop.exit_time < t_end)]
         for cause in causes:
-            cause_year_key = base_key.substitute(measure=f'death_due_to_{cause}', year=year)
+            cause_year_key = base_key.substitute(measure=f"death_due_to_{cause}", year=year)
             cause_filter = base_filter.format(cause=cause)
-            group_deaths = get_group_counts(died_in_span, cause_filter, cause_year_key, config, age_bins)
+            group_deaths = get_group_counts(
+                died_in_span, cause_filter, cause_year_key, config, age_bins
+            )
             deaths.update(group_deaths)
     return deaths
 
 
-def get_years_of_life_lost(pop: pd.DataFrame,
-                           config: Dict[str, bool],
-                           sim_start: pd.Timestamp,
-                           sim_end: pd.Timestamp,
-                           age_bins: pd.DataFrame,
-                           life_expectancy: LookupTable,
-                           causes: List[str]) -> Dict[str, float]:
+def get_years_of_life_lost(
+    pop: pd.DataFrame,
+    config: Dict[str, bool],
+    sim_start: pd.Timestamp,
+    sim_end: pd.Timestamp,
+    age_bins: pd.DataFrame,
+    life_expectancy: LookupTable,
+    causes: List[str],
+) -> Dict[str, float]:
     """Counts the years of life lost by cause.
 
     Parameters
@@ -556,21 +621,29 @@ def get_years_of_life_lost(pop: pd.DataFrame,
     for year, (t_start, t_end) in time_spans:
         died_in_span = pop[(t_start <= pop.exit_time) & (pop.exit_time < t_end)]
         for cause in causes:
-            cause_year_key = base_key.substitute(measure=f'ylls_due_to_{cause}', year=year)
+            cause_year_key = base_key.substitute(measure=f"ylls_due_to_{cause}", year=year)
             cause_filter = base_filter.format(cause=cause)
-            group_ylls = get_group_counts(died_in_span, cause_filter, cause_year_key, config, age_bins,
-                                          aggregate=lambda subgroup: sum(life_expectancy(subgroup.index)))
+            group_ylls = get_group_counts(
+                died_in_span,
+                cause_filter,
+                cause_year_key,
+                config,
+                age_bins,
+                aggregate=lambda subgroup: sum(life_expectancy(subgroup.index)),
+            )
             years_of_life_lost.update(group_ylls)
     return years_of_life_lost
 
 
-def get_years_lived_with_disability(pop: pd.DataFrame,
-                                    config: Dict[str, bool],
-                                    current_year: int,
-                                    step_size: pd.Timedelta,
-                                    age_bins: pd.DataFrame,
-                                    disability_weights: Dict[str, Pipeline],
-                                    causes: List[str]) -> Dict[str, float]:
+def get_years_lived_with_disability(
+    pop: pd.DataFrame,
+    config: Dict[str, bool],
+    current_year: int,
+    step_size: pd.Timedelta,
+    age_bins: pd.DataFrame,
+    disability_weights: Dict[str, Pipeline],
+    causes: List[str],
+) -> Dict[str, float]:
     """Counts the years lived with disability by cause in the time step.
 
     Parameters
@@ -605,13 +678,15 @@ def get_years_lived_with_disability(pop: pd.DataFrame,
 
     years_lived_with_disability = {}
     for cause in causes:
-        cause_key = base_key.substitute(measure=f'ylds_due_to_{cause}')
+        cause_key = base_key.substitute(measure=f"ylds_due_to_{cause}")
 
         def count_ylds(sub_group):
             """Counts ylds attributable to a cause in the time step."""
             return sum(disability_weights[cause](sub_group.index) * to_years(step_size))
 
-        group_ylds = get_group_counts(pop, base_filter, cause_key, config, age_bins, aggregate=count_ylds)
+        group_ylds = get_group_counts(
+            pop, base_filter, cause_key, config, age_bins, aggregate=count_ylds
+        )
         years_lived_with_disability.update(group_ylds)
 
     return years_lived_with_disability
@@ -621,46 +696,67 @@ def clean_cause_of_death(pop: pd.DataFrame) -> pd.DataFrame:
     """Standardizes cause of death names to all read ``death_due_to_cause``."""
 
     def _clean(cod: str) -> str:
-        if 'death' in cod or 'dead' in cod:
+        if "death" in cod or "dead" in cod:
             pass
         else:
-            cod = f'death_due_to_{cod}'
+            cod = f"death_due_to_{cod}"
         return cod
 
     pop.cause_of_death = pop.cause_of_death.apply(_clean)
     return pop
 
 
-def get_state_person_time(pop: pd.DataFrame, config: Dict[str, bool],
-                          state_machine: str, state: str, current_year: Union[str, int],
-                          step_size: pd.Timedelta, age_bins: pd.DataFrame) -> Dict[str, float]:
+def get_state_person_time(
+    pop: pd.DataFrame,
+    config: Dict[str, bool],
+    state_machine: str,
+    state: str,
+    current_year: Union[str, int],
+    step_size: pd.Timedelta,
+    age_bins: pd.DataFrame,
+) -> Dict[str, float]:
     """Custom person time getter that handles state column name assumptions"""
-    base_key = get_output_template(**config).substitute(measure=f'{state}_person_time',
-                                                        year=current_year)
+    base_key = get_output_template(**config).substitute(
+        measure=f"{state}_person_time", year=current_year
+    )
     base_filter = QueryString(f'alive == "alive" and {state_machine} == "{state}"')
-    person_time = get_group_counts(pop, base_filter, base_key, config, age_bins,
-                                   aggregate=lambda x: len(x) * to_years(step_size))
+    person_time = get_group_counts(
+        pop,
+        base_filter,
+        base_key,
+        config,
+        age_bins,
+        aggregate=lambda x: len(x) * to_years(step_size),
+    )
     return person_time
 
 
 class TransitionString(str):
-
     def __new__(cls, value):
         # noinspection PyArgumentList
         obj = str.__new__(cls, value.lower())
-        obj.from_state, obj.to_state = value.split('_TO_')
+        obj.from_state, obj.to_state = value.split("_TO_")
         return obj
 
 
-def get_transition_count(pop: pd.DataFrame, config: Dict[str, bool],
-                         state_machine: str, transition: TransitionString,
-                         event_time: pd.Timestamp, age_bins: pd.DataFrame) -> Dict[str, float]:
+def get_transition_count(
+    pop: pd.DataFrame,
+    config: Dict[str, bool],
+    state_machine: str,
+    transition: TransitionString,
+    event_time: pd.Timestamp,
+    age_bins: pd.DataFrame,
+) -> Dict[str, float]:
     """Counts transitions that occurred this step."""
-    event_this_step = ((pop[f'previous_{state_machine}'] == transition.from_state)
-                       & (pop[state_machine] == transition.to_state))
+    event_this_step = (pop[f"previous_{state_machine}"] == transition.from_state) & (
+        pop[state_machine] == transition.to_state
+    )
     transitioned_pop = pop.loc[event_this_step]
-    base_key = get_output_template(**config).substitute(measure=f'{transition}_event_count',
-                                                        year=event_time.year)
-    base_filter = QueryString('')
-    transition_count = get_group_counts(transitioned_pop, base_filter, base_key, config, age_bins)
+    base_key = get_output_template(**config).substitute(
+        measure=f"{transition}_event_count", year=event_time.year
+    )
+    base_filter = QueryString("")
+    transition_count = get_group_counts(
+        transitioned_pop, base_filter, base_key, config, age_bins
+    )
     return transition_count

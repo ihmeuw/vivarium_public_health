@@ -6,9 +6,9 @@
 This module contains frequently used, but non-standard disease models.
 
 """
-from collections import namedtuple
-from operator import lt, gt
 import re
+from collections import namedtuple
+from operator import gt, lt
 
 import pandas as pd
 from vivarium.framework.values import list_combiner, union_post_processor
@@ -41,7 +41,7 @@ class RiskAttributableDisease:
     For categorical risks, the threshold should be provided as a
     list of categories. This list contains the categories that indicate
     the simulant is experiencing the condition. For a dichotomous risk
-    there will be 2 categories. By convention ``cat1`` is used to 
+    there will be 2 categories. By convention ``cat1`` is used to
     indicate the with condition state and would be the single item in
     the ``threshold`` setting list.
 
@@ -81,10 +81,10 @@ class RiskAttributableDisease:
     """
 
     configuration_defaults = {
-        'risk_attributable_disease': {
-            'threshold': None,
-            'mortality': True,
-            'recoverable': True
+        "risk_attributable_disease": {
+            "threshold": None,
+            "mortality": True,
+            "recoverable": True,
         }
     }
 
@@ -93,20 +93,24 @@ class RiskAttributableDisease:
         self.risk = EntityString(risk)
         self.state_column = self.cause.name
         self.state_id = self.cause.name
-        self.diseased_event_time_column = f'{self.cause.name}_event_time'
-        self.susceptible_event_time_column = f'susceptible_to_{self.cause.name}_event_time'
+        self.diseased_event_time_column = f"{self.cause.name}_event_time"
+        self.susceptible_event_time_column = f"susceptible_to_{self.cause.name}_event_time"
         self.configuration_defaults = {
-            self.cause.name: RiskAttributableDisease.configuration_defaults['risk_attributable_disease']
+            self.cause.name: RiskAttributableDisease.configuration_defaults[
+                "risk_attributable_disease"
+            ]
         }
-        self._state_names = [f'{self.cause.name}', f'susceptible_to_{self.cause.name}']
-        self._transition_names = [f'susceptible_to_{self.cause.name}_TO_{self.cause.name}']
+        self._state_names = [f"{self.cause.name}", f"susceptible_to_{self.cause.name}"]
+        self._transition_names = [f"susceptible_to_{self.cause.name}_TO_{self.cause.name}"]
 
-        self.excess_mortality_rate_pipeline_name = f'{self.cause.name}.excess_mortality_rate'
-        self.excess_mortality_rate_paf_pipeline_name = f'{self.excess_mortality_rate_pipeline_name}.paf'
+        self.excess_mortality_rate_pipeline_name = f"{self.cause.name}.excess_mortality_rate"
+        self.excess_mortality_rate_paf_pipeline_name = (
+            f"{self.excess_mortality_rate_pipeline_name}.paf"
+        )
 
     @property
     def name(self):
-        return f'disease_model.{self.cause.name}'
+        return f"disease_model.{self.cause.name}"
 
     @property
     def state_names(self):
@@ -122,68 +126,96 @@ class RiskAttributableDisease:
         self.adjust_state_and_transitions()
         self.clock = builder.time.clock()
 
-        disability_weight_data = builder.data.load(f'{self.cause}.disability_weight')
-        self.base_disability_weight = builder.lookup.build_table(disability_weight_data, key_columns=['sex'],
-                                                                 parameter_columns=['age', 'year'])
-        self.disability_weight = builder.value.register_value_producer(
-            f'{self.cause.name}.disability_weight',
-            source=self.compute_disability_weight,
-            requires_columns=['age', 'sex', 'alive', self.cause.name]
+        disability_weight_data = builder.data.load(f"{self.cause}.disability_weight")
+        self.base_disability_weight = builder.lookup.build_table(
+            disability_weight_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
-        builder.value.register_value_modifier('disability_weight', modifier=self.disability_weight)
+        self.disability_weight = builder.value.register_value_producer(
+            f"{self.cause.name}.disability_weight",
+            source=self.compute_disability_weight,
+            requires_columns=["age", "sex", "alive", self.cause.name],
+        )
+        builder.value.register_value_modifier(
+            "disability_weight", modifier=self.disability_weight
+        )
 
         cause_specific_mortality_rate = self.load_cause_specific_mortality_rate_data(builder)
-        self.cause_specific_mortality_rate = builder.lookup.build_table(cause_specific_mortality_rate,
-                                                                        key_columns=['sex'],
-                                                                        parameter_columns=['age', 'year'])
-        builder.value.register_value_modifier('cause_specific_mortality_rate',
-                                              self.adjust_cause_specific_mortality_rate,
-                                              requires_columns=['age', 'sex'])
+        self.cause_specific_mortality_rate = builder.lookup.build_table(
+            cause_specific_mortality_rate,
+            key_columns=["sex"],
+            parameter_columns=["age", "year"],
+        )
+        builder.value.register_value_modifier(
+            "cause_specific_mortality_rate",
+            self.adjust_cause_specific_mortality_rate,
+            requires_columns=["age", "sex"],
+        )
 
         excess_mortality_data = self.load_excess_mortality_rate_data(builder)
-        self.base_excess_mortality_rate = builder.lookup.build_table(excess_mortality_data, key_columns=['sex'],
-                                                                     parameter_columns=['age', 'year'])
+        self.base_excess_mortality_rate = builder.lookup.build_table(
+            excess_mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
         self.excess_mortality_rate = builder.value.register_value_producer(
             self.excess_mortality_rate_pipeline_name,
             source=self.compute_excess_mortality_rate,
-            requires_columns=['age', 'sex', 'alive', self.cause.name],
-            requires_values=[self.excess_mortality_rate_paf_pipeline_name]
+            requires_columns=["age", "sex", "alive", self.cause.name],
+            requires_values=[self.excess_mortality_rate_paf_pipeline_name],
         )
         paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(
             self.excess_mortality_rate_paf_pipeline_name,
             source=lambda idx: [paf(idx)],
             preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor
+            preferred_post_processor=union_post_processor,
         )
-        builder.value.register_value_modifier('mortality_rate',
-                                              modifier=self.adjust_mortality_rate,
-                                              requires_values=[self.excess_mortality_rate_pipeline_name])
+        builder.value.register_value_modifier(
+            "mortality_rate",
+            modifier=self.adjust_mortality_rate,
+            requires_values=[self.excess_mortality_rate_pipeline_name],
+        )
 
-        distribution = builder.data.load(f'{self.risk}.distribution')
-        exposure_pipeline = builder.value.get_value(f'{self.risk.name}.exposure')
+        distribution = builder.data.load(f"{self.risk}.distribution")
+        exposure_pipeline = builder.value.get_value(f"{self.risk.name}.exposure")
         threshold = builder.configuration[self.cause.name].threshold
 
-        self.filter_by_exposure = self.get_exposure_filter(distribution, exposure_pipeline, threshold)
-        self.population_view = builder.population.get_view([self.cause.name, self.diseased_event_time_column,
-                                                            self.susceptible_event_time_column, 'alive'])
+        self.filter_by_exposure = self.get_exposure_filter(
+            distribution, exposure_pipeline, threshold
+        )
+        self.population_view = builder.population.get_view(
+            [
+                self.cause.name,
+                self.diseased_event_time_column,
+                self.susceptible_event_time_column,
+                "alive",
+            ]
+        )
 
-        builder.population.initializes_simulants(self.on_initialize_simulants,
-                                                 creates_columns=[self.cause.name,
-                                                                  self.diseased_event_time_column,
-                                                                  self.susceptible_event_time_column],
-                                                 requires_values=[f'{self.risk.name}.exposure'])
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            creates_columns=[
+                self.cause.name,
+                self.diseased_event_time_column,
+                self.susceptible_event_time_column,
+            ],
+            requires_values=[f"{self.risk.name}.exposure"],
+        )
 
-        builder.event.register_listener('time_step', self.on_time_step)
+        builder.event.register_listener("time_step", self.on_time_step)
 
     def on_initialize_simulants(self, pop_data):
-        new_pop = pd.DataFrame({self.cause.name: f'susceptible_to_{self.cause.name}',
-                                self.diseased_event_time_column: pd.Series(pd.NaT, index=pop_data.index),
-                                self.susceptible_event_time_column: pd.Series(pd.NaT, index=pop_data.index)},
-                               index=pop_data.index)
+        new_pop = pd.DataFrame(
+            {
+                self.cause.name: f"susceptible_to_{self.cause.name}",
+                self.diseased_event_time_column: pd.Series(pd.NaT, index=pop_data.index),
+                self.susceptible_event_time_column: pd.Series(pd.NaT, index=pop_data.index),
+            },
+            index=pop_data.index,
+        )
         sick = self.filter_by_exposure(pop_data.index)
         new_pop.loc[sick, self.cause.name] = self.cause.name
-        new_pop.loc[sick, self.diseased_event_time_column] = self.clock()  # match VPH disease, only set w/ condition
+        new_pop.loc[
+            sick, self.diseased_event_time_column
+        ] = self.clock()  # match VPH disease, only set w/ condition
 
         self.population_view.update(new_pop)
 
@@ -192,9 +224,13 @@ class RiskAttributableDisease:
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
         if self.recoverable:
-            change_to_susceptible = (~sick) & (pop[self.cause.name] != f'susceptible_to_{self.cause.name}')
+            change_to_susceptible = (~sick) & (
+                pop[self.cause.name] != f"susceptible_to_{self.cause.name}"
+            )
             pop.loc[change_to_susceptible, self.susceptible_event_time_column] = event.time
-            pop.loc[change_to_susceptible, self.cause.name] = f'susceptible_to_{self.cause.name}'
+            pop.loc[
+                change_to_susceptible, self.cause.name
+            ] = f"susceptible_to_{self.cause.name}"
         change_to_diseased = sick & (pop[self.cause.name] != self.cause.name)
         pop.loc[change_to_diseased, self.diseased_event_time_column] = event.time
         pop.loc[change_to_diseased, self.cause.name] = self.cause.name
@@ -212,7 +248,9 @@ class RiskAttributableDisease:
         with_condition = self.with_condition(index)
         base_excess_mort = self.base_excess_mortality_rate(with_condition)
         joint_mediated_paf = self.joint_paf(with_condition)
-        excess_mortality_rate.loc[with_condition] = base_excess_mort * (1 - joint_mediated_paf.values)
+        excess_mortality_rate.loc[with_condition] = base_excess_mort * (
+            1 - joint_mediated_paf.values
+        )
         return excess_mortality_rate
 
     def adjust_cause_specific_mortality_rate(self, index, rate):
@@ -233,34 +271,41 @@ class RiskAttributableDisease:
         return rates_df
 
     def with_condition(self, index):
-        pop = self.population_view.subview(['alive', self.cause.name]).get(index)
-        with_condition = pop.loc[(pop[self.cause.name] == self.cause.name) & (pop['alive'] == 'alive')].index
+        pop = self.population_view.subview(["alive", self.cause.name]).get(index)
+        with_condition = pop.loc[
+            (pop[self.cause.name] == self.cause.name) & (pop["alive"] == "alive")
+        ].index
         return with_condition
 
     def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
 
-        if distribution in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
+        if distribution in ["dichotomous", "ordered_polytomous", "unordered_polytomous"]:
 
             def categorical_filter(index):
                 exposure = exposure_pipeline(index)
                 return exposure.isin(threshold)
+
             filter_function = categorical_filter
 
         else:  # continuous
-            Threshold = namedtuple('Threshold', ['operator', 'value'])
+            Threshold = namedtuple("Threshold", ["operator", "value"])
             threshold_val = re.findall(r"[-+]?\d*\.?\d+", threshold)
 
             if len(threshold_val) != 1:
-                raise ValueError(f'Your {threshold} is an incorrect threshold format. It should include '
-                                 f'"<" or ">" along with an integer or float number. Your threshold does not '
-                                 f'include a number or more than one number.')
+                raise ValueError(
+                    f"Your {threshold} is an incorrect threshold format. It should include "
+                    f'"<" or ">" along with an integer or float number. Your threshold does not '
+                    f"include a number or more than one number."
+                )
 
-            allowed_operator = {'<', '>'}
+            allowed_operator = {"<", ">"}
             threshold_op = [s for s in threshold.split(threshold_val[0]) if s]
             #  if threshold_op has more than 1 operators or 0 operator
             if len(threshold_op) != 1 or not allowed_operator.intersection(threshold_op):
-                raise ValueError(f'Your {threshold} is an incorrect threshold format. It should include '
-                                 f'"<" or ">" along with an integer or float number.')
+                raise ValueError(
+                    f"Your {threshold} is an incorrect threshold format. It should include "
+                    f'"<" or ">" along with an integer or float number.'
+                )
 
             op = gt if threshold_op[0] == ">" else lt
             threshold = Threshold(op, float(threshold_val[0]))
@@ -268,24 +313,29 @@ class RiskAttributableDisease:
             def continuous_filter(index):
                 exposure = exposure_pipeline(index)
                 return threshold.operator(exposure, threshold.value)
+
             filter_function = continuous_filter
 
         return filter_function
 
     def adjust_state_and_transitions(self):
         if self.recoverable:
-            self._transition_names.append(f'{self.cause.name}_TO_susceptible_to_{self.cause.name}')
+            self._transition_names.append(
+                f"{self.cause.name}_TO_susceptible_to_{self.cause.name}"
+            )
 
     def load_cause_specific_mortality_rate_data(self, builder):
         if builder.configuration[self.cause.name].mortality:
-            csmr_data = builder.data.load(f'cause.{self.cause.name}.cause_specific_mortality_rate')
+            csmr_data = builder.data.load(
+                f"cause.{self.cause.name}.cause_specific_mortality_rate"
+            )
         else:
             csmr_data = 0
         return csmr_data
 
     def load_excess_mortality_rate_data(self, builder):
         if builder.configuration[self.cause.name].mortality:
-            emr_data = builder.data.load(f'cause.{self.cause.name}.excess_mortality_rate')
+            emr_data = builder.data.load(f"cause.{self.cause.name}.excess_mortality_rate")
         else:
             emr_data = 0
         return emr_data
