@@ -28,9 +28,11 @@ class EntityString(str):
         return self._name
 
     def split_entity(self):
-        split = self.split('.')
+        split = self.split(".")
         if len(split) != 2:
-            raise ValueError(f'You must specify the entity as "entity_type.entity". You specified {self}.')
+            raise ValueError(
+                f'You must specify the entity as "entity_type.entity". You specified {self}.'
+            )
         return split[0], split[1]
 
 
@@ -54,11 +56,12 @@ class TargetString(str):
         return self._measure
 
     def split_target(self):
-        split = self.split('.')
+        split = self.split(".")
         if len(split) != 3:
             raise ValueError(
                 f'You must specify the target as "affected_entity_type.affected_entity_name.affected_measure".'
-                f'You specified {self}.')
+                f"You specified {self}."
+            )
         return split[0], split[1], split[2]
 
 
