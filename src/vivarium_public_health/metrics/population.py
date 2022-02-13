@@ -11,7 +11,7 @@ from collections import Counter
 
 import pandas as pd
 
-from .utilities import get_age_bins, get_population_counts
+from vivarium_public_health.metrics.utilities import get_age_bins, get_population_counts
 
 
 class PopulationObserver:

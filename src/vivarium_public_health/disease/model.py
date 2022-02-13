@@ -14,7 +14,7 @@ import numpy as np
 from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
-from vivarium_public_health.disease import SusceptibleState
+from vivarium_public_health.disease.state import SusceptibleState
 
 
 class DiseaseModelError(VivariumError):

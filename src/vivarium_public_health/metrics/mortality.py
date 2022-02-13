@@ -8,7 +8,7 @@ excess mortality in the simulation.
 
 """
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from .utilities import get_age_bins, get_person_time, get_deaths, get_years_of_life_lost
+from vivarium_public_health.metrics.utilities import get_age_bins, get_person_time, get_deaths, get_years_of_life_lost
 
 
 class MortalityObserver:

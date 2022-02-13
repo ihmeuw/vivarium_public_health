@@ -13,7 +13,7 @@ import numpy as np
 from vivarium.framework.state_machine import State, Transient, Transition
 from vivarium.framework.values import list_combiner, union_post_processor
 
-from vivarium_public_health.disease import RateTransition, ProportionTransition
+from vivarium_public_health.disease.transition import RateTransition, ProportionTransition
 
 
 class BaseDiseaseState(State):

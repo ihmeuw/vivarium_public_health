@@ -11,7 +11,7 @@ from collections import Counter
 
 import pandas as pd
 
-from .utilities import (get_age_bins, get_prevalent_cases, get_state_person_time,
+from vivarium_public_health.metrics.utilities import (get_age_bins, get_prevalent_cases, get_state_person_time,
                         get_transition_count, TransitionString)
 
 

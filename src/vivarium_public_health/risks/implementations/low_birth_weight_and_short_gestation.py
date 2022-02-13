@@ -13,15 +13,11 @@ from typing import Tuple
 from pathlib import Path
 
 import pandas as pd
-
-from vivarium_public_health.risks import data_transformations as data_transformations
-from vivarium_public_health.utilities import EntityString, TargetString
-from vivarium_public_health.risks.data_transformations import validate_relative_risk_data_source
-from vivarium_public_health.risks.data_transformations import rebin_relative_risk_data
-from vivarium_public_health.risks.data_transformations import get_distribution_type
-from vivarium_public_health.risks.data_transformations import pivot_categorical
-from vivarium_public_health.risks import RiskEffect
 from vivarium.framework.randomness import RandomnessStream
+
+from vivarium_public_health.risks import data_transformations, RiskEffect
+from vivarium_public_health.utilities import EntityString, TargetString
+
 
 MISSING_CATEGORY = 'cat212'
 
@@ -258,12 +254,13 @@ class LBWSGRiskEffect:
 
 # Pulled from vivarium_public_health.risks.data_transformations
 def get_relative_risk_data_by_draw(builder, risk: EntityString, target: TargetString, randomness: RandomnessStream):
-    source_type = validate_relative_risk_data_source(builder, risk, target)
+    source_type = data_transformations.validate_relative_risk_data_source(builder, risk, target)
     relative_risk_data = load_relative_risk_data_by_draw(builder, risk, target, source_type)
-    relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
+    relative_risk_data = data_transformations.rebin_relative_risk_data(builder, risk, relative_risk_data)
 
-    if get_distribution_type(builder, risk) in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
-        relative_risk_data = pivot_categorical(relative_risk_data)
+    distribution_type = data_transformations.get_distribution_type(builder, risk)
+    if distribution_type in ['dichotomous', 'ordered_polytomous', 'unordered_polytomous']:
+        relative_risk_data = data_transformations.pivot_categorical(relative_risk_data)
     else:
         relative_risk_data = relative_risk_data.drop(['parameter'], 'columns')
 

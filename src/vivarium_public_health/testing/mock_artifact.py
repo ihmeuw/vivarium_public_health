@@ -13,7 +13,7 @@ from vivarium.testing_utilities import build_table
 
 from vivarium.framework.artifact import ArtifactManager
 
-from .utils import make_uniform_pop_data
+from vivarium_public_health.testing.utils import make_uniform_pop_data
 
 MOCKERS = {
         'cause': {

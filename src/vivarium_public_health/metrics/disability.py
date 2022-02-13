@@ -13,7 +13,7 @@ import pandas as pd
 from vivarium.framework.values import list_combiner, union_post_processor, rescale_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from .utilities import get_age_bins, get_years_lived_with_disability
+from vivarium_public_health.metrics.utilities import get_age_bins, get_years_lived_with_disability
 
 
 class DisabilityObserver:
