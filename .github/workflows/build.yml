@@ -1,25 +1,10 @@
 # -----------------------------------------------------------------------------
-#   Continuous Intergration for Vivarium Public Health
-#   - invoked on push and pull_request
+#   - invoked on push, pull_request, or manual trigger
 #   - test under 3 versions of python
-#   - look for an upstream (vivarium) branch and use it if it exists
 # -----------------------------------------------------------------------------
 name: build
-on:
-  push:
-    branches:
-      - '*'
-    tags-ignore:
-      - v*
-  pull_request:
-    branches:
-      - '*'
-    tags-ignore:
-      - v*
+on: [push, pull_request, workflow_dispatch]
 
-  # Run this workflow manually from the Actions tab.
-  workflow_dispatch:
-  
 jobs:
   build:
     runs-on: ubuntu-latest
