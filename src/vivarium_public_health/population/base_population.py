@@ -7,23 +7,26 @@ This module contains tools for sampling and assigning core demographic
 characteristics to simulants.
 
 """
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from vivarium_public_health import utilities
-from vivarium_public_health.population.data_transformations import (assign_demographic_proportions,
-                                                                    rescale_binned_proportions,
-                                                                    smooth_ages, load_population_structure)
+from vivarium_public_health.population.data_transformations import (
+    assign_demographic_proportions,
+    load_population_structure,
+    rescale_binned_proportions,
+    smooth_ages,
+)
 
 
 class BasePopulation:
     """Component for producing and aging simulants based on demographic data."""
 
     configuration_defaults = {
-        'population': {
-            'age_start': 0,
-            'age_end': 125,
-            'exit_age': None,
+        "population": {
+            "age_start": 0,
+            "age_end": 125,
+            "exit_age": None,
         }
     }
 
@@ -42,30 +45,40 @@ class BasePopulation:
     def setup(self, builder):
         self.config = builder.configuration.population
 
-        self.randomness = {'general_purpose': builder.randomness.get_stream('population_generation'),
-                           'bin_selection': builder.randomness.get_stream('bin_selection', for_initialization=True),
-                           'age_smoothing': builder.randomness.get_stream('age_smoothing', for_initialization=True),
-                           'age_smoothing_age_bounds': builder.randomness.get_stream('age_smoothing_age_bounds',
-                                                                                     for_initialization=True)}
+        self.randomness = {
+            "general_purpose": builder.randomness.get_stream("population_generation"),
+            "bin_selection": builder.randomness.get_stream(
+                "bin_selection", for_initialization=True
+            ),
+            "age_smoothing": builder.randomness.get_stream(
+                "age_smoothing", for_initialization=True
+            ),
+            "age_smoothing_age_bounds": builder.randomness.get_stream(
+                "age_smoothing_age_bounds", for_initialization=True
+            ),
+        }
         self.register_simulants = builder.randomness.register_simulants
 
-        columns = ['age', 'sex', 'alive', 'location', 'entrance_time', 'exit_time']
+        columns = ["age", "sex", "alive", "location", "entrance_time", "exit_time"]
 
         self.population_view = builder.population.get_view(columns)
-        builder.population.initializes_simulants(self.generate_base_population,
-                                                 creates_columns=columns)
+        builder.population.initializes_simulants(
+            self.generate_base_population, creates_columns=columns
+        )
 
         source_population_structure = load_population_structure(builder)
 
         self.population_data = _build_population_data_table(source_population_structure)
 
-        builder.event.register_listener('time_step', self.on_time_step, priority=8)
+        builder.event.register_listener("time_step", self.on_time_step, priority=8)
 
     @staticmethod
     def select_sub_population_data(reference_population_data, year):
         reference_years = sorted(set(reference_population_data.year_start))
-        ref_year_index = np.digitize(year, reference_years).item()-1
-        return reference_population_data[reference_population_data.year_start == reference_years[ref_year_index]]
+        ref_year_index = np.digitize(year, reference_years).item() - 1
+        return reference_population_data[
+            reference_population_data.year_start == reference_years[ref_year_index]
+        ]
 
     # TODO: Move most of this docstring to an rst file.
     def generate_base_population(self, pop_data):
@@ -91,18 +104,26 @@ class BasePopulation:
         pop_data
         """
 
-        age_params = {'age_start': pop_data.user_data.get('age_start', self.config.age_start),
-                      'age_end': pop_data.user_data.get('age_end', self.config.age_end)}
+        age_params = {
+            "age_start": pop_data.user_data.get("age_start", self.config.age_start),
+            "age_end": pop_data.user_data.get("age_end", self.config.age_end),
+        }
 
-        sub_pop_data = self.select_sub_population_data(self.population_data, pop_data.creation_time.year)
+        sub_pop_data = self.select_sub_population_data(
+            self.population_data, pop_data.creation_time.year
+        )
 
-        self.population_view.update(generate_population(simulant_ids=pop_data.index,
-                                                        creation_time=pop_data.creation_time,
-                                                        step_size=pop_data.creation_window,
-                                                        age_params=age_params,
-                                                        population_data=sub_pop_data,
-                                                        randomness_streams=self.randomness,
-                                                        register_simulants=self.register_simulants))
+        self.population_view.update(
+            generate_population(
+                simulant_ids=pop_data.index,
+                creation_time=pop_data.creation_time,
+                step_size=pop_data.creation_window,
+                age_params=age_params,
+                population_data=sub_pop_data,
+                randomness_streams=self.randomness,
+                register_simulants=self.register_simulants,
+            )
+        )
 
     def on_time_step(self, event):
         """Ages simulants each time step.
@@ -113,7 +134,7 @@ class BasePopulation:
 
         """
         population = self.population_view.get(event.index, query="alive == 'alive'")
-        population['age'] += utilities.to_years(event.step_size)
+        population["age"] += utilities.to_years(event.step_size)
         self.population_view.update(population)
 
     def __repr__(self):
@@ -133,24 +154,31 @@ class AgeOutSimulants:
         if builder.configuration.population.exit_age is None:
             return
         self.config = builder.configuration.population
-        self.population_view = builder.population.get_view(['age', 'exit_time', 'tracked'])
-        builder.event.register_listener('time_step__cleanup', self.on_time_step_cleanup)
+        self.population_view = builder.population.get_view(["age", "exit_time", "tracked"])
+        builder.event.register_listener("time_step__cleanup", self.on_time_step_cleanup)
 
     def on_time_step_cleanup(self, event):
         population = self.population_view.get(event.index)
         max_age = float(self.config.exit_age)
-        pop = population[(population['age'] >= max_age) & population['tracked']].copy()
+        pop = population[(population["age"] >= max_age) & population["tracked"]].copy()
         if len(pop) > 0:
-            pop['tracked'] = pd.Series(False, index=pop.index)
-            pop['exit_time'] = event.time
+            pop["tracked"] = pd.Series(False, index=pop.index)
+            pop["exit_time"] = event.time
             self.population_view.update(pop)
 
     def __repr__(self):
         return "AgeOutSimulants()"
 
 
-def generate_population(simulant_ids, creation_time, step_size, age_params,
-                        population_data, randomness_streams, register_simulants):
+def generate_population(
+    simulant_ids,
+    creation_time,
+    step_size,
+    age_params,
+    population_data,
+    randomness_streams,
+    register_simulants,
+):
     """Produces a randomly generated set of simulants sampled from the provided `population_data`.
 
     Parameters
@@ -196,22 +224,39 @@ def generate_population(simulant_ids, creation_time, step_size, age_params,
                 Either 'Male' or 'Female'.  The sex of the simulant.
 
     """
-    simulants = pd.DataFrame({'entrance_time': pd.Series(creation_time, index=simulant_ids),
-                              'exit_time': pd.Series(pd.NaT, index=simulant_ids),
-                              'alive': pd.Series('alive', index=simulant_ids)},
-                             index=simulant_ids)
-    age_start = float(age_params['age_start'])
-    age_end = float(age_params['age_end'])
+    simulants = pd.DataFrame(
+        {
+            "entrance_time": pd.Series(creation_time, index=simulant_ids),
+            "exit_time": pd.Series(pd.NaT, index=simulant_ids),
+            "alive": pd.Series("alive", index=simulant_ids),
+        },
+        index=simulant_ids,
+    )
+    age_start = float(age_params["age_start"])
+    age_end = float(age_params["age_end"])
     if age_start == age_end:
-        return _assign_demography_with_initial_age(simulants, population_data, age_start,
-                                                   step_size, randomness_streams, register_simulants)
+        return _assign_demography_with_initial_age(
+            simulants,
+            population_data,
+            age_start,
+            step_size,
+            randomness_streams,
+            register_simulants,
+        )
     else:  # age_params['age_start'] is not None and age_params['age_end'] is not None
-        return _assign_demography_with_age_bounds(simulants, population_data, age_start,
-                                                  age_end, randomness_streams, register_simulants)
+        return _assign_demography_with_age_bounds(
+            simulants,
+            population_data,
+            age_start,
+            age_end,
+            randomness_streams,
+            register_simulants,
+        )
 
 
-def _assign_demography_with_initial_age(simulants, pop_data, initial_age,
-                                        step_size, randomness_streams, register_simulants):
+def _assign_demography_with_initial_age(
+    simulants, pop_data, initial_age, step_size, randomness_streams, register_simulants
+):
     """Assigns age, sex, and location information to the provided simulants given a fixed age.
 
     Parameters
@@ -235,28 +280,40 @@ def _assign_demography_with_initial_age(simulants, pop_data, initial_age,
     pandas.DataFrame
         Table with same columns as `simulants` and with the additional columns 'age', 'sex',  and 'location'.
     """
-    pop_data = pop_data[(pop_data.age_start <= initial_age) & (pop_data.age_end >= initial_age)]
+    pop_data = pop_data[
+        (pop_data.age_start <= initial_age) & (pop_data.age_end >= initial_age)
+    ]
 
     if pop_data.empty:
-        raise ValueError('The age {} is not represented by the population data structure'.format(initial_age))
+        raise ValueError(
+            "The age {} is not represented by the population data structure".format(
+                initial_age
+            )
+        )
 
-    age_fuzz = randomness_streams['age_smoothing'].get_draw(simulants.index) * utilities.to_years(step_size)
-    simulants['age'] = initial_age + age_fuzz
-    register_simulants(simulants[['entrance_time', 'age']])
+    age_fuzz = randomness_streams["age_smoothing"].get_draw(
+        simulants.index
+    ) * utilities.to_years(step_size)
+    simulants["age"] = initial_age + age_fuzz
+    register_simulants(simulants[["entrance_time", "age"]])
 
     # Assign a demographically accurate location and sex distribution.
-    choices = pop_data.set_index(['sex', 'location'])['P(sex, location | age, year)'].reset_index()
-    decisions = randomness_streams['general_purpose'].choice(simulants.index,
-                                                             choices=choices.index,
-                                                             p=choices['P(sex, location | age, year)'])
+    choices = pop_data.set_index(["sex", "location"])[
+        "P(sex, location | age, year)"
+    ].reset_index()
+    decisions = randomness_streams["general_purpose"].choice(
+        simulants.index, choices=choices.index, p=choices["P(sex, location | age, year)"]
+    )
 
-    simulants['sex'] = choices.loc[decisions, 'sex'].values
-    simulants['location'] = choices.loc[decisions, 'location'].values
+    simulants["sex"] = choices.loc[decisions, "sex"].values
+    simulants["location"] = choices.loc[decisions, "location"].values
 
     return simulants
 
 
-def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, randomness_streams, register_simulants):
+def _assign_demography_with_age_bounds(
+    simulants, pop_data, age_start, age_end, randomness_streams, register_simulants
+):
     """Assigns age, sex, and location information to the provided simulants given a range of ages.
 
     Parameters
@@ -281,19 +338,26 @@ def _assign_demography_with_age_bounds(simulants, pop_data, age_start, age_end, 
     pop_data = rescale_binned_proportions(pop_data, age_start, age_end)
     if pop_data.empty:
         raise ValueError(
-            'The age range ({}, {}) is not represented by the population data structure'.format(age_start, age_end))
+            "The age range ({}, {}) is not represented by the population data structure".format(
+                age_start, age_end
+            )
+        )
 
     # Assign a demographically accurate age, location, and sex distribution.
     sub_pop_data = pop_data[(pop_data.age_start >= age_start) & (pop_data.age_end <= age_end)]
-    choices = sub_pop_data.set_index(['age', 'sex', 'location'])['P(sex, location, age| year)'].reset_index()
-    decisions = randomness_streams['bin_selection'].choice(simulants.index,
-                                                           choices=choices.index,
-                                                           p=choices['P(sex, location, age| year)'])
-    simulants['age'] = choices.loc[decisions, 'age'].values
-    simulants['sex'] = choices.loc[decisions, 'sex'].values
-    simulants['location'] = choices.loc[decisions, 'location'].values
-    simulants = smooth_ages(simulants, pop_data, randomness_streams['age_smoothing_age_bounds'])
-    register_simulants(simulants[['entrance_time', 'age']])
+    choices = sub_pop_data.set_index(["age", "sex", "location"])[
+        "P(sex, location, age| year)"
+    ].reset_index()
+    decisions = randomness_streams["bin_selection"].choice(
+        simulants.index, choices=choices.index, p=choices["P(sex, location, age| year)"]
+    )
+    simulants["age"] = choices.loc[decisions, "age"].values
+    simulants["sex"] = choices.loc[decisions, "sex"].values
+    simulants["location"] = choices.loc[decisions, "location"].values
+    simulants = smooth_ages(
+        simulants, pop_data, randomness_streams["age_smoothing_age_bounds"]
+    )
+    register_simulants(simulants[["entrance_time", "age"]])
     return simulants
 
 
