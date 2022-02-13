@@ -9,8 +9,8 @@ disease models.
 """
 import pandas as pd
 
-from vivarium_public_health.disease import (
-    DiseaseModel,
+from vivarium_public_health.disease.model import DiseaseModel
+from vivarium_public_health.disease.state import (
     DiseaseState,
     RecoveredState,
     SusceptibleState,

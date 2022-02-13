@@ -15,14 +15,18 @@ from typing import Tuple
 import pandas as pd
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_public_health.risks import RiskEffect
-from vivarium_public_health.risks import data_transformations as data_transformations
+from vivarium_public_health.risks.data_transformations import get_distribution_type
 from vivarium_public_health.risks.data_transformations import (
-    get_distribution_type,
+    get_exposure_data as get_exposure_data_,
+)
+from vivarium_public_health.risks.data_transformations import (
+    get_exposure_effect,
+    get_population_attributable_fraction_data,
     pivot_categorical,
     rebin_relative_risk_data,
     validate_relative_risk_data_source,
 )
+from vivarium_public_health.risks.effect import RiskEffect
 from vivarium_public_health.utilities import EntityString, TargetString
 
 MISSING_CATEGORY = "cat212"
@@ -202,7 +206,7 @@ class LBWSGDistribution:
 
 
 def get_exposure_data(builder, risk):
-    exposure = data_transformations.get_exposure_data(builder, risk)
+    exposure = get_exposure_data_(builder, risk)
     exposure[MISSING_CATEGORY] = 0.0
     return exposure
 
@@ -288,14 +292,14 @@ class LBWSGRiskEffect:
             parameter_columns=["age", "year"],
         )
         self.population_attributable_fraction = builder.lookup.build_table(
-            data_transformations.get_population_attributable_fraction_data(
+            get_population_attributable_fraction_data(
                 builder, self.risk, self.target, self.randomness
             ),
             key_columns=["sex"],
             parameter_columns=["age", "year"],
         )
 
-        self.exposure_effect = data_transformations.get_exposure_effect(builder, self.risk)
+        self.exposure_effect = get_exposure_effect(builder, self.risk)
 
         builder.value.register_value_modifier(
             f"{self.target.name}.{self.target.measure}", modifier=self.adjust_target
