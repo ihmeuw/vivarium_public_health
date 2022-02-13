@@ -9,7 +9,8 @@ disease models.
 """
 import pandas as pd
 
-from vivarium_public_health.disease.state import SusceptibleState, RecoveredState, DiseaseState, DiseaseModel
+from vivarium_public_health.disease.state import SusceptibleState, RecoveredState, DiseaseState
+from vivarium_public_health.disease.model import DiseaseModel
 
 
 def SI(cause: str) -> DiseaseModel:
