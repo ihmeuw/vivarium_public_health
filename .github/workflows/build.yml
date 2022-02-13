@@ -55,8 +55,6 @@ jobs:
           make doctest -C docs/
       - name: Lint
         run: |
-          pwd
-          ls .
           pip install black==22.1.0 isort
-          black . --check -v
-          isort . --check -v
+          black . --check --diff
+          isort . --check --verbose --only-modified --diff
