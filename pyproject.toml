@@ -10,3 +10,4 @@ exclude = '''
 [tool.isort]
 profile = "black"
 skip = ["vivarium"]
+known_third_party = ["vivarium"]
