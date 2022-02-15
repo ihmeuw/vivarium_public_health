@@ -1,0 +1,13 @@
+[tool.black]
+line_length = 94
+exclude = '''
+/(
+   vivarium
+)/
+
+'''
+
+[tool.isort]
+profile = "black"
+skip = ["vivarium"]
+known_third_party = ["vivarium"]

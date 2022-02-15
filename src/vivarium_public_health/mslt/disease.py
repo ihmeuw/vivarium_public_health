@@ -34,35 +34,35 @@ class AcuteDisease:
 
     def __init__(self, name):
         self._name = name
-        
+
     @property
     def name(self):
         return self._name
 
     def setup(self, builder):
         """Load the morbidity and mortality data."""
-        mty_data = builder.data.load(f'acute_disease.{self.name}.mortality')
-        mty_rate = builder.lookup.build_table(mty_data, 
-                                              key_columns=['sex'], 
-                                              parameter_columns=['age','year'])
-        yld_data = builder.data.load(f'acute_disease.{self.name}.morbidity')
-        yld_rate = builder.lookup.build_table(yld_data,
-                                              key_columns=['sex'], 
-                                              parameter_columns=['age','year'])
+        mty_data = builder.data.load(f"acute_disease.{self.name}.mortality")
+        mty_rate = builder.lookup.build_table(
+            mty_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
+        yld_data = builder.data.load(f"acute_disease.{self.name}.morbidity")
+        yld_rate = builder.lookup.build_table(
+            yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
         self.excess_mortality = builder.value.register_rate_producer(
-            f'{self.name}.excess_mortality',
-            source=mty_rate)
+            f"{self.name}.excess_mortality", source=mty_rate
+        )
         self.int_excess_mortality = builder.value.register_rate_producer(
-            f'{self.name}_intervention.excess_mortality',
-            source=mty_rate)
+            f"{self.name}_intervention.excess_mortality", source=mty_rate
+        )
         self.disability_rate = builder.value.register_rate_producer(
-            f'{self.name}.yld_rate',
-            source=yld_rate)
+            f"{self.name}.yld_rate", source=yld_rate
+        )
         self.int_disability_rate = builder.value.register_rate_producer(
-            f'{self.name}_intervention.yld_rate',
-            source=yld_rate)
-        builder.value.register_value_modifier('mortality_rate', self.mortality_adjustment)
-        builder.value.register_value_modifier('yld_rate', self.disability_adjustment)
+            f"{self.name}_intervention.yld_rate", source=yld_rate
+        )
+        builder.value.register_value_modifier("mortality_rate", self.mortality_adjustment)
+        builder.value.register_value_modifier("yld_rate", self.disability_adjustment)
 
     def mortality_adjustment(self, index, mortality_rate):
         """
@@ -105,94 +105,102 @@ class Disease:
         self._name = name
         self.configuration_defaults = {
             self.name: {
-                'simplified_no_remission_equations': False,
+                "simplified_no_remission_equations": False,
             },
         }
-        
+
     @property
     def name(self):
         return self._name
 
     def setup(self, builder):
         """Load the disease prevalence and rates data."""
-        data_prefix = 'chronic_disease.{}.'.format(self.name)
-        bau_prefix = self.name + '.'
-        int_prefix = self.name + '_intervention.'
+        data_prefix = "chronic_disease.{}.".format(self.name)
+        bau_prefix = self.name + "."
+        int_prefix = self.name + "_intervention."
 
         self.clock = builder.time.clock()
         self.start_year = builder.configuration.time.start.year
-        self.simplified_equations = builder.configuration[self.name].simplified_no_remission_equations
+        self.simplified_equations = builder.configuration[
+            self.name
+        ].simplified_no_remission_equations
 
-        inc_data = builder.data.load(data_prefix + 'incidence')
-        i = builder.lookup.build_table(inc_data, 
-                                       key_columns=['sex'], 
-                                       parameter_columns=['age','year'])
+        inc_data = builder.data.load(data_prefix + "incidence")
+        i = builder.lookup.build_table(
+            inc_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
         self.incidence = builder.value.register_rate_producer(
-            bau_prefix + 'incidence', source=i)
+            bau_prefix + "incidence", source=i
+        )
         self.incidence_intervention = builder.value.register_rate_producer(
-            int_prefix + 'incidence', source=i)
+            int_prefix + "incidence", source=i
+        )
 
-        rem_data = builder.data.load(data_prefix + 'remission')
-        r = builder.lookup.build_table(rem_data, 
-                                       key_columns=['sex'], 
-                                       parameter_columns=['age','year'])
+        rem_data = builder.data.load(data_prefix + "remission")
+        r = builder.lookup.build_table(
+            rem_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
         self.remission = builder.value.register_rate_producer(
-            bau_prefix + 'remission', source=r)
+            bau_prefix + "remission", source=r
+        )
 
-        mty_data = builder.data.load(data_prefix + 'mortality')
-        f = builder.lookup.build_table(mty_data, 
-                                       key_columns=['sex'], 
-                                       parameter_columns=['age','year'])
+        mty_data = builder.data.load(data_prefix + "mortality")
+        f = builder.lookup.build_table(
+            mty_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
         self.excess_mortality = builder.value.register_rate_producer(
-            bau_prefix + 'excess_mortality', source=f)
+            bau_prefix + "excess_mortality", source=f
+        )
 
-        yld_data = builder.data.load(data_prefix + 'morbidity')
-        yld_rate = builder.lookup.build_table(yld_data, 
-                                              key_columns=['sex'], 
-                                              parameter_columns=['age','year'])
+        yld_data = builder.data.load(data_prefix + "morbidity")
+        yld_rate = builder.lookup.build_table(
+            yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
         self.disability_rate = builder.value.register_rate_producer(
-            bau_prefix + 'yld_rate', source=yld_rate)
+            bau_prefix + "yld_rate", source=yld_rate
+        )
 
-        prev_data = builder.data.load(data_prefix + 'prevalence')
-        self.initial_prevalence = builder.lookup.build_table(prev_data, 
-                                                             key_columns=['sex'], 
-                                                             parameter_columns=['age','year'])
+        prev_data = builder.data.load(data_prefix + "prevalence")
+        self.initial_prevalence = builder.lookup.build_table(
+            prev_data, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
 
-        builder.value.register_value_modifier(
-            'mortality_rate', self.mortality_adjustment)
-        builder.value.register_value_modifier(
-            'yld_rate', self.disability_adjustment)
+        builder.value.register_value_modifier("mortality_rate", self.mortality_adjustment)
+        builder.value.register_value_modifier("yld_rate", self.disability_adjustment)
 
         columns = []
-        for scenario in ['', '_intervention']:
-            for rate in ['_S', '_C']:
-                for when in ['', '_previous']:
+        for scenario in ["", "_intervention"]:
+            for rate in ["_S", "_C"]:
+                for when in ["", "_previous"]:
                     columns.append(self.name + rate + scenario + when)
 
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             creates_columns=columns,
-            requires_columns=['age', 'sex'])
+            requires_columns=["age", "sex"],
+        )
         self.population_view = builder.population.get_view(columns)
 
-        builder.event.register_listener(
-            'time_step__prepare',
-            self.on_time_step_prepare)
+        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
 
     def on_initialize_simulants(self, pop_data):
         """Initialize the test population for which this disease is modeled."""
         C = 1000 * self.initial_prevalence(pop_data.index)
         S = 1000 - C
 
-        pop = pd.DataFrame({f'{self.name}_S': S,
-                            f'{self.name}_C': C,
-                            f'{self.name}_S_previous': S,
-                            f'{self.name}_C_previous': C,
-                            f'{self.name}_S_intervention': S,
-                            f'{self.name}_C_intervention': C,
-                            f'{self.name}_S_intervention_previous': S,
-                            f'{self.name}_C_intervention_previous': C},
-                           index=pop_data.index)
+        pop = pd.DataFrame(
+            {
+                f"{self.name}_S": S,
+                f"{self.name}_C": C,
+                f"{self.name}_S_previous": S,
+                f"{self.name}_C_previous": C,
+                f"{self.name}_S_intervention": S,
+                f"{self.name}_C_intervention": C,
+                f"{self.name}_S_intervention_previous": S,
+                f"{self.name}_C_intervention_previous": C,
+            },
+            index=pop_data.index,
+        )
 
         self.population_view.update(pop)
 
@@ -208,9 +216,9 @@ class Disease:
         if pop.empty:
             return
         idx = pop.index
-        S_bau, C_bau = pop[f'{self.name}_S'], pop[f'{self.name}_C']
-        S_int = pop[f'{self.name}_S_intervention']
-        C_int = pop[f'{self.name}_C_intervention']
+        S_bau, C_bau = pop[f"{self.name}_S"], pop[f"{self.name}_C"]
+        S_int = pop[f"{self.name}_S_intervention"]
+        C_int = pop[f"{self.name}_C_intervention"]
 
         # Extract all of the required rates *once only*.
         i_bau = self.incidence(idx)
@@ -226,20 +234,23 @@ class Disease:
                 # NOTE: for the 'mslt_reduce_chd' experiment, this results in a
                 # slightly lower HALY gain than that obtained when using the
                 # full equations (below).
-                new_S_bau = S_bau * np.exp(- i_bau)
-                new_S_int = S_int * np.exp(- i_int)
-                new_C_bau = C_bau * np.exp(- f) + S_bau - new_S_bau
-                new_C_int = C_int * np.exp(- f) + S_int - new_S_int
-                pop_update = pd.DataFrame({
-                    f'{self.name}_S': new_S_bau,
-                    f'{self.name}_C': new_C_bau,
-                    f'{self.name}_S_previous': S_bau,
-                    f'{self.name}_C_previous': C_bau,
-                    f'{self.name}_S_intervention': new_S_int,
-                    f'{self.name}_C_intervention': new_C_int,
-                    f'{self.name}_S_intervention_previous': S_int,
-                    f'{self.name}_C_intervention_previous': C_int,
-                }, index=pop.index)
+                new_S_bau = S_bau * np.exp(-i_bau)
+                new_S_int = S_int * np.exp(-i_int)
+                new_C_bau = C_bau * np.exp(-f) + S_bau - new_S_bau
+                new_C_int = C_int * np.exp(-f) + S_int - new_S_int
+                pop_update = pd.DataFrame(
+                    {
+                        f"{self.name}_S": new_S_bau,
+                        f"{self.name}_C": new_C_bau,
+                        f"{self.name}_S_previous": S_bau,
+                        f"{self.name}_C_previous": C_bau,
+                        f"{self.name}_S_intervention": new_S_int,
+                        f"{self.name}_C_intervention": new_C_int,
+                        f"{self.name}_S_intervention_previous": S_int,
+                        f"{self.name}_C_intervention_previous": C_int,
+                    },
+                    index=pop.index,
+                )
                 self.population_view.update(pop_update)
                 return
 
@@ -277,36 +288,41 @@ class Disease:
         new_C_int = C_int.copy()
 
         # Calculate new_S_bau, new_C_bau, new_S_int, new_C_int.
-        num_S_bau = (2 * (v_bau - w_bau) * (S_bau * f_plus_r + C_bau * r)
-                     + S_bau * (v_bau * (q_bau - l_bau)
-                                + w_bau * (q_bau + l_bau)))
-        num_S_int = (2 * (v_int - w_int) * (S_int * f_plus_r + C_int * r)
-                     + S_int * (v_int * (q_int - l_int)
-                                + w_int * (q_int + l_int)))
+        num_S_bau = 2 * (v_bau - w_bau) * (S_bau * f_plus_r + C_bau * r) + S_bau * (
+            v_bau * (q_bau - l_bau) + w_bau * (q_bau + l_bau)
+        )
+        num_S_int = 2 * (v_int - w_int) * (S_int * f_plus_r + C_int * r) + S_int * (
+            v_int * (q_int - l_int) + w_int * (q_int + l_int)
+        )
         new_S_bau[nz_bau] = num_S_bau[nz_bau] / denom_bau[nz_bau]
         new_S_int[nz_int] = num_S_int[nz_int] / denom_int[nz_int]
 
-        num_C_bau = - ((v_bau - w_bau) * (2 * (f_plus_r * (S_bau + C_bau)
-                                               - l_bau * S_bau)
-                                          - l_bau * C_bau)
-                       - (v_bau + w_bau) * q_bau * C_bau)
-        num_C_int = - ((v_int - w_int) * (2 * (f_plus_r * (S_int + C_int)
-                                               - l_int * S_int)
-                                          - l_int * C_int)
-                       - (v_int + w_int) * q_int * C_int)
+        num_C_bau = -(
+            (v_bau - w_bau)
+            * (2 * (f_plus_r * (S_bau + C_bau) - l_bau * S_bau) - l_bau * C_bau)
+            - (v_bau + w_bau) * q_bau * C_bau
+        )
+        num_C_int = -(
+            (v_int - w_int)
+            * (2 * (f_plus_r * (S_int + C_int) - l_int * S_int) - l_int * C_int)
+            - (v_int + w_int) * q_int * C_int
+        )
         new_C_bau[nz_bau] = num_C_bau[nz_bau] / denom_bau[nz_bau]
         new_C_int[nz_int] = num_C_int[nz_int] / denom_int[nz_int]
 
-        pop_update = pd.DataFrame({
-            f'{self.name}_S': new_S_bau,
-            f'{self.name}_C': new_C_bau,
-            f'{self.name}_S_previous': S_bau,
-            f'{self.name}_C_previous': C_bau,
-            f'{self.name}_S_intervention': new_S_int,
-            f'{self.name}_C_intervention': new_C_int,
-            f'{self.name}_S_intervention_previous': S_int,
-            f'{self.name}_C_intervention_previous': C_int,
-        }, index=pop.index)
+        pop_update = pd.DataFrame(
+            {
+                f"{self.name}_S": new_S_bau,
+                f"{self.name}_C": new_C_bau,
+                f"{self.name}_S_previous": S_bau,
+                f"{self.name}_C_previous": C_bau,
+                f"{self.name}_S_intervention": new_S_int,
+                f"{self.name}_C_intervention": new_C_int,
+                f"{self.name}_S_intervention_previous": S_int,
+                f"{self.name}_C_intervention_previous": C_int,
+            },
+            index=pop.index,
+        )
         self.population_view.update(pop_update)
 
     def mortality_adjustment(self, index, mortality_rate):
@@ -317,12 +333,15 @@ class Disease:
         """
         pop = self.population_view.get(index)
 
-        S, C = pop[f'{self.name}_S'], pop[f'{self.name}_C']
-        S_prev, C_prev = pop[f'{self.name}_S_previous'], pop[f'{self.name}_C_previous']
+        S, C = pop[f"{self.name}_S"], pop[f"{self.name}_C"]
+        S_prev, C_prev = pop[f"{self.name}_S_previous"], pop[f"{self.name}_C_previous"]
         D, D_prev = 1000 - S - C, 1000 - S_prev - C_prev
 
-        S_int, C_int = pop[f'{self.name}_S_intervention'], pop[f'{self.name}_C_intervention']
-        S_int_prev, C_int_prev = pop[f'{self.name}_S_intervention_previous'], pop[f'{self.name}_C_intervention_previous']
+        S_int, C_int = pop[f"{self.name}_S_intervention"], pop[f"{self.name}_C_intervention"]
+        S_int_prev, C_int_prev = (
+            pop[f"{self.name}_S_intervention_previous"],
+            pop[f"{self.name}_C_intervention_previous"],
+        )
         D_int, D_int_prev = 1000 - S_int - C_int, 1000 - S_int_prev - C_int_prev
 
         # NOTE: as per the spreadsheet, the denominator is from the same point
@@ -342,10 +361,16 @@ class Disease:
         """
         pop = self.population_view.get(index)
 
-        S, S_prev = pop[f'{self.name}_S'], pop[f'{self.name}_S_previous']
-        C, C_prev = pop[f'{self.name}_C'], pop[f'{self.name}_C_previous']
-        S_int, S_int_prev = pop[f'{self.name}_S_intervention'], pop[f'{self.name}_S_intervention_previous']
-        C_int, C_int_prev = pop[f'{self.name}_C_intervention'], pop[f'{self.name}_C_intervention_previous']
+        S, S_prev = pop[f"{self.name}_S"], pop[f"{self.name}_S_previous"]
+        C, C_prev = pop[f"{self.name}_C"], pop[f"{self.name}_C_previous"]
+        S_int, S_int_prev = (
+            pop[f"{self.name}_S_intervention"],
+            pop[f"{self.name}_S_intervention_previous"],
+        )
+        C_int, C_int_prev = (
+            pop[f"{self.name}_C_intervention"],
+            pop[f"{self.name}_C_intervention_previous"],
+        )
 
         # The prevalence rate is the mean number of diseased people over the
         # year, divided by the mean number of alive people over the year.

@@ -10,15 +10,18 @@ from collections import Counter
 from typing import Dict
 
 import pandas as pd
-
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
-from vivarium_public_health.metrics.utilities import get_age_bins, get_prevalent_cases, get_state_person_time
+from vivarium_public_health.metrics.utilities import (
+    get_age_bins,
+    get_prevalent_cases,
+    get_state_person_time,
+)
 
 
 class CategoricalRiskObserver:
-    """ An observer for a categorical risk factor.
+    """An observer for a categorical risk factor.
 
     Observes category person time for a risk factor.
 
@@ -41,18 +44,19 @@ class CategoricalRiskObserver:
                 month: 12
                 day: 31
     """
+
     configuration_defaults = {
-        'metrics': {
-            'risk': {
-                'by_age': False,
-                'by_year': False,
-                'by_sex': False,
-                'sample_exposure': {
-                    'sample': False,
-                    'date': {
-                        'month': 7,
-                        'day': 1,
-                    }
+        "metrics": {
+            "risk": {
+                "by_age": False,
+                "by_year": False,
+                "by_sex": False,
+                "sample_exposure": {
+                    "sample": False,
+                    "date": {
+                        "month": 7,
+                        "day": 1,
+                    },
                 },
             }
         }
@@ -68,54 +72,72 @@ class CategoricalRiskObserver:
         """
         self.risk = risk
         self.configuration_defaults = {
-            'metrics': {
-                f'{self.risk}': CategoricalRiskObserver.configuration_defaults['metrics']['risk']
+            "metrics": {
+                f"{self.risk}": CategoricalRiskObserver.configuration_defaults["metrics"][
+                    "risk"
+                ]
             }
         }
 
     @property
     def name(self):
-        return f'categorical_risk_observer.{self.risk}'
+        return f"categorical_risk_observer.{self.risk}"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.data = {}
-        self.config = builder.configuration[f'metrics'][f'{self.risk}']
+        self.config = builder.configuration[f"metrics"][f"{self.risk}"]
         self.clock = builder.time.clock()
-        self.categories = builder.data.load(f'risk_factor.{self.risk}.categories')
+        self.categories = builder.data.load(f"risk_factor.{self.risk}.categories")
         self.age_bins = get_age_bins(builder)
         self.person_time = Counter()
         self.sampled_exposure = Counter()
 
-        columns_required = ['alive']
+        columns_required = ["alive"]
         if self.config.by_age:
-            columns_required += ['age']
+            columns_required += ["age"]
         if self.config.by_sex:
-            columns_required += ['sex']
+            columns_required += ["sex"]
         self.population_view = builder.population.get_view(columns_required)
 
-        self.exposure = builder.value.get_value(f'{self.risk}.exposure')
-        builder.value.register_value_modifier('metrics', self.metrics)
-        builder.event.register_listener('time_step__prepare', self.on_time_step_prepare)
+        self.exposure = builder.value.get_value(f"{self.risk}.exposure")
+        builder.value.register_value_modifier("metrics", self.metrics)
+        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
 
     def on_time_step_prepare(self, event: Event):
-        pop = pd.concat([self.population_view.get(event.index), pd.Series(self.exposure(event.index), name=self.risk)],
-                        axis=1)
+        pop = pd.concat(
+            [
+                self.population_view.get(event.index),
+                pd.Series(self.exposure(event.index), name=self.risk),
+            ],
+            axis=1,
+        )
 
         for category in self.categories:
-            state_person_time_this_step = get_state_person_time(pop, self.config, self.risk, category,
-                                                                self.clock().year, event.step_size, self.age_bins)
+            state_person_time_this_step = get_state_person_time(
+                pop,
+                self.config,
+                self.risk,
+                category,
+                self.clock().year,
+                event.step_size,
+                self.age_bins,
+            )
             self.person_time.update(state_person_time_this_step)
 
         if self._should_sample(event.time):
-            sampled_exposure = get_prevalent_cases(pop, self.config.to_dict(), self.risk, event.time, self.age_bins)
+            sampled_exposure = get_prevalent_cases(
+                pop, self.config.to_dict(), self.risk, event.time, self.age_bins
+            )
             self.sampled_exposure.update(sampled_exposure)
 
     def _should_sample(self, event_time: pd.Timestamp) -> bool:
         """Returns true if we should sample on this time step."""
         should_sample = self.config.sample_exposure.sample
         if should_sample:
-            sample_date = pd.Timestamp(year=event_time.year, **self.config.sample_prevalence.date.to_dict())
+            sample_date = pd.Timestamp(
+                year=event_time.year, **self.config.sample_prevalence.date.to_dict()
+            )
             should_sample &= self.clock() <= sample_date < event_time
         return should_sample
 

@@ -1,3 +1,8 @@
+**0.10.17 - 02/15/22**
+
+ - Autoformat code with black and isort.
+ - Add black and isort checks to CI.
+
 **0.10.16 - 02/13/22**
 
  - Update CI
