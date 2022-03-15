@@ -102,7 +102,9 @@ class LinearScaleUp:
         self.is_intervention_scenario = self._get_is_intervention_scenario(builder)
         self.clock = self._get_clock(builder)
         self.scale_up_start_date, self.scale_up_end_date = self._get_scale_up_dates(builder)
-        self.scale_up_start_value, self.scale_up_end_value = self._get_scale_up_values(builder)
+        self.scale_up_start_value, self.scale_up_end_value = self._get_scale_up_values(
+            builder
+        )
 
         required_columns = self._get_required_columns()
         self.pipelines = self._get_required_pipelines(builder)
@@ -122,7 +124,7 @@ class LinearScaleUp:
 
     # noinspection PyMethodMayBeStatic
     def _get_scale_up_dates(self, builder: Builder) -> Tuple[datetime, datetime]:
-        scale_up_config = builder.configuration[self.configuration_key]['date']
+        scale_up_config = builder.configuration[self.configuration_key]["date"]
 
         def get_endpoint(endpoint_type: str) -> datetime:
             if scale_up_config[endpoint_type] == endpoint_type:
@@ -173,9 +175,8 @@ class LinearScaleUp:
         if not self.is_intervention_scenario or self.clock() < self.scale_up_start_date:
             progress = 0.0
         elif self.scale_up_start_date <= self.clock() < self.scale_up_end_date:
-            progress = (
-                (self.clock() - self.scale_up_start_date) /
-                (self.scale_up_end_date - self.scale_up_start_date)
+            progress = (self.clock() - self.scale_up_start_date) / (
+                self.scale_up_end_date - self.scale_up_start_date
             )
         else:
             progress = 1.0
