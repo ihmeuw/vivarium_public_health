@@ -7,7 +7,7 @@ This module contains tools modeling all cause mortality and hooks for
 disease models to contribute cause-specific and excess mortality.
 
 """
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Union
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -102,21 +102,21 @@ class Mortality:
         )
 
     # noinspection PyMethodMayBeStatic
-    def _get_all_cause_mortality_rate(self, builder: Builder) -> LookupTable:
+    def _get_all_cause_mortality_rate(self, builder: Builder) -> Union[LookupTable, Pipeline]:
         acmr_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
         return builder.lookup.build_table(
             acmr_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
 
     # noinspection PyMethodMayBeStatic
-    def _get_life_expectancy(self, builder: Builder) -> LookupTable:
+    def _get_life_expectancy(self, builder: Builder) -> Union[LookupTable, Pipeline]:
         life_expectancy_data = builder.data.load(
             "population.theoretical_minimum_risk_life_expectancy"
         )
         return builder.lookup.build_table(life_expectancy_data, parameter_columns=["age"])
 
     # noinspection PyMethodMayBeStatic
-    def _get_raw_unmodeled_csmr(self, builder: Builder) -> LookupTable:
+    def _get_raw_unmodeled_csmr(self, builder: Builder) -> Union[LookupTable, Pipeline]:
         unmodeled_causes = builder.configuration.unmodeled_causes
         raw_csmr = 0.0
         for idx, cause in enumerate(unmodeled_causes):
