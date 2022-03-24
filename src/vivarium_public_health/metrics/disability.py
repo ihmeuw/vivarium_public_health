@@ -8,8 +8,11 @@ in the simulation.
 
 """
 from collections import Counter
+from typing import Dict, List
 
 import pandas as pd
+from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.values import (
     list_combiner,
     rescale_post_processor,
@@ -17,6 +20,7 @@ from vivarium.framework.values import (
 )
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
+from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.metrics.utilities import (
     get_age_bins,
     get_years_lived_with_disability,
@@ -45,6 +49,11 @@ class DisabilityObserver:
 
     """
 
+    def __init__(self):
+        self.stratifier = ResultsStratifier(
+            self.name
+        )
+
     configuration_defaults = {
         "metrics": {
             "disability": {
@@ -59,7 +68,11 @@ class DisabilityObserver:
     def name(self):
         return "disability_observer"
 
-    def setup(self, builder):
+    @property
+    def sub_components(self) -> List:
+        return [self.stratifier]
+
+    def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.metrics.disability
         self.age_bins = get_age_bins(builder)
         self.clock = builder.time.clock()
@@ -98,12 +111,12 @@ class DisabilityObserver:
         builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
         builder.value.register_value_modifier("metrics", modifier=self.metrics)
 
-    def initialize_disability(self, pop_data):
+    def initialize_disability(self, pop_data: pd.DataFrame) -> None:
         self.population_view.update(
             pd.Series(0.0, index=pop_data.index, name="years_lived_with_disability")
         )
 
-    def on_time_step_prepare(self, event):
+    def on_time_step_prepare(self, event: Event) -> None:
         pop = self.population_view.get(
             event.index, query='tracked == True and alive == "alive"'
         )
@@ -121,7 +134,7 @@ class DisabilityObserver:
         pop.loc[:, "years_lived_with_disability"] += self.disability_weight(pop.index)
         self.population_view.update(pop)
 
-    def metrics(self, index, metrics):
+    def metrics(self, index: pd.Index, metrics: Dict):
         total_ylds = self.population_view.get(index)["years_lived_with_disability"].sum()
         metrics["years_lived_with_disability"] = total_ylds
         metrics.update(self.years_lived_with_disability)

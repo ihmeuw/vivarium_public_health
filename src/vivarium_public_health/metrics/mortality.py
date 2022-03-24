@@ -7,13 +7,14 @@ This module contains tools for observing all-cause, cause-specific, and
 excess mortality in the simulation.
 
 """
-from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from vivarium_public_health.metrics.utilities import (
-    get_age_bins,
-    get_deaths,
-    get_person_time,
-    get_years_of_life_lost,
-)
+from typing import Dict, List
+
+import pandas as pd
+
+from vivarium.framework.engine import Builder, ConfigTree
+from vivarium.framework.population import PopulationView
+
+from vivarium_public_health.metrics.stratification import ResultsStratifier
 
 
 class MortalityObserver:
@@ -39,87 +40,97 @@ class MortalityObserver:
     """
 
     configuration_defaults = {
-        "metrics": {
-            "mortality": {
-                "by_age": False,
-                "by_year": False,
-                "by_sex": False,
+        "include": [ResultsStratifier.DEATH_YEAR, ResultsStratifier.CAUSE_OF_DEATH],
+        "exclude": [ResultsStratifier.YEAR],
+    }
+
+    def __init__(self):
+        self.configuration_defaults = self._get_configuration_defaults()
+
+        self.metrics_pipeline_name = "metrics"
+        self.tmrle_key = "population.theoretical_minimum_risk_life_expectancy"
+
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    # noinspection PyMethodMayBeStatic
+    def _get_configuration_defaults(self) -> Dict[str, Dict]:
+        return {
+            "metrics": {
+                "mortality": MortalityObserver.configuration_defaults
             }
         }
-    }
+
+    ##############
+    # Properties #
+    ##############
 
     @property
     def name(self):
         return "mortality_observer"
 
-    def setup(self, builder):
-        self.config = builder.configuration.metrics.mortality
-        self.clock = builder.time.clock()
-        self.step_size = builder.time.step_size()
-        self.start_time = self.clock()
-        self.initial_pop_entrance_time = self.start_time - self.step_size()
-        self.age_bins = get_age_bins(builder)
-        diseases = builder.components.get_components_by_type(
-            (DiseaseState, RiskAttributableDisease)
-        )
-        self.causes = [c.state_id for c in diseases] + ["other_causes"]
+    #################
+    # Setup methods #
+    #################
 
-        life_expectancy_data = builder.data.load(
-            "population.theoretical_minimum_risk_life_expectancy"
-        )
-        self.life_expectancy = builder.lookup.build_table(
-            life_expectancy_data, key_columns=[], parameter_columns=["age"]
-        )
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder):
+        self.config = self._get_stratification_configuration(builder)
+        self.stratifier = self._get_stratifier(builder)
+        self.population_view = self._get_population_view(builder)
 
+        self.register_metrics_modifier(builder)
+
+    # noinspection PyMethodMayBeStatic
+    def _get_default_stratifications(self, builder: Builder) -> List[str]:
+        return builder.configuration.metrics.default
+
+    # noinspection PyMethodMayBeStatic
+    def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
+        return builder.configuration.metrics.mortality
+
+    # noinspection PyMethodMayBeStatic
+    def _get_stratifier(self, builder: Builder) -> ResultsStratifier:
+        return builder.components.get_component(ResultsStratifier.NAME)
+
+    # noinspection PyMethodMayBeStatic
+    def _get_population_view(self, builder: Builder) -> PopulationView:
         columns_required = [
             "tracked",
             "alive",
-            "entrance_time",
-            "exit_time",
-            "cause_of_death",
             "years_of_life_lost",
             "age",
         ]
-        if self.config.by_sex:
-            columns_required += ["sex"]
-        self.population_view = builder.population.get_view(columns_required)
+        return builder.population.get_view(columns_required)
 
-        builder.value.register_value_modifier("metrics", self.metrics)
+    def register_metrics_modifier(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            self.metrics_pipeline_name,
+            modifier=self.metrics,
+            requires_columns=["age", "exit_time", "alive"],
+        )
 
-    def metrics(self, index, metrics):
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def metrics(self, index: pd.Index, metrics: Dict) -> Dict:
         pop = self.population_view.get(index)
-        pop.loc[pop.exit_time.isnull(), "exit_time"] = self.clock()
 
-        person_time = get_person_time(
-            pop, self.config.to_dict(), self.start_time, self.clock(), self.age_bins
-        )
-        deaths = get_deaths(
-            pop,
-            self.config.to_dict(),
-            self.start_time,
-            self.clock(),
-            self.age_bins,
-            self.causes,
-        )
-        ylls = get_years_of_life_lost(
-            pop,
-            self.config.to_dict(),
-            self.start_time,
-            self.clock(),
-            self.age_bins,
-            self.life_expectancy,
-            self.causes,
-        )
-
-        metrics.update(person_time)
-        metrics.update(deaths)
-        metrics.update(ylls)
+        groups = self.stratifier.group(pop, set(self.config.include), set(self.config.exclude))
+        for label, pop_in_group in groups:
+            new_observations = {
+                f"death_{label}": pop_in_group.size,
+                f"ylls_{label}": pop_in_group["years_of_life_lost"].sum()
+            }
+            metrics.update(new_observations)
 
         the_living = pop[(pop.alive == "alive") & pop.tracked]
         the_dead = pop[pop.alive == "dead"]
-        metrics["years_of_life_lost"] = self.life_expectancy(the_dead.index).sum()
-        metrics["total_population_living"] = len(the_living)
-        metrics["total_population_dead"] = len(the_dead)
+        metrics["years_of_life_lost"] = the_dead["years_of_life_lost"].sum()
+        metrics["total_population_living"] = the_living.size
+        metrics["total_population_dead"] = the_dead.size
 
         return metrics
 

@@ -15,7 +15,6 @@ from vivarium.framework.event import Event
 
 from vivarium_public_health.metrics.utilities import (
     get_age_bins,
-    get_prevalent_cases,
     get_state_person_time,
 )
 
@@ -124,22 +123,6 @@ class CategoricalRiskObserver:
                 self.age_bins,
             )
             self.person_time.update(state_person_time_this_step)
-
-        if self._should_sample(event.time):
-            sampled_exposure = get_prevalent_cases(
-                pop, self.config.to_dict(), self.risk, event.time, self.age_bins
-            )
-            self.sampled_exposure.update(sampled_exposure)
-
-    def _should_sample(self, event_time: pd.Timestamp) -> bool:
-        """Returns true if we should sample on this time step."""
-        should_sample = self.config.sample_exposure.sample
-        if should_sample:
-            sample_date = pd.Timestamp(
-                year=event_time.year, **self.config.sample_prevalence.date.to_dict()
-            )
-            should_sample &= self.clock() <= sample_date < event_time
-        return should_sample
 
     # noinspection PyUnusedLocal
     def metrics(self, index: pd.Index, metrics: Dict) -> Dict:
