@@ -20,10 +20,9 @@ from vivarium_public_health.metrics.stratification import ResultsStratifier
 class MortalityObserver:
     """An observer for cause-specific deaths, ylls, and total person time.
 
-    By default, this counts cause-specific deaths, years of life lost, and
-    total person time over the full course of the simulation. It can be
-    configured to bin these measures into age groups, sexes, and years
-    by setting the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
+    By default, this counts cause-specific deaths and years of life lost over
+    the full course of the simulation. It can be configured to add or remove
+    stratification groups to the default groups defined by a ResultsStratifier.
 
     In the model specification, your configuration for this component should
     be specified as, e.g.:
@@ -31,17 +30,21 @@ class MortalityObserver:
     .. code-block:: yaml
 
         configuration:
-            metrics:
+            observers:
                 mortality:
-                    by_age: True
-                    by_year: False
-                    by_sex: True
+                    exclude:
+                        - "year"
+                    include:
+                        - "death_year"
+                        - "cause_of_death"
+
+
 
     """
 
     configuration_defaults = {
-        "include": [ResultsStratifier.DEATH_YEAR, ResultsStratifier.CAUSE_OF_DEATH],
-        "exclude": [ResultsStratifier.YEAR],
+        "exclude": [],
+        "include": [],
     }
 
     def __init__(self):
@@ -57,7 +60,7 @@ class MortalityObserver:
     # noinspection PyMethodMayBeStatic
     def _get_configuration_defaults(self) -> Dict[str, Dict]:
         return {
-            "metrics": {
+            "observers": {
                 "mortality": MortalityObserver.configuration_defaults
             }
         }
@@ -84,11 +87,11 @@ class MortalityObserver:
 
     # noinspection PyMethodMayBeStatic
     def _get_default_stratifications(self, builder: Builder) -> List[str]:
-        return builder.configuration.metrics.default
+        return builder.configuration.observers.default
 
     # noinspection PyMethodMayBeStatic
     def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
-        return builder.configuration.metrics.mortality
+        return builder.configuration.observers.mortality
 
     # noinspection PyMethodMayBeStatic
     def _get_stratifier(self, builder: Builder) -> ResultsStratifier:

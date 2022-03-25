@@ -69,6 +69,28 @@ class ResultsStratifier:
     DEATH_YEAR = "death_year"
     CAUSE_OF_DEATH = "cause_of_death"
 
+    configuration_defaults = {
+        "default": [],
+    }
+
+    def __init__(self):
+        self.configuration_defaults = self._get_configuration_defaults()
+
+        self.metrics_pipeline_name = "metrics"
+        self.tmrle_key = "population.theoretical_minimum_risk_life_expectancy"
+
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    # noinspection PyMethodMayBeStatic
+    def _get_configuration_defaults(self) -> Dict[str, Dict]:
+        return {
+            "observers": {
+                "default": ResultsStratifier.configuration_defaults["default"]
+            }
+        }
+
     ##############
     # Properties #
     ##############
@@ -106,12 +128,12 @@ class ResultsStratifier:
 
     # noinspection PyMethodMayBeStatic
     def _get_default_stratification_levels(self, builder: Builder) -> Set[str]:
-        return set(builder.configuration.metrics.default)
+        return set(builder.configuration.observers.default)
 
     def register_stratifications(self, builder: Builder) -> None:
         """Register each desired stratification with calls to _setup_stratification"""
         include_configs = [
-            config.include for name, config in builder.configuration.metrics.items()
+            config.include for name, config in builder.configuration.observers.items()
             if name != "default"
         ]
         all_stratification_levels = (
