@@ -7,8 +7,7 @@ This module contains tools for observing all-cause, cause-specific, and
 excess mortality in the simulation.
 
 """
-from typing import Dict, List
-
+from typing import Dict
 import pandas as pd
 
 from vivarium.framework.engine import Builder, ConfigTree
@@ -84,10 +83,6 @@ class MortalityObserver:
         self.population_view = self._get_population_view(builder)
 
         self.register_metrics_modifier(builder)
-
-    # noinspection PyMethodMayBeStatic
-    def _get_default_stratifications(self, builder: Builder) -> List[str]:
-        return builder.configuration.observers.default
 
     # noinspection PyMethodMayBeStatic
     def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
