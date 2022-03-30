@@ -7,13 +7,19 @@ This module contains tools for observing all-cause, cause-specific, and
 excess mortality in the simulation.
 
 """
-from typing import Dict
+from collections import Counter
+from typing import Dict, Set
+
 import pandas as pd
 
 from vivarium.framework.engine import Builder, ConfigTree
+from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
+from vivarium.framework.time import Timedelta
 
+from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.metrics.stratification import ResultsStratifier
+from vivarium_public_health.utilities import to_time_delta
 
 
 class MortalityObserver:
@@ -79,14 +85,22 @@ class MortalityObserver:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.config = self._get_stratification_configuration(builder)
+        self.time_step = self._get_time_step(builder)
+        self.counts = Counter()
         self.stratifier = self._get_stratifier(builder)
         self.population_view = self._get_population_view(builder)
+        self.causes_of_death = self._get_causes_of_death(builder)
 
+        self.register_collect_metrics_listener(builder)
         self.register_metrics_modifier(builder)
 
     # noinspection PyMethodMayBeStatic
     def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
         return builder.configuration.observers.mortality
+
+    # noinspection PyMethodMayBeStatic
+    def _get_time_step(self, builder: Builder) -> Timedelta:
+        return to_time_delta(builder.configuration.time.step_size)
 
     # noinspection PyMethodMayBeStatic
     def _get_stratifier(self, builder: Builder) -> ResultsStratifier:
@@ -98,9 +112,21 @@ class MortalityObserver:
             "tracked",
             "alive",
             "years_of_life_lost",
-            "age",
+            "cause_of_death",
+            "exit_time",
         ]
         return builder.population.get_view(columns_required)
+
+    # noinspection PyMethodMayBeStatic
+    def _get_causes_of_death(self, builder: Builder) -> Set[str]:
+        # todo can we specify only causes with excess mortality?
+        diseases = builder.components.get_components_by_type(
+            (DiseaseState, RiskAttributableDisease)
+        )
+        return {c.state_id for c in diseases} | {"other_causes"}
+
+    def register_collect_metrics_listener(self, builder: Builder) -> None:
+        builder.event.register_listener("time_step", self.on_collect_metrics)
 
     def register_metrics_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
@@ -113,22 +139,29 @@ class MortalityObserver:
     # Event-driven methods #
     ########################
 
+    def on_collect_metrics(self, event: Event) -> None:
+        pop = self.population_view.get(event.index)
+        pop_died = pop[(pop["alive"] == "dead") & (pop["exit_time"] > event.time - self.time_step)]
+
+        groups = self.stratifier.group(pop_died, set(self.config.include), set(self.config.exclude))
+        for label, pop_in_group in groups:
+            for cause in self.causes_of_death:
+                pop_died_of_cause = pop_in_group.query(f"cause_of_death == '{cause}'")
+                new_observations = {
+                    f"death_due_to_{cause}_{label}": pop_died_of_cause.size,
+                    f"ylls_due_to_{cause}_{label}": pop_died_of_cause["years_of_life_lost"].sum()
+                }
+                self.counts.update(new_observations)
+
     def metrics(self, index: pd.Index, metrics: Dict) -> Dict:
         pop = self.population_view.get(index)
-
-        groups = self.stratifier.group(pop, set(self.config.include), set(self.config.exclude))
-        for label, pop_in_group in groups:
-            new_observations = {
-                f"death_{label}": pop_in_group.size,
-                f"ylls_{label}": pop_in_group["years_of_life_lost"].sum()
-            }
-            metrics.update(new_observations)
 
         the_living = pop[(pop.alive == "alive") & pop.tracked]
         the_dead = pop[pop.alive == "dead"]
         metrics["years_of_life_lost"] = the_dead["years_of_life_lost"].sum()
         metrics["total_population_living"] = the_living.size
         metrics["total_population_dead"] = the_dead.size
+        metrics.update(self.counts)
 
         return metrics
 
