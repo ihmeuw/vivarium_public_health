@@ -128,21 +128,6 @@ class ResultsStratifier:
     def register_stratifications(self, builder: Builder) -> None:
         """Register each desired stratification with calls to _setup_stratification"""
 
-        self._setup_stratification(
-            builder,
-            name=ResultsStratifier.AGE,
-            sources=[ResultsStratifier.AGE_SOURCE],
-            categories={age_bin for age_bin in self.age_bins["age_group_name"]},
-            mapper=self.age_stratification_mapper,
-        )
-
-        self._setup_stratification(
-            builder,
-            name=ResultsStratifier.SEX,
-            sources=[ResultsStratifier.SEX_SOURCE],
-            categories=ResultsStratifier.SEX_CATEGORIES,
-        )
-
         start_year = builder.configuration.time.start.year
         end_year = builder.configuration.time.end.year
 
@@ -155,13 +140,27 @@ class ResultsStratifier:
             current_category_getter=self.year_current_categories_getter,
         )
 
+        self._setup_stratification(
+            builder,
+            name=ResultsStratifier.SEX,
+            sources=[ResultsStratifier.SEX_SOURCE],
+            categories=ResultsStratifier.SEX_CATEGORIES,
+        )
+
+        self._setup_stratification(
+            builder,
+            name=ResultsStratifier.AGE,
+            sources=[ResultsStratifier.AGE_SOURCE],
+            categories={age_bin for age_bin in self.age_bins["age_group_name"]},
+            mapper=self.age_stratification_mapper,
+        )
+
     # noinspection PyMethodMayBeStatic
     def _get_population_view(self, builder: Builder) -> PopulationView:
         return builder.population.get_view(self.columns_required)
 
     # noinspection PyMethodMayBeStatic
     def _get_age_bins(self, builder: Builder) -> pd.DataFrame:
-        # TODO use a LookupTable?
         raw_age_bins = builder.data.load("population.age_bins")
         age_start = builder.configuration.population.age_start
         exit_age = builder.configuration.population.exit_age
@@ -310,17 +309,15 @@ class ResultsStratifier:
         If no stratification levels are defined, returns a List with a single empty Tuple
         """
         level_names = (self.default_stratification_levels | include) - exclude
-        # todo catch KeyError and re-raise more informative error
         groups = [
             [(level, category) for category in level.get_current_categories()]
-            for level in [self.stratification_levels[level_name] for level_name in level_names]
+            for level_name, level in self.stratification_levels.items() if level_name in level_names
         ]
         # Get product of all stratification combinations
         return list(itertools.product(*groups))
 
     @staticmethod
     def _get_stratification_key(stratification: Iterable[Tuple[StratificationLevel, str]]) -> str:
-        # todo manage stratification order
         return (
             "_".join([f'{level[0].name}_{level[1]}' for level in stratification])
             .replace(" ", "_")
