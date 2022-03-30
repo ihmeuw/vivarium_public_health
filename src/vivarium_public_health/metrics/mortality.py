@@ -143,10 +143,15 @@ class MortalityObserver:
         pop = self.population_view.get(event.index)
         pop_died = pop[(pop["alive"] == "dead") & (pop["exit_time"] > event.time - self.time_step)]
 
-        groups = self.stratifier.group(pop_died, set(self.config.include), set(self.config.exclude))
-        for label, pop_in_group in groups:
+        groups = self.stratifier.group(
+            pop_died.index, set(self.config.include), set(self.config.exclude)
+        )
+        for label, group_index in groups:
             for cause in self.causes_of_death:
-                pop_died_of_cause = pop_in_group.query(f"cause_of_death == '{cause}'")
+                pop_died_of_cause = (
+                    pop_died.loc[group_index, :]
+                    .query(f"cause_of_death == '{cause}'")
+                )
                 new_observations = {
                     f"death_due_to_{cause}_{label}": pop_died_of_cause.size,
                     f"ylls_due_to_{cause}_{label}": pop_died_of_cause["years_of_life_lost"].sum()

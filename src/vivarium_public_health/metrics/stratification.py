@@ -208,17 +208,16 @@ class ResultsStratifier:
     # Public methods #
     ##################
 
-    # todo take index not dataframe
     # todo add caching of stratifications
     def group(
-            self, pop: pd.DataFrame, include: Set[str], exclude: Set[str]
-    ) -> Iterable[Tuple[str, pd.DataFrame]]:
-        """Takes the full population and yields stratified subgroups.
+            self, index: pd.Index, include: Set[str], exclude: Set[str]
+    ) -> Iterable[Tuple[str, pd.Index]]:
+        """Takes a full population index and yields stratified subgroups.
 
         Parameters
         ----------
-        pop
-            The population to stratify.
+        index
+            The index of the population to stratify.
         include
             List of stratifications to add to the default stratifications
         exclude
@@ -230,20 +229,19 @@ class ResultsStratifier:
             corresponding to those labels.
 
         """
-        index = pop.index.intersection(self.stratification_groups.index)
-        pop = pop.loc[index]
+        index = index.intersection(self.stratification_groups.index)
         stratification_groups = self.stratification_groups.loc[index]
 
         for stratification in self._get_current_stratifications(include, exclude):
             stratification_key = self._get_stratification_key(stratification)
-            if pop.empty:
-                pop_in_group = pop
+            if index.empty:
+                group_index = index
             else:
                 mask = True
                 for level, category in stratification:
                     mask &= stratification_groups[level.name] == category
-                pop_in_group = pop.loc[mask]
-            yield stratification_key, pop_in_group
+                group_index = stratification_groups[mask].index
+            yield stratification_key, group_index
 
     # todo should be able to remove this
     @staticmethod
