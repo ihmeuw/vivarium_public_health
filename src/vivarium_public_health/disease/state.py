@@ -10,6 +10,7 @@ from typing import Callable, Dict
 
 import numpy as np
 import pandas as pd
+
 from vivarium.framework.state_machine import State, Transient, Transition
 from vivarium.framework.values import list_combiner, union_post_processor
 
