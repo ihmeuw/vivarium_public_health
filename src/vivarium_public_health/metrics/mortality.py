@@ -8,7 +8,7 @@ excess mortality in the simulation.
 
 """
 from collections import Counter
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import pandas as pd
 from vivarium.framework.engine import Builder, ConfigTree
@@ -73,11 +73,13 @@ class MortalityObserver:
     def setup(self, builder: Builder):
         self.config = self._get_stratification_configuration(builder)
         self.stratifier = self._get_stratifier(builder)
-        self.causes_of_death = self._get_causes_of_death(builder)
+        self._cause_components = self._get_cause_components(builder)
+        self.causes_of_death = ["other_causes"]
         self.population_view = self._get_population_view(builder)
 
         self.counts = Counter()
 
+        self._register_post_setup_listener(builder)
         self._register_collect_metrics_listener(builder)
         self._register_metrics_modifier(builder)
 
@@ -90,12 +92,10 @@ class MortalityObserver:
         return builder.components.get_component(ResultsStratifier.name)
 
     # noinspection PyMethodMayBeStatic
-    def _get_causes_of_death(self, builder: Builder) -> List[str]:
-        # todo can we specify only causes with excess mortality?
-        diseases = builder.components.get_components_by_type(
-            (DiseaseState, RiskAttributableDisease)
-        )
-        return [c.state_id for c in diseases] + ["other_causes"]
+    def _get_cause_components(
+            self, builder: Builder
+    ) -> List[Union[DiseaseState, RiskAttributableDisease]]:
+        return builder.components.get_components_by_type((DiseaseState, RiskAttributableDisease))
 
     # noinspection PyMethodMayBeStatic
     def _get_population_view(self, builder: Builder) -> PopulationView:
@@ -107,6 +107,9 @@ class MortalityObserver:
             "exit_time",
         ]
         return builder.population.get_view(columns_required)
+
+    def _register_post_setup_listener(self, builder: Builder) -> None:
+        builder.event.register_listener("post_setup", self.on_post_setup)
 
     def _register_collect_metrics_listener(self, builder: Builder) -> None:
         builder.event.register_listener("time_step", self.on_collect_metrics)
@@ -121,6 +124,12 @@ class MortalityObserver:
     ########################
     # Event-driven methods #
     ########################
+
+    # noinspection PyUnusedLocal
+    def on_post_setup(self, event: Event) -> None:
+        self.causes_of_death += [
+            cause.state_id for cause in self._cause_components if cause.has_excess_mortality
+        ]
 
     def on_collect_metrics(self, event: Event) -> None:
         pop = self.population_view.get(event.index)

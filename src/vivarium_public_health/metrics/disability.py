@@ -8,7 +8,7 @@ in the simulation.
 
 """
 from collections import Counter
-from typing import Dict
+from typing import Dict, List, Union
 
 import pandas as pd
 from vivarium.config_tree import ConfigTree
@@ -83,11 +83,13 @@ class DisabilityObserver:
         self.config = self._get_stratification_configuration(builder)
         self.stratifier = self._get_stratifier(builder)
         self.disability_weight = self._get_disability_weight_pipeline(builder)
-        self.disability_pipelines = self._get_disability_pipelines(builder)
+        self._cause_components = self._get_cause_components(builder)
+        self.disability_pipelines = {}
         self.population_view = self._get_population_view(builder)
 
         self.counts = Counter()
 
+        self._register_post_setup_listener(builder)
         self._register_simulant_initializer(builder)
         self._register_time_step_prepare_listener(builder)
         self._register_metrics_modifier(builder)
@@ -110,15 +112,10 @@ class DisabilityObserver:
         )
 
     # noinspection PyMethodMayBeStatic
-    def _get_disability_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
-        # todo can we specify only causes with a disability weight?
-        causes_of_disability = builder.components.get_components_by_type(
-            (DiseaseState, RiskAttributableDisease)
-        )
-        return {
-            cause.state_id: builder.value.get_value(f"{cause.state_id}.disability_weight")
-            for cause in causes_of_disability
-        }
+    def _get_cause_components(
+            self, builder: Builder
+    ) -> List[Union[DiseaseState, RiskAttributableDisease]]:
+        return builder.components.get_components_by_type((DiseaseState, RiskAttributableDisease))
 
     # noinspection PyMethodMayBeStatic
     def _get_population_view(self, builder: Builder) -> PopulationView:
@@ -126,6 +123,9 @@ class DisabilityObserver:
             self.ylds_column_name,
         ]
         return builder.population.get_view(columns_required)
+
+    def _register_post_setup_listener(self, builder: Builder) -> None:
+        builder.event.register_listener("post_setup", self.on_post_setup)
 
     def _register_simulant_initializer(self, builder: Builder) -> None:
         # todo observer should not be modifying state table
@@ -149,6 +149,12 @@ class DisabilityObserver:
     ########################
     # Event-driven methods #
     ########################
+
+    # noinspection PyUnusedLocal
+    def on_post_setup(self, event: Event) -> None:
+        for cause in self._cause_components:
+            if cause.has_disability:
+                self.disability_pipelines[cause.state_id] = cause.disability_weight
 
     def on_initialize_simulants(self, pop_data: pd.DataFrame) -> None:
         self.population_view.update(

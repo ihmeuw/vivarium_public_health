@@ -10,6 +10,7 @@ from typing import Callable, Dict
 
 import numpy as np
 import pandas as pd
+
 from vivarium.framework.state_machine import State, Transient, Transition
 from vivarium.framework.values import list_combiner, union_post_processor
 
@@ -17,6 +18,7 @@ from vivarium_public_health.disease.transition import (
     ProportionTransition,
     RateTransition,
 )
+from vivarium_public_health.utilities import is_non_zero
 
 
 class BaseDiseaseState(State):
@@ -254,6 +256,7 @@ class DiseaseState(BaseDiseaseState):
         )
 
         disability_weight_data = self.load_disability_weight_data(builder)
+        self.has_disability = is_non_zero(disability_weight_data)
         self.base_disability_weight = builder.lookup.build_table(
             disability_weight_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -267,6 +270,7 @@ class DiseaseState(BaseDiseaseState):
         )
 
         excess_mortality_data = self.load_excess_mortality_rate_data(builder)
+        self.has_excess_mortality = is_non_zero(excess_mortality_data)
         self.base_excess_mortality_rate = builder.lookup.build_table(
             excess_mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )

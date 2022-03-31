@@ -7,9 +7,11 @@ This module contains utility classes and functions for use across
 vivarium_public_health components.
 
 """
-from typing import Union
+from typing import Iterable, Union
 
 import pandas as pd
+
+from vivarium.framework.lookup import ScalarValue
 
 
 class EntityString(str):
@@ -80,3 +82,14 @@ def to_time_delta(span_in_days: Union[int, float, str]):
 def to_years(time: pd.Timedelta) -> float:
     """Converts a time delta to a float for years."""
     return time / pd.Timedelta(days=DAYS_PER_YEAR)
+
+
+def is_non_zero(data: Union[Iterable[ScalarValue], ScalarValue, pd.DataFrame]) -> bool:
+    if isinstance(data, pd.DataFrame):
+        attribute_sum = data.value.sum()
+    elif isinstance(data, Iterable):
+        attribute_sum = sum(data)
+    else:
+        attribute_sum = data
+
+    return attribute_sum != 0.0
