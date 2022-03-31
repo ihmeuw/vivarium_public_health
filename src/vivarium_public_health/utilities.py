@@ -12,6 +12,8 @@ from typing import Iterable, Union
 import pandas as pd
 from vivarium.framework.lookup import ScalarValue
 
+from vivarium.framework.lookup import ScalarValue
+
 
 class EntityString(str):
     """Convenience class for representing entities as strings."""
