@@ -8,7 +8,7 @@ excess mortality in the simulation.
 
 """
 from collections import Counter
-from typing import Dict, Set
+from typing import Dict, List
 
 import pandas as pd
 
@@ -58,6 +58,9 @@ class MortalityObserver:
         self.metrics_pipeline_name = "metrics"
         self.tmrle_key = "population.theoretical_minimum_risk_life_expectancy"
 
+    def __repr__(self):
+        return "MortalityObserver()"
+
     ##########################
     # Initialization methods #
     ##########################
@@ -85,26 +88,35 @@ class MortalityObserver:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.config = self._get_stratification_configuration(builder)
-        self.time_step = self._get_time_step(builder)
-        self.counts = Counter()
+        self.step_size = self._get_step_size(builder)
         self.stratifier = self._get_stratifier(builder)
-        self.population_view = self._get_population_view(builder)
         self.causes_of_death = self._get_causes_of_death(builder)
+        self.population_view = self._get_population_view(builder)
 
-        self.register_collect_metrics_listener(builder)
-        self.register_metrics_modifier(builder)
+        self.counts = Counter()
+
+        self._register_collect_metrics_listener(builder)
+        self._register_metrics_modifier(builder)
 
     # noinspection PyMethodMayBeStatic
     def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
         return builder.configuration.observers.mortality
 
     # noinspection PyMethodMayBeStatic
-    def _get_time_step(self, builder: Builder) -> Timedelta:
+    def _get_step_size(self, builder: Builder) -> Timedelta:
         return to_time_delta(builder.configuration.time.step_size)
 
     # noinspection PyMethodMayBeStatic
     def _get_stratifier(self, builder: Builder) -> ResultsStratifier:
         return builder.components.get_component(ResultsStratifier.NAME)
+
+    # noinspection PyMethodMayBeStatic
+    def _get_causes_of_death(self, builder: Builder) -> List[str]:
+        # todo can we specify only causes with excess mortality?
+        diseases = builder.components.get_components_by_type(
+            (DiseaseState, RiskAttributableDisease)
+        )
+        return [c.state_id for c in diseases] + ["other_causes"]
 
     # noinspection PyMethodMayBeStatic
     def _get_population_view(self, builder: Builder) -> PopulationView:
@@ -117,18 +129,10 @@ class MortalityObserver:
         ]
         return builder.population.get_view(columns_required)
 
-    # noinspection PyMethodMayBeStatic
-    def _get_causes_of_death(self, builder: Builder) -> Set[str]:
-        # todo can we specify only causes with excess mortality?
-        diseases = builder.components.get_components_by_type(
-            (DiseaseState, RiskAttributableDisease)
-        )
-        return {c.state_id for c in diseases} | {"other_causes"}
-
-    def register_collect_metrics_listener(self, builder: Builder) -> None:
+    def _register_collect_metrics_listener(self, builder: Builder) -> None:
         builder.event.register_listener("time_step", self.on_collect_metrics)
 
-    def register_metrics_modifier(self, builder: Builder) -> None:
+    def _register_metrics_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
             self.metrics_pipeline_name,
             modifier=self.metrics,
@@ -141,7 +145,7 @@ class MortalityObserver:
 
     def on_collect_metrics(self, event: Event) -> None:
         pop = self.population_view.get(event.index)
-        pop_died = pop[(pop["alive"] == "dead") & (pop["exit_time"] > event.time - self.time_step)]
+        pop_died = pop[(pop["alive"] == "dead") & (pop["exit_time"] > event.time - self.step_size)]
 
         groups = self.stratifier.group(
             pop_died.index, set(self.config.include), set(self.config.exclude)
@@ -158,6 +162,10 @@ class MortalityObserver:
                 }
                 self.counts.update(new_observations)
 
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
     def metrics(self, index: pd.Index, metrics: Dict) -> Dict:
         pop = self.population_view.get(index)
 
@@ -169,6 +177,3 @@ class MortalityObserver:
         metrics.update(self.counts)
 
         return metrics
-
-    def __repr__(self):
-        return "MortalityObserver()"
