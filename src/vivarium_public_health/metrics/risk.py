@@ -10,6 +10,7 @@ from collections import Counter
 from typing import Dict, List
 
 import pandas as pd
+
 from vivarium.config_tree import ConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
