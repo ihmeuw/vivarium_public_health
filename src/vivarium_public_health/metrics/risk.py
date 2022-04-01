@@ -149,16 +149,18 @@ class CategoricalRiskObserver:
 
     def on_time_step_prepare(self, event: Event) -> None:
         pop = self.population_view.get(
-            event.index, query='tracked == True and alive == "alive"'
+            event.index, query="tracked == True and alive == 'alive'"
         )
+        exposures = self.pipelines[self.exposure_pipeline_name](pop.index)
         groups = self.stratifier.group(
-            pop.index, set(self.config.include), set(self.config.exclude)
+            exposures.index, set(self.config.include), set(self.config.exclude)
         )
         for label, group_index in groups:
             for category in self.categories:
+                category_mask = exposures.loc[group_index] == category
                 new_observations = {
                     f"{self.risk}_{category}_person_time_{label}":
-                        group_index.size * to_years(self.step_size)
+                        category_mask.sum() * to_years(self.step_size)
                 }
                 self.counts.update(new_observations)
 
