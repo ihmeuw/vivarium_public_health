@@ -16,6 +16,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
 from vivarium.framework.values import (
+    NumberLike,
     Pipeline,
     list_combiner,
     rescale_post_processor,
@@ -42,7 +43,7 @@ class DisabilityObserver:
 
         configuration:
             observers:
-                mortality:
+                disability:
                     exclude:
                         - "sex"
                     include:
@@ -184,12 +185,12 @@ class DisabilityObserver:
     # Pipeline sources and modifiers #
     ##################################
 
-    def metrics(self, index: pd.Index, metrics: Dict):
+    def metrics(self, index: pd.Index, metrics: Dict) -> Dict:
         total_ylds = self.population_view.get(index)[self.ylds_column_name].sum()
         metrics["years_lived_with_disability"] = total_ylds
         metrics.update(self.counts)
         return metrics
 
 
-def _disability_post_processor(value, step_size):
+def _disability_post_processor(value: NumberLike, step_size: pd.Timedelta) -> NumberLike:
     return rescale_post_processor(union_post_processor(value, step_size), step_size)
