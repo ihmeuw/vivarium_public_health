@@ -101,7 +101,7 @@ class ResultsStratifier:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
-        self.clock = None
+        self.clock = self._get_clock(builder)
         self.default_stratification_levels = self._get_default_stratification_levels(builder)
         self.pipelines = {}
         self.columns_required = ["tracked"]
@@ -115,7 +115,6 @@ class ResultsStratifier:
         self.population_view = self._get_population_view(builder)
 
         self._register_timestep_prepare_listener(builder)
-        self._register_simulation_end_listener(builder)
 
     # noinspection PyMethodMayBeStatic
     def _get_clock(self, builder: Builder) -> Callable[[], Time]:
@@ -131,7 +130,7 @@ class ResultsStratifier:
         start_year = builder.configuration.time.start.year
         end_year = builder.configuration.time.end.year
 
-        self._setup_stratification(
+        self.setup_stratification(
             builder,
             name=ResultsStratifier.YEAR,
             sources=[ResultsStratifier.YEAR_SOURCE],
@@ -140,14 +139,14 @@ class ResultsStratifier:
             current_category_getter=self.year_current_categories_getter,
         )
 
-        self._setup_stratification(
+        self.setup_stratification(
             builder,
             name=ResultsStratifier.SEX,
             sources=[ResultsStratifier.SEX_SOURCE],
             categories=ResultsStratifier.SEX_CATEGORIES,
         )
 
-        self._setup_stratification(
+        self.setup_stratification(
             builder,
             name=ResultsStratifier.AGE,
             sources=[ResultsStratifier.AGE_SOURCE],
@@ -172,35 +171,29 @@ class ResultsStratifier:
         return age_bins
 
     def _register_timestep_prepare_listener(self, builder: Builder) -> None:
-        builder.event.register_listener(
-            "time_step__prepare", self._set_stratification_groups, priority=0
-        )
-
-    def _register_simulation_end_listener(self, builder: Builder) -> None:
-        builder.event.register_listener(
-            "simulation_end", self._set_stratification_groups, priority=0
-        )
+        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare, priority=0)
 
     ########################
     # Event-driven methods #
     ########################
 
-    def _set_stratification_groups(self, event: Event) -> None:
-        index = event.index
+    def on_time_step_prepare(self, event: Event) -> None:
+        pop = self.population_view.get(event.index, query='tracked == True and alive == "alive"')
         pipeline_values = [
-            pd.Series(pipeline(index), name=name) for name, pipeline in self.pipelines.items()
+            pd.Series(pipeline(pop.index), name=name) for name, pipeline in self.pipelines.items()
         ]
         clock_values = [
-            pd.Series(self.clock(), index=index, name=name) for name in self.clock_sources
+            pd.Series(self.clock(), index=pop.index, name=name) for name in self.clock_sources
         ]
-        pop = pd.concat([self.population_view.get(index)] + pipeline_values + clock_values, axis=1)
+        sources = pd.concat([pop] + pipeline_values + clock_values, axis=1)
 
         stratification_groups = [
-            pop[[source.name for source in stratification_level.sources]]
+            sources[[source.name for source in stratification_level.sources]]
             .apply(stratification_level.mapper, axis=1)
             .rename(stratification_level.name)
             for stratification_level in self.stratification_levels.values()
         ]
+        # noinspection PyAttributeOutsideInit
         self.stratification_groups = pd.concat(stratification_groups, axis=1)
 
     ##################
@@ -272,7 +265,7 @@ class ResultsStratifier:
     # Helper methods #
     ##################
 
-    def _setup_stratification(
+    def setup_stratification(
         self,
         builder: Builder,
         name: str,
@@ -292,7 +285,6 @@ class ResultsStratifier:
             elif source.type == SourceType.COLUMN:
                 self.columns_required.append(source.name)
             elif source.type == SourceType.CLOCK:
-                self.clock = self._get_clock(builder)
                 self.clock_sources.add(source.name)
             else:
                 raise ValueError(f"Invalid stratification source type '{source.type}'.")
@@ -324,9 +316,9 @@ class ResultsStratifier:
             .lower()
         )
 
-    ####################################
-    # Standard Stratifications Details #
-    ####################################
+    ##########################
+    # Stratification Details #
+    ##########################
 
     AGE = "age"
     AGE_SOURCE = Source("age", SourceType.COLUMN)
