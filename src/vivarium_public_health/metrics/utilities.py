@@ -16,6 +16,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.time import Time
 
+from vivarium_public_health.disease.transition import TransitionString
 from vivarium_public_health.utilities import to_years
 
 _MIN_AGE = 0.0
@@ -70,14 +71,6 @@ class SubstituteString(str):
     def substitute(self, *_, **__) -> "SubstituteString":
         """No-op method for consistency with OutputTemplate."""
         return self
-
-
-class TransitionString(str):
-    def __new__(cls, value):
-        # noinspection PyArgumentList
-        obj = str.__new__(cls, value.lower())
-        obj.from_state, obj.to_state = value.split("_TO_")
-        return obj
 
 
 class OutputTemplate(Template):
@@ -322,51 +315,3 @@ def get_population_counts(
     )
     base_filter = QueryString(f'alive == "alive"')
     return get_group_counts(pop, base_filter, base_key, config, age_bins)
-
-
-def get_state_person_time(
-    pop: pd.DataFrame,
-    config: Dict[str, bool],
-    state_machine: str,
-    state: str,
-    current_year: Union[str, int],
-    step_size: pd.Timedelta,
-    age_bins: pd.DataFrame,
-) -> Dict[str, float]:
-    """Custom person time getter that handles state column name assumptions"""
-    base_key = get_output_template(**config).substitute(
-        measure=f"{state}_person_time", year=current_year
-    )
-    base_filter = QueryString(f'alive == "alive" and {state_machine} == "{state}"')
-    person_time = get_group_counts(
-        pop,
-        base_filter,
-        base_key,
-        config,
-        age_bins,
-        aggregate=lambda x: len(x) * to_years(step_size),
-    )
-    return person_time
-
-
-def get_transition_count(
-    pop: pd.DataFrame,
-    config: Dict[str, bool],
-    state_machine: str,
-    transition: TransitionString,
-    event_time: pd.Timestamp,
-    age_bins: pd.DataFrame,
-) -> Dict[str, float]:
-    """Counts transitions that occurred this step."""
-    event_this_step = (pop[f"previous_{state_machine}"] == transition.from_state) & (
-        pop[state_machine] == transition.to_state
-    )
-    transitioned_pop = pop.loc[event_this_step]
-    base_key = get_output_template(**config).substitute(
-        measure=f"{transition}_event_count", year=event_time.year
-    )
-    base_filter = QueryString("")
-    transition_count = get_group_counts(
-        transitioned_pop, base_filter, base_key, config, age_bins
-    )
-    return transition_count

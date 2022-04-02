@@ -8,12 +8,16 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
+from typing import List
+
 import numpy as np
 import pandas as pd
+
 from vivarium.exceptions import VivariumError
 from vivarium.framework.state_machine import Machine
 
 from vivarium_public_health.disease.state import SusceptibleState
+from vivarium_public_health.disease.transition import TransitionString
 
 
 class DiseaseModelError(VivariumError):
@@ -42,17 +46,17 @@ class DiseaseModel(Machine):
         return f"disease_model.{self.cause}"
 
     @property
-    def state_names(self):
+    def state_names(self) -> List[str]:
         return [s.name.split(".")[1] for s in self.states]
 
     @property
-    def transition_names(self):
+    def transition_names(self) -> List[TransitionString]:
         states = {s.name.split(".")[1]: s for s in self.states}
         transitions = []
         for state in states.values():
             for trans in state.transition_set.transitions:
                 _, _, init_state, _, end_state = trans.name.split(".")
-                transitions.append(f"{init_state}_TO_{end_state}")
+                transitions.append(TransitionString(f"{init_state}_TO_{end_state}"))
         return transitions
 
     def setup(self, builder):

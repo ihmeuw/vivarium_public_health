@@ -11,30 +11,24 @@ from collections import Counter
 from typing import Dict, List
 
 import pandas as pd
+
+from vivarium.config_tree import ConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
+from vivarium.framework.population import PopulationView
 
+from vivarium_public_health.disease.transition import TransitionString
 from vivarium_public_health.metrics.stratification import ResultsStratifier
-from vivarium_public_health.metrics.utilities import (
-    TransitionString,
-    get_age_bins,
-    get_state_person_time,
-    get_transition_count,
-)
+from vivarium_public_health.utilities import to_years
 
 
 class DiseaseObserver:
-    """Observes disease counts, person time, and prevalent cases for a cause.
+    """Observes disease counts and person time for a cause.
 
-    By default, this observer computes aggregate susceptible person time
-    and counts of disease cases over the entire simulation.  It can be
-    configured to bin these into age_groups, sexes, and years by setting
-    the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
-
-    It also can record prevalent cases on a particular sample date each year,
-    though by default this is disabled. These will also be binned based on the
-    flags set for the observer. Additionally, the sample date is configurable
-    and defaults to July 1st of each year.
+    By default, this observer computes aggregate susceptible person time and
+    counts of disease cases over the full course of the simulation. It can be
+    configured to add or remove stratification groups to the default groups
+    defined by a ResultsStratifier.
 
     In the model specification, your configuration for this component should
     be specified as, e.g.:
@@ -42,141 +36,163 @@ class DiseaseObserver:
     .. code-block:: yaml
 
         configuration:
-            metrics:
-                {YOUR_DISEASE_NAME}_observer:
-                    by_age: True
-                    by_year: False
-                    by_sex: True
-                    sample_prevalence:
-                        sample: True
-                        date:
-                            month: 4
-                            day: 10
+            observers:
+                cause_name:
+                    exclude:
+                        - "sex"
+                    include:
+                        - "sample_stratification"
 
     """
 
     configuration_defaults = {
-        "metrics": {
-            "disease_observer": {
-                "by_age": False,
-                "by_year": False,
-                "by_sex": False,
-                "sample_prevalence": {
-                    "sample": False,
-                    "date": {
-                        "month": 7,
-                        "day": 1,
-                    },
-                },
+        "observers": {
+            "disease": {
+                "exclude": [],
+                "include": [],
             }
         }
     }
 
     def __init__(self, disease: str):
         self.disease = disease
-        self.configuration_defaults = {
-            "metrics": {
-                f"{disease}_observer": DiseaseObserver.configuration_defaults["metrics"][
-                    "disease_observer"
-                ]
+        self.configuration_defaults = self._get_configuration_defaults()
+
+        self.disease_component_name = f"disease_model.{self.disease}"
+        self.current_state_column_name = self.disease
+        self.previous_state_column_name = f"previous_{self.disease}"
+        self.metrics_pipeline_name = "metrics"
+
+    def __repr__(self):
+        return f"DiseaseObserver({self.disease})"
+
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    # noinspection PyMethodMayBeStatic
+    def _get_configuration_defaults(self) -> Dict[str, Dict]:
+        return {
+            "observers": {
+                self.disease: DiseaseObserver.configuration_defaults["observers"]["disease"]
             }
         }
-        self.stratifier = ResultsStratifier(self.name)
+
+    ##############
+    # Properties #
+    ##############
 
     @property
     def name(self):
         return f"disease_observer.{self.disease}"
 
-    @property
-    def sub_components(self) -> List:
-        return [self.stratifier]
+    #################
+    # Setup methods #
+    #################
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.config = builder.configuration["metrics"][f"{self.disease}_observer"]
-        self.clock = builder.time.clock()
-        self.age_bins = get_age_bins(builder)
+        self.config = self._get_stratification_configuration(builder)
+        self.stratifier = self._get_stratifier(builder)
+        self.states = self._get_states(builder)
+        self.transitions = self._get_transitions(builder)
+        self.population_view = self._get_population_view(builder)
+
         self.counts = Counter()
-        self.person_time = Counter()
-        self.prevalence = Counter()
 
-        comp = builder.components.get_component(f"disease_model.{self.disease}")
-        self.states = comp.state_names
-        self.transitions = comp.transition_names
+        self._register_simulant_initializer(builder)
+        self._register_time_step_prepare_listener(builder)
+        self._register_collect_metrics_listener(builder)
+        self._register_metrics_modifier(builder)
 
-        self.previous_state_column = f"previous_{self.disease}"
+    def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
+        return builder.configuration.observers[self.disease]
+
+    # noinspection PyMethodMayBeStatic
+    def _get_stratifier(self, builder: Builder) -> ResultsStratifier:
+        return builder.components.get_component(ResultsStratifier.name)
+
+    def _get_states(self, builder: Builder) -> List[str]:
+        return builder.components.get_component(self.disease_component_name).state_names
+
+    def _get_transitions(self, builder: Builder) -> List[TransitionString]:
+        return builder.components.get_component(self.disease_component_name).transition_names
+
+    # noinspection PyMethodMayBeStatic
+    def _get_population_view(self, builder: Builder) -> PopulationView:
+        columns_required = [
+            self.current_state_column_name,
+            self.previous_state_column_name
+        ]
+        return builder.population.get_view(columns_required)
+
+    def _register_simulant_initializer(self, builder: Builder) -> None:
+        # todo observer should not be modifying state table
         builder.population.initializes_simulants(
-            self.on_initialize_simulants, creates_columns=[self.previous_state_column]
+            self.on_initialize_simulants,
+            creates_columns=[self.previous_state_column_name],
         )
 
-        columns_required = ["alive", f"{self.disease}", self.previous_state_column]
-        if self.config.by_age:
-            columns_required += ["age"]
-        if self.config.by_sex:
-            columns_required += ["sex"]
-        self.population_view = builder.population.get_view(columns_required)
-
-        builder.value.register_value_modifier("metrics", self.metrics)
-        # FIXME: The state table is modified before the clock advances.
+    def _register_time_step_prepare_listener(self, builder: Builder) -> None:
         # In order to get an accurate representation of person time we need to look at
         # the state table before anything happens.
         builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
-        builder.event.register_listener("collect_metrics", self.on_collect_metrics)
+
+    def _register_collect_metrics_listener(self, builder: Builder) -> None:
+        builder.event.register_listener("time_step", self.on_collect_metrics)
+
+    def _register_metrics_modifier(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            self.metrics_pipeline_name,
+            modifier=self.metrics,
+        )
+
+    ########################
+    # Event-driven methods #
+    ########################
 
     def on_initialize_simulants(self, pop_data: pd.DataFrame) -> None:
         self.population_view.update(
-            pd.Series("", index=pop_data.index, name=self.previous_state_column)
+            pd.Series("", index=pop_data.index, name=self.previous_state_column_name)
         )
 
     def on_time_step_prepare(self, event: Event) -> None:
-        pop = self.population_view.get(event.index)
-        # Ignoring the edge case where the step spans a new year.
-        # Accrue all counts and time to the current year.
-        for labels, pop_in_group in self.stratifier.group(pop):
+        pop = self.population_view.get(event.index, query='tracked == True and alive == "alive"')
+        groups = self.stratifier.group(pop.index, self.config.include, self.config.exclude)
+        for label, group_mask in groups:
             for state in self.states:
-                # noinspection PyTypeChecker
-                state_person_time_this_step = get_state_person_time(
-                    pop_in_group,
-                    self.config,
-                    self.disease,
-                    state,
-                    self.clock().year,
-                    event.step_size,
-                    self.age_bins,
-                )
-                state_person_time_this_step = self.stratifier.update_labels(
-                    state_person_time_this_step, labels
-                )
-                self.person_time.update(state_person_time_this_step)
+                state_in_group_mask = group_mask & (pop[self.current_state_column_name] == state)
+                new_observations = {
+                    f"{self.disease}_{state}_person_time_{label}":
+                        state_in_group_mask.sum() * to_years(event.step_size)
+                }
+                self.counts.update(new_observations)
 
+        # todo observer should not be maintaining this column
         # This enables tracking of transitions between states
-        prior_state_pop = self.population_view.get(event.index)
-        prior_state_pop[self.previous_state_column] = prior_state_pop[self.disease]
-        self.population_view.update(prior_state_pop)
+        pop[self.previous_state_column_name] = pop[self.disease]
+        self.population_view.update(pop)
 
     def on_collect_metrics(self, event: Event) -> None:
-        pop = self.population_view.get(event.index)
-        for labels, pop_in_group in self.stratifier.group(pop):
+        pop = self.population_view.get(event.index, query='tracked == True and alive == "alive"')
+        groups = self.stratifier.group(pop.index, self.config.include, self.config.exclude)
+        for label, group_mask in groups:
             for transition in self.transitions:
-                transition = TransitionString(transition)
-                # noinspection PyTypeChecker
-                transition_counts_this_step = get_transition_count(
-                    pop_in_group,
-                    self.config,
-                    self.disease,
-                    transition,
-                    event.time,
-                    self.age_bins,
+                transition_mask = (
+                    group_mask
+                    & (pop[self.previous_state_column_name] == transition.from_state)
+                    & (pop[self.current_state_column_name] == transition.to_state)
                 )
-                transition_counts_this_step = self.stratifier.update_labels(
-                    transition_counts_this_step, labels
-                )
-                self.counts.update(transition_counts_this_step)
+                new_observations = {
+                    f"{self.disease}_{transition}_event_count_{label}": transition_mask.sum()
+                }
+                self.counts.update(new_observations)
 
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    # noinspection PyUnusedLocal
     def metrics(self, index: pd.Index, metrics: Dict) -> Dict:
         metrics.update(self.counts)
-        metrics.update(self.person_time)
-        metrics.update(self.prevalence)
         return metrics
-
-    def __repr__(self):
-        return "DiseaseObserver()"

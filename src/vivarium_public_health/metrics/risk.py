@@ -110,7 +110,6 @@ class CategoricalRiskObserver:
         self._register_time_step_prepare_listener(builder)
         self._register_metrics_modifier(builder)
 
-    # noinspection PyMethodMayBeStatic
     def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
         return builder.configuration.observers[self.risk]
 
@@ -118,7 +117,6 @@ class CategoricalRiskObserver:
     def _get_stratifier(self, builder: Builder) -> ResultsStratifier:
         return builder.components.get_component(ResultsStratifier.name)
 
-    # noinspection PyMethodMayBeStatic
     def _get_categories(self, builder: Builder) -> List[str]:
         return builder.data.load(f"risk_factor.{self.risk}.categories")
 
