@@ -22,6 +22,7 @@ if __name__ == "__main__":
         "scipy",
         "tables",
         "risk_distributions>=2.0.6",
+        "dataclasses; python_version < '3.7.0'",
     ]
 
     test_requirements = [
@@ -59,7 +60,7 @@ if __name__ == "__main__":
             "Operating System :: POSIX :: Linux",
             "Operating System :: Microsoft :: Windows",
             "Programming Language :: Python",
-            "Programming Language :: Python :: 3.6",
+            "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: Implementation :: CPython",
             "Topic :: Education",
             "Topic :: Scientific/Engineering",

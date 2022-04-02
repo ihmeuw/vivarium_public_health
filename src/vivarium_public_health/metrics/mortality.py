@@ -15,11 +15,9 @@ import pandas as pd
 from vivarium.framework.engine import Builder, ConfigTree
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
-from vivarium.framework.time import Timedelta
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.metrics.stratification import ResultsStratifier
-from vivarium_public_health.utilities import to_time_delta
 
 
 class MortalityObserver:
@@ -27,7 +25,8 @@ class MortalityObserver:
 
     By default, this counts cause-specific deaths and years of life lost over
     the full course of the simulation. It can be configured to add or remove
-    stratification groups to the default groups defined by a ResultsStratifier.
+    stratification groups to the default groups defined by a
+    :class:ResultsStratifier.
 
     In the model specification, your configuration for this component should
     be specified as, e.g.:
@@ -38,40 +37,29 @@ class MortalityObserver:
             observers:
                 mortality:
                     exclude:
-                        - "year"
+                        - "sex"
                     include:
-                        - "death_year"
-                        - "cause_of_death"
+                        - "sample_stratification"
 
 
 
     """
 
     configuration_defaults = {
-        "exclude": [],
-        "include": [],
+        "observers": {
+            "mortality": {
+                "exclude": [],
+                "include": [],
+            }
+        }
     }
 
     def __init__(self):
-        self.configuration_defaults = self._get_configuration_defaults()
-
         self.metrics_pipeline_name = "metrics"
         self.tmrle_key = "population.theoretical_minimum_risk_life_expectancy"
 
     def __repr__(self):
         return "MortalityObserver()"
-
-    ##########################
-    # Initialization methods #
-    ##########################
-
-    # noinspection PyMethodMayBeStatic
-    def _get_configuration_defaults(self) -> Dict[str, Dict]:
-        return {
-            "observers": {
-                "mortality": MortalityObserver.configuration_defaults
-            }
-        }
 
     ##############
     # Properties #
@@ -88,7 +76,6 @@ class MortalityObserver:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.config = self._get_stratification_configuration(builder)
-        self.step_size = self._get_step_size(builder)
         self.stratifier = self._get_stratifier(builder)
         self.causes_of_death = self._get_causes_of_death(builder)
         self.population_view = self._get_population_view(builder)
@@ -103,12 +90,8 @@ class MortalityObserver:
         return builder.configuration.observers.mortality
 
     # noinspection PyMethodMayBeStatic
-    def _get_step_size(self, builder: Builder) -> Timedelta:
-        return to_time_delta(builder.configuration.time.step_size)
-
-    # noinspection PyMethodMayBeStatic
     def _get_stratifier(self, builder: Builder) -> ResultsStratifier:
-        return builder.components.get_component(ResultsStratifier.NAME)
+        return builder.components.get_component(ResultsStratifier.name)
 
     # noinspection PyMethodMayBeStatic
     def _get_causes_of_death(self, builder: Builder) -> List[str]:
@@ -145,17 +128,13 @@ class MortalityObserver:
 
     def on_collect_metrics(self, event: Event) -> None:
         pop = self.population_view.get(event.index)
-        pop_died = pop[(pop["alive"] == "dead") & (pop["exit_time"] > event.time - self.step_size)]
+        pop_died = pop[(pop["alive"] == "dead") & (pop["exit_time"] == event.time)]
 
-        groups = self.stratifier.group(
-            pop_died.index, set(self.config.include), set(self.config.exclude)
-        )
-        for label, group_index in groups:
+        groups = self.stratifier.group(pop_died.index, self.config.include, self.config.exclude)
+        for label, group_mask in groups:
             for cause in self.causes_of_death:
-                pop_died_of_cause = (
-                    pop_died.loc[group_index, :]
-                    .query(f"cause_of_death == '{cause}'")
-                )
+                cause_mask = pop_died['cause_of_death'] == cause
+                pop_died_of_cause = pop_died[group_mask & cause_mask]
                 new_observations = {
                     f"death_due_to_{cause}_{label}": pop_died_of_cause.size,
                     f"ylls_due_to_{cause}_{label}": pop_died_of_cause["years_of_life_lost"].sum()

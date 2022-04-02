@@ -7,7 +7,6 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
-from vivarium.framework.time import Time
 
 
 class SourceType(Enum):
@@ -62,37 +61,17 @@ class ResultsStratifier:
 
     """
 
-    NAME = "results_stratifier"
+    name = "results_stratifier"
 
     configuration_defaults = {
-        "default": [],
+        "observers": {
+            "default": [],
+        }
     }
 
     def __init__(self):
-        self.configuration_defaults = self._get_configuration_defaults()
-
         self.metrics_pipeline_name = "metrics"
         self.tmrle_key = "population.theoretical_minimum_risk_life_expectancy"
-
-    ##########################
-    # Initialization methods #
-    ##########################
-
-    # noinspection PyMethodMayBeStatic
-    def _get_configuration_defaults(self) -> Dict[str, Dict]:
-        return {
-            "observers": {
-                "default": ResultsStratifier.configuration_defaults["default"]
-            }
-        }
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def name(self) -> str:
-        return ResultsStratifier.NAME
 
     #################
     # Setup methods #
@@ -101,7 +80,7 @@ class ResultsStratifier:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
-        self.clock = self._get_clock(builder)
+        self.clock = builder.time.clock()
         self.default_stratification_levels = self._get_default_stratification_levels(builder)
         self.pipelines = {}
         self.columns_required = ["tracked"]
@@ -115,10 +94,6 @@ class ResultsStratifier:
         self.population_view = self._get_population_view(builder)
 
         self._register_timestep_prepare_listener(builder)
-
-    # noinspection PyMethodMayBeStatic
-    def _get_clock(self, builder: Builder) -> Callable[[], Time]:
-        return builder.time.clock()
 
     # noinspection PyMethodMayBeStatic
     def _get_default_stratification_levels(self, builder: Builder) -> Set[str]:
@@ -202,8 +177,8 @@ class ResultsStratifier:
 
     # todo add caching of stratifications
     def group(
-            self, index: pd.Index, include: Set[str], exclude: Set[str]
-    ) -> Iterable[Tuple[str, pd.Index]]:
+            self, index: pd.Index, include: Iterable[str], exclude: Iterable[str]
+    ) -> Iterable[Tuple[str, pd.Series]]:
         """Takes a full population index and yields stratified subgroups.
 
         Parameters
@@ -226,14 +201,11 @@ class ResultsStratifier:
 
         for stratification in self._get_current_stratifications(include, exclude):
             stratification_key = self._get_stratification_key(stratification)
-            if index.empty:
-                group_index = index
-            else:
-                mask = True
+            group_mask = True
+            if not index.empty:
                 for level, category in stratification:
-                    mask &= stratification_groups[level.name] == category
-                group_index = stratification_groups[mask].index
-            yield stratification_key, group_index
+                    group_mask &= stratification_groups[level.name] == category
+            yield stratification_key, group_mask
 
     # todo should be able to remove this
     @staticmethod
@@ -290,7 +262,7 @@ class ResultsStratifier:
                 raise ValueError(f"Invalid stratification source type '{source.type}'.")
 
     def _get_current_stratifications(
-            self, include: Set[str], exclude: Set[str]
+            self, include: Iterable[str], exclude: Iterable[str]
     ) -> List[Tuple[Tuple[StratificationLevel, str], ...]]:
         """
         Gets all stratification combinations. Returns a List of Stratifications. Each Stratification
@@ -300,6 +272,8 @@ class ResultsStratifier:
 
         If no stratification levels are defined, returns a List with a single empty Tuple
         """
+        include = set(include)
+        exclude = set(exclude)
         level_names = (self.default_stratification_levels | include) - exclude
         groups = [
             [(level, category) for category in level.get_current_categories()]
