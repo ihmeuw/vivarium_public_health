@@ -15,7 +15,6 @@ from vivarium.config_tree import ConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
-from vivarium.framework.time import Timedelta
 from vivarium.framework.values import (
     Pipeline,
     list_combiner,
@@ -25,7 +24,7 @@ from vivarium.framework.values import (
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.metrics.stratification import ResultsStratifier
-from vivarium_public_health.utilities import to_time_delta, to_years
+from vivarium_public_health.utilities import to_years
 
 
 class DisabilityObserver:
@@ -33,8 +32,8 @@ class DisabilityObserver:
 
     By default, this counts both aggregate and cause-specific years lived
     with disability over the full course of the simulation. It can be
-    configured to bin the cause-specific YLDs into age groups, sexes, and years
-    by setting the ``by_age``, ``by_sex``, and ``by_year`` flags, respectively.
+    configured to add or remove stratification groups to the default groups
+    defined by a :class:ResultsStratifier.
 
     In the model specification, your configuration for this component should
     be specified as, e.g.:
@@ -42,40 +41,30 @@ class DisabilityObserver:
     .. code-block:: yaml
 
         configuration:
-            metrics:
-                disability:
-                    by_age: True
-                    by_year: False
-                    by_sex: True
-
+            observers:
+                mortality:
+                    exclude:
+                        - "sex"
+                    include:
+                        - "sample_stratification"
     """
 
     configuration_defaults = {
-        "include": [],
-        "exclude": [],
+        "observers": {
+            "disability": {
+                "exclude": [],
+                "include": [],
+            }
+        }
     }
 
     def __init__(self):
-        self.configuration_defaults = self._get_configuration_defaults()
-
         self.ylds_column_name = "years_lived_with_disability"
         self.metrics_pipeline_name = "metrics"
         self.disability_weight_pipeline_name = "disability_weight"
 
     def __repr__(self):
         return "DisabilityObserver()"
-
-    ##########################
-    # Initialization methods #
-    ##########################
-
-    # noinspection PyMethodMayBeStatic
-    def _get_configuration_defaults(self) -> Dict[str, Dict]:
-        return {
-            "observers": {
-                "disability": DisabilityObserver.configuration_defaults
-            }
-        }
 
     ##############
     # Properties #
@@ -92,7 +81,6 @@ class DisabilityObserver:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.config = self._get_stratification_configuration(builder)
-        self.step_size = self._get_step_size(builder)
         self.stratifier = self._get_stratifier(builder)
         self.disability_weight = self._get_disability_weight_pipeline(builder)
         self.causes_of_disability_pipelines = self._get_causes_of_disability_pipelines(builder)
@@ -109,12 +97,8 @@ class DisabilityObserver:
         return builder.configuration.observers.disability
 
     # noinspection PyMethodMayBeStatic
-    def _get_step_size(self, builder: Builder) -> Timedelta:
-        return to_time_delta(builder.configuration.time.step_size)
-
-    # noinspection PyMethodMayBeStatic
     def _get_stratifier(self, builder: Builder) -> ResultsStratifier:
-        return builder.components.get_component(ResultsStratifier.NAME)
+        return builder.components.get_component(ResultsStratifier.name)
 
     def _get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
         # todo observer should not be creating the disability weight pipeline
@@ -175,14 +159,13 @@ class DisabilityObserver:
         pop = self.population_view.get(
             event.index, query='tracked == True and alive == "alive"'
         )
-        groups = self.stratifier.group(
-            pop.index, set(self.config.include), set(self.config.exclude)
-        )
-        for label, group_index in groups:
+        groups = self.stratifier.group(pop.index, self.config.include, self.config.exclude)
+        for label, group_mask in groups:
+            group_index = pop[group_mask].index
             for cause, disability_weight in self.causes_of_disability_pipelines.items():
                 new_observations = {
                     f"ylds_due_to_{cause}_{label}":
-                        disability_weight(group_index).sum() * to_years(self.step_size)
+                        disability_weight(group_index).sum() * to_years(event.step_size)
                 }
                 self.counts.update(new_observations)
 

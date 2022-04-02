@@ -39,9 +39,6 @@ class MortalityObserver:
                         - "sex"
                     include:
                         - "sample_stratification"
-
-
-
     """
 
     configuration_defaults = {
