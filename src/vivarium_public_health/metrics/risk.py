@@ -15,11 +15,10 @@ from vivarium.config_tree import ConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
-from vivarium.framework.time import Timedelta
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.metrics.stratification import ResultsStratifier
-from vivarium_public_health.utilities import to_time_delta, to_years
+from vivarium_public_health.utilities import to_years
 
 
 class CategoricalRiskObserver:
@@ -47,8 +46,12 @@ class CategoricalRiskObserver:
     """
 
     configuration_defaults = {
-        "exclude": [],
-        "include": [],
+        "observers": {
+            "risk": {
+                "exclude": [],
+                "include": [],
+            }
+        }
     }
 
     def __init__(self, risk: str):
@@ -76,7 +79,7 @@ class CategoricalRiskObserver:
     def _get_configuration_defaults(self) -> Dict[str, Dict]:
         return {
             "observers": {
-                f"{self.risk}": CategoricalRiskObserver.configuration_defaults
+                f"{self.risk}": CategoricalRiskObserver.configuration_defaults["observers"]["risk"]
             }
         }
 
@@ -95,7 +98,6 @@ class CategoricalRiskObserver:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.config = self._get_stratification_configuration(builder)
-        self.step_size = self._get_step_size(builder)
         self.stratifier = self._get_stratifier(builder)
         self.categories = self._get_categories(builder)
         self.pipelines = self._get_pipelines(builder)
@@ -111,12 +113,8 @@ class CategoricalRiskObserver:
         return builder.configuration.observers[self.risk]
 
     # noinspection PyMethodMayBeStatic
-    def _get_step_size(self, builder: Builder) -> Timedelta:
-        return to_time_delta(builder.configuration.time.step_size)
-
-    # noinspection PyMethodMayBeStatic
     def _get_stratifier(self, builder: Builder) -> ResultsStratifier:
-        return builder.components.get_component(ResultsStratifier.NAME)
+        return builder.components.get_component(ResultsStratifier.name)
 
     # noinspection PyMethodMayBeStatic
     def _get_categories(self, builder: Builder) -> List[str]:
@@ -152,15 +150,13 @@ class CategoricalRiskObserver:
             event.index, query="tracked == True and alive == 'alive'"
         )
         exposures = self.pipelines[self.exposure_pipeline_name](pop.index)
-        groups = self.stratifier.group(
-            exposures.index, set(self.config.include), set(self.config.exclude)
-        )
-        for label, group_index in groups:
+        groups = self.stratifier.group(exposures.index, self.config.include, self.config.exclude)
+        for label, group_mask in groups:
             for category in self.categories:
-                category_mask = exposures.loc[group_index] == category
+                category_in_group_mask = group_mask & (exposures == category)
                 new_observations = {
                     f"{self.risk}_{category}_person_time_{label}":
-                        category_mask.sum() * to_years(self.step_size)
+                        category_in_group_mask.sum() * to_years(event.step_size)
                 }
                 self.counts.update(new_observations)
 
