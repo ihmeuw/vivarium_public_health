@@ -10,7 +10,6 @@ vivarium_public_health components.
 from typing import Iterable, Union
 
 import pandas as pd
-
 from vivarium.framework.lookup import ScalarValue
 
 

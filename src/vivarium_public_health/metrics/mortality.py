@@ -93,9 +93,11 @@ class MortalityObserver:
 
     # noinspection PyMethodMayBeStatic
     def _get_cause_components(
-            self, builder: Builder
+        self, builder: Builder
     ) -> List[Union[DiseaseState, RiskAttributableDisease]]:
-        return builder.components.get_components_by_type((DiseaseState, RiskAttributableDisease))
+        return builder.components.get_components_by_type(
+            (DiseaseState, RiskAttributableDisease)
+        )
 
     # noinspection PyMethodMayBeStatic
     def _get_population_view(self, builder: Builder) -> PopulationView:
