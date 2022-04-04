@@ -10,7 +10,6 @@ from collections import Counter
 from typing import Dict, List
 
 import pandas as pd
-
 from vivarium.config_tree import ConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -79,7 +78,9 @@ class CategoricalRiskObserver:
     def _get_configuration_defaults(self) -> Dict[str, Dict]:
         return {
             "observers": {
-                f"{self.risk}": CategoricalRiskObserver.configuration_defaults["observers"]["risk"]
+                f"{self.risk}": CategoricalRiskObserver.configuration_defaults["observers"][
+                    "risk"
+                ]
             }
         }
 
@@ -146,17 +147,20 @@ class CategoricalRiskObserver:
     ########################
 
     def on_time_step_prepare(self, event: Event) -> None:
+        step_size_in_years = to_years(event.step_size)
         pop = self.population_view.get(
             event.index, query="tracked == True and alive == 'alive'"
         )
         exposures = self.pipelines[self.exposure_pipeline_name](pop.index)
-        groups = self.stratifier.group(exposures.index, self.config.include, self.config.exclude)
+        groups = self.stratifier.group(
+            exposures.index, self.config.include, self.config.exclude
+        )
         for label, group_mask in groups:
             for category in self.categories:
                 category_in_group_mask = group_mask & (exposures == category)
+                person_time_in_group = category_in_group_mask.sum() * step_size_in_years
                 new_observations = {
-                    f"{self.risk}_{category}_person_time_{label}":
-                        category_in_group_mask.sum() * to_years(event.step_size)
+                    f"{self.risk}_{category}_person_time_{label}": person_time_in_group
                 }
                 self.counts.update(new_observations)
 

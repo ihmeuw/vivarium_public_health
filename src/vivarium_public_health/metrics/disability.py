@@ -165,6 +165,7 @@ class DisabilityObserver:
         )
 
     def on_time_step_prepare(self, event: Event) -> None:
+        step_size_in_years = to_years(event.step_size)
         pop = self.population_view.get(
             event.index, query='tracked == True and alive == "alive"'
         )
@@ -172,9 +173,9 @@ class DisabilityObserver:
         for label, group_mask in groups:
             group_index = pop[group_mask].index
             for cause, disability_weight in self.disability_pipelines.items():
+                disability_weight = disability_weight(group_index).sum() * step_size_in_years
                 new_observations = {
-                    f"ylds_due_to_{cause}_{label}": disability_weight(group_index).sum()
-                    * to_years(event.step_size)
+                    f"ylds_due_to_{cause}_{label}": disability_weight,
                 }
                 self.counts.update(new_observations)
 
