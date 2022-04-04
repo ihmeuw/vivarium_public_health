@@ -11,7 +11,6 @@ from collections import Counter
 from typing import Dict, List
 
 import pandas as pd
-
 from vivarium.config_tree import ConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
@@ -122,7 +121,7 @@ class DiseaseObserver:
     def _get_population_view(self, builder: Builder) -> PopulationView:
         columns_required = [
             self.current_state_column_name,
-            self.previous_state_column_name
+            self.previous_state_column_name,
         ]
         return builder.population.get_view(columns_required)
 
@@ -157,14 +156,19 @@ class DiseaseObserver:
         )
 
     def on_time_step_prepare(self, event: Event) -> None:
-        pop = self.population_view.get(event.index, query='tracked == True and alive == "alive"')
+        step_size_in_years = to_years(event.step_size)
+        pop = self.population_view.get(
+            event.index, query='tracked == True and alive == "alive"'
+        )
         groups = self.stratifier.group(pop.index, self.config.include, self.config.exclude)
         for label, group_mask in groups:
             for state in self.states:
-                state_in_group_mask = group_mask & (pop[self.current_state_column_name] == state)
+                state_in_group_mask = group_mask & (
+                    pop[self.current_state_column_name] == state
+                )
+                person_time_in_group = state_in_group_mask.sum() * step_size_in_years
                 new_observations = {
-                    f"{self.disease}_{state}_person_time_{label}":
-                        state_in_group_mask.sum() * to_years(event.step_size)
+                    f"{self.disease}_{state}_person_time_{label}": person_time_in_group
                 }
                 self.counts.update(new_observations)
 
@@ -174,7 +178,9 @@ class DiseaseObserver:
         self.population_view.update(pop)
 
     def on_collect_metrics(self, event: Event) -> None:
-        pop = self.population_view.get(event.index, query='tracked == True and alive == "alive"')
+        pop = self.population_view.get(
+            event.index, query='tracked == True and alive == "alive"'
+        )
         groups = self.stratifier.group(pop.index, self.config.include, self.config.exclude)
         for label, group_mask in groups:
             for transition in self.transitions:
