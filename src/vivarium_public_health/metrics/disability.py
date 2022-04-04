@@ -83,7 +83,7 @@ class DisabilityObserver:
         self.config = self._get_stratification_configuration(builder)
         self.stratifier = self._get_stratifier(builder)
         self.disability_weight = self._get_disability_weight_pipeline(builder)
-        self.causes_of_disability_pipelines = self._get_causes_of_disability_pipelines(builder)
+        self.disability_pipelines = self._get_disability_pipelines(builder)
         self.population_view = self._get_population_view(builder)
 
         self.counts = Counter()
@@ -110,7 +110,7 @@ class DisabilityObserver:
         )
 
     # noinspection PyMethodMayBeStatic
-    def _get_causes_of_disability_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
+    def _get_disability_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
         # todo can we specify only causes with a disability weight?
         causes_of_disability = builder.components.get_components_by_type(
             (DiseaseState, RiskAttributableDisease)
@@ -162,10 +162,10 @@ class DisabilityObserver:
         groups = self.stratifier.group(pop.index, self.config.include, self.config.exclude)
         for label, group_mask in groups:
             group_index = pop[group_mask].index
-            for cause, disability_weight in self.causes_of_disability_pipelines.items():
+            for cause, disability_weight in self.disability_pipelines.items():
                 new_observations = {
-                    f"ylds_due_to_{cause}_{label}":
-                        disability_weight(group_index).sum() * to_years(event.step_size)
+                    f"ylds_due_to_{cause}_{label}": disability_weight(group_index).sum()
+                    * to_years(event.step_size)
                 }
                 self.counts.update(new_observations)
 
