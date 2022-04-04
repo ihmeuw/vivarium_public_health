@@ -1,3 +1,12 @@
+"""
+==================
+Results Stratifier
+==================
+
+This module contains tools for stratifying observed quantities
+by specified characteristics.
+
+"""
 import itertools
 from dataclasses import dataclass
 from enum import Enum
@@ -212,30 +221,6 @@ class ResultsStratifier:
                 for level, category in stratification:
                     group_mask &= stratification_groups[level.name] == category
             yield stratification_key, group_mask
-
-    # todo should be able to remove this
-    @staticmethod
-    def update_labels(measure_data: Dict[str, float], label: str) -> Dict[str, float]:
-        """Updates a dict of measure data with stratification labels.
-
-        Parameters
-        ----------
-        measure_data
-            The measure data with unstratified column names.
-        label
-            The stratification labels. Yielded along with the population
-            subgroup the measure data was produced from by a call to
-            :obj:`ResultsStratifier.group`.
-
-        Returns
-        -------
-            The measure data with column names updated with the stratification
-            labels.
-
-        """
-        stratification_label = f"_{label}" if label else ""
-        measure_data = {f"{k}{stratification_label}": v for k, v in measure_data.items()}
-        return measure_data
 
     ##################
     # Helper methods #
