@@ -353,7 +353,7 @@ def get_prevalent_cases(pop, config, disease, event_time, age_bins):
 
 
 def get_population_counts(
-        pop: pd.DataFrame, config: Dict[str, bool], event_time: Time, age_bins: pd.DataFrame
+    pop: pd.DataFrame, config: Dict[str, bool], event_time: Time, age_bins: pd.DataFrame
 ) -> Dict[Union[SubstituteString, OutputTemplate], Union[int, float]]:
     config = config.copy()
     config["by_year"] = True  # This is always an annual point estimate

@@ -11,7 +11,6 @@ from collections import Counter
 from typing import Dict, List
 
 import pandas as pd
-
 from vivarium.framework.engine import Builder, ConfigTree
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
@@ -130,14 +129,18 @@ class MortalityObserver:
         pop = self.population_view.get(event.index)
         pop_died = pop[(pop["alive"] == "dead") & (pop["exit_time"] == event.time)]
 
-        groups = self.stratifier.group(pop_died.index, self.config.include, self.config.exclude)
+        groups = self.stratifier.group(
+            pop_died.index, self.config.include, self.config.exclude
+        )
         for label, group_mask in groups:
             for cause in self.causes_of_death:
-                cause_mask = pop_died['cause_of_death'] == cause
+                cause_mask = pop_died["cause_of_death"] == cause
                 pop_died_of_cause = pop_died[group_mask & cause_mask]
                 new_observations = {
                     f"death_due_to_{cause}_{label}": pop_died_of_cause.size,
-                    f"ylls_due_to_{cause}_{label}": pop_died_of_cause["years_of_life_lost"].sum()
+                    f"ylls_due_to_{cause}_{label}": pop_died_of_cause[
+                        "years_of_life_lost"
+                    ].sum(),
                 }
                 self.counts.update(new_observations)
 

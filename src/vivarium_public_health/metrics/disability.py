@@ -50,9 +50,7 @@ class DisabilityObserver:
     """
 
     def __init__(self):
-        self.stratifier = ResultsStratifier(
-            self.name
-        )
+        self.stratifier = ResultsStratifier(self.name)
 
     configuration_defaults = {
         "metrics": {

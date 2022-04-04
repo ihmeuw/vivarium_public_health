@@ -13,10 +13,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
-from vivarium_public_health.metrics.utilities import (
-    get_age_bins,
-    get_state_person_time,
-)
+from vivarium_public_health.metrics.utilities import get_age_bins, get_state_person_time
 
 
 class CategoricalRiskObserver:

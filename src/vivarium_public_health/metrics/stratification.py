@@ -1,7 +1,7 @@
+import itertools
 from dataclasses import dataclass
 from enum import Enum
-import itertools
-from typing import Callable, Dict, Iterable, List, Set, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Set, Tuple
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -34,7 +34,8 @@ class StratificationLevel:
     def __post_init__(self):
         self.mapper = self.mapper if self.mapper else self._default_mapper
         self.current_categories_getter = (
-            self.current_categories_getter if self.current_categories_getter
+            self.current_categories_getter
+            if self.current_categories_getter
             else self._default_current_categories_getter
         )
 
@@ -146,16 +147,21 @@ class ResultsStratifier:
         return age_bins
 
     def _register_timestep_prepare_listener(self, builder: Builder) -> None:
-        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare, priority=0)
+        builder.event.register_listener(
+            "time_step__prepare", self.on_time_step_prepare, priority=0
+        )
 
     ########################
     # Event-driven methods #
     ########################
 
     def on_time_step_prepare(self, event: Event) -> None:
-        pop = self.population_view.get(event.index, query='tracked == True and alive == "alive"')
+        pop = self.population_view.get(
+            event.index, query='tracked == True and alive == "alive"'
+        )
         pipeline_values = [
-            pd.Series(pipeline(pop.index), name=name) for name, pipeline in self.pipelines.items()
+            pd.Series(pipeline(pop.index), name=name)
+            for name, pipeline in self.pipelines.items()
         ]
         clock_values = [
             pd.Series(self.clock(), index=pop.index, name=name) for name in self.clock_sources
@@ -177,7 +183,7 @@ class ResultsStratifier:
 
     # todo add caching of stratifications
     def group(
-            self, index: pd.Index, include: Iterable[str], exclude: Iterable[str]
+        self, index: pd.Index, include: Iterable[str], exclude: Iterable[str]
     ) -> Iterable[Tuple[str, pd.Series]]:
         """Takes a full population index and yields stratified subgroups.
 
@@ -209,9 +215,7 @@ class ResultsStratifier:
 
     # todo should be able to remove this
     @staticmethod
-    def update_labels(
-        measure_data: Dict[str, float], label: str
-    ) -> Dict[str, float]:
+    def update_labels(measure_data: Dict[str, float], label: str) -> Dict[str, float]:
         """Updates a dict of measure data with stratification labels.
 
         Parameters
@@ -243,7 +247,7 @@ class ResultsStratifier:
         name: str,
         sources: List[Source],
         categories: Set[str],
-        mapper: Callable[[Union[pd.Series, ]], str] = None,
+        mapper: Callable[[pd.Series], str] = None,
         current_category_getter: Callable[[], Set[str]] = None,
     ) -> None:
         stratification_level = StratificationLevel(
@@ -262,7 +266,7 @@ class ResultsStratifier:
                 raise ValueError(f"Invalid stratification source type '{source.type}'.")
 
     def _get_current_stratifications(
-            self, include: Iterable[str], exclude: Iterable[str]
+        self, include: Iterable[str], exclude: Iterable[str]
     ) -> List[Tuple[Tuple[StratificationLevel, str], ...]]:
         """
         Gets all stratification combinations. Returns a List of Stratifications. Each Stratification
@@ -277,15 +281,18 @@ class ResultsStratifier:
         level_names = (self.default_stratification_levels | include) - exclude
         groups = [
             [(level, category) for category in level.get_current_categories()]
-            for level_name, level in self.stratification_levels.items() if level_name in level_names
+            for level_name, level in self.stratification_levels.items()
+            if level_name in level_names
         ]
         # Get product of all stratification combinations
         return list(itertools.product(*groups))
 
     @staticmethod
-    def _get_stratification_key(stratification: Iterable[Tuple[StratificationLevel, str]]) -> str:
+    def _get_stratification_key(
+        stratification: Iterable[Tuple[StratificationLevel, str]]
+    ) -> str:
         return (
-            "_".join([f'{level[0].name}_{level[1]}' for level in stratification])
+            "_".join([f"{level[0].name}_{level[1]}" for level in stratification])
             .replace(" ", "_")
             .lower()
         )
@@ -299,9 +306,8 @@ class ResultsStratifier:
 
     def age_stratification_mapper(self, row: pd.Series) -> str:
         age_group_mask = (
-            (self.age_bins["age_start"] <= row[ResultsStratifier.AGE_SOURCE.name])
-            & (row[ResultsStratifier.AGE_SOURCE.name] < self.age_bins["age_end"])
-        )
+            self.age_bins["age_start"] <= row[ResultsStratifier.AGE_SOURCE.name]
+        ) & (row[ResultsStratifier.AGE_SOURCE.name] < self.age_bins["age_end"])
         return str(self.age_bins.loc[age_group_mask, "age_group_name"].squeeze())
 
     SEX = "sex"
