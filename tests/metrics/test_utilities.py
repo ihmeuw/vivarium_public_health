@@ -1,4 +1,4 @@
-from itertools import combinations, product
+from itertools import product
 
 import numpy as np
 import pandas as pd
@@ -7,22 +7,15 @@ from vivarium.testing_utilities import metadata
 
 from vivarium_public_health.metrics.utilities import (
     _MAX_AGE,
-    _MAX_YEAR,
     _MIN_AGE,
-    _MIN_YEAR,
     OutputTemplate,
     QueryString,
     get_age_bins,
     get_age_sex_filter_and_iterables,
-    get_deaths,
     get_disease_event_counts,
-    get_lived_in_span,
     get_output_template,
-    get_person_time_in_span,
     get_susceptible_person_time,
-    get_time_iterable,
     get_years_lived_with_disability,
-    get_years_of_life_lost,
     to_years,
 )
 
@@ -263,38 +256,6 @@ def test_get_age_sex_filter_and_iterables_with_span(ages_and_bins, observer_conf
         assert sexes == ["Both"]
 
 
-@pytest.mark.parametrize("year_start, year_end", [(2011, 2017), (2011, 2011)])
-def test_get_time_iterable_no_year(year_start, year_end):
-    config = {"by_year": False}
-    sim_start = pd.Timestamp(f"7-2-{year_start}")
-    sim_end = pd.Timestamp(f"3-15-{year_end}")
-
-    time_spans = get_time_iterable(config, sim_start, sim_end)
-
-    assert len(time_spans) == 1
-    name, (start, end) = time_spans[0]
-    assert name == "all_years"
-    assert start == pd.Timestamp(f"1-1-{_MIN_YEAR}")
-    assert end == pd.Timestamp(f"1-1-{_MAX_YEAR}")
-
-
-@pytest.mark.parametrize("year_start, year_end", [(2011, 2017), (2011, 2011)])
-def test_get_time_iterable_with_year(year_start, year_end):
-    config = {"by_year": True}
-    sim_start = pd.Timestamp(f"7-2-{year_start}")
-    sim_end = pd.Timestamp(f"3-15-{year_end}")
-
-    time_spans = get_time_iterable(config, sim_start, sim_end)
-
-    years = list(range(year_start, year_end + 1))
-    assert len(time_spans) == len(years)
-    for year, time_span in zip(years, time_spans):
-        name, (start, end) = time_span
-        assert name == year
-        assert start == pd.Timestamp(f"1-1-{year}")
-        assert end == pd.Timestamp(f"1-1-{year+1}")
-
-
 def test_get_susceptible_person_time(ages_and_bins, sexes, observer_config):
     ages, age_bins = ages_and_bins
     disease = "test_disease"
@@ -362,260 +323,6 @@ def test_get_disease_event_counts(ages_and_bins, sexes, observer_config):
     values = set(counts.values())
     assert len(values) == 1
     assert np.isclose(values.pop(), 2 * expected_value)
-
-
-def test_get_lived_in_span():
-    dt = pd.Timedelta(days=5)
-    reference_t = pd.Timestamp("1-10-2010")
-
-    early_1 = reference_t - 2 * dt
-    early_2 = reference_t - dt
-
-    t_start = reference_t
-
-    mid_1 = reference_t + dt
-    mid_2 = reference_t + 2 * dt
-
-    t_end = reference_t + 3 * dt
-
-    late_1 = reference_t + 4 * dt
-    late_2 = reference_t + 5 * dt
-
-    # 28 combinations, six of which are entirely out of the time span
-    times = [early_1, early_2, t_start, mid_1, mid_2, t_end, late_1, late_2]
-    starts, ends = zip(*combinations(times, 2))
-    pop = pd.DataFrame({"age": to_years(10 * dt), "entrance_time": starts, "exit_time": ends})
-
-    lived_in_span = get_lived_in_span(pop, t_start, t_end)
-    # Indices here are from the combinatorics math. They represent
-    # 0: (early_1, early_2)
-    # 1: (early_1, t_start)
-    # 7: (early_2, t_start)
-    # 25: (t_end, late_1)
-    # 26: (t_end, late_2)
-    # 27: (late_1, late_2)
-    assert {0, 1, 7, 25, 26, 27}.intersection(lived_in_span.index) == set()
-
-    exit_before_span_end = lived_in_span.exit_time <= t_end
-    assert np.all(
-        lived_in_span.loc[exit_before_span_end, "age_at_span_end"]
-        == lived_in_span.loc[exit_before_span_end, "age"]
-    )
-
-    exit_after_span_end = ~exit_before_span_end
-    age_at_end = lived_in_span.age - to_years(lived_in_span.exit_time - t_end)
-    assert np.all(
-        lived_in_span.loc[exit_after_span_end, "age_at_span_end"]
-        == age_at_end.loc[exit_after_span_end]
-    )
-
-    enter_after_span_start = lived_in_span.entrance_time >= t_start
-    age_at_start = lived_in_span.age - to_years(
-        lived_in_span.exit_time - lived_in_span.entrance_time
-    )
-    assert np.all(
-        lived_in_span.loc[enter_after_span_start, "age_at_span_start"]
-        == age_at_start.loc[enter_after_span_start]
-    )
-
-    enter_before_span_start = ~enter_after_span_start
-    age_at_start = lived_in_span.age - to_years(lived_in_span.exit_time - t_start)
-    assert np.all(
-        lived_in_span.loc[enter_before_span_start, "age_at_span_start"]
-        == age_at_start.loc[enter_before_span_start]
-    )
-
-
-def test_get_lived_in_span_no_one_in_span():
-    dt = pd.Timedelta(days=365.25)
-    t_start = pd.Timestamp("1-1-2010")
-    t_end = t_start + dt
-
-    pop = pd.DataFrame(
-        {"entrance_time": t_start - 2 * dt, "exit_time": t_start - dt, "age": range(100)}
-    )
-    lived_in_span = get_lived_in_span(pop, t_start, t_end)
-    assert lived_in_span.empty
-
-    pop = pd.DataFrame(
-        {"entrance_time": t_end + dt, "exit_time": t_end + 2 * dt, "age": range(100)}
-    )
-    lived_in_span = get_lived_in_span(pop, t_start, t_end)
-    assert lived_in_span.empty
-
-
-def test_get_person_time_in_span(ages_and_bins, observer_config):
-    _, age_bins = ages_and_bins
-    start = int(age_bins.age_start.min())
-    end = int(age_bins.age_end.max())
-    n_ages = len(list(range(start, end)))
-    n_bins = len(age_bins)
-    segments_per_age = [(i + 1) * (n_ages - i) for i in range(n_ages)]
-    ages_per_bin = n_ages // n_bins
-    age_bins["expected_time"] = [
-        sum(segments_per_age[ages_per_bin * i : ages_per_bin * (i + 1)])
-        for i in range(n_bins)
-    ]
-
-    age_starts, age_ends = zip(*combinations(range(start, end + 1), 2))
-    women = pd.DataFrame(
-        {"age_at_span_start": age_starts, "age_at_span_end": age_ends, "sex": "Female"}
-    )
-    men = women.copy()
-    men.loc[:, "sex"] = "Male"
-
-    lived_in_span = (
-        pd.concat([women, men], ignore_index=True).sample(frac=1).reset_index(drop=True)
-    )
-    base_filter = QueryString("")
-    span_key = get_output_template(**observer_config).substitute(
-        measure="person_time", year=2019
-    )
-
-    pt = get_person_time_in_span(
-        lived_in_span, base_filter, span_key, observer_config, age_bins
-    )
-
-    if observer_config["by_age"]:
-        for group, age_bin in age_bins.iterrows():
-            group_pt = sum(set([v for k, v in pt.items() if f"in_age_group_{group}" in k]))
-            if observer_config["by_sex"]:
-                assert group_pt == age_bin.expected_time
-            else:
-                assert group_pt == 2 * age_bin.expected_time
-    else:
-        group_pt = sum(set(pt.values()))
-        if observer_config["by_sex"]:
-            assert group_pt == age_bins.expected_time.sum()
-        else:
-            assert group_pt == 2 * age_bins.expected_time.sum()
-
-
-def test_get_deaths(ages_and_bins, sexes, observer_config):
-    alive = ["dead", "alive"]
-    ages, age_bins = ages_and_bins
-    exit_times = [pd.Timestamp("1-1-2012"), pd.Timestamp("1-1-2013")]
-    causes = ["cause_a", "cause_b"]
-
-    pop = pd.DataFrame(
-        list(product(alive, ages, sexes, exit_times, causes)),
-        columns=["alive", "age", "sex", "exit_time", "cause_of_death"],
-    )
-    # Shuffle the rows
-    pop = pop.sample(frac=1).reset_index(drop=True)
-
-    deaths = get_deaths(
-        pop,
-        observer_config,
-        pd.Timestamp("1-1-2010"),
-        pd.Timestamp("1-1-2015"),
-        age_bins,
-        causes,
-    )
-    values = set(deaths.values())
-
-    expected_value = len(pop) / (len(causes) * len(alive))
-    if observer_config["by_year"]:
-        assert (
-            len(values) == 2
-        )  # Uniform across bins with deaths, 0 in year bins without deaths
-        expected_value /= 2
-    else:
-        assert len(values) == 1
-    value = max(values)
-    if observer_config["by_sex"]:
-        expected_value /= 2
-    if observer_config["by_age"]:
-        expected_value /= len(age_bins)
-    assert np.isclose(value, expected_value)
-
-    # Doubling pop should double counts
-    pop = pd.concat([pop, pop], axis=0, ignore_index=True)
-
-    deaths = get_deaths(
-        pop,
-        observer_config,
-        pd.Timestamp("1-1-2010"),
-        pd.Timestamp("1-1-2015"),
-        age_bins,
-        causes,
-    )
-    values = set(deaths.values())
-
-    if observer_config["by_year"]:
-        assert (
-            len(values) == 2
-        )  # Uniform across bins with deaths, 0 in year bins without deaths
-    else:
-        assert len(values) == 1
-    value = max(values)
-    assert np.isclose(value, 2 * expected_value)
-
-
-def test_get_years_of_life_lost(ages_and_bins, sexes, observer_config):
-    alive = ["dead", "alive"]
-    ages, age_bins = ages_and_bins
-    exit_times = [pd.Timestamp("1-1-2012"), pd.Timestamp("1-1-2013")]
-    causes = ["cause_a", "cause_b"]
-
-    pop = pd.DataFrame(
-        list(product(alive, ages, sexes, exit_times, causes)),
-        columns=["alive", "age", "sex", "exit_time", "cause_of_death"],
-    )
-    # Shuffle the rows
-    pop = pop.sample(frac=1).reset_index(drop=True)
-
-    def life_expectancy(index):
-        return pd.Series(1, index=index)
-
-    ylls = get_years_of_life_lost(
-        pop,
-        observer_config,
-        pd.Timestamp("1-1-2010"),
-        pd.Timestamp("1-1-2015"),
-        age_bins,
-        life_expectancy,
-        causes,
-    )
-    values = set(ylls.values())
-
-    expected_value = len(pop) / (len(causes) * len(alive))
-    if observer_config["by_year"]:
-        assert (
-            len(values) == 2
-        )  # Uniform across bins with deaths, 0 in year bins without deaths
-        expected_value /= 2
-    else:
-        assert len(values) == 1
-    value = max(values)
-    if observer_config["by_sex"]:
-        expected_value /= 2
-    if observer_config["by_age"]:
-        expected_value /= len(age_bins)
-    assert np.isclose(value, expected_value)
-
-    # Doubling pop should double counts
-    pop = pd.concat([pop, pop], axis=0, ignore_index=True)
-
-    ylls = get_years_of_life_lost(
-        pop,
-        observer_config,
-        pd.Timestamp("1-1-2010"),
-        pd.Timestamp("1-1-2015"),
-        age_bins,
-        life_expectancy,
-        causes,
-    )
-    values = set(ylls.values())
-
-    if observer_config["by_year"]:
-        assert (
-            len(values) == 2
-        )  # Uniform across bins with deaths, 0 in year bins without deaths
-    else:
-        assert len(values) == 1
-    value = max(values)
-    assert np.isclose(value, 2 * expected_value)
 
 
 def test_get_years_lived_with_disability(ages_and_bins, sexes, observer_config):
