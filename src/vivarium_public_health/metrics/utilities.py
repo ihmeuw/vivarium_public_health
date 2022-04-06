@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.time import Time
-from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.utilities import to_years
 
@@ -313,45 +312,6 @@ def get_group_counts(
     return group_counts
 
 
-# todo is this used?
-def get_susceptible_person_time(pop, config, disease, current_year, step_size, age_bins):
-    base_key = get_output_template(**config).substitute(
-        measure=f"{disease}_susceptible_person_time", year=current_year
-    )
-    base_filter = QueryString(f'alive == "alive" and {disease} == "susceptible_to_{disease}"')
-    person_time = get_group_counts(
-        pop,
-        base_filter,
-        base_key,
-        config,
-        age_bins,
-        aggregate=lambda x: len(x) * to_years(step_size),
-    )
-    return person_time
-
-
-# todo is this used?
-def get_disease_event_counts(pop, config, disease, event_time, age_bins):
-    base_key = get_output_template(**config).substitute(
-        measure=f"{disease}_counts", year=event_time.year
-    )
-    # Can't use query with time stamps, so filter
-    pop = pop.loc[pop[f"{disease}_event_time"] == event_time]
-    base_filter = QueryString("")
-    return get_group_counts(pop, base_filter, base_key, config, age_bins)
-
-
-# todo is this used?
-def get_prevalent_cases(pop, config, disease, event_time, age_bins):
-    config = config.copy()
-    config["by_year"] = True  # This is always an annual point estimate
-    base_key = get_output_template(**config).substitute(
-        measure=f"{disease}_prevalent_cases", year=event_time.year
-    )
-    base_filter = QueryString(f'alive == "alive" and {disease} != "susceptible_to_{disease}"')
-    return get_group_counts(pop, base_filter, base_key, config, age_bins)
-
-
 def get_population_counts(
     pop: pd.DataFrame, config: Dict[str, bool], event_time: Time, age_bins: pd.DataFrame
 ) -> Dict[Union[SubstituteString, OutputTemplate], Union[int, float]]:
@@ -362,64 +322,6 @@ def get_population_counts(
     )
     base_filter = QueryString(f'alive == "alive"')
     return get_group_counts(pop, base_filter, base_key, config, age_bins)
-
-
-# todo move into DisabilityObserver?
-def get_years_lived_with_disability(
-    pop: pd.DataFrame,
-    config: Dict[str, bool],
-    current_year: int,
-    step_size: pd.Timedelta,
-    age_bins: pd.DataFrame,
-    disability_weights: Dict[str, Pipeline],
-    causes: List[str],
-) -> Dict[str, float]:
-    """Counts the years lived with disability by cause in the time step.
-
-    Parameters
-    ----------
-    pop
-        The population dataframe to be counted. It must contain sufficient
-        columns for any necessary filtering (e.g. the ``age`` column if
-        filtering by age).
-    config
-        A dict with ``by_age``, ``by_sex``, and ``by_year`` keys and
-        boolean values.
-    current_year
-        The current year in the simulation.
-    step_size
-        The size of the current time step.
-    age_bins
-        A dataframe with ``age_start`` and ``age_end`` columns.
-    disability_weights
-        A mapping between causes and their disability weight pipelines.
-    causes
-        List of causes present in the simulation.
-
-    Returns
-    -------
-    Dict[str, float]
-        A dictionary of output_key, yld_count pairs where the output_key
-        represents a particular demographic subgroup.
-
-    """
-    base_key = get_output_template(**config).substitute(year=current_year)
-    base_filter = QueryString('alive == "alive"')
-
-    years_lived_with_disability = {}
-    for cause in causes:
-        cause_key = base_key.substitute(measure=f"ylds_due_to_{cause}")
-
-        def count_ylds(sub_group):
-            """Counts ylds attributable to a cause in the time step."""
-            return sum(disability_weights[cause](sub_group.index) * to_years(step_size))
-
-        group_ylds = get_group_counts(
-            pop, base_filter, cause_key, config, age_bins, aggregate=count_ylds
-        )
-        years_lived_with_disability.update(group_ylds)
-
-    return years_lived_with_disability
 
 
 def get_state_person_time(

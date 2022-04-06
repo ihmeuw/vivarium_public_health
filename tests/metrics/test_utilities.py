@@ -12,11 +12,7 @@ from vivarium_public_health.metrics.utilities import (
     QueryString,
     get_age_bins,
     get_age_sex_filter_and_iterables,
-    get_disease_event_counts,
     get_output_template,
-    get_susceptible_person_time,
-    get_years_lived_with_disability,
-    to_years,
 )
 
 
@@ -254,126 +250,6 @@ def test_get_age_sex_filter_and_iterables_with_span(ages_and_bins, observer_conf
         assert data["age_end"] == _MAX_AGE
 
         assert sexes == ["Both"]
-
-
-def test_get_susceptible_person_time(ages_and_bins, sexes, observer_config):
-    ages, age_bins = ages_and_bins
-    disease = "test_disease"
-    states = [f"susceptible_to_{disease}", disease]
-    pop = pd.DataFrame(list(product(ages, sexes, states)), columns=["age", "sex", disease])
-    pop["alive"] = "alive"
-    # Shuffle the rows
-    pop = pop.sample(frac=1).reset_index(drop=True)
-
-    year = 2017
-    step_size = pd.Timedelta(days=7)
-
-    person_time = get_susceptible_person_time(
-        pop, observer_config, disease, year, step_size, age_bins
-    )
-
-    values = set(person_time.values())
-    assert len(values) == 1
-    expected_value = to_years(step_size) * len(pop) / 2
-    if observer_config["by_sex"]:
-        expected_value /= 2
-    if observer_config["by_age"]:
-        expected_value /= len(age_bins)
-    assert np.isclose(values.pop(), expected_value)
-
-    # Doubling pop should double person time
-    pop = pd.concat([pop, pop], axis=0, ignore_index=True)
-
-    person_time = get_susceptible_person_time(
-        pop, observer_config, disease, year, step_size, age_bins
-    )
-
-    values = set(person_time.values())
-    assert len(values) == 1
-    assert np.isclose(values.pop(), 2 * expected_value)
-
-
-def test_get_disease_event_counts(ages_and_bins, sexes, observer_config):
-    ages, age_bins = ages_and_bins
-    disease = "test_disease"
-    event_time = pd.Timestamp("1-1-2017")
-    states = [event_time, pd.NaT]
-    pop = pd.DataFrame(
-        list(product(ages, sexes, states)), columns=["age", "sex", f"{disease}_event_time"]
-    )
-    # Shuffle the rows
-    pop = pop.sample(frac=1).reset_index(drop=True)
-
-    counts = get_disease_event_counts(pop, observer_config, disease, event_time, age_bins)
-
-    values = set(counts.values())
-    assert len(values) == 1
-    expected_value = len(pop) / len(states)
-    if observer_config["by_sex"]:
-        expected_value /= 2
-    if observer_config["by_age"]:
-        expected_value /= len(age_bins)
-    assert np.isclose(values.pop(), expected_value)
-
-    # Doubling pop should double counts
-    pop = pd.concat([pop, pop], axis=0, ignore_index=True)
-
-    counts = get_disease_event_counts(pop, observer_config, disease, event_time, age_bins)
-
-    values = set(counts.values())
-    assert len(values) == 1
-    assert np.isclose(values.pop(), 2 * expected_value)
-
-
-def test_get_years_lived_with_disability(ages_and_bins, sexes, observer_config):
-    alive = ["dead", "alive"]
-    ages, age_bins = ages_and_bins
-    causes = ["cause_a", "cause_b"]
-    cause_a = ["susceptible_to_cause_a", "cause_a"]
-    cause_b = ["susceptible_to_cause_b", "cause_b"]
-    year = 2010
-    step_size = pd.Timedelta(days=7)
-
-    pop = pd.DataFrame(
-        list(product(alive, ages, sexes, cause_a, cause_b)),
-        columns=["alive", "age", "sex"] + causes,
-    )
-    # Shuffle the rows
-    pop = pop.sample(frac=1).reset_index(drop=True)
-
-    def disability_weight(cause):
-        def inner(index):
-            sub_pop = pop.loc[index]
-            return pd.Series(1, index=index) * (sub_pop[cause] == cause)
-
-        return inner
-
-    disability_weights = {cause: disability_weight(cause) for cause in causes}
-
-    ylds = get_years_lived_with_disability(
-        pop, observer_config, year, step_size, age_bins, disability_weights, causes
-    )
-
-    values = set(ylds.values())
-    assert len(values) == 1
-    states_per_cause = len(cause_a)
-    expected_value = len(pop) / (len(alive) * states_per_cause) * to_years(step_size)
-    if observer_config["by_sex"]:
-        expected_value /= 2
-    if observer_config["by_age"]:
-        expected_value /= len(age_bins)
-    assert np.isclose(values.pop(), expected_value)
-
-    # Doubling pop should double person time
-    pop = pd.concat([pop, pop], axis=0, ignore_index=True)
-
-    ylds = get_years_lived_with_disability(
-        pop, observer_config, year, step_size, age_bins, disability_weights, causes
-    )
-
-    values = set(ylds.values())
-    assert len(values) == 1
-    assert np.isclose(values.pop(), 2 * expected_value)
 
 
 @pytest.mark.parametrize(
