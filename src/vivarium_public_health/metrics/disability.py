@@ -16,6 +16,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import PopulationView
 from vivarium.framework.values import (
+    NumberLike,
     Pipeline,
     list_combiner,
     rescale_post_processor,
@@ -42,7 +43,7 @@ class DisabilityObserver:
 
         configuration:
             observers:
-                mortality:
+                disability:
                     exclude:
                         - "sex"
                     include:
@@ -164,6 +165,7 @@ class DisabilityObserver:
         )
 
     def on_time_step_prepare(self, event: Event) -> None:
+        step_size_in_years = to_years(event.step_size)
         pop = self.population_view.get(
             event.index, query='tracked == True and alive == "alive"'
         )
@@ -171,9 +173,9 @@ class DisabilityObserver:
         for label, group_mask in groups:
             group_index = pop[group_mask].index
             for cause, disability_weight in self.disability_pipelines.items():
+                disability_weight = disability_weight(group_index).sum() * step_size_in_years
                 new_observations = {
-                    f"ylds_due_to_{cause}_{label}": disability_weight(group_index).sum()
-                    * to_years(event.step_size)
+                    f"ylds_due_to_{cause}_{label}": disability_weight,
                 }
                 self.counts.update(new_observations)
 
@@ -184,12 +186,12 @@ class DisabilityObserver:
     # Pipeline sources and modifiers #
     ##################################
 
-    def metrics(self, index: pd.Index, metrics: Dict):
+    def metrics(self, index: pd.Index, metrics: Dict) -> Dict:
         total_ylds = self.population_view.get(index)[self.ylds_column_name].sum()
         metrics["years_lived_with_disability"] = total_ylds
         metrics.update(self.counts)
         return metrics
 
 
-def _disability_post_processor(value, step_size):
+def _disability_post_processor(value: NumberLike, step_size: pd.Timedelta) -> NumberLike:
     return rescale_post_processor(union_post_processor(value, step_size), step_size)
