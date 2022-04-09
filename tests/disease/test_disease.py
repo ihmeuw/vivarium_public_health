@@ -497,7 +497,10 @@ def test_state_transition_names(disease):
     healthy.add_transition(with_condition)
     with_condition.add_transition(healthy)
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
-    assert set(model.state_names) == {"diarrheal_diseases", "susceptible_to_diarrheal_diseases"}
+    assert set(model.state_names) == {
+        "diarrheal_diseases",
+        "susceptible_to_diarrheal_diseases",
+    }
     assert set(model.transition_names) == {
         TransitionString("diarrheal_diseases_TO_susceptible_to_diarrheal_diseases"),
         TransitionString("susceptible_to_diarrheal_diseases_TO_diarrheal_diseases"),

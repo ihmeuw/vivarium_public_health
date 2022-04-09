@@ -13,14 +13,9 @@ from vivarium_public_health.metrics.stratification import (
     StratificationLevel,
 )
 
-
 AGE_BINS = pd.DataFrame(
     [
-        {
-            "age_start": age,
-            "age_end": age + 5,
-            "age_group_name": f"{age}_to_{age + 5}"
-        }
+        {"age_start": age, "age_end": age + 5, "age_group_name": f"{age}_to_{age + 5}"}
         for i, age in enumerate(range(10, 65, 5))
     ]
 )
@@ -28,45 +23,48 @@ DEFAULT_CONFIGS = ["year", "sex", "age"]
 START_YEAR = 2020
 END_YEAR = 2030
 STRATIFICATION_LEVELS = {
-        "age": StratificationLevel(
-            name="age",
-            sources=[Source("age", SourceType.COLUMN)],
-            categories={"0", "1", "2", "3", "4"},
-            mapper=lambda row: str(floor(row[0])),
-        ),
-        "sex": StratificationLevel(
-            name="l2",
-            sources=[Source("sex", SourceType.COLUMN)],
-            categories={"Male", "Female"},
-        ),
-        "multi": StratificationLevel(
-            name="multi",
-            sources=[
-                Source("part_1", SourceType.COLUMN), Source("pipeline_1", SourceType.PIPELINE)
-            ],
-            categories={"c2", "c30", "c31", "c10", "c11"},
-            mapper=lambda row: "c2" if row["part_1"] == "c2" else row["part_1"] + row["pipeline_1"]
-        ),
-        "p2": StratificationLevel(
-            name="p2",
-            sources=[Source("pipeline_2", SourceType.PIPELINE)],
-            categories={"2", "3"},
-        ),
-        "year": StratificationLevel(
-            name="year",
-            sources=[Source("clock_1", SourceType.CLOCK)],
-            categories={"2020", "2021", "2022", "2023"},
-            mapper=lambda row: str(row[0].year),
-            current_categories_getter=lambda: {str(mock_clock().year)}
-        ),
-        "month": StratificationLevel(
-            name="month",
-            sources=[Source("clock_2", SourceType.CLOCK)],
-            categories={str(i + 1) for i in range(12)},
-            mapper=lambda row: str(row[0].month),
-            current_categories_getter=lambda: {str(mock_clock().month)}
-        ),
-    }
+    "age": StratificationLevel(
+        name="age",
+        sources=[Source("age", SourceType.COLUMN)],
+        categories={"0", "1", "2", "3", "4"},
+        mapper=lambda row: str(floor(row[0])),
+    ),
+    "sex": StratificationLevel(
+        name="l2",
+        sources=[Source("sex", SourceType.COLUMN)],
+        categories={"Male", "Female"},
+    ),
+    "multi": StratificationLevel(
+        name="multi",
+        sources=[
+            Source("part_1", SourceType.COLUMN),
+            Source("pipeline_1", SourceType.PIPELINE),
+        ],
+        categories={"c2", "c30", "c31", "c10", "c11"},
+        mapper=lambda row: "c2"
+        if row["part_1"] == "c2"
+        else row["part_1"] + row["pipeline_1"],
+    ),
+    "p2": StratificationLevel(
+        name="p2",
+        sources=[Source("pipeline_2", SourceType.PIPELINE)],
+        categories={"2", "3"},
+    ),
+    "year": StratificationLevel(
+        name="year",
+        sources=[Source("clock_1", SourceType.CLOCK)],
+        categories={"2020", "2021", "2022", "2023"},
+        mapper=lambda row: str(row[0].year),
+        current_categories_getter=lambda: {str(mock_clock().year)},
+    ),
+    "month": StratificationLevel(
+        name="month",
+        sources=[Source("clock_2", SourceType.CLOCK)],
+        categories={str(i + 1) for i in range(12)},
+        mapper=lambda row: str(row[0].month),
+        current_categories_getter=lambda: {str(mock_clock().month)},
+    ),
+}
 
 
 def unmock_instance_method(instance, method: Callable) -> Callable:
@@ -116,7 +114,7 @@ def load(key: str) -> pd.DataFrame:
                 {
                     "age_start": age,
                     "age_end": age + 5,
-                    "age_group_name": f"{age}_to_{age + 5}"
+                    "age_group_name": f"{age}_to_{age + 5}",
                 }
                 for i, age in enumerate(range(0, 100, 5))
             ]
@@ -133,7 +131,7 @@ def mock_mapper(row: pd.Series) -> str:
 
 
 def mock_current_categories_getter() -> Set[str]:
-    return {'a', 'b', 'c'}
+    return {"a", "b", "c"}
 
 
 def test_setting_default_stratification(mock_stratifier: MagicMock, mock_builder: MagicMock):
@@ -153,19 +151,16 @@ def test_setting_default_stratification(mock_stratifier: MagicMock, mock_builder
 
 @pytest.mark.parametrize(
     "age_start, age_end, expected_age_start, expected_age_end",
-    [
-        (20, 55, 20, 55),
-        (18, 47, 15, 50)
-    ],
+    [(20, 55, 20, 55), (18, 47, 15, 50)],
     ids=["on_bound", "between_bounds"],
 )
 def test_setting_age_bins(
-        mock_stratifier: MagicMock,
-        mock_builder: MagicMock,
-        age_start: int,
-        age_end: int,
-        expected_age_start: int,
-        expected_age_end: int,
+    mock_stratifier: MagicMock,
+    mock_builder: MagicMock,
+    age_start: int,
+    age_end: int,
+    expected_age_start: int,
+    expected_age_end: int,
 ):
     # Setup mocks
     mock_builder.configuration.population.age_start = age_start
@@ -181,11 +176,7 @@ def test_setting_age_bins(
     # Assertions
     expected_outputs = pd.DataFrame(
         [
-            {
-                "age_start": age,
-                "age_end": age + 5,
-                "age_group_name": f"{age}_to_{age + 5}"
-            }
+            {"age_start": age, "age_end": age + 5, "age_group_name": f"{age}_to_{age + 5}"}
             for i, age in enumerate(range(expected_age_start, expected_age_end, 5))
         ]
     )
@@ -193,8 +184,8 @@ def test_setting_age_bins(
 
 
 def test_stratifications_and_listeners_registered(
-        mock_stratifier: MagicMock,
-        mock_builder: MagicMock,
+    mock_stratifier: MagicMock,
+    mock_builder: MagicMock,
 ):
     # Setup mocks
     mock_stratifier._register_timestep_prepare_listener = MagicMock(
@@ -221,7 +212,7 @@ def test_registering_stratifications(mock_stratifier: MagicMock, mock_builder: M
             mock_stratifier, ResultsStratifier.register_stratifications
         )
     )
-    
+
     # Code to test
     mock_stratifier.register_stratifications(mock_builder)
 
@@ -259,13 +250,13 @@ def test_registering_stratifications(mock_stratifier: MagicMock, mock_builder: M
         [Source("year", SourceType.CLOCK)],
         [Source("age", SourceType.COLUMN), Source("exposure", SourceType.PIPELINE)],
     ],
-    ids=["column", "pipeline", "clock", "multiple"]
+    ids=["column", "pipeline", "clock", "multiple"],
 )
 def test_setup_stratification(
-        mock_stratifier: MagicMock,
-        mock_builder: MagicMock,
-        mock_stratification_level_init: patch,
-        sources: List[Source],
+    mock_stratifier: MagicMock,
+    mock_builder: MagicMock,
+    mock_stratification_level_init: patch,
+    sources: List[Source],
 ):
     # Setup mocks
     mock_stratifier.stratification_levels = {}
@@ -274,14 +265,21 @@ def test_setup_stratification(
     mock_stratifier.clock_sources = set()
 
     mock_stratifier.setup_stratification = MagicMock(
-        side_effect=unmock_instance_method(mock_stratifier, ResultsStratifier.setup_stratification)
+        side_effect=unmock_instance_method(
+            mock_stratifier, ResultsStratifier.setup_stratification
+        )
     )
     name = "test_name"
-    categories = {'a', 'b', 'c'}
+    categories = {"a", "b", "c"}
 
     # Code to test
     mock_stratifier.setup_stratification(
-        mock_builder, name, sources, categories, mock_mapper, mock_current_categories_getter,
+        mock_builder,
+        name,
+        sources,
+        categories,
+        mock_mapper,
+        mock_current_categories_getter,
     )
 
     # Assertions
@@ -301,7 +299,7 @@ def test_setup_stratification(
 
 
 def test_setting_stratification_groups_on_time_step_prepare(
-        mock_stratifier: MagicMock, mock_builder: MagicMock
+    mock_stratifier: MagicMock, mock_builder: MagicMock
 ):
     # Setup mocks
     def mock_pipeline_1(index: pd.Index) -> pd.Series:
@@ -335,7 +333,9 @@ def test_setting_stratification_groups_on_time_step_prepare(
     mock_stratifier.stratification_levels = STRATIFICATION_LEVELS
 
     mock_stratifier.on_time_step_prepare = MagicMock(
-        side_effect=unmock_instance_method(mock_stratifier, ResultsStratifier.on_time_step_prepare)
+        side_effect=unmock_instance_method(
+            mock_stratifier, ResultsStratifier.on_time_step_prepare
+        )
     )
 
     # Code to test
@@ -351,7 +351,7 @@ def test_setting_stratification_groups_on_time_step_prepare(
             "year": ["2022", "2022", "2022", "2022"],
             "month": ["5", "5", "5", "5"],
         },
-        index=mock_population_view_data.index
+        index=mock_population_view_data.index,
     )
     assert (mock_stratifier.stratification_groups.values == expected_groups.values).all()
 
