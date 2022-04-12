@@ -62,6 +62,7 @@ class StratificationLevel:
 
 
 class ResultsStratifier:
+    # todo fix this docstring
     """Centralized component for handling results stratification.
 
     This should be used as a subcomponent for observers.  The observers
@@ -93,7 +94,7 @@ class ResultsStratifier:
         self.clock = builder.time.clock()
         self.default_stratification_levels = self._get_default_stratification_levels(builder)
         self.pipelines = {}
-        self.columns_required = ["tracked"]
+        self.columns_required = {"tracked"}
         self.clock_sources = set()
         self.stratification_levels: Dict[str, StratificationLevel] = {}
         self.stratification_groups: pd.DataFrame = None
@@ -141,7 +142,7 @@ class ResultsStratifier:
 
     # noinspection PyMethodMayBeStatic
     def _get_population_view(self, builder: Builder) -> PopulationView:
-        return builder.population.get_view(self.columns_required)
+        return builder.population.get_view(list(self.columns_required))
 
     # noinspection PyMethodMayBeStatic
     def _get_age_bins(self, builder: Builder) -> pd.DataFrame:
@@ -238,13 +239,13 @@ class ResultsStratifier:
         stratification_level = StratificationLevel(
             name, sources, categories, mapper, current_category_getter
         )
-        self.stratification_levels[stratification_level.name] = stratification_level
+        self.stratification_levels[name] = stratification_level
 
-        for source in stratification_level.sources:
+        for source in sources:
             if source.type == SourceType.PIPELINE:
                 self.pipelines[source.name] = builder.value.get_value(source.name)
             elif source.type == SourceType.COLUMN:
-                self.columns_required.append(source.name)
+                self.columns_required.add(source.name)
             elif source.type == SourceType.CLOCK:
                 self.clock_sources.add(source.name)
             else:
