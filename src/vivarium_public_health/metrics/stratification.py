@@ -26,14 +26,36 @@ class SourceType(Enum):
 
 @dataclass
 class Source:
-    # todo add docstrings
+    """
+    A source of information about simulants used to determine which category
+    they belong to for a given stratification level. The source name should be
+    the name of the column or pipeline being used as the source. If the source
+    is of type clock, the name should be something descriptive and unique.
+    """
     name: str
     type: SourceType
 
 
 @dataclass
 class StratificationLevel:
-    # todo add docstrings
+    """
+    A level of stratification. Each StratificationLevel represents a set of
+    mutually exclusive and collectively exhaustive categories into which
+    simulants can be assigned.
+
+    The mapper is a function which is applied to the list of sources and
+    assigns each simulant to specific category. It will throw an error if its
+    output is not one of the stratification's categories. By default, the
+    mapper assumes the StratificationLevel has a single source and returns its
+    value as the category.
+
+    A current category getter can be defined if it is known that certain
+    categories are not possible during specific times. Removing these
+    categories from iteration can provide a performance improvement in these
+    cases. The primary use case for the current category getter is for
+    stratification by time, and in particular stratification by year. By
+    default, this will return all categories.
+    """
     name: str
     sources: List[Source]
     categories: Set[str]
@@ -41,35 +63,57 @@ class StratificationLevel:
     current_categories_getter: Callable[[], Set[str]] = None
 
     def __post_init__(self):
-        self.mapper = self.mapper if self.mapper else self._default_mapper
+        self._set_mapper()
+        self._set_current_categories_getter()
+
+    @property
+    def current_categories(self) -> Set[str]:
+        return self.current_categories_getter()
+
+    def _set_mapper(self) -> None:
+        """
+        Sets the mapper to be the identity mapper if no mapper has been
+        provided. Additionally, wraps the mapper so that it will throw a
+        ValueError if the mapper produces an output that is not in the set of
+        this StratificationLevel's categories.
+        """
+        name = self.name
+        categories = self.categories
+        mapper = self.mapper if self.mapper else self._default_mapper
+
+        def wrapped_mapper(row: pd.Series) -> str:
+            category = mapper(row)
+            if category not in categories:
+                raise ValueError(f"Invalid value '{category}' found in {name}.")
+            return category
+
+        self.mapper = wrapped_mapper
+
+    def _set_current_categories_getter(self) -> None:
         self.current_categories_getter = (
             self.current_categories_getter
             if self.current_categories_getter
             else self._default_current_categories_getter
         )
 
-    def get_current_categories(self) -> Set[str]:
-        return self.current_categories_getter()
+    ###############################
+    # Default getters and mappers #
+    ###############################
 
+    # noinspection PyMethodMayBeStatic
     def _default_mapper(self, row: pd.Series) -> str:
-        category = str(row[0])
-        if category not in self.categories:
-            raise ValueError(f"Invalid value '{category}' found in {self.name}.")
-        return category
+        return str(row[0])
 
     def _default_current_categories_getter(self) -> Set[str]:
         return self.categories
 
 
 class ResultsStratifier:
-    # todo fix this docstring
     """Centralized component for handling results stratification.
 
-    This should be used as a subcomponent for observers.  The observers
-    can then ask this component for population subgroups and labels during
-    results production and have this component manage adjustments to the
-    final column labels for the subgroups.
-
+    This component manages the assignment of simulants to groups for the
+    purpose of stratification. Each observer component will get a reference to
+    this component so that it can properly stratify its output.
     """
 
     name = "results_stratifier"
@@ -166,6 +210,7 @@ class ResultsStratifier:
     ########################
 
     def on_time_step_prepare(self, event: Event) -> None:
+        """Determine each simulant's category for each stratification level"""
         pop = self.population_view.get(
             event.index, query='tracked == True and alive == "alive"'
         )
@@ -236,6 +281,10 @@ class ResultsStratifier:
         mapper: Callable[[pd.Series], str] = None,
         current_category_getter: Callable[[], Set[str]] = None,
     ) -> None:
+        """
+        Defines the characteristics of a stratification level and ensures that
+        each of its sources is available to the ResultsStratifier
+        """
         stratification_level = StratificationLevel(
             name, sources, categories, mapper, current_category_getter
         )
@@ -255,10 +304,10 @@ class ResultsStratifier:
         self, include: Iterable[str], exclude: Iterable[str]
     ) -> List[Tuple[Tuple[StratificationLevel, str], ...]]:
         """
-        Gets all stratification combinations. Returns a List of Stratifications. Each Stratification
-        is represented as a Tuple of Levels. Each Level is represented as a Dictionary with keys
-        'level' and 'category'. 'level' refers to a StratificationLevel object, and 'category'
-        refers to the specific stratification category.
+        Gets all stratification combinations. Returns a List of
+        Stratifications. Each Stratification is represented as a Tuple of
+        Levels. Each Level is represented as a Tuple of a StratificationLevel
+        object and string referring to the specific stratification category.
 
         If no stratification levels are defined, returns a List with a single empty Tuple
         """
@@ -266,7 +315,7 @@ class ResultsStratifier:
         exclude = set(exclude)
         level_names = (self.default_stratification_levels | include) - exclude
         groups = [
-            [(level, category) for category in level.get_current_categories()]
+            [(level, category) for category in level.current_categories]
             for level_name, level in self.stratification_levels.items()
             if level_name in level_names
         ]

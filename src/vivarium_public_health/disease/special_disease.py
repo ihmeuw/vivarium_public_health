@@ -49,7 +49,7 @@ class RiskAttributableDisease:
     there is any mortality associated with this disease with the
     ``mortality`` configuration flag.
 
-    Finally, you may specify whether the someone should "recover"
+    Finally, you may specify whether an individual should "recover"
     from the disease if their exposure level falls outside the
     provided threshold.
 
@@ -57,7 +57,7 @@ class RiskAttributableDisease:
     ``protein_energy_malnutrition`` if their exposure drift out (or
     changes via an intervention) of the provided exposure categories.
     Having your ``fasting_plasma_glucose`` drop below a provided level
-    does not necessarily mean you're no longer diabetic however.
+    does not necessarily mean you're no longer diabetic.
 
     To add this component, you need to initialize it with full cause name
     and full risk name, e.g.,
