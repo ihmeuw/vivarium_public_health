@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from vivarium_public_health.disease import RiskAttributableDisease
+from vivarium_public_health.disease.transition import TransitionString
 
 
 @pytest.fixture
