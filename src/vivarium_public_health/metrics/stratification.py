@@ -32,6 +32,7 @@ class Source:
     the name of the column or pipeline being used as the source. If the source
     is of type clock, the name should be something descriptive and unique.
     """
+
     name: str
     type: SourceType
 
@@ -56,6 +57,7 @@ class StratificationLevel:
     stratification by time, and in particular stratification by year. By
     default, this will return all categories.
     """
+
     name: str
     sources: List[Source]
     categories: Set[str]

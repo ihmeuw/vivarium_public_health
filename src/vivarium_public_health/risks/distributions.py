@@ -25,7 +25,7 @@ class MissingDataError(Exception):
 
 # FIXME: This is a hack.  It's wrapping up an adaptor pattern in another
 # adaptor pattern, which is gross, but would require some more difficult
-# refactoring which is thorougly out of scope right now. -J.C. 8/25/19
+# refactoring which is thoroughly out of scope right now. -J.C. 8/25/19
 class SimulationDistribution:
     """Wrapper around a variety of distribution implementations."""
 
@@ -235,8 +235,8 @@ class LBWSGDistribution(PolytomousDistribution):
     # todo make column names configurable
 
     CATEGORICAL_PROPENSITY_COLUMN = "low_birth_weight_and_short_gestation_propensity"
-    BIRTH_WEIGHT = 'birth_weight'
-    GESTATIONAL_AGE = 'gestational_age'
+    BIRTH_WEIGHT = "birth_weight"
+    GESTATIONAL_AGE = "gestational_age"
 
     def __init__(self, exposure_data: pd.DataFrame):
         super().__init__(
@@ -271,7 +271,7 @@ class LBWSGDistribution(PolytomousDistribution):
         :param builder:
         :return:
         """
-        categories = builder.data.load(f'{self.risk}.categories')
+        categories = builder.data.load(f"{self.risk}.categories")
         category_intervals = {
             axis: {
                 category: self._parse_description(axis, description)
@@ -302,7 +302,9 @@ class LBWSGDistribution(PolytomousDistribution):
         axes = [self.BIRTH_WEIGHT, self.GESTATIONAL_AGE]
 
         def get_exposure_interval(category: str) -> pd.Series:
-            return pd.Series([self.category_intervals[axis][category] for axis in axes], index=axes)
+            return pd.Series(
+                [self.category_intervals[axis][category] for axis in axes], index=axes
+            )
 
         categorical_exposure = super().ppf(propensities[self.CATEGORICAL_PROPENSITY_COLUMN])
         exposure_intervals = categorical_exposure.apply(get_exposure_interval)
@@ -327,19 +329,17 @@ class LBWSGDistribution(PolytomousDistribution):
         """
         endpoints = {
             LBWSGDistribution.BIRTH_WEIGHT: [
-                float(val) for val in description.split(', [')[1].split(')')[0].split(', ')
+                float(val) for val in description.split(", [")[1].split(")")[0].split(", ")
             ],
             LBWSGDistribution.GESTATIONAL_AGE: [
-                float(val) for val in description.split('- [')[1].split(')')[0].split(', ')
+                float(val) for val in description.split("- [")[1].split(")")[0].split(", ")
             ],
         }[axis]
-        return pd.Interval(*endpoints, closed="left")   # noqa
+        return pd.Interval(*endpoints, closed="left")  # noqa
 
     @staticmethod
     def _get_continuous_exposure(
-        propensities: pd.DataFrame,
-        exposure_intervals: pd.DataFrame,
-        axis: str
+        propensities: pd.DataFrame, exposure_intervals: pd.DataFrame, axis: str
     ) -> pd.Series:
         """
         Gets continuous exposures from a categorical exposure and propensity for
