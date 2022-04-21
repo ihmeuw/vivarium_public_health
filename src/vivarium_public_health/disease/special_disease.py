@@ -12,7 +12,7 @@ from operator import gt, lt
 
 import pandas as pd
 from vivarium.framework.values import list_combiner, union_post_processor
-
+from vivarium_public_health.disease.transition import TransitionString
 from vivarium_public_health.utilities import EntityString, is_non_zero
 
 
@@ -101,7 +101,9 @@ class RiskAttributableDisease:
             ]
         }
         self._state_names = [f"{self.cause.name}", f"susceptible_to_{self.cause.name}"]
-        self._transition_names = [f"susceptible_to_{self.cause.name}_TO_{self.cause.name}"]
+        self._transition_names = [
+            TransitionString(f"susceptible_to_{self.cause.name}_TO_{self.cause.name}")
+        ]
 
         self.excess_mortality_rate_pipeline_name = f"{self.cause.name}.excess_mortality_rate"
         self.excess_mortality_rate_paf_pipeline_name = (
@@ -323,7 +325,7 @@ class RiskAttributableDisease:
     def adjust_state_and_transitions(self):
         if self.recoverable:
             self._transition_names.append(
-                f"{self.cause.name}_TO_susceptible_to_{self.cause.name}"
+                TransitionString(f"{self.cause.name}_TO_susceptible_to_{self.cause.name}")
             )
 
     def load_cause_specific_mortality_rate_data(self, builder):
