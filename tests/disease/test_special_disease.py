@@ -3,7 +3,6 @@ from operator import gt, lt
 import numpy as np
 import pandas as pd
 import pytest
-
 from vivarium_public_health.disease import RiskAttributableDisease
 from vivarium_public_health.disease.transition import TransitionString
 
@@ -129,10 +128,7 @@ def test_mortality_rate_pandas_dataframe(disease_mock):
     assert np.all(expected == disease.adjust_mortality_rate(test_index, rates_df))
 
 
-test_data = [
-    ("disease_no_recovery", False),
-    ("disease_with_recovery", True),
-]
+test_data = [("disease_no_recovery", False), ("disease_with_recovery", True)]
 
 
 @pytest.mark.parametrize("disease, recoverable", test_data)
@@ -141,9 +137,7 @@ def test_state_transition_names(disease, recoverable):
     model.recoverable = recoverable
     model.adjust_state_and_transitions()
     states = [disease, f"susceptible_to_{disease}"]
-    transitions = [
-        TransitionString(f"susceptible_to_{disease}_TO_{disease}"),
-    ]
+    transitions = [TransitionString(f"susceptible_to_{disease}_TO_{disease}")]
     if recoverable:
         transitions.append(TransitionString(f"{disease}_TO_susceptible_to_{disease}"))
     assert set(model.state_names) == set(states)
