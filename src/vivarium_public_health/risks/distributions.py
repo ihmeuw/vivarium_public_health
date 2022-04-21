@@ -7,6 +7,8 @@ This module contains tools for modeling several different risk
 exposure distributions.
 
 """
+from typing import Dict
+
 import numpy as np
 import pandas as pd
 from risk_distributions import EnsembleDistribution, LogNormal, Normal
@@ -14,6 +16,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import get_distribution_data
+from vivarium_public_health.utilities import EntityString
 
 
 class MissingDataError(Exception):
@@ -227,6 +230,133 @@ class DichotomousDistribution:
         return f"DichotomousDistribution(risk={self.risk})"
 
 
+class LBWSGDistribution(PolytomousDistribution):
+
+    # todo make column names configurable
+
+    CATEGORICAL_PROPENSITY_COLUMN = "low_birth_weight_and_short_gestation_propensity"
+    BIRTH_WEIGHT = 'birth_weight'
+    GESTATIONAL_AGE = 'gestational_age'
+
+    def __init__(self, exposure_data: pd.DataFrame):
+        super().__init__(
+            EntityString("risk_factor.low_birth_weight_and_short_gestation"), exposure_data
+        )
+
+    def __repr__(self):
+        return f"LBWSGDistribution()"
+
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def name(self):
+        return "lbwsg_distribution"
+
+    #################
+    # Setup methods #
+    #################
+
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder):
+        super().setup(builder)
+        self.category_intervals = self._get_category_intervals(builder)
+
+    def _get_category_intervals(self, builder: Builder) -> Dict[str, Dict[str, pd.Interval]]:
+        """
+        Gets the intervals for each category. It is a dictionary from the string
+        "birth_weight" or "gestational_age" to a dictionary from the category
+        name to the interval
+        :param builder:
+        :return:
+        """
+        categories = builder.data.load(f'{self.risk}.categories')
+        category_intervals = {
+            axis: {
+                category: self._parse_description(axis, description)
+                for category, description in categories.items()
+            }
+            for axis in [self.BIRTH_WEIGHT, self.GESTATIONAL_AGE]
+        }
+        return category_intervals
+
+    ##################
+    # Public methods #
+    ##################
+
+    def ppf(self, propensities: pd.DataFrame) -> pd.DataFrame:
+        """
+        Takes a DataFrame with three columns:
+        'low_birth_weight_and_short_gestation_propensity',
+         'birth_weight.propensity', and 'gestational_age.propensity' which
+        contain each of those propensities for each simulant.
+
+        Returns a DataFrame with two columns for birth-weight and gestational
+        age exposures.
+
+        :param propensities:
+        :return:
+        """
+
+        axes = [self.BIRTH_WEIGHT, self.GESTATIONAL_AGE]
+
+        def get_exposure_interval(category: str) -> pd.Series:
+            return pd.Series([self.category_intervals[axis][category] for axis in axes], index=axes)
+
+        categorical_exposure = super().ppf(propensities[self.CATEGORICAL_PROPENSITY_COLUMN])
+        exposure_intervals = categorical_exposure.apply(get_exposure_interval)
+        continuous_exposures = [
+            self._get_continuous_exposure(propensities, exposure_intervals, axis)
+            for axis in self.category_intervals
+        ]
+        return pd.concat(continuous_exposures, axis=1)
+
+    ##################
+    # Helper methods #
+    ##################
+
+    @staticmethod
+    def _parse_description(axis: str, description: str) -> pd.Interval:
+        """
+        Parses a string corresponding to a low birth weight and short gestation
+        category to an Interval
+        :param axis:
+        :param description:
+        :return:
+        """
+        endpoints = {
+            LBWSGDistribution.BIRTH_WEIGHT: [
+                float(val) for val in description.split(', [')[1].split(')')[0].split(', ')
+            ],
+            LBWSGDistribution.GESTATIONAL_AGE: [
+                float(val) for val in description.split('- [')[1].split(')')[0].split(', ')
+            ],
+        }[axis]
+        return pd.Interval(*endpoints, closed="left")   # noqa
+
+    @staticmethod
+    def _get_continuous_exposure(
+        propensities: pd.DataFrame,
+        exposure_intervals: pd.DataFrame,
+        axis: str
+    ) -> pd.Series:
+        """
+        Gets continuous exposures from a categorical exposure and propensity for
+        a specific axis (i.e. birth-weight or gestational age).
+        :param propensities:
+        :param exposure_intervals:
+        :param axis:
+        :return:
+        """
+        propensity = propensities[f"{axis}.propensity"]
+        exposure_left = exposure_intervals[axis].apply(lambda interval: interval.left)
+        exposure_right = exposure_intervals[axis].apply(lambda interval: interval.right)
+        continuous_exposure = propensity * (exposure_right - exposure_left) + exposure_left
+        continuous_exposure = continuous_exposure.rename(f"{axis}.exposure")
+        return continuous_exposure
+
+
 def get_distribution(risk, distribution_type, exposure, exposure_standard_deviation, weights):
     if distribution_type == "dichotomous":
         distribution = DichotomousDistribution(risk, exposure)
@@ -247,6 +377,8 @@ def get_distribution(risk, distribution_type, exposure, exposure_standard_deviat
             mean=exposure,
             sd=exposure_standard_deviation,
         )
+    elif distribution_type == "lbwsg":
+        distribution = LBWSGDistribution(exposure)
     else:
         raise NotImplementedError(f"Unhandled distribution type {distribution_type}")
     return distribution
