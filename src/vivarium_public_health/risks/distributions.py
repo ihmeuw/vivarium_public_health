@@ -289,7 +289,7 @@ class LBWSGDistribution(PolytomousDistribution):
         """
         Takes a DataFrame with three columns:
         'low_birth_weight_and_short_gestation_propensity',
-         'birth_weight.propensity', and 'gestational_age.propensity' which
+        'birth_weight.propensity', and 'gestational_age.propensity' which
         contain each of those propensities for each simulant.
 
         Returns a DataFrame with two columns for birth-weight and gestational
