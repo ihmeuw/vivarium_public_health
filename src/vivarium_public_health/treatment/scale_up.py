@@ -52,13 +52,13 @@ class LinearScaleUp:
 
     configuration_defaults = {
         "treatment": {
-            "start": {
-                "date": "start",
-                "value": "data",
+            "date": {
+                "start": "start",
+                "end": "end",
             },
-            "end": {
-                "date": "end",
-                "value": "data",
+            "value": {
+                "start": "data",
+                "end": "data",
             },
         }
     }
@@ -101,13 +101,10 @@ class LinearScaleUp:
         """Perform this component's setup."""
         self.is_intervention_scenario = self._get_is_intervention_scenario(builder)
         self.clock = self._get_clock(builder)
-        self.scale_up_start_date, self.scale_up_end_date = self._get_scale_up_date_endpoints(
+        self.scale_up_start_date, self.scale_up_end_date = self._get_scale_up_dates(builder)
+        self.scale_up_start_value, self.scale_up_end_value = self._get_scale_up_values(
             builder
         )
-        (
-            self.scale_up_start_value,
-            self.scale_up_end_value,
-        ) = self._get_scale_up_value_endpoints(builder)
 
         required_columns = self._get_required_columns()
         self.pipelines = self._get_required_pipelines(builder)
@@ -126,28 +123,26 @@ class LinearScaleUp:
         return builder.time.clock()
 
     # noinspection PyMethodMayBeStatic
-    def _get_scale_up_date_endpoints(self, builder: Builder) -> Tuple[datetime, datetime]:
-        scale_up_config = builder.configuration[self.configuration_key]
+    def _get_scale_up_dates(self, builder: Builder) -> Tuple[datetime, datetime]:
+        scale_up_config = builder.configuration[self.configuration_key]["date"]
 
         def get_endpoint(endpoint_type: str) -> datetime:
-            if scale_up_config[endpoint_type]["date"] == endpoint_type:
+            if scale_up_config[endpoint_type] == endpoint_type:
                 endpoint = get_time_stamp(builder.configuration.time[endpoint_type])
             else:
-                endpoint = get_time_stamp(scale_up_config[endpoint_type]["date"])
+                endpoint = get_time_stamp(scale_up_config[endpoint_type])
             return endpoint
 
         return get_endpoint("start"), get_endpoint("end")
 
-    def _get_scale_up_value_endpoints(
-        self, builder: Builder
-    ) -> Tuple[LookupTable, LookupTable]:
-        scale_up_config = builder.configuration[self.configuration_key]
+    def _get_scale_up_values(self, builder: Builder) -> Tuple[LookupTable, LookupTable]:
+        scale_up_config = builder.configuration[self.configuration_key]["value"]
 
         def get_endpoint_value(endpoint_type: str) -> LookupTable:
-            if scale_up_config[endpoint_type]["value"] == "data":
+            if scale_up_config[endpoint_type] == "data":
                 endpoint = self._get_endpoint_value_from_data(builder, endpoint_type)
             else:
-                endpoint = builder.lookup.build_table(scale_up_config[endpoint_type]["value"])
+                endpoint = builder.lookup.build_table(scale_up_config[endpoint_type])
             return endpoint
 
         return get_endpoint_value("start"), get_endpoint_value("end")
@@ -178,19 +173,15 @@ class LinearScaleUp:
 
     def _coverage_effect(self, idx: pd.Index, target: pd.Series) -> pd.Series:
         if not self.is_intervention_scenario or self.clock() < self.scale_up_start_date:
-            scale_up_progress = 0.0
+            progress = 0.0
         elif self.scale_up_start_date <= self.clock() < self.scale_up_end_date:
-            scale_up_progress = (self.clock() - self.scale_up_start_date) / (
+            progress = (self.clock() - self.scale_up_start_date) / (
                 self.scale_up_end_date - self.scale_up_start_date
             )
         else:
-            scale_up_progress = 1.0
+            progress = 1.0
 
-        target = (
-            self._apply_scale_up(idx, target, scale_up_progress)
-            if scale_up_progress
-            else target
-        )
+        target = self._apply_scale_up(idx, target, progress) if progress else target
         return target
 
     ##################

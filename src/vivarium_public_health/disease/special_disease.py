@@ -13,7 +13,8 @@ from operator import gt, lt
 import pandas as pd
 from vivarium.framework.values import list_combiner, union_post_processor
 
-from vivarium_public_health.utilities import EntityString
+from vivarium_public_health.disease.transition import TransitionString
+from vivarium_public_health.utilities import EntityString, is_non_zero
 
 
 class RiskAttributableDisease:
@@ -49,7 +50,7 @@ class RiskAttributableDisease:
     there is any mortality associated with this disease with the
     ``mortality`` configuration flag.
 
-    Finally, you may specify whether the someone should "recover"
+    Finally, you may specify whether an individual should "recover"
     from the disease if their exposure level falls outside the
     provided threshold.
 
@@ -57,7 +58,7 @@ class RiskAttributableDisease:
     ``protein_energy_malnutrition`` if their exposure drift out (or
     changes via an intervention) of the provided exposure categories.
     Having your ``fasting_plasma_glucose`` drop below a provided level
-    does not necessarily mean you're no longer diabetic however.
+    does not necessarily mean you're no longer diabetic.
 
     To add this component, you need to initialize it with full cause name
     and full risk name, e.g.,
@@ -101,7 +102,9 @@ class RiskAttributableDisease:
             ]
         }
         self._state_names = [f"{self.cause.name}", f"susceptible_to_{self.cause.name}"]
-        self._transition_names = [f"susceptible_to_{self.cause.name}_TO_{self.cause.name}"]
+        self._transition_names = [
+            TransitionString(f"susceptible_to_{self.cause.name}_TO_{self.cause.name}")
+        ]
 
         self.excess_mortality_rate_pipeline_name = f"{self.cause.name}.excess_mortality_rate"
         self.excess_mortality_rate_paf_pipeline_name = (
@@ -127,6 +130,7 @@ class RiskAttributableDisease:
         self.clock = builder.time.clock()
 
         disability_weight_data = builder.data.load(f"{self.cause}.disability_weight")
+        self.has_disability = is_non_zero(disability_weight_data)
         self.base_disability_weight = builder.lookup.build_table(
             disability_weight_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -152,6 +156,7 @@ class RiskAttributableDisease:
         )
 
         excess_mortality_data = self.load_excess_mortality_rate_data(builder)
+        self.has_excess_mortality = is_non_zero(excess_mortality_data)
         self.base_excess_mortality_rate = builder.lookup.build_table(
             excess_mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -321,7 +326,7 @@ class RiskAttributableDisease:
     def adjust_state_and_transitions(self):
         if self.recoverable:
             self._transition_names.append(
-                f"{self.cause.name}_TO_susceptible_to_{self.cause.name}"
+                TransitionString(f"{self.cause.name}_TO_susceptible_to_{self.cause.name}")
             )
 
     def load_cause_specific_mortality_rate_data(self, builder):

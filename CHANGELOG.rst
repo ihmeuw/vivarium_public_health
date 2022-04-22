@@ -1,3 +1,11 @@
+**0.10.18 - 04/22/22**
+
+ - Improve ScaleUp component configuration
+ - Enable Mortality component to handle affected unmodeled causes
+ - Refactor RiskEffect calculation for clarity and extensibility
+ - Implement ResultsStratifier to stratify outputs
+ - Refactor all observers to be compatible with the ResultsStratifier component
+
 **0.10.17 - 02/15/22**
 
  - Autoformat code with black and isort.

@@ -10,12 +10,13 @@ exposure models and disease models.
 
 from typing import Callable, Dict
 
+import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 
 from vivarium_public_health.risks.data_transformations import (
-    get_exposure_effect,
+    get_distribution_type,
     get_population_attributable_fraction_data,
     get_relative_risk_data,
 )
@@ -68,6 +69,7 @@ class RiskEffect:
         self.target = TargetString(target)
         self.configuration_defaults = self._get_configuration_defaults()
 
+        self.exposure_pipeline_name = f"{self.risk.name}.exposure"
         self.target_pipeline_name = f"{self.target.name}.{self.target.measure}"
         self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
 
@@ -101,14 +103,23 @@ class RiskEffect:
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        self.exposure_distribution_type = self._get_distribution_type(builder)
+        self.exposure = self._get_risk_exposure(builder)
         self.relative_risk = self._get_relative_risk_source(builder)
         self.population_attributable_fraction = (
             self._get_population_attributable_fraction_source(builder)
         )
+
         self.target_modifier = self._get_target_modifier(builder)
 
         self._register_target_modifier(builder)
         self._register_paf_modifier(builder)
+
+    def _get_distribution_type(self, builder: Builder) -> str:
+        return get_distribution_type(builder, self.risk)
+
+    def _get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        return builder.value.get_value(self.exposure_pipeline_name)
 
     def _get_relative_risk_source(self, builder: Builder) -> LookupTable:
         relative_risk_data = get_relative_risk_data(builder, self.risk, self.target)
@@ -125,10 +136,33 @@ class RiskEffect:
     def _get_target_modifier(
         self, builder: Builder
     ) -> Callable[[pd.Index, pd.Series], pd.Series]:
-        exposure_effect = get_exposure_effect(builder, self.risk)
+        if self.exposure_distribution_type in ["normal", "lognormal", "ensemble"]:
+            tmred = builder.data.load(f"{self.risk}.tmred")
+            tmrel = 0.5 * (tmred["min"] + tmred["max"])
+            scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
 
-        def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
-            return exposure_effect(target, self.relative_risk(index))
+            def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
+                rr = self.relative_risk(index)
+                exposure = self.exposure(index)
+                relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
+                return target * relative_risk
+
+        else:
+            index_columns = ["index", self.risk.name]
+
+            def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
+                rr = self.relative_risk(index)
+                exposure = self.exposure(index).reset_index()
+                exposure.columns = index_columns
+                exposure = exposure.set_index(index_columns)
+
+                relative_risk = rr.stack().reset_index()
+                relative_risk.columns = index_columns + ["value"]
+                relative_risk = relative_risk.set_index(index_columns)
+
+                effect = relative_risk.loc[exposure.index, "value"].droplevel(self.risk.name)
+                affected_rates = target * effect
+                return affected_rates
 
         return adjust_target
 

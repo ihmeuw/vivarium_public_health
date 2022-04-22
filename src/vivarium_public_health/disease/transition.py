@@ -12,6 +12,14 @@ from vivarium.framework.utilities import rate_to_probability
 from vivarium.framework.values import list_combiner, union_post_processor
 
 
+class TransitionString(str):
+    def __new__(cls, value):
+        # noinspection PyArgumentList
+        obj = str.__new__(cls, value.lower())
+        obj.from_state, obj.to_state = value.split("_TO_")
+        return obj
+
+
 class RateTransition(Transition):
     def __init__(self, input_state, output_state, get_data_functions=None, **kwargs):
         super().__init__(
