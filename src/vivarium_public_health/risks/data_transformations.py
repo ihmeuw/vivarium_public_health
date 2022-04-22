@@ -88,6 +88,7 @@ def get_exposure_data(builder, risk: EntityString):
         "dichotomous",
         "ordered_polytomous",
         "unordered_polytomous",
+        "lbwsg",
     ]:
         exposure_data = pivot_categorical(exposure_data)
 
