@@ -13,7 +13,7 @@ __title__ = "vivarium_public_health"
 __summary__ = "Components for modelling diseases, risks, and interventions with ``vivarium``"
 __uri__ = "https://github.com/ihmeuw/vivarium_public_health"
 
-__version__ = "0.10.17"
+__version__ = "0.10.18"
 
 __author__ = "The vivarium_public_health developers"
 __email__ = "vivarium.dev@gmail.com"
