@@ -12,6 +12,7 @@ from operator import gt, lt
 
 import pandas as pd
 from vivarium.framework.values import list_combiner, union_post_processor
+
 from vivarium_public_health.disease.transition import TransitionString
 from vivarium_public_health.utilities import EntityString, is_non_zero
 
