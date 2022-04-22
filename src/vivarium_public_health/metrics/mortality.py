@@ -145,7 +145,7 @@ class MortalityObserver:
                 cause_mask = pop_died["cause_of_death"] == cause
                 pop_died_of_cause = pop_died[group_mask & cause_mask]
                 new_observations = {
-                    f"death_due_to_{cause}_{label}": pop_died_of_cause.size,
+                    f"death_due_to_{cause}_{label}": pop_died_of_cause.index.size,
                     f"ylls_due_to_{cause}_{label}": pop_died_of_cause[
                         "years_of_life_lost"
                     ].sum(),

@@ -3,6 +3,7 @@ from operator import gt, lt
 import numpy as np
 import pandas as pd
 import pytest
+
 from vivarium_public_health.disease import RiskAttributableDisease
 from vivarium_public_health.disease.transition import TransitionString
 
