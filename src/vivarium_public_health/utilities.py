@@ -60,10 +60,15 @@ class TargetString(str):
         split = self.split(".")
         if len(split) != 3:
             raise ValueError(
-                f'You must specify the target as "affected_entity_type.affected_entity_name.affected_measure".'
+                f"You must specify the target as "
+                f'"affected_entity_type.affected_entity_name.affected_measure". '
                 f"You specified {self}."
             )
         return split[0], split[1], split[2]
+
+
+def to_snake_case(string: str) -> str:
+    return string.lower().replace(" ", "_").replace("-", "_")
 
 
 DAYS_PER_YEAR = 365.25
