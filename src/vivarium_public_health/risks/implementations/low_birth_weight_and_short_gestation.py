@@ -117,6 +117,11 @@ class LBWSGDistribution(PolytomousDistribution):
         and either a categorical propensity or a categorical exposure and
         returns continuous exposures for that axis.
 
+        If categorical propensity is provided rather than exposure, this
+        function requires access to the low birth weight and short gestation
+        categorical exposure parameters pipeline
+        ("risk_factor.low_birth_weight_and_short_gestation.exposure_parameters").
+
         :param axis:
         :param propensity:
         :param categorical_propensity:
