@@ -31,10 +31,20 @@ GESTATIONAL_AGE = "gestational_age"
 
 
 class LBWSGDistribution(PolytomousDistribution):
+
+    configuration_defaults = {
+        "lbwsg_distribution": {
+            "age_column": "age",
+            "sex_column": "sex",
+            "year_column": "year",
+        }
+    }
+
     def __init__(self, exposure_data: pd.DataFrame = None):
         super().__init__(
             EntityString("risk_factor.low_birth_weight_and_short_gestation"), exposure_data
         )
+        self.exposure_data = exposure_data
 
     def __repr__(self):
         return "LBWSGDistribution()"
@@ -53,11 +63,39 @@ class LBWSGDistribution(PolytomousDistribution):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
-        if self.exposure_data is None:
-            self.exposure_data = get_exposure_data(builder, self.risk)
+        self.config = builder.configuration.lbwsg_distribution
+        self.exposure_data = self._get_exposure_data(builder)
 
         super().setup(builder)
         self.category_intervals = self._get_category_intervals(builder)
+
+    def _get_exposure_data(self, builder: Builder) -> pd.DataFrame:
+        if self.exposure_data is None:
+            self.exposure_data = get_exposure_data(builder, self.risk)
+
+        return self.exposure_data.rename(
+            columns={
+                "sex": self.config.sex_column,
+                "age_start": f"{self.config.age_column}_start",
+                "age_end": f"{self.config.age_column}_end",
+                "year_start": f"{self.config.year_column}_start",
+                "year_end": f"{self.config.year_column}_end",
+            }
+        )
+
+    def get_exposure_parameters(self, builder: Builder) -> Pipeline:
+        return builder.value.register_value_producer(
+            self.exposure_parameters_pipeline_name,
+            source=builder.lookup.build_table(
+                self.exposure_data,
+                key_columns=[self.config.sex_column],
+                parameter_columns=[self.config.age_column, self.config.year_column],
+            ),
+            requires_columns=[
+                self.config.sex_column,
+                self.config.age_column
+            ]
+        )
 
     def _get_category_intervals(self, builder: Builder) -> Dict[str, Dict[str, pd.Interval]]:
         """
