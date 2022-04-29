@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from risk_distributions import EnsembleDistribution, LogNormal, Normal
 from vivarium.framework.engine import Builder
-from vivarium.framework.values import list_combiner, union_post_processor
+from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import get_distribution_data
 from vivarium_public_health.utilities import EntityString
@@ -152,25 +152,47 @@ class PolytomousDistribution:
         self.risk = risk
         self.exposure_data = exposure_data
 
+        self.exposure_parameters_pipeline_name = f"{self.risk}.exposure_parameters"
+
+    def __repr__(self):
+        return f"PolytomousDistribution(risk={self.risk})"
+
+    ##############
+    # Properties #
+    ##############
+
     @property
     def name(self):
         return f"polytomous_distribution.{self.risk}"
 
+    #################
+    # Setup methods #
+    #################
+
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
+    def setup(self, builder: Builder) -> None:
         self.categories = self._get_categories()
-        self.exposure = builder.value.register_value_producer(
-            f"{self.risk}.exposure_parameters",
-            source=builder.lookup.build_table(
-                self.exposure_data, key_columns=["sex"], parameter_columns=["age", "year"]
-            ),
-        )
+        self.exposure = self.get_exposure_parameters(builder)
 
     def _get_categories(self) -> List[str]:
         return sorted(
             [column for column in self.exposure_data if "cat" in column],
             key=lambda column: int(column[3:]),
         )
+
+    def get_exposure_parameters(self, builder: Builder) -> Pipeline:
+        return builder.value.register_value_producer(
+            self.exposure_parameters_pipeline_name,
+            source=builder.lookup.build_table(
+                self.exposure_data,
+                key_columns=["sex"],
+                parameter_columns=["age", "year"],
+            ),
+        )
+
+    ##################
+    # Public methods #
+    ##################
 
     def ppf(self, x: pd.Series) -> pd.Series:
         exposure = self.exposure(x.index)
@@ -186,9 +208,6 @@ class PolytomousDistribution:
             name=self.risk + ".exposure",
             index=x.index,
         )
-
-    def __repr__(self):
-        return f"PolytomousDistribution(risk={self.risk})"
 
 
 class DichotomousDistribution:
