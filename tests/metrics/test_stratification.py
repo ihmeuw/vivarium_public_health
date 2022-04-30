@@ -338,6 +338,12 @@ def test_setting_stratification_groups_on_time_step_prepare(
         )
     )
 
+    mock_stratifier._set_stratification_groups = MagicMock(
+        side_effect=unmock_instance_method(
+            mock_stratifier, ResultsStratifier._set_stratification_groups
+        )
+    )
+
     # Code to test
     mock_stratifier.on_time_step_prepare(mock_event)
 
