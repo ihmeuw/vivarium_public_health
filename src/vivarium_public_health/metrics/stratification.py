@@ -220,12 +220,11 @@ class ResultsStratifier:
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        stratification_groups = (
-            [self.stratification_groups] if self.stratification_groups is not None else []
-        )
-        stratification_groups.append(self._set_stratification_groups(pop_data.index))
-        # noinspection PyAttributeOutsideInit
-        self.stratification_groups = pd.concat(stratification_groups)
+        if self.stratification_groups is not None:
+            # noinspection PyAttributeOutsideInit
+            self.stratification_groups = pd.concat(
+                [self.stratification_groups, self._set_stratification_groups(pop_data.index)]
+            )
 
     def on_time_step_prepare(self, event: Event) -> None:
         # noinspection PyAttributeOutsideInit
