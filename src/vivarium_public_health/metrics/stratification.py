@@ -15,7 +15,7 @@ from typing import Callable, Dict, Iterable, List, Set, Tuple
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import PopulationView
+from vivarium.framework.population import PopulationView, SimulantData
 
 
 class SourceType(Enum):
@@ -150,6 +150,7 @@ class ResultsStratifier:
         self.register_stratifications(builder)
         self.population_view = self._get_population_view(builder)
 
+        self._register_simulant_initializer(builder)
         self._register_timestep_prepare_listener(builder)
 
     # noinspection PyMethodMayBeStatic
@@ -202,6 +203,13 @@ class ResultsStratifier:
         age_bins = raw_age_bins.loc[age_start_mask & exit_age_mask, :]
         return age_bins
 
+    def _register_simulant_initializer(self, builder: Builder) -> None:
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            requires_columns=self.columns_required,
+            requires_values=[pipeline_name for pipeline_name in self.pipelines],
+        )
+
     def _register_timestep_prepare_listener(self, builder: Builder) -> None:
         builder.event.register_listener(
             "time_step__prepare", self.on_time_step_prepare, priority=0
@@ -211,28 +219,17 @@ class ResultsStratifier:
     # Event-driven methods #
     ########################
 
-    def on_time_step_prepare(self, event: Event) -> None:
-        """Determine each simulant's category for each stratification level"""
-        pop = self.population_view.get(
-            event.index, query='tracked == True and alive == "alive"'
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        stratification_groups = (
+            [self.stratification_groups] if self.stratification_groups is not None else []
         )
-        pipeline_values = [
-            pd.Series(pipeline(pop.index), name=name)
-            for name, pipeline in self.pipelines.items()
-        ]
-        clock_values = [
-            pd.Series(self.clock(), index=pop.index, name=name) for name in self.clock_sources
-        ]
-        sources = pd.concat([pop] + pipeline_values + clock_values, axis=1)
-
-        stratification_groups = [
-            sources[[source.name for source in stratification_level.sources]]
-            .apply(stratification_level.mapper, axis=1)
-            .rename(stratification_level.name)
-            for stratification_level in self.stratification_levels.values()
-        ]
+        stratification_groups.append(self._set_stratification_groups(pop_data.index))
         # noinspection PyAttributeOutsideInit
-        self.stratification_groups = pd.concat(stratification_groups, axis=1)
+        self.stratification_groups = pd.concat(stratification_groups)
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        # noinspection PyAttributeOutsideInit
+        self.stratification_groups = self._set_stratification_groups(event.index)
 
     ##################
     # Public methods #
@@ -259,7 +256,6 @@ class ResultsStratifier:
             corresponding to those labels.
 
         """
-        index = index.intersection(self.stratification_groups.index)
         stratification_groups = self.stratification_groups.loc[index]
 
         for stratification in self._get_current_stratifications(include, exclude):
@@ -333,6 +329,26 @@ class ResultsStratifier:
             .replace(" ", "_")
             .lower()
         )
+
+    def _set_stratification_groups(self, index: pd.Index) -> pd.DataFrame:
+        """Determine each simulant's category for each stratification level"""
+        pop = self.population_view.get(index, query='tracked == True and alive == "alive"')
+        pipeline_values = [
+            pd.Series(pipeline(pop.index), name=name)
+            for name, pipeline in self.pipelines.items()
+        ]
+        clock_values = [
+            pd.Series(self.clock(), index=pop.index, name=name) for name in self.clock_sources
+        ]
+        sources = pd.concat([pop] + pipeline_values + clock_values, axis=1)
+
+        stratification_groups = [
+            sources[[source.name for source in stratification_level.sources]]
+            .apply(stratification_level.mapper, axis=1)
+            .rename(stratification_level.name)
+            for stratification_level in self.stratification_levels.values()
+        ]
+        return pd.concat(stratification_groups, axis=1)
 
     ##########################
     # Stratification Details #

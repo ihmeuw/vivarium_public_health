@@ -93,8 +93,8 @@ class LBWSGDistribution(PolytomousDistribution):
             ),
             requires_columns=[
                 self.config.sex_column,
-                self.config.age_column
-            ]
+                self.config.age_column,
+            ],
         )
 
     def _get_category_intervals(self, builder: Builder) -> Dict[str, Dict[str, pd.Interval]]:
