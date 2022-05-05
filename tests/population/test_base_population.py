@@ -87,7 +87,7 @@ def test_select_sub_population_data():
     assert sub_pop.year_start.values.item() == 1995
 
 
-def test_BasePopulation(config, base_plugins, generate_population_mock):
+def test_BasePopulation(config, base_plugins, generate_population_mock, include_sex):
     num_days = 600
     time_step = 100  # Days
     sims = make_full_simulants()
@@ -100,7 +100,8 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
     components = [base_pop]
     config.update(
         {
-            "population": {"population_size": start_population_size},
+            "population": {"population_size": start_population_size,
+                           'include_sex': include_sex},
             "time": {"step_size": time_step},
         },
         layer="override",
@@ -111,7 +112,7 @@ def test_BasePopulation(config, base_plugins, generate_population_mock):
     time_start = simulation._clock.time
 
     pop_structure = simulation._data.load("population.structure")
-    uniform_pop = dt.assign_demographic_proportions(pop_structure)
+    uniform_pop = dt.assign_demographic_proportions(pop_structure, include_sex)
 
     assert base_pop.population_data.equals(uniform_pop)
 
@@ -163,7 +164,6 @@ def test_age_out_simulants(config, base_plugins):
         components=components, configuration=config, plugin_configuration=base_plugins
     )
     time_start = simulation._clock.time
-
     assert len(simulation.get_population()) == len(simulation.get_population().age.unique())
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population()
@@ -173,11 +173,14 @@ def test_age_out_simulants(config, base_plugins):
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])
 
 
-def test_generate_population_age_bounds(age_bounds_mock, initial_age_mock):
+def test_generate_population_age_bounds(age_bounds_mock, initial_age_mock, include_sex):
     creation_time = pd.Timestamp(1990, 7, 2)
     step_size = pd.Timedelta(days=1)
     age_params = {"age_start": 0, "age_end": 120}
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
+    pop_data = dt.assign_demographic_proportions(
+        make_uniform_pop_data(age_bin_midpoint=True),
+        include_sex=include_sex,
+    )
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
     sims = make_base_simulants()
     simulant_ids = sims.index
@@ -202,11 +205,14 @@ def test_generate_population_age_bounds(age_bounds_mock, initial_age_mock):
     initial_age_mock.assert_not_called()
 
 
-def test_generate_population_initial_age(age_bounds_mock, initial_age_mock):
+def test_generate_population_initial_age(age_bounds_mock, initial_age_mock, include_sex):
     creation_time = pd.Timestamp(1990, 7, 2)
     step_size = pd.Timedelta(days=1)
     age_params = {"age_start": 0, "age_end": 0}
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
+    pop_data = dt.assign_demographic_proportions(
+        make_uniform_pop_data(age_bin_midpoint=True),
+        include_sex=include_sex,
+    )
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
     sims = make_base_simulants()
     simulant_ids = sims.index
@@ -232,8 +238,11 @@ def test_generate_population_initial_age(age_bounds_mock, initial_age_mock):
     age_bounds_mock.assert_not_called()
 
 
-def test__assign_demography_with_initial_age(config):
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
+def test__assign_demography_with_initial_age(config, include_sex):
+    pop_data = dt.assign_demographic_proportions(
+        make_uniform_pop_data(age_bin_midpoint=True),
+        include_sex=include_sex,
+    )
     pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     initial_age = 20
@@ -243,23 +252,14 @@ def test__assign_demography_with_initial_age(config):
     simulants = bp._assign_demography_with_initial_age(
         simulants, pop_data, initial_age, step_size, r, lambda *args, **kwargs: None
     )
+    _check_population(simulants, initial_age, step_size, include_sex)
 
-    assert len(simulants) == len(simulants.age.unique())
-    assert simulants.age.min() > initial_age
-    assert simulants.age.max() < initial_age + utilities.to_years(step_size)
-    assert math.isclose(
-        len(simulants[simulants.sex == "Male"]) / len(simulants), 0.5, abs_tol=0.01
+
+def test__assign_demography_with_initial_age_zero(config, include_sex):
+    pop_data = dt.assign_demographic_proportions(
+        make_uniform_pop_data(age_bin_midpoint=True),
+        include_sex=include_sex,
     )
-    for location in simulants.location.unique():
-        assert math.isclose(
-            len(simulants[simulants.location == location]) / len(simulants),
-            1 / len(simulants.location.unique()),
-            abs_tol=0.01,
-        )
-
-
-def test__assign_demography_with_initial_age_zero(config):
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     initial_age = 0
@@ -269,23 +269,15 @@ def test__assign_demography_with_initial_age_zero(config):
     simulants = bp._assign_demography_with_initial_age(
         simulants, pop_data, initial_age, step_size, r, lambda *args, **kwargs: None
     )
+    _check_population(simulants, initial_age, step_size, include_sex)
 
-    assert len(simulants) == len(simulants.age.unique())
-    assert simulants.age.min() > initial_age
-    assert simulants.age.max() < initial_age + utilities.to_years(step_size)
-    assert math.isclose(
-        len(simulants[simulants.sex == "Male"]) / len(simulants), 0.5, abs_tol=0.01
+
+
+def test__assign_demography_with_initial_age_error(include_sex):
+    pop_data = dt.assign_demographic_proportions(
+        make_uniform_pop_data(age_bin_midpoint=True),
+        include_sex=include_sex,
     )
-    for location in simulants.location.unique():
-        assert math.isclose(
-            len(simulants[simulants.location == location]) / len(simulants),
-            1 / len(simulants.location.unique()),
-            abs_tol=0.01,
-        )
-
-
-def test__assign_demography_with_initial_age_error():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
     pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     initial_age = 200
@@ -298,8 +290,11 @@ def test__assign_demography_with_initial_age_error():
         )
 
 
-def test__assign_demography_with_age_bounds():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
+def test__assign_demography_with_age_bounds(include_sex):
+    pop_data = dt.assign_demographic_proportions(
+        make_uniform_pop_data(age_bin_midpoint=True),
+        include_sex=include_sex,
+    )
     pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
     age_start, age_end = 0, 180
@@ -317,16 +312,9 @@ def test__assign_demography_with_age_bounds():
         simulants, pop_data, age_start, age_end, r, lambda *args, **kwargs: None
     )
 
-    assert math.isclose(
-        len(simulants[simulants.sex == "Male"]) / len(simulants), 0.5, abs_tol=0.01
-    )
+    _check_sexes(simulants, include_sex)
+    _check_locations(simulants)
 
-    for location in simulants.location.unique():
-        assert math.isclose(
-            len(simulants[simulants.location == location]) / len(simulants),
-            1 / len(simulants.location.unique()),
-            abs_tol=0.01,
-        )
     ages = np.sort(simulants.age.values)
     age_deltas = ages[1:] - ages[:-1]
 
@@ -339,8 +327,11 @@ def test__assign_demography_with_age_bounds():
     )  # Make sure there are no big age gaps.
 
 
-def test__assign_demography_with_age_bounds_error():
-    pop_data = dt.assign_demographic_proportions(make_uniform_pop_data(age_bin_midpoint=True))
+def test__assign_demography_with_age_bounds_error(include_sex):
+    pop_data = dt.assign_demographic_proportions(
+        make_uniform_pop_data(age_bin_midpoint=True),
+        include_sex=include_sex,
+    )
     simulants = make_base_simulants()
     age_start, age_end = 110, 120
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
@@ -348,4 +339,33 @@ def test__assign_demography_with_age_bounds_error():
     with pytest.raises(ValueError):
         bp._assign_demography_with_age_bounds(
             simulants, pop_data, age_start, age_end, r, lambda *args, **kwargs: None
+        )
+
+
+def _check_population(simulants, initial_age, step_size, include_sex):
+    assert len(simulants) == len(simulants.age.unique())
+    assert simulants.age.min() > initial_age
+    assert simulants.age.max() < initial_age + utilities.to_years(step_size)
+    _check_sexes(simulants, include_sex)
+    _check_locations(simulants)
+
+
+def _check_sexes(simulants, include_sex):
+    male_prob, female_prob = {
+        'Male': (1., 0.),
+        'Female': (0., 1.),
+        'Both': (0.5, 0.5),
+    }[include_sex]
+    for sex, prob in [('Male', male_prob), ('Female', female_prob)]:
+        assert math.isclose(
+            len(simulants[simulants.sex == sex]) / len(simulants), prob, abs_tol=0.01,
+        )
+
+
+def _check_locations(simulants):
+    for location in simulants.location.unique():
+        assert math.isclose(
+            len(simulants[simulants.location == location]) / len(simulants),
+            1 / len(simulants.location.unique()),
+            abs_tol=0.01,
         )

@@ -7,8 +7,11 @@ This module contains tools for sampling and assigning core demographic
 characteristics to simulants.
 
 """
+from typing import Callable, Dict
+
 import numpy as np
 import pandas as pd
+import vivarium.framework.randomness
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import (
@@ -27,6 +30,7 @@ class BasePopulation:
             "age_start": 0,
             "age_end": 125,
             "exit_age": None,
+            "include_sex": 'Both',  # Either Female, Male, or Both
         }
     }
 
@@ -44,6 +48,16 @@ class BasePopulation:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder):
         self.config = builder.configuration.population
+        if self.config.include_sex not in ['Male', 'Female', 'Both']:
+            raise ValueError("Configuration key 'population.include_sex' must be one "
+                             "of ['Male', 'Female', 'Both']. "
+                             f"Provided value: {self.config.include_sex}.")
+
+        source_population_structure = load_population_structure(builder)
+        self.population_data = assign_demographic_proportions(
+            source_population_structure,
+            include_sex=self.config.include_sex,
+        )
 
         self.randomness = {
             "general_purpose": builder.randomness.get_stream("population_generation"),
@@ -65,10 +79,6 @@ class BasePopulation:
         builder.population.initializes_simulants(
             self.generate_base_population, creates_columns=columns
         )
-
-        source_population_structure = load_population_structure(builder)
-
-        self.population_data = _build_population_data_table(source_population_structure)
 
         builder.event.register_listener("time_step", self.on_time_step, priority=8)
 
@@ -110,7 +120,7 @@ class BasePopulation:
         }
 
         sub_pop_data = self.select_sub_population_data(
-            self.population_data, pop_data.creation_time.year
+            self.population_data, pop_data.creation_time.year,
         )
 
         self.population_view.update(
@@ -171,41 +181,43 @@ class AgeOutSimulants:
 
 
 def generate_population(
-    simulant_ids,
-    creation_time,
-    step_size,
-    age_params,
-    population_data,
-    randomness_streams,
-    register_simulants,
-):
+    simulant_ids: pd.Index,
+    creation_time: pd.Timestamp,
+    step_size: pd.Timedelta,
+    age_params: Dict[str, float],
+    population_data: pd.DataFrame,
+    randomness_streams: Dict[str, vivarium.framework.randomness.RandomnessStream],
+    register_simulants: Callable[[pd.DataFrame], None],
+) -> pd.DataFrame:
     """Produces a randomly generated set of simulants sampled from the provided `population_data`.
 
     Parameters
     ----------
     simulant_ids
         Values to serve as the index in the newly generated simulant DataFrame.
-    creation_time : pandas.Timestamp
+    creation_time
         The simulation time when the simulants are created.
-    age_params : dict
+    age_params
         Dictionary with keys
             age_start : Start of an age range
             age_end : End of an age range
 
         The latter two keys can have values specified to generate simulants over an age range.
-    population_data : pandas.DataFrame
+    population_data
         Table with columns 'age', 'age_start', 'age_end', 'sex', 'year',
         'location', 'population', 'P(sex, location, age| year)', 'P(sex, location | age, year)'
-    randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
+    randomness_streams
         Source of random number generation within the vivarium common random number framework.
-    step_size : float
+    step_size
         The size of the initial time step.
-    register_simulants : Callable
+    register_simulants
         A function to register the new simulants with the CRN framework.
+    sexes
+        'male', 'female', or 'both'.  Sexes to generate in the population.
 
     Returns
     -------
-    simulants : pandas.DataFrame
+    pandas.DataFrame
         Table with columns
             'entrance_time'
                 The `pandas.Timestamp` describing when the simulant entered
@@ -255,30 +267,37 @@ def generate_population(
 
 
 def _assign_demography_with_initial_age(
-    simulants, pop_data, initial_age, step_size, randomness_streams, register_simulants
-):
+    simulants: pd.DataFrame,
+    pop_data: pd.DataFrame,
+    initial_age: float,
+    step_size: pd.Timedelta,
+    randomness_streams: Dict[str, vivarium.framework.randomness.RandomnessStream],
+    register_simulants: Callable[[pd.DataFrame], None],
+) -> pd.DataFrame:
     """Assigns age, sex, and location information to the provided simulants given a fixed age.
 
     Parameters
     ----------
-    simulants : pandas.DataFrame
+    simulants
         Table that represents the new cohort of agents being added to the simulation.
-    pop_data : pandas.DataFrame
+    pop_data
         Table with columns 'age', 'age_start', 'age_end', 'sex', 'year',
-        'location', 'population', 'P(sex, location, age| year)', 'P(sex, location | age, year)'
-    initial_age : float
+        'location', 'population', 'P(sex, location, age| year)',
+        'P(sex, location | age, year)'
+    initial_age
         The age to assign the new simulants.
-    randomness_streams : Dict[str, vivarium.framework.randomness.RandomnessStream]
+    randomness_streams
         Source of random number generation within the vivarium common random number framework.
-    step_size : pandas.Timedelta
+    step_size
         The size of the initial time step.
-    register_simulants : Callable
+    register_simulants
         A function to register the new simulants with the CRN framework.
 
     Returns
     -------
     pandas.DataFrame
-        Table with same columns as `simulants` and with the additional columns 'age', 'sex',  and 'location'.
+        Table with same columns as `simulants` and with the additional
+        columns 'age', 'sex',  and 'location'.
     """
     pop_data = pop_data[
         (pop_data.age_start <= initial_age) & (pop_data.age_end >= initial_age)
@@ -362,26 +381,5 @@ def _assign_demography_with_age_bounds(
 
 
 def _build_population_data_table(data):
-    """Constructs a population data table for use as a population distribution over demographic characteristics.
 
-    Parameters
-    ----------
-    data : pd.DataFrame
-        Population structure data
-
-    Returns
-    -------
-    pandas.DataFrame
-        Table with columns
-            'age' : Midpoint of the age group,
-            'age_start' : Lower bound of the age group,
-            'age_end' : Upper bound of the age group,
-            'sex' : 'Male' or 'Female',
-            'location' : location,
-            'year' : Year,
-            'population' : Total population estimate,
-            'P(sex, location | age, year)' : Conditional probability of sex and location given age and year,
-            'P(sex, location, age | year)' : Conditional probability of sex, location, and age given year,
-            'P(age | year, sex, location)' : Conditional probability of age given year, sex, and location.
-    """
     return assign_demographic_proportions(data)
