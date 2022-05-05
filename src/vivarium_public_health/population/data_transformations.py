@@ -439,7 +439,7 @@ def get_live_births_per_year(builder):
     population_data = population_data.groupby(["year_start"])["value"].sum()
     birth_data = (
         birth_data[birth_data.parameter == "mean_value"]
-        .drop("parameter", "columns")
+        .drop(columns=["parameter"])
         .groupby(["year_start"])["value"]
         .sum()
     )
