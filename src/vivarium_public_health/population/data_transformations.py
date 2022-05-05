@@ -12,7 +12,7 @@ from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
-import vivarium.framework.randomness
+from vivarium.framework.randomness import RandomnessStream
 
 _SORT_ORDER = ['location', 'year_start', 'sex', 'age_start']
 
@@ -182,9 +182,10 @@ def _add_edge_age_groups(pop_data: pd.DataFrame) -> pd.DataFrame:
 
     # For the upper bin, we want our interpolation to go to zero.
     max_valid_age = pop_data["age_end"].max()
-    # This bin width is not arbitrary.  It effects the rate at which our interpolation zeros out.
-    # Since for the 2016 round the maximum age is 125, we're assuming almost no one lives past that age,
-    # so we make this bin 1 week.  A more robust technique for this would be better.
+    # This bin width is not arbitrary.  It effects the rate at which our interpolation
+    # zeros out. Since for the 2016 round the maximum age is 125, we're assuming almost no
+    # one lives past that age, so we make this bin 1 week.  A more robust technique for
+    # this would be better.
     max_pad_age = max_valid_age + 7 / 365
     max_pad_age_midpoint = (max_valid_age + max_pad_age) * 0.5
 
@@ -219,7 +220,7 @@ EndpointValues = namedtuple("EndpointValues", ["left", "right"])
 def smooth_ages(
     simulants: pd.DataFrame,
     population_data: pd.DataFrame,
-    randomness: vivarium.framework.randomness.RandomnessStream,
+    randomness: RandomnessStream,
 ) -> pd.DataFrame:
     """Distributes simulants among ages within their assigned age bins.
 
@@ -301,17 +302,24 @@ def _get_bins_and_proportions(
         'P(sex, location, age| year)', 'P(sex, location | age, year)',
         'P(age | year, sex, location)'
     age
-        Tuple with values
-            (midpoint of current age bin, midpoint of previous age bin, midpoint of next age bin)
+        Tuple with values (
+            midpoint of current age bin,
+            midpoint of previous age bin,
+            midpoint of next age bin,
+        )
 
     Returns
     -------
     Tuple[EndpointValues, AgeValues]
-        The `EndpointValues` tuple has values
-            (age at left edge of bin, age at right edge of bin)
-        The `AgeValues` tuple has values
-            (proportion of pop in current bin, proportion of pop in previous bin,
-            proportion of pop in next bin)
+        The `EndpointValues` tuple has values (
+            age at left edge of bin,
+            age at right edge of bin,
+        )
+        The `AgeValues` tuple has values (
+            proportion of pop in current bin,
+            proportion of pop in previous bin,
+            proportion of pop in next bin,
+        )
 
     """
     left = float(pop_data.loc[pop_data.age == age.current, "age_start"])
@@ -435,10 +443,10 @@ def _compute_ages(
     Parameters
     ----------
     uniform_rv
-        Values pulled from a uniform distribution and belonging to either the left or right half
-        of the local distribution.  The halves are determined by the the point Z in [0, 1] such that
-        Q(Z) = the midpoint of the age bin in question, where Q is inverse of the local
-        cumulative distribution function.
+        Values pulled from a uniform distribution and belonging to either the left or
+        right half of the local distribution. The halves are determined by the point Z
+        in [0, 1] such that Q(Z) = the midpoint of the age bin in question, where Q is
+        inverse of the local cumulative distribution function.
     start
         Either the left edge of the age bin (if we're in the left half of the distribution) or
         the midpoint of the age bin (if we're in the right half of the distribution).

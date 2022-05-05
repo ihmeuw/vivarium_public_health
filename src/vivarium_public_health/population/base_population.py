@@ -7,11 +7,14 @@ This module contains tools for sampling and assigning core demographic
 characteristics to simulants.
 
 """
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import numpy as np
 import pandas as pd
-import vivarium.framework.randomness
+from vivarium.framework.engine import Builder
+from vivarium.framework.randomness import RandomnessStream
+from vivarium.framework.population import SimulantData
+from vivarium.framework.event import Event
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import (
@@ -38,15 +41,15 @@ class BasePopulation:
         self._sub_components = [AgeOutSimulants()]
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "base_population"
 
     @property
-    def sub_components(self):
+    def sub_components(self) -> List:
         return self._sub_components
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
         if self.config.include_sex not in ['Male', 'Female', 'Both']:
             raise ValueError("Configuration key 'population.include_sex' must be one "
@@ -77,21 +80,13 @@ class BasePopulation:
 
         self.population_view = builder.population.get_view(columns)
         builder.population.initializes_simulants(
-            self.generate_base_population, creates_columns=columns
+            self.on_initialize_simulants, creates_columns=columns
         )
 
         builder.event.register_listener("time_step", self.on_time_step, priority=8)
 
-    @staticmethod
-    def select_sub_population_data(reference_population_data, year):
-        reference_years = sorted(set(reference_population_data.year_start))
-        ref_year_index = np.digitize(year, reference_years).item() - 1
-        return reference_population_data[
-            reference_population_data.year_start == reference_years[ref_year_index]
-        ]
-
     # TODO: Move most of this docstring to an rst file.
-    def generate_base_population(self, pop_data):
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Creates a population with fundamental demographic and simulation properties.
 
         When the simulation framework creates new simulants (essentially producing a new
@@ -109,9 +104,6 @@ class BasePopulation:
         migration, death, etc.) as these characteristics can be inferred from this column and
         other information about the simulant and the simulation parameters.
 
-        Parameters
-        ----------
-        pop_data
         """
 
         age_params = {
@@ -135,20 +127,24 @@ class BasePopulation:
             )
         )
 
-    def on_time_step(self, event):
-        """Ages simulants each time step.
-
-        Parameters
-        ----------
-        event : vivarium.framework.event.Event
-
-        """
+    def on_time_step(self, event: Event) -> None:
+        """Ages simulants each time step."""
         population = self.population_view.get(event.index, query="alive == 'alive'")
         population["age"] += utilities.to_years(event.step_size)
         self.population_view.update(population)
 
-    def __repr__(self):
-        # TODO: Make a __str__ with some info about relevant config settings?
+    @staticmethod
+    def select_sub_population_data(
+        reference_population_data: pd.DataFrame,
+        year: int,
+    ) -> pd.DataFrame:
+        reference_years = sorted(set(reference_population_data.year_start))
+        ref_year_index = np.digitize(year, reference_years).item() - 1
+        return reference_population_data[
+            reference_population_data.year_start == reference_years[ref_year_index]
+        ]
+
+    def __repr__(self) -> str:
         return "BasePopulation()"
 
 
@@ -156,18 +152,18 @@ class AgeOutSimulants:
     """Component for handling aged-out simulants"""
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "age_out_simulants"
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
         if builder.configuration.population.exit_age is None:
             return
         self.config = builder.configuration.population
         self.population_view = builder.population.get_view(["age", "exit_time", "tracked"])
         builder.event.register_listener("time_step__cleanup", self.on_time_step_cleanup)
 
-    def on_time_step_cleanup(self, event):
+    def on_time_step_cleanup(self, event: Event) -> None:
         population = self.population_view.get(event.index)
         max_age = float(self.config.exit_age)
         pop = population[(population["age"] >= max_age) & population["tracked"]].copy()
@@ -176,7 +172,7 @@ class AgeOutSimulants:
             pop["exit_time"] = event.time
             self.population_view.update(pop)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "AgeOutSimulants()"
 
 
@@ -186,7 +182,7 @@ def generate_population(
     step_size: pd.Timedelta,
     age_params: Dict[str, float],
     population_data: pd.DataFrame,
-    randomness_streams: Dict[str, vivarium.framework.randomness.RandomnessStream],
+    randomness_streams: Dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
 ) -> pd.DataFrame:
     """Produces a random set of simulants sampled from the provided `population_data`.
@@ -270,7 +266,7 @@ def _assign_demography_with_initial_age(
     pop_data: pd.DataFrame,
     initial_age: float,
     step_size: pd.Timedelta,
-    randomness_streams: Dict[str, vivarium.framework.randomness.RandomnessStream],
+    randomness_streams: Dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
 ) -> pd.DataFrame:
     """Assigns age, sex, and location information to the provided simulants given a fixed age.
@@ -334,7 +330,7 @@ def _assign_demography_with_age_bounds(
     pop_data: pd.DataFrame,
     age_start: float,
     age_end: float,
-    randomness_streams: Dict[str, vivarium.framework.randomness.RandomnessStream],
+    randomness_streams: Dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
 ) -> pd.DataFrame:
     """Assigns an age, sex, and location to the provided simulants given a range of ages.
