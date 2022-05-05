@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from vivarium.framework.randomness import RandomnessStream
 
-_SORT_ORDER = ['location', 'year_start', 'sex', 'age_start']
+_SORT_ORDER = ["location", "year_start", "sex", "age_start"]
 
 
 def assign_demographic_proportions(
@@ -49,31 +49,28 @@ def assign_demographic_proportions(
             year, sex, and location.
     """
     population_data = population_data.copy()
-    if include_sex != 'Both':
-        population_data.loc[population_data.sex != include_sex, 'value'] = 0.
+    if include_sex != "Both":
+        population_data.loc[population_data.sex != include_sex, "value"] = 0.0
 
     population_data["P(sex, location, age| year)"] = (
         population_data.groupby("year_start", as_index=False)
         .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
         .reset_index(level=0)
-        .value
-        .fillna(0.)
+        .value.fillna(0.0)
     )
 
     population_data["P(sex, location | age, year)"] = (
         population_data.groupby(["age", "year_start"], as_index=False)
         .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
         .reset_index(level=0)
-        .value
-        .fillna(0.)
+        .value.fillna(0.0)
     )
 
     population_data["P(age | year, sex, location)"] = (
         population_data.groupby(["year_start", "sex", "location"], as_index=False)
         .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
         .reset_index(level=0)
-        .value
-        .fillna(0.)
+        .value.fillna(0.0)
     )
 
     return population_data.sort_values(_SORT_ORDER).reset_index(drop=True)
@@ -362,9 +359,7 @@ def _get_bins_and_proportions(
 
 
 def _construct_sampling_parameters(
-    age: AgeValues,
-    endpoint: EndpointValues,
-    proportion: AgeValues
+    age: AgeValues, endpoint: EndpointValues, proportion: AgeValues
 ) -> Tuple[EndpointValues, EndpointValues, float, float]:
     """Calculates some sampling distribution parameters from known values.
 
@@ -436,7 +431,7 @@ def _compute_ages(
     start: float,
     height: float,
     slope: float,
-    normalization: float
+    normalization: float,
 ) -> Union[np.ndarray, float]:
     """Produces samples from the local age distribution.
 

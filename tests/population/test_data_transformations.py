@@ -14,14 +14,12 @@ def test_assign_demographic_proportions(include_sex):
         include_sex=include_sex,
     )
 
-    male_scalar, female_scalar = {
-        'Male': (2, 0),
-        'Female': (0, 2),
-        'Both': (1, 1)
-    }[include_sex]
+    male_scalar, female_scalar = {"Male": (2, 0), "Female": (0, 2), "Both": (1, 1)}[
+        include_sex
+    ]
 
-    male_pop = pop_data[pop_data.sex == 'Male']
-    female_pop = pop_data[pop_data.sex == 'Female']
+    male_pop = pop_data[pop_data.sex == "Male"]
+    female_pop = pop_data[pop_data.sex == "Female"]
 
     num_groups = len(pop_data)
     num_years = len(pop_data.year_start.unique())
@@ -40,7 +38,7 @@ def test_assign_demographic_proportions(include_sex):
         )
         assert np.allclose(
             subpop["P(age | year, sex, location)"],
-            num_years * num_sexes * num_locations / num_groups if sex_scalar else 0.,
+            num_years * num_sexes * num_locations / num_groups if sex_scalar else 0.0,
         )
 
 
@@ -76,14 +74,12 @@ def test_rescale_binned_proportions_clipped_ends(include_sex):
         + [base_p] * (len(pop_data_scaled) // scale - 5)
         + [0]
     )
-    male_scalar, female_scalar = {
-        'Male': (2, 0),
-        'Female': (0, 2),
-        'Both': (1, 1)
-    }[include_sex]
+    male_scalar, female_scalar = {"Male": (2, 0), "Female": (0, 2), "Both": (1, 1)}[
+        include_sex
+    ]
 
     for group, sub_population in pop_data_scaled.groupby(["sex", "location"]):
-        scalar = {'Male': male_scalar, 'Female': female_scalar}[group[0]]
+        scalar = {"Male": male_scalar, "Female": female_scalar}[group[0]]
         assert np.allclose(sub_population["P(sex, location, age| year)"], scalar * p_scaled)
 
 
@@ -101,7 +97,7 @@ def test_rescale_binned_proportions_age_bin_edges(include_sex):
     correct_data = np.zeros(len(pop_data_scaled))
     valid_ages = pop_data_scaled.age_end <= pop_data.age_end.max()
     correct_data[valid_ages] = 1 / len(pop_data)
-    if include_sex in ['Male', 'Female']:
+    if include_sex in ["Male", "Female"]:
         correct_data[pop_data_scaled.sex == include_sex] *= 2
         correct_data[pop_data_scaled.sex != include_sex] *= 0
     assert np.allclose(pop_data_scaled["P(sex, location, age| year)"], correct_data)
@@ -117,7 +113,9 @@ def test_smooth_ages(include_sex):
     simulants = pd.DataFrame(
         {
             "age": [22.5] * 10000 + [52.5] * 10000,
-            "sex": ["Male", "Female"] * 10000 if include_sex == 'Both' else [include_sex] * 20000,
+            "sex": ["Male", "Female"] * 10000
+            if include_sex == "Both"
+            else [include_sex] * 20000,
             "location": [1, 2] * 10000,
         }
     )
@@ -136,7 +134,7 @@ def test_smooth_ages(include_sex):
 def test__get_bins_and_proportions_with_youngest_bin():
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
-        include_sex='Male',
+        include_sex="Male",
     )
     pop_data = pop_data[
         (pop_data.year_start == 1990) & (pop_data.location == 1) & (pop_data.sex == "Male")
@@ -154,7 +152,7 @@ def test__get_bins_and_proportions_with_youngest_bin():
 def test__get_bins_and_proportions_with_oldest_bin():
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
-        include_sex='Male',
+        include_sex="Male",
     )
     pop_data = pop_data[
         (pop_data.year_start == 1990) & (pop_data.location == 1) & (pop_data.sex == "Male")
@@ -172,7 +170,7 @@ def test__get_bins_and_proportions_with_oldest_bin():
 def test__get_bins_and_proportions_with_middle_bin():
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
-        include_sex='Male',
+        include_sex="Male",
     )
     pop_data = pop_data[
         (pop_data.year_start == 1990) & (pop_data.location == 1) & (pop_data.sex == "Male")

@@ -100,8 +100,10 @@ def test_BasePopulation(config, base_plugins, generate_population_mock, include_
     components = [base_pop]
     config.update(
         {
-            "population": {"population_size": start_population_size,
-                           'include_sex': include_sex},
+            "population": {
+                "population_size": start_population_size,
+                "include_sex": include_sex,
+            },
             "time": {"step_size": time_step},
         },
         layer="override",
@@ -272,7 +274,6 @@ def test__assign_demography_with_initial_age_zero(config, include_sex):
     _check_population(simulants, initial_age, step_size, include_sex)
 
 
-
 def test__assign_demography_with_initial_age_error(include_sex):
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
@@ -352,13 +353,15 @@ def _check_population(simulants, initial_age, step_size, include_sex):
 
 def _check_sexes(simulants, include_sex):
     male_prob, female_prob = {
-        'Male': (1., 0.),
-        'Female': (0., 1.),
-        'Both': (0.5, 0.5),
+        "Male": (1.0, 0.0),
+        "Female": (0.0, 1.0),
+        "Both": (0.5, 0.5),
     }[include_sex]
-    for sex, prob in [('Male', male_prob), ('Female', female_prob)]:
+    for sex, prob in [("Male", male_prob), ("Female", female_prob)]:
         assert math.isclose(
-            len(simulants[simulants.sex == sex]) / len(simulants), prob, abs_tol=0.01,
+            len(simulants[simulants.sex == sex]) / len(simulants),
+            prob,
+            abs_tol=0.01,
         )
 
 

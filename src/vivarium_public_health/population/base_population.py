@@ -12,9 +12,9 @@ from typing import Callable, Dict, List
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.population import SimulantData
 from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
+from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import (
@@ -33,7 +33,7 @@ class BasePopulation:
             "age_start": 0,
             "age_end": 125,
             "exit_age": None,
-            "include_sex": 'Both',  # Either Female, Male, or Both
+            "include_sex": "Both",  # Either Female, Male, or Both
         }
     }
 
@@ -51,10 +51,12 @@ class BasePopulation:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
-        if self.config.include_sex not in ['Male', 'Female', 'Both']:
-            raise ValueError("Configuration key 'population.include_sex' must be one "
-                             "of ['Male', 'Female', 'Both']. "
-                             f"Provided value: {self.config.include_sex}.")
+        if self.config.include_sex not in ["Male", "Female", "Both"]:
+            raise ValueError(
+                "Configuration key 'population.include_sex' must be one "
+                "of ['Male', 'Female', 'Both']. "
+                f"Provided value: {self.config.include_sex}."
+            )
 
         source_population_structure = load_population_structure(builder)
         self.population_data = assign_demographic_proportions(
@@ -112,7 +114,8 @@ class BasePopulation:
         }
 
         sub_pop_data = self.select_sub_population_data(
-            self.population_data, pop_data.creation_time.year,
+            self.population_data,
+            pop_data.creation_time.year,
         )
 
         self.population_view.update(
@@ -359,8 +362,10 @@ def _assign_demography_with_age_bounds(
     """
     pop_data = rescale_binned_proportions(pop_data, age_start, age_end)
     if pop_data.empty:
-        raise ValueError(f"The age range ({age_start}, {age_end}) is not represented by the "
-                         f"population data structure.")
+        raise ValueError(
+            f"The age range ({age_start}, {age_end}) is not represented by the "
+            f"population data structure."
+        )
 
     # Assign a demographically accurate age, location, and sex distribution.
     sub_pop_data = pop_data[(pop_data.age_start >= age_start) & (pop_data.age_end <= age_end)]
