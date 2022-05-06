@@ -503,6 +503,7 @@ def get_live_births_per_year(builder):
         .groupby(["year_start"])["value"]
         .sum()
     )
+    # breakpoint()
 
     start_year = builder.configuration.time.start.year
     if (

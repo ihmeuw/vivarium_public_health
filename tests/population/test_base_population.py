@@ -291,14 +291,14 @@ def test__assign_demography_with_initial_age_error(include_sex):
         )
 
 
-def test__assign_demography_with_age_bounds(include_sex):
+@pytest.mark.parametrize(["age_start", "age_end"], [[0, 180], [5, 50], [12, 57]])
+def test__assign_demography_with_age_bounds(include_sex, age_start, age_end):
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
         include_sex=include_sex,
     )
     pop_data = pop_data[pop_data.year_start == 1990]
     simulants = make_base_simulants()
-    age_start, age_end = 0, 180
     r = {
         k: get_randomness(k)
         for k in [
@@ -319,13 +319,13 @@ def test__assign_demography_with_age_bounds(include_sex):
     ages = np.sort(simulants.age.values)
     age_deltas = ages[1:] - ages[:-1]
 
-    age_bin_width = 5  # See `make_uniform_pop_data`
-    num_bins = len(pop_data.age.unique())
-    n = len(simulants)
-    assert math.isclose(age_deltas.mean(), age_bin_width * num_bins / n, rel_tol=1e-3)
-    assert (
-        age_deltas.max() < 100 * age_bin_width * num_bins / n
-    )  # Make sure there are no big age gaps.
+    age_start = max(pop_data.age_start.min(), age_start)
+    age_end = min(pop_data.age_end.max(), age_end)
+    expected_average_delta = (age_end - age_start) / len(simulants)
+
+    assert math.isclose(age_deltas.mean(), expected_average_delta, rel_tol=1e-2)
+    # Make sure there are no big age gaps.
+    assert age_deltas.max() < 100 * expected_average_delta
 
 
 def test__assign_demography_with_age_bounds_error(include_sex):
@@ -334,7 +334,7 @@ def test__assign_demography_with_age_bounds_error(include_sex):
         include_sex=include_sex,
     )
     simulants = make_base_simulants()
-    age_start, age_end = 110, 120
+    age_start, age_end = 130, 140
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
 
     with pytest.raises(ValueError):

@@ -9,6 +9,7 @@ components.
 """
 from itertools import product
 
+import numpy as np
 import pandas as pd
 
 
@@ -30,7 +31,7 @@ def make_uniform_pop_data(age_bin_midpoint=False):
             "year_start": year_starts,
             "year_end": year_ends,
             "location": locations,
-            "value": [100] * len(mins),
+            "value": 100 * (np.array(maxes) - np.array(mins)),
         }
     )
     if age_bin_midpoint:  # used for population tests
