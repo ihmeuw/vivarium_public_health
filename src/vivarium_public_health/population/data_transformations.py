@@ -8,67 +8,94 @@ it into different distributions for sampling.
 
 """
 from collections import namedtuple
+from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
+from vivarium.framework.randomness import RandomnessStream
+
+_SORT_ORDER = ["location", "year_start", "sex", "age_start"]
 
 
-def assign_demographic_proportions(population_data):
-    """Calculates conditional probabilities on the provided population data for use in sampling.
+def assign_demographic_proportions(
+    population_data: pd.DataFrame,
+    include_sex: str,
+) -> pd.DataFrame:
+    """Calculates conditional probabilities on the provided population data for sampling.
 
     Parameters
     ----------
-    population_data : pandas.DataFrame
-        Table with columns 'age', 'sex', 'year', 'location', and 'population'
+    population_data
+        Table with columns 'age', 'sex', 'year', 'location', and 'value'
+    include_sex
+        'Female', 'Male', or 'Both'.  Sexes to include in the distribution.
 
     Returns
     -------
     pandas.DataFrame
-        Table with the same columns as `population_data` and additionally with columns
-        'P(sex, location, age| year)', 'P(sex, location | age, year)', and
-        'P(age | year, sex, location)' with values calculated from the
-        various population levels.
+        Table with columns
+            'age' : Midpoint of the age group,
+            'age_start' : Lower bound of the age group,
+            'age_end' : Upper bound of the age group,
+            'sex' : 'Male' or 'Female',
+            'location' : location,
+            'year' : Year,
+            'population' : Total population estimate,
+            'P(sex, location | age, year)' : Conditional probability of sex and
+            location given age and year,
+            'P(sex, location, age | year)' : Conditional probability of sex, location,
+            and age given year,
+            'P(age | year, sex, location)' : Conditional probability of age given
+            year, sex, and location.
     """
+    population_data = population_data.copy()
+    if include_sex != "Both":
+        population_data.loc[population_data.sex != include_sex, "value"] = 0.0
 
     population_data["P(sex, location, age| year)"] = (
         population_data.groupby("year_start", as_index=False)
         .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
         .reset_index(level=0)
-        .value
+        .value.fillna(0.0)
     )
 
     population_data["P(sex, location | age, year)"] = (
         population_data.groupby(["age", "year_start"], as_index=False)
         .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
         .reset_index(level=0)
-        .value
+        .value.fillna(0.0)
     )
 
     population_data["P(age | year, sex, location)"] = (
         population_data.groupby(["year_start", "sex", "location"], as_index=False)
         .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
         .reset_index(level=0)
-        .value
+        .value.fillna(0.0)
     )
 
-    return population_data
+    return population_data.sort_values(_SORT_ORDER).reset_index(drop=True)
 
 
-#  FIXME: This step should definitely be happening after we get some approximation of the underlying
-# distribution.  It makes an assumption of uniformity in the age bin.  This only happens at the edges,
-# and is unlikely to be used to clip a neonatal age bin where the impact would be significant.
-def rescale_binned_proportions(pop_data, age_start, age_end):
-    """Reshapes the distribution so that bin edges fall cleanly on the specified age_start and age_end.
+#  FIXME: This step should definitely be happening after we get some approximation of the
+#   underlying distribution.  It makes an assumption of uniformity in the age bin.
+#   This only happens at the edges, and is unlikely to be used to clip a neonatal age bin
+#   where the impact would be significant.
+def rescale_binned_proportions(
+    pop_data: pd.DataFrame,
+    age_start: float,
+    age_end: float,
+) -> pd.DataFrame:
+    """Reshapes the distribution so that bin edges fall on the age_start and age_end.
 
     Parameters
     ----------
-    pop_data : pandas.DataFrame
+    pop_data
         Table with columns 'age', 'age_start', 'age_end', 'sex', 'year',
-        'location', 'population', 'P(sex, location, age| year)', 'P(sex, location | age, year)',
-        'P(age | year, sex, location)'
-    age_start : float
+        'location', 'population', 'P(sex, location, age| year)',
+        'P(sex, location | age, year)', 'P(age | year, sex, location)'
+    age_start
         The starting age for the rescaled bins.
-    age_end : float
+    age_end
         The terminal age for the rescaled bins.
 
     Returns
@@ -80,6 +107,7 @@ def rescale_binned_proportions(pop_data, age_start, age_end):
         the 'population', 'P(sex, location, age| year)', and 'P(age | year, sex, location)'
         values are rescaled to reflect their smaller representation.
     """
+    col_order = pop_data.columns.copy()
     if age_start > pop_data.age_end.max():
         raise ValueError(
             "Provided population data is insufficient to model the requested age range."
@@ -124,21 +152,13 @@ def rescale_binned_proportions(pop_data, age_start, age_end):
         pop_data.loc[max_bin.index, "age_end"] = age_end
         pop_data.loc[padding_bin.index, "age_start"] = age_end
 
-    return pop_data
+    return pop_data[col_order].sort_values(_SORT_ORDER).reset_index(drop=True)
 
 
-def _add_edge_age_groups(pop_data):
-    """
-    Pads the population data with age groups that enforce constant left interpolation
-    and interpolation to zero on the right.
+def _add_edge_age_groups(pop_data: pd.DataFrame) -> pd.DataFrame:
+    """Pads the population data with age groups that enforce constant
+    left interpolation and interpolation to zero on the right.
 
-    Parameters
-    ----------
-    pop_data : pandas.DataFrame
-
-    Returns
-    -------
-    pandas.DataFrame
     """
     index_cols = ["location", "year_start", "year_end", "sex"]
     age_cols = ["age", "age_start", "age_end"]
@@ -159,9 +179,10 @@ def _add_edge_age_groups(pop_data):
 
     # For the upper bin, we want our interpolation to go to zero.
     max_valid_age = pop_data["age_end"].max()
-    # This bin width is not arbitrary.  It effects the rate at which our interpolation zeros out.
-    # Since for the 2016 round the maximum age is 125, we're assuming almost no one lives past that age,
-    # so we make this bin 1 week.  A more robust technique for this would be better.
+    # This bin width is not arbitrary.  It effects the rate at which our interpolation
+    # zeros out. Since for the 2016 round the maximum age is 125, we're assuming almost no
+    # one lives past that age, so we make this bin 1 week.  A more robust technique for
+    # this would be better.
     max_pad_age = max_valid_age + 7 / 365
     max_pad_age_midpoint = (max_valid_age + max_pad_age) * 0.5
 
@@ -193,18 +214,22 @@ AgeValues = namedtuple("AgeValues", ["current", "young", "old"])
 EndpointValues = namedtuple("EndpointValues", ["left", "right"])
 
 
-def smooth_ages(simulants, population_data, randomness):
+def smooth_ages(
+    simulants: pd.DataFrame,
+    population_data: pd.DataFrame,
+    randomness: RandomnessStream,
+) -> pd.DataFrame:
     """Distributes simulants among ages within their assigned age bins.
 
     Parameters
     ----------
-    simulants : pandas.DataFrame
+    simulants
         Table with columns 'age', 'sex', and 'location'
-    population_data : pandas.DataFrame
+    population_data
         Table with columns 'age', 'sex', 'year', 'location', 'population',
         'P(sex, location, age| year)', 'P(sex, location | age, year)',
         'P(age | year, sex, location)'
-    randomness : vivarium.framework.randomness.RandomnessStream
+    randomness
         Source of random number generation within the vivarium common random number framework.
 
     Returns
@@ -260,26 +285,39 @@ def smooth_ages(simulants, population_data, randomness):
     return simulants
 
 
-def _get_bins_and_proportions(pop_data, age):
-    """Finds and returns the bin edges and the population proportions in the current and neighboring bins.
+def _get_bins_and_proportions(
+    pop_data: pd.DataFrame,
+    age: AgeValues,
+) -> Tuple[EndpointValues, AgeValues]:
+    """Finds and returns the bin edges and the population proportions in
+    the current and neighboring bins.
 
     Parameters
     ----------
-    pop_data : pandas.DataFrame
+    pop_data
         Table with columns 'age', 'sex', 'year', 'location', 'population',
         'P(sex, location, age| year)', 'P(sex, location | age, year)',
         'P(age | year, sex, location)'
-    age : AgeValues
-        Tuple with values
-            (midpoint of current age bin, midpoint of previous age bin, midpoint of next age bin)
+    age
+        Tuple with values (
+            midpoint of current age bin,
+            midpoint of previous age bin,
+            midpoint of next age bin,
+        )
 
     Returns
     -------
-    (EndpointValues, AgeValues)
-        The `EndpointValues` tuple has values
-            (age at left edge of bin, age at right edge of bin)
-        The `AgeValues` tuple has values
-            (proportion of pop in current bin, proportion of pop in previous bin, proportion of pop in next bin)
+    Tuple[EndpointValues, AgeValues]
+        The `EndpointValues` tuple has values (
+            age at left edge of bin,
+            age at right edge of bin,
+        )
+        The `AgeValues` tuple has values (
+            proportion of pop in current bin,
+            proportion of pop in previous bin,
+            proportion of pop in next bin,
+        )
+
     """
     left = float(pop_data.loc[pop_data.age == age.current, "age_start"])
     right = float(pop_data.loc[pop_data.age == age.current, "age_end"])
@@ -295,9 +333,10 @@ def _get_bins_and_proportions(pop_data, age):
 
     # proportion in this bin and the neighboring bins
     proportion_column = "P(age | year, sex, location)"
-    # Here we make the assumption that P(left < age < right | year, sex, location)  = p * (right - left)
-    # in order to back out a point estimate for the probability density at the center of the interval.
-    # This not the best assumption, but it'll do.
+    # Here we make the assumption that
+    # P(left < age < right | year, sex, location)  = p * (right - left)
+    # in order to back out a point estimate for the probability density at the center
+    # of the interval. This not the best assumption, but it'll do.
     p_age = float(
         pop_data.loc[pop_data.age == age.current, proportion_column] / (right - left)
     )
@@ -319,33 +358,48 @@ def _get_bins_and_proportions(pop_data, age):
     return EndpointValues(left, right), AgeValues(p_age, p_young, p_old)
 
 
-def _construct_sampling_parameters(age, endpoint, proportion):
+def _construct_sampling_parameters(
+    age: AgeValues, endpoint: EndpointValues, proportion: AgeValues
+) -> Tuple[EndpointValues, EndpointValues, float, float]:
     """Calculates some sampling distribution parameters from known values.
 
     Parameters
     ----------
-    age : AgeValues
-        Tuple with values
-            (midpoint of current age bin, midpoint of previous age bin, midpoint of next age bin)
+    age
+        Tuple with values (
+            midpoint of current age bin,
+            midpoint of previous age bin,
+            midpoint of next age bin,
+        )
     endpoint : EndpointValues
-        Tuple with values
-            (age at left edge of bin, age at right edge of bin)
+        Tuple with values (
+            age at left edge of bin,
+            age at right edge of bin,
+        )
     proportion : AgeValues
-        Tuple with values
-            (proportion of pop in current bin, proportion of pop in previous bin, proportion of pop in next bin)
+        Tuple with values (
+            proportion of pop in current bin,
+            proportion of pop in previous bin,
+            proportion of pop in next bin,
+        )
 
     Returns
     -------
-    (pdf, slope, area, cdf_inflection_point) : (EndpointValues, EndpointValues, float, float)
-        pdf is a tuple with values
-            (pdf evaluated at left bin edge, pdf evaluated at right bin edge)
-        slope is a tuple with values
-            (slope of pdf in left half bin, slope of pdf in right half bin)
-        area is the total area under the pdf, used for normalization
-        cdf_inflection_point is the value of the cdf at the midpoint of the age bin.
+    Tuple[EndpointValues, EndpointValues, float, float]
+        A tuple of (pdf, slope, area, cdf_inflection_point) where
+            pdf is a tuple with values (
+                pdf evaluated at left bin edge,
+                pdf evaluated at right bin edge,
+            )
+            slope is a tuple with values (
+                slope of pdf in left half bin,
+                slope of pdf in right half bin,
+            )
+            area is the total area under the pdf, used for normalization
+            cdf_inflection_point is the value of the cdf at the midpoint of the age bin.
+
     """
     # pdf value at bin endpoints
-
     pdf_left = (proportion.current - proportion.young) / (age.current - age.young) * (
         endpoint.left - age.young
     ) + proportion.young
@@ -372,29 +426,35 @@ def _construct_sampling_parameters(age, endpoint, proportion):
     return pdf, slope, area, cdf_inflection_point
 
 
-def _compute_ages(uniform_rv, start, height, slope, normalization):
+def _compute_ages(
+    uniform_rv: Union[np.ndarray, float],
+    start: float,
+    height: float,
+    slope: float,
+    normalization: float,
+) -> Union[np.ndarray, float]:
     """Produces samples from the local age distribution.
 
     Parameters
     ----------
-    uniform_rv : numpy.ndarray or float
-        Values pulled from a uniform distribution and belonging to either the left or right half
-        of the local distribution.  The halves are determined by the the point Z in [0, 1] such that
-        Q(Z) = the midpoint of the age bin in question, where Q is inverse of the local
-        cumulative distribution function.
-    start : float
+    uniform_rv
+        Values pulled from a uniform distribution and belonging to either the left or
+        right half of the local distribution. The halves are determined by the point Z
+        in [0, 1] such that Q(Z) = the midpoint of the age bin in question, where Q is
+        inverse of the local cumulative distribution function.
+    start
         Either the left edge of the age bin (if we're in the left half of the distribution) or
         the midpoint of the age bin (if we're in the right half of the distribution).
-    height : float
+    height
         The value of the local distribution at `start`
-    slope : float
+    slope
         The slope of the local distribution.
-    normalization : float
+    normalization
         The total area under the distribution.
 
     Returns
     -------
-    numpy.ndarray or float
+    Union[np.ndarray, float]
         Smoothed ages from one half of the age bin distribution.
     """
     if abs(slope) < np.finfo(np.float32).eps:
