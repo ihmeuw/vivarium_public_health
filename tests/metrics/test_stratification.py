@@ -1,8 +1,4 @@
 import itertools
-from datetime import datetime
-from math import floor
-from typing import Callable, List, Set
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -18,7 +14,6 @@ from vivarium_public_health.metrics.stratification import (
 from vivarium_public_health.metrics.stratification import (
     Source,
     SourceType,
-    StratificationLevel,
 )
 
 
@@ -106,22 +101,13 @@ class ResultsStratifier(ResultsStratifier_):
         )
 
 
-@pytest.fixture(
-    params=[
-        [],
-        ["age", "sex", "year"],
-        ["age", "sex", "year"] + ["favorite_things", "favorite_color", "month"],
-    ]
-)
-def stratification_levels(request):
-    return request.param
+ALL_LEVELS = ["age", "sex", "year", "favorite_things", "favorite_color", "month"]
 
 
-@pytest.fixture(scope="function")
-def stratifier_and_sim(stratification_levels, base_config, base_plugins):
-    base_config.update(
+def make_stratifier_and_sim(default_levels, config, plugins):
+    config.update(
         {
-            "observers": {"default": stratification_levels},
+            "observers": {"default": default_levels},
             "population": {"population_size": 1000},
         },
         **metadata(__file__),
@@ -129,19 +115,49 @@ def stratifier_and_sim(stratification_levels, base_config, base_plugins):
     rs = ResultsStratifier()
     sim = InteractiveContext(
         components=[TestPopulation(), rs, FavoriteColor(), FavoriteNumber()],
-        configuration=base_config,
-        plugin_configuration=base_plugins,
+        configuration=config,
+        plugin_configuration=plugins,
     )
     return rs, sim
 
 
-def test_ResultsStratifier_setup(stratifier_and_sim, stratification_levels):
+@pytest.fixture(params=[[], ["age", "sex", "year"], ALL_LEVELS])
+def default_levels(request):
+    return request.param
+
+
+@pytest.fixture(scope="function")
+def stratifier_and_sim(default_levels, base_config, base_plugins):
+    return make_stratifier_and_sim(default_levels, base_config, base_plugins)
+
+
+@pytest.fixture(params=[
+    [[], []],
+    [['sex', 'favorite_color'], []],
+    [[], ['sex', 'favorite_color']],
+    [ALL_LEVELS, []],
+    [[], ALL_LEVELS],
+    [['sex'], ['favorite_color']]
+])
+def include_and_exclude(request):
+    return request.param
+
+
+@pytest.fixture(params=[
+    [['age'], ['age']],
+    [ALL_LEVELS, ALL_LEVELS],
+])
+def bad_include_and_exclude(request):
+    return request.param
+
+
+def test_ResultsStratifier_setup(stratifier_and_sim, default_levels):
     rs, sim = stratifier_and_sim
 
     assert rs.metrics_pipeline_name == "metrics"
     assert rs.tmrle_key == "population.theoretical_minimum_risk_life_expectancy"
     assert rs.clock() == sim.current_time
-    assert rs.default_stratification_levels == set(stratification_levels)
+    assert rs.default_stratification_levels == set(default_levels)
     assert set(rs.pipelines) == {"favorite_color"}
     assert rs.columns_required == {"tracked", "favorite_number", "age", "sex"}
     assert rs.clock_sources == {"year", "month"}
@@ -247,65 +263,51 @@ def test_setting_stratification_groups_on_time_step_prepare(stratifier_and_sim):
     assert list(months)[0] == str(stratification_time.month)
 
 
-# @pytest.mark.parametrize(
-#     "include, exclude, expected",
-#     [
-#         ([], DEFAULT_CONFIGS, {"": True}),
-#         ([], ["age", "year"], {
-#             "sex_male": pd.Series([True, False, False, True], index=TEST_GROUP_INDEX),
-#             "sex_female": pd.Series([False, True, True, False], index=TEST_GROUP_INDEX)
-#         }),
-#     ],
-#     ids=[
-#         'no stratification',
-#         "sex_only",
-#     ]
-# )
-# def test_group(
-#         mock_stratifier: MagicMock,
-#         include: Set[str],
-#         exclude: Set[str],
-#         expected: Dict[str, pd.Series]
-# ):
-#     # Setup mocks
-#     mock_stratifier.default_stratification_levels = set(DEFAULT_CONFIGS)
-#     mock_stratifier.stratification_levels = STRATIFICATION_LEVELS
-#     mock_stratifier.stratification_groups = pd.DataFrame(
-#         {
-#             "age": ["4", "3", "0", "0", "3"],
-#             "sex": ["Male", "Female", "Female", "Male", "Male"],
-#             "multi": ["c2", "c2", "c30", "c11", "c11"],
-#             "p2": ["2", "3", "2", "3", "3"],
-#             "year": ["2022", "2022", "2022", "2022", "2022"],
-#             "month": ["5", "5", "5", "5", "5"],
-#         }
-#     )
-#
-#     mock_stratifier.group = MagicMock(
-#         side_effect=unmock_instance_method(mock_stratifier, ResultsStratifier.group)
-#     )
-#     mock_stratifier._get_current_stratifications = MagicMock(
-#         side_effect=unmock_instance_method(
-#             mock_stratifier, ResultsStratifier._get_current_stratifications
-#         )
-#     )
-#     mock_stratifier._get_stratification_key = MagicMock(
-#         side_effect=ResultsStratifier._get_stratification_key
-#     )
-#
-#     # Code to test
-#     groups = mock_stratifier.group(TEST_GROUP_INDEX, include, exclude)
-#     number_of_groups = 0
-#
-#     # Assertions
-#     for label, group_mask in groups:
-#         assert (
-#             group_mask == expected[label] if isinstance(group_mask, bool)
-#             else (group_mask == expected[label]).all()
-#         )
-#         number_of_groups += 1
-#
-#     assert number_of_groups == len(expected)
+def test_group(stratifier_and_sim, default_levels, include_and_exclude):
+    rs, sim = stratifier_and_sim
+    sim.step()
+
+    include, exclude = include_and_exclude
+    expected_levels = (set(default_levels) | set(include)) - set(exclude)
+
+    pop = sim.get_population()
+    groups = list(rs.group(pop.index, include, exclude))
+
+    _check_groups(rs, expected_levels, groups, pop)
+
+
+def test_group_empty_index(stratifier_and_sim, default_levels, include_and_exclude):
+    rs, sim = stratifier_and_sim
+    sim.step()
+
+    include, exclude = include_and_exclude
+    expected_levels = (set(default_levels) | set(include)) - set(exclude)
+
+    pop = sim.get_population()
+    pop = pop[pop.age > 200]
+    groups = list(rs.group(pop.index, include, exclude))
+
+    _check_groups(rs, expected_levels, groups, pop)
+
+
+def _check_groups(stratifier, expected_levels, groups, pop):
+    expected_num_groups = 1
+    for level in expected_levels:
+        if level not in ['month', 'year']:
+            expected_num_groups *= len(stratifier.stratification_levels[level].categories)
+
+    assert len(groups) == expected_num_groups
+
+    if not expected_levels:
+        label, group_mask = groups[0]
+        assert label == ''
+        assert pop[group_mask].equals(pop)
+    else:
+        for label, group_mask in groups:
+            for level in expected_levels:
+                assert level in label
+            assert pop[group_mask].index.isin(pop.index).all()
+
 
 # todo test age_stratification_mapper
 # todo test year_stratification_mapper
