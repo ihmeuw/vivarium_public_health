@@ -263,10 +263,12 @@ class ResultsStratifier:
 
         for stratification in self._get_current_stratifications(include, exclude):
             stratification_key = self._get_stratification_key(stratification)
-            group_mask = True
+
+            group_mask = pd.Series(True, index=index)
             if not index.empty:
                 for level, category in stratification:
                     group_mask &= stratification_groups[level.name] == category
+
             yield stratification_key, group_mask
 
     ##################
@@ -315,6 +317,7 @@ class ResultsStratifier:
         include = set(include)
         exclude = set(exclude)
         level_names = (self.default_stratification_levels | include) - exclude
+
         groups = [
             [(level, category) for category in level.current_categories]
             for level_name, level in self.stratification_levels.items()
