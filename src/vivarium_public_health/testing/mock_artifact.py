@@ -11,7 +11,7 @@ import pandas as pd
 from vivarium.framework.artifact import ArtifactManager
 from vivarium.testing_utilities import build_table
 
-from vivarium_public_health.testing.utils import make_uniform_pop_data, make_age_bins
+from vivarium_public_health.testing.utils import make_age_bins, make_uniform_pop_data
 
 MOCKERS = {
     "cause": {

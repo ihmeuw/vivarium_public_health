@@ -7,13 +7,15 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium.testing_utilities import TestPopulation, metadata
 from vivarium import InteractiveContext
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
+from vivarium.testing_utilities import TestPopulation, metadata
 
 from vivarium_public_health.metrics.stratification import (
     ResultsStratifier as ResultsStratifier_,
+)
+from vivarium_public_health.metrics.stratification import (
     Source,
     SourceType,
     StratificationLevel,
@@ -22,11 +24,11 @@ from vivarium_public_health.metrics.stratification import (
 
 class FavoriteColor:
 
-    OPTIONS = ['red', 'green', 'orange']
+    OPTIONS = ["red", "green", "orange"]
 
     @property
     def name(self) -> str:
-        return 'favorite_color'
+        return "favorite_color"
 
     def setup(self, builder: Builder):
         self.randomness = builder.randomness.get_stream(self.name)
@@ -35,9 +37,7 @@ class FavoriteColor:
         builder.value.register_value_producer(
             self.name,
             requires_streams=[self.name],
-            source=lambda index: self.randomness.choice(
-                index, choices=self.OPTIONS
-            )
+            source=lambda index: self.randomness.choice(index, choices=self.OPTIONS),
         )
 
 
@@ -47,7 +47,7 @@ class FavoriteNumber:
 
     @property
     def name(self) -> str:
-        return 'favorite_number'
+        return "favorite_number"
 
     def setup(self, builder: Builder) -> None:
         self.randomness = builder.randomness.get_stream(self.name)
@@ -67,12 +67,14 @@ class FavoriteNumber:
             ).rename(self.name)
         )
 
-FAVORITE_THINGS = {f'{color}_{number}' for color, number
-                   in itertools.product(FavoriteColor.OPTIONS, FavoriteNumber.OPTIONS)}
+
+FAVORITE_THINGS = {
+    f"{color}_{number}"
+    for color, number in itertools.product(FavoriteColor.OPTIONS, FavoriteNumber.OPTIONS)
+}
 
 
 class ResultsStratifier(ResultsStratifier_):
-
     def register_stratifications(self, builder: Builder) -> None:
         super().register_stratifications(builder)
 
@@ -80,8 +82,8 @@ class ResultsStratifier(ResultsStratifier_):
             builder,
             name="favorite_things",
             sources=[
-                Source('favorite_color', SourceType.PIPELINE),
-                Source('favorite_number', SourceType.COLUMN),
+                Source("favorite_color", SourceType.PIPELINE),
+                Source("favorite_number", SourceType.COLUMN),
             ],
             categories=FAVORITE_THINGS,
             mapper=lambda row: f"{row['favorite_color']}_{row['favorite_number']}",
@@ -104,21 +106,25 @@ class ResultsStratifier(ResultsStratifier_):
         )
 
 
-@pytest.fixture(params=[
-    [],
-    ['age', 'sex', 'year'],
-    ['age', 'sex', 'year'] + ['favorite_things', 'favorite_color', 'month'],
-])
+@pytest.fixture(
+    params=[
+        [],
+        ["age", "sex", "year"],
+        ["age", "sex", "year"] + ["favorite_things", "favorite_color", "month"],
+    ]
+)
 def stratification_levels(request):
     return request.param
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def stratifier_and_sim(stratification_levels, base_config, base_plugins):
     base_config.update(
-        {'observers': {'default': stratification_levels},
-         'population': {'population_size': 1000}},
-        **metadata(__file__)
+        {
+            "observers": {"default": stratification_levels},
+            "population": {"population_size": 1000},
+        },
+        **metadata(__file__),
     )
     rs = ResultsStratifier()
     sim = InteractiveContext(
@@ -132,15 +138,21 @@ def stratifier_and_sim(stratification_levels, base_config, base_plugins):
 def test_ResultsStratifier_setup(stratifier_and_sim, stratification_levels):
     rs, sim = stratifier_and_sim
 
-    assert rs.metrics_pipeline_name == 'metrics'
+    assert rs.metrics_pipeline_name == "metrics"
     assert rs.tmrle_key == "population.theoretical_minimum_risk_life_expectancy"
     assert rs.clock() == sim.current_time
     assert rs.default_stratification_levels == set(stratification_levels)
-    assert set(rs.pipelines) == {'favorite_color'}
-    assert rs.columns_required == {'tracked', 'favorite_number', 'age', 'sex'}
-    assert rs.clock_sources == {'year', 'month'}
-    assert set(rs.stratification_levels) == {'age', 'sex', 'year', 'favorite_things',
-                                             'favorite_color', 'month'}
+    assert set(rs.pipelines) == {"favorite_color"}
+    assert rs.columns_required == {"tracked", "favorite_number", "age", "sex"}
+    assert rs.clock_sources == {"year", "month"}
+    assert set(rs.stratification_levels) == {
+        "age",
+        "sex",
+        "year",
+        "favorite_things",
+        "favorite_color",
+        "month",
+    }
     assert rs.stratification_groups is None
 
 
@@ -154,10 +166,11 @@ def test_ResultsStratifier_setup_age_bins(
     age_end: int,
     expected_age_start: int,
     expected_age_end: int,
-    base_config, base_plugins,
+    base_config,
+    base_plugins,
 ):
     base_config.update(
-        {'population': {'age_start': age_start, 'exit_age': age_end}},
+        {"population": {"age_start": age_start, "exit_age": age_end}},
         **metadata(__file__),
     )
 
@@ -171,9 +184,11 @@ def test_ResultsStratifier_setup_age_bins(
     # Assertions
     expected_outputs = pd.DataFrame(
         [
-            {"age_start": float(age),
-             "age_end": float(age + 5),
-             "age_group_name": f"{age} to {age + 4}"}
+            {
+                "age_start": float(age),
+                "age_end": float(age + 5),
+                "age_group_name": f"{age} to {age + 4}",
+            }
             for i, age in enumerate(range(expected_age_start, expected_age_end, 5))
         ]
     )
@@ -194,18 +209,20 @@ def test_setting_stratification_groups_on_time_step_prepare(stratifier_and_sim):
     def proportion(x):
         return len(x) / len(sg)
 
-    assert set(sg.columns) == {'age', 'sex', 'year', 'favorite_things',
-                               'favorite_color', 'month'}
+    assert set(sg.columns) == {
+        "age",
+        "sex",
+        "year",
+        "favorite_things",
+        "favorite_color",
+        "month",
+    }
 
     # Age has different sized bins, so statistical tests are harder.
     assert set(sg.age) <= set(rs.age_bins.age_group_name)
 
-    assert set(sg.sex) == {'Male', 'Female'}
-    assert np.allclose(
-        sg.groupby('sex').apply(proportion),
-        1 / 2,
-        rtol=0.1
-    )
+    assert set(sg.sex) == {"Male", "Female"}
+    assert np.allclose(sg.groupby("sex").apply(proportion), 1 / 2, rtol=0.1)
 
     years = set(sg.year)
     assert len(years) == 1
@@ -213,16 +230,16 @@ def test_setting_stratification_groups_on_time_step_prepare(stratifier_and_sim):
 
     assert set(sg.favorite_things) == FAVORITE_THINGS
     assert np.allclose(
-        sg.groupby('favorite_things').apply(proportion),
+        sg.groupby("favorite_things").apply(proportion),
         1 / len(FAVORITE_THINGS),
         rtol=0.25,
     )
 
     assert set(sg.favorite_color) == set(FavoriteColor.OPTIONS)
     assert np.allclose(
-        sg.groupby('favorite_color').apply(proportion),
+        sg.groupby("favorite_color").apply(proportion),
         1 / len(FavoriteColor.OPTIONS),
-        rtol=0.1
+        rtol=0.1,
     )
 
     months = set(sg.month)
