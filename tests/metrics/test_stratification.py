@@ -11,10 +11,7 @@ from vivarium.testing_utilities import TestPopulation, metadata
 from vivarium_public_health.metrics.stratification import (
     ResultsStratifier as ResultsStratifier_,
 )
-from vivarium_public_health.metrics.stratification import (
-    Source,
-    SourceType,
-)
+from vivarium_public_health.metrics.stratification import Source, SourceType
 
 
 class FavoriteColor:
@@ -131,22 +128,26 @@ def stratifier_and_sim(default_levels, base_config, base_plugins):
     return make_stratifier_and_sim(default_levels, base_config, base_plugins)
 
 
-@pytest.fixture(params=[
-    [[], []],
-    [['sex', 'favorite_color'], []],
-    [[], ['sex', 'favorite_color']],
-    [ALL_LEVELS, []],
-    [[], ALL_LEVELS],
-    [['sex'], ['favorite_color']]
-])
+@pytest.fixture(
+    params=[
+        [[], []],
+        [["sex", "favorite_color"], []],
+        [[], ["sex", "favorite_color"]],
+        [ALL_LEVELS, []],
+        [[], ALL_LEVELS],
+        [["sex"], ["favorite_color"]],
+    ]
+)
 def include_and_exclude(request):
     return request.param
 
 
-@pytest.fixture(params=[
-    [['age'], ['age']],
-    [ALL_LEVELS, ALL_LEVELS],
-])
+@pytest.fixture(
+    params=[
+        [["age"], ["age"]],
+        [ALL_LEVELS, ALL_LEVELS],
+    ]
+)
 def bad_include_and_exclude(request):
     return request.param
 
@@ -293,14 +294,14 @@ def test_group_empty_index(stratifier_and_sim, default_levels, include_and_exclu
 def _check_groups(stratifier, expected_levels, groups, pop):
     expected_num_groups = 1
     for level in expected_levels:
-        if level not in ['month', 'year']:
+        if level not in ["month", "year"]:
             expected_num_groups *= len(stratifier.stratification_levels[level].categories)
 
     assert len(groups) == expected_num_groups
 
     if not expected_levels:
         label, group_mask = groups[0]
-        assert label == ''
+        assert label == ""
         assert pop[group_mask].equals(pop)
     else:
         for label, group_mask in groups:
