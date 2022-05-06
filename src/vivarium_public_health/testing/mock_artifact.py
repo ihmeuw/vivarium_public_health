@@ -11,7 +11,7 @@ import pandas as pd
 from vivarium.framework.artifact import ArtifactManager
 from vivarium.testing_utilities import build_table
 
-from vivarium_public_health.testing.utils import make_uniform_pop_data
+from vivarium_public_health.testing.utils import make_uniform_pop_data, make_age_bins
 
 MOCKERS = {
     "cause": {
@@ -81,6 +81,7 @@ MOCKERS = {
     # FIXME: this is a hack to get the MockArtifact to use the correct value
     "population.location": "Kenya",
     "population": {
+        "age_bins": make_age_bins(),
         "structure": make_uniform_pop_data(),
         "theoretical_minimum_risk_life_expectancy": (
             build_table(98.0, 1990, 1990)

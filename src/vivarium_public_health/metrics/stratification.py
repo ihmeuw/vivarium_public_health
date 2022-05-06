@@ -10,7 +10,7 @@ by specified characteristics.
 import itertools
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Dict, Iterable, List, Set, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -31,6 +31,7 @@ class Source:
     they belong to for a given stratification level. The source name should be
     the name of the column or pipeline being used as the source. If the source
     is of type clock, the name should be something descriptive and unique.
+
     """
 
     name: str
@@ -56,6 +57,7 @@ class StratificationLevel:
     cases. The primary use case for the current category getter is for
     stratification by time, and in particular stratification by year. By
     default, this will return all categories.
+
     """
 
     name: str
@@ -116,6 +118,7 @@ class ResultsStratifier:
     This component manages the assignment of simulants to groups for the
     purpose of stratification. Each observer component will get a reference to
     this component so that it can properly stratify its output.
+
     """
 
     name = "results_stratifier"
@@ -143,7 +146,7 @@ class ResultsStratifier:
         self.columns_required = {"tracked"}
         self.clock_sources = set()
         self.stratification_levels: Dict[str, StratificationLevel] = {}
-        self.stratification_groups: pd.DataFrame = None
+        self.stratification_groups: Optional[pd.DataFrame] = None
 
         self.age_bins = self._get_age_bins(builder)
 
@@ -206,7 +209,7 @@ class ResultsStratifier:
     def _register_simulant_initializer(self, builder: Builder) -> None:
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
-            requires_columns=self.columns_required,
+            requires_columns=list(self.columns_required),
             requires_values=[pipeline_name for pipeline_name in self.pipelines],
         )
 
@@ -251,6 +254,7 @@ class ResultsStratifier:
 
         Yields
         ------
+        Tuple[str, pd.Series]
             A tuple of stratification labels and the population subgroup
             corresponding to those labels.
 
