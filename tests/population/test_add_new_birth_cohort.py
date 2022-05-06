@@ -43,7 +43,7 @@ def crude_birth_rate_data(live_births=500):
             ("age", "year", "sex", "parameter", "value"),
         )
         .query('age_start == 25 and sex != "Both"')
-        .drop(["age_start", "age_end"], "columns")
+        .drop(columns=["age_start", "age_end"])
     )
 
 
@@ -132,11 +132,11 @@ def test_FertilityCrudeBirthRate_extrapolate(base_config, base_plugins):
         }
     )
     pop_size = base_config.population.population_size
-    true_pop_size = 8000  # What's available in the mock artifact
+    true_pop_size = 50000  # What's available in the mock artifact
     live_births_by_sex = 500
     components = [TestPopulation(), FertilityCrudeBirthRate()]
 
-    simulation = simulation = InteractiveContext(
+    simulation = InteractiveContext(
         components=components,
         configuration=base_config,
         plugin_configuration=base_plugins,

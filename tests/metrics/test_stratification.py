@@ -1,152 +1,159 @@
+import itertools
 from datetime import datetime
 from math import floor
 from typing import Callable, List, Set
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
+from vivarium import InteractiveContext
+from vivarium.framework.engine import Builder
+from vivarium.framework.population import SimulantData
+from vivarium.testing_utilities import TestPopulation, metadata
 
 from vivarium_public_health.metrics.stratification import (
-    ResultsStratifier,
+    ResultsStratifier as ResultsStratifier_,
+)
+from vivarium_public_health.metrics.stratification import (
     Source,
     SourceType,
     StratificationLevel,
 )
 
-AGE_BINS = pd.DataFrame(
-    [
-        {"age_start": age, "age_end": age + 5, "age_group_name": f"{age}_to_{age + 5}"}
-        for i, age in enumerate(range(10, 65, 5))
-    ]
-)
-DEFAULT_CONFIGS = ["year", "sex", "age"]
-START_YEAR = 2020
-END_YEAR = 2030
-STRATIFICATION_LEVELS = {
-    "age": StratificationLevel(
-        name="age",
-        sources=[Source("age", SourceType.COLUMN)],
-        categories={"0", "1", "2", "3", "4"},
-        mapper=lambda row: str(floor(row[0])),
-    ),
-    "sex": StratificationLevel(
-        name="l2",
-        sources=[Source("sex", SourceType.COLUMN)],
-        categories={"Male", "Female"},
-    ),
-    "multi": StratificationLevel(
-        name="multi",
-        sources=[
-            Source("part_1", SourceType.COLUMN),
-            Source("pipeline_1", SourceType.PIPELINE),
-        ],
-        categories={"c2", "c30", "c31", "c10", "c11"},
-        mapper=lambda row: "c2"
-        if row["part_1"] == "c2"
-        else row["part_1"] + row["pipeline_1"],
-    ),
-    "p2": StratificationLevel(
-        name="p2",
-        sources=[Source("pipeline_2", SourceType.PIPELINE)],
-        categories={"2", "3"},
-    ),
-    "year": StratificationLevel(
-        name="year",
-        sources=[Source("clock_1", SourceType.CLOCK)],
-        categories={"2020", "2021", "2022", "2023"},
-        mapper=lambda row: str(row[0].year),
-        current_categories_getter=lambda: {str(mock_clock().year)},
-    ),
-    "month": StratificationLevel(
-        name="month",
-        sources=[Source("clock_2", SourceType.CLOCK)],
-        categories={str(i + 1) for i in range(12)},
-        mapper=lambda row: str(row[0].month),
-        current_categories_getter=lambda: {str(mock_clock().month)},
-    ),
+
+class FavoriteColor:
+
+    OPTIONS = ["red", "green", "orange"]
+
+    @property
+    def name(self) -> str:
+        return "favorite_color"
+
+    def setup(self, builder: Builder):
+        self.randomness = builder.randomness.get_stream(self.name)
+        # Our simulants are fickle and change their
+        # favorite colors every time step.
+        builder.value.register_value_producer(
+            self.name,
+            requires_streams=[self.name],
+            source=lambda index: self.randomness.choice(index, choices=self.OPTIONS),
+        )
+
+
+class FavoriteNumber:
+
+    OPTIONS = [7, 42, 14312]
+
+    @property
+    def name(self) -> str:
+        return "favorite_number"
+
+    def setup(self, builder: Builder) -> None:
+        self.randomness = builder.randomness.get_stream(self.name)
+        self.population_view = builder.population.get_view([self.name])
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants,
+            creates_columns=[self.name],
+            requires_streams=[self.name],
+        )
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        # Favorite numbers are forever though.
+        self.population_view.update(
+            self.randomness.choice(
+                pop_data.index,
+                choices=self.OPTIONS,
+            ).rename(self.name)
+        )
+
+
+FAVORITE_THINGS = {
+    f"{color}_{number}"
+    for color, number in itertools.product(FavoriteColor.OPTIONS, FavoriteNumber.OPTIONS)
 }
 
 
-def unmock_instance_method(instance, method: Callable) -> Callable:
-    return lambda *args: method(instance, *args)
+class ResultsStratifier(ResultsStratifier_):
+    def register_stratifications(self, builder: Builder) -> None:
+        super().register_stratifications(builder)
 
-
-@pytest.fixture
-def mock_stratification_level_init(mocker):
-    return mocker.patch(
-        "vivarium_public_health.metrics.stratification.StratificationLevel.__init__",
-        return_value=None,
-    )
-
-
-@pytest.fixture()
-def mock_stratifier(mocker) -> MagicMock:
-    stratifier = mocker.MagicMock()
-    stratifier.setup = mocker.MagicMock(
-        side_effect=unmock_instance_method(stratifier, ResultsStratifier.setup)
-    )
-    return stratifier
-
-
-@pytest.fixture()
-def mock_builder(mocker) -> MagicMock:
-    builder = mocker.MagicMock()
-
-    builder.configuration.observers.default = DEFAULT_CONFIGS
-    builder.configuration.time.start.year = START_YEAR
-    builder.configuration.time.end.year = END_YEAR
-
-    builder.data.load = mocker.MagicMock(side_effect=load)
-    builder.value.get_value = mocker.MagicMock(side_effect=get_value)
-
-    builder.time.clock.return_value = mock_clock
-    return builder
-
-
-def mock_clock() -> datetime:
-    return datetime(2022, 5, 3, 12)
-
-
-def load(key: str) -> pd.DataFrame:
-    return {
-        "population.age_bins": pd.DataFrame(
-            [
-                {
-                    "age_start": age,
-                    "age_end": age + 5,
-                    "age_group_name": f"{age}_to_{age + 5}",
-                }
-                for i, age in enumerate(range(0, 100, 5))
-            ]
+        self.setup_stratification(
+            builder,
+            name="favorite_things",
+            sources=[
+                Source("favorite_color", SourceType.PIPELINE),
+                Source("favorite_number", SourceType.COLUMN),
+            ],
+            categories=FAVORITE_THINGS,
+            mapper=lambda row: f"{row['favorite_color']}_{row['favorite_number']}",
         )
-    }[key]
 
-
-def get_value(pipeline_name: str) -> str:
-    return f"{pipeline_name}_pipeline"
-
-
-def mock_mapper(row: pd.Series) -> str:
-    return str(row[0]) + str(row[0])
-
-
-def mock_current_categories_getter() -> Set[str]:
-    return {"a", "b", "c"}
-
-
-def test_setting_default_stratification(mock_stratifier: MagicMock, mock_builder: MagicMock):
-    # Setup mocks
-    mock_stratifier._get_default_stratification_levels = MagicMock(
-        side_effect=unmock_instance_method(
-            mock_stratifier, ResultsStratifier._get_default_stratification_levels
+        self.setup_stratification(
+            builder,
+            name="favorite_color",
+            sources=[Source("favorite_color", SourceType.PIPELINE)],
+            categories=set(FavoriteColor.OPTIONS),
         )
+
+        self.setup_stratification(
+            builder,
+            name="month",
+            sources=[Source("month", SourceType.CLOCK)],
+            categories={str(i + 1) for i in range(12)},
+            mapper=lambda row: str(row[0].month),
+            current_category_getter=lambda: {str(self.clock().month)},
+        )
+
+
+@pytest.fixture(
+    params=[
+        [],
+        ["age", "sex", "year"],
+        ["age", "sex", "year"] + ["favorite_things", "favorite_color", "month"],
+    ]
+)
+def stratification_levels(request):
+    return request.param
+
+
+@pytest.fixture(scope="function")
+def stratifier_and_sim(stratification_levels, base_config, base_plugins):
+    base_config.update(
+        {
+            "observers": {"default": stratification_levels},
+            "population": {"population_size": 1000},
+        },
+        **metadata(__file__),
     )
+    rs = ResultsStratifier()
+    sim = InteractiveContext(
+        components=[TestPopulation(), rs, FavoriteColor(), FavoriteNumber()],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+    )
+    return rs, sim
 
-    # Code to test
-    mock_stratifier.setup(mock_builder)
 
-    # Assertions
-    assert mock_stratifier.default_stratification_levels == set(DEFAULT_CONFIGS)
+def test_ResultsStratifier_setup(stratifier_and_sim, stratification_levels):
+    rs, sim = stratifier_and_sim
+
+    assert rs.metrics_pipeline_name == "metrics"
+    assert rs.tmrle_key == "population.theoretical_minimum_risk_life_expectancy"
+    assert rs.clock() == sim.current_time
+    assert rs.default_stratification_levels == set(stratification_levels)
+    assert set(rs.pipelines) == {"favorite_color"}
+    assert rs.columns_required == {"tracked", "favorite_number", "age", "sex"}
+    assert rs.clock_sources == {"year", "month"}
+    assert set(rs.stratification_levels) == {
+        "age",
+        "sex",
+        "year",
+        "favorite_things",
+        "favorite_color",
+        "month",
+    }
+    assert rs.stratification_groups is None
 
 
 @pytest.mark.parametrize(
@@ -154,218 +161,92 @@ def test_setting_default_stratification(mock_stratifier: MagicMock, mock_builder
     [(20, 55, 20, 55), (18, 47, 15, 50)],
     ids=["on_bound", "between_bounds"],
 )
-def test_setting_age_bins(
-    mock_stratifier: MagicMock,
-    mock_builder: MagicMock,
+def test_ResultsStratifier_setup_age_bins(
     age_start: int,
     age_end: int,
     expected_age_start: int,
     expected_age_end: int,
+    base_config,
+    base_plugins,
 ):
-    # Setup mocks
-    mock_builder.configuration.population.age_start = age_start
-    mock_builder.configuration.population.exit_age = age_end
-
-    mock_stratifier._get_age_bins = MagicMock(
-        side_effect=unmock_instance_method(mock_stratifier, ResultsStratifier._get_age_bins)
+    base_config.update(
+        {"population": {"age_start": age_start, "exit_age": age_end}},
+        **metadata(__file__),
     )
 
-    # Code to test
-    mock_stratifier.setup(mock_builder)
+    rs = ResultsStratifier()
+    _ = InteractiveContext(
+        components=[TestPopulation(), rs],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+    )
 
     # Assertions
     expected_outputs = pd.DataFrame(
         [
-            {"age_start": age, "age_end": age + 5, "age_group_name": f"{age}_to_{age + 5}"}
+            {
+                "age_start": float(age),
+                "age_end": float(age + 5),
+                "age_group_name": f"{age} to {age + 4}",
+            }
             for i, age in enumerate(range(expected_age_start, expected_age_end, 5))
         ]
     )
-    assert (mock_stratifier.age_bins.values == expected_outputs.values).all()
+    assert (rs.age_bins.values == expected_outputs.values).all()
 
 
-def test_stratifications_and_listeners_registered(
-    mock_stratifier: MagicMock,
-    mock_builder: MagicMock,
-):
-    # Setup mocks
-    mock_stratifier._register_timestep_prepare_listener = MagicMock(
-        side_effect=unmock_instance_method(
-            mock_stratifier, ResultsStratifier._register_timestep_prepare_listener
-        )
-    )
+def test_setting_stratification_groups_on_time_step_prepare(stratifier_and_sim):
+    rs, sim = stratifier_and_sim
 
-    # Code to test
-    mock_stratifier.setup(mock_builder)
+    # No time steps yet, so not groups have been set
+    assert rs.stratification_groups is None
 
-    # Assertions
-    mock_stratifier.register_stratifications.assert_called_once_with(mock_builder)
-    mock_builder.event.register_listener.assert_called_once_with(
-        "time_step__prepare", mock_stratifier.on_time_step_prepare, priority=0
-    )
+    stratification_time = sim.current_time
+    sim.step()
+    # noinspection PyTypeChecker
+    sg: pd.DataFrame = rs.stratification_groups
 
+    def proportion(x):
+        return len(x) / len(sg)
 
-def test_registering_stratifications(mock_stratifier: MagicMock, mock_builder: MagicMock):
-    # Setup mocks
-    mock_stratifier.age_bins = AGE_BINS
-    mock_stratifier.register_stratifications = MagicMock(
-        side_effect=unmock_instance_method(
-            mock_stratifier, ResultsStratifier.register_stratifications
-        )
-    )
-
-    # Code to test
-    mock_stratifier.register_stratifications(mock_builder)
-
-    # Assertions
-    mock_stratifier.setup_stratification.assert_any_call(
-        mock_builder,
-        name="year",
-        sources=[Source("year", SourceType.CLOCK)],
-        categories={str(year) for year in range(START_YEAR, END_YEAR + 1)},
-        mapper=mock_stratifier.year_stratification_mapper,
-        current_category_getter=mock_stratifier.year_current_categories_getter,
-    )
-
-    mock_stratifier.setup_stratification.assert_any_call(
-        mock_builder,
-        name="sex",
-        sources=[Source("sex", SourceType.COLUMN)],
-        categories={"Female", "Male"},
-    )
-
-    mock_stratifier.setup_stratification.assert_any_call(
-        mock_builder,
-        name="age",
-        sources=[Source("age", SourceType.COLUMN)],
-        categories={age_bin for age_bin in AGE_BINS["age_group_name"]},
-        mapper=mock_stratifier.age_stratification_mapper,
-    )
-
-
-@pytest.mark.parametrize(
-    "sources",
-    [
-        [Source("age", SourceType.COLUMN)],
-        [Source("exposure", SourceType.PIPELINE)],
-        [Source("year", SourceType.CLOCK)],
-        [Source("age", SourceType.COLUMN), Source("exposure", SourceType.PIPELINE)],
-    ],
-    ids=["column", "pipeline", "clock", "multiple"],
-)
-def test_setup_stratification(
-    mock_stratifier: MagicMock,
-    mock_builder: MagicMock,
-    mock_stratification_level_init: patch,
-    sources: List[Source],
-):
-    # Setup mocks
-    mock_stratifier.stratification_levels = {}
-    mock_stratifier.pipelines = {}
-    mock_stratifier.columns_required = {"tracked"}
-    mock_stratifier.clock_sources = set()
-
-    mock_stratifier.setup_stratification = MagicMock(
-        side_effect=unmock_instance_method(
-            mock_stratifier, ResultsStratifier.setup_stratification
-        )
-    )
-    name = "test_name"
-    categories = {"a", "b", "c"}
-
-    # Code to test
-    mock_stratifier.setup_stratification(
-        mock_builder,
-        name,
-        sources,
-        categories,
-        mock_mapper,
-        mock_current_categories_getter,
-    )
-
-    # Assertions
-    mock_stratification_level_init.assert_called_once_with(
-        name, sources, categories, mock_mapper, mock_current_categories_getter
-    )
-    assert name in mock_stratifier.stratification_levels
-
-    for source in sources:
-        if source.type == SourceType.PIPELINE:
-            assert source.name in mock_stratifier.pipelines
-            assert mock_stratifier.pipelines[source.name] == get_value(source.name)
-        if source.type == SourceType.COLUMN:
-            assert source.name in mock_stratifier.columns_required
-        if source.type == SourceType.CLOCK:
-            assert source.name in mock_stratifier.clock_sources
-
-
-def test_setting_stratification_groups_on_time_step_prepare(
-    mock_stratifier: MagicMock, mock_builder: MagicMock
-):
-    # Setup mocks
-    def mock_pipeline_1(index: pd.Index) -> pd.Series:
-        return pd.Series([str(i % 2) for i in range(index.size)], index=index)
-
-    def mock_pipeline_2(index: pd.Index) -> pd.Series:
-        return pd.Series([str(i % 2 + 2) for i in range(index.size)], index=index)
-
-    mock_pipelines = {
-        "pipeline_1": mock_pipeline_1,
-        "pipeline_2": mock_pipeline_2,
+    assert set(sg.columns) == {
+        "age",
+        "sex",
+        "year",
+        "favorite_things",
+        "favorite_color",
+        "month",
     }
 
-    mock_population_view_data = pd.DataFrame(
-        {
-            "age": [4.5, 3.4, 0.2, 0.3],
-            "sex": ["Male", "Female", "Female", "Male"],
-            "part_1": ["c2", "c2", "c3", "c1"],
-        }
+    # Age has different sized bins, so statistical tests are harder.
+    assert set(sg.age) <= set(rs.age_bins.age_group_name)
+
+    assert set(sg.sex) == {"Male", "Female"}
+    assert np.allclose(sg.groupby("sex").apply(proportion), 1 / 2, rtol=0.1)
+
+    years = set(sg.year)
+    assert len(years) == 1
+    assert list(years)[0] == str(stratification_time.year)
+
+    assert set(sg.favorite_things) == FAVORITE_THINGS
+    assert np.allclose(
+        sg.groupby("favorite_things").apply(proportion),
+        1 / len(FAVORITE_THINGS),
+        rtol=0.25,
     )
 
-    mock_clock_sources = {"clock_1", "clock_2"}
-
-    mock_event = MagicMock()
-    mock_event.index = mock_population_view_data.index
-
-    mock_stratifier.population_view.get.return_value = mock_population_view_data
-    mock_stratifier.pipelines = mock_pipelines
-    mock_stratifier.clock_sources = mock_clock_sources
-    mock_stratifier.clock = mock_clock
-    mock_stratifier.stratification_levels = STRATIFICATION_LEVELS
-
-    mock_stratifier.on_time_step_prepare = MagicMock(
-        side_effect=unmock_instance_method(
-            mock_stratifier, ResultsStratifier.on_time_step_prepare
-        )
+    assert set(sg.favorite_color) == set(FavoriteColor.OPTIONS)
+    assert np.allclose(
+        sg.groupby("favorite_color").apply(proportion),
+        1 / len(FavoriteColor.OPTIONS),
+        rtol=0.1,
     )
 
-    mock_stratifier._set_stratification_groups = MagicMock(
-        side_effect=unmock_instance_method(
-            mock_stratifier, ResultsStratifier._set_stratification_groups
-        )
-    )
-
-    # Code to test
-    mock_stratifier.on_time_step_prepare(mock_event)
-
-    # Assertions
-    expected_groups = pd.DataFrame(
-        {
-            "age": ["4", "3", "0", "0"],
-            "sex": ["Male", "Female", "Female", "Male"],
-            "multi": ["c2", "c2", "c30", "c11"],
-            "p2": ["2", "3", "2", "3"],
-            "year": ["2022", "2022", "2022", "2022"],
-            "month": ["5", "5", "5", "5"],
-        },
-        index=mock_population_view_data.index,
-    )
-    assert (mock_stratifier.stratification_groups.values == expected_groups.values).all()
+    months = set(sg.month)
+    assert len(months) == 1
+    assert list(months)[0] == str(stratification_time.month)
 
 
-# todo get test_group to work
-# TEST_GROUP_INDEX = pd.Index(list(range(4)))
-#
-#
 # @pytest.mark.parametrize(
 #     "include, exclude, expected",
 #     [
