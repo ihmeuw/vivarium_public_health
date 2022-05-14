@@ -162,8 +162,8 @@ class MortalityObserver:
         the_living = pop[(pop.alive == "alive") & pop.tracked]
         the_dead = pop[pop.alive == "dead"]
         metrics["years_of_life_lost"] = the_dead["years_of_life_lost"].sum()
-        metrics["total_population_living"] = the_living.size
-        metrics["total_population_dead"] = the_dead.size
+        metrics["total_population_living"] = the_living.index.size
+        metrics["total_population_dead"] = the_dead.index.size
         metrics.update(self.counts)
 
         return metrics
