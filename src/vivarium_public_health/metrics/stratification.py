@@ -85,11 +85,11 @@ class StratificationLevel:
         categories = self.categories
         mapper = self.mapper if self.mapper else self._default_mapper
 
-        def wrapped_mapper(row: pd.Series) -> str:
+        def wrapped_mapper(row: pd.Series) -> pd.Series:
             category = mapper(row)
             if category not in categories:
                 raise ValueError(f"Invalid value '{category}' found in {name}.")
-            return category
+            return pd.Series(category)
 
         self.mapper = wrapped_mapper
 
@@ -351,6 +351,7 @@ class ResultsStratifier:
         stratification_groups = [
             sources[[source.name for source in stratification_level.sources]]
             .apply(stratification_level.mapper, axis=1)
+            .squeeze(axis=1)
             .rename(stratification_level.name)
             for stratification_level in self.stratification_levels.values()
         ]
