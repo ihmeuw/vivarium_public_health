@@ -254,6 +254,10 @@ class LBWSGRisk(Risk):
         # Propensity only used on initialization; not being saved to avoid a cycle
         return None
 
+    def _get_exposure_pipeline(self, builder: Builder) -> Pipeline:
+        # Exposure only used on initialization; not being saved to avoid a cycle
+        return None
+
     def _get_birth_exposure_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
         def get_pipeline(axis_: str):
             return builder.value.register_value_producer(
@@ -276,7 +280,6 @@ class LBWSGRisk(Risk):
         builder.population.initializes_simulants(
             self.on_initialize_simulants,
             creates_columns=[self.exposure_column_name(axis) for axis in self.AXES],
-            requires_values=[self.exposure_column_name(axis) for axis in self.AXES],
             requires_streams=[self._randomness_stream_name],
         )
 
@@ -362,6 +365,13 @@ class LBWSGRiskEffect(RiskEffect):
 
         return adjust_target
 
+    def _register_target_modifier(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            self.target_pipeline_name,
+            modifier=self.target_modifier,
+            requires_columns=["age", "sex"],
+        )
+
     def _get_age_intervals(self, builder: Builder) -> Dict[str, pd.Interval]:
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
         exposure = builder.data.load(f"{self.risk}.exposure")
@@ -396,7 +406,9 @@ class LBWSGRiskEffect(RiskEffect):
         )
 
     def _get_population_view(self, builder: Builder) -> PopulationView:
-        return builder.population.get_view(["age", "sex"] + self.rr_column_names)
+        return builder.population.get_view(
+            ["age", "sex"] + self.rr_column_names + self.lbwsg_exposure_column_names
+        )
 
     def _get_interpolator(self, builder: Builder) -> pd.Series:
         age_start_to_age_group_name_map = {
