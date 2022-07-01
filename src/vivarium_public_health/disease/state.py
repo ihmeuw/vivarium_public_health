@@ -10,7 +10,7 @@ from typing import Callable, Dict
 
 import numpy as np
 import pandas as pd
-from vivarium.framework.population import SimulantData
+from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.state_machine import State, Transient, Transition
 from vivarium.framework.values import list_combiner, union_post_processor
 
@@ -401,16 +401,18 @@ class DiseaseState(BaseDiseaseState):
                 raise ValueError("You must supply a proportion function.")
         return super().add_transition(output, source_data_type, get_data_functions, **kwargs)
 
-    def next_state(self, index, event_time, population_view):
+    def next_state(
+        self, index: pd.Index, event_time: pd.Timestamp, population_view: PopulationView
+    ):
         """Moves a population among different disease states.
 
         Parameters
         ----------
         index
             An iterable of integer labels for the simulants.
-        event_time : pandas.Timestamp
+        event_time:
             The time at which this transition occurs.
-        population_view : vivarium.framework.population.PopulationView
+        population_view:
             A view of the internal state of the simulation.
         """
         eligible_index = self._filter_for_transition_eligibility(index, event_time)
