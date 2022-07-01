@@ -7,13 +7,16 @@ This module contains tools for modeling several different risk
 exposure distributions.
 
 """
+from typing import Dict, List
+
 import numpy as np
 import pandas as pd
 from risk_distributions import EnsembleDistribution, LogNormal, Normal
 from vivarium.framework.engine import Builder
-from vivarium.framework.values import list_combiner, union_post_processor
+from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import get_distribution_data
+from vivarium_public_health.utilities import EntityString
 
 
 class MissingDataError(Exception):
@@ -22,7 +25,7 @@ class MissingDataError(Exception):
 
 # FIXME: This is a hack.  It's wrapping up an adaptor pattern in another
 # adaptor pattern, which is gross, but would require some more difficult
-# refactoring which is thorougly out of scope right now. -J.C. 8/25/19
+# refactoring which is thoroughly out of scope right now. -J.C. 8/25/19
 class SimulationDistribution:
     """Wrapper around a variety of distribution implementations."""
 
@@ -148,23 +151,48 @@ class PolytomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
         self.risk = risk
         self.exposure_data = exposure_data
-        self.categories = sorted(
-            [column for column in self.exposure_data if "cat" in column],
-            key=lambda column: int(column[3:]),
-        )
+
+        self.exposure_parameters_pipeline_name = f"{self.risk}.exposure_parameters"
+
+    def __repr__(self):
+        return f"PolytomousDistribution(risk={self.risk})"
+
+    ##############
+    # Properties #
+    ##############
 
     @property
     def name(self):
         return f"polytomous_distribution.{self.risk}"
 
+    #################
+    # Setup methods #
+    #################
+
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
-        self.exposure = builder.value.register_value_producer(
-            f"{self.risk}.exposure_parameters",
+    def setup(self, builder: Builder) -> None:
+        self.categories = self._get_categories()
+        self.exposure = self.get_exposure_parameters(builder)
+
+    def _get_categories(self) -> List[str]:
+        return sorted(
+            [column for column in self.exposure_data if "cat" in column],
+            key=lambda column: int(column[3:]),
+        )
+
+    def get_exposure_parameters(self, builder: Builder) -> Pipeline:
+        return builder.value.register_value_producer(
+            self.exposure_parameters_pipeline_name,
             source=builder.lookup.build_table(
-                self.exposure_data, key_columns=["sex"], parameter_columns=["age", "year"]
+                self.exposure_data,
+                key_columns=["sex"],
+                parameter_columns=["age", "year"],
             ),
         )
+
+    ##################
+    # Public methods #
+    ##################
 
     def ppf(self, x: pd.Series) -> pd.Series:
         exposure = self.exposure(x.index)
@@ -181,14 +209,11 @@ class PolytomousDistribution:
             index=x.index,
         )
 
-    def __repr__(self):
-        return f"PolytomousDistribution(risk={self.risk})"
-
 
 class DichotomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
         self.risk = risk
-        self.exposure_data = exposure_data.drop("cat2", axis=1)
+        self.exposure_data = exposure_data.drop(columns="cat2")
 
     @property
     def name(self):

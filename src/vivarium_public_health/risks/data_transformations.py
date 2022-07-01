@@ -88,6 +88,7 @@ def get_exposure_data(builder, risk: EntityString):
         "dichotomous",
         "ordered_polytomous",
         "unordered_polytomous",
+        "lbwsg",
     ]:
         exposure_data = pivot_categorical(exposure_data)
 
@@ -135,7 +136,7 @@ def get_exposure_distribution_weights(builder, risk: EntityString):
         if "glnorm" in weights.columns:
             if np.any(weights["glnorm"]):
                 raise NotImplementedError("glnorm distribution is not supported")
-            weights = weights.drop(columns="glnorm")
+            weights = weights.drop(columns=["glnorm"])
     else:
         weights = None
     return weights
@@ -182,7 +183,7 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
         relative_risk_data = pivot_categorical(relative_risk_data)
 
     else:
-        relative_risk_data = relative_risk_data.drop(["parameter"], "columns")
+        relative_risk_data = relative_risk_data.drop(columns=["parameter"])
 
     return relative_risk_data
 
@@ -200,7 +201,7 @@ def load_relative_risk_data(
             relative_risk_data["affected_measure"] == target.measure
         )
         relative_risk_data = relative_risk_data[correct_target].drop(
-            ["affected_entity", "affected_measure"], "columns"
+            columns=["affected_entity", "affected_measure"]
         )
 
     elif source_type == "relative risk value":
@@ -305,7 +306,7 @@ def _rebin_relative_risk_data(
     relative_risk_data["value"] = relative_risk_data.value_x.divide(
         relative_risk_data.value_y
     ).fillna(0)
-    return relative_risk_data.drop(["value_x", "value_y"], "columns")
+    return relative_risk_data.drop(columns=["value_x", "value_y"])
 
 
 def get_exposure_effect(builder, risk: EntityString):
@@ -359,7 +360,7 @@ def get_population_attributable_fraction_data(
             paf_data["affected_measure"] == target.measure
         )
         paf_data = paf_data[correct_target].drop(
-            ["affected_entity", "affected_measure"], "columns"
+            columns=["affected_entity", "affected_measure"]
         )
     else:
         key_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]

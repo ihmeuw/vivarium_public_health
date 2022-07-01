@@ -10,6 +10,7 @@ from typing import Callable, Dict
 
 import numpy as np
 import pandas as pd
+from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.state_machine import State, Transient, Transition
 from vivarium.framework.values import list_combiner, union_post_processor
 
@@ -60,19 +61,22 @@ class BaseDiseaseState(State):
             requires_columns=[self._model],
         )
 
-    def on_initialize_simulants(self, pop_data):
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Adds this state's columns to the simulation state table."""
         for transition in self.transition_set:
             if transition.start_active:
                 transition.set_active(pop_data.index)
 
-        pop_update = pd.DataFrame(
-            {self.event_time_column: pd.NaT, self.event_count_column: 0}, index=pop_data.index
-        )
+        pop_update = self.get_initial_event_times(pop_data)
         self.population_view.update(pop_update)
 
+    def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
+        return pd.DataFrame(
+            {self.event_time_column: pd.NaT, self.event_count_column: 0}, index=pop_data.index
+        )
+
     def _transition_side_effect(self, index, event_time):
-        """Updates the simulation state and triggers any side-effects associated with this state.
+        """Updates the simulation state and triggers any side effects associated with this state.
 
         Parameters
         ----------
@@ -296,8 +300,9 @@ class DiseaseState(BaseDiseaseState):
             f"{self.state_id}_prevalent_cases"
         )
 
-    def on_initialize_simulants(self, pop_data):
-        super().on_initialize_simulants(pop_data)
+    def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
+        pop_update = super().get_initial_event_times(pop_data)
+
         simulants_with_condition = self.population_view.subview([self._model]).get(
             pop_data.index, query=f'{self._model}=="{self.state_id}"'
         )
@@ -308,8 +313,9 @@ class DiseaseState(BaseDiseaseState):
                 self.randomness_prevalence.get_draw,
                 self.dwell_time,
             )
-            infected_at.name = self.event_time_column
-            self.population_view.update(infected_at)
+            pop_update.loc[infected_at.index, self.event_time_column] = infected_at
+
+        return pop_update
 
     def compute_disability_weight(self, index):
         """Gets the disability weight associated with this state.
@@ -395,16 +401,18 @@ class DiseaseState(BaseDiseaseState):
                 raise ValueError("You must supply a proportion function.")
         return super().add_transition(output, source_data_type, get_data_functions, **kwargs)
 
-    def next_state(self, index, event_time, population_view):
+    def next_state(
+        self, index: pd.Index, event_time: pd.Timestamp, population_view: PopulationView
+    ):
         """Moves a population among different disease states.
 
         Parameters
         ----------
         index
             An iterable of integer labels for the simulants.
-        event_time : pandas.Timestamp
+        event_time:
             The time at which this transition occurs.
-        population_view : vivarium.framework.population.PopulationView
+        population_view:
             A view of the internal state of the simulation.
         """
         eligible_index = self._filter_for_transition_eligibility(index, event_time)

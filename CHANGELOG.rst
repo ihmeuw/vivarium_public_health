@@ -1,3 +1,15 @@
+**0.10.19 - 06/29/22**
+
+ - Create new LBWSG components
+ - Fix a bug when stratifying newly born simulants
+ - Fix pandas deprecation warnings
+ - Fix a bug when stratifying an empty population
+ - Allow configuration of sex subsetting of the population
+ - Add support for empty populations
+ - Fix a bug in counting deaths and ylls
+ - Refactor DiseaseState to be compatible with latest release of vivarium
+ - Add CODEOWNERS
+
 **0.10.18 - 04/22/22**
 
  - Improve ScaleUp component configuration

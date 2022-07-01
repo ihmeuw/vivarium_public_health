@@ -5,7 +5,7 @@ from vivarium.config_tree import ConfigTree
 from vivarium.framework.configuration import build_simulation_configuration
 
 
-@pytest.fixture()
+@pytest.fixture(scope="function")
 def base_config():
     config = build_simulation_configuration()
 
