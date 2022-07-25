@@ -1,3 +1,7 @@
+**0.10.20 - 07/25/22**
+
+ - Update Vivarium pin
+
 **0.10.19 - 06/29/22**
 
  - Create new LBWSG components
