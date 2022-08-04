@@ -138,7 +138,7 @@ class DiseaseObserver:
         builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
 
     def _register_collect_metrics_listener(self, builder: Builder) -> None:
-        builder.event.register_listener("time_step", self.on_collect_metrics)
+        builder.event.register_listener("collect_metrics", self.on_collect_metrics)
 
     def _register_metrics_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
@@ -181,7 +181,9 @@ class DiseaseObserver:
         pop = self.population_view.get(
             event.index, query='tracked == True and alive == "alive"'
         )
+        # SDB - Here, pop.ischemic_stroke != pop.previous_ischemic_stroke returns all False? This means no counts are updated.
         groups = self.stratifier.group(pop.index, self.config.include, self.config.exclude)
+        breakpoint()
         for label, group_mask in groups:
             for transition in self.transitions:
                 transition_mask = (
@@ -193,6 +195,9 @@ class DiseaseObserver:
                     f"{self.disease}_{transition}_event_count_{label}": transition_mask.sum()
                 }
                 self.counts.update(new_observations)
+                print(transition_mask.sum())
+        breakpoint()
+        print('')
 
     ##################################
     # Pipeline sources and modifiers #
