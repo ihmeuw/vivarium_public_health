@@ -181,7 +181,6 @@ class DiseaseObserver:
         pop = self.population_view.get(
             event.index, query='tracked == True and alive == "alive"'
         )
-        # SDB - Here, pop.ischemic_stroke != pop.previous_ischemic_stroke returns all False? This means no counts are updated.
         groups = self.stratifier.group(pop.index, self.config.include, self.config.exclude)
         for label, group_mask in groups:
             for transition in self.transitions:
@@ -194,7 +193,6 @@ class DiseaseObserver:
                     f"{self.disease}_{transition}_event_count_{label}": transition_mask.sum()
                 }
                 self.counts.update(new_observations)
-                print(transition_mask.sum())
 
     ##################################
     # Pipeline sources and modifiers #
