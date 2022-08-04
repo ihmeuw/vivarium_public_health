@@ -183,7 +183,6 @@ class DiseaseObserver:
         )
         # SDB - Here, pop.ischemic_stroke != pop.previous_ischemic_stroke returns all False? This means no counts are updated.
         groups = self.stratifier.group(pop.index, self.config.include, self.config.exclude)
-        breakpoint()
         for label, group_mask in groups:
             for transition in self.transitions:
                 transition_mask = (
@@ -196,8 +195,6 @@ class DiseaseObserver:
                 }
                 self.counts.update(new_observations)
                 print(transition_mask.sum())
-        breakpoint()
-        print('')
 
     ##################################
     # Pipeline sources and modifiers #
