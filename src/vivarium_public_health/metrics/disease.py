@@ -138,7 +138,7 @@ class DiseaseObserver:
         builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
 
     def _register_collect_metrics_listener(self, builder: Builder) -> None:
-        builder.event.register_listener("time_step", self.on_collect_metrics)
+        builder.event.register_listener("collect_metrics", self.on_collect_metrics)
 
     def _register_metrics_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
