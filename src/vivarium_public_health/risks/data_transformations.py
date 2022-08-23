@@ -7,6 +7,8 @@ This module contains tools for handling raw risk exposure and relative
 risk data and performing any necessary data transformations.
 
 """
+
+from loguru import logger
 from typing import Union
 
 import numpy as np
@@ -184,6 +186,12 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
 
     else:
         relative_risk_data = relative_risk_data.drop(columns=["parameter"])
+
+    # todo: add boundary check for rr here
+    category_columns = [c for c in relative_risk_data.columns if 'cat' in c]
+    if not relative_risk_data[(relative_risk_data[category_columns] < 1.0).any(axis=1)].empty:
+        logger.warning(
+            f'WARNING: Some data values are below the expected boundary of 1.0 for {risk}.relative_risk')
 
     return relative_risk_data
 
