@@ -13,6 +13,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 from loguru import logger
+
 from vivarium_public_health.utilities import EntityString, TargetString
 
 #############
