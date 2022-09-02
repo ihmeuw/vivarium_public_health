@@ -183,16 +183,15 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
         "unordered_polytomous",
     ]:
         relative_risk_data = pivot_categorical(relative_risk_data)
+        # Check if any values for relative risk are below expected boundary of 1.0
+        category_columns = [c for c in relative_risk_data.columns if "cat" in c]
+        if not relative_risk_data[(relative_risk_data[category_columns] < 1.0).any(axis=1)].empty:
+            logger.warning(
+                f"WARNING: Some data values are below the expected boundary of 1.0 for {risk}.relative_risk"
+            )
 
     else:
         relative_risk_data = relative_risk_data.drop(columns=["parameter"])
-
-    # Check if any values for relative risk are below expected boundary of 1.0
-    category_columns = [c for c in relative_risk_data.columns if "cat" in c]
-    if not relative_risk_data[(relative_risk_data[category_columns] < 1.0).any(axis=1)].empty:
-        logger.warning(
-            f"WARNING: Some data values are below the expected boundary of 1.0 for {risk}.relative_risk"
-        )
 
     return relative_risk_data
 
