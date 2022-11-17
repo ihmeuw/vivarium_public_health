@@ -1,3 +1,8 @@
+**0.10.21 - 11/16/22**
+
+ - Fix bug in timing of disease transition observations
+ - Add logging when adding risks with a relative risk less than 1 from artifact
+
 **0.10.20 - 07/25/22**
 
  - Update Vivarium pin
