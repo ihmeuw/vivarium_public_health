@@ -16,13 +16,12 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium>=0.10.17",
+        "vivarium>=1.0.2",
         "numpy",
         "pandas",
         "scipy",
         "tables",
-        "risk_distributions>=2.0.10",
-        "dataclasses; python_version < '3.7.0'",
+        "risk_distributions>=2.0.11",
     ]
 
     test_requirements = [
@@ -60,7 +59,6 @@ if __name__ == "__main__":
             "Operating System :: POSIX :: Linux",
             "Operating System :: Microsoft :: Windows",
             "Programming Language :: Python",
-            "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: Implementation :: CPython",
             "Topic :: Education",
             "Topic :: Scientific/Engineering",
