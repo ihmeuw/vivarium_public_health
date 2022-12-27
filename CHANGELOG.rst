@@ -1,3 +1,7 @@
+**0.10.22 - 12/27/22**
+
+ - Update CI and setup for building python 3.7-3.10
+
 **0.10.21 - 11/16/22**
 
  - Fix bug in timing of disease transition observations

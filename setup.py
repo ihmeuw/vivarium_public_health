@@ -16,12 +16,12 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium>=0.10.17",
+        "vivarium>=1.0.1",
         "numpy",
         "pandas",
         "scipy",
         "tables",
-        "risk_distributions>=2.0.10",
+        "risk_distributions>=2.0.11",
     ]
 
     test_requirements = [
