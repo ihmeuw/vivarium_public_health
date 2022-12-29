@@ -41,14 +41,17 @@ FAKE_POP_AGE_DICT = {
     "age": {0: 0.01, 1: 0.45, 2: 1.01, 3: 1.99, 4: 2.02},
 }
 
-# List of expected age_bin intervals for mapper testing
-FAKE_POP_EXPECTED_AGE_BINS_LIST = [
-    "early_neonatal",
-    "1-5_months",
-    "12_to_23_months",
-    "12_to_23_months",
-    "2_to_4",
-]
+# Series of expected age_bin intervals for mapper testing
+FAKE_POP_AGE_GROUP_EXPECTED_SERIES = pd.Series(
+    {
+        0: "early_neonatal",
+        1: "1-5_months",
+        2: "12_to_23_months",
+        3: "12_to_23_months",
+        4: "2_to_4",
+    },
+    name="age_group",
+)
 
 FAKE_POP_EVENT_TIME = {
     "year": {
@@ -76,7 +79,9 @@ def test_results_stratifier_setup(mocker):
 
     rs.setup(builder)
 
-    builder.results.set_default_stratifications.assert_called_once()
+    builder.results.set_default_stratifications.assert_called_once_with(
+        builder.configuration.stratification.default
+    )
 
 
 def test_results_stratifier_register_stratifications(mocker):
@@ -99,10 +104,10 @@ def test_results_stratifier_register_stratifications(mocker):
     ]
     mocker.patch.object(builder, "results.register_stratification")
     builder.results.register_stratification = mocker.MagicMock()
+    rs = ResultsStratifier()
 
     builder.results.register_stratification.assert_not_called()
 
-    rs = ResultsStratifier()
     rs.setup(builder)  # setup calls register_stratifications()
 
     builder.results.register_stratification.assert_any_call(
@@ -149,7 +154,12 @@ def test_results_stratifier_map_age_groups():
     rs = ResultsStratifier()
     rs.age_bins = pd.DataFrame(AGE_BINS_EXPECTED_DICT)
     mapped_pop = rs.map_age_groups(pop)
-    assert mapped_pop.to_list() == FAKE_POP_EXPECTED_AGE_BINS_LIST
+    pd.testing.assert_series_equal(
+        mapped_pop,
+        FAKE_POP_AGE_GROUP_EXPECTED_SERIES,
+        check_dtype=False,
+        check_categorical=False,
+    )
 
 
 def test_results_stratifier_map_year():
@@ -172,4 +182,4 @@ def test_results_stratifier_get_age_bins(mocker):
     rs = ResultsStratifier()
     age_bins = rs.get_age_bins(builder)
 
-    assert age_bins.to_dict() == AGE_BINS_EXPECTED_DICT
+    assert age_bins.equals(pd.DataFrame(AGE_BINS_EXPECTED_DICT))

@@ -21,13 +21,13 @@ class ResultsStratifier:
     }
 
     def setup(self, builder: Builder):
-        self.config = builder.configuration.stratification
         self.age_bins = self.get_age_bins(builder)
-
         self.start_year = builder.configuration.time.start.year
         self.end_year = builder.configuration.time.end.year
 
-        builder.results.set_default_stratifications(self.config.stratification.default)
+        builder.results.set_default_stratifications(
+            builder.configuration.stratification.default
+        )
         self.register_stratifications(builder)
 
     def register_stratifications(self, builder: Builder) -> None:
@@ -80,9 +80,9 @@ class ResultsStratifier:
         pandas.Series
             A pd.Series with age group name string corresponding to the pop passed into the function
         """
-        bins = self.age_bins.age_start.to_list() + [self.age_bins.age_end.iloc[-1]]
+        bins = self.age_bins["age_start"].to_list() + [self.age_bins["age_end"].iloc[-1]]
         labels = self.age_bins["age_group_name"].to_list()
-        age_group = pd.cut(pop["age"], bins, labels=labels).rename("age_group")
+        age_group = pd.cut(pop.squeeze(axis=1), bins, labels=labels).rename("age_group")
         return age_group
 
     @staticmethod
@@ -102,7 +102,7 @@ class ResultsStratifier:
         return pop.squeeze(axis=1).dt.year
 
     @staticmethod
-    def get_age_bins(builder: Builder):
+    def get_age_bins(builder: Builder) -> pd.DataFrame:
         raw_age_bins = builder.data.load("population.age_bins")
         age_start = builder.configuration.population.age_start
         exit_age = builder.configuration.population.exit_age
