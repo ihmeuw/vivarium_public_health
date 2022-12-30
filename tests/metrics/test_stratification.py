@@ -1,316 +1,185 @@
-import itertools
-
-import numpy as np
 import pandas as pd
-import pytest
-from vivarium import InteractiveContext
-from vivarium.framework.engine import Builder
-from vivarium.framework.population import SimulantData
-from vivarium.testing_utilities import TestPopulation, metadata
 
-from vivarium_public_health.metrics.stratification import (
-    ResultsStratifier as ResultsStratifier_,
+from vivarium_public_health.metrics.stratification import ResultsStratifier
+
+
+# Age bins prior to get_age_bins
+def fake_data_load_population_age_bins(*args):
+    AGE_BINS_RAW_DICT = {
+        "age_start": {0: 0.0, 1: 0.01917808, 2: 0.07671233, 3: 0.5, 4: 1.0, 5: 2.0},
+        "age_end": {0: 0.01917808, 1: 0.07671233, 2: 0.5, 3: 1.0, 4: 2.0, 5: 5.0},
+        "age_group_name": {
+            0: "Early Neonatal",
+            1: "Late Neonatal",
+            2: "1-5 months",
+            3: "6-11 months",
+            4: "12 to 23 months",
+            5: "2 to 4",
+        },
+        "age_group_id": {0: 2, 1: 3, 2: 388, 3: 389, 4: 238, 5: 34},
+    }
+    return pd.DataFrame(AGE_BINS_RAW_DICT)
+
+
+# Age bins as processed by get_age_bins
+AGE_BINS_EXPECTED_DICT = {
+    "age_start": {0: 0.0, 1: 0.01917808, 2: 0.07671233, 3: 0.5, 4: 1.0, 5: 2.0},
+    "age_end": {0: 0.01917808, 1: 0.07671233, 2: 0.5, 3: 1.0, 4: 2.0, 5: 5.0},
+    "age_group_name": {
+        0: "early_neonatal",
+        1: "late_neonatal",
+        2: "1-5_months",
+        3: "6-11_months",
+        4: "12_to_23_months",
+        5: "2_to_4",
+    },
+    "age_group_id": {0: 2, 1: 3, 2: 388, 3: 389, 4: 238, 5: 34},
+}
+
+# Population table for mapper testing
+FAKE_POP_AGE_DICT = {
+    "age": {0: 0.01, 1: 0.45, 2: 1.01, 3: 1.99, 4: 2.02},
+}
+
+# Series of expected age_bin intervals for mapper testing
+FAKE_POP_AGE_GROUP_EXPECTED_SERIES = pd.Series(
+    {
+        0: "early_neonatal",
+        1: "1-5_months",
+        2: "12_to_23_months",
+        3: "12_to_23_months",
+        4: "2_to_4",
+    },
+    name="age_group",
 )
-from vivarium_public_health.metrics.stratification import Source, SourceType
 
-
-class FavoriteColor:
-
-    OPTIONS = ["red", "green", "orange"]
-
-    @property
-    def name(self) -> str:
-        return "favorite_color"
-
-    def setup(self, builder: Builder):
-        self.randomness = builder.randomness.get_stream(self.name)
-        # Our simulants are fickle and change their
-        # favorite colors every time step.
-        builder.value.register_value_producer(
-            self.name,
-            requires_streams=[self.name],
-            source=lambda index: self.randomness.choice(index, choices=self.OPTIONS),
-        )
-
-
-class FavoriteNumber:
-
-    OPTIONS = [7, 42, 14312]
-
-    @property
-    def name(self) -> str:
-        return "favorite_number"
-
-    def setup(self, builder: Builder) -> None:
-        self.randomness = builder.randomness.get_stream(self.name)
-        self.population_view = builder.population.get_view([self.name])
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=[self.name],
-            requires_streams=[self.name],
-        )
-
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        # Favorite numbers are forever though.
-        self.population_view.update(
-            self.randomness.choice(
-                pop_data.index,
-                choices=self.OPTIONS,
-            ).rename(self.name)
-        )
-
-
-FAVORITE_THINGS = {
-    f"{color}_{number}"
-    for color, number in itertools.product(FavoriteColor.OPTIONS, FavoriteNumber.OPTIONS)
+FAKE_POP_EVENT_TIME = {
+    "year": {
+        0: pd.to_datetime("1/1/2045"),
+        1: pd.to_datetime("1/1/2045"),
+        2: pd.to_datetime("1/1/2045"),
+        3: pd.to_datetime("1/1/2045"),
+        4: pd.to_datetime("1/1/2045"),
+    },
 }
 
 
-class ResultsStratifier(ResultsStratifier_):
-    def register_stratifications(self, builder: Builder) -> None:
-        super().register_stratifications(builder)
-
-        self.setup_stratification(
-            builder,
-            name="favorite_things",
-            sources=[
-                Source("favorite_color", SourceType.PIPELINE),
-                Source("favorite_number", SourceType.COLUMN),
-            ],
-            categories=FAVORITE_THINGS,
-            mapper=lambda row: f"{row['favorite_color']}_{row['favorite_number']}",
-        )
-
-        self.setup_stratification(
-            builder,
-            name="favorite_color",
-            sources=[Source("favorite_color", SourceType.PIPELINE)],
-            categories=set(FavoriteColor.OPTIONS),
-        )
-
-        self.setup_stratification(
-            builder,
-            name="month",
-            sources=[Source("month", SourceType.CLOCK)],
-            categories={str(i + 1) for i in range(12)},
-            mapper=lambda row: str(row[0].month),
-            current_category_getter=lambda: {str(self.clock().month)},
-        )
-
-
-ALL_LEVELS = ["age", "sex", "year", "favorite_things", "favorite_color", "month"]
-
-
-def make_stratifier_and_sim(default_levels, config, plugins):
-    config.update(
-        {
-            "observers": {"default": default_levels},
-            "population": {"population_size": 1000},
-        },
-        **metadata(__file__),
-    )
+def test_results_stratifier_setup(mocker):
+    """Test that set default stratifications happens at setup"""
     rs = ResultsStratifier()
-    sim = InteractiveContext(
-        components=[TestPopulation(), rs, FavoriteColor(), FavoriteNumber()],
-        configuration=config,
-        plugin_configuration=plugins,
+    builder = mocker.Mock()
+    builder.data.load = fake_data_load_population_age_bins
+    builder.configuration.population.age_start = 0.0
+    builder.configuration.population.exit_age = 5.0
+    builder.configuration.time.start.year = 2022
+    builder.configuration.time.end.year = 2027
+
+    builder.results.set_default_stratifications = mocker.Mock()
+    builder.results.set_default_stratifications.assert_not_called()
+
+    rs.setup(builder)
+
+    builder.results.set_default_stratifications.assert_called_once_with(
+        builder.configuration.stratification.default
     )
-    return rs, sim
 
 
-@pytest.fixture(params=[[], ["age", "sex", "year"], ALL_LEVELS])
-def default_levels(request):
-    return request.param
-
-
-@pytest.fixture(scope="function")
-def stratifier_and_sim(default_levels, base_config, base_plugins):
-    return make_stratifier_and_sim(default_levels, base_config, base_plugins)
-
-
-@pytest.fixture(
-    params=[
-        [[], []],
-        [["sex", "favorite_color"], []],
-        [[], ["sex", "favorite_color"]],
-        [ALL_LEVELS, []],
-        [[], ALL_LEVELS],
-        [["sex"], ["favorite_color"]],
+def test_results_stratifier_register_stratifications(mocker):
+    """Test that ResultsStratifier.register_stratifications registers expected stratifications
+    and only the expected stratifications."""
+    builder = mocker.Mock()
+    builder.data.load = fake_data_load_population_age_bins
+    builder.configuration.population.age_start = 0.0
+    builder.configuration.population.exit_age = 5.0
+    builder.configuration.time.start.year = 2022
+    builder.configuration.time.end.year = 2025
+    years_list = ["2022", "2023", "2024", "2025"]
+    age_group_names_list = [
+        "early_neonatal",
+        "late_neonatal",
+        "1-5_months",
+        "6-11_months",
+        "12_to_23_months",
+        "2_to_4",
     ]
-)
-def include_and_exclude(request):
-    return request.param
+    mocker.patch.object(builder, "results.register_stratification")
+    builder.results.register_stratification = mocker.MagicMock()
+    rs = ResultsStratifier()
 
+    builder.results.register_stratification.assert_not_called()
 
-@pytest.fixture(
-    params=[
-        [["age"], ["age"]],
-        [ALL_LEVELS, ALL_LEVELS],
-    ]
-)
-def bad_include_and_exclude(request):
-    return request.param
+    rs.setup(builder)  # setup calls register_stratifications()
 
-
-def test_ResultsStratifier_setup(stratifier_and_sim, default_levels):
-    rs, sim = stratifier_and_sim
-
-    assert rs.metrics_pipeline_name == "metrics"
-    assert rs.tmrle_key == "population.theoretical_minimum_risk_life_expectancy"
-    assert rs.clock() == sim.current_time
-    assert rs.default_stratification_levels == set(default_levels)
-    assert set(rs.pipelines) == {"favorite_color"}
-    assert rs.columns_required == {"tracked", "favorite_number", "age", "sex"}
-    assert rs.clock_sources == {"year", "month"}
-    assert set(rs.stratification_levels) == {
-        "age",
-        "sex",
-        "year",
-        "favorite_things",
-        "favorite_color",
-        "month",
-    }
-    assert rs.stratification_groups is None
-
-
-@pytest.mark.parametrize(
-    "age_start, age_end, expected_age_start, expected_age_end",
-    [(20, 55, 20, 55), (18, 47, 15, 50)],
-    ids=["on_bound", "between_bounds"],
-)
-def test_ResultsStratifier_setup_age_bins(
-    age_start: int,
-    age_end: int,
-    expected_age_start: int,
-    expected_age_end: int,
-    base_config,
-    base_plugins,
-):
-    base_config.update(
-        {"population": {"age_start": age_start, "exit_age": age_end}},
-        **metadata(__file__),
+    builder.results.register_stratification.assert_any_call(
+        "age_group",
+        age_group_names_list,
+        rs.map_age_groups,
+        is_vectorized=True,
+        requires_columns=["age"],
     )
+    builder.results.register_stratification.assert_any_call(
+        "current_year",
+        years_list,
+        rs.map_year,
+        is_vectorized=True,
+        requires_columns=["current_time"],
+    )
+    builder.results.register_stratification.assert_any_call(
+        "event_year",
+        years_list,
+        rs.map_year,
+        is_vectorized=True,
+        requires_columns=["event_time"],
+    )
+    builder.results.register_stratification.assert_any_call(
+        "entrance_year",
+        years_list,
+        rs.map_year,
+        is_vectorized=True,
+        requires_columns=["entrance_time"],
+    )
+    builder.results.register_stratification.assert_any_call(
+        "exit_year",
+        years_list,
+        rs.map_year,
+        is_vectorized=True,
+        requires_columns=["exit_time"],
+    )
+    assert builder.results.register_stratification.call_count == 5
+
+
+def test_results_stratifier_map_age_groups():
+    """Test that ages of the population are mapped to intervals as expected."""
+    pop = pd.DataFrame(FAKE_POP_AGE_DICT)
+    rs = ResultsStratifier()
+    rs.age_bins = pd.DataFrame(AGE_BINS_EXPECTED_DICT)
+    mapped_pop = rs.map_age_groups(pop)
+    pd.testing.assert_series_equal(
+        mapped_pop,
+        FAKE_POP_AGE_GROUP_EXPECTED_SERIES,
+        check_dtype=False,
+        check_categorical=False,
+    )
+
+
+def test_results_stratifier_map_year():
+    """Test that datetimes are mapped to the correct year."""
+    pop = pd.DataFrame(FAKE_POP_EVENT_TIME)
+    rs = ResultsStratifier()
+    the_year = rs.map_year(pop)
+    assert (the_year == 2045).all()
+
+
+def test_results_stratifier_get_age_bins(mocker):
+    """Test that get_age_bins produces expected age_bins DataFrame."""
+    builder = mocker.Mock()
+    builder.data.load = fake_data_load_population_age_bins
+    builder.configuration.population.age_start = 0.0
+    builder.configuration.population.exit_age = 5.0
+    builder.configuration.time.start.year = 2022
+    builder.configuration.time.end.year = 2025
 
     rs = ResultsStratifier()
-    _ = InteractiveContext(
-        components=[TestPopulation(), rs],
-        configuration=base_config,
-        plugin_configuration=base_plugins,
-    )
+    age_bins = rs.get_age_bins(builder)
 
-    # Assertions
-    expected_outputs = pd.DataFrame(
-        [
-            {
-                "age_start": float(age),
-                "age_end": float(age + 5),
-                "age_group_name": f"{age} to {age + 4}",
-            }
-            for i, age in enumerate(range(expected_age_start, expected_age_end, 5))
-        ]
-    )
-    assert (rs.age_bins.values == expected_outputs.values).all()
-
-
-def test_setting_stratification_groups_on_time_step_prepare(stratifier_and_sim):
-    rs, sim = stratifier_and_sim
-
-    # No time steps yet, so not groups have been set
-    assert rs.stratification_groups is None
-
-    stratification_time = sim.current_time
-    sim.step()
-    # noinspection PyTypeChecker
-    sg: pd.DataFrame = rs.stratification_groups
-
-    def proportion(x):
-        return len(x) / len(sg)
-
-    assert set(sg.columns) == {
-        "age",
-        "sex",
-        "year",
-        "favorite_things",
-        "favorite_color",
-        "month",
-    }
-
-    # Age has different sized bins, so statistical tests are harder.
-    assert set(sg.age) <= set(rs.age_bins.age_group_name)
-
-    assert set(sg.sex) == {"Male", "Female"}
-    assert np.allclose(sg.groupby("sex").apply(proportion), 1 / 2, rtol=0.1)
-
-    years = set(sg.year)
-    assert len(years) == 1
-    assert list(years)[0] == str(stratification_time.year)
-
-    assert set(sg.favorite_things) == FAVORITE_THINGS
-    assert np.allclose(
-        sg.groupby("favorite_things").apply(proportion),
-        1 / len(FAVORITE_THINGS),
-        rtol=0.25,
-    )
-
-    assert set(sg.favorite_color) == set(FavoriteColor.OPTIONS)
-    assert np.allclose(
-        sg.groupby("favorite_color").apply(proportion),
-        1 / len(FavoriteColor.OPTIONS),
-        rtol=0.1,
-    )
-
-    months = set(sg.month)
-    assert len(months) == 1
-    assert list(months)[0] == str(stratification_time.month)
-
-
-def test_group(stratifier_and_sim, default_levels, include_and_exclude):
-    rs, sim = stratifier_and_sim
-    sim.step()
-
-    include, exclude = include_and_exclude
-    expected_levels = (set(default_levels) | set(include)) - set(exclude)
-
-    pop = sim.get_population()
-    groups = list(rs.group(pop.index, include, exclude))
-
-    _check_groups(rs, expected_levels, groups, pop)
-
-
-def test_group_empty_index(stratifier_and_sim, default_levels, include_and_exclude):
-    rs, sim = stratifier_and_sim
-    sim.step()
-
-    include, exclude = include_and_exclude
-    expected_levels = (set(default_levels) | set(include)) - set(exclude)
-
-    pop = sim.get_population()
-    pop = pop[pop.age > 200]
-    groups = list(rs.group(pop.index, include, exclude))
-
-    _check_groups(rs, expected_levels, groups, pop)
-
-
-def _check_groups(stratifier, expected_levels, groups, pop):
-    expected_num_groups = 1
-    for level in expected_levels:
-        if level not in ["month", "year"]:
-            expected_num_groups *= len(stratifier.stratification_levels[level].categories)
-
-    assert len(groups) == expected_num_groups
-
-    if not expected_levels:
-        label, group_mask = groups[0]
-        assert label == ""
-        assert pop[group_mask].equals(pop)
-    else:
-        for label, group_mask in groups:
-            for level in expected_levels:
-                assert level in label
-            assert pop[group_mask].index.isin(pop.index).all()
-
-
-# todo test age_stratification_mapper
-# todo test year_stratification_mapper
-# todo test year_current_categories_getter
-# todo test StratificationLevel init
+    assert age_bins.equals(pd.DataFrame(AGE_BINS_EXPECTED_DICT))
