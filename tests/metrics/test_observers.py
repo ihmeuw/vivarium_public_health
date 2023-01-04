@@ -3,6 +3,9 @@ from vivarium_public_health.metrics.disability import DisabilityObserver
 
 
 def test_disability_observer_setup(mocker):
+    """Test that DisabilityObserver.setup() registers expected observation
+    and returns expected disease classes."""
+
     observer = DisabilityObserver()
     builder = mocker.Mock()
     builder.results.register_observation = mocker.Mock()
