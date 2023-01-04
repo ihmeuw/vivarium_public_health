@@ -13,8 +13,8 @@ def test_disability_observer_setup(mocker):
     builder.results.register_observation.assert_called_once_with(
         name="ylds_due_to_all_causes",
         pop_filter='tracked == True and alive == "alive"',
-        aggregator_sources=[str(observer.disability_weight)],  # XXX is this right?
-        aggregator=observer._disability_weight_aggregator,  # XXX is this right?
+        aggregator_sources=[str(observer.disability_weight)],
+        aggregator=observer._disability_weight_aggregator,
         requires_columns=["alive"],
         requires_values=["disability_weight"],
         additional_stratifications=observer.config.include,
@@ -23,6 +23,3 @@ def test_disability_observer_setup(mocker):
     )
     assert DiseaseState in observer.disease_classes
     assert RiskAttributableDisease in observer.disease_classes
-
-
-# Test _disability_weight_aggregator?
