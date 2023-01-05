@@ -7,24 +7,12 @@ This module contains tools for observing years lived with disability (YLDs)
 in the simulation.
 
 """
-from collections import Counter
-from typing import Dict, List, Union
+from typing import List
 
 import pandas as pd
-from vivarium.config_tree import ConfigTree
 from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import PopulationView
-from vivarium.framework.values import (
-    NumberLike,
-    Pipeline,
-    list_combiner,
-    rescale_post_processor,
-    union_post_processor,
-)
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.utilities import to_years
 
 
@@ -61,8 +49,10 @@ class DisabilityObserver:
     def disease_classes(self) -> List:
         return [DiseaseState, RiskAttributableDisease]
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.config = builder.configuration.stratification.disability
+        self.step_size = builder.configuration.time.step_size
         self.disability_weight = builder.value.get_value("disability_weight")
         cause_states = builder.components.get_components_by_type(tuple(self.disease_classes))
 
@@ -92,8 +82,5 @@ class DisabilityObserver:
                 when="time_step__prepare",
             )
 
-    def _disability_weight_aggregator(self, pipeline):
-        def _aggregate(group):
-            return (pipeline(group.index) * to_years(group["step_size"])).sum()
-
-        return _aggregate
+    def _disability_weight_aggregator(self, dw: pd.DataFrame) -> float:
+        return (dw * to_years(self.step_size)).sum().squeeze()
