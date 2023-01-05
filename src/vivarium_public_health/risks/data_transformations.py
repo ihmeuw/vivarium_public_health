@@ -210,6 +210,11 @@ def load_relative_risk_data(
         correct_target = (relative_risk_data["affected_entity"] == target.name) & (
             relative_risk_data["affected_measure"] == target.measure
         )
+
+        if sum(correct_target) == 0:
+            raise ValueError(f"Subsetting relative risk data to target {target.name}.{target.measure}"
+                             " returned an empty DataFrame.")
+        
         relative_risk_data = relative_risk_data[correct_target].drop(
             columns=["affected_entity", "affected_measure"]
         )
