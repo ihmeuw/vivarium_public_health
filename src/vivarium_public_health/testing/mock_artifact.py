@@ -31,7 +31,15 @@ MOCKERS = {
             [1.5, "continuous", "test_cause", "incidence_rate"],
             1990,
             2017,
-            ("age", "sex", "year", "value", "parameter", "affected_entity", "affected_measure"),
+            (
+                "age",
+                "sex",
+                "year",
+                "value",
+                "parameter",
+                "affected_entity",
+                "affected_measure",
+            ),
         ),
         "population_attributable_fraction": build_table(
             [1, "test_cause_1", "incidence_rate"],
