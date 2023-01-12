@@ -16,10 +16,11 @@ class ResultsStratifier:
 
     configuration_defaults = {
         "stratification": {
-            "default": [],
+            "default": ["age_group", "sex"],
         }
     }
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.age_bins = self.get_age_bins(builder)
         self.start_year = builder.configuration.time.start.year

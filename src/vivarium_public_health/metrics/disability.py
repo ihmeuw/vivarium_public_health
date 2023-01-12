@@ -11,6 +11,13 @@ from typing import List
 
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.values import (
+    NumberLike,
+    Pipeline,
+    list_combiner,
+    rescale_post_processor,
+    union_post_processor,
+)
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.utilities import to_years
@@ -45,6 +52,18 @@ class DisabilityObserver:
         }
     }
 
+    def __init__(self):
+        # self.ylds_column_name = "years_lived_with_disability"
+        # self.metrics_pipeline_name = "metrics"
+        self.disability_weight_pipeline_name = "disability_weight"
+
+    def __repr__(self):
+        return "DisabilityObserver()"
+
+    @property
+    def name(self):
+        return "disability_observer"
+
     @property
     def disease_classes(self) -> List:
         return [DiseaseState, RiskAttributableDisease]
@@ -52,8 +71,8 @@ class DisabilityObserver:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.config = builder.configuration.stratification.disability
-        self.step_size = builder.configuration.time.step_size
-        self.disability_weight = builder.value.get_value("disability_weight")
+        self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
+        self.disability_weight = self._get_disability_weight_pipeline(builder)
         cause_states = builder.components.get_components_by_type(tuple(self.disease_classes))
 
         builder.results.register_observation(
@@ -82,5 +101,16 @@ class DisabilityObserver:
                 when="time_step__prepare",
             )
 
+    def _get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
+        return builder.value.register_value_producer(
+            self.disability_weight_pipeline_name,
+            source=lambda index: [pd.Series(0.0, index=index)],
+            preferred_combiner=list_combiner,
+            preferred_post_processor=self._disability_post_processor,
+        )
+
     def _disability_weight_aggregator(self, dw: pd.DataFrame) -> float:
         return (dw * to_years(self.step_size)).sum().squeeze()
+
+    def _disability_post_processor(self, value: NumberLike, step_size: pd.Timedelta) -> NumberLike:
+        return rescale_post_processor(union_post_processor(value, self.step_size), self.step_size)
