@@ -48,8 +48,8 @@ class DisabilityObserver(DisabilityObserver_):
     configuration_defaults = {
         "stratification": {
             "disability": {
-                "exclude": [],
-                "include": ["age_group", "sex"],
+                "exclude": ["age_group"],
+                "include": ["sex"],
             }
         }
     }
@@ -124,50 +124,58 @@ def test__disability_weight_aggregator():
 
 
 # @pytest.mark.parametrize("disability_weight_value", [0.0, 0.25, 0.5, 1.0,])
-@pytest.mark.parametrize("disability_weight_value", [0.5])
-def test_disability_accumulation(base_config, base_plugins, disability_weight_value):
+@pytest.mark.parametrize("disability_weight_value_0, disability_weight_value_1", [(0.25, 0.5)])
+def test_disability_accumulation(base_config, base_plugins, disability_weight_value_0, disability_weight_value_1):
     """Integration test for the observer and the Results Management system."""
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
 
     time_step = pd.Timedelta(days=base_config.time.step_size)
 
-    # Set up multiple causes of disability
+    # Set up two disease models (_0 and _1), to test against multiple causes of disability
     healthy_0 = BaseDiseaseState("healthy_0")
-    healthy_1 = BaseDiseaseState("healthy_1")
-    disability_get_data_funcs = {
-        "dwell_time": lambda _, __: pd.Timedelta(days=0),
-        "disability_weight": lambda _, __: build_table(disability_weight_value, year_start - 1, year_end),
+    healthy_1 = BaseDiseaseState("healthy_1")  # TODO: Susceptible state change?
+    disability_get_data_funcs_0 = {
+        "disability_weight": lambda _, __: build_table(disability_weight_value_0, year_start - 1, year_end),
         "prevalence": lambda _, __: build_table(
             0.25, year_start - 1, year_end, ["age", "year", "sex", "value"]
         ),
-        "excess_mortality_rate": lambda _, __: 0.0,
     }
-
-    disability_state_0 = DiseaseState("sick_cause_0", get_data_functions=disability_get_data_funcs)
-    disability_state_1 = DiseaseState("sick_cause_1", get_data_functions=disability_get_data_funcs)
-
-    # healthy.add_transition(disability_state)
-
-    model_0 = DiseaseModel("cause_0", initial_state=healthy_0, states=[healthy_0, disability_state_0])
-    model_1 = DiseaseModel("cause_1", initial_state=healthy_1, states=[healthy_1, disability_state_1])
+    disability_get_data_funcs_1 = {
+        "disability_weight": lambda _, __: build_table(disability_weight_value_1, year_start - 1, year_end),
+        "prevalence": lambda _, __: build_table(
+            0.5, year_start - 1, year_end, ["age", "year", "sex", "value"]
+        ),
+    }
+    disability_state_0 = DiseaseState("sick_cause_0", get_data_functions=disability_get_data_funcs_0)
+    disability_state_1 = DiseaseState("sick_cause_1", get_data_functions=disability_get_data_funcs_1)
+    model_0 = DiseaseModel("model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0])
+    model_1 = DiseaseModel("model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1])
 
     simulation = InteractiveContext(
         components=[TestPopulation(), model_0, model_1, ResultsStratifier(), DisabilityObserver()],
         configuration=base_config,
         plugin_configuration=base_plugins,
-        setup=False,
     )
-
-    # Register rate producer for "disability_weight" sourced by "sick.disability_weight"
-    # simulation._values.register_value_producer("disability_weight", "sick.disability_weight")
-    simulation.setup()
-
-    disability_weight = simulation._values.get_value("disability_weight")
-
     simulation.step()
-    # Folks instantly transition to sick so now our mortality rate should be much higher
-    # assert np.allclose(
-    #     from_yearly(0.7, time_step), mortality_rate(simulation.get_population().index)["sick"]
-    # )
-    assert True
+
+    pop = simulation.get_population()
+    sub_pop = {"healthy": pop[(pop["model_0"] == "healthy_0") & (pop["model_1"] == "healthy_1")],
+               "sick_0":    pop[(pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "healthy_1")],
+               "sick_1":    pop[(pop["model_0"] == "healthy_0") & (pop["model_1"] == "sick_cause_1")],
+               "sick_0_1":  pop[(pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "sick_cause_1")]}
+
+    # Get pipelines
+    disability_weight = simulation._values.get_value("disability_weight")
+    disability_weight_0 = simulation._values.get_value("sick_cause_0.disability_weight")
+    disability_weight_1 = simulation._values.get_value("sick_cause_1.disability_weight")
+
+    time_step / pd.Timedelta("365.25 days")
+    for sub_pop_key in ["healthy", "sick_0", "sick_1"]:
+        assert np.isclose(disability_weight(sub_pop[sub_pop_key].index),(disability_weight_0(sub_pop[sub_pop_key].index) * time_step/pd.Timedelta("365.25 days")
+                + disability_weight_1(sub_pop[sub_pop_key].index) * time_step/pd.Timedelta("365.25 days")), rtol=0.001).all()
+
+    # TODO: Add check for disability weight calc with two weights
+
+    # TODO: check the metrics pipeline
+    #  Check that all keys and values are expected

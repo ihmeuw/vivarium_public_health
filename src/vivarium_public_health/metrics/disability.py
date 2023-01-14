@@ -78,7 +78,7 @@ class DisabilityObserver:
         builder.results.register_observation(
             name="ylds_due_to_all_causes",
             pop_filter='tracked == True and alive == "alive"',
-            aggregator_sources=[str(self.disability_weight)],
+            aggregator_sources=[self.disability_weight_pipeline_name],
             aggregator=self._disability_weight_aggregator,
             requires_columns=["alive"],
             requires_values=["disability_weight"],
@@ -88,14 +88,14 @@ class DisabilityObserver:
         )
 
         for cause_state in cause_states:
-            pipeline = builder.value.get_value(f"{cause_state.state_id}.disability_weight")
+            cause_disability_weight_pipeline_name = f"{cause_state.state_id}.disability_weight"
             builder.results.register_observation(
                 name=f"ylds_due_to_{cause_state.state_id}",
                 pop_filter='tracked == True and alive == "alive"',
-                aggregator_sources=[str(pipeline)],
+                aggregator_sources=[cause_disability_weight_pipeline_name],
                 aggregator=self._disability_weight_aggregator,
                 requires_columns=["alive"],
-                requires_values=[f"{cause_state.state_id}.disability_weight"],
+                requires_values=[cause_disability_weight_pipeline_name],
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
