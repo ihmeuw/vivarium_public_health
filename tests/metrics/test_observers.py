@@ -3,18 +3,21 @@ from collections import namedtuple
 import numpy as np
 import pandas as pd
 import pytest
-
 from vivarium import InteractiveContext
-from vivarium.framework.utilities import from_yearly
-from vivarium.testing_utilities import TestPopulation, build_table, metadata
+from vivarium.testing_utilities import TestPopulation, build_table
 
-from vivarium_public_health.disease import BaseDiseaseState, DiseaseModel, DiseaseState, RiskAttributableDisease, RateTransition
-from vivarium_public_health.metrics.disability import DisabilityObserver as DisabilityObserver_
-from vivarium_public_health.metrics.stratification import ResultsStratifier as ResultsStratifier_
-
+from vivarium_public_health.disease import (
+    DiseaseModel,
+    DiseaseState,
+    RiskAttributableDisease,
+)
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.disease.transition import TransitionString
-from vivarium_public_health.population import Mortality
+from vivarium_public_health.metrics.disability import (
+    DisabilityObserver as DisabilityObserver_,
+)
+from vivarium_public_health.metrics.stratification import (
+    ResultsStratifier as ResultsStratifier_,
+)
 
 
 class ResultsStratifier(ResultsStratifier_):
@@ -26,25 +29,6 @@ class ResultsStratifier(ResultsStratifier_):
 
 
 class DisabilityObserver(DisabilityObserver_):
-    """Counts years lived with disability.
-
-    By default, this counts both aggregate and cause-specific years lived
-    with disability over the full course of the simulation.
-
-    In the model specification, your configuration for this component should
-    be specified as, e.g.:
-
-    .. code-block:: yaml
-
-        configuration:
-            observers:
-                disability:
-                    exclude:
-                        - "sex"
-                    include:
-                        - "sample_stratification"
-    """
-
     configuration_defaults = {
         "stratification": {
             "disability": {
@@ -53,9 +37,6 @@ class DisabilityObserver(DisabilityObserver_):
             }
         }
     }
-
-    # def setup(self, builder: Builder):
-    #     super().setup()
 
 
 def test_disability_observer_setup(mocker):
@@ -123,59 +104,119 @@ def test__disability_weight_aggregator():
     assert aggregated_weight == 1000.0
 
 
-# @pytest.mark.parametrize("disability_weight_value", [0.0, 0.25, 0.5, 1.0,])
-@pytest.mark.parametrize("disability_weight_value_0, disability_weight_value_1", [(0.25, 0.5)])
-def test_disability_accumulation(base_config, base_plugins, disability_weight_value_0, disability_weight_value_1):
-    """Integration test for the observer and the Results Management system."""
+@pytest.mark.parametrize(
+    "disability_weight_value_0, disability_weight_value_1",
+    [(0.25, 0.5), (0.99, 0.1), (0.1, 0.1)],
+)
+def test_disability_accumulation(
+    base_config, base_plugins, disability_weight_value_0, disability_weight_value_1
+):
+    """Integration test for the disability observer and the Results Management system."""
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
-
     time_step = pd.Timedelta(days=base_config.time.step_size)
 
     # Set up two disease models (_0 and _1), to test against multiple causes of disability
-    healthy_0 = BaseDiseaseState("healthy_0")
-    healthy_1 = BaseDiseaseState("healthy_1")  # TODO: Susceptible state change?
+    healthy_0 = SusceptibleState("healthy_0")
+    healthy_1 = SusceptibleState("healthy_1")
     disability_get_data_funcs_0 = {
-        "disability_weight": lambda _, __: build_table(disability_weight_value_0, year_start - 1, year_end),
+        "disability_weight": lambda _, __: build_table(
+            disability_weight_value_0, year_start - 1, year_end
+        ),
         "prevalence": lambda _, __: build_table(
-            0.25, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            0.45, year_start - 1, year_end, ["age", "year", "sex", "value"]
         ),
     }
     disability_get_data_funcs_1 = {
-        "disability_weight": lambda _, __: build_table(disability_weight_value_1, year_start - 1, year_end),
+        "disability_weight": lambda _, __: build_table(
+            disability_weight_value_1, year_start - 1, year_end
+        ),
         "prevalence": lambda _, __: build_table(
-            0.5, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            0.65, year_start - 1, year_end, ["age", "year", "sex", "value"]
         ),
     }
-    disability_state_0 = DiseaseState("sick_cause_0", get_data_functions=disability_get_data_funcs_0)
-    disability_state_1 = DiseaseState("sick_cause_1", get_data_functions=disability_get_data_funcs_1)
-    model_0 = DiseaseModel("model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0])
-    model_1 = DiseaseModel("model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1])
+    disability_state_0 = DiseaseState(
+        "sick_cause_0", get_data_functions=disability_get_data_funcs_0
+    )
+    disability_state_1 = DiseaseState(
+        "sick_cause_1", get_data_functions=disability_get_data_funcs_1
+    )
+    model_0 = DiseaseModel(
+        "model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0]
+    )
+    model_1 = DiseaseModel(
+        "model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1]
+    )
 
     simulation = InteractiveContext(
-        components=[TestPopulation(), model_0, model_1, ResultsStratifier(), DisabilityObserver()],
+        components=[
+            TestPopulation(),
+            model_0,
+            model_1,
+            ResultsStratifier(),
+            DisabilityObserver(),
+        ],
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
     simulation.step()
 
     pop = simulation.get_population()
-    sub_pop = {"healthy": pop[(pop["model_0"] == "healthy_0") & (pop["model_1"] == "healthy_1")],
-               "sick_0":    pop[(pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "healthy_1")],
-               "sick_1":    pop[(pop["model_0"] == "healthy_0") & (pop["model_1"] == "sick_cause_1")],
-               "sick_0_1":  pop[(pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "sick_cause_1")]}
+    sub_pop_mask = {
+        "healthy": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "healthy_1"),
+        "sick_0": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "healthy_1"),
+        "sick_1": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "sick_cause_1"),
+        "sick_0_1": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "sick_cause_1"),
+    }
+
+    # Population masks values for keys of expected labels in results from the metrics pipeline
+    yld_stratification_mask = {
+        "MEASURE_ylds_due_to_all_causes_SEX_Female": (pop["sex"] == "Female"),
+        "MEASURE_ylds_due_to_all_causes_SEX_Male": (pop["sex"] == "Male"),
+        "MEASURE_ylds_due_to_sick_cause_0_SEX_Female": (pop["model_0"] == "sick_cause_0")
+        & (pop["sex"] == "Female"),
+        "MEASURE_ylds_due_to_sick_cause_0_SEX_Male": (pop["model_0"] == "sick_cause_0")
+        & (pop["sex"] == "Male"),
+        "MEASURE_ylds_due_to_sick_cause_1_SEX_Female": (pop["model_1"] == "sick_cause_1")
+        & (pop["sex"] == "Female"),
+        "MEASURE_ylds_due_to_sick_cause_1_SEX_Male": (pop["model_1"] == "sick_cause_1")
+        & (pop["sex"] == "Male"),
+    }
 
     # Get pipelines
     disability_weight = simulation._values.get_value("disability_weight")
     disability_weight_0 = simulation._values.get_value("sick_cause_0.disability_weight")
     disability_weight_1 = simulation._values.get_value("sick_cause_1.disability_weight")
 
-    time_step / pd.Timedelta("365.25 days")
-    for sub_pop_key in ["healthy", "sick_0", "sick_1"]:
-        assert np.isclose(disability_weight(sub_pop[sub_pop_key].index),(disability_weight_0(sub_pop[sub_pop_key].index) * time_step/pd.Timedelta("365.25 days")
-                + disability_weight_1(sub_pop[sub_pop_key].index) * time_step/pd.Timedelta("365.25 days")), rtol=0.001).all()
+    # Check that disability weights are computed as expected
+    for sub_pop_key in ["healthy", "sick_0", "sick_1", "sick_0_1"]:
+        assert np.isclose(
+            disability_weight(pop[sub_pop_mask[sub_pop_key]].index),
+            (
+                1
+                - (
+                    (1 - disability_weight_0(pop[sub_pop_mask[sub_pop_key]].index))
+                    * (1 - disability_weight_1(pop[sub_pop_mask[sub_pop_key]].index))
+                )
+            ),
+            rtol=0.0000001,
+        ).all()
 
-    # TODO: Add check for disability weight calc with two weights
+    results_out = simulation._values.get_value("metrics")(pop.index)
 
-    # TODO: check the metrics pipeline
-    #  Check that all keys and values are expected
+    # Check that all expected observation labels are there
+    for label in yld_stratification_mask.keys():
+        assert label in results_out.keys()
+
+    # Check that all the yld values are as expected
+    time_scale = time_step / pd.Timedelta("365.25 days")
+    for label in yld_stratification_mask.keys():
+        sub_pop = pop[yld_stratification_mask[label]]
+        if "all_causes" in label:
+            dw = disability_weight
+        elif "cause_0" in label:
+            dw = disability_weight_0
+        else:
+            dw = disability_weight_1
+        expected_ylds = (dw(sub_pop.index) * time_scale).sum()
+        assert np.isclose(expected_ylds, results_out[label], rtol=0.0000001)

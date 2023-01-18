@@ -53,8 +53,6 @@ class DisabilityObserver:
     }
 
     def __init__(self):
-        # self.ylds_column_name = "years_lived_with_disability"
-        # self.metrics_pipeline_name = "metrics"
         self.disability_weight_pipeline_name = "disability_weight"
 
     def __repr__(self):
@@ -88,7 +86,9 @@ class DisabilityObserver:
         )
 
         for cause_state in cause_states:
-            cause_disability_weight_pipeline_name = f"{cause_state.state_id}.disability_weight"
+            cause_disability_weight_pipeline_name = (
+                f"{cause_state.state_id}.disability_weight"
+            )
             builder.results.register_observation(
                 name=f"ylds_due_to_{cause_state.state_id}",
                 pop_filter='tracked == True and alive == "alive"',
@@ -106,11 +106,8 @@ class DisabilityObserver:
             self.disability_weight_pipeline_name,
             source=lambda index: [pd.Series(0.0, index=index)],
             preferred_combiner=list_combiner,
-            preferred_post_processor=self._disability_post_processor,
+            preferred_post_processor=union_post_processor,
         )
 
     def _disability_weight_aggregator(self, dw: pd.DataFrame) -> float:
         return (dw * to_years(self.step_size)).sum().squeeze()
-
-    def _disability_post_processor(self, value: NumberLike, step_size: pd.Timedelta) -> NumberLike:
-        return rescale_post_processor(union_post_processor(value, self.step_size), self.step_size)
