@@ -46,6 +46,7 @@ def test_disability_observer_setup(mocker):
     observer = DisabilityObserver()
     builder = mocker.Mock()
     builder.results.register_observation = mocker.Mock()
+    builder.configuration.time.step_size = 28
 
     # Set up fake calls for cause-specific register_observation args
     MockCause = namedtuple("MockCause", "state_id")
@@ -60,7 +61,7 @@ def test_disability_observer_setup(mocker):
     builder.results.register_observation.assert_any_call(
         name="ylds_due_to_all_causes",
         pop_filter='tracked == True and alive == "alive"',
-        aggregator_sources=[str(observer.disability_weight)],
+        aggregator_sources=["disability_weight"],
         aggregator=observer._disability_weight_aggregator,
         requires_columns=["alive"],
         requires_values=["disability_weight"],
@@ -71,7 +72,7 @@ def test_disability_observer_setup(mocker):
     builder.results.register_observation.assert_any_call(
         name="ylds_due_to_flu",
         pop_filter='tracked == True and alive == "alive"',
-        aggregator_sources=[str("flu.disability_weight")],
+        aggregator_sources=["flu.disability_weight"],
         aggregator=observer._disability_weight_aggregator,
         requires_columns=["alive"],
         requires_values=["flu.disability_weight"],
@@ -82,7 +83,7 @@ def test_disability_observer_setup(mocker):
     builder.results.register_observation.assert_any_call(
         name="ylds_due_to_measles",
         pop_filter='tracked == True and alive == "alive"',
-        aggregator_sources=[str("measles.disability_weight")],
+        aggregator_sources=["measles.disability_weight"],
         aggregator=observer._disability_weight_aggregator,
         requires_columns=["alive"],
         requires_values=["measles.disability_weight"],
