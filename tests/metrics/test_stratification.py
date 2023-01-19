@@ -140,12 +140,15 @@ def test_results_stratifier_register_stratifications(mocker):
     )
     builder.results.register_stratification.assert_any_call(
         "exit_year",
-        years_list,
+        years_list + ["nan"],
         rs.map_year,
         is_vectorized=True,
         requires_columns=["exit_time"],
     )
-    assert builder.results.register_stratification.call_count == 5
+    builder.results.register_stratification.assert_any_call(
+        "sex", ["Female", "Male"], requires_columns=["sex"]
+    )
+    assert builder.results.register_stratification.call_count == 6
 
 
 def test_results_stratifier_map_age_groups():
@@ -167,7 +170,7 @@ def test_results_stratifier_map_year():
     pop = pd.DataFrame(FAKE_POP_EVENT_TIME)
     rs = ResultsStratifier()
     the_year = rs.map_year(pop)
-    assert (the_year == 2045).all()
+    assert (the_year == "2045").all()
 
 
 def test_results_stratifier_get_age_bins(mocker):
