@@ -20,6 +20,7 @@ class ResultsStratifier:
         }
     }
 
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.age_bins = self.get_age_bins(builder)
         self.start_year = builder.configuration.time.start.year
@@ -61,10 +62,13 @@ class ResultsStratifier:
         )
         builder.results.register_stratification(
             "exit_year",
-            [str(year) for year in range(self.start_year, self.end_year + 1)],
+            [str(year) for year in range(self.start_year, self.end_year + 1)] + ["nan"],
             self.map_year,
             is_vectorized=True,
             requires_columns=["exit_time"],
+        )
+        builder.results.register_stratification(
+            "sex", ["Female", "Male"], requires_columns=["sex"]
         )
 
     def map_age_groups(self, pop: pd.DataFrame) -> pd.Series:
@@ -99,7 +103,7 @@ class ResultsStratifier:
         pandas.Series
             A pd.Series with years corresponding to the pop passed into the function
         """
-        return pop.squeeze(axis=1).dt.year
+        return pop.squeeze(axis=1).dt.year.apply(str)
 
     @staticmethod
     def get_age_bins(builder: Builder) -> pd.DataFrame:
