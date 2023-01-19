@@ -20,6 +20,7 @@ from vivarium_public_health.metrics.stratification import (
 )
 
 
+# Subclass of ResultsStratifier for integration testing
 class ResultsStratifier(ResultsStratifier_):
     configuration_defaults = {
         "stratification": {
@@ -28,6 +29,7 @@ class ResultsStratifier(ResultsStratifier_):
     }
 
 
+# Subclass of DisabilityObserver for integration testing
 class DisabilityObserver(DisabilityObserver_):
     configuration_defaults = {
         "stratification": {
@@ -43,7 +45,7 @@ def test_disability_observer_setup(mocker):
     """Test that DisabilityObserver.setup() registers expected observations
     and returns expected disease classes."""
 
-    observer = DisabilityObserver()
+    observer = DisabilityObserver_()
     builder = mocker.Mock()
     builder.results.register_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
@@ -98,7 +100,7 @@ def test_disability_observer_setup(mocker):
 
 def test__disability_weight_aggregator():
     """Test that the disability weight aggregator produces expected ylds."""
-    observer = DisabilityObserver()
+    observer = DisabilityObserver_()
     observer.step_size = pd.Timedelta(days=365.25)  # easy yld math
     fake_weights = pd.DataFrame(1.0, index=range(1000), columns=["disability_weight"])
     aggregated_weight = observer._disability_weight_aggregator(fake_weights)
@@ -185,9 +187,9 @@ def test_disability_accumulation(
     }
 
     # Get pipelines
-    disability_weight = simulation._values.get_value("disability_weight")
-    disability_weight_0 = simulation._values.get_value("sick_cause_0.disability_weight")
-    disability_weight_1 = simulation._values.get_value("sick_cause_1.disability_weight")
+    disability_weight = simulation.get_value("disability_weight")
+    disability_weight_0 = simulation.get_value("sick_cause_0.disability_weight")
+    disability_weight_1 = simulation.get_value("sick_cause_1.disability_weight")
 
     # Check that disability weights are computed as expected
     for sub_pop_key in ["healthy", "sick_0", "sick_1", "sick_0_1"]:
@@ -203,7 +205,7 @@ def test_disability_accumulation(
             rtol=0.0000001,
         ).all()
 
-    results_out = simulation._values.get_value("metrics")(pop.index)
+    results_out = simulation.get_value("metrics")(pop.index)
 
     # Check that all expected observation labels are there
     for label in yld_stratification_mask.keys():

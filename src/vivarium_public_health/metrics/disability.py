@@ -70,7 +70,7 @@ class DisabilityObserver:
     def setup(self, builder: Builder):
         self.config = builder.configuration.stratification.disability
         self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
-        self.disability_weight = self._get_disability_weight_pipeline(builder)
+        self.disability_weight = self.get_disability_weight_pipeline(builder)
         cause_states = builder.components.get_components_by_type(tuple(self.disease_classes))
 
         builder.results.register_observation(
@@ -101,7 +101,7 @@ class DisabilityObserver:
                 when="time_step__prepare",
             )
 
-    def _get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
+    def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.disability_weight_pipeline_name,
             source=lambda index: [pd.Series(0.0, index=index)],
