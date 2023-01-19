@@ -68,9 +68,7 @@ class ResultsStratifier:
             requires_columns=["exit_time"],
         )
         builder.results.register_stratification(
-            "sex",
-            ["Female", "Male"],
-            requires_columns=["sex"]
+            "sex", ["Female", "Male"], requires_columns=["sex"]
         )
 
     def map_age_groups(self, pop: pd.DataFrame) -> pd.Series:
