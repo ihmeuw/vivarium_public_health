@@ -28,6 +28,7 @@ class DiseaseObserver:
     be specified as, e.g.:
 
     .. code-block:: yaml
+
         configuration:
             observers:
                 cause_name:
