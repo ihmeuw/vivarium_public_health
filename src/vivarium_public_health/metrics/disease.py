@@ -17,6 +17,26 @@ from vivarium_public_health.utilities import to_years
 
 
 class DiseaseObserver:
+    """Observes disease counts and person time for a cause.
+
+    By default, this observer computes aggregate disease state person time and
+    counts of disease events over the full course of the simulation. It can be
+    configured to add or remove stratification groups to the default groups
+    defined by a ResultsStratifier.
+
+    In the model specification, your configuration for this component should
+    be specified as, e.g.:
+
+    .. code-block:: yaml
+        configuration:
+            observers:
+                cause_name:
+                    exclude:
+                        - "sex"
+                    include:
+                        - "sample_stratification"
+    """
+
     configuration_defaults = {
         "stratification": {
             "disease": {
@@ -28,7 +48,7 @@ class DiseaseObserver:
 
     def __init__(self, disease: str):
         self.disease = disease
-        self.disease_component_name = f"disease_model.{self.disease}"
+        self.configuration_defaults = self.get_configuration_defaults()
         self.current_state_column_name = self.disease
         self.previous_state_column_name = f"previous_{self.disease}"
         self.metrics_pipeline_name = "metrics"
@@ -38,7 +58,7 @@ class DiseaseObserver:
 
     @property
     def name(self):
-        return f"disease_observer_{self.disease}"
+        return f"disease_observer.{self.disease}"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -84,6 +104,13 @@ class DiseaseObserver:
 
     def aggregate_state_person_time(self, x: pd.DataFrame) -> float:
         return len(x) * to_years(self.step_size())
+
+    def get_configuration_defaults(self) -> Dict[str, Dict]:
+        return {
+            "stratification": {
+                self.disease: DiseaseObserver.configuration_defaults["stratification"]["disease"]
+            }
+        }
 
     def on_initialize_simulants(self, pop_data):
         self.population_view.update(

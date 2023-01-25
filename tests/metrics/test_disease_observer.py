@@ -6,7 +6,7 @@ from vivarium.testing_utilities import TestPopulation, build_table
 
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.metrics.disease import DiseaseObserver as DiseaseObserver_
+from vivarium_public_health.metrics.disease import DiseaseObserver
 from vivarium_public_health.metrics.stratification import (
     ResultsStratifier as ResultsStratifier_,
 )
@@ -18,18 +18,6 @@ class ResultsStratifier(ResultsStratifier_):
     configuration_defaults = {
         "stratification": {
             "default": ["age_group", "sex"],
-        }
-    }
-
-
-# Subclass of DisabilityObserver for integration testing
-class DiseaseObserver(DiseaseObserver_):
-    configuration_defaults = {
-        "stratification": {
-            "disease": {
-                "exclude": ["age_group"],
-                "include": ["sex"],
-            }
         }
     }
 
@@ -72,7 +60,19 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
         ],
         configuration=base_config,
         plugin_configuration=base_plugins,
+        setup=False
     )
+    simulation.configuration.update({
+        "stratification": {
+            "disease": {
+                "exclude": ["age_group"],
+                "include": ["sex"],
+            }
+        }
+    })
+
+    simulation.setup()
+
     pop = simulation.get_population()
 
     # Assert that the previous_state column is all empty
@@ -109,7 +109,18 @@ def test_observation_registration(base_config, base_plugins, disease, model):
         ],
         configuration=base_config,
         plugin_configuration=base_plugins,
+        setup=False,
     )
+    simulation.configuration.update({
+        "stratification": {
+            "disease": {
+                "exclude": ["age_group"],
+                "include": ["sex"],
+            }
+        }
+    })
+
+    simulation.setup()
     pop = simulation.get_population()
     simulation.step()
     results = simulation.get_value("metrics")
@@ -139,7 +150,18 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
         ],
         configuration=base_config,
         plugin_configuration=base_plugins,
+        setup=False,
     )
+    simulation.configuration.update({
+        "stratification": {
+            "disease": {
+                "exclude": ["age_group"],
+                "include": ["sex"],
+            }
+        }
+    })
+
+    simulation.setup()
     pop = simulation.get_population()
     results = simulation.get_value("metrics")
 
