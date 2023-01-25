@@ -24,7 +24,7 @@ class ResultsStratifier(ResultsStratifier_):
 
 @pytest.fixture
 def disease() -> str:
-    return "disease"
+    return "t_virus"
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
     )
     simulation.configuration.update({
         "stratification": {
-            "disease": {
+            "t_virus": {
                 "exclude": ["age_group"],
                 "include": ["sex"],
             }
@@ -113,7 +113,7 @@ def test_observation_registration(base_config, base_plugins, disease, model):
     )
     simulation.configuration.update({
         "stratification": {
-            "disease": {
+            "t_virus": {
                 "exclude": ["age_group"],
                 "include": ["sex"],
             }
@@ -154,7 +154,7 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
     )
     simulation.configuration.update({
         "stratification": {
-            "disease": {
+            "t_virus": {
                 "exclude": ["age_group"],
                 "include": ["sex"],
             }
