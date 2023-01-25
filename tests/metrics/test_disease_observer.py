@@ -60,15 +60,17 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
         ],
         configuration=base_config,
         plugin_configuration=base_plugins,
-        setup=False
+        setup=False,
     )
-    simulation.configuration.update({
-        "stratification": {
-            "t_virus": {
-                "exclude": ["age_group"],
+    simulation.configuration.update(
+        {
+            "stratification": {
+                "t_virus": {
+                    "exclude": ["age_group"],
+                }
             }
         }
-    })
+    )
 
     simulation.setup()
 
@@ -110,13 +112,15 @@ def test_observation_registration(base_config, base_plugins, disease, model):
         plugin_configuration=base_plugins,
         setup=False,
     )
-    simulation.configuration.update({
-        "stratification": {
-            "t_virus": {
-                "exclude": ["age_group"],
+    simulation.configuration.update(
+        {
+            "stratification": {
+                "t_virus": {
+                    "exclude": ["age_group"],
+                }
             }
         }
-    })
+    )
 
     simulation.setup()
     pop = simulation.get_population()
@@ -150,13 +154,15 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
         plugin_configuration=base_plugins,
         setup=False,
     )
-    simulation.configuration.update({
-        "stratification": {
-            "t_virus": {
-                "exclude": ["age_group"],
+    simulation.configuration.update(
+        {
+            "stratification": {
+                "t_virus": {
+                    "exclude": ["age_group"],
+                }
             }
         }
-    })
+    )
 
     simulation.setup()
     pop = simulation.get_population()

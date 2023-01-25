@@ -108,7 +108,9 @@ class DiseaseObserver:
     def get_configuration_defaults(self) -> Dict[str, Dict]:
         return {
             "stratification": {
-                self.disease: DiseaseObserver.configuration_defaults["stratification"]["disease"]
+                self.disease: DiseaseObserver.configuration_defaults["stratification"][
+                    "disease"
+                ]
             }
         }
 
