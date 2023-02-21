@@ -67,13 +67,13 @@ class BasePopulation:
         self.randomness = {
             "general_purpose": builder.randomness.get_stream("population_generation"),
             "bin_selection": builder.randomness.get_stream(
-                "bin_selection", for_initialization=True
+                "bin_selection", initializes_crn_attributes=True
             ),
             "age_smoothing": builder.randomness.get_stream(
-                "age_smoothing", for_initialization=True
+                "age_smoothing", initializes_crn_attributes=True
             ),
             "age_smoothing_age_bounds": builder.randomness.get_stream(
-                "age_smoothing_age_bounds", for_initialization=True
+                "age_smoothing_age_bounds", initializes_crn_attributes=True
             ),
         }
         self.register_simulants = builder.randomness.register_simulants
