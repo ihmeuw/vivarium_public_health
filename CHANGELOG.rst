@@ -1,3 +1,8 @@
+**0.10.23 - 05/03/23**
+
+ - Throw error when artifact doesn't contain relative risk data for desired target
+ - Rename `for_initialization` argument to match updated argument name in vivarium
+
 **0.10.22 - 12/27/22**
 
  - Update CI and setup for building python 3.7-3.10
