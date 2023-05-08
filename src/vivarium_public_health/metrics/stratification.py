@@ -60,13 +60,13 @@ class ResultsStratifier:
             is_vectorized=True,
             requires_columns=["entrance_time"],
         )
-        # builder.results.register_stratification(
-        #     "exit_year",
-        #     [str(year) for year in range(self.start_year, self.end_year + 1)] + ["nan"],
-        #     self.map_year,
-        #     is_vectorized=True,
-        #     requires_columns=["exit_time"],
-        # )
+        builder.results.register_stratification(
+            "exit_year",
+            [str(year) for year in range(self.start_year, self.end_year + 1)] + ["nan"],
+            self.map_year,
+            is_vectorized=True,
+            requires_columns=["exit_time"],
+        )
         builder.results.register_stratification(
             "sex", ["Female", "Male"], requires_columns=["sex"]
         )
