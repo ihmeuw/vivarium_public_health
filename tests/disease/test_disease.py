@@ -303,8 +303,6 @@ def test_mortality_rate(base_config, base_plugins, disease):
 
 
 def test_incidence(base_config, base_plugins, disease):
-    year_start = base_config.time.start.year
-    year_end = base_config.time.end.year
     time_step = pd.Timedelta(days=base_config.time.step_size)
 
     healthy = BaseDiseaseState("healthy")
@@ -314,7 +312,7 @@ def test_incidence(base_config, base_plugins, disease):
     transition = RateTransition(
         input_state=healthy,
         output_state=sick,
-        get_data_functions={"incidence_rate": lambda _, builder: builder.data.load(key)},
+        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
     )
     healthy.transition_set.append(transition)
 
@@ -354,7 +352,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
     transition = RateTransition(
         input_state=healthy,
         output_state=sick,
-        get_data_functions={"incidence_rate": lambda _, builder: builder.data.load(key)},
+        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
     )
     healthy.transition_set.append(transition)
 
@@ -424,8 +422,10 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugin
     with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+
+    pop_size = 2000
     base_config.update(
-        {"population": {"population_size": 1000, "age_start": 0, "age_end": 5}},
+        {"population": {"population_size": pop_size, "age_start": 0, "age_end": 5}},
         **metadata(__file__),
     )
     simulation = InteractiveContext(
@@ -440,7 +440,7 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugin
     # birth prevalence should be used for assigning initial status to newly-borns on time steps
     simulation._clock.step_forward()
     simulation.simulant_creator(
-        1000,
+        pop_size,
         population_configuration={"age_start": 0, "age_end": 0, "sim_state": "time_step"},
     )
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.75, 0.01)
@@ -448,7 +448,7 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugin
     # and prevalence should be used for ages not start = end = 0
     simulation._clock.step_forward()
     simulation.simulant_creator(
-        1000,
+        pop_size,
         population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
     )
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.83, 0.01)

@@ -175,6 +175,7 @@ def _rebin_exposure_data(
 def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
     source_type = validate_relative_risk_data_source(builder, risk, target)
     relative_risk_data = load_relative_risk_data(builder, risk, target, source_type)
+    validate_relative_risk_rebin_source(builder, risk, target, relative_risk_data)
     relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
 
     if get_distribution_type(builder, risk) in [
@@ -287,7 +288,6 @@ def rebin_relative_risk_data(
     (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
     """
     rebin_exposed_categories = set(builder.configuration[risk.name]["rebinned_exposed"])
-    validate_rebin_source(builder, risk, relative_risk_data)
 
     if rebin_exposed_categories:
         exposure_data = load_exposure_data(builder, risk)
@@ -468,6 +468,17 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
         pass
 
     return source_type
+
+
+def validate_relative_risk_rebin_source(
+    builder, risk: EntityString, target: TargetString, data: pd.DataFrame
+):
+    if data.index.size == 0:
+        raise ValueError(
+            f"Subsetting {risk} relative risk data to {target.name} {target.measure} "
+            "returned an empty DataFrame. Check your artifact."
+        )
+    validate_rebin_source(builder, risk, data)
 
 
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):

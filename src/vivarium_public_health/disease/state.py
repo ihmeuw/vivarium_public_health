@@ -146,7 +146,7 @@ class SusceptibleState(BaseDiseaseState):
         if source_data_type == "rate":
             if get_data_functions is None:
                 get_data_functions = {
-                    "incidence_rate": lambda cause, builder: builder.data.load(
+                    "incidence_rate": lambda builder, cause: builder.data.load(
                         f"{self.cause_type}.{cause}.incidence_rate"
                     )
                 }
@@ -173,7 +173,7 @@ class RecoveredState(BaseDiseaseState):
         if source_data_type == "rate":
             if get_data_functions is None:
                 get_data_functions = {
-                    "incidence_rate": lambda cause, builder: builder.data.load(
+                    "incidence_rate": lambda builder, cause: builder.data.load(
                         f"{self.cause_type}.{cause}.incidence_rate"
                     )
                 }

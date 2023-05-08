@@ -62,12 +62,12 @@ class RateTransition(Transition):
     def load_transition_rate_data(self, builder):
         if "incidence_rate" in self._get_data_functions:
             rate_data = self._get_data_functions["incidence_rate"](
-                self.output_state.cause, builder
+                builder, self.output_state.cause
             )
             pipeline_name = f"{self.output_state.state_id}.incidence_rate"
         elif "remission_rate" in self._get_data_functions:
             rate_data = self._get_data_functions["remission_rate"](
-                self.output_state.cause, builder
+                builder, self.output_state.cause
             )
             pipeline_name = f"{self.input_state.state_id}.remission_rate"
         elif "transition_rate" in self._get_data_functions:
@@ -103,7 +103,7 @@ class ProportionTransition(Transition):
         get_proportion_func = self._get_data_functions.get("proportion", None)
         if get_proportion_func is None:
             raise ValueError("Must supply a proportion function")
-        self._proportion_data = get_proportion_func(self.output_state.cause, builder)
+        self._proportion_data = get_proportion_func(builder, self.output_state.cause)
         self.proportion = builder.lookup.build_table(
             self._proportion_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
