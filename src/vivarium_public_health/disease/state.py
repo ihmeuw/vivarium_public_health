@@ -385,7 +385,7 @@ class DiseaseState(BaseDiseaseState):
         if source_data_type == "rate":
             if get_data_functions is None:
                 get_data_functions = {
-                    "remission_rate": lambda cause, builder: builder.data.load(
+                    "remission_rate": lambda builder, cause: builder.data.load(
                         f"{self.cause_type}.{cause}.remission_rate"
                     )
                 }
