@@ -71,7 +71,9 @@ class MortalityObserver:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.config = builder.configuration.stratification.mortality
-        self._cause_components = builder.components.get_components_by_type((DiseaseState, RiskAttributableDisease))
+        self._cause_components = builder.components.get_components_by_type(
+            (DiseaseState, RiskAttributableDisease)
+        )
         self.causes_of_death = ["other_causes"]
 
         columns_required = [
