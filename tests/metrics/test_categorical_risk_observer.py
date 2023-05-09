@@ -88,8 +88,8 @@ def test_observation_registration(base_config, base_plugins, categorical_risk):
         "MEASURE_test_risk_cat4_person_time_SEX_Female",
         "MEASURE_test_risk_cat4_person_time_SEX_Male",
     ]
-    for v in expected_observations:
-        assert v in results(pop.index).keys()
+
+    assert set(expected_observations) == set(results(pop.index).keys())
 
 
 def test_observation_correctness(base_config, base_plugins, categorical_risk):

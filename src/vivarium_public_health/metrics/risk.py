@@ -65,7 +65,6 @@ class CategoricalRiskObserver:
         self.configuration_defaults = self._get_configuration_defaults()
 
         self.exposure_pipeline_name = f"{self.risk}.exposure"
-        self.metrics_pipeline_name = "metrics"
 
     def __repr__(self):
         return f"CategoricalRiskObserver({self.risk})"
