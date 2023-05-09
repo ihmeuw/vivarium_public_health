@@ -33,7 +33,7 @@ class MortalityObserver:
     .. code-block:: yaml
 
         configuration:
-            stratification:
+            observers:
                 mortality:
                     exclude:
                         - "sex"
@@ -42,7 +42,7 @@ class MortalityObserver:
     """
 
     configuration_defaults = {
-        "stratification": {
+        "observers": {
             "mortality": {
                 "exclude": [],
                 "include": [],
@@ -51,6 +51,7 @@ class MortalityObserver:
     }
 
     def __init__(self):
+        self.metrics_pipeline_name = "metrics"
         self.tmrle_key = "population.theoretical_minimum_risk_life_expectancy"
 
     def __repr__(self):
@@ -70,12 +71,36 @@ class MortalityObserver:
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
-        self.config = builder.configuration.stratification.mortality
-        self._cause_components = builder.components.get_components_by_type(
+        self.config = self._get_stratification_configuration(builder)
+        self.stratifier = self._get_stratifier(builder)
+        self._cause_components = self._get_cause_components(builder)
+        self.causes_of_death = ["other_causes"]
+        self.population_view = self._get_population_view(builder)
+
+        self.counts = Counter()
+
+        self._register_post_setup_listener(builder)
+        self._register_collect_metrics_listener(builder)
+        self._register_metrics_modifier(builder)
+
+    # noinspection PyMethodMayBeStatic
+    def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
+        return builder.configuration.observers.mortality
+
+    # noinspection PyMethodMayBeStatic
+    def _get_stratifier(self, builder: Builder) -> ResultsStratifier:
+        return builder.components.get_component(ResultsStratifier.name)
+
+    # noinspection PyMethodMayBeStatic
+    def _get_cause_components(
+        self, builder: Builder
+    ) -> List[Union[DiseaseState, RiskAttributableDisease]]:
+        return builder.components.get_components_by_type(
             (DiseaseState, RiskAttributableDisease)
         )
-        self.causes_of_death = ["other_causes"]
 
+    # noinspection PyMethodMayBeStatic
+    def _get_population_view(self, builder: Builder) -> PopulationView:
         columns_required = [
             "tracked",
             "alive",
@@ -83,9 +108,20 @@ class MortalityObserver:
             "cause_of_death",
             "exit_time",
         ]
-        self.population_view = builder.population.get_view(columns_required)
+        return builder.population.get_view(columns_required)
 
+    def _register_post_setup_listener(self, builder: Builder) -> None:
         builder.event.register_listener("post_setup", self.on_post_setup)
+
+    def _register_collect_metrics_listener(self, builder: Builder) -> None:
+        builder.event.register_listener("time_step", self.on_collect_metrics)
+
+    def _register_metrics_modifier(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            self.metrics_pipeline_name,
+            modifier=self.metrics,
+            requires_columns=["age", "exit_time", "alive"],
+        )
 
     ########################
     # Event-driven methods #
@@ -115,3 +151,19 @@ class MortalityObserver:
                     ].sum(),
                 }
                 self.counts.update(new_observations)
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
+    def metrics(self, index: pd.Index, metrics: Dict) -> Dict:
+        pop = self.population_view.get(index)
+
+        the_living = pop[(pop.alive == "alive") & pop.tracked]
+        the_dead = pop[pop.alive == "dead"]
+        metrics["years_of_life_lost"] = the_dead["years_of_life_lost"].sum()
+        metrics["total_population_living"] = len(the_living)
+        metrics["total_population_dead"] = len(the_dead)
+        metrics.update(self.counts)
+
+        return metrics
