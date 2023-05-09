@@ -83,6 +83,10 @@ def test_observation_registration(base_config, base_plugins, categorical_risk):
         "MEASURE_test_risk_cat1_person_time_SEX_Male",
         "MEASURE_test_risk_cat2_person_time_SEX_Female",
         "MEASURE_test_risk_cat2_person_time_SEX_Male",
+        "MEASURE_test_risk_cat3_person_time_SEX_Female",
+        "MEASURE_test_risk_cat3_person_time_SEX_Male",
+        "MEASURE_test_risk_cat4_person_time_SEX_Female",
+        "MEASURE_test_risk_cat4_person_time_SEX_Male",
     ]
     for v in expected_observations:
         assert v in results(pop.index).keys()
