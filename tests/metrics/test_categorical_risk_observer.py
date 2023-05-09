@@ -36,18 +36,8 @@ def categorical_risk():
     risk_data["distribution"] = "ordered_polytomous"
     return Risk(f"risk_factor.{risk}"), risk_data
 
-
-# Subclass of ResultsStratifier for integration testing
-class ResultsStratifier(ResultsStratifier_):
-    configuration_defaults = {
-        "stratification": {
-            "default": ["age_group", "sex"],
-        }
-    }
-
-
-def test_observation_registration(base_config, base_plugins, categorical_risk):
-    """Test that all expected observation keys appear as expected in the results."""
+@pytest.fixture()
+def simulation_after_one_step(base_config, base_plugins, categorical_risk):
     risk, risk_data = categorical_risk
     observer = CategoricalRiskObserver(f"{risk.risk.name}")
     simulation = InteractiveContext(
@@ -75,9 +65,25 @@ def test_observation_registration(base_config, base_plugins, categorical_risk):
         simulation._data.write(f"risk_factor.test_risk.{key}", value)
 
     simulation.setup()
-    pop = simulation.get_population()
     simulation.step()
-    results = simulation.get_value("metrics")
+
+    return simulation
+
+
+# Subclass of ResultsStratifier for integration testing
+class ResultsStratifier(ResultsStratifier_):
+    configuration_defaults = {
+        "stratification": {
+            "default": ["age_group", "sex"],
+        }
+    }
+
+
+def test_observation_registration(simulation_after_one_step):
+    """Test that all expected observation keys appear as expected in the results."""
+    results = simulation_after_one_step.get_value('metrics')
+    pop = simulation_after_one_step.get_population()
+
     expected_observations = [
         "MEASURE_test_risk_cat1_person_time_SEX_Female",
         "MEASURE_test_risk_cat1_person_time_SEX_Male",
@@ -92,43 +98,16 @@ def test_observation_registration(base_config, base_plugins, categorical_risk):
     assert set(expected_observations) == set(results(pop.index).keys())
 
 
-def test_observation_correctness(base_config, base_plugins, categorical_risk):
+def test_observation_correctness(base_config, simulation_after_one_step, categorical_risk):
     """Test that person time appear as expected in the results."""
     time_step = pd.Timedelta(days=base_config.time.step_size)
-    risk, risk_data = categorical_risk
-    observer = CategoricalRiskObserver(f"{risk.risk.name}")
-    simulation = InteractiveContext(
-        components=[
-            TestPopulation(),
-            ResultsStratifier(),
-            risk,
-            observer,
-        ],
-        configuration=base_config,
-        plugin_configuration=base_plugins,
-        setup=False,
-    )
-    simulation.configuration.update(
-        {
-            "stratification": {
-                "test_risk": {
-                    "exclude": ["age_group"],
-                }
-            }
-        }
-    )
 
-    for key, value in risk_data.items():
-        simulation._data.write(f"risk_factor.test_risk.{key}", value)
-
-    simulation.setup()
-    pop = simulation.get_population()
-    results = simulation.get_value("metrics")
-
-    simulation.step()
-
-    exposure = simulation._values.get_value("test_risk.exposure")(pop.index)
+    _, risk_data = categorical_risk
     exposure_categories = risk_data["categories"].keys()
+
+    pop = simulation_after_one_step.get_population()
+    exposure = simulation_after_one_step.get_value("test_risk.exposure")(pop.index)
+    results = simulation_after_one_step.get_value('metrics')
 
     for category in exposure_categories:
         for sex in ["Male", "Female"]:
