@@ -100,7 +100,6 @@ class CategoricalRiskObserver:
     def setup(self, builder: Builder):
         self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification[self.risk]
-        self.pipelines = self._get_pipelines(builder)
         self.categories = builder.data.load(f"risk_factor.{self.risk}.categories")
 
         columns_required = ["alive"]
@@ -123,8 +122,3 @@ class CategoricalRiskObserver:
 
     def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
         return builder.configuration.observers[self.risk]
-
-    def _get_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
-        return {
-            self.exposure_pipeline_name: builder.value.get_value(self.exposure_pipeline_name)
-        }
