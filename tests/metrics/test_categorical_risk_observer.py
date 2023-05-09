@@ -36,6 +36,7 @@ def categorical_risk():
     risk_data["distribution"] = "ordered_polytomous"
     return Risk(f"risk_factor.{risk}"), risk_data
 
+
 @pytest.fixture()
 def simulation_after_one_step(base_config, base_plugins, categorical_risk):
     risk, risk_data = categorical_risk
@@ -81,7 +82,7 @@ class ResultsStratifier(ResultsStratifier_):
 
 def test_observation_registration(simulation_after_one_step):
     """Test that all expected observation keys appear as expected in the results."""
-    results = simulation_after_one_step.get_value('metrics')
+    results = simulation_after_one_step.get_value("metrics")
     pop = simulation_after_one_step.get_population()
 
     expected_observations = [
@@ -107,7 +108,7 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
 
     pop = simulation_after_one_step.get_population()
     exposure = simulation_after_one_step.get_value("test_risk.exposure")(pop.index)
-    results = simulation_after_one_step.get_value('metrics')
+    results = simulation_after_one_step.get_value("metrics")
 
     for category in exposure_categories:
         for sex in ["Male", "Female"]:
