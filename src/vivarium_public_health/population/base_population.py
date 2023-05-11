@@ -7,7 +7,7 @@ This module contains tools for sampling and assigning core demographic
 characteristics to simulants.
 
 """
-from typing import Callable, Dict, List
+from typing import Callable, Dict, Iterable, List
 
 import numpy as np
 import pandas as pd
@@ -51,6 +51,7 @@ class BasePopulation:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
+        self.key_columns = builder.configuration.randomness.key_columns
         if self.config.include_sex not in ["Male", "Female", "Both"]:
             raise ValueError(
                 "Configuration key 'population.include_sex' must be one "
@@ -102,7 +103,7 @@ class BasePopulation:
         In general, most simulation components (except for those computing summary statistics)
         ignore simulants if they are not in the 'alive' category. The 'entrance_time' and
         'exit_time' categories simply mark when the simulant enters or leaves the simulation,
-        respectively.  Here we are agnostic to the methods of entrance and exit (e.g birth,
+        respectively.  Here we are agnostic to the methods of entrance and exit (e.g., birth,
         migration, death, etc.) as these characteristics can be inferred from this column and
         other information about the simulant and the simulation parameters.
 
@@ -127,6 +128,7 @@ class BasePopulation:
                 population_data=sub_pop_data,
                 randomness_streams=self.randomness,
                 register_simulants=self.register_simulants,
+                key_columns=self.key_columns,
             )
         )
 
@@ -187,6 +189,7 @@ def generate_population(
     population_data: pd.DataFrame,
     randomness_streams: Dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
+    key_columns: Iterable[str] = ("entrance_time", "age"),
 ) -> pd.DataFrame:
     """Produces a random set of simulants sampled from the provided `population_data`.
 
@@ -212,6 +215,8 @@ def generate_population(
         The size of the initial time step.
     register_simulants
         A function to register the new simulants with the CRN framework.
+    key_columns
+        A list of key columns for random number generation.
 
     Returns
     -------
@@ -261,6 +266,7 @@ def generate_population(
             age_end,
             randomness_streams,
             register_simulants,
+            key_columns,
         )
 
 
@@ -335,6 +341,7 @@ def _assign_demography_with_age_bounds(
     age_end: float,
     randomness_streams: Dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
+    key_columns: Iterable[str] = ("entrance_time", "age"),
 ) -> pd.DataFrame:
     """Assigns an age, sex, and location to the provided simulants given a range of ages.
 
@@ -352,6 +359,8 @@ def _assign_demography_with_age_bounds(
         Source of random number generation within the vivarium common random number framework.
     register_simulants
         A function to register the new simulants with the CRN framework.
+    key_columns
+        A list of key columns for random number generation.
 
     Returns
     -------
@@ -381,5 +390,5 @@ def _assign_demography_with_age_bounds(
     simulants = smooth_ages(
         simulants, pop_data, randomness_streams["age_smoothing_age_bounds"]
     )
-    register_simulants(simulants[["entrance_time", "age"]])
+    register_simulants(simulants[list(key_columns)])
     return simulants
