@@ -303,8 +303,6 @@ def test_mortality_rate(base_config, base_plugins, disease):
 
 
 def test_incidence(base_config, base_plugins, disease):
-    year_start = base_config.time.start.year
-    year_end = base_config.time.end.year
     time_step = pd.Timedelta(days=base_config.time.step_size)
 
     healthy = BaseDiseaseState("healthy")
@@ -314,7 +312,7 @@ def test_incidence(base_config, base_plugins, disease):
     transition = RateTransition(
         input_state=healthy,
         output_state=sick,
-        get_data_functions={"incidence_rate": lambda _, builder: builder.data.load(key)},
+        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
     )
     healthy.transition_set.append(transition)
 
@@ -354,7 +352,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
     transition = RateTransition(
         input_state=healthy,
         output_state=sick,
-        get_data_functions={"incidence_rate": lambda _, builder: builder.data.load(key)},
+        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
     )
     healthy.transition_set.append(transition)
 

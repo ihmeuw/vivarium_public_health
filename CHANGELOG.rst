@@ -1,3 +1,8 @@
+**0.10.24 - 05/11/23**
+
+ - Standardize builder, cause argument order in state get data functions
+ - Mends a bug where configured key_columns for randomness were not used in register_simulants
+
 **0.10.23 - 05/03/23**
 
  - Throw error when artifact doesn't contain relative risk data for desired target
