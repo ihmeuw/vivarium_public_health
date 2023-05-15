@@ -70,8 +70,12 @@ class MortalityObserver:
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification.mortality
-        self._cause_components = builder.components.get_components_by_type((DiseaseState, RiskAttributableDisease))
-        self.causes_of_death = ["other_causes"] + [cause.state_id for cause in self._cause_components if cause.has_excess_mortality]
+        self._cause_components = builder.components.get_components_by_type(
+            (DiseaseState, RiskAttributableDisease)
+        )
+        self.causes_of_death = ["other_causes"] + [
+            cause.state_id for cause in self._cause_components if cause.has_excess_mortality
+        ]
 
         columns_required = [
             "alive",
@@ -95,7 +99,12 @@ class MortalityObserver:
                 name=f"ylls_due_to_{cause_of_death}",
                 pop_filter=f'alive == "dead" and cause_of_death == "{cause_of_death}"',
                 aggregator=self.calculate_cause_specific_ylls,
-                requires_columns=["alive", "cause_of_death", "exit_time", "years_of_life_lost"],
+                requires_columns=[
+                    "alive",
+                    "cause_of_death",
+                    "exit_time",
+                    "years_of_life_lost",
+                ],
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="collect_metrics",
@@ -107,4 +116,4 @@ class MortalityObserver:
 
     def calculate_cause_specific_ylls(self, x: pd.DataFrame) -> float:
         died_of_cause = x["exit_time"] == self.clock() + self.step_size()
-        return x.loc[died_of_cause, 'years_of_life_lost'].sum()
+        return x.loc[died_of_cause, "years_of_life_lost"].sum()
