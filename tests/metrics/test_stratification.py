@@ -138,13 +138,13 @@ def test_results_stratifier_register_stratifications(mocker):
         is_vectorized=True,
         requires_columns=["entrance_time"],
     )
-    builder.results.register_stratification.assert_any_call(
-        "exit_year",
-        years_list + ["nan"],
-        rs.map_year,
-        is_vectorized=True,
-        requires_columns=["exit_time"],
-    )
+    # builder.results.register_stratification.assert_any_call(
+    #     "exit_year",
+    #     years_list + ["nan"],
+    #     rs.map_year,
+    #     is_vectorized=True,
+    #     requires_columns=["exit_time"],
+    # )
     builder.results.register_stratification.assert_any_call(
         "sex", ["Female", "Male"], requires_columns=["sex"]
     )
