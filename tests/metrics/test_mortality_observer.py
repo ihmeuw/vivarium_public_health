@@ -88,6 +88,9 @@ def simulation_after_one_step(base_config, base_plugins):
 
 
 def get_expected_results(simulation, expected_deaths=Counter(), expected_ylls=Counter()):
+    """Get expected results given a simulation. If expected deaths, for example, are not provided, return
+    the counts of deaths in this time step. If expected deaths are provided, return the counts of deaths
+    in the Counter plus the counts for this time step."""
     pop = simulation.get_population()
 
     for cause in ["other_causes", "flu", "mumps"]:
