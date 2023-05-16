@@ -138,6 +138,7 @@ def test_results_stratifier_register_stratifications(mocker):
         is_vectorized=True,
         requires_columns=["entrance_time"],
     )
+    # TODO [MIC-4803]: Known bug with this registration
     # builder.results.register_stratification.assert_any_call(
     #     "exit_year",
     #     years_list + ["nan"],

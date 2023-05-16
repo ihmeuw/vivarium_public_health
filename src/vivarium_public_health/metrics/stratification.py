@@ -60,6 +60,7 @@ class ResultsStratifier:
             is_vectorized=True,
             requires_columns=["entrance_time"],
         )
+        # TODO [MIC-4803]: Known bug with this registration
         # builder.results.register_stratification(
         #     "exit_year",
         #     [str(year) for year in range(self.start_year, self.end_year + 1)] + ["nan"],
