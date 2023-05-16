@@ -22,24 +22,24 @@ class ResultsStratifier(ResultsStratifier_):
     }
 
 
-def disease_with_excess_mortality(base_config, disease_name) -> DiseaseModel:
+def disease_with_excess_mortality(base_config, disease_name, emr_value) -> DiseaseModel:
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
     healthy = SusceptibleState(disease_name)
     disease_get_data_funcs = {
-        "disability_weight": lambda _, __: build_table(0.0, year_start - 1, year_end),
-        "prevalence": lambda _, __: build_table(
+        "disability_weight": lambda *_: build_table(0.0, year_start - 1, year_end),
+        "prevalence": lambda *_: build_table(
             0.5, year_start - 1, year_end, ["age", "year", "sex", "value"]
         ),
-        "excess_mortality_rate": lambda _, __: build_table(
-            20, year_start - 1, year_end, ["age", "year", "sex", "value"]
+        "excess_mortality_rate": lambda *_: build_table(
+            emr_value, year_start - 1, year_end, ["age", "year", "sex", "value"]
         ),
     }
     with_condition = DiseaseState(disease_name, get_data_functions=disease_get_data_funcs)
     healthy.add_transition(
         with_condition,
         get_data_functions={
-            "incidence_rate": lambda _, __: build_table(
+            "incidence_rate": lambda *_: build_table(
                 0.1, year_start - 1, year_end, ["age", "year", "sex", "value"]
             )
         },
@@ -50,8 +50,8 @@ def disease_with_excess_mortality(base_config, disease_name) -> DiseaseModel:
 @pytest.fixture()
 def simulation_after_one_step(base_config, base_plugins):
     observer = MortalityObserver()
-    flu = disease_with_excess_mortality(base_config, "flu")
-    mumps = disease_with_excess_mortality(base_config, "mumps")
+    flu = disease_with_excess_mortality(base_config, "flu", 10)
+    mumps = disease_with_excess_mortality(base_config, "mumps", 20)
 
     simulation = InteractiveContext(
         components=[

@@ -20,7 +20,7 @@ from vivarium_public_health.metrics.stratification import ResultsStratifier
 
 
 class MortalityObserver:
-    """An observer for cause-specific deaths and ylls.
+    """An observer for cause-specific deaths and ylls (including "other causes").
 
     By default, this counts cause-specific deaths and years of life lost over
     the full course of the simulation. It can be configured to add or remove
@@ -68,7 +68,6 @@ class MortalityObserver:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.clock = builder.time.clock()
-        self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification.mortality
         self._cause_components = builder.components.get_components_by_type(
             (DiseaseState, RiskAttributableDisease)
@@ -111,9 +110,9 @@ class MortalityObserver:
             )
 
     def count_cause_specific_deaths(self, x: pd.DataFrame) -> float:
-        died_of_cause = x["exit_time"] == self.clock() + self.step_size()
+        died_of_cause = x["exit_time"] > self.clock()
         return sum(died_of_cause)
 
     def calculate_cause_specific_ylls(self, x: pd.DataFrame) -> float:
-        died_of_cause = x["exit_time"] == self.clock() + self.step_size()
+        died_of_cause = x["exit_time"] > self.clock()
         return x.loc[died_of_cause, "years_of_life_lost"].sum()
