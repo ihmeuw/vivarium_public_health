@@ -4,7 +4,7 @@ Mortality Observer
 ==================
 
 This module contains tools for observing cause-specific and
-excess mortality in the simulation.
+excess mortality in the simulation, including "other causes".
 
 """
 from collections import Counter
