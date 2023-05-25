@@ -16,7 +16,8 @@ from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import (
     ProportionTransition,
-    RateTransition, TransitionString,
+    RateTransition,
+    TransitionString,
 )
 from vivarium_public_health.utilities import is_non_zero
 

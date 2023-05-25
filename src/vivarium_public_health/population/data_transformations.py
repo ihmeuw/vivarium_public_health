@@ -123,7 +123,6 @@ def rescale_binned_proportions(
         "value",
     ]
     for _, sub_pop in pop_data.groupby(["sex", "location"]):
-
         min_bin = sub_pop[(sub_pop.age_start <= age_start) & (age_start < sub_pop.age_end)]
         padding_bin = sub_pop[sub_pop.age_end == float(min_bin.age_start)]
 
@@ -239,7 +238,6 @@ def smooth_ages(
     """
     simulants = simulants.copy()
     for (sex, location), sub_pop in population_data.groupby(["sex", "location"]):
-
         ages = sorted(sub_pop.age.unique())
         younger = [float(sub_pop.loc[sub_pop.age == ages[0], "age_start"])] + ages[:-1]
         older = ages[1:] + [float(sub_pop.loc[sub_pop.age == ages[-1], "age_end"])]
