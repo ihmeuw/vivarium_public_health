@@ -108,13 +108,13 @@ def rescale_binned_proportions(
         values are rescaled to reflect their smaller representation.
     """
     col_order = pop_data.columns.copy()
-    if age_start > pop_data.age_end.max():
+    if age_start > pop_data["age_end"].max():
         raise ValueError(
             "Provided population data is insufficient to model the requested age range."
         )
 
-    age_start = max(pop_data.age_start.min(), age_start)
-    age_end = min(pop_data.age_end.max(), age_end) - 1e-8
+    age_start = max(pop_data["age_start"].min(), age_start)
+    age_end = min(pop_data["age_end"].max(), age_end) - 1e-8
     pop_data = _add_edge_age_groups(pop_data.copy())
 
     columns_to_scale = [
@@ -123,11 +123,13 @@ def rescale_binned_proportions(
         "value",
     ]
     for _, sub_pop in pop_data.groupby(["sex", "location"]):
-        min_bin = sub_pop[(sub_pop.age_start <= age_start) & (age_start < sub_pop.age_end)]
-        padding_bin = sub_pop[sub_pop.age_end == float(min_bin.age_start.iloc[0])]
+        min_bin = sub_pop[
+            (sub_pop["age_start"] <= age_start) & (age_start < sub_pop["age_end"])
+        ]
+        padding_bin = sub_pop[sub_pop["age_end"] == float(min_bin["age_start"].iloc[0])]
 
-        min_scale = (float(min_bin.age_end.iloc[0]) - age_start) / float(
-            min_bin.age_end.iloc[0] - min_bin.age_start.iloc[0]
+        min_scale = (float(min_bin["age_end"].iloc[0]) - age_start) / float(
+            min_bin["age_end"].iloc[0] - min_bin["age_start"].iloc[0]
         )
 
         remainder = pop_data.loc[min_bin.index, columns_to_scale].values * (1 - min_scale)
@@ -137,11 +139,11 @@ def rescale_binned_proportions(
         pop_data.loc[min_bin.index, "age_start"] = age_start
         pop_data.loc[padding_bin.index, "age_end"] = age_start
 
-        max_bin = sub_pop[(sub_pop.age_end > age_end) & (age_end >= sub_pop.age_start)]
-        padding_bin = sub_pop[sub_pop.age_start == float(max_bin.age_end.iloc[0])]
+        max_bin = sub_pop[(sub_pop["age_end"] > age_end) & (age_end >= sub_pop["age_start"])]
+        padding_bin = sub_pop[sub_pop["age_start"] == float(max_bin["age_end"].iloc[0])]
 
-        max_scale = (age_end - float(max_bin.age_start.iloc[0])) / float(
-            max_bin.age_end.iloc[0] - max_bin.age_start.iloc[0]
+        max_scale = (age_end - float(max_bin["age_start"].iloc[0])) / float(
+            max_bin["age_end"].iloc[0] - max_bin["age_start"].iloc[0]
         )
 
         remainder = pop_data.loc[max_bin.index, columns_to_scale] * (1 - max_scale)
@@ -238,11 +240,11 @@ def smooth_ages(
     """
     simulants = simulants.copy()
     for (sex, location), sub_pop in population_data.groupby(["sex", "location"]):
-        ages = sorted(sub_pop.age.unique())
-        younger = [float(sub_pop.loc[sub_pop.age == ages[0], "age_start"].iloc[0])] + ages[
+        ages = sorted(sub_pop["age"].unique())
+        younger = [float(sub_pop.loc[sub_pop["age"] == ages[0], "age_start"].iloc[0])] + ages[
             :-1
         ]
-        older = ages[1:] + [float(sub_pop.loc[sub_pop.age == ages[-1], "age_end"].iloc[0])]
+        older = ages[1:] + [float(sub_pop.loc[sub_pop["age"] == ages[-1], "age_end"].iloc[0])]
 
         uniform_all = randomness.get_draw(simulants.index)
 
@@ -250,9 +252,9 @@ def smooth_ages(
             age = AgeValues(*age_set)
 
             has_correct_demography = (
-                (simulants.age == age.current)
-                & (simulants.sex == sex)
-                & (simulants.location == location)
+                (simulants["age"] == age.current)
+                & (simulants["sex"] == sex)
+                & (simulants["location"] == location)
             )
             affected = simulants[has_correct_demography]
 
@@ -319,15 +321,15 @@ def _get_bins_and_proportions(
         )
 
     """
-    left = float(pop_data.loc[pop_data.age == age.current, "age_start"].iloc[0])
-    right = float(pop_data.loc[pop_data.age == age.current, "age_end"].iloc[0])
+    left = float(pop_data.loc[pop_data["age"] == age.current, "age_start"].iloc[0])
+    right = float(pop_data.loc[pop_data["age"] == age.current, "age_end"].iloc[0])
 
-    if not pop_data.loc[pop_data.age == age.young, "age_start"].empty:
-        lower_left = float(pop_data.loc[pop_data.age == age.young, "age_start"].iloc[0])
+    if not pop_data.loc[pop_data["age"] == age.young, "age_start"].empty:
+        lower_left = float(pop_data.loc[pop_data["age"] == age.young, "age_start"].iloc[0])
     else:
         lower_left = left
-    if not pop_data.loc[pop_data.age == age.old, "age_end"].empty:
-        upper_right = float(pop_data.loc[pop_data.age == age.old, "age_end"].iloc[0])
+    if not pop_data.loc[pop_data["age"] == age.old, "age_end"].empty:
+        upper_right = float(pop_data.loc[pop_data["age"] == age.old, "age_end"].iloc[0])
     else:
         upper_right = right
 
@@ -338,11 +340,12 @@ def _get_bins_and_proportions(
     # in order to back out a point estimate for the probability density at the center
     # of the interval. This not the best assumption, but it'll do.
     p_age = float(
-        pop_data.loc[pop_data.age == age.current, proportion_column].iloc[0] / (right - left)
+        pop_data.loc[pop_data["age"] == age.current, proportion_column].iloc[0]
+        / (right - left)
     )
     p_young = (
         float(
-            pop_data.loc[pop_data.age == age.young, proportion_column].iloc[0]
+            pop_data.loc[pop_data["age"] == age.young, proportion_column].iloc[0]
             / (left - lower_left)
         )
         if age.young != left
@@ -350,7 +353,7 @@ def _get_bins_and_proportions(
     )
     p_old = (
         float(
-            pop_data.loc[pop_data.age == age.old, proportion_column].iloc[0]
+            pop_data.loc[pop_data["age"] == age.old, proportion_column].iloc[0]
             / (upper_right - right)
         )
         if age.old != right
