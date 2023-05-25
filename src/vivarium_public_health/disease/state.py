@@ -6,7 +6,7 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import (
     ProportionTransition,
-    RateTransition,
+    RateTransition, TransitionString,
 )
 from vivarium_public_health.utilities import is_non_zero
 
@@ -93,6 +93,17 @@ class BaseDiseaseState(State):
 
         if self.side_effect_function is not None:
             self.side_effect_function(index, event_time)
+
+    ##################
+    # Public methods #
+    ##################
+
+    def get_transition_names(self) -> List[str]:
+        transitions = []
+        for trans in self.transition_set.transitions:
+            _, _, init_state, _, end_state = trans.name.split(".")
+            transitions.append(TransitionString(f"{init_state}_TO_{end_state}"))
+        return transitions
 
     def add_transition(
         self,
