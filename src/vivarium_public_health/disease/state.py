@@ -95,6 +95,17 @@ class BaseDiseaseState(State):
         if self.side_effect_function is not None:
             self.side_effect_function(index, event_time)
 
+    ##################
+    # Public methods #
+    ##################
+
+    def get_transition_names(self) -> List[str]:
+        transitions = []
+        for trans in self.transition_set.transitions:
+            _, _, init_state, _, end_state = trans.name.split(".")
+            transitions.append(TransitionString(f"{init_state}_TO_{end_state}"))
+        return transitions
+
     def add_transition(
         self,
         output: State,

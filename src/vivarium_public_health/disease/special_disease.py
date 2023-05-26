@@ -283,7 +283,6 @@ class RiskAttributableDisease:
         return with_condition
 
     def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
-
         if distribution in ["dichotomous", "ordered_polytomous", "unordered_polytomous"]:
 
             def categorical_filter(index):

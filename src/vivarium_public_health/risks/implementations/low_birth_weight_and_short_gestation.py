@@ -31,7 +31,6 @@ GESTATIONAL_AGE = "gestational_age"
 
 
 class LBWSGDistribution(PolytomousDistribution):
-
     configuration_defaults = {
         "lbwsg_distribution": {
             "age_column": "age",
@@ -211,7 +210,6 @@ class LBWSGDistribution(PolytomousDistribution):
 
 
 class LBWSGRisk(Risk):
-
     AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 
     def __init__(self):
@@ -316,7 +314,6 @@ class LBWSGRisk(Risk):
 
 
 class LBWSGRiskEffect(RiskEffect):
-
     TMREL_BIRTH_WEIGHT_INTERVAL: pd.Interval = pd.Interval(3500.0, 4500.0)
     TMREL_GESTATIONAL_AGE_INTERVAL: pd.Interval = pd.Interval(38.0, 42.0)
 

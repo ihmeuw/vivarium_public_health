@@ -16,7 +16,6 @@ from vivarium_public_health.population import (
 
 @pytest.fixture()
 def config(base_config):
-
     base_config.update(
         {
             "population": {
