@@ -7,19 +7,8 @@ from vivarium.testing_utilities import TestPopulation, build_table
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics.disease import DiseaseObserver
-from vivarium_public_health.metrics.stratification import (
-    ResultsStratifier as ResultsStratifier_,
-)
+from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.utilities import to_years
-
-
-# Subclass of ResultsStratifier for integration testing
-class ResultsStratifier(ResultsStratifier_):
-    configuration_defaults = {
-        "stratification": {
-            "default": ["age_group", "sex"],
-        }
-    }
 
 
 @pytest.fixture
@@ -66,7 +55,7 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
         {
             "stratification": {
                 "t_virus": {
-                    "exclude": ["age_group"],
+                    "include": ["sex"],
                 }
             }
         }
@@ -116,7 +105,7 @@ def test_observation_registration(base_config, base_plugins, disease, model):
         {
             "stratification": {
                 "t_virus": {
-                    "exclude": ["age_group"],
+                    "include": ["sex"],
                 }
             }
         }
@@ -158,7 +147,7 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
         {
             "stratification": {
                 "t_virus": {
-                    "exclude": ["age_group"],
+                    "include": ["sex"],
                 }
             }
         }

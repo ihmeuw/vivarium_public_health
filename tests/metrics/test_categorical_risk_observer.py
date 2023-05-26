@@ -5,9 +5,7 @@ from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
 from vivarium_public_health.metrics.risk import CategoricalRiskObserver
-from vivarium_public_health.metrics.stratification import (
-    ResultsStratifier as ResultsStratifier_,
-)
+from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.utilities import to_years
 
@@ -56,7 +54,7 @@ def simulation_after_one_step(base_config, base_plugins, categorical_risk):
         {
             "stratification": {
                 "test_risk": {
-                    "exclude": ["age_group"],
+                    "include": ["sex"],
                 }
             }
         }
@@ -69,15 +67,6 @@ def simulation_after_one_step(base_config, base_plugins, categorical_risk):
     simulation.step()
 
     return simulation
-
-
-# Subclass of ResultsStratifier for integration testing
-class ResultsStratifier(ResultsStratifier_):
-    configuration_defaults = {
-        "stratification": {
-            "default": ["age_group", "sex"],
-        }
-    }
 
 
 def test_observation_registration(simulation_after_one_step):
