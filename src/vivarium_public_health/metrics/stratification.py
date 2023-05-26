@@ -46,7 +46,7 @@ class ResultsStratifier:
         )
         builder.results.register_stratification(
             "entrance_year",
-            [str(year) for year in range(self.start_year, self.end_year + 1)],
+            [str(year) for year in range(self.start_year-1, self.end_year + 1)],
             self.map_year,
             is_vectorized=True,
             requires_columns=["entrance_time"],

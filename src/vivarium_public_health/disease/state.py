@@ -6,7 +6,7 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,7 @@ from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium_public_health.disease.transition import (
     ProportionTransition,
     RateTransition,
+    TransitionString,
 )
 from vivarium_public_health.utilities import is_non_zero
 
@@ -446,19 +447,19 @@ class DiseaseState(BaseDiseaseState):
 
     def load_prevalence_data(self, builder):
         if "prevalence" in self._get_data_functions:
-            return self._get_data_functions["prevalence"](self.cause, builder)
+            return self._get_data_functions["prevalence"](builder, self.cause)
         else:
             return builder.data.load(f"{self.cause_type}.{self.cause}.prevalence")
 
     def load_birth_prevalence_data(self, builder):
         if "birth_prevalence" in self._get_data_functions:
-            return self._get_data_functions["birth_prevalence"](self.cause, builder)
+            return self._get_data_functions["birth_prevalence"](builder, self.cause)
         else:
             return 0
 
     def load_dwell_time_data(self, builder):
         if "dwell_time" in self._get_data_functions:
-            dwell_time = self._get_data_functions["dwell_time"](self.cause, builder)
+            dwell_time = self._get_data_functions["dwell_time"](builder, self.cause)
         else:
             dwell_time = 0
 
@@ -474,7 +475,7 @@ class DiseaseState(BaseDiseaseState):
     def load_disability_weight_data(self, builder):
         if "disability_weight" in self._get_data_functions:
             disability_weight = self._get_data_functions["disability_weight"](
-                self.cause, builder
+                builder, self.cause
             )
         else:
             disability_weight = builder.data.load(
@@ -489,7 +490,7 @@ class DiseaseState(BaseDiseaseState):
     def load_excess_mortality_rate_data(self, builder):
         only_morbid = builder.data.load(f"cause.{self._model}.restrictions")["yld_only"]
         if "excess_mortality_rate" in self._get_data_functions:
-            return self._get_data_functions["excess_mortality_rate"](self.cause, builder)
+            return self._get_data_functions["excess_mortality_rate"](builder, self.cause)
         elif only_morbid:
             return 0
         else:
