@@ -64,26 +64,6 @@ FAKE_POP_EVENT_TIME = {
 }
 
 
-def test_results_stratifier_setup(mocker):
-    """Test that set default stratifications happens at setup"""
-    rs = ResultsStratifier()
-    builder = mocker.Mock()
-    builder.data.load = fake_data_load_population_age_bins
-    builder.configuration.population.age_start = 0.0
-    builder.configuration.population.exit_age = 5.0
-    builder.configuration.time.start.year = 2022
-    builder.configuration.time.end.year = 2027
-
-    builder.results.set_default_stratifications = mocker.Mock()
-    builder.results.set_default_stratifications.assert_not_called()
-
-    rs.setup(builder)
-
-    builder.results.set_default_stratifications.assert_called_once_with(
-        builder.configuration.stratification.default
-    )
-
-
 def test_results_stratifier_register_stratifications(mocker):
     """Test that ResultsStratifier.register_stratifications registers expected stratifications
     and only the expected stratifications."""

@@ -14,21 +14,12 @@ from vivarium.framework.engine import Builder
 class ResultsStratifier:
     name = "results_stratifier"
 
-    configuration_defaults = {
-        "stratification": {
-            "default": [],
-        }
-    }
-
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         self.age_bins = self.get_age_bins(builder)
         self.start_year = builder.configuration.time.start.year
         self.end_year = builder.configuration.time.end.year
 
-        builder.results.set_default_stratifications(
-            builder.configuration.stratification.default
-        )
         self.register_stratifications(builder)
 
     def register_stratifications(self, builder: Builder) -> None:

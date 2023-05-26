@@ -15,18 +15,7 @@ from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics.disability import (
     DisabilityObserver as DisabilityObserver_,
 )
-from vivarium_public_health.metrics.stratification import (
-    ResultsStratifier as ResultsStratifier_,
-)
-
-
-# Subclass of ResultsStratifier for integration testing
-class ResultsStratifier(ResultsStratifier_):
-    configuration_defaults = {
-        "stratification": {
-            "default": ["age_group", "sex"],
-        }
-    }
+from vivarium_public_health.metrics.stratification import ResultsStratifier
 
 
 # Subclass of DisabilityObserver for integration testing
