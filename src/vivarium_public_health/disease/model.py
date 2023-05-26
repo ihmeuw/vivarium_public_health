@@ -53,9 +53,7 @@ class DiseaseModel(Machine):
         states = {s.name.split(".")[1]: s for s in self.states}
         transitions = []
         for state in states.values():
-            for trans in state.transition_set.transitions:
-                _, _, init_state, _, end_state = trans.name.split(".")
-                transitions.append(TransitionString(f"{init_state}_TO_{end_state}"))
+            transitions += state.get_transition_names()
         return transitions
 
     def setup(self, builder):

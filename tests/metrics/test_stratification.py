@@ -15,7 +15,6 @@ from vivarium_public_health.metrics.stratification import Source, SourceType
 
 
 class FavoriteColor:
-
     OPTIONS = ["red", "green", "orange"]
 
     @property
@@ -34,7 +33,6 @@ class FavoriteColor:
 
 
 class FavoriteNumber:
-
     OPTIONS = [7, 42, 14312]
 
     @property
