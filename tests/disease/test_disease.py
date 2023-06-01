@@ -52,7 +52,6 @@ def get_test_prevalence(simulation, key):
 
 
 def test_dwell_time(assign_cause_mock, base_config, base_plugins, disease, base_data):
-
     time_step = 10
     assign_cause_mock.side_effect = lambda population, *args: pd.DataFrame(
         {"condition_state": "healthy"}, index=population.index

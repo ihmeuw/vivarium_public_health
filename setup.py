@@ -4,7 +4,6 @@ import os
 from setuptools import find_packages, setup
 
 if __name__ == "__main__":
-
     base_dir = os.path.dirname(__file__)
     src_dir = os.path.join(base_dir, "src")
 
@@ -16,7 +15,7 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium>=1.1.0",
+        "vivarium>=1.2.0",
         "numpy",
         "pandas",
         "scipy",

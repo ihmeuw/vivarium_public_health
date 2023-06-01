@@ -56,7 +56,6 @@ from vivarium.framework.values import Pipeline, list_combiner, union_post_proces
 
 
 class Mortality:
-
     configuration_defaults = {"unmodeled_causes": []}
 
     def __init__(self):
