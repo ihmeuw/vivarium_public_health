@@ -1,3 +1,9 @@
+**0.10.25 - 06/01/23**
+
+ - Support Python 3.8-3.11
+ - Handle FutureWarning
+ - Refactor to create a 'get_transition_names' function
+
 **0.10.24 - 05/11/23**
 
  - Standardize builder, cause argument order in state get data functions
