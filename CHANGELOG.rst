@@ -1,6 +1,7 @@
-**0.10.25 - 06/01/23**
+**0.11.0 - 06/01/23**
 
  - Support Python 3.8-3.11
+ - Update vivarium pin
  - Handle FutureWarning
  - Refactor to create a 'get_transition_names' function
 
