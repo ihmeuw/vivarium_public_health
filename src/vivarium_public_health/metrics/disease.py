@@ -30,7 +30,7 @@ class DiseaseObserver:
     .. code-block:: yaml
 
         configuration:
-            observers:
+            stratification:
                 cause_name:
                     exclude:
                         - "sex"
