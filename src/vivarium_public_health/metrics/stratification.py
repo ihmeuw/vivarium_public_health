@@ -44,6 +44,8 @@ class ResultsStratifier:
             is_vectorized=True,
             requires_columns=["event_time"],
         )
+        # TODO [MIC-3892]: simulants occasionally have entrance year of start_year-1 if the start time minus step size
+        #  lands in the previous year. possible solution detailed in ticket
         builder.results.register_stratification(
             "entrance_year",
             [str(year) for year in range(self.start_year, self.end_year + 1)],
@@ -51,7 +53,7 @@ class ResultsStratifier:
             is_vectorized=True,
             requires_columns=["entrance_time"],
         )
-        # TODO [MIC-4803]: Known bug with this registration
+        # TODO [MIC-4083]: Known bug with this registration
         # builder.results.register_stratification(
         #     "exit_year",
         #     [str(year) for year in range(self.start_year, self.end_year + 1)] + ["nan"],
