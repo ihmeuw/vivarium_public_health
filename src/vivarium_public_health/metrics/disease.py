@@ -52,7 +52,6 @@ class DiseaseObserver:
         self.configuration_defaults = self.get_configuration_defaults()
         self.current_state_column_name = self.disease
         self.previous_state_column_name = f"previous_{self.disease}"
-        self.metrics_pipeline_name = "metrics"
 
     def __repr__(self):
         return f"DiseaseObserver({self.disease})"
