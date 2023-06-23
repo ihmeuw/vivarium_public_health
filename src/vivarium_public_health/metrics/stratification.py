@@ -44,11 +44,11 @@ class ResultsStratifier:
             is_vectorized=True,
             requires_columns=["event_time"],
         )
-        # TODO [MIC-3892]: changing start year to start year-1 to include previous year for now
-        # TODO: eventually implement what's detailed in the ticket instead
+        # TODO [MIC-3892]: simulants occasionally have entrance year of start_year-1 if the start time minus step size
+        # TODO: lands in the previous year. possible solution detailed in ticket
         builder.results.register_stratification(
             "entrance_year",
-            [str(year) for year in range(self.start_year-1, self.end_year + 1)],
+            [str(year) for year in range(self.start_year, self.end_year + 1)],
             self.map_year,
             is_vectorized=True,
             requires_columns=["entrance_time"],
