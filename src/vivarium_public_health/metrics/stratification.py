@@ -45,7 +45,7 @@ class ResultsStratifier:
             requires_columns=["event_time"],
         )
         # TODO [MIC-3892]: simulants occasionally have entrance year of start_year-1 if the start time minus step size
-        # TODO: lands in the previous year. possible solution detailed in ticket
+        #  lands in the previous year. possible solution detailed in ticket
         builder.results.register_stratification(
             "entrance_year",
             [str(year) for year in range(self.start_year, self.end_year + 1)],
