@@ -44,14 +44,16 @@ class ResultsStratifier:
             is_vectorized=True,
             requires_columns=["event_time"],
         )
+        # TODO [MIC-3892]: changing start year to start year-1 to include previous year for now
+        # TODO: eventually implement what's detailed in the ticket instead
         builder.results.register_stratification(
             "entrance_year",
-            [str(year) for year in range(self.start_year, self.end_year + 1)],
+            [str(year) for year in range(self.start_year-1, self.end_year + 1)],
             self.map_year,
             is_vectorized=True,
             requires_columns=["entrance_time"],
         )
-        # TODO [MIC-4803]: Known bug with this registration
+        # TODO [MIC-4083]: Known bug with this registration
         # builder.results.register_stratification(
         #     "exit_year",
         #     [str(year) for year in range(self.start_year, self.end_year + 1)] + ["nan"],

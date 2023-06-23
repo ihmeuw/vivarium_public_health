@@ -39,6 +39,10 @@ class MortalityObserver:
                         - "sex"
                     include:
                         - "sample_stratification"
+
+    This observer needs to access the has_excess_mortality attribute of the causes
+    we're observing, but this attribute gets defined in the setup of the cause models.
+    As a result, the model specification should list this observer after causes.
     """
 
     configuration_defaults = {
