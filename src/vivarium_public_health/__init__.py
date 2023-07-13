@@ -7,7 +7,7 @@ from vivarium_public_health.__about__ import (
     __title__,
     __uri__,
 )
-from vivarium._version import __version__
+from vivarium_public_health._version import __version__
 __all__ = [
     __author__,
     __copyright__,
