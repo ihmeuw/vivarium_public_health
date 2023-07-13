@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
+from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_public_health import utilities
@@ -40,6 +40,13 @@ class BasePopulation:
     def __init__(self):
         self._sub_components = [AgeOutSimulants()]
 
+    def __repr__(self) -> str:
+        return "BasePopulation()"
+
+    ##############
+    # Properties #
+    ##############
+
     @property
     def name(self) -> str:
         return "base_population"
@@ -47,6 +54,14 @@ class BasePopulation:
     @property
     def sub_components(self) -> List:
         return self._sub_components
+
+    @property
+    def columns_created(self) -> List[str]:
+        return ["age", "sex", "alive", "location", "entrance_time", "exit_time"]
+
+    #################
+    # Setup methods #
+    #################
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -60,12 +75,23 @@ class BasePopulation:
             )
 
         source_population_structure = load_population_structure(builder)
-        self.population_data = assign_demographic_proportions(
+        self.demographic_proportions = assign_demographic_proportions(
             source_population_structure,
             include_sex=self.config.include_sex,
         )
 
-        self.randomness = {
+        self.randomness = self.get_randomness_streams(builder)
+        self.register_simulants = builder.randomness.register_simulants
+        self.population_view = self.get_population_view(builder)
+        builder.population.initializes_simulants(
+            self.on_initialize_simulants, creates_columns=self.columns_created
+        )
+
+        builder.event.register_listener("time_step", self.on_time_step, priority=8)
+
+    @staticmethod
+    def get_randomness_streams(builder: Builder) -> Dict[str, RandomnessStream]:
+        return {
             "general_purpose": builder.randomness.get_stream("population_generation"),
             "bin_selection": builder.randomness.get_stream(
                 "bin_selection", initializes_crn_attributes=True
@@ -77,16 +103,13 @@ class BasePopulation:
                 "age_smoothing_age_bounds", initializes_crn_attributes=True
             ),
         }
-        self.register_simulants = builder.randomness.register_simulants
 
-        columns = ["age", "sex", "alive", "location", "entrance_time", "exit_time"]
+    def get_population_view(self, builder: Builder) -> PopulationView:
+        return builder.population.get_view(self.columns_created)
 
-        self.population_view = builder.population.get_view(columns)
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants, creates_columns=columns
-        )
-
-        builder.event.register_listener("time_step", self.on_time_step, priority=8)
+    ########################
+    # Event-driven methods #
+    ########################
 
     # TODO: Move most of this docstring to an rst file.
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
@@ -114,9 +137,8 @@ class BasePopulation:
             "age_end": pop_data.user_data.get("age_end", self.config.age_end),
         }
 
-        sub_pop_data = self.select_sub_population_data(
-            self.population_data,
-            pop_data.creation_time.year,
+        demographic_proportions = self.get_demographic_proportions_for_creation_time(
+            self.demographic_proportions, pop_data.creation_time.year
         )
 
         self.population_view.update(
@@ -125,7 +147,7 @@ class BasePopulation:
                 creation_time=pop_data.creation_time,
                 step_size=pop_data.creation_window,
                 age_params=age_params,
-                population_data=sub_pop_data,
+                demographic_proportions=demographic_proportions,
                 randomness_streams=self.randomness,
                 register_simulants=self.register_simulants,
                 key_columns=self.key_columns,
@@ -138,19 +160,19 @@ class BasePopulation:
         population["age"] += utilities.to_years(event.step_size)
         self.population_view.update(population)
 
-    @staticmethod
-    def select_sub_population_data(
-        reference_population_data: pd.DataFrame,
-        year: int,
-    ) -> pd.DataFrame:
-        reference_years = sorted(set(reference_population_data.year_start))
-        ref_year_index = np.digitize(year, reference_years).item() - 1
-        return reference_population_data[
-            reference_population_data.year_start == reference_years[ref_year_index]
-        ]
+    ##################
+    # Helper methods #
+    ##################
 
-    def __repr__(self) -> str:
-        return "BasePopulation()"
+    @staticmethod
+    def get_demographic_proportions_for_creation_time(
+        demographic_proportions, year: int
+    ) -> pd.DataFrame:
+        reference_years = sorted(set(demographic_proportions.year_start))
+        ref_year_index = np.digitize(year, reference_years).item() - 1
+        return demographic_proportions[
+            demographic_proportions.year_start == reference_years[ref_year_index]
+        ]
 
 
 class AgeOutSimulants:
@@ -186,7 +208,7 @@ def generate_population(
     creation_time: pd.Timestamp,
     step_size: pd.Timedelta,
     age_params: Dict[str, float],
-    population_data: pd.DataFrame,
+    demographic_proportions: pd.DataFrame,
     randomness_streams: Dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
     key_columns: Iterable[str] = ("entrance_time", "age"),
@@ -205,7 +227,7 @@ def generate_population(
             age_end : End of an age range
 
         The latter two keys can have values specified to generate simulants over an age range.
-    population_data
+    demographic_proportions
         Table with columns 'age', 'age_start', 'age_end', 'sex', 'year',
         'location', 'population', 'P(sex, location, age| year)',
         'P(sex, location | age, year)'.
@@ -252,7 +274,7 @@ def generate_population(
     if age_start == age_end:
         return _assign_demography_with_initial_age(
             simulants,
-            population_data,
+            demographic_proportions,
             age_start,
             step_size,
             randomness_streams,
@@ -261,7 +283,7 @@ def generate_population(
     else:  # age_params['age_start'] is not None and age_params['age_end'] is not None
         return _assign_demography_with_age_bounds(
             simulants,
-            population_data,
+            demographic_proportions,
             age_start,
             age_end,
             randomness_streams,

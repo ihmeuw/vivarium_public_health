@@ -82,7 +82,7 @@ def test_select_sub_population_data():
         }
     )
 
-    sub_pop = bp.BasePopulation.select_sub_population_data(data, 1997)
+    sub_pop = bp.BasePopulation.get_demographic_proportions_for_creation_time(data, 1997)
 
     assert sub_pop.year_start.values.item() == 1995
 
@@ -116,20 +116,22 @@ def test_BasePopulation(config, base_plugins, generate_population_mock, include_
     pop_structure = simulation._data.load("population.structure")
     uniform_pop = dt.assign_demographic_proportions(pop_structure, include_sex)
 
-    assert base_pop.population_data.equals(uniform_pop)
+    assert base_pop.demographic_proportions.equals(uniform_pop)
 
     age_params = {
         "age_start": config.population.age_start,
         "age_end": config.population.age_end,
     }
-    sub_pop = bp.BasePopulation.select_sub_population_data(uniform_pop, time_start.year)
+    sub_pop = bp.BasePopulation.get_demographic_proportions_for_creation_time(
+        uniform_pop, time_start.year
+    )
 
     generate_population_mock.assert_called_once()
     # Get a dictionary of the arguments used in the call
     mock_args = generate_population_mock.call_args[1]
     assert mock_args["creation_time"] == time_start - simulation._clock.step_size
     assert mock_args["age_params"] == age_params
-    assert mock_args["population_data"].equals(sub_pop)
+    assert mock_args["demographic_proportions"].equals(sub_pop)
     assert mock_args["randomness_streams"] == base_pop.randomness
     pop = simulation.get_population()
     for column in pop:
