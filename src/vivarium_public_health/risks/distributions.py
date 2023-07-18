@@ -39,13 +39,13 @@ class SimulationDistribution:
     def setup(self, builder):
         distribution_data = get_distribution_data(builder, self.risk)
         self.implementation = get_distribution(self.risk, **distribution_data)
-        if self.risk == 'risk_factor.high_body_mass_index_in_adults':
+        if self.risk == "risk_factor.high_body_mass_index_in_adults":
             for dist in self.implementation._parameters:
                 dist_params = self.implementation._parameters[dist]
-                dist_params.loc[dist_params['x_min'] != 0, 'x_min'] = 10
-                dist_params.loc[dist_params['x_max'] != 0, 'x_max'] = 50
+                dist_params.loc[dist_params["x_min"] != 0, "x_min"] = 10
+                dist_params.loc[dist_params["x_max"] != 0, "x_max"] = 50
                 self.implementation._parameters[dist] = dist_params
-            print('using updated BMI distribution')
+            print("using updated BMI distribution")
         self.implementation.setup(builder)
 
     def ppf(self, q):
