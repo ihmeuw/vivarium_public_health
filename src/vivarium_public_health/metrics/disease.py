@@ -79,7 +79,7 @@ class DiseaseObserver:
         for state in disease_model.states:
             builder.results.register_observation(
                 name=f"{state.state_id}_person_time",
-                pop_filter=f'alive == "alive" and {self.disease} == "{state.state_id}"',
+                pop_filter=f'alive == "alive" and {self.disease}=="{state.state_id}" and tracked==True',
                 aggregator=self.aggregate_state_person_time,
                 requires_columns=["alive", self.disease],
                 additional_stratifications=self.config.include,
@@ -90,7 +90,8 @@ class DiseaseObserver:
         for transition in disease_model.transition_names:
             filter_string = (
                 f'{self.previous_state_column_name} == "{transition.from_state}" '
-                f'and {self.disease} == "{transition.to_state}"'
+                f'and {self.disease} == "{transition.to_state}" '
+                f'and tracked==True'
             )
             builder.results.register_observation(
                 name=f"{transition}_event_count",

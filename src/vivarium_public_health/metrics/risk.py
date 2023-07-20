@@ -107,7 +107,7 @@ class CategoricalRiskObserver:
         for category in self.categories:
             builder.results.register_observation(
                 name=f"{self.risk}_{category}_person_time",
-                pop_filter=f'alive == "alive" and `{self.exposure_pipeline_name}` == "{category}"',
+                pop_filter=f'alive == "alive" and `{self.exposure_pipeline_name}`=="{category}" and tracked==True',
                 aggregator=self.aggregate_risk_category_person_time,
                 requires_columns=["alive"],
                 requires_values=[self.exposure_pipeline_name],
