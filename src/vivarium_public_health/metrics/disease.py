@@ -79,7 +79,7 @@ class DiseaseObserver:
         for state in disease_model.states:
             builder.results.register_observation(
                 name=f"{state.state_id}_person_time",
-                pop_filter=f'alive == "alive" and {self.disease}=="{state.state_id}" and tracked==True',
+                pop_filter=f'alive == "alive" and {self.disease} == "{state.state_id}" and tracked==True',
                 aggregator=self.aggregate_state_person_time,
                 requires_columns=["alive", self.disease],
                 additional_stratifications=self.config.include,
