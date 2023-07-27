@@ -37,22 +37,24 @@ class ResultsStratifier:
             is_vectorized=True,
             requires_columns=["current_time"],
         )
-        builder.results.register_stratification(
-            "event_year",
-            [str(year) for year in range(self.start_year, self.end_year + 1)],
-            self.map_year,
-            is_vectorized=True,
-            requires_columns=["event_time"],
-        )
+        # TODO [MIC-4232]: simulants occasionally have event year of end_year_year+1 if the end time plus step size
+        #  lands in the next year. possible solution detailed in ticket
+        # builder.results.register_stratification(
+        #     "event_year",
+        #     [str(year) for year in range(self.start_year, self.end_year + 1)],
+        #     self.map_year,
+        #     is_vectorized=True,
+        #     requires_columns=["event_time"],
+        # )
         # TODO [MIC-3892]: simulants occasionally have entrance year of start_year-1 if the start time minus step size
         #  lands in the previous year. possible solution detailed in ticket
-        builder.results.register_stratification(
-            "entrance_year",
-            [str(year) for year in range(self.start_year, self.end_year + 1)],
-            self.map_year,
-            is_vectorized=True,
-            requires_columns=["entrance_time"],
-        )
+        # builder.results.register_stratification(
+        #     "entrance_year",
+        #     [str(year) for year in range(self.start_year, self.end_year + 1)],
+        #     self.map_year,
+        #     is_vectorized=True,
+        #     requires_columns=["entrance_time"],
+        # )
         # TODO [MIC-4083]: Known bug with this registration
         # builder.results.register_stratification(
         #     "exit_year",

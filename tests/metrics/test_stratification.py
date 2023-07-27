@@ -104,20 +104,20 @@ def test_results_stratifier_register_stratifications(mocker):
         is_vectorized=True,
         requires_columns=["current_time"],
     )
-    builder.results.register_stratification.assert_any_call(
-        "event_year",
-        years_list,
-        rs.map_year,
-        is_vectorized=True,
-        requires_columns=["event_time"],
-    )
-    builder.results.register_stratification.assert_any_call(
-        "entrance_year",
-        years_list,
-        rs.map_year,
-        is_vectorized=True,
-        requires_columns=["entrance_time"],
-    )
+    # builder.results.register_stratification.assert_any_call(
+    #     "event_year",
+    #     years_list,
+    #     rs.map_year,
+    #     is_vectorized=True,
+    #     requires_columns=["event_time"],
+    # )
+    # builder.results.register_stratification.assert_any_call(
+    #     "entrance_year",
+    #     years_list,
+    #     rs.map_year,
+    #     is_vectorized=True,
+    #     requires_columns=["entrance_time"],
+    # )
     # TODO [MIC-4803]: Known bug with this registration
     # builder.results.register_stratification.assert_any_call(
     #     "exit_year",
@@ -129,7 +129,7 @@ def test_results_stratifier_register_stratifications(mocker):
     builder.results.register_stratification.assert_any_call(
         "sex", ["Female", "Male"], requires_columns=["sex"]
     )
-    assert builder.results.register_stratification.call_count == 5
+    assert builder.results.register_stratification.call_count == 3
 
 
 def test_results_stratifier_map_age_groups():
