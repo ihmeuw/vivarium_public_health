@@ -15,13 +15,15 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium>=1.2.0",
+        "vivarium>=1.2.1",
         "numpy",
         "pandas",
         "scipy",
         "tables",
         "risk_distributions>=2.0.11",
     ]
+
+    setup_requires = ["setuptools_scm"]
 
     test_requirements = [
         "pytest",
@@ -39,7 +41,6 @@ if __name__ == "__main__":
 
     setup(
         name=about["__title__"],
-        version=about["__version__"],
         description=about["__summary__"],
         long_description=long_description,
         license=about["__license__"],
@@ -78,4 +79,10 @@ if __name__ == "__main__":
             "dev": doc_requirements + test_requirements,
         },
         zip_safe=False,
+        use_scm_version={
+            "write_to": "src/vivarium_public_health/_version.py",
+            "write_to_template": '__version__ = "{version}"\n',
+            "tag_regex": r"^(?P<prefix>v)?(?P<version>[^\+]+)(?P<suffix>.*)?$",
+        },
+        setup_requires=setup_requires,
     )

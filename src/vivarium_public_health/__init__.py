@@ -6,8 +6,8 @@ from vivarium_public_health.__about__ import (
     __summary__,
     __title__,
     __uri__,
-    __version__,
 )
+from vivarium_public_health._version import __version__
 
 __all__ = [
     __author__,
