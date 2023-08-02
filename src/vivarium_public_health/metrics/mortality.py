@@ -86,6 +86,7 @@ class MortalityObserver:
             "cause_of_death",
             "exit_time",
         ]
+
         self.population_view = builder.population.get_view(columns_required)
 
         for cause_of_death in self.causes_of_death:
