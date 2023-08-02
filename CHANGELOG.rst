@@ -1,3 +1,8 @@
+**0.11.1 - 08/02/23**
+ - Performance and architectural improvements to results manager, including observers
+ - Updates versioning to use setuptools_scm
+ - Other bugfixes
+
 **0.11.0 - 06/01/23**
 
  - Support Python 3.8-3.11
