@@ -1,4 +1,4 @@
-**0.11.1 - 08/02/23**
+**1.0.0 - 08/02/23**
  - Performance and architectural improvements to results manager, including observers
  - Updates versioning to use setuptools_scm
  - Other bugfixes
