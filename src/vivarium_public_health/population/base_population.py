@@ -11,9 +11,10 @@ from typing import Callable, Dict, Iterable, List
 
 import numpy as np
 import pandas as pd
+from vivarium import VivariumComponent
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.population import PopulationView, SimulantData
+from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_public_health import utilities
@@ -25,7 +26,7 @@ from vivarium_public_health.population.data_transformations import (
 )
 
 
-class BasePopulation:
+class BasePopulation(VivariumComponent):
     """Component for producing and aging simulants based on demographic data."""
 
     configuration_defaults = {
@@ -36,9 +37,6 @@ class BasePopulation:
             "include_sex": "Both",  # Either Female, Male, or Both
         }
     }
-
-    def __init__(self):
-        self._sub_components = [AgeOutSimulants()]
 
     def __repr__(self) -> str:
         return "BasePopulation()"
@@ -52,19 +50,27 @@ class BasePopulation:
         return "base_population"
 
     @property
-    def sub_components(self) -> List:
-        return self._sub_components
-
-    @property
     def columns_created(self) -> List[str]:
         return ["age", "sex", "alive", "location", "entrance_time", "exit_time"]
 
-    #################
-    # Setup methods #
-    #################
+    @property
+    def time_step_priority(self) -> int:
+        return 8
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self):
+        super().__init__()
+        self._sub_components.append(AgeOutSimulants())
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.register_simulant_initializer(builder)
+        self.register_time_step_listener(builder)
+
         self.config = builder.configuration.population
         self.key_columns = builder.configuration.randomness.key_columns
         if self.config.include_sex not in ["Male", "Female", "Both"]:
@@ -82,12 +88,10 @@ class BasePopulation:
 
         self.randomness = self.get_randomness_streams(builder)
         self.register_simulants = builder.randomness.register_simulants
-        self.population_view = self.get_population_view(builder)
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants, creates_columns=self.columns_created
-        )
 
-        builder.event.register_listener("time_step", self.on_time_step, priority=8)
+    #################
+    # Setup methods #
+    #################
 
     @staticmethod
     def get_randomness_streams(builder: Builder) -> Dict[str, RandomnessStream]:
@@ -103,9 +107,6 @@ class BasePopulation:
                 "age_smoothing_age_bounds", initializes_crn_attributes=True
             ),
         }
-
-    def get_population_view(self, builder: Builder) -> PopulationView:
-        return builder.population.get_view(self.columns_created)
 
     ########################
     # Event-driven methods #
@@ -175,20 +176,41 @@ class BasePopulation:
         ]
 
 
-class AgeOutSimulants:
+class AgeOutSimulants(VivariumComponent):
     """Component for handling aged-out simulants"""
+
+    def __repr__(self) -> str:
+        return "AgeOutSimulants()"
+
+    ##############
+    # Properties #
+    ##############
 
     @property
     def name(self) -> str:
         return "age_out_simulants"
 
+    @property
+    def columns_required(self) -> List[str]:
+        """A list of the columns this component requires that it did not create."""
+        return self._columns_required
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self):
+        super().__init__()
+        self._columns_required = []
+
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        if builder.configuration.population.exit_age is None:
-            return
-        self.config = builder.configuration.population
-        self.population_view = builder.population.get_view(["age", "exit_time", "tracked"])
-        builder.event.register_listener("time_step__cleanup", self.on_time_step_cleanup)
+        if builder.configuration.population.exit_age is not None:
+            self.config = builder.configuration.population
+            self._columns_required.extend(["age", "exit_time", "tracked"])
+            self.register_time_step_cleanup_listener(builder)
+
+        super().setup(builder)
 
     def on_time_step_cleanup(self, event: Event) -> None:
         population = self.population_view.get(event.index)
@@ -198,9 +220,6 @@ class AgeOutSimulants:
             pop["tracked"] = pd.Series(False, index=pop.index)
             pop["exit_time"] = event.time
             self.population_view.update(pop)
-
-    def __repr__(self) -> str:
-        return "AgeOutSimulants()"
 
 
 def generate_population(
