@@ -499,10 +499,9 @@ class DiseaseState(BaseDiseaseState):
         return disability_weight
 
     def load_excess_mortality_rate_data(self, builder):
-        only_morbid = builder.data.load(f"cause.{self._model}.restrictions")["yld_only"]
         if "excess_mortality_rate" in self._get_data_functions:
             return self._get_data_functions["excess_mortality_rate"](builder, self.cause)
-        elif only_morbid:
+        elif builder.data.load(f"cause.{self._model}.restrictions")["yld_only"]:
             return 0
         else:
             return builder.data.load(f"{self.cause_type}.{self.cause}.excess_mortality_rate")
