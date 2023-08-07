@@ -1,3 +1,7 @@
+**1.0.1 - 08/07/23**
+
+- Minor bugfix to improve handling of excess mortality rate data
+
 **1.0.0 - 08/02/23**
 
  - Performance and architectural improvements to results manager, including observers
