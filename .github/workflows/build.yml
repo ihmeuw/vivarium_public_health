@@ -3,7 +3,7 @@
 #   - test under at least 3 versions of python
 # -----------------------------------------------------------------------------
 name: build
-on: [push, pull_request, workflow_dispatch]
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -22,7 +22,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: check for upstream branch
         run: |
-          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_HEAD_REF} == "0"; then
+          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_REF_NAME} == "0"; then
             echo "upstream_exist=true" >> $GITHUB_ENV
           else
             echo "upstream_exist=false" >> $GITHUB_ENV

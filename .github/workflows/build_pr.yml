@@ -3,7 +3,7 @@
 #   - test under at least 3 versions of python
 # -----------------------------------------------------------------------------
 name: build
-on: [push, pull_request, workflow_dispatch]
+on: [pull_request]
 
 jobs:
   build:
