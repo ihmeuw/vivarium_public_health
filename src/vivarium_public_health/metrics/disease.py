@@ -91,7 +91,8 @@ class DiseaseObserver:
             filter_string = (
                 f'{self.previous_state_column_name} == "{transition.from_state}" '
                 f'and {self.disease} == "{transition.to_state}" '
-                f"and tracked==True"
+                f"and tracked==True "
+                f'and alive == "alive"'
             )
             builder.results.register_observation(
                 name=f"{transition}_event_count",
