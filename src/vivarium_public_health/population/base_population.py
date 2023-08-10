@@ -11,7 +11,7 @@ from typing import Callable, Dict, Iterable, List
 
 import numpy as np
 import pandas as pd
-from vivarium import VivariumComponent
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -26,7 +26,7 @@ from vivarium_public_health.population.data_transformations import (
 )
 
 
-class BasePopulation(VivariumComponent):
+class BasePopulation(Component):
     """Component for producing and aging simulants based on demographic data."""
 
     configuration_defaults = {
@@ -176,7 +176,7 @@ class BasePopulation(VivariumComponent):
         ]
 
 
-class AgeOutSimulants(VivariumComponent):
+class AgeOutSimulants(Component):
     """Component for handling aged-out simulants"""
 
     def __repr__(self) -> str:
