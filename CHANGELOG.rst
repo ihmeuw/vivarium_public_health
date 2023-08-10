@@ -1,10 +1,10 @@
 **1.0.2 - 08/10/23**
 
-- Minor bugfix to ensure dead simulants do not get observed transitions
+ - Minor bugfix to ensure dead simulants do not get observed transitions
 
 **1.0.1 - 08/07/23**
 
-- Minor bugfix to improve handling of excess mortality rate data
+ - Minor bugfix to improve handling of excess mortality rate data
 
 **1.0.0 - 08/02/23**
 
