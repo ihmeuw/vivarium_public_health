@@ -20,15 +20,15 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: check for upstream branch
+      - name: get upstream branch name
         run: |
-          echo "event name: ${{ github.event_name }}"
-          if "${{ github.event_name }}" == "pull_request"; then
+          if "${{ github.event_name == "pull_request"}}" ; then
             echo "branch_name=${GITHUB_HEAD_REF}" >> $GITHUB_ENV
           else
             echo "branch_name=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           fi
-          echo "branch name: ${branch_name}"
+      - name: check for upstream branch
+        run: |
           if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${branch_name} == "0"; then
             echo "upstream_exist=true" >> $GITHUB_ENV
           else
