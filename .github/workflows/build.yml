@@ -22,7 +22,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: get upstream branch name
         run: |
-          if "${{ github.event_name == "pull_request"}}" ; then
+          if "${{ github.event_name == 'pull_request' }}" ; then
             echo "branch_name=${GITHUB_HEAD_REF}" >> $GITHUB_ENV
           else
             echo "branch_name=${GITHUB_REF_NAME}" >> $GITHUB_ENV
