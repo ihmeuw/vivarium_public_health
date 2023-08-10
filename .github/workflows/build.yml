@@ -22,13 +22,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: check for upstream branch
         run: |
-          echo "${{ github.event_name }}"
-          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_HEAD_REF} == "0"; then
-            echo "upstream_exist=true" >> $GITHUB_ENV
+          if "${{ github.event_name }}" == "pull_request"; then
             echo "branch_name=${GITHUB_HEAD_REF}" >> $GITHUB_ENV
-          elif git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_REF_NAME} == "0"; then
-            echo "upstream_exist=true" >> $GITHUB_ENV
+          else
             echo "branch_name=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          fi
+          echo "branch name: ${branch_name}"
+          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${branch_name} == "0"; then
+            echo "upstream_exist=true" >> $GITHUB_ENV
           else
             echo "upstream_exist=false" >> $GITHUB_ENV
           fi
