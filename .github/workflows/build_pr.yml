@@ -24,6 +24,10 @@ jobs:
         run: |
           if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_HEAD_REF} == "0"; then
             echo "upstream_exist=true" >> $GITHUB_ENV
+            echo "branch_name=${GITHUB_HEAD_REF}" >> $GITHUB_ENV
+          elif git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${GITHUB_REF_NAME} == "0"; then
+            echo "upstream_exist=true" >> $GITHUB_ENV
+            echo "branch_name=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           else
             echo "upstream_exist=false" >> $GITHUB_ENV
           fi
@@ -36,9 +40,8 @@ jobs:
       - name: Retrieve upstream branch if exists
         if: env.upstream_exist == 'true'
         run: |
-          echo "GITHUB_REF_NAME: ${GITHUB_REF_NAME}"
-          echo "Cloning upstream branch: ${GITHUB_HEAD_REF}"
-          git clone --branch=${GITHUB_HEAD_REF} https://github.com/ihmeuw/vivarium.git
+          echo "Cloning upstream branch: ${branch_name}"
+          git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium.git
           pushd vivarium
           pip install .
           popd
