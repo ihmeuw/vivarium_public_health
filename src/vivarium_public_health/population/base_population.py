@@ -201,13 +201,13 @@ class AgeOutSimulants(VivariumComponent):
 
     def __init__(self):
         super().__init__()
-        self._columns_required = []
+        self._columns_required = None
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         if builder.configuration.population.exit_age is not None:
             self.config = builder.configuration.population
-            self._columns_required.extend(["age", "exit_time", "tracked"])
+            self._columns_required = ["age", "exit_time", "tracked"]
             self.register_time_step_cleanup_listener(builder)
 
         super().setup(builder)
