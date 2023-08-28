@@ -1,3 +1,7 @@
+**1.0.3 - 08/10/23**
+
+ - Pass `BaseDiseaseState` constructor kwargs to its super-class's constructor
+
 **1.0.2 - 08/10/23**
 
  - Minor bugfix to ensure dead simulants do not get observed transitions

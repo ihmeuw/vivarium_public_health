@@ -26,7 +26,7 @@ class BaseDiseaseState(State):
     def __init__(
         self, cause, name_prefix="", side_effect_function=None, cause_type="cause", **kwargs
     ):
-        super().__init__(name_prefix + cause)  # becomes state_id
+        super().__init__(name_prefix + cause, **kwargs)  # becomes state_id
         self.cause_type = cause_type
         self.cause = cause
 
