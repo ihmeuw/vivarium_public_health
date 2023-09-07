@@ -203,14 +203,16 @@ class AgeOutSimulants(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        if builder.configuration.population.exit_age is not None:
-            self.config = builder.configuration.population
+        self.config = builder.configuration.population
+        if self.config.exit_age is not None:
             self._columns_required = ["age", "exit_time", "tracked"]
-            self.on_time_step_cleanup = self._on_time_step_cleanup
 
         super().setup(builder)
 
-    def _on_time_step_cleanup(self, event: Event) -> None:
+    def on_time_step_cleanup(self, event: Event) -> None:
+        if self.config.exit_age is None:
+            return
+
         population = self.population_view.get(event.index)
         max_age = float(self.config.exit_age)
         pop = population[(population["age"] >= max_age) & population["tracked"]].copy()
