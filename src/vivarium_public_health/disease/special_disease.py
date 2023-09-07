@@ -9,15 +9,19 @@ This module contains frequently used, but non-standard disease models.
 import re
 from collections import namedtuple
 from operator import gt, lt
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
+from vivarium import Component
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import TransitionString
 from vivarium_public_health.utilities import EntityString, is_non_zero
 
 
-class RiskAttributableDisease:
+class RiskAttributableDisease(Component):
     """Component to model a disease fully attributed by a risk.
 
     For some (risk, cause) pairs with population attributable fraction
@@ -81,7 +85,7 @@ class RiskAttributableDisease:
         recoverable : True
     """
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "risk_attributable_disease": {
             "threshold": None,
             "mortality": True,
@@ -89,18 +93,58 @@ class RiskAttributableDisease:
         }
     }
 
-    def __init__(self, cause, risk):
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def name(self):
+        return f"disease_model.{self.cause.name}"
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {self.cause.name: self.CONFIGURATION_DEFAULTS["risk_attributable_disease"]}
+
+    @property
+    def columns_created(self) -> List[str]:
+        return [
+            self.cause.name,
+            self.diseased_event_time_column,
+            self.susceptible_event_time_column,
+        ]
+
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return ["alive"]
+
+    @property
+    def initialization_requirements(self) -> Dict[str, List[str]]:
+        return {
+            "requires_columns": [],
+            "requires_values": [f"{self.risk.name}.exposure"],
+            "requires_streams": [],
+        }
+
+    @property
+    def state_names(self):
+        return self._state_names
+
+    @property
+    def transition_names(self):
+        return self._transition_names
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self, cause: str, risk: str):
+        super().__init__()
         self.cause = EntityString(cause)
         self.risk = EntityString(risk)
         self.state_column = self.cause.name
         self.state_id = self.cause.name
         self.diseased_event_time_column = f"{self.cause.name}_event_time"
         self.susceptible_event_time_column = f"susceptible_to_{self.cause.name}_event_time"
-        self.configuration_defaults = {
-            self.cause.name: RiskAttributableDisease.configuration_defaults[
-                "risk_attributable_disease"
-            ]
-        }
         self._state_names = [f"{self.cause.name}", f"susceptible_to_{self.cause.name}"]
         self._transition_names = [
             TransitionString(f"susceptible_to_{self.cause.name}_TO_{self.cause.name}")
@@ -110,18 +154,6 @@ class RiskAttributableDisease:
         self.excess_mortality_rate_paf_pipeline_name = (
             f"{self.excess_mortality_rate_pipeline_name}.paf"
         )
-
-    @property
-    def name(self):
-        return f"disease_model.{self.cause.name}"
-
-    @property
-    def state_names(self):
-        return self._state_names
-
-    @property
-    def transition_names(self):
-        return self._transition_names
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder):
@@ -186,28 +218,12 @@ class RiskAttributableDisease:
         self.filter_by_exposure = self.get_exposure_filter(
             distribution, exposure_pipeline, threshold
         )
-        self.population_view = builder.population.get_view(
-            [
-                self.cause.name,
-                self.diseased_event_time_column,
-                self.susceptible_event_time_column,
-                "alive",
-            ]
-        )
 
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=[
-                self.cause.name,
-                self.diseased_event_time_column,
-                self.susceptible_event_time_column,
-            ],
-            requires_values=[f"{self.risk.name}.exposure"],
-        )
+    ########################
+    # Event-driven methods #
+    ########################
 
-        builder.event.register_listener("time_step", self.on_time_step)
-
-    def on_initialize_simulants(self, pop_data):
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         new_pop = pd.DataFrame(
             {
                 self.cause.name: f"susceptible_to_{self.cause.name}",
@@ -224,7 +240,7 @@ class RiskAttributableDisease:
 
         self.population_view.update(new_pop)
 
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event) -> None:
         pop = self.population_view.get(event.index, query='alive == "alive"')
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
@@ -241,6 +257,10 @@ class RiskAttributableDisease:
         pop.loc[change_to_diseased, self.cause.name] = self.cause.name
 
         self.population_view.update(pop)
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
     def compute_disability_weight(self, index):
         disability_weight = pd.Series(0, index=index)
@@ -274,6 +294,10 @@ class RiskAttributableDisease:
         rate = self.excess_mortality_rate(index, skip_post_processor=True)
         rates_df[self.cause.name] = rate
         return rates_df
+
+    ##################
+    # Helper methods #
+    ##################
 
     def with_condition(self, index):
         pop = self.population_view.subview(["alive", self.cause.name]).get(index)
@@ -322,6 +346,7 @@ class RiskAttributableDisease:
 
         return filter_function
 
+    # todo: reorder these methods to make it easier to understand what they are each doing
     def adjust_state_and_transitions(self):
         if self.recoverable:
             self._transition_names.append(

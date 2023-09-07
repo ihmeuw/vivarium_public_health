@@ -6,10 +6,16 @@ Disease Transitions
 This module contains tools to model transitions between disease states.
 
 """
+from typing import TYPE_CHECKING, Callable, Dict
+
 import pandas as pd
+from vivarium.framework.engine import Builder
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.utilities import rate_to_probability
 from vivarium.framework.values import list_combiner, union_post_processor
+
+if TYPE_CHECKING:
+    from vivarium_public_health.disease import BaseDiseaseState
 
 
 class TransitionString(str):
@@ -21,7 +27,17 @@ class TransitionString(str):
 
 
 class RateTransition(Transition):
-    def __init__(self, input_state, output_state, get_data_functions=None, **kwargs):
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(
+        self,
+        input_state: "BaseDiseaseState",
+        output_state: "BaseDiseaseState",
+        get_data_functions: Dict[str, Callable] = None,
+        **kwargs,
+    ):
         super().__init__(
             input_state, output_state, probability_func=self._probability, **kwargs
         )
@@ -30,7 +46,7 @@ class RateTransition(Transition):
         )
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
         rate_data, pipeline_name = self.load_transition_rate_data(builder)
         self.base_rate = builder.lookup.build_table(
             rate_data, key_columns=["sex"], parameter_columns=["age", "year"]
@@ -51,13 +67,9 @@ class RateTransition(Transition):
 
         self.population_view = builder.population.get_view(["alive"])
 
-    def compute_transition_rate(self, index):
-        transition_rate = pd.Series(0, index=index)
-        living = self.population_view.get(index, query='alive == "alive"').index
-        base_rates = self.base_rate(living)
-        joint_paf = self.joint_paf(living)
-        transition_rate.loc[living] = base_rates * (1 - joint_paf)
-        return transition_rate
+    #################
+    # Setup methods #
+    #################
 
     def load_transition_rate_data(self, builder):
         if "incidence_rate" in self._get_data_functions:
@@ -81,15 +93,38 @@ class RateTransition(Transition):
             raise ValueError("No valid data functions supplied.")
         return rate_data, pipeline_name
 
-    def _probability(self, index):
-        return rate_to_probability(self.transition_rate(index))
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
-    def __str__(self):
-        return f"RateTransition(from={self.input_state.state_id}, to={self.output_state.state_id})"
+    def compute_transition_rate(self, index: pd.Index) -> pd.Series:
+        transition_rate = pd.Series(0, index=index)
+        living = self.population_view.get(index, query='alive == "alive"').index
+        base_rates = self.base_rate(living)
+        joint_paf = self.joint_paf(living)
+        transition_rate.loc[living] = base_rates * (1 - joint_paf)
+        return transition_rate
+
+    ##################
+    # Helper methods #
+    ##################
+
+    def _probability(self, index: pd.Index) -> pd.Series:
+        return pd.Series(rate_to_probability(self.transition_rate(index)))
 
 
 class ProportionTransition(Transition):
-    def __init__(self, input_state, output_state, get_data_functions=None, **kwargs):
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(
+        self,
+        input_state: "BaseDiseaseState",
+        output_state: "BaseDiseaseState",
+        get_data_functions: Dict[str, Callable] = None,
+        **kwargs,
+    ):
         super().__init__(
             input_state, output_state, probability_func=self._probability, **kwargs
         )
@@ -110,6 +145,3 @@ class ProportionTransition(Transition):
 
     def _probability(self, index):
         return self.proportion(index)
-
-    def __str__(self):
-        return f"ProportionTransition(from={self.input_state.state_id}, {self.output_state.state_id})"
