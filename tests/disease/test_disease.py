@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
+from vivarium.framework.state_machine import Transition
 from vivarium.framework.utilities import from_yearly
 from vivarium.testing_utilities import TestPopulation, build_table, metadata
 
@@ -69,8 +70,8 @@ def test_dwell_time(assign_cause_mock, base_config, base_plugins, disease, base_
     event_state = DiseaseState("event", get_data_functions=data_function)
     done_state = BaseDiseaseState("sick")
 
-    healthy_state.add_transition(event_state)
-    event_state.add_transition(done_state)
+    healthy_state.add_transition(Transition(healthy_state, event_state))
+    event_state.add_dwell_time_transition(done_state)
 
     model = DiseaseModel(
         disease, initial_state=healthy_state, states=[healthy_state, event_state, done_state]
@@ -120,8 +121,8 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     mortality_state = DiseaseState("event", get_data_functions=mort_get_data_funcs)
     done_state = BaseDiseaseState("sick")
 
-    healthy_state.add_transition(mortality_state)
-    mortality_state.add_transition(done_state)
+    healthy_state.add_transition(Transition(healthy_state, mortality_state))
+    mortality_state.add_dwell_time_transition(done_state)
 
     model = DiseaseModel(
         disease,
@@ -282,7 +283,7 @@ def test_mortality_rate(base_config, base_plugins, disease):
 
     mortality_state = DiseaseState("sick", get_data_functions=mort_get_data_funcs)
 
-    healthy.add_transition(mortality_state)
+    healthy.add_transition(Transition(healthy, mortality_state))
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, mortality_state])
 
@@ -493,8 +494,8 @@ def test_no_birth_prevalence_initial_assignment(base_config, base_plugins, disea
 def test_state_transition_names(disease):
     with_condition = DiseaseState("diarrheal_diseases")
     healthy = SusceptibleState("diarrheal_diseases")
-    healthy.add_transition(with_condition)
-    with_condition.add_transition(healthy)
+    healthy.add_rate_transition(with_condition)
+    with_condition.add_rate_transition(healthy)
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
     assert set(model.state_names) == {
         "diarrheal_diseases",

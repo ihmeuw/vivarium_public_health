@@ -15,7 +15,7 @@ from vivarium_public_health.population import Mortality
 def disease_with_excess_mortality(base_config, disease_name, emr_value) -> DiseaseModel:
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
-    healthy = SusceptibleState(disease_name)
+    healthy = SusceptibleState(disease_name, allow_self_transition=True)
     disease_get_data_funcs = {
         "disability_weight": lambda *_: build_table(0.0, year_start - 1, year_end),
         "prevalence": lambda *_: build_table(
@@ -26,7 +26,7 @@ def disease_with_excess_mortality(base_config, disease_name, emr_value) -> Disea
         ),
     }
     with_condition = DiseaseState(disease_name, get_data_functions=disease_get_data_funcs)
-    healthy.add_transition(
+    healthy.add_rate_transition(
         with_condition,
         get_data_functions={
             "incidence_rate": lambda *_: build_table(
