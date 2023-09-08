@@ -7,16 +7,18 @@ This module contains tools for observing disease incidence and prevalence
 in the simulation.
 
 """
-from collections import Counter
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 
 from vivarium_public_health.utilities import to_years
 
 
-class DiseaseObserver:
+class DiseaseObserver(Component):
     """Observes disease counts and person time for a cause.
 
     By default, this observer computes aggregate disease state person time and
@@ -38,7 +40,7 @@ class DiseaseObserver:
                         - "sample_stratification"
     """
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "stratification": {
             "disease": {
                 "exclude": [],
@@ -47,34 +49,43 @@ class DiseaseObserver:
         }
     }
 
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {
+            "stratification": {
+                self.disease: self.CONFIGURATION_DEFAULTS["stratification"]["disease"]
+            }
+        }
+
+    @property
+    def columns_created(self) -> List[str]:
+        return [self.previous_state_column_name]
+
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return [self.disease]
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
     def __init__(self, disease: str):
+        super().__init__()
         self.disease = disease
-        self.configuration_defaults = self.get_configuration_defaults()
         self.current_state_column_name = self.disease
         self.previous_state_column_name = f"previous_{self.disease}"
 
-    def __repr__(self):
-        return f"DiseaseObserver({self.disease})"
-
-    @property
-    def name(self):
-        return f"disease_observer.{self.disease}"
-
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification[self.disease]
 
         disease_model = builder.components.get_component(f"disease_model.{self.disease}")
-
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants, creates_columns=[self.previous_state_column_name]
-        )
-
-        columns_required = [self.disease, self.previous_state_column_name]
-        self.population_view = builder.population.get_view(columns_required)
-
-        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
 
         for state in disease_model.states:
             builder.results.register_observation(
@@ -103,25 +114,24 @@ class DiseaseObserver:
                 when="collect_metrics",
             )
 
-    def aggregate_state_person_time(self, x: pd.DataFrame) -> float:
-        return len(x) * to_years(self.step_size())
+    ########################
+    # Event-driven methods #
+    ########################
 
-    def get_configuration_defaults(self) -> Dict[str, Dict]:
-        return {
-            "stratification": {
-                self.disease: DiseaseObserver.configuration_defaults["stratification"][
-                    "disease"
-                ]
-            }
-        }
-
-    def on_initialize_simulants(self, pop_data):
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         self.population_view.update(
             pd.Series("", index=pop_data.index, name=self.previous_state_column_name)
         )
 
-    def on_time_step_prepare(self, event) -> None:
+    def on_time_step_prepare(self, event: Event) -> None:
         # This enables tracking of transitions between states
         prior_state_pop = self.population_view.get(event.index)
         prior_state_pop[self.previous_state_column_name] = prior_state_pop[self.disease]
         self.population_view.update(prior_state_pop)
+
+    ###############
+    # Aggregators #
+    ###############
+
+    def aggregate_state_person_time(self, x: pd.DataFrame) -> float:
+        return len(x) * to_years(self.step_size())

@@ -53,7 +53,7 @@ def test_disability_observer_setup(mocker):
         name="ylds_due_to_all_causes",
         pop_filter='tracked == True and alive == "alive"',
         aggregator_sources=["disability_weight"],
-        aggregator=observer._disability_weight_aggregator,
+        aggregator=observer.disability_weight_aggregator,
         requires_columns=["alive"],
         requires_values=["disability_weight"],
         additional_stratifications=observer.config.include,
@@ -64,7 +64,7 @@ def test_disability_observer_setup(mocker):
         name="ylds_due_to_flu",
         pop_filter='tracked == True and alive == "alive"',
         aggregator_sources=["flu.disability_weight"],
-        aggregator=observer._disability_weight_aggregator,
+        aggregator=observer.disability_weight_aggregator,
         requires_columns=["alive"],
         requires_values=["flu.disability_weight"],
         additional_stratifications=observer.config.include,
@@ -75,7 +75,7 @@ def test_disability_observer_setup(mocker):
         name="ylds_due_to_measles",
         pop_filter='tracked == True and alive == "alive"',
         aggregator_sources=["measles.disability_weight"],
-        aggregator=observer._disability_weight_aggregator,
+        aggregator=observer.disability_weight_aggregator,
         requires_columns=["alive"],
         requires_values=["measles.disability_weight"],
         additional_stratifications=observer.config.include,
@@ -92,7 +92,7 @@ def test__disability_weight_aggregator():
     observer = DisabilityObserver_()
     observer.step_size = pd.Timedelta(days=365.25)  # easy yld math
     fake_weights = pd.DataFrame(1.0, index=range(1000), columns=["disability_weight"])
-    aggregated_weight = observer._disability_weight_aggregator(fake_weights)
+    aggregated_weight = observer.disability_weight_aggregator(fake_weights)
     assert aggregated_weight == 1000.0
 
 
