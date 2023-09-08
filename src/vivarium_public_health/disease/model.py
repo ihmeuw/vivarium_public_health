@@ -8,14 +8,17 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
-from typing import List
+from typing import Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 from vivarium.exceptions import VivariumError
+from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 from vivarium.framework.state_machine import Machine
 
-from vivarium_public_health.disease.state import SusceptibleState
+from vivarium_public_health.disease.state import BaseDiseaseState, SusceptibleState
 from vivarium_public_health.disease.transition import TransitionString
 
 
@@ -24,8 +27,47 @@ class DiseaseModelError(VivariumError):
 
 
 class DiseaseModel(Machine):
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def columns_created(self) -> List[str]:
+        return [self.state_column]
+
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return ["age", "sex"]
+
+    @property
+    def initialization_requirements(self) -> Dict[str, List[str]]:
+        return {
+            "requires_columns": ["age", "sex"],
+            "requires_values": [],
+            "requires_streams": [f"{self.state_column}_initial_states"],
+        }
+
+    @property
+    def state_names(self) -> List[str]:
+        return [s.state_id for s in self.states]
+
+    @property
+    def transition_names(self) -> List[TransitionString]:
+        return [
+            state_name for state in self.states for state_name in state.get_transition_names()
+        ]
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
     def __init__(
-        self, cause, initial_state=None, get_data_functions=None, cause_type="cause", **kwargs
+        self,
+        cause: str,
+        initial_state: Optional[BaseDiseaseState] = None,
+        get_data_functions: Optional[Dict[str, Callable]] = None,
+        cause_type: str = "cause",
+        **kwargs,
     ):
         super().__init__(cause, **kwargs)
         self.cause = cause
@@ -40,23 +82,7 @@ class DiseaseModel(Machine):
             get_data_functions if get_data_functions is not None else {}
         )
 
-    @property
-    def name(self):
-        return f"disease_model.{self.cause}"
-
-    @property
-    def state_names(self) -> List[str]:
-        return [s.name.split(".")[1] for s in self.states]
-
-    @property
-    def transition_names(self) -> List[TransitionString]:
-        states = {s.name.split(".")[1]: s for s in self.states}
-        transitions = []
-        for state in states.values():
-            transitions += state.get_transition_names()
-        return transitions
-
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
         super().setup(builder)
 
@@ -74,20 +100,32 @@ class DiseaseModel(Machine):
             self.adjust_cause_specific_mortality_rate,
             requires_columns=["age", "sex"],
         )
-
-        self.population_view = builder.population.get_view(["age", "sex", self.state_column])
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=[self.state_column],
-            requires_columns=["age", "sex"],
-            requires_streams=[f"{self.state_column}_initial_states"],
-        )
         self.randomness = builder.randomness.get_stream(f"{self.state_column}_initial_states")
 
-        builder.event.register_listener("time_step", self.on_time_step)
-        builder.event.register_listener("time_step__cleanup", self.on_time_step_cleanup)
+    #################
+    # Setup methods #
+    #################
 
-    def on_initialize_simulants(self, pop_data):
+    def load_cause_specific_mortality_rate_data(self, builder):
+        if "cause_specific_mortality_rate" not in self._get_data_functions:
+            only_morbid = builder.data.load(f"cause.{self.cause}.restrictions")["yld_only"]
+            if only_morbid:
+                csmr_data = 0
+            else:
+                csmr_data = builder.data.load(
+                    f"{self.cause_type}.{self.cause}.cause_specific_mortality_rate"
+                )
+        else:
+            csmr_data = self._get_data_functions["cause_specific_mortality_rate"](
+                self.cause, builder
+            )
+        return csmr_data
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         population = self.population_view.subview(["age", "sex"]).get(pop_data.index)
 
         assert self.initial_state in {s.state_id for s in self.states}
@@ -136,29 +174,22 @@ class DiseaseModel(Machine):
             )
         self.population_view.update(condition_column)
 
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event) -> None:
         self.transition(event.index, event.time)
 
-    def on_time_step_cleanup(self, event):
+    def on_time_step_cleanup(self, event: Event) -> None:
         self.cleanup(event.index, event.time)
 
-    def load_cause_specific_mortality_rate_data(self, builder):
-        if "cause_specific_mortality_rate" not in self._get_data_functions:
-            only_morbid = builder.data.load(f"cause.{self.cause}.restrictions")["yld_only"]
-            if only_morbid:
-                csmr_data = 0
-            else:
-                csmr_data = builder.data.load(
-                    f"{self.cause_type}.{self.cause}.cause_specific_mortality_rate"
-                )
-        else:
-            csmr_data = self._get_data_functions["cause_specific_mortality_rate"](
-                self.cause, builder
-            )
-        return csmr_data
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
     def adjust_cause_specific_mortality_rate(self, index, rate):
         return rate + self.cause_specific_mortality_rate(index)
+
+    ####################
+    # Helper functions #
+    ####################
 
     def _get_default_initial_state(self):
         susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]

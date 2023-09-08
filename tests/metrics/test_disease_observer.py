@@ -27,12 +27,14 @@ def model(base_config, disease: str) -> DiseaseModel:
         "prevalence": lambda _, __: build_table(
             0.2, year_start - 1, year_end, ["age", "year", "sex", "value"]
         ),
-        "incidence": lambda _, __: build_table(
+    }
+    transition_get_data_funcs = {
+        "incidence_rate": lambda _, __: build_table(
             0.9, year_start - 1, year_end, ["age", "year", "sex", "value"]
         ),
     }
     with_condition = DiseaseState("with_condition", get_data_functions=disease_get_data_funcs)
-    healthy.add_transition(with_condition)
+    healthy.add_rate_transition(with_condition, transition_get_data_funcs)
     return DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
 
 
