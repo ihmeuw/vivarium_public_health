@@ -8,14 +8,16 @@ by specified characteristics through the vivarium results interface.
 """
 
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 
 
-class ResultsStratifier:
+class ResultsStratifier(Component):
     name = "results_stratifier"
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.age_bins = self.get_age_bins(builder)
         self.start_year = builder.configuration.time.start.year
         self.end_year = builder.configuration.time.end.year
@@ -66,6 +68,10 @@ class ResultsStratifier:
         builder.results.register_stratification(
             "sex", ["Female", "Male"], requires_columns=["sex"]
         )
+
+    ###########
+    # Mappers #
+    ###########
 
     def map_age_groups(self, pop: pd.DataFrame) -> pd.Series:
         """Map age with age group name strings

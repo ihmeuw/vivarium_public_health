@@ -10,20 +10,15 @@ in the simulation.
 from typing import List
 
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.values import (
-    NumberLike,
-    Pipeline,
-    list_combiner,
-    rescale_post_processor,
-    union_post_processor,
-)
+from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.utilities import to_years
 
 
-class DisabilityObserver:
+class DisabilityObserver(Component):
     """Counts years lived with disability.
 
     By default, this counts both aggregate and cause-specific years lived
@@ -43,7 +38,7 @@ class DisabilityObserver:
                         - "sample_stratification"
     """
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "stratification": {
             "disability": {
                 "exclude": [],
@@ -52,22 +47,25 @@ class DisabilityObserver:
         }
     }
 
-    def __init__(self):
-        self.disability_weight_pipeline_name = "disability_weight"
-
-    def __repr__(self):
-        return "DisabilityObserver()"
-
-    @property
-    def name(self):
-        return "disability_observer"
+    ##############
+    # Properties #
+    ##############
 
     @property
     def disease_classes(self) -> List:
         return [DiseaseState, RiskAttributableDisease]
 
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self):
+        super().__init__()
+        self.disability_weight_pipeline_name = "disability_weight"
+
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.config = builder.configuration.stratification.disability
         self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
         self.disability_weight = self.get_disability_weight_pipeline(builder)
@@ -77,7 +75,7 @@ class DisabilityObserver:
             name="ylds_due_to_all_causes",
             pop_filter='tracked == True and alive == "alive"',
             aggregator_sources=[self.disability_weight_pipeline_name],
-            aggregator=self._disability_weight_aggregator,
+            aggregator=self.disability_weight_aggregator,
             requires_columns=["alive"],
             requires_values=["disability_weight"],
             additional_stratifications=self.config.include,
@@ -93,13 +91,17 @@ class DisabilityObserver:
                 name=f"ylds_due_to_{cause_state.state_id}",
                 pop_filter='tracked == True and alive == "alive"',
                 aggregator_sources=[cause_disability_weight_pipeline_name],
-                aggregator=self._disability_weight_aggregator,
+                aggregator=self.disability_weight_aggregator,
                 requires_columns=["alive"],
                 requires_values=[cause_disability_weight_pipeline_name],
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
             )
+
+    #################
+    # Setup methods #
+    #################
 
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
@@ -109,5 +111,9 @@ class DisabilityObserver:
             preferred_post_processor=union_post_processor,
         )
 
-    def _disability_weight_aggregator(self, dw: pd.DataFrame) -> float:
+    ###############
+    # Aggregators #
+    ###############
+
+    def disability_weight_aggregator(self, dw: pd.DataFrame) -> float:
         return (dw * to_years(self.step_size)).sum().squeeze()
