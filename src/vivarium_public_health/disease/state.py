@@ -179,8 +179,7 @@ class BaseDiseaseState(State):
         return transition
 
 
-# TODO is there a better name for the union of susceptible and recovered?
-class UninfectedState(BaseDiseaseState):
+class NonDiseasedState(BaseDiseaseState):
     ##################
     # Public methods #
     ##################
@@ -202,7 +201,7 @@ class UninfectedState(BaseDiseaseState):
         return super().add_rate_transition(output, get_data_functions, **kwargs)
 
 
-class SusceptibleState(UninfectedState):
+class SusceptibleState(NonDiseasedState):
     #####################
     # Lifecycle methods #
     #####################
@@ -213,7 +212,7 @@ class SusceptibleState(UninfectedState):
         super().__init__(state_id, **kwargs)
 
 
-class RecoveredState(UninfectedState):
+class RecoveredState(NonDiseasedState):
     def __init__(self, state_id, **kwargs):
         if not state_id.startswith("recovered_from_"):
             state_id = f"recovered_from_{state_id}"

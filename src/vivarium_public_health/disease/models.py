@@ -18,38 +18,31 @@ from vivarium_public_health.disease.state import (
 
 
 def SI(cause: str) -> DiseaseModel:
-    healthy = SusceptibleState(cause)
-    infected = DiseaseState(cause)
+    healthy = SusceptibleState(cause, allow_self_transition=True)
+    infected = DiseaseState(cause, allow_self_transition=True)
 
-    healthy.allow_self_transitions()
-    healthy.add_transition(infected, source_data_type="rate")
-    infected.allow_self_transitions()
+    healthy.add_rate_transition(infected)
 
     return DiseaseModel(cause, states=[healthy, infected])
 
 
 def SIR(cause: str) -> DiseaseModel:
-    healthy = SusceptibleState(cause)
-    infected = DiseaseState(cause)
-    recovered = RecoveredState(cause)
+    healthy = SusceptibleState(cause, allow_self_transition=True)
+    infected = DiseaseState(cause, allow_self_transition=True)
+    recovered = RecoveredState(cause, allow_self_transition=True)
 
-    healthy.allow_self_transitions()
-    healthy.add_transition(infected, source_data_type="rate")
-    infected.allow_self_transitions()
-    infected.add_transition(recovered, source_data_type="rate")
-    recovered.allow_self_transitions()
+    healthy.add_rate_transition(infected)
+    infected.add_rate_transition(recovered)
 
     return DiseaseModel(cause, states=[healthy, infected, recovered])
 
 
 def SIS(cause: str) -> DiseaseModel:
-    healthy = SusceptibleState(cause)
-    infected = DiseaseState(cause)
+    healthy = SusceptibleState(cause, allow_self_transition=True)
+    infected = DiseaseState(cause, allow_self_transition=True)
 
-    healthy.allow_self_transitions()
-    healthy.add_transition(infected, source_data_type="rate")
-    infected.allow_self_transitions()
-    infected.add_transition(healthy, source_data_type="rate")
+    healthy.add_rate_transition(infected)
+    infected.add_rate_transition(healthy)
 
     return DiseaseModel(cause, states=[healthy, infected])
 
@@ -57,13 +50,15 @@ def SIS(cause: str) -> DiseaseModel:
 def SIS_fixed_duration(cause: str, duration: str) -> DiseaseModel:
     duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
 
-    healthy = SusceptibleState(cause)
-    infected = DiseaseState(cause, get_data_functions={"dwell_time": lambda _, __: duration})
+    healthy = SusceptibleState(cause, allow_self_transition=True)
+    infected = DiseaseState(
+        cause,
+        get_data_functions={"dwell_time": lambda _, __: duration},
+        allow_self_transition=True,
+    )
 
-    healthy.allow_self_transitions()
-    healthy.add_transition(infected, source_data_type="rate")
-    infected.add_transition(healthy)
-    infected.allow_self_transitions()
+    healthy.add_rate_transition(infected)
+    infected.add_dwell_time_transition(healthy)
 
     return DiseaseModel(cause, states=[healthy, infected])
 
@@ -71,15 +66,16 @@ def SIS_fixed_duration(cause: str, duration: str) -> DiseaseModel:
 def SIR_fixed_duration(cause: str, duration: str) -> DiseaseModel:
     duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
 
-    healthy = SusceptibleState(cause)
-    infected = DiseaseState(cause, get_data_functions={"dwell_time": lambda _, __: duration})
-    recovered = RecoveredState(cause)
+    healthy = SusceptibleState(cause, allow_self_transition=True)
+    infected = DiseaseState(
+        cause,
+        get_data_functions={"dwell_time": lambda _, __: duration},
+        allow_self_transition=True,
+    )
+    recovered = RecoveredState(cause, allow_self_transition=True)
 
-    healthy.allow_self_transitions()
-    healthy.add_transition(infected, source_data_type="rate")
-    infected.add_transition(recovered)
-    infected.allow_self_transitions()
-    recovered.allow_self_transitions()
+    healthy.add_rate_transition(infected)
+    infected.add_dwell_time_transition(recovered)
 
     return DiseaseModel(cause, states=[healthy, infected, recovered])
 
@@ -91,11 +87,10 @@ def NeonatalSWC_without_incidence(cause):
         )
     }
 
-    healthy = SusceptibleState(cause)
-    with_condition = DiseaseState(cause, get_data_functions=with_condition_data_functions)
-
-    healthy.allow_self_transitions()
-    with_condition.allow_self_transitions()
+    healthy = SusceptibleState(cause, allow_self_transition=True)
+    with_condition = DiseaseState(
+        cause, get_data_functions=with_condition_data_functions, allow_self_transition=True
+    )
 
     return DiseaseModel(cause, states=[healthy, with_condition])
 
@@ -107,11 +102,11 @@ def NeonatalSWC_with_incidence(cause):
         )
     }
 
-    healthy = SusceptibleState(cause)
-    with_condition = DiseaseState(cause, get_data_functions=with_condition_data_functions)
+    healthy = SusceptibleState(cause, allow_self_transition=True)
+    with_condition = DiseaseState(
+        cause, get_data_functions=with_condition_data_functions, allow_self_transition=True
+    )
 
-    healthy.allow_self_transitions()
-    healthy.add_transition(with_condition, source_data_type="rate")
-    with_condition.allow_self_transitions()
+    healthy.add_rate_transition(with_condition)
 
     return DiseaseModel(cause, states=[healthy, with_condition])

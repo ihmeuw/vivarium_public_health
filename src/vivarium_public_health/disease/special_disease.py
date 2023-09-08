@@ -219,6 +219,72 @@ class RiskAttributableDisease(Component):
             distribution, exposure_pipeline, threshold
         )
 
+    #################
+    # Setup methods #
+    #################
+
+    def adjust_state_and_transitions(self):
+        if self.recoverable:
+            self._transition_names.append(
+                TransitionString(f"{self.cause.name}_TO_susceptible_to_{self.cause.name}")
+            )
+
+    def load_cause_specific_mortality_rate_data(self, builder):
+        if builder.configuration[self.cause.name].mortality:
+            csmr_data = builder.data.load(
+                f"cause.{self.cause.name}.cause_specific_mortality_rate"
+            )
+        else:
+            csmr_data = 0
+        return csmr_data
+
+    def load_excess_mortality_rate_data(self, builder):
+        if builder.configuration[self.cause.name].mortality:
+            emr_data = builder.data.load(f"cause.{self.cause.name}.excess_mortality_rate")
+        else:
+            emr_data = 0
+        return emr_data
+
+    def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
+        if distribution in ["dichotomous", "ordered_polytomous", "unordered_polytomous"]:
+
+            def categorical_filter(index):
+                exposure = exposure_pipeline(index)
+                return exposure.isin(threshold)
+
+            filter_function = categorical_filter
+
+        else:  # continuous
+            Threshold = namedtuple("Threshold", ["operator", "value"])
+            threshold_val = re.findall(r"[-+]?\d*\.?\d+", threshold)
+
+            if len(threshold_val) != 1:
+                raise ValueError(
+                    f"Your {threshold} is an incorrect threshold format. It should include "
+                    f'"<" or ">" along with an integer or float number. Your threshold does not '
+                    f"include a number or more than one number."
+                )
+
+            allowed_operator = {"<", ">"}
+            threshold_op = [s for s in threshold.split(threshold_val[0]) if s]
+            #  if threshold_op has more than 1 operators or 0 operator
+            if len(threshold_op) != 1 or not allowed_operator.intersection(threshold_op):
+                raise ValueError(
+                    f"Your {threshold} is an incorrect threshold format. It should include "
+                    f'"<" or ">" along with an integer or float number.'
+                )
+
+            op = gt if threshold_op[0] == ">" else lt
+            threshold = Threshold(op, float(threshold_val[0]))
+
+            def continuous_filter(index):
+                exposure = exposure_pipeline(index)
+                return threshold.operator(exposure, threshold.value)
+
+            filter_function = continuous_filter
+
+        return filter_function
+
     ########################
     # Event-driven methods #
     ########################
@@ -305,66 +371,3 @@ class RiskAttributableDisease(Component):
             (pop[self.cause.name] == self.cause.name) & (pop["alive"] == "alive")
         ].index
         return with_condition
-
-    def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
-        if distribution in ["dichotomous", "ordered_polytomous", "unordered_polytomous"]:
-
-            def categorical_filter(index):
-                exposure = exposure_pipeline(index)
-                return exposure.isin(threshold)
-
-            filter_function = categorical_filter
-
-        else:  # continuous
-            Threshold = namedtuple("Threshold", ["operator", "value"])
-            threshold_val = re.findall(r"[-+]?\d*\.?\d+", threshold)
-
-            if len(threshold_val) != 1:
-                raise ValueError(
-                    f"Your {threshold} is an incorrect threshold format. It should include "
-                    f'"<" or ">" along with an integer or float number. Your threshold does not '
-                    f"include a number or more than one number."
-                )
-
-            allowed_operator = {"<", ">"}
-            threshold_op = [s for s in threshold.split(threshold_val[0]) if s]
-            #  if threshold_op has more than 1 operators or 0 operator
-            if len(threshold_op) != 1 or not allowed_operator.intersection(threshold_op):
-                raise ValueError(
-                    f"Your {threshold} is an incorrect threshold format. It should include "
-                    f'"<" or ">" along with an integer or float number.'
-                )
-
-            op = gt if threshold_op[0] == ">" else lt
-            threshold = Threshold(op, float(threshold_val[0]))
-
-            def continuous_filter(index):
-                exposure = exposure_pipeline(index)
-                return threshold.operator(exposure, threshold.value)
-
-            filter_function = continuous_filter
-
-        return filter_function
-
-    # todo: reorder these methods to make it easier to understand what they are each doing
-    def adjust_state_and_transitions(self):
-        if self.recoverable:
-            self._transition_names.append(
-                TransitionString(f"{self.cause.name}_TO_susceptible_to_{self.cause.name}")
-            )
-
-    def load_cause_specific_mortality_rate_data(self, builder):
-        if builder.configuration[self.cause.name].mortality:
-            csmr_data = builder.data.load(
-                f"cause.{self.cause.name}.cause_specific_mortality_rate"
-            )
-        else:
-            csmr_data = 0
-        return csmr_data
-
-    def load_excess_mortality_rate_data(self, builder):
-        if builder.configuration[self.cause.name].mortality:
-            emr_data = builder.data.load(f"cause.{self.cause.name}.excess_mortality_rate")
-        else:
-            emr_data = 0
-        return emr_data
