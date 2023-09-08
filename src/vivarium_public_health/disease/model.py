@@ -53,7 +53,9 @@ class DiseaseModel(Machine):
 
     @property
     def transition_names(self) -> List[TransitionString]:
-        return [state_name for state in self.states for state_name in state.get_transition_names()]
+        return [
+            state_name for state in self.states for state_name in state.get_transition_names()
+        ]
 
     #####################
     # Lifecycle methods #
