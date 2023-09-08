@@ -6,21 +6,16 @@ Risk Observers
 This module contains tools for observing risk exposure during the simulation.
 
 """
-from collections import Counter
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from vivarium.config_tree import ConfigTree
+from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import PopulationView
-from vivarium.framework.values import Pipeline
 
-from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.utilities import to_years
 
 
-class CategoricalRiskObserver:
+class CategoricalRiskObserver(Component):
     """An observer for a categorical risk factor.
 
     Observes category person time for a risk factor.
@@ -44,7 +39,7 @@ class CategoricalRiskObserver:
                         - "sample_stratification"
     """
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "stratification": {
             "risk": {
                 "exclude": [],
@@ -52,6 +47,30 @@ class CategoricalRiskObserver:
             }
         }
     }
+
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        """
+        A dictionary containing the defaults for any configurations managed by
+        this component.
+        """
+        return {
+            "stratification": {
+                f"{self.risk}": self.CONFIGURATION_DEFAULTS["stratification"]["risk"]
+            }
+        }
+
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return ["alive"]
+
+    #####################
+    # Lifecycle methods #
+    #####################
 
     def __init__(self, risk: str):
         """
@@ -61,48 +80,16 @@ class CategoricalRiskObserver:
         name of a risk
 
         """
+        super().__init__()
         self.risk = risk
-        self.configuration_defaults = self._get_configuration_defaults()
-
         self.exposure_pipeline_name = f"{self.risk}.exposure"
 
-    def __repr__(self):
-        return f"CategoricalRiskObserver({self.risk})"
-
-    ##########################
-    # Initialization methods #
-    ##########################
-
-    # noinspection PyMethodMayBeStatic
-    def _get_configuration_defaults(self) -> Dict[str, Dict]:
-        return {
-            "stratification": {
-                f"{self.risk}": CategoricalRiskObserver.configuration_defaults[
-                    "stratification"
-                ]["risk"]
-            }
-        }
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def name(self):
-        return f"categorical_risk_observer.{self.risk}"
-
-    #################
-    # Setup methods #
-    #################
-
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification[self.risk]
         self.categories = builder.data.load(f"risk_factor.{self.risk}.categories")
-
-        columns_required = ["alive"]
-        self.population_view = builder.population.get_view(columns_required)
 
         for category in self.categories:
             builder.results.register_observation(
@@ -116,8 +103,9 @@ class CategoricalRiskObserver:
                 when="time_step__prepare",
             )
 
+    ###############
+    # Aggregators #
+    ###############
+
     def aggregate_risk_category_person_time(self, x: pd.DataFrame) -> float:
         return len(x) * to_years(self.step_size())
-
-    def _get_stratification_configuration(self, builder: Builder) -> ConfigTree:
-        return builder.configuration.observers[self.risk]
