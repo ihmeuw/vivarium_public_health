@@ -7,19 +7,16 @@ This module contains tools for observing cause-specific and
 excess mortality in the simulation, including "other causes".
 
 """
-from collections import Counter
-from typing import Dict, List, Union
+from typing import List, Optional
 
 import pandas as pd
-from vivarium.framework.engine import Builder, ConfigTree
-from vivarium.framework.event import Event
-from vivarium.framework.population import PopulationView
+from vivarium import Component
+from vivarium.framework.engine import Builder
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from vivarium_public_health.metrics.stratification import ResultsStratifier
 
 
-class MortalityObserver:
+class MortalityObserver(Component):
     """An observer for cause-specific deaths and ylls (including "other causes").
 
     By default, this counts cause-specific deaths and years of life lost over
@@ -45,7 +42,7 @@ class MortalityObserver:
     As a result, the model specification should list this observer after causes.
     """
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "stratification": {
             "mortality": {
                 "exclude": [],
@@ -54,23 +51,26 @@ class MortalityObserver:
         }
     }
 
-    def __repr__(self):
-        return "MortalityObserver()"
-
     ##############
     # Properties #
     ##############
 
     @property
-    def name(self):
-        return "mortality_observer"
+    def columns_required(self) -> Optional[List[str]]:
+        return [
+            "alive",
+            "years_of_life_lost",
+            "cause_of_death",
+            "exit_time",
+        ]
 
-    #################
-    # Setup methods #
-    #################
+    #####################
+    # Lifecycle methods #
+    #####################
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.clock = builder.time.clock()
         self.config = builder.configuration.stratification.mortality
         self._cause_components = builder.components.get_components_by_type(
@@ -79,15 +79,6 @@ class MortalityObserver:
         self.causes_of_death = ["other_causes"] + [
             cause.state_id for cause in self._cause_components if cause.has_excess_mortality
         ]
-
-        columns_required = [
-            "alive",
-            "years_of_life_lost",
-            "cause_of_death",
-            "exit_time",
-        ]
-
-        self.population_view = builder.population.get_view(columns_required)
 
         for cause_of_death in self.causes_of_death:
             builder.results.register_observation(
@@ -113,6 +104,10 @@ class MortalityObserver:
                 excluded_stratifications=self.config.exclude,
                 when="collect_metrics",
             )
+
+    ###############
+    # Aggregators #
+    ###############
 
     def count_cause_specific_deaths(self, x: pd.DataFrame) -> float:
         died_of_cause = x["exit_time"] > self.clock()
