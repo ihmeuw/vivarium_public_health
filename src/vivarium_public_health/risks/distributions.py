@@ -12,7 +12,9 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 from risk_distributions import EnsembleDistribution, LogNormal, Normal
+from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.population import SimulantData
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import get_distribution_data
@@ -26,38 +28,60 @@ class MissingDataError(Exception):
 # FIXME: This is a hack.  It's wrapping up an adaptor pattern in another
 # adaptor pattern, which is gross, but would require some more difficult
 # refactoring which is thoroughly out of scope right now. -J.C. 8/25/19
-class SimulationDistribution:
+class SimulationDistribution(Component):
     """Wrapper around a variety of distribution implementations."""
 
-    def __init__(self, risk):
-        self.risk = risk
+    #####################
+    # Lifecycle methods #
+    #####################
 
-    @property
-    def name(self):
-        return f"{self.risk}.exposure_distribution"
+    def __init__(self, risk: str):
+        super().__init__()
+        self.risk = EntityString(risk)
 
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         distribution_data = get_distribution_data(builder, self.risk)
         self.implementation = get_distribution(self.risk, **distribution_data)
         self.implementation.setup(builder)
 
+    ##################
+    # Public methods #
+    ##################
+
     def ppf(self, q):
         return self.implementation.ppf(q)
 
-    def __repr__(self):
-        return f"ExposureDistribution({self.risk})"
 
-
-class EnsembleSimulation:
-    def __init__(self, risk, weights, mean, sd):
-        self.risk = risk
-        self._weights, self._parameters = self._get_parameters(weights, mean, sd)
+class EnsembleSimulation(Component):
+    ##############
+    # Properties #
+    ##############
 
     @property
-    def name(self):
-        return f"ensemble_simulation.{self.risk}"
+    def columns_created(self) -> List[str]:
+        return [self._propensity]
 
-    def setup(self, builder):
+    @property
+    def initialization_requirements(self) -> Dict[str, List[str]]:
+        return {
+            "requires_columns": [],
+            "requires_values": [],
+            "requires_streams": [self._propensity],
+        }
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self, risk, weights, mean, sd):
+        super().__init__()
+        self.risk = EntityString(risk)
+        self._weights, self._parameters = self.get_parameters(weights, mean, sd)
+        self._propensity = f"ensemble_propensity_{self.risk}"
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.weights = builder.lookup.build_table(
             self._weights, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -68,24 +92,13 @@ class EnsembleSimulation:
             for k, v in self._parameters.items()
         }
 
-        self._propensity = f"ensemble_propensity_{self.risk}"
         self.randomness = builder.randomness.get_stream(self._propensity)
 
-        self.population_view = builder.population.get_view([self._propensity])
+    ##########################
+    # Initialization methods #
+    ##########################
 
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=[self._propensity],
-            requires_streams=[self._propensity],
-        )
-
-    def on_initialize_simulants(self, pop_data):
-        ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(
-            self._propensity
-        )
-        self.population_view.update(ensemble_propensity)
-
-    def _get_parameters(self, weights, mean, sd):
+    def get_parameters(self, weights, mean, sd):
         index_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
         weights = weights.set_index(index_cols)
         mean = mean.set_index(index_cols)["value"]
@@ -94,6 +107,20 @@ class EnsembleSimulation:
         return weights.reset_index(), {
             name: p.reset_index() for name, p in parameters.items()
         }
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(
+            self._propensity
+        )
+        self.population_view.update(ensemble_propensity)
+
+    ##################
+    # Public methods #
+    ##################
 
     def ppf(self, q):
         if not q.empty:
@@ -109,74 +136,71 @@ class EnsembleSimulation:
             x = pd.Series([])
         return x
 
-    def __repr__(self):
-        return f"EnsembleSimulation(risk={self.risk})"
 
+class ContinuousDistribution(Component):
+    #####################
+    # Lifecycle methods #
+    #####################
 
-class ContinuousDistribution:
     def __init__(self, risk, mean, sd, distribution=None):
-        self.risk = risk
-        self.distribution = distribution
-        self._parameters = self._get_parameters(mean, sd)
+        super().__init__()
+        self.risk = EntityString(risk)
+        self._distribution = distribution
+        self._parameters = self.get_parameters(mean, sd)
 
-    @property
-    def name(self):
-        return f"simulation_distribution.{self.risk}"
-
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.parameters = builder.lookup.build_table(
             self._parameters, key_columns=["sex"], parameter_columns=["age", "year"]
         )
 
-    def _get_parameters(self, mean, sd):
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    def get_parameters(self, mean, sd):
         index = ["sex", "age_start", "age_end", "year_start", "year_end"]
         mean = mean.set_index(index)["value"]
         sd = sd.set_index(index)["value"]
-        return self.distribution.get_parameters(mean=mean, sd=sd).reset_index()
+        return self._distribution.get_parameters(mean=mean, sd=sd).reset_index()
+
+    ##################
+    # Public methods #
+    ##################
 
     def ppf(self, q):
         if not q.empty:
             q = clip(q)
-            x = self.distribution(parameters=self.parameters(q.index)).ppf(q)
+            x = self._distribution(parameters=self.parameters(q.index)).ppf(q)
             x[x.isnull()] = 0
         else:
             x = pd.Series([])
         return x
 
-    def __repr__(self):
-        return f"SimulationDistribution(risk={self.risk}, distribution={self.distribution.__name__.lower()})"
 
+class PolytomousDistribution(Component):
+    #####################
+    # Lifecycle methods #
+    #####################
 
-class PolytomousDistribution:
     def __init__(self, risk: str, exposure_data: pd.DataFrame):
-        self.risk = risk
-        self.exposure_data = exposure_data
-
+        super().__init__()
+        self.risk = EntityString(risk)
+        self._exposure_data = exposure_data
         self.exposure_parameters_pipeline_name = f"{self.risk}.exposure_parameters"
 
-    def __repr__(self):
-        return f"PolytomousDistribution(risk={self.risk})"
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def name(self):
-        return f"polytomous_distribution.{self.risk}"
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder) -> None:
+        self.categories = self.get_categories()
+        self.exposure = self.get_exposure_parameters(builder)
 
     #################
     # Setup methods #
     #################
 
-    # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder) -> None:
-        self.categories = self._get_categories()
-        self.exposure = self.get_exposure_parameters(builder)
-
-    def _get_categories(self) -> List[str]:
+    def get_categories(self) -> List[str]:
         return sorted(
-            [column for column in self.exposure_data if "cat" in column],
+            [column for column in self._exposure_data if "cat" in column],
             key=lambda column: int(column[3:]),
         )
 
@@ -184,7 +208,7 @@ class PolytomousDistribution:
         return builder.value.register_value_producer(
             self.exposure_parameters_pipeline_name,
             source=builder.lookup.build_table(
-                self.exposure_data,
+                self._exposure_data,
                 key_columns=["sex"],
                 parameter_columns=["age", "year"],
             ),
@@ -210,19 +234,20 @@ class PolytomousDistribution:
         )
 
 
-class DichotomousDistribution:
-    def __init__(self, risk: str, exposure_data: pd.DataFrame):
-        self.risk = risk
-        self.exposure_data = exposure_data.drop(columns="cat2")
+class DichotomousDistribution(Component):
+    #####################
+    # Lifecycle methods #
+    #####################
 
-    @property
-    def name(self):
-        return f"dichotomous_distribution.{self.risk}"
+    def __init__(self, risk: str, exposure_data: pd.DataFrame):
+        super().__init__()
+        self.risk = risk
+        self._exposure_data = exposure_data.drop(columns="cat2")
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder):
+    def setup(self, builder: Builder) -> None:
         self._base_exposure = builder.lookup.build_table(
-            self.exposure_data, key_columns=["sex"], parameter_columns=["age", "year"]
+            self._exposure_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         self.exposure_proportion = builder.value.register_value_producer(
             f"{self.risk}.exposure_parameters", source=self.exposure
@@ -235,10 +260,18 @@ class DichotomousDistribution:
             preferred_post_processor=union_post_processor,
         )
 
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
+
     def exposure(self, index: pd.Index) -> pd.Series:
         base_exposure = self._base_exposure(index).values
         joint_paf = self.joint_paf(index).values
         return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
+
+    ##################
+    # Public methods #
+    ##################
 
     def ppf(self, x: pd.Series) -> pd.Series:
         exposed = x < self.exposure_proportion(x.index)
@@ -247,9 +280,6 @@ class DichotomousDistribution:
             name=self.risk + ".exposure",
             index=x.index,
         )
-
-    def __repr__(self):
-        return f"DichotomousDistribution(risk={self.risk})"
 
 
 def get_distribution(risk, distribution_type, exposure, exposure_standard_deviation, weights):
