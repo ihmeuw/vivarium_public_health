@@ -9,14 +9,16 @@ variety of reasons why a treatment algorithm might deviate from guidelines.
 """
 import pandas as pd
 import scipy.stats
+from vivarium import Component
+from vivarium.framework.engine import Builder
 
 
-class TherapeuticInertia:
+class TherapeuticInertia(Component):
     """Expose a therapeutic inertia pipeline that defines
     a population-level therapeutic inertia.
     This is the probability of treatment during a healthcare visit."""
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "therapeutic_inertia": {
             "triangle_min": 0.65,
             "triangle_max": 0.9,
@@ -24,11 +26,19 @@ class TherapeuticInertia:
         }
     }
 
-    @property
-    def name(self):
-        return "therapeutic_inertia"
+    def __str__(self):
+        return (
+            f"TherapeuticInertia(triangle_min={self.therapeutic_inertia_parameters.triangle_min}, "
+            f"triangle_max={self.therapeutic_inertia_parameters.triangle_max}, "
+            f"triangle_mode={self.therapeutic_inertia_parameters.triangle_mode})"
+        )
 
-    def setup(self, builder):
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.therapeutic_inertia_parameters = builder.configuration.therapeutic_inertia
 
         self._therapeutic_inertia = self.initialize_therapeutic_inertia(builder)
@@ -36,6 +46,10 @@ class TherapeuticInertia:
         self.therapeutic_inertia = builder.value.register_value_producer(
             "therapeutic_inertia", source=ti_source
         )
+
+    #################
+    # Setup methods #
+    #################
 
     def initialize_therapeutic_inertia(self, builder):
         triangle_min = self.therapeutic_inertia_parameters.triangle_min
@@ -56,13 +70,3 @@ class TherapeuticInertia:
         )
 
         return therapeutic_inertia
-
-    def __str__(self):
-        return (
-            f"TherapeuticInertia(triangle_min={self.therapeutic_inertia_parameters.triangle_min}, "
-            f"triangle_max={self.therapeutic_inertia_parameters.triangle_max}, "
-            f"triangle_mode={self.therapeutic_inertia_parameters.triangle_mode})"
-        )
-
-    def __repr__(self):
-        return "TherapeuticInertia()"
