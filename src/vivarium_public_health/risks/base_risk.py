@@ -7,11 +7,12 @@ This module contains tools for modeling categorical and continuous risk
 exposure.
 
 """
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.population import PopulationView, SimulantData
+from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
@@ -22,7 +23,7 @@ from vivarium_public_health.risks.distributions import SimulationDistribution
 from vivarium_public_health.utilities import EntityString
 
 
-class Risk:
+class Risk(Component):
     """A model for a risk factor defined by either a continuous or a categorical
     value. For example,
 
@@ -80,13 +81,37 @@ class Risk:
 
     """
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "risk": {
             "exposure": "data",
             "rebinned_exposed": [],
             "category_thresholds": [],
         }
     }
+
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {self.risk.name: self.CONFIGURATION_DEFAULTS["risk"]}
+
+    @property
+    def columns_created(self) -> List[str]:
+        return [self.propensity_column_name]
+
+    @property
+    def initialization_requirements(self) -> Dict[str, List[str]]:
+        return {
+            "requires_columns": [],
+            "requires_values": [],
+            "requires_streams": [self.randomness_stream_name],
+        }
+
+    #####################
+    # Lifecycle methods #
+    #####################
 
     def __init__(self, risk: str):
         """
@@ -95,58 +120,38 @@ class Risk:
         risk :
             the type and name of a risk, specified as "type.name". Type is singular.
         """
+        super().__init__()
         self.risk = EntityString(risk)
-        self.configuration_defaults = self._get_configuration_defaults()
-        self.exposure_distribution = self._get_exposure_distribution()
+        self.exposure_distribution = self.get_exposure_distribution()
         self._sub_components = [self.exposure_distribution]
 
-        self._randomness_stream_name = f"initial_{self.risk.name}_propensity"
+        self.randomness_stream_name = f"initial_{self.risk.name}_propensity"
         self.propensity_column_name = f"{self.risk.name}_propensity"
         self.propensity_pipeline_name = f"{self.risk.name}.propensity"
         self.exposure_pipeline_name = f"{self.risk.name}.exposure"
 
-    def __repr__(self) -> str:
-        return f"Risk({self.risk})"
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.randomness = self.get_randomness_stream(builder)
+        self.propensity = self.get_propensity_pipeline(builder)
+        self.exposure = self.get_exposure_pipeline(builder)
 
     ##########################
     # Initialization methods #
     ##########################
 
-    def _get_configuration_defaults(self) -> Dict[str, Dict]:
-        return {self.risk.name: Risk.configuration_defaults["risk"]}
-
-    def _get_exposure_distribution(self) -> SimulationDistribution:
+    def get_exposure_distribution(self) -> SimulationDistribution:
         return SimulationDistribution(self.risk)
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def name(self) -> str:
-        return f"risk.{self.risk}"
-
-    @property
-    def sub_components(self) -> List:
-        return self._sub_components
 
     #################
     # Setup methods #
     #################
 
-    # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder) -> None:
-        self.randomness = self._get_randomness_stream(builder)
-        self.propensity = self._get_propensity_pipeline(builder)
-        self.exposure = self._get_exposure_pipeline(builder)
-        self.population_view = self._get_population_view(builder)
+    def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
+        return builder.randomness.get_stream(self.randomness_stream_name)
 
-        self._register_simulant_initializer(builder)
-
-    def _get_randomness_stream(self, builder) -> RandomnessStream:
-        return builder.randomness.get_stream(self._randomness_stream_name)
-
-    def _get_propensity_pipeline(self, builder: Builder) -> Pipeline:
+    def get_propensity_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.propensity_pipeline_name,
             source=lambda index: (
@@ -157,23 +162,13 @@ class Risk:
             requires_columns=[self.propensity_column_name],
         )
 
-    def _get_exposure_pipeline(self, builder: Builder) -> Pipeline:
+    def get_exposure_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.exposure_pipeline_name,
-            source=self._get_current_exposure,
+            source=self.get_current_exposure,
             requires_columns=["age", "sex"],
             requires_values=[self.propensity_pipeline_name],
             preferred_post_processor=get_exposure_post_processor(builder, self.risk),
-        )
-
-    def _get_population_view(self, builder: Builder) -> PopulationView:
-        return builder.population.get_view([self.propensity_column_name])
-
-    def _register_simulant_initializer(self, builder: Builder) -> None:
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=[self.propensity_column_name],
-            requires_streams=[self._randomness_stream_name],
         )
 
     ########################
@@ -191,6 +186,6 @@ class Risk:
     # Pipeline sources and modifiers #
     ##################################
 
-    def _get_current_exposure(self, index: pd.Index) -> pd.Series:
+    def get_current_exposure(self, index: pd.Index) -> pd.Series:
         propensity = self.propensity(index)
         return pd.Series(self.exposure_distribution.ppf(propensity), index=index)
