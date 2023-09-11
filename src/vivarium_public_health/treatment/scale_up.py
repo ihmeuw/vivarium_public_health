@@ -7,19 +7,19 @@ This module contains tools for applying a linear scale-up to an intervention
 
 """
 from datetime import datetime
-from typing import Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.population import PopulationView
 from vivarium.framework.time import Time, get_time_stamp
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.utilities import EntityString
 
 
-class LinearScaleUp:
+class LinearScaleUp(Component):
     """
     A model for applying a linear scale-up to an intervention.
 
@@ -50,7 +50,7 @@ class LinearScaleUp:
 
     """
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "treatment": {
             "date": {
                 "start": "start",
@@ -63,6 +63,22 @@ class LinearScaleUp:
         }
     }
 
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {self.configuration_key: self.CONFIGURATION_DEFAULTS["treatment"]}
+
+    @property
+    def configuration_key(self) -> str:
+        return f"{self.treatment.name}_scale_up"
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
     def __init__(self, treatment: str):
         """
         Parameters
@@ -70,27 +86,8 @@ class LinearScaleUp:
         treatment :
             the type and name of a treatment, specified as "type.name". Type is singular.
         """
+        super().__init__()
         self.treatment = EntityString(treatment)
-        self.configuration_defaults = self._get_configuration_defaults()
-
-    ##########################
-    # Initialization methods #
-    ##########################
-
-    def _get_configuration_defaults(self) -> Dict[str, Dict]:
-        return {self.configuration_key: LinearScaleUp.configuration_defaults["treatment"]}
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def name(self) -> str:
-        return f"{self.treatment.name}_intervention"
-
-    @property
-    def configuration_key(self) -> str:
-        return f"{self.treatment.name}_scale_up"
 
     #################
     # Setup methods #
@@ -99,31 +96,26 @@ class LinearScaleUp:
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
-        self.is_intervention_scenario = self._get_is_intervention_scenario(builder)
-        self.clock = self._get_clock(builder)
-        self.scale_up_start_date, self.scale_up_end_date = self._get_scale_up_dates(builder)
-        self.scale_up_start_value, self.scale_up_end_value = self._get_scale_up_values(
-            builder
-        )
+        super().setup(builder)
+        self.is_intervention_scenario = self.get_is_intervention_scenario(builder)
+        self.clock = self.get_clock(builder)
+        self.scale_up_start_date, self.scale_up_end_date = self.get_scale_up_dates(builder)
+        self.scale_up_start_value, self.scale_up_end_value = self.get_scale_up_values(builder)
 
-        required_columns = self._get_required_columns()
-        self.pipelines = self._get_required_pipelines(builder)
+        self.pipelines = self.get_required_pipelines(builder)
 
-        self._register_intervention_modifiers(builder)
-
-        if required_columns:
-            self.population_view = self._get_population_view(builder, required_columns)
+        self.register_intervention_modifiers(builder)
 
     # noinspection PyMethodMayBeStatic
-    def _get_is_intervention_scenario(self, builder: Builder) -> bool:
+    def get_is_intervention_scenario(self, builder: Builder) -> bool:
         return builder.configuration.intervention.scenario != "baseline"
 
     # noinspection PyMethodMayBeStatic
-    def _get_clock(self, builder: Builder) -> Callable[[], Time]:
+    def get_clock(self, builder: Builder) -> Callable[[], Time]:
         return builder.time.clock()
 
     # noinspection PyMethodMayBeStatic
-    def _get_scale_up_dates(self, builder: Builder) -> Tuple[datetime, datetime]:
+    def get_scale_up_dates(self, builder: Builder) -> Tuple[datetime, datetime]:
         scale_up_config = builder.configuration[self.configuration_key]["date"]
 
         def get_endpoint(endpoint_type: str) -> datetime:
@@ -135,12 +127,12 @@ class LinearScaleUp:
 
         return get_endpoint("start"), get_endpoint("end")
 
-    def _get_scale_up_values(self, builder: Builder) -> Tuple[LookupTable, LookupTable]:
+    def get_scale_up_values(self, builder: Builder) -> Tuple[LookupTable, LookupTable]:
         scale_up_config = builder.configuration[self.configuration_key]["value"]
 
         def get_endpoint_value(endpoint_type: str) -> LookupTable:
             if scale_up_config[endpoint_type] == "data":
-                endpoint = self._get_endpoint_value_from_data(builder, endpoint_type)
+                endpoint = self.get_endpoint_value_from_data(builder, endpoint_type)
             else:
                 endpoint = builder.lookup.build_table(scale_up_config[endpoint_type])
             return endpoint
@@ -148,30 +140,20 @@ class LinearScaleUp:
         return get_endpoint_value("start"), get_endpoint_value("end")
 
     # noinspection PyMethodMayBeStatic
-    def _get_required_columns(self) -> List[str]:
-        return []
-
-    # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def _get_required_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
+    def get_required_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
         return {}
 
-    def _register_intervention_modifiers(self, builder: Builder):
+    def register_intervention_modifiers(self, builder: Builder):
         builder.value.register_value_modifier(
             f"{self.treatment}.exposure_parameters",
-            modifier=self._coverage_effect,
+            modifier=self.coverage_effect,
         )
-
-    # noinspection PyMethodMayBeStatic
-    def _get_population_view(
-        self, builder: Builder, required_columns: List[str]
-    ) -> PopulationView:
-        return builder.population.get_view(required_columns)
 
     ##################################
     # Pipeline sources and modifiers #
     ##################################
 
-    def _coverage_effect(self, idx: pd.Index, target: pd.Series) -> pd.Series:
+    def coverage_effect(self, idx: pd.Index, target: pd.Series) -> pd.Series:
         if not self.is_intervention_scenario or self.clock() < self.scale_up_start_date:
             progress = 0.0
         elif self.scale_up_start_date <= self.clock() < self.scale_up_end_date:
@@ -181,14 +163,14 @@ class LinearScaleUp:
         else:
             progress = 1.0
 
-        target = self._apply_scale_up(idx, target, progress) if progress else target
+        target = self.apply_scale_up(idx, target, progress) if progress else target
         return target
 
     ##################
     # Helper methods #
     ##################
 
-    def _get_endpoint_value_from_data(
+    def get_endpoint_value_from_data(
         self, builder: Builder, endpoint_type: str
     ) -> LookupTable:
         if endpoint_type == "start":
@@ -201,7 +183,7 @@ class LinearScaleUp:
             )
         return builder.lookup.build_table(endpoint_data)
 
-    def _apply_scale_up(
+    def apply_scale_up(
         self, idx: pd.Index, target: pd.Series, scale_up_progress: float
     ) -> pd.Series:
         start_value = self.scale_up_start_value(idx)

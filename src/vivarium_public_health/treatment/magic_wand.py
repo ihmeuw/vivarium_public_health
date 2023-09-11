@@ -7,12 +7,16 @@ This module contains simple intervention models that work at the population
 level by providing direct shifts to epidemiological measures.
 
 """
+from typing import Any, Dict, List, Optional
+
+from vivarium import Component
+from vivarium.framework.engine import Builder
 
 from vivarium_public_health.utilities import TargetString
 
 
-class AbsoluteShift:
-    configuration_defaults = {
+class AbsoluteShift(Component):
+    CONFIGURATION_DEFAULTS = {
         "intervention": {
             "target_value": "baseline",
             "age_start": 0,
@@ -20,26 +24,40 @@ class AbsoluteShift:
         }
     }
 
-    def __init__(self, target):
-        self.target = TargetString(target)
-        self.configuration_defaults = {
-            f"intervention_on_{self.target.name}": AbsoluteShift.configuration_defaults[
-                "intervention"
-            ]
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {
+            f"intervention_on_{self.target.name}": self.CONFIGURATION_DEFAULTS["intervention"]
         }
 
     @property
-    def name(self):
-        return f"absolute_shift_wand.{self.target}"
+    def columns_required(self) -> Optional[List[str]]:
+        return ["age"]
 
-    def setup(self, builder):
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self, target: str):
+        super().__init__()
+        self.target = TargetString(target)
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.config = builder.configuration[f"intervention_on_{self.target.name}"]
         builder.value.register_value_modifier(
             f"{self.target.name}.{self.target.measure}",
             modifier=self.intervention_effect,
             requires_columns=["age"],
         )
-        self.population_view = builder.population.get_view(["age"])
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
     def intervention_effect(self, index, value):
         if self.config["target_value"] != "baseline":
