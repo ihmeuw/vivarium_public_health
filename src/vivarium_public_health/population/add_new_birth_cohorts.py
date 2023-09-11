@@ -6,8 +6,14 @@ Fertility Models
 This module contains several different models of fertility.
 
 """
+from typing import Dict, List, Optional
+
 import numpy as np
 import pandas as pd
+from vivarium import Component
+from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import (
@@ -18,20 +24,21 @@ from vivarium_public_health.population.data_transformations import (
 PREGNANCY_DURATION = pd.Timedelta(days=9 * utilities.DAYS_PER_MONTH)
 
 
-class FertilityDeterministic:
+class FertilityDeterministic(Component):
     """Deterministic model of births."""
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "fertility": {
             "number_of_new_simulants_each_year": 1000,
         },
     }
 
-    @property
-    def name(self):
-        return "deterministic_fertility"
+    #####################
+    # Lifecycle methods #
+    #####################
 
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.fractional_new_births = 0
         self.simulants_per_year = (
             builder.configuration.fertility.number_of_new_simulants_each_year
@@ -39,9 +46,11 @@ class FertilityDeterministic:
 
         self.simulant_creator = builder.population.get_simulant_creator()
 
-        builder.event.register_listener("time_step", self.on_time_step)
+    ########################
+    # Event-driven methods #
+    ########################
 
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event) -> None:
         """Adds a set number of simulants to the population each time step.
 
         Parameters
@@ -59,18 +68,15 @@ class FertilityDeterministic:
         if simulants_to_add > 0:
             self.simulant_creator(
                 simulants_to_add,
-                population_configuration={
+                {
                     "age_start": 0,
                     "age_end": 0,
                     "sim_state": "time_step",
                 },
             )
 
-    def __repr__(self):
-        return "FertilityDeterministic()"
 
-
-class FertilityCrudeBirthRate:
+class FertilityCrudeBirthRate(Component):
     """Population-level model of births using crude birth rate.
 
     The number of births added each time step is calculated as
@@ -97,27 +103,30 @@ class FertilityCrudeBirthRate:
 
     """
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "fertility": {
             "time_dependent_live_births": True,
             "time_dependent_population_fraction": False,
         }
     }
 
-    @property
-    def name(self):
-        return "crude_birthrate_fertility"
+    #####################
+    # Lifecycle methods #
+    #####################
 
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         self.birth_rate = get_live_births_per_year(builder)
 
         self.clock = builder.time.clock()
         self.randomness = builder.randomness
         self.simulant_creator = builder.population.get_simulant_creator()
 
-        builder.event.register_listener("time_step", self.on_time_step)
+    ########################
+    # Event-driven methods #
+    ########################
 
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event) -> None:
         """Adds new simulants every time step based on the Crude Birth Rate
         and an assumption that birth is a Poisson process
         Parameters
@@ -136,27 +145,44 @@ class FertilityCrudeBirthRate:
         if simulants_to_add > 0:
             self.simulant_creator(
                 simulants_to_add,
-                population_configuration={
+                {
                     "age_start": 0,
                     "age_end": 0,
                     "sim_state": "time_step",
                 },
             )
 
-    def __repr__(self):
-        return "FertilityCrudeBirthRate()"
 
-
-class FertilityAgeSpecificRates:
+class FertilityAgeSpecificRates(Component):
     """
     A simulant-specific model for fertility and pregnancies.
     """
 
-    @property
-    def name(self):
-        return "age_specific_fertility"
+    ##############
+    # Properties #
+    ##############
 
-    def setup(self, builder):
+    @property
+    def columns_created(self) -> List[str]:
+        return ["last_birth_time", "parent_id"]
+
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return ["sex"]
+
+    @property
+    def initialization_requirements(self) -> Dict[str, List[str]]:
+        return {
+            "requires_columns": ["sex"],
+            "requires_values": [],
+            "requires_streams": [],
+        }
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def setup(self, builder: Builder) -> None:
         """Setup the common randomness stream and
         age-specific fertility lookup tables.
         Parameters
@@ -164,6 +190,7 @@ class FertilityAgeSpecificRates:
         builder : vivarium.engine.Builder
             Framework coordination object.
         """
+        super().setup(builder)
         age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
         fertility_rate = builder.lookup.build_table(
             age_specific_fertility_rate, parameter_columns=["age", "year"]
@@ -173,21 +200,23 @@ class FertilityAgeSpecificRates:
         )
 
         self.randomness = builder.randomness.get_stream("fertility")
-
-        self.population_view = builder.population.get_view(
-            ["last_birth_time", "sex", "parent_id"]
-        )
         self.simulant_creator = builder.population.get_simulant_creator()
 
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=["last_birth_time", "parent_id"],
-            requires_columns=["sex"],
-        )
+    #################
+    # Setup methods #
+    #################
 
-        builder.event.register_listener("time_step", self.on_time_step)
+    def load_age_specific_fertility_rate_data(self, builder: Builder) -> pd.DataFrame:
+        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
+        columns = ["year_start", "year_end", "age_start", "age_end", "mean_value"]
+        asfr_data = asfr_data.loc[asfr_data.sex == "Female"][columns]
+        return asfr_data
 
-    def on_initialize_simulants(self, pop_data):
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Adds 'last_birth_time' and 'parent' columns to the state table."""
         pop = self.population_view.subview(["sex"]).get(pop_data.index)
         women = pop.loc[pop.sex == "Female"].index
@@ -209,7 +238,7 @@ class FertilityAgeSpecificRates:
 
         self.population_view.update(pop_update)
 
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event) -> None:
         """Produces new children and updates parent status on time steps.
         Parameters
         ----------
@@ -236,19 +265,10 @@ class FertilityAgeSpecificRates:
         if num_babies:
             self.simulant_creator(
                 num_babies,
-                population_configuration={
+                {
                     "age_start": 0,
                     "age_end": 0,
                     "sim_state": "time_step",
                     "parent_ids": had_children.index,
                 },
             )
-
-    def load_age_specific_fertility_rate_data(self, builder):
-        asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
-        columns = ["year_start", "year_end", "age_start", "age_end", "mean_value"]
-        asfr_data = asfr_data.loc[asfr_data.sex == "Female"][columns]
-        return asfr_data
-
-    def __repr__(self):
-        return "FertilityAgeSpecificRates()"

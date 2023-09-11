@@ -44,21 +44,43 @@ on mortality is calculated, by subtracting the raw unmodeled csmr before adding
 back the modified unmodeled csmr.
 
 """
-from typing import Dict, List, Union
+from typing import List, Optional, Union
 
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.population import PopulationView, SimulantData
+from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 
-class Mortality:
-    configuration_defaults = {"unmodeled_causes": []}
+class Mortality(Component):
+    CONFIGURATION_DEFAULTS = {"unmodeled_causes": []}
+
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def columns_created(self) -> List[str]:
+        return [self.cause_of_death_column_name, self.years_of_life_lost_column_name]
+
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return ["alive", "exit_time", "age", "sex"]
+
+    @property
+    def time_step_priority(self) -> int:
+        return 0
+
+    #####################
+    # Lifecycle methods #
+    #####################
 
     def __init__(self):
+        super().__init__()
         self._randomness_stream_name = "mortality_handler"
 
         self.cause_of_death_column_name = "cause_of_death"
@@ -69,81 +91,58 @@ class Mortality:
         self.unmodeled_csmr_pipeline_name = "affected_unmodeled.cause_specific_mortality_rate"
         self.unmodeled_csmr_paf_pipeline_name = f"{self.unmodeled_csmr_pipeline_name}.paf"
 
-    def __repr__(self) -> str:
-        return f"Mortality()"
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.random = self.get_randomness_stream(builder)
+        self.clock = builder.time.clock()
 
-    ##########################
-    # Initialization methods #
-    ##########################
+        self.cause_specific_mortality_rate = self.get_cause_specific_mortality_rate(builder)
+        self.mortality_rate = self.get_mortality_rate(builder)
 
-    # noinspection PyMethodMayBeStatic
-    def _get_configuration_defaults(self) -> Dict[str, List]:
-        return {"unmodeled_causes": Mortality.configuration_defaults["unmodeled_causes"]}
+        self.all_cause_mortality_rate = self.get_all_cause_mortality_rate(builder)
+        self.life_expectancy = self.get_life_expectancy(builder)
 
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def name(self) -> str:
-        return "mortality"
+        self._raw_unmodeled_csmr = self.get_raw_unmodeled_csmr(builder)
+        self.unmodeled_csmr = self.get_unmodeled_csmr(builder)
+        self.unmodeled_csmr_paf = self.get_unmodeled_csmr_paf(builder)
 
     #################
     # Setup methods #
     #################
 
-    # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder) -> None:
-        self.random = self._get_randomness_stream(builder)
-        self.clock = builder.time.clock()
-
-        self.cause_specific_mortality_rate = self._get_cause_specific_mortality_rate(builder)
-        self.mortality_rate = self._get_mortality_rate(builder)
-
-        self.all_cause_mortality_rate = self._get_all_cause_mortality_rate(builder)
-        self.life_expectancy = self._get_life_expectancy(builder)
-
-        self._raw_unmodeled_csmr = self._get_raw_unmodeled_csmr(builder)
-        self.unmodeled_csmr = self._get_unmodeled_csmr(builder)
-        self.unmodeled_csmr_paf = self._get_unmodeled_csmr_paf(builder)
-
-        self.population_view = self._get_population_view(builder)
-
-        self._register_simulant_initializer(builder)
-        self._register_on_timestep_listener(builder)
-
-    def _get_randomness_stream(self, builder) -> RandomnessStream:
+    def get_randomness_stream(self, builder) -> RandomnessStream:
         return builder.randomness.get_stream(self._randomness_stream_name)
 
-    def _get_cause_specific_mortality_rate(self, builder: Builder) -> Pipeline:
+    def get_cause_specific_mortality_rate(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.cause_specific_mortality_rate_pipeline_name,
             source=builder.lookup.build_table(0),
         )
 
-    def _get_mortality_rate(self, builder: Builder) -> Pipeline:
+    def get_mortality_rate(self, builder: Builder) -> Pipeline:
         return builder.value.register_rate_producer(
             self.mortality_rate_pipeline_name,
-            source=self._calculate_mortality_rate,
+            source=self.calculate_mortality_rate,
             requires_columns=["age", "sex"],
         )
 
     # noinspection PyMethodMayBeStatic
-    def _get_all_cause_mortality_rate(self, builder: Builder) -> Union[LookupTable, Pipeline]:
+    def get_all_cause_mortality_rate(self, builder: Builder) -> Union[LookupTable, Pipeline]:
         acmr_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
         return builder.lookup.build_table(
             acmr_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
 
     # noinspection PyMethodMayBeStatic
-    def _get_life_expectancy(self, builder: Builder) -> Union[LookupTable, Pipeline]:
+    def get_life_expectancy(self, builder: Builder) -> Union[LookupTable, Pipeline]:
         life_expectancy_data = builder.data.load(
             "population.theoretical_minimum_risk_life_expectancy"
         )
         return builder.lookup.build_table(life_expectancy_data, parameter_columns=["age"])
 
     # noinspection PyMethodMayBeStatic
-    def _get_raw_unmodeled_csmr(self, builder: Builder) -> Union[LookupTable, Pipeline]:
+    def get_raw_unmodeled_csmr(self, builder: Builder) -> Union[LookupTable, Pipeline]:
         unmodeled_causes = builder.configuration.unmodeled_causes
         raw_csmr = 0.0
         for idx, cause in enumerate(unmodeled_causes):
@@ -161,14 +160,14 @@ class Mortality:
 
         return builder.lookup.build_table(raw_csmr, **additional_parameters)
 
-    def _get_unmodeled_csmr(self, builder: Builder) -> Pipeline:
+    def get_unmodeled_csmr(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.unmodeled_csmr_pipeline_name,
-            source=self._get_unmodeled_csmr_source,
+            source=self.get_unmodeled_csmr_source,
             requires_columns=["age", "sex"],
         )
 
-    def _get_unmodeled_csmr_paf(self, builder: Builder) -> Pipeline:
+    def get_unmodeled_csmr_paf(self, builder: Builder) -> Pipeline:
         unmodeled_csmr_paf = builder.lookup.build_table(0)
         return builder.value.register_value_producer(
             self.unmodeled_csmr_paf_pipeline_name,
@@ -176,30 +175,6 @@ class Mortality:
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
-
-    def _get_population_view(self, builder: Builder) -> PopulationView:
-        return builder.population.get_view(
-            [
-                self.cause_of_death_column_name,
-                self.years_of_life_lost_column_name,
-                "alive",
-                "exit_time",
-                "age",
-                "sex",
-            ]
-        )
-
-    def _register_simulant_initializer(self, builder: Builder) -> None:
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=[
-                self.cause_of_death_column_name,
-                self.years_of_life_lost_column_name,
-            ],
-        )
-
-    def _register_on_timestep_listener(self, builder: Builder) -> None:
-        builder.event.register_listener("time_step", self.on_time_step, priority=0)
 
     ########################
     # Event-driven methods #
@@ -242,7 +217,7 @@ class Mortality:
     # Pipeline sources and modifiers #
     ##################################
 
-    def _calculate_mortality_rate(self, index: pd.Index) -> pd.DataFrame:
+    def calculate_mortality_rate(self, index: pd.Index) -> pd.DataFrame:
         acmr = self.all_cause_mortality_rate(index)
         modeled_csmr = self.cause_specific_mortality_rate(index)
         unmodeled_csmr_raw = self._raw_unmodeled_csmr(index)
@@ -252,7 +227,7 @@ class Mortality:
         )
         return pd.DataFrame({"other_causes": cause_deleted_mortality_rate})
 
-    def _get_unmodeled_csmr_source(self, index: pd.Index) -> pd.Series:
+    def get_unmodeled_csmr_source(self, index: pd.Index) -> pd.Series:
         raw_csmr = self._raw_unmodeled_csmr(index)
         paf = self.unmodeled_csmr_paf(index)
         return raw_csmr * (1 - paf)
