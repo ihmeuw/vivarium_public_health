@@ -31,4 +31,4 @@ or build it from source with
 
 Documentation
 ======================
-You can view documentation at https://vivarium_public_health.readthedocs.io/en/latest/
+You can view documentation at https://vivarium.readthedocs.io/projects/vivarium-public-health/en/latest/

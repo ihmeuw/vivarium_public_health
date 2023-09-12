@@ -29,7 +29,7 @@ jobs:
           fi
       - name: check for upstream branch
         run: |
-          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium_public_health.git ${branch_name} == "0"; then
+          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${branch_name} == "0"; then
             echo "upstream_exist=true" >> $GITHUB_ENV
           else
             echo "upstream_exist=false" >> $GITHUB_ENV
@@ -44,7 +44,7 @@ jobs:
         if: env.upstream_exist == 'true'
         run: |
           echo "Cloning upstream branch: ${branch_name}"
-          git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium_public_health.git
+          git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium.git
           pushd vivarium
           pip install .
           popd
