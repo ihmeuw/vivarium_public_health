@@ -178,6 +178,15 @@ class BaseDiseaseState(State):
         self.add_transition(transition)
         return transition
 
+    def add_dwell_time_transition(
+        self,
+        output: "BaseDiseaseState",
+        **kwargs,
+    ) -> Transition:
+        transition = Transition(self, output, **kwargs)
+        self.add_transition(transition)
+        return transition
+
 
 class NonDiseasedState(BaseDiseaseState):
     ##################
@@ -375,9 +384,7 @@ class DiseaseState(BaseDiseaseState):
         if "dwell_time" not in self._get_data_functions:
             raise ValueError("You must supply a dwell time function.")
 
-        transition = Transition(self, output, **kwargs)
-        self.add_transition(transition)
-        return transition
+        return super().add_dwell_time_transition(output, **kwargs)
 
     ##################
     # Helper methods #
