@@ -13,7 +13,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTableData
 from vivarium.framework.population import PopulationView, SimulantData
-from vivarium.framework.state_machine import State, Transient, Transition
+from vivarium.framework.state_machine import State, Transient, Transition, Trigger
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import (
@@ -128,7 +128,7 @@ class BaseDiseaseState(State):
         self,
         output: "BaseDiseaseState",
         get_data_functions: Dict[str, Callable] = None,
-        **kwargs,
+        triggered=Trigger.NOT_TRIGGERED,
     ) -> RateTransition:
         """Builds a RateTransition from this state to the given state.
 
@@ -139,13 +139,15 @@ class BaseDiseaseState(State):
 
         get_data_functions
             map from transition type to the function to pull that transition's data
+        triggered
+
 
         Returns
         -------
         RateTransition
             The created transition object.
         """
-        transition = RateTransition(self, output, get_data_functions, **kwargs)
+        transition = RateTransition(self, output, get_data_functions, triggered)
         self.add_transition(transition)
         return transition
 
@@ -153,7 +155,7 @@ class BaseDiseaseState(State):
         self,
         output: "BaseDiseaseState",
         get_data_functions: Dict[str, Callable] = None,
-        **kwargs,
+        triggered=Trigger.NOT_TRIGGERED,
     ) -> ProportionTransition:
         """Builds a ProportionTransition from this state to the given state.
 
@@ -173,12 +175,14 @@ class BaseDiseaseState(State):
         if "proportion" not in get_data_functions:
             raise ValueError("You must supply a proportion function.")
 
-        transition = ProportionTransition(self, output, get_data_functions, **kwargs)
+        transition = ProportionTransition(self, output, get_data_functions, triggered)
         self.add_transition(transition)
         return transition
 
-    def add_dwell_time_transition(self, output: "BaseDiseaseState") -> Transition:
-        transition = Transition(self, output)
+    def add_dwell_time_transition(
+        self, output: "BaseDiseaseState", triggered=Trigger.NOT_TRIGGERED
+    ) -> Transition:
+        transition = Transition(self, output, triggered=triggered)
         self.add_transition(transition)
         return transition
 
