@@ -177,12 +177,8 @@ class BaseDiseaseState(State):
         self.add_transition(transition)
         return transition
 
-    def add_dwell_time_transition(
-        self,
-        output: "BaseDiseaseState",
-        **kwargs,
-    ) -> Transition:
-        transition = Transition(self, output, **kwargs)
+    def add_dwell_time_transition(self, output: "BaseDiseaseState") -> Transition:
+        transition = Transition(self, output)
         self.add_transition(transition)
         return transition
 
@@ -208,6 +204,7 @@ class NonDiseasedState(BaseDiseaseState):
             side_effect_function=side_effect_function,
             cause_type=cause_type,
         )
+
     ##################
     # Public methods #
     ##################
@@ -246,7 +243,7 @@ class SusceptibleState(NonDiseasedState):
             allow_self_transition=allow_self_transition,
             side_effect_function=side_effect_function,
             cause_type=cause_type,
-            name_prefix="susceptible_to_"
+            name_prefix="susceptible_to_",
         )
 
 
@@ -263,7 +260,7 @@ class RecoveredState(NonDiseasedState):
             allow_self_transition=allow_self_transition,
             side_effect_function=side_effect_function,
             cause_type=cause_type,
-            name_prefix="recovered_from_"
+            name_prefix="recovered_from_",
         )
 
 
@@ -441,7 +438,9 @@ class DiseaseState(BaseDiseaseState):
         elif builder.data.load(f"cause.{self.model}.restrictions")["yld_only"]:
             return 0
         else:
-            return builder.data.load(f"{self.cause_type}.{self.state_id}.excess_mortality_rate")
+            return builder.data.load(
+                f"{self.cause_type}.{self.state_id}.excess_mortality_rate"
+            )
 
     ##################
     # Public methods #

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Callable, Dict
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.state_machine import Transition
+from vivarium.framework.state_machine import Transition, Trigger
 from vivarium.framework.utilities import rate_to_probability
 from vivarium.framework.values import list_combiner, union_post_processor
 
@@ -36,10 +36,10 @@ class RateTransition(Transition):
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
         get_data_functions: Dict[str, Callable] = None,
-        **kwargs,
+        triggered=Trigger.NOT_TRIGGERED,
     ):
         super().__init__(
-            input_state, output_state, probability_func=self._probability, **kwargs
+            input_state, output_state, probability_func=self._probability, triggered=triggered
         )
         self._get_data_functions = (
             get_data_functions if get_data_functions is not None else {}
@@ -123,10 +123,10 @@ class ProportionTransition(Transition):
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
         get_data_functions: Dict[str, Callable] = None,
-        **kwargs,
+        triggered=Trigger.NOT_TRIGGERED,
     ):
         super().__init__(
-            input_state, output_state, probability_func=self._probability, **kwargs
+            input_state, output_state, probability_func=self._probability, triggered=triggered
         )
         self._get_data_functions = (
             get_data_functions if get_data_functions is not None else {}
