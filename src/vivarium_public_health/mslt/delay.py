@@ -7,11 +7,17 @@ This module contains tools to represent delayed effects in a multi-state
 lifetable simulation.
 
 """
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
+from vivarium import Component
+from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 
 
-class DelayedRisk:
+class DelayedRisk(Component):
     """
     A delayed risk represents an exposure whose impact takes time to come into
     effect (e.g., smoking uptake and cessation).
@@ -82,16 +88,14 @@ class DelayedRisk:
                    Stroke:
     """
 
-    def __init__(self, name: str):
-        """
-        Parameters
-        ----------
-        name
-            The name of the exposure (e.g., ``"tobacco"``).
-        """
-        self._name = name
-        self.configuration_defaults = {
-            name: {
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {
+            self.risk: {
                 "constant_prevalence": False,
                 "tobacco_tax": False,
                 "delay": 20,
@@ -99,15 +103,45 @@ class DelayedRisk:
         }
 
     @property
-    def name(self):
-        return self._name
+    def columns_created(self) -> List[str]:
+        return self._bin_names
 
-    def setup(self, builder):
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return ["age", "sex", "population"]
+
+    @property
+    def initialization_requirements(self) -> Dict[str, List[str]]:
+        return {
+            "requires_columns": ["age", "sex", "population"],
+            "requires_values": [],
+            "requires_streams": [],
+        }
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self, risk: str):
+        """
+        Parameters
+        ----------
+        risk
+            The name of the exposure (e.g., ``"tobacco"``).
+        """
+        super().__init__()
+        self.risk = risk
+        self._bin_names = []
+
+    def setup(self, builder: Builder) -> None:
         """Configure the delayed risk component.
 
         This involves loading the required data tables, registering event
         handlers and rate modifiers, and setting up the population view.
         """
+        self._bin_names = self.get_bin_names()
+        super().setup(builder)
+
         self.config = builder.configuration
 
         self.start_year = builder.configuration.time.start.year
@@ -116,41 +150,41 @@ class DelayedRisk:
         # Determine whether smoking prevalence should change over time.
         # The alternative scenario is that there is no remission; all people
         # who begin smoking will continue to smoke.
-        self.constant_prevalence = self.config[self.name]["constant_prevalence"]
+        self.constant_prevalence = self.config[self.risk]["constant_prevalence"]
 
-        self.tobacco_tax = self.config[self.name]["tobacco_tax"]
+        self.tobacco_tax = self.config[self.risk]["tobacco_tax"]
 
-        self.bin_years = int(self.config[self.name]["delay"])
+        self.bin_years = int(self.config[self.risk]["delay"])
 
         # Load the initial prevalence.
-        prev_data = pivot_load(builder, f"risk_factor.{self.name}.prevalence")
+        prev_data = pivot_load(builder, f"risk_factor.{self.risk}.prevalence")
         self.initial_prevalence = builder.lookup.build_table(
             prev_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
 
         # Load the incidence rates for the BAU and intervention scenarios.
         inc_data = builder.lookup.build_table(
-            pivot_load(builder, f"risk_factor.{self.name}.incidence"),
+            pivot_load(builder, f"risk_factor.{self.risk}.incidence"),
             key_columns=["sex"],
             parameter_columns=["age", "year"],
         )
-        inc_name = "{}.incidence".format(self.name)
-        inc_int_name = "{}_intervention.incidence".format(self.name)
+        inc_name = "{}.incidence".format(self.risk)
+        inc_int_name = "{}_intervention.incidence".format(self.risk)
         self.incidence = builder.value.register_rate_producer(inc_name, source=inc_data)
         self.int_incidence = builder.value.register_rate_producer(
             inc_int_name, source=inc_data
         )
 
         # Load the remission rates for the BAU and intervention scenarios.
-        rem_df = pivot_load(builder, f"risk_factor.{self.name}.remission")
+        rem_df = pivot_load(builder, f"risk_factor.{self.risk}.remission")
         # In the constant-prevalence case, assume there is no remission.
         if self.constant_prevalence:
             rem_df["value"] = 0.0
         rem_data = builder.lookup.build_table(
             rem_df, key_columns=["sex"], parameter_columns=["age", "year"]
         )
-        rem_name = "{}.remission".format(self.name)
-        rem_int_name = "{}_intervention.remission".format(self.name)
+        rem_name = "{}.remission".format(self.risk)
+        rem_int_name = "{}_intervention.remission".format(self.risk)
         self.remission = builder.value.register_rate_producer(rem_name, source=rem_data)
         self.int_remission = builder.value.register_rate_producer(
             rem_int_name, source=rem_data
@@ -160,18 +194,18 @@ class DelayedRisk:
         # This requires having access to the life table mortality rate, and
         # also the relative risks associated with each bin.
         self.acm_rate = builder.value.get_value("mortality_rate")
-        mort_rr_data = pivot_load(builder, f"risk_factor.{self.name}.mortality_relative_risk")
+        mort_rr_data = pivot_load(builder, f"risk_factor.{self.risk}.mortality_relative_risk")
         self.mortality_rr = builder.lookup.build_table(
             mort_rr_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
 
         # Register a modifier for each disease affected by this delayed risk.
-        diseases = self.config[self.name].affects.keys()
+        diseases = self.config[self.risk].affects.keys()
         for ix, disease in enumerate(diseases):
             self.register_modifier(builder, disease)
 
         # Load the disease-specific relative risks for each exposure bin.
-        dis_rr_data = pivot_load(builder, f"risk_factor.{self.name}.disease_relative_risk")
+        dis_rr_data = pivot_load(builder, f"risk_factor.{self.risk}.disease_relative_risk")
 
         # Check that the relative risk table includes required columns.
         key_columns = ["age_start", "age_end", "sex", "year_start", "year_end"]
@@ -188,11 +222,11 @@ class DelayedRisk:
             dis_keys = [c for c in dis_rr_data.columns if c in key_columns]
             if not dis_columns or not dis_keys:
                 msg = "No {} relative risks for disease {}"
-                raise ValueError(msg.format(self.name, disease))
+                raise ValueError(msg.format(self.risk, disease))
             rr_data = dis_rr_data.loc[:, dis_keys + dis_columns]
             dis_prefix = "{}_".format(disease)
-            bau_prefix = "{}.".format(self.name)
-            int_prefix = "{}_intervention.".format(self.name)
+            bau_prefix = "{}.".format(self.risk)
+            int_prefix = "{}_intervention.".format(self.risk)
             bau_col = {
                 c: c.replace(dis_prefix, bau_prefix).replace("post_", "") for c in dis_columns
             }
@@ -207,31 +241,15 @@ class DelayedRisk:
                 rr_data, key_columns=["sex"], parameter_columns=["age", "year"]
             )
 
-        # Add a handler to create the exposure bin columns.
-        req_columns = ["age", "sex", "population"]
-        new_columns = self.get_bin_names()
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=new_columns,
-            requires_columns=req_columns,
-        )
-
         # Load the effects of a tobacco tax.
-        tax_inc = pivot_load(builder, f"risk_factor.{self.name}.tax_effect_incidence")
-        tax_rem = pivot_load(builder, f"risk_factor.{self.name}.tax_effect_remission")
+        tax_inc = pivot_load(builder, f"risk_factor.{self.risk}.tax_effect_incidence")
+        tax_rem = pivot_load(builder, f"risk_factor.{self.risk}.tax_effect_remission")
         self.tax_effect_inc = builder.lookup.build_table(
             tax_inc, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         self.tax_effect_rem = builder.lookup.build_table(
             tax_rem, key_columns=["sex"], parameter_columns=["age", "year"]
         )
-
-        # Add a handler to move people from one bin to the next.
-        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
-
-        # Define the columns that we need to access during the simulation.
-        view_columns = req_columns + new_columns
-        self.population_view = builder.population.get_view(view_columns)
 
         mortality_data = pivot_load(builder, "cause.all_causes.mortality")
         self.tobacco_acmr = builder.value.register_rate_producer(
@@ -240,6 +258,10 @@ class DelayedRisk:
                 mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
             ),
         )
+
+    #################
+    # Setup methods #
+    #################
 
     def get_bin_names(self):
         """Return the bin names for both the BAU and the intervention scenario.
@@ -263,12 +285,42 @@ class DelayedRisk:
         else:
             delay_bins = [str(s) for s in range(self.bin_years + 2)]
         bins = ["no", "yes"] + delay_bins
-        bau_bins = ["{}.{}".format(self.name, bin) for bin in bins]
-        int_bins = ["{}_intervention.{}".format(self.name, bin) for bin in bins]
+        bau_bins = ["{}.{}".format(self.risk, bin) for bin in bins]
+        int_bins = ["{}_intervention.{}".format(self.risk, bin) for bin in bins]
         all_bins = bau_bins + int_bins
         return all_bins
 
-    def on_initialize_simulants(self, pop_data):
+    def register_modifier(self, builder: Builder, disease: str) -> None:
+        """Register that a disease incidence rate will be modified by this
+        delayed risk in the intervention scenario.
+
+        Parameters
+        ----------
+        builder
+            The builder object for the simulation, which provides
+            access to event handlers and rate modifiers.
+        disease
+            The name of the disease whose incidence rate will be
+            modified.
+
+        """
+        # NOTE: we need to modify different rates for chronic and acute
+        # diseases. For now, register modifiers for all possible rates.
+        rate_templates = [
+            "{}_intervention.incidence",
+            "{}_intervention.excess_mortality",
+            "{}_intervention.yld_rate",
+        ]
+        for template in rate_templates:
+            rate_name = template.format(disease)
+            modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
+            builder.value.register_value_modifier(rate_name, modifier)
+
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """
         Define the initial distribution of the population across the bins, in
         both the BAU and the intervention scenario.
@@ -296,8 +348,8 @@ class DelayedRisk:
 
         # Rename the columns and apply the same initial prevalence for the
         # intervention.
-        bau_prefix = "{}.".format(self.name)
-        int_prefix = "{}_intervention.".format(self.name)
+        bau_prefix = "{}.".format(self.risk)
+        int_prefix = "{}_intervention.".format(self.risk)
         rename_to = {
             c: c.replace(bau_prefix, int_prefix)
             for c in prev.columns
@@ -306,7 +358,7 @@ class DelayedRisk:
         int_prev = prev.rename(columns=rename_to)
         self.population_view.update(int_prev)
 
-    def on_time_step_prepare(self, event):
+    def on_time_step_prepare(self, event: Event) -> None:
         """Account for transitions between bins, and for mortality rates.
 
         These transitions include:
@@ -330,8 +382,8 @@ class DelayedRisk:
 
         # Identify the relevant columns for the BAU and intervention.
         bin_cols = self.get_bin_names()
-        bau_prefix = "{}.".format(self.name)
-        int_prefix = "{}_intervention.".format(self.name)
+        bau_prefix = "{}.".format(self.risk)
+        int_prefix = "{}_intervention.".format(self.risk)
         bau_cols = [c for c in bin_cols if c.startswith(bau_prefix)]
         int_cols = [c for c in bin_cols if c.startswith(int_prefix)]
 
@@ -392,23 +444,23 @@ class DelayedRisk:
         # First, accumulate the final post-exposure bin.
         if self.bin_years > 0:
             for suffix in suffixes:
-                accum_col = "{}{}.{}".format(self.name, suffix, self.bin_years + 1)
-                from_col = "{}{}.{}".format(self.name, suffix, self.bin_years)
+                accum_col = "{}{}.{}".format(self.risk, suffix, self.bin_years + 1)
+                from_col = "{}{}.{}".format(self.risk, suffix, self.bin_years)
                 pop[accum_col] += pop[from_col]
         # Then increase time since exposure for all other post-exposure bins.
         for n_years in reversed(range(self.bin_years)):
             for suffix in suffixes:
-                source_col = "{}{}.{}".format(self.name, suffix, n_years)
-                dest_col = "{}{}.{}".format(self.name, suffix, n_years + 1)
+                source_col = "{}{}.{}".format(self.risk, suffix, n_years)
+                dest_col = "{}{}.{}".format(self.risk, suffix, n_years + 1)
                 pop[dest_col] = pop[source_col]
 
         # Account for incidence and remission.
-        col_no = "{}.no".format(self.name)
-        col_int_no = "{}_intervention.no".format(self.name)
-        col_yes = "{}.yes".format(self.name)
-        col_int_yes = "{}_intervention.yes".format(self.name)
-        col_zero = "{}.0".format(self.name)
-        col_int_zero = "{}_intervention.0".format(self.name)
+        col_no = "{}.no".format(self.risk)
+        col_int_no = "{}_intervention.no".format(self.risk)
+        col_yes = "{}.yes".format(self.risk)
+        col_int_yes = "{}_intervention.yes".format(self.risk)
+        col_zero = "{}.0".format(self.risk)
+        col_int_zero = "{}_intervention.0".format(self.risk)
 
         inc = inc_rate * pop[col_no]
         int_inc = int_inc_rate * pop[col_int_no]
@@ -436,33 +488,13 @@ class DelayedRisk:
 
         self.population_view.update(pop)
 
-    def register_modifier(self, builder, disease):
-        """Register that a disease incidence rate will be modified by this
-        delayed risk in the intervention scenario.
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
-        Parameters
-        ----------
-        builder
-            The builder object for the simulation, which provides
-            access to event handlers and rate modifiers.
-        disease
-            The name of the disease whose incidence rate will be
-            modified.
-
-        """
-        # NOTE: we need to modify different rates for chronic and acute
-        # diseases. For now, register modifiers for all possible rates.
-        rate_templates = [
-            "{}_intervention.incidence",
-            "{}_intervention.excess_mortality",
-            "{}_intervention.yld_rate",
-        ]
-        for template in rate_templates:
-            rate_name = template.format(disease)
-            modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
-            builder.value.register_value_modifier(rate_name, modifier)
-
-    def incidence_adjustment(self, disease, index, incidence_rate):
+    def incidence_adjustment(
+        self, disease: str, index: pd.Index, incidence_rate: pd.Series
+    ) -> pd.Series:
         """Modify a disease incidence rate in the intervention scenario.
 
         Parameters
@@ -482,7 +514,7 @@ class DelayedRisk:
         rr_values = pop[bin_cols] * incidence_rr
 
         # Calculate the mean relative-risk for the BAU scenario.
-        bau_prefix = "{}.".format(self.name)
+        bau_prefix = "{}.".format(self.risk)
         bau_cols = [c for c in bin_cols if c.startswith(bau_prefix)]
         # Sum over all of the bins in each row.
         mean_bau_rr = rr_values[bau_cols].sum(axis=1) / pop[bau_cols].sum(axis=1)
@@ -490,7 +522,7 @@ class DelayedRisk:
         mean_bau_rr = mean_bau_rr.fillna(1.0)
 
         # Calculate the mean relative-risk for the intervention scenario.
-        int_prefix = "{}_intervention.".format(self.name)
+        int_prefix = "{}_intervention.".format(self.risk)
         int_cols = [c for c in bin_cols if c.startswith(int_prefix)]
         # Sum over all of the bins in each row.
         mean_int_rr = rr_values[int_cols].sum(axis=1) / pop[int_cols].sum(axis=1)
@@ -503,7 +535,7 @@ class DelayedRisk:
         return incidence_rate * (1 - pif)
 
 
-def pivot_load(builder, entity_key):
+def pivot_load(builder: Builder, entity_key: str) -> pd.DataFrame:
     """Helper method for loading dataframe from artifact.
 
     Performs a long to wide conversion if dataframe has an index column
