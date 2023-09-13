@@ -7,7 +7,12 @@ This module contains tools for recording various outputs of interest in
 multi-state lifetable simulations.
 
 """
+from typing import List, Optional
+
 import pandas as pd
+from vivarium import Component
+from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 
 
 def output_file(config, suffix, sep="_", ext="csv"):
@@ -44,7 +49,7 @@ def output_file(config, suffix, sep="_", ext="csv"):
     return out_file
 
 
-class MorbidityMortality:
+class MorbidityMortality(Component):
     """
     This class records the all-cause morbidity and mortality rates for each
     cohort at each year of the simulation.
@@ -57,16 +62,13 @@ class MorbidityMortality:
 
     """
 
-    def __init__(self, output_suffix="mm"):
-        self.output_suffix = output_suffix
+    ##############
+    # Properties #
+    ##############
 
     @property
-    def name(self):
-        return "morbidity_mortality_observer"
-
-    def setup(self, builder):
-        # Record the key columns from the core multi-state life table.
-        columns = [
+    def columns_required(self) -> Optional[List[str]]:
+        return [
             "age",
             "sex",
             "population",
@@ -84,36 +86,34 @@ class MorbidityMortality:
             "HALY",
             "bau_HALY",
         ]
-        self.population_view = builder.population.get_view(columns)
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self, output_suffix: str = "mm"):
+        super().__init__()
+        self.output_suffix = output_suffix
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        # Record the key columns from the core multi-state life table.
         self.clock = builder.time.clock()
-        builder.event.register_listener("collect_metrics", self.on_collect_metrics)
-        builder.event.register_listener("simulation_end", self.write_output)
+
         self.tables = []
-        self.table_cols = [
-            "sex",
-            "age",
+        self.table_cols = self.columns_required + [
             "year",
-            "population",
-            "bau_population",
             "prev_population",
             "bau_prev_population",
-            "acmr",
-            "bau_acmr",
-            "pr_death",
-            "bau_pr_death",
-            "deaths",
-            "bau_deaths",
-            "yld_rate",
-            "bau_yld_rate",
-            "person_years",
-            "bau_person_years",
-            "HALY",
-            "bau_HALY",
         ]
 
         self.output_file = output_file(builder.configuration, self.output_suffix)
 
-    def on_collect_metrics(self, event):
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_collect_metrics(self, event: Event) -> None:
         pop = self.population_view.get(event.index)
         if len(pop.index) == 0:
             # No tracked population remains.
@@ -124,6 +124,29 @@ class MorbidityMortality:
         pop["prev_population"] = pop["population"] + pop["deaths"]
         pop["bau_prev_population"] = pop["bau_population"] + pop["bau_deaths"]
         self.tables.append(pop[self.table_cols])
+
+    def on_simulation_end(self, event: Event) -> None:
+        data = pd.concat(self.tables, ignore_index=True)
+        data["year_of_birth"] = data["year"] - data["age"]
+        # Sort the table by cohort (i.e., generation and sex), and then by
+        # calendar year, so that results are output in the same order as in
+        # the spreadsheet models.
+        data = data.sort_values(by=["year_of_birth", "sex", "age"], axis=0)
+        data = data.reset_index(drop=True)
+        # Re-order the table columns.
+        cols = ["year_of_birth"] + self.table_cols
+        data = data[cols]
+        # Calculate life expectancy and HALE for the BAU and intervention,
+        # with respect to the initial population, not the survivors.
+        data["LE"] = self.calculate_LE(data, "person_years", "prev_population")
+        data["bau_LE"] = self.calculate_LE(data, "bau_person_years", "bau_prev_population")
+        data["HALE"] = self.calculate_LE(data, "HALY", "prev_population")
+        data["bau_HALE"] = self.calculate_LE(data, "bau_HALY", "bau_prev_population")
+        data.to_csv(self.output_file, index=False)
+
+    ##################
+    # Helper methods #
+    ##################
 
     def calculate_LE(self, table, py_col, denom_col):
         """Calculate the life expectancy for each cohort at each time-step.
@@ -155,34 +178,15 @@ class MorbidityMortality:
         cumsum = grouped.apply(lambda x: pd.Series(x[::-1].cumsum()).iloc[::-1])
         return cumsum / table[denom_col]
 
-    def write_output(self, event):
-        data = pd.concat(self.tables, ignore_index=True)
-        data["year_of_birth"] = data["year"] - data["age"]
-        # Sort the table by cohort (i.e., generation and sex), and then by
-        # calendar year, so that results are output in the same order as in
-        # the spreadsheet models.
-        data = data.sort_values(by=["year_of_birth", "sex", "age"], axis=0)
-        data = data.reset_index(drop=True)
-        # Re-order the table columns.
-        cols = ["year_of_birth"] + self.table_cols
-        data = data[cols]
-        # Calculate life expectancy and HALE for the BAU and intervention,
-        # with respect to the initial population, not the survivors.
-        data["LE"] = self.calculate_LE(data, "person_years", "prev_population")
-        data["bau_LE"] = self.calculate_LE(data, "bau_person_years", "bau_prev_population")
-        data["HALE"] = self.calculate_LE(data, "HALY", "prev_population")
-        data["bau_HALE"] = self.calculate_LE(data, "bau_HALY", "bau_prev_population")
-        data.to_csv(self.output_file, index=False)
 
-
-class Disease:
+class Disease(Component):
     """
     This class records the disease incidence rate and disease prevalence for
     each cohort at each year of the simulation.
 
     Parameters
     ----------
-    name
+    disease
         The name of the chronic disease.
     output_suffix
         The suffix for the CSV file in which to record the
@@ -190,28 +194,13 @@ class Disease:
 
     """
 
-    def __init__(self, name, output_suffix=None):
-        self._name = name
-        if output_suffix is None:
-            output_suffix = name.lower()
-        self.output_suffix = output_suffix
+    ##############
+    # Properties #
+    ##############
 
     @property
-    def name(self):
-        return f"{self._name}_observer"
-
-    def setup(self, builder):
-        bau_incidence_value = "{}.incidence".format(self._name)
-        int_incidence_value = "{}_intervention.incidence".format(self._name)
-        self.bau_incidence = builder.value.get_value(bau_incidence_value)
-        self.int_incidence = builder.value.get_value(int_incidence_value)
-
-        self.bau_S_col = "{}_S".format(self._name)
-        self.bau_C_col = "{}_C".format(self._name)
-        self.int_S_col = "{}_S_intervention".format(self._name)
-        self.int_C_col = "{}_C_intervention".format(self._name)
-
-        columns = [
+    def columns_required(self) -> Optional[List[str]]:
+        return [
             "age",
             "sex",
             self.bau_S_col,
@@ -219,10 +208,29 @@ class Disease:
             self.int_S_col,
             self.int_C_col,
         ]
-        self.population_view = builder.population.get_view(columns)
 
-        builder.event.register_listener("collect_metrics", self.on_collect_metrics)
-        builder.event.register_listener("simulation_end", self.write_output)
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self, disease: str, output_suffix: Optional[str] = None):
+        super().__init__()
+        self.disease = disease
+        if output_suffix is None:
+            output_suffix = disease.lower()
+        self.output_suffix = output_suffix
+
+        self.bau_S_col = "{}_S".format(self.disease)
+        self.bau_C_col = "{}_C".format(self.disease)
+        self.int_S_col = "{}_S_intervention".format(self.disease)
+        self.int_C_col = "{}_C_intervention".format(self.disease)
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        bau_incidence_value = "{}.incidence".format(self.disease)
+        int_incidence_value = "{}_intervention.incidence".format(self.disease)
+        self.bau_incidence = builder.value.get_value(bau_incidence_value)
+        self.int_incidence = builder.value.get_value(int_incidence_value)
 
         self.tables = []
         self.table_cols = [
@@ -239,7 +247,7 @@ class Disease:
         self.clock = builder.time.clock()
         self.output_file = output_file(builder.configuration, self.output_suffix)
 
-    def on_collect_metrics(self, event):
+    def on_collect_metrics(self, event: Event) -> None:
         pop = self.population_view.get(event.index)
         if len(pop.index) == 0:
             # No tracked population remains.
@@ -258,12 +266,12 @@ class Disease:
         pop["int_deaths"] = 1000 - pop[self.int_S_col] - pop[self.int_C_col]
         self.tables.append(pop.loc[:, self.table_cols])
 
-    def write_output(self, event):
+    def on_simulation_end(self, event: Event) -> None:
         data = pd.concat(self.tables, ignore_index=True)
         data["diff_incidence"] = data["int_incidence"] - data["bau_incidence"]
         data["diff_prevalence"] = data["int_prevalence"] - data["bau_prevalence"]
         data["year_of_birth"] = data["year"] - data["age"]
-        data["disease"] = self._name
+        data["disease"] = self.disease
         # Sort the table by cohort (i.e., generation and sex), and then by
         # calendar year, so that results are output in the same order as in
         # the spreadsheet models.
@@ -276,7 +284,7 @@ class Disease:
         data.to_csv(self.output_file, index=False)
 
 
-class TobaccoPrevalence:
+class TobaccoPrevalence(Component):
     """This class records the prevalence of tobacco use in the population.
 
     Parameters
@@ -287,20 +295,30 @@ class TobaccoPrevalence:
 
     """
 
-    def __init__(self, output_suffix="tobacco"):
-        self.output_suffix = output_suffix
+    ##############
+    # Properties #
+    ##############
 
     @property
-    def name(self):
-        return "tobacco_prevalence_observer"
+    def columns_required(self) -> Optional[List[str]]:
+        return ["age", "sex", "bau_population", "population"] + self._bin_names
 
-    def setup(self, builder):
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self, output_suffix: str = "tobacco"):
+        super().__init__()
+        self.output_suffix = output_suffix
+        self._bin_names = []
+
+    def setup(self, builder: Builder) -> None:
+        self._bin_names = self.get_bin_names()
+        super().setup(builder)
+
         self.config = builder.configuration
         self.clock = builder.time.clock()
         self.bin_years = int(self.config["tobacco"]["delay"])
-
-        view_columns = ["age", "sex", "bau_population", "population"] + self.get_bin_names()
-        self.population_view = builder.population.get_view(view_columns)
 
         self.tables = []
         self.table_cols = [
@@ -317,9 +335,11 @@ class TobaccoPrevalence:
             "int_population",
         ]
 
-        builder.event.register_listener("collect_metrics", self.on_collect_metrics)
-        builder.event.register_listener("simulation_end", self.write_output)
         self.output_file = output_file(builder.configuration, self.output_suffix)
+
+    #################
+    # Setup methods #
+    #################
 
     def get_bin_names(self):
         """Return the bin names for both the BAU and the intervention scenario.
@@ -349,7 +369,11 @@ class TobaccoPrevalence:
         all_bins = bau_bins + int_bins
         return all_bins
 
-    def on_collect_metrics(self, event):
+    ########################
+    # Event-driven methods #
+    ########################
+
+    def on_collect_metrics(self, event: Event) -> None:
         pop = self.population_view.get(event.index)
         if len(pop.index) == 0:
             # No tracked population remains.
@@ -378,7 +402,7 @@ class TobaccoPrevalence:
         pop["year"] = self.clock().year
         self.tables.append(pop.reindex(columns=self.table_cols).reset_index(drop=True))
 
-    def write_output(self, event):
+    def on_simulation_end(self, event: Event) -> None:
         data = pd.concat(self.tables, ignore_index=True)
         data["year_of_birth"] = data["year"] - data["age"]
         # Sort the table by cohort (i.e., generation and sex), and then by
