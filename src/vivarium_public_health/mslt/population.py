@@ -7,10 +7,17 @@ This module contains tools for modeling the core demography in
 multi-state lifetable simulations.
 
 """
+from typing import List, Optional
+
 import numpy as np
+import pandas as pd
+from vivarium import Component
+from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 
 
-class BasePopulation:
+class BasePopulation(Component):
     """
     This component implements the core population demographics: age, sex,
     population size.
@@ -32,19 +39,19 @@ class BasePopulation:
 
     """
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "population": {
             "max_age": 110,
         }
     }
 
-    @property
-    def name(self):
-        return "base_population"
+    ##############
+    # Properties #
+    ##############
 
-    def setup(self, builder):
-        """Load the population data."""
-        columns = [
+    @property
+    def columns_created(self) -> List[str]:
+        return [
             "age",
             "sex",
             "population",
@@ -63,10 +70,21 @@ class BasePopulation:
             "bau_HALY",
         ]
 
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return ["tracked"]
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        """Load the population data."""
         self.pop_data = load_population_data(builder)
 
         # Create additional columns with placeholder (zero) values.
-        for column in columns:
+        for column in self.columns_created:
             if column in self.pop_data.columns:
                 continue
             self.pop_data.loc[:, column] = 0.0
@@ -76,20 +94,15 @@ class BasePopulation:
         self.start_year = builder.configuration.time.start.year
         self.clock = builder.time.clock()
 
-        # Track all of the quantities that exist in the core spreadsheet table.
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants, creates_columns=columns
-        )
-        self.population_view = builder.population.get_view(columns + ["tracked"])
+    ########################
+    # Event-driven methods #
+    ########################
 
-        # Age cohorts before each time-step (except the first time-step).
-        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
-
-    def on_initialize_simulants(self, _):
+    def on_initialize_simulants(self, _: SimulantData) -> None:
         """Initialize each cohort."""
         self.population_view.update(self.pop_data)
 
-    def on_time_step_prepare(self, event):
+    def on_time_step_prepare(self, event: Event) -> None:
         """Remove cohorts that have reached the maximum age."""
         pop = self.population_view.get(event.index, query="tracked == True")
         # Only increase cohort ages after the first time-step.
@@ -99,18 +112,38 @@ class BasePopulation:
         self.population_view.update(pop)
 
 
-class Mortality:
+class Mortality(Component):
     """
     This component reduces the population size of each cohort over time,
     according to the all-cause mortality rate.
     """
 
-    @property
-    def name(self):
-        return "mortality"
+    ##############
+    # Properties #
+    ##############
 
-    def setup(self, builder):
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return [
+            "population",
+            "bau_population",
+            "acmr",
+            "bau_acmr",
+            "pr_death",
+            "bau_pr_death",
+            "deaths",
+            "bau_deaths",
+            "person_years",
+            "bau_person_years",
+        ]
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def setup(self, builder: Builder) -> None:
         """Load the all-cause mortality rate."""
+        super().setup(builder)
         mortality_data = builder.data.load("cause.all_causes.mortality")
         self.mortality_rate = builder.value.register_rate_producer(
             "mortality_rate",
@@ -119,24 +152,11 @@ class Mortality:
             ),
         )
 
-        builder.event.register_listener("time_step", self.on_time_step)
+    ########################
+    # Event-driven methods #
+    ########################
 
-        self.population_view = builder.population.get_view(
-            [
-                "population",
-                "bau_population",
-                "acmr",
-                "bau_acmr",
-                "pr_death",
-                "bau_pr_death",
-                "deaths",
-                "bau_deaths",
-                "person_years",
-                "bau_person_years",
-            ]
-        )
-
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event) -> None:
         """
         Calculate the number of deaths and survivors at each time-step, for
         both the BAU and intervention scenarios.
@@ -161,18 +181,34 @@ class Mortality:
         self.population_view.update(pop)
 
 
-class Disability:
+class Disability(Component):
     """
     This component calculates the health-adjusted life years (HALYs) for each
     cohort over time, according to the years lost due to disability (YLD)
     rate.
     """
 
-    @property
-    def name(self):
-        return "disability"
+    ##############
+    # Properties #
+    ##############
 
-    def setup(self, builder):
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return [
+            "bau_yld_rate",
+            "yld_rate",
+            "bau_person_years",
+            "person_years",
+            "bau_HALY",
+            "HALY",
+        ]
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         """Load the years lost due to disability (YLD) rate."""
         yld_data = builder.data.load("cause.all_causes.disability_rate")
         yld_rate = builder.lookup.build_table(
@@ -180,20 +216,11 @@ class Disability:
         )
         self.yld_rate = builder.value.register_rate_producer("yld_rate", source=yld_rate)
 
-        builder.event.register_listener("time_step", self.on_time_step)
+    ########################
+    # Event-driven methods #
+    ########################
 
-        self.population_view = builder.population.get_view(
-            [
-                "bau_yld_rate",
-                "yld_rate",
-                "bau_person_years",
-                "person_years",
-                "bau_HALY",
-                "HALY",
-            ]
-        )
-
-    def on_time_step(self, event):
+    def on_time_step(self, event: Event) -> None:
         """
         Calculate the HALYs for each cohort at each time-step, for both the
         BAU and intervention scenarios.
@@ -208,7 +235,7 @@ class Disability:
         self.population_view.update(pop)
 
 
-def load_population_data(builder):
+def load_population_data(builder: Builder) -> pd.DataFrame:
     pop_data = builder.data.load("population.structure")
     pop_data = pop_data[["age", "sex", "value"]].rename(columns={"value": "population"})
     pop_data["bau_population"] = pop_data["population"]

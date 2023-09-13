@@ -7,11 +7,17 @@ This module contains tools for modeling diseases in multi-state lifetable
 simulations.
 
 """
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
+from vivarium import Component
+from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 
 
-class AcuteDisease:
+class AcuteDisease(Component):
     """
     An acute disease has a sufficiently short duration, relative to the
     time-step size, that it is not meaningful to talk about prevalence.
@@ -27,42 +33,48 @@ class AcuteDisease:
 
     Parameters
     ----------
-    name
+    disease
         The disease name (referred to as `<disease>` here).
 
     """
 
-    def __init__(self, name):
-        self._name = name
+    #####################
+    # Lifecycle methods #
+    #####################
 
-    @property
-    def name(self):
-        return self._name
+    def __init__(self, disease: str):
+        super().__init__()
+        self.disease = disease
 
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
         """Load the morbidity and mortality data."""
-        mty_data = builder.data.load(f"acute_disease.{self.name}.mortality")
+        mty_data = builder.data.load(f"acute_disease.{self.disease}.mortality")
         mty_rate = builder.lookup.build_table(
             mty_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
-        yld_data = builder.data.load(f"acute_disease.{self.name}.morbidity")
+        yld_data = builder.data.load(f"acute_disease.{self.disease}.morbidity")
         yld_rate = builder.lookup.build_table(
             yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         self.excess_mortality = builder.value.register_rate_producer(
-            f"{self.name}.excess_mortality", source=mty_rate
+            f"{self.disease}.excess_mortality", source=mty_rate
         )
         self.int_excess_mortality = builder.value.register_rate_producer(
-            f"{self.name}_intervention.excess_mortality", source=mty_rate
+            f"{self.disease}_intervention.excess_mortality", source=mty_rate
         )
         self.disability_rate = builder.value.register_rate_producer(
-            f"{self.name}.yld_rate", source=yld_rate
+            f"{self.disease}.yld_rate", source=yld_rate
         )
         self.int_disability_rate = builder.value.register_rate_producer(
-            f"{self.name}_intervention.yld_rate", source=yld_rate
+            f"{self.disease}_intervention.yld_rate", source=yld_rate
         )
         builder.value.register_value_modifier("mortality_rate", self.mortality_adjustment)
         builder.value.register_value_modifier("yld_rate", self.disability_adjustment)
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
     def mortality_adjustment(self, index, mortality_rate):
         """
@@ -82,7 +94,7 @@ class AcuteDisease:
         return yld_rate + delta
 
 
-class Disease:
+class Disease(Component):
     """This component characterises a chronic disease.
 
     It defines the following rates, which may be affected by interventions:
@@ -96,33 +108,59 @@ class Disease:
 
     Parameters
     ----------
-    name
+    disease
         The disease name (referred to as `<disease>` here).
 
     """
 
-    def __init__(self, name):
-        self._name = name
-        self.configuration_defaults = {
-            self.name: {
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {
+            self.disease: {
                 "simplified_no_remission_equations": False,
             },
         }
 
     @property
-    def name(self):
-        return self._name
+    def columns_created(self) -> List[str]:
+        columns = []
+        for scenario in ["", "_intervention"]:
+            for rate in ["_S", "_C"]:
+                for when in ["", "_previous"]:
+                    columns.append(self.disease + rate + scenario + when)
+        return columns
 
-    def setup(self, builder):
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return ["age", "sex"]
+
+    @property
+    def initialization_requirements(self) -> Dict[str, List[str]]:
+        return {
+            "requires_columns": ["age", "sex"],
+            "requires_values": [],
+            "requires_streams": [],
+        }
+
+    def __init__(self, disease: str):
+        super().__init__()
+        self.disease = disease
+
+    def setup(self, builder: Builder) -> None:
         """Load the disease prevalence and rates data."""
-        data_prefix = "chronic_disease.{}.".format(self.name)
-        bau_prefix = self.name + "."
-        int_prefix = self.name + "_intervention."
+        super().setup(builder)
+        data_prefix = "chronic_disease.{}.".format(self.disease)
+        bau_prefix = self.disease + "."
+        int_prefix = self.disease + "_intervention."
 
         self.clock = builder.time.clock()
         self.start_year = builder.configuration.time.start.year
         self.simplified_equations = builder.configuration[
-            self.name
+            self.disease
         ].simplified_no_remission_equations
 
         inc_data = builder.data.load(data_prefix + "incidence")
@@ -168,43 +206,32 @@ class Disease:
         builder.value.register_value_modifier("mortality_rate", self.mortality_adjustment)
         builder.value.register_value_modifier("yld_rate", self.disability_adjustment)
 
-        columns = []
-        for scenario in ["", "_intervention"]:
-            for rate in ["_S", "_C"]:
-                for when in ["", "_previous"]:
-                    columns.append(self.name + rate + scenario + when)
+    ########################
+    # Event-driven methods #
+    ########################
 
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=columns,
-            requires_columns=["age", "sex"],
-        )
-        self.population_view = builder.population.get_view(columns)
-
-        builder.event.register_listener("time_step__prepare", self.on_time_step_prepare)
-
-    def on_initialize_simulants(self, pop_data):
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Initialize the test population for which this disease is modeled."""
         C = 1000 * self.initial_prevalence(pop_data.index)
         S = 1000 - C
 
         pop = pd.DataFrame(
             {
-                f"{self.name}_S": S,
-                f"{self.name}_C": C,
-                f"{self.name}_S_previous": S,
-                f"{self.name}_C_previous": C,
-                f"{self.name}_S_intervention": S,
-                f"{self.name}_C_intervention": C,
-                f"{self.name}_S_intervention_previous": S,
-                f"{self.name}_C_intervention_previous": C,
+                f"{self.disease}_S": S,
+                f"{self.disease}_C": C,
+                f"{self.disease}_S_previous": S,
+                f"{self.disease}_C_previous": C,
+                f"{self.disease}_S_intervention": S,
+                f"{self.disease}_C_intervention": C,
+                f"{self.disease}_S_intervention_previous": S,
+                f"{self.disease}_C_intervention_previous": C,
             },
             index=pop_data.index,
         )
 
         self.population_view.update(pop)
 
-    def on_time_step_prepare(self, event):
+    def on_time_step_prepare(self, event: Event) -> None:
         """
         Update the disease status for both the BAU and intervention scenarios.
         """
@@ -216,9 +243,9 @@ class Disease:
         if pop.empty:
             return
         idx = pop.index
-        S_bau, C_bau = pop[f"{self.name}_S"], pop[f"{self.name}_C"]
-        S_int = pop[f"{self.name}_S_intervention"]
-        C_int = pop[f"{self.name}_C_intervention"]
+        S_bau, C_bau = pop[f"{self.disease}_S"], pop[f"{self.disease}_C"]
+        S_int = pop[f"{self.disease}_S_intervention"]
+        C_int = pop[f"{self.disease}_C_intervention"]
 
         # Extract all of the required rates *once only*.
         i_bau = self.incidence(idx)
@@ -240,14 +267,14 @@ class Disease:
                 new_C_int = C_int * np.exp(-f) + S_int - new_S_int
                 pop_update = pd.DataFrame(
                     {
-                        f"{self.name}_S": new_S_bau,
-                        f"{self.name}_C": new_C_bau,
-                        f"{self.name}_S_previous": S_bau,
-                        f"{self.name}_C_previous": C_bau,
-                        f"{self.name}_S_intervention": new_S_int,
-                        f"{self.name}_C_intervention": new_C_int,
-                        f"{self.name}_S_intervention_previous": S_int,
-                        f"{self.name}_C_intervention_previous": C_int,
+                        f"{self.disease}_S": new_S_bau,
+                        f"{self.disease}_C": new_C_bau,
+                        f"{self.disease}_S_previous": S_bau,
+                        f"{self.disease}_C_previous": C_bau,
+                        f"{self.disease}_S_intervention": new_S_int,
+                        f"{self.disease}_C_intervention": new_C_int,
+                        f"{self.disease}_S_intervention_previous": S_int,
+                        f"{self.disease}_C_intervention_previous": C_int,
                     },
                     index=pop.index,
                 )
@@ -312,18 +339,22 @@ class Disease:
 
         pop_update = pd.DataFrame(
             {
-                f"{self.name}_S": new_S_bau,
-                f"{self.name}_C": new_C_bau,
-                f"{self.name}_S_previous": S_bau,
-                f"{self.name}_C_previous": C_bau,
-                f"{self.name}_S_intervention": new_S_int,
-                f"{self.name}_C_intervention": new_C_int,
-                f"{self.name}_S_intervention_previous": S_int,
-                f"{self.name}_C_intervention_previous": C_int,
+                f"{self.disease}_S": new_S_bau,
+                f"{self.disease}_C": new_C_bau,
+                f"{self.disease}_S_previous": S_bau,
+                f"{self.disease}_C_previous": C_bau,
+                f"{self.disease}_S_intervention": new_S_int,
+                f"{self.disease}_C_intervention": new_C_int,
+                f"{self.disease}_S_intervention_previous": S_int,
+                f"{self.disease}_C_intervention_previous": C_int,
             },
             index=pop.index,
         )
         self.population_view.update(pop_update)
+
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
     def mortality_adjustment(self, index, mortality_rate):
         """
@@ -333,14 +364,17 @@ class Disease:
         """
         pop = self.population_view.get(index)
 
-        S, C = pop[f"{self.name}_S"], pop[f"{self.name}_C"]
-        S_prev, C_prev = pop[f"{self.name}_S_previous"], pop[f"{self.name}_C_previous"]
+        S, C = pop[f"{self.disease}_S"], pop[f"{self.disease}_C"]
+        S_prev, C_prev = pop[f"{self.disease}_S_previous"], pop[f"{self.disease}_C_previous"]
         D, D_prev = 1000 - S - C, 1000 - S_prev - C_prev
 
-        S_int, C_int = pop[f"{self.name}_S_intervention"], pop[f"{self.name}_C_intervention"]
+        S_int, C_int = (
+            pop[f"{self.disease}_S_intervention"],
+            pop[f"{self.disease}_C_intervention"],
+        )
         S_int_prev, C_int_prev = (
-            pop[f"{self.name}_S_intervention_previous"],
-            pop[f"{self.name}_C_intervention_previous"],
+            pop[f"{self.disease}_S_intervention_previous"],
+            pop[f"{self.disease}_C_intervention_previous"],
         )
         D_int, D_int_prev = 1000 - S_int - C_int, 1000 - S_int_prev - C_int_prev
 
@@ -361,15 +395,15 @@ class Disease:
         """
         pop = self.population_view.get(index)
 
-        S, S_prev = pop[f"{self.name}_S"], pop[f"{self.name}_S_previous"]
-        C, C_prev = pop[f"{self.name}_C"], pop[f"{self.name}_C_previous"]
+        S, S_prev = pop[f"{self.disease}_S"], pop[f"{self.disease}_S_previous"]
+        C, C_prev = pop[f"{self.disease}_C"], pop[f"{self.disease}_C_previous"]
         S_int, S_int_prev = (
-            pop[f"{self.name}_S_intervention"],
-            pop[f"{self.name}_S_intervention_previous"],
+            pop[f"{self.disease}_S_intervention"],
+            pop[f"{self.disease}_S_intervention_previous"],
         )
         C_int, C_int_prev = (
-            pop[f"{self.name}_C_intervention"],
-            pop[f"{self.name}_C_intervention_previous"],
+            pop[f"{self.disease}_C_intervention"],
+            pop[f"{self.disease}_C_intervention_previous"],
         )
 
         # The prevalence rate is the mean number of diseased people over the
