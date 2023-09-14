@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Callable, Dict
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.state_machine import Transition
+from vivarium.framework.state_machine import Transition, Trigger
 from vivarium.framework.utilities import rate_to_probability
 from vivarium.framework.values import list_combiner, union_post_processor
 
@@ -36,10 +36,10 @@ class RateTransition(Transition):
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
         get_data_functions: Dict[str, Callable] = None,
-        **kwargs,
+        triggered=Trigger.NOT_TRIGGERED,
     ):
         super().__init__(
-            input_state, output_state, probability_func=self._probability, **kwargs
+            input_state, output_state, probability_func=self._probability, triggered=triggered
         )
         self._get_data_functions = (
             get_data_functions if get_data_functions is not None else {}
@@ -74,20 +74,20 @@ class RateTransition(Transition):
     def load_transition_rate_data(self, builder):
         if "incidence_rate" in self._get_data_functions:
             rate_data = self._get_data_functions["incidence_rate"](
-                builder, self.output_state.cause
+                builder, self.output_state.state_id
             )
             pipeline_name = f"{self.output_state.state_id}.incidence_rate"
         elif "remission_rate" in self._get_data_functions:
             rate_data = self._get_data_functions["remission_rate"](
-                builder, self.output_state.cause
+                builder, self.output_state.state_id
             )
             pipeline_name = f"{self.input_state.state_id}.remission_rate"
         elif "transition_rate" in self._get_data_functions:
             rate_data = self._get_data_functions["transition_rate"](
-                builder, self.input_state.cause, self.output_state.cause
+                builder, self.input_state.state_id, self.output_state.state_id
             )
             pipeline_name = (
-                f"{self.input_state.cause}_to_{self.output_state.cause}.transition_rate"
+                f"{self.input_state.state_id}_to_{self.output_state.state_id}.transition_rate"
             )
         else:
             raise ValueError("No valid data functions supplied.")
@@ -123,10 +123,10 @@ class ProportionTransition(Transition):
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
         get_data_functions: Dict[str, Callable] = None,
-        **kwargs,
+        triggered=Trigger.NOT_TRIGGERED,
     ):
         super().__init__(
-            input_state, output_state, probability_func=self._probability, **kwargs
+            input_state, output_state, probability_func=self._probability, triggered=triggered
         )
         self._get_data_functions = (
             get_data_functions if get_data_functions is not None else {}
@@ -138,7 +138,7 @@ class ProportionTransition(Transition):
         get_proportion_func = self._get_data_functions.get("proportion", None)
         if get_proportion_func is None:
             raise ValueError("Must supply a proportion function")
-        self._proportion_data = get_proportion_func(builder, self.output_state.cause)
+        self._proportion_data = get_proportion_func(builder, self.output_state.state_id)
         self.proportion = builder.lookup.build_table(
             self._proportion_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )

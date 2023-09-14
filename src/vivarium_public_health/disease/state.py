@@ -11,8 +11,9 @@ from typing import Callable, Dict, List, Optional
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.lookup import LookupTableData
 from vivarium.framework.population import PopulationView, SimulantData
-from vivarium.framework.state_machine import State, Transient, Transition
+from vivarium.framework.state_machine import State, Transient, Transition, Trigger
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import (
@@ -50,15 +51,13 @@ class BaseDiseaseState(State):
 
     def __init__(
         self,
-        cause: str,
-        name_prefix: str = "",
+        state_id: str,
+        allow_self_transition: bool = False,
         side_effect_function: Optional[Callable] = None,
         cause_type: str = "cause",
-        **kwargs,
     ):
-        super().__init__(name_prefix + cause, **kwargs)  # becomes state_id
+        super().__init__(state_id, allow_self_transition)  # becomes state_id
         self.cause_type = cause_type
-        self.cause = cause
 
         self.side_effect_function = side_effect_function
 
@@ -129,7 +128,7 @@ class BaseDiseaseState(State):
         self,
         output: "BaseDiseaseState",
         get_data_functions: Dict[str, Callable] = None,
-        **kwargs,
+        triggered=Trigger.NOT_TRIGGERED,
     ) -> RateTransition:
         """Builds a RateTransition from this state to the given state.
 
@@ -140,13 +139,15 @@ class BaseDiseaseState(State):
 
         get_data_functions
             map from transition type to the function to pull that transition's data
+        triggered
+
 
         Returns
         -------
         RateTransition
             The created transition object.
         """
-        transition = RateTransition(self, output, get_data_functions, **kwargs)
+        transition = RateTransition(self, output, get_data_functions, triggered)
         self.add_transition(transition)
         return transition
 
@@ -154,7 +155,7 @@ class BaseDiseaseState(State):
         self,
         output: "BaseDiseaseState",
         get_data_functions: Dict[str, Callable] = None,
-        **kwargs,
+        triggered=Trigger.NOT_TRIGGERED,
     ) -> ProportionTransition:
         """Builds a ProportionTransition from this state to the given state.
 
@@ -174,12 +175,40 @@ class BaseDiseaseState(State):
         if "proportion" not in get_data_functions:
             raise ValueError("You must supply a proportion function.")
 
-        transition = ProportionTransition(self, output, get_data_functions, **kwargs)
+        transition = ProportionTransition(self, output, get_data_functions, triggered)
+        self.add_transition(transition)
+        return transition
+
+    def add_dwell_time_transition(
+        self, output: "BaseDiseaseState", triggered=Trigger.NOT_TRIGGERED
+    ) -> Transition:
+        transition = Transition(self, output, triggered=triggered)
         self.add_transition(transition)
         return transition
 
 
 class NonDiseasedState(BaseDiseaseState):
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(
+        self,
+        state_id: str,
+        allow_self_transition: bool = False,
+        side_effect_function: Optional[Callable] = None,
+        cause_type: str = "cause",
+        name_prefix: str = "",
+    ):
+        if not state_id.startswith(name_prefix):
+            state_id = f"{name_prefix}{state_id}"
+        super().__init__(
+            state_id,
+            allow_self_transition=allow_self_transition,
+            side_effect_function=side_effect_function,
+            cause_type=cause_type,
+        )
+
     ##################
     # Public methods #
     ##################
@@ -206,17 +235,37 @@ class SusceptibleState(NonDiseasedState):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, state_id: str, **kwargs):
-        if not state_id.startswith("susceptible_to_"):
-            state_id = f"susceptible_to_{state_id}"
-        super().__init__(state_id, **kwargs)
+    def __init__(
+        self,
+        state_id: str,
+        allow_self_transition: bool = False,
+        side_effect_function: Optional[Callable] = None,
+        cause_type: str = "cause",
+    ):
+        super().__init__(
+            state_id,
+            allow_self_transition=allow_self_transition,
+            side_effect_function=side_effect_function,
+            cause_type=cause_type,
+            name_prefix="susceptible_to_",
+        )
 
 
 class RecoveredState(NonDiseasedState):
-    def __init__(self, state_id, **kwargs):
-        if not state_id.startswith("recovered_from_"):
-            state_id = f"recovered_from_{state_id}"
-        super().__init__(state_id, **kwargs)
+    def __init__(
+        self,
+        state_id: str,
+        allow_self_transition: bool = False,
+        side_effect_function: Optional[Callable] = None,
+        cause_type: str = "cause",
+    ):
+        super().__init__(
+            state_id,
+            allow_self_transition=allow_self_transition,
+            side_effect_function=side_effect_function,
+            cause_type=cause_type,
+            name_prefix="recovered_from_",
+        )
 
 
 class DiseaseState(BaseDiseaseState):
@@ -229,29 +278,34 @@ class DiseaseState(BaseDiseaseState):
     def __init__(
         self,
         state_id: str,
+        allow_self_transition: bool = False,
+        side_effect_function: Optional[Callable] = None,
+        cause_type: str = "cause",
         get_data_functions: Dict[str, Callable] = None,
         cleanup_function: Callable = None,
-        **kwargs,
     ):
         """
         Parameters
         ----------
-        state_id : str
+        state_id
             The name of this state.
-        disability_weight : pandas.DataFrame or float, optional
-            The amount of disability associated with this state.
-        prevalence_data : pandas.DataFrame, optional
-            The baseline occurrence of this state in a population.
-        dwell_time : pandas.DataFrame or pandas.Timedelta, optional
-            The minimum time a simulant exists in this state.
-        event_time_column : str, optional
-            The name of a column to track the last time this state was entered.
-        event_count_column : str, optional
-            The name of a column to track the number of times this state was entered.
-        side_effect_function : callable, optional
+        allow_self_transition
+            Whether this state allows simulants to remain in the state for
+            multiple time-steps
+        side_effect_function
             A function to be called when this state is entered.
+        cause_type
+            The type of cause represented by this state. Either "cause" or "sequela".
+        get_data_functions
+            A dictionary containing a mapping to functions to retrieve data for
+            various state attributes
         """
-        super().__init__(state_id, **kwargs)
+        super().__init__(
+            state_id,
+            allow_self_transition=allow_self_transition,
+            side_effect_function=side_effect_function,
+            cause_type=cause_type,
+        )
 
         self.excess_mortality_rate_pipeline_name = f"{self.state_id}.excess_mortality_rate"
         self.excess_mortality_rate_paf_pipeline_name = (
@@ -263,16 +317,8 @@ class DiseaseState(BaseDiseaseState):
         )
         self._cleanup_function = cleanup_function
 
-        if self.cause is None and not set(self._get_data_functions.keys()).issuperset(
-            ["disability_weight", "dwell_time", "prevalence"]
-        ):
-            raise ValueError(
-                "If you do not provide a cause, you must supply"
-                "custom data gathering functions for disability_weight, prevalence, and dwell_time."
-            )
-
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
         """Performs this component's simulation setup.
 
         Parameters
@@ -344,6 +390,62 @@ class DiseaseState(BaseDiseaseState):
             f"{self.state_id}_prevalent_cases"
         )
 
+    #################
+    # Setup methods #
+    #################
+
+    def load_prevalence_data(self, builder: Builder) -> LookupTableData:
+        if "prevalence" in self._get_data_functions:
+            return self._get_data_functions["prevalence"](builder, self.state_id)
+        else:
+            return builder.data.load(f"{self.cause_type}.{self.state_id}.prevalence")
+
+    def load_birth_prevalence_data(self, builder: Builder) -> LookupTableData:
+        if "birth_prevalence" in self._get_data_functions:
+            return self._get_data_functions["birth_prevalence"](builder, self.state_id)
+        else:
+            return 0
+
+    def load_dwell_time_data(self, builder: Builder) -> LookupTableData:
+        if "dwell_time" in self._get_data_functions:
+            dwell_time = self._get_data_functions["dwell_time"](builder, self.state_id)
+        else:
+            dwell_time = 0
+
+        if isinstance(dwell_time, pd.Timedelta):
+            dwell_time = dwell_time.total_seconds() / (60 * 60 * 24)
+        if (
+            isinstance(dwell_time, pd.DataFrame) and np.any(dwell_time.value != 0)
+        ) or dwell_time > 0:
+            self.transition_set.allow_null_transition = True
+
+        return dwell_time
+
+    def load_disability_weight_data(self, builder: Builder) -> LookupTableData:
+        if "disability_weight" in self._get_data_functions:
+            disability_weight = self._get_data_functions["disability_weight"](
+                builder, self.state_id
+            )
+        else:
+            disability_weight = builder.data.load(
+                f"{self.cause_type}.{self.state_id}.disability_weight"
+            )
+
+        if isinstance(disability_weight, pd.DataFrame) and len(disability_weight) == 1:
+            disability_weight = disability_weight.value[0]  # sequela only have single value
+
+        return disability_weight
+
+    def load_excess_mortality_rate_data(self, builder: Builder) -> LookupTableData:
+        if "excess_mortality_rate" in self._get_data_functions:
+            return self._get_data_functions["excess_mortality_rate"](builder, self.state_id)
+        elif builder.data.load(f"cause.{self.model}.restrictions")["yld_only"]:
+            return 0
+        else:
+            return builder.data.load(
+                f"{self.cause_type}.{self.state_id}.excess_mortality_rate"
+            )
+
     ##################
     # Public methods #
     ##################
@@ -375,33 +477,30 @@ class DiseaseState(BaseDiseaseState):
         if "dwell_time" not in self._get_data_functions:
             raise ValueError("You must supply a dwell time function.")
 
-        transition = Transition(self, output, **kwargs)
-        self.add_transition(transition)
-        return transition
+        return super().add_dwell_time_transition(output, **kwargs)
 
-    ##################
-    # Helper methods #
-    ##################
+    def next_state(
+        self, index: pd.Index, event_time: pd.Timestamp, population_view: PopulationView
+    ) -> None:
+        """Moves a population among different disease states.
 
-    # todo: reorder these methods to make it easier to understand what they are each doing
-    def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
-        pop_update = super().get_initial_event_times(pop_data)
+        Parameters
+        ----------
+        index
+            An iterable of integer labels for the simulants.
+        event_time:
+            The time at which this transition occurs.
+        population_view:
+            A view of the internal state of the simulation.
+        """
+        eligible_index = self._filter_for_transition_eligibility(index, event_time)
+        return super().next_state(eligible_index, event_time, population_view)
 
-        simulants_with_condition = self.population_view.subview([self.model]).get(
-            pop_data.index, query=f'{self.model}=="{self.state_id}"'
-        )
-        if not simulants_with_condition.empty:
-            infected_at = self._assign_event_time_for_prevalent_cases(
-                simulants_with_condition,
-                self.clock(),
-                self.randomness_prevalence.get_draw,
-                self.dwell_time,
-            )
-            pop_update.loc[infected_at.index, self.event_time_column] = infected_at
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
-        return pop_update
-
-    def compute_disability_weight(self, index):
+    def compute_disability_weight(self, index: pd.Index) -> pd.Series:
         """Gets the disability weight associated with this state.
 
         Parameters
@@ -419,7 +518,7 @@ class DiseaseState(BaseDiseaseState):
         disability_weight.loc[with_condition] = self.base_disability_weight(with_condition)
         return disability_weight
 
-    def compute_excess_mortality_rate(self, index):
+    def compute_excess_mortality_rate(self, index: pd.Index) -> pd.Series:
         excess_mortality_rate = pd.Series(0, index=index)
         with_condition = self.with_condition(index)
         base_excess_mort = self.base_excess_mortality_rate(with_condition)
@@ -429,7 +528,7 @@ class DiseaseState(BaseDiseaseState):
         )
         return excess_mortality_rate
 
-    def adjust_mortality_rate(self, index, rates_df):
+    def adjust_mortality_rate(self, index: pd.Index, rates_df: pd.DataFrame) -> pd.DataFrame:
         """Modifies the baseline mortality rate for a simulant if they are in this state.
 
         Parameters
@@ -443,7 +542,28 @@ class DiseaseState(BaseDiseaseState):
         rates_df[self.state_id] = rate
         return rates_df
 
-    def with_condition(self, index):
+    ##################
+    # Helper methods #
+    ##################
+
+    def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
+        pop_update = super().get_initial_event_times(pop_data)
+
+        simulants_with_condition = self.population_view.subview([self.model]).get(
+            pop_data.index, query=f'{self.model}=="{self.state_id}"'
+        )
+        if not simulants_with_condition.empty:
+            infected_at = self._assign_event_time_for_prevalent_cases(
+                simulants_with_condition,
+                self.clock(),
+                self.randomness_prevalence.get_draw,
+                self.dwell_time,
+            )
+            pop_update.loc[infected_at.index, self.event_time_column] = infected_at
+
+        return pop_update
+
+    def with_condition(self, index: pd.Index) -> pd.Index:
         pop = self.population_view.subview(["alive", self.model]).get(index)
         with_condition = pop.loc[
             (pop[self.model] == self.state_id) & (pop["alive"] == "alive")
@@ -458,23 +578,6 @@ class DiseaseState(BaseDiseaseState):
         infected_at = dwell_time * randomness_func(infected.index)
         infected_at = current_time - pd.to_timedelta(infected_at, unit="D")
         return infected_at
-
-    def next_state(
-        self, index: pd.Index, event_time: pd.Timestamp, population_view: PopulationView
-    ):
-        """Moves a population among different disease states.
-
-        Parameters
-        ----------
-        index
-            An iterable of integer labels for the simulants.
-        event_time:
-            The time at which this transition occurs.
-        population_view:
-            A view of the internal state of the simulation.
-        """
-        eligible_index = self._filter_for_transition_eligibility(index, event_time)
-        return super().next_state(eligible_index, event_time, population_view)
 
     def _filter_for_transition_eligibility(self, index, event_time):
         """Filter out all simulants who haven't been in the state for the prescribed dwell time.
@@ -501,56 +604,6 @@ class DiseaseState(BaseDiseaseState):
     def _cleanup_effect(self, index, event_time):
         if self._cleanup_function is not None:
             self._cleanup_function(index, event_time)
-
-    def load_prevalence_data(self, builder):
-        if "prevalence" in self._get_data_functions:
-            return self._get_data_functions["prevalence"](builder, self.cause)
-        else:
-            return builder.data.load(f"{self.cause_type}.{self.cause}.prevalence")
-
-    def load_birth_prevalence_data(self, builder):
-        if "birth_prevalence" in self._get_data_functions:
-            return self._get_data_functions["birth_prevalence"](builder, self.cause)
-        else:
-            return 0
-
-    def load_dwell_time_data(self, builder):
-        if "dwell_time" in self._get_data_functions:
-            dwell_time = self._get_data_functions["dwell_time"](builder, self.cause)
-        else:
-            dwell_time = 0
-
-        if isinstance(dwell_time, pd.Timedelta):
-            dwell_time = dwell_time.total_seconds() / (60 * 60 * 24)
-        if (
-            isinstance(dwell_time, pd.DataFrame) and np.any(dwell_time.value != 0)
-        ) or dwell_time > 0:
-            self.transition_set.allow_null_transition = True
-
-        return dwell_time
-
-    def load_disability_weight_data(self, builder):
-        if "disability_weight" in self._get_data_functions:
-            disability_weight = self._get_data_functions["disability_weight"](
-                builder, self.cause
-            )
-        else:
-            disability_weight = builder.data.load(
-                f"{self.cause_type}.{self.cause}.disability_weight"
-            )
-
-        if isinstance(disability_weight, pd.DataFrame) and len(disability_weight) == 1:
-            disability_weight = disability_weight.value[0]  # sequela only have single value
-
-        return disability_weight
-
-    def load_excess_mortality_rate_data(self, builder):
-        if "excess_mortality_rate" in self._get_data_functions:
-            return self._get_data_functions["excess_mortality_rate"](builder, self.cause)
-        elif builder.data.load(f"cause.{self.model}.restrictions")["yld_only"]:
-            return 0
-        else:
-            return builder.data.load(f"{self.cause_type}.{self.cause}.excess_mortality_rate")
 
 
 class TransientDiseaseState(BaseDiseaseState, Transient):
