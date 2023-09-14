@@ -140,8 +140,6 @@ class DelayedRisk(Component):
         handlers and rate modifiers, and setting up the population view.
         """
         self._bin_names = self.get_bin_names()
-        super().setup(builder)
-
         self.config = builder.configuration
 
         self.start_year = builder.configuration.time.start.year

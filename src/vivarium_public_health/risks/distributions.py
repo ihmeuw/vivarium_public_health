@@ -40,7 +40,6 @@ class SimulationDistribution(Component):
         self.risk = EntityString(risk)
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         distribution_data = get_distribution_data(builder, self.risk)
         self.implementation = get_distribution(self.risk, **distribution_data)
         self.implementation.setup(builder)
@@ -81,7 +80,6 @@ class EnsembleSimulation(Component):
         self._propensity = f"ensemble_propensity_{self.risk}"
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.weights = builder.lookup.build_table(
             self._weights, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -149,7 +147,6 @@ class ContinuousDistribution(Component):
         self._parameters = self.get_parameters(mean, sd)
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.parameters = builder.lookup.build_table(
             self._parameters, key_columns=["sex"], parameter_columns=["age", "year"]
         )

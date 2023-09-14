@@ -19,7 +19,6 @@ class MortalityShift(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         builder.value.register_value_modifier("mortality_rate", self.mortality_adjustment)
 
     ##################################
@@ -36,7 +35,6 @@ class YLDShift(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         builder.value.register_value_modifier("yld_rate", self.disability_adjustment)
 
     ##################################
@@ -56,7 +54,6 @@ class IncidenceShift(Component):
         self.disease = disease
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         builder.value.register_value_modifier(
             f"{self.disease}_intervention.incidence", self.incidence_adjustment
         )
@@ -92,7 +89,6 @@ class ModifyAcuteDiseaseYLD(Component):
         self.disease = disease
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.config = builder.configuration
         self.scale = self.config.intervention[self.disease].yld_scale
         if self.scale < 0:
@@ -132,7 +128,6 @@ class ModifyAcuteDiseaseMortality(Component):
         self.disease = disease
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.config = builder.configuration
         self.scale = self.config.intervention[self.disease].mortality_scale
         if self.scale < 0:
