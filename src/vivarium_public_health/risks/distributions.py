@@ -42,7 +42,7 @@ class SimulationDistribution(Component):
     def setup(self, builder: Builder) -> None:
         distribution_data = get_distribution_data(builder, self.risk)
         self.implementation = get_distribution(self.risk, **distribution_data)
-        self.implementation.setup(builder)
+        self.implementation.setup_component(builder)
 
     ##################
     # Public methods #
