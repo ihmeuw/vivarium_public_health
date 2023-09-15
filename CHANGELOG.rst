@@ -1,3 +1,7 @@
+**1.0.4 - 09/15/23**
+
+ - Address Pandas 2.1 FutureWarnings
+
 **1.0.3 - 08/10/23**
 
  - Pass `BaseDiseaseState` constructor kwargs to its super-class's constructor
