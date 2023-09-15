@@ -243,13 +243,13 @@ class RiskAttributableDisease:
         self.population_view.update(pop)
 
     def compute_disability_weight(self, index):
-        disability_weight = pd.Series(0, index=index)
+        disability_weight = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         disability_weight.loc[with_condition] = self.base_disability_weight(with_condition)
         return disability_weight
 
     def compute_excess_mortality_rate(self, index):
-        excess_mortality_rate = pd.Series(0, index=index)
+        excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         base_excess_mort = self.base_excess_mortality_rate(with_condition)
         joint_mediated_paf = self.joint_paf(with_condition)
