@@ -13,16 +13,22 @@ from vivarium.framework.engine import Builder
 
 
 class ResultsStratifier(Component):
-    name = "results_stratifier"
+
+    #####################
+    # Lifecycle methods #
+    #####################
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.age_bins = self.get_age_bins(builder)
         self.start_year = builder.configuration.time.start.year
         self.end_year = builder.configuration.time.end.year
 
         self.register_stratifications(builder)
+
+    #################
+    # Setup methods #
+    #################
 
     def register_stratifications(self, builder: Builder) -> None:
         builder.results.register_stratification(

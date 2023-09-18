@@ -65,7 +65,6 @@ class DisabilityObserver(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.config = builder.configuration.stratification.disability
         self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
         self.disability_weight = self.get_disability_weight_pipeline(builder)

@@ -38,7 +38,6 @@ class TherapeuticInertia(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.therapeutic_inertia_parameters = builder.configuration.therapeutic_inertia
 
         self._therapeutic_inertia = self.initialize_therapeutic_inertia(builder)

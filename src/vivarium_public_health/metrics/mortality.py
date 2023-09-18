@@ -70,7 +70,6 @@ class MortalityObserver(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.clock = builder.time.clock()
         self.config = builder.configuration.stratification.mortality
         self._cause_components = builder.components.get_components_by_type(
