@@ -39,7 +39,6 @@ class ModifyAllCauseMortality(Component):
         self.intervention = intervention
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.config = builder.configuration
         self.scale = self.config.intervention[self.intervention]["scale"]
         if self.scale < 0:
@@ -83,7 +82,6 @@ class ModifyDiseaseRate(Component):
         self._scale_name = f"{self.disease}_{self.rate}_scale"
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.config = builder.configuration
         # NOTE: this will be replaced by an (age, sex, year) lookup-table.
         self.scale = self.config.intervention[self.intervention][self._scale_name]
@@ -160,7 +158,6 @@ class ModifyAcuteDiseaseIncidence(Component):
         self.intervention = intervention
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.config = builder.configuration
         self.scale = self.config.intervention[self.intervention].incidence_scale
         if self.scale < 0:
@@ -204,7 +201,6 @@ class ModifyAcuteDiseaseMorbidity(Component):
         self.intervention = intervention
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.config = builder.configuration
         self.scale = self.config.intervention[self.intervention].yld_scale
         if self.scale < 0:
@@ -246,7 +242,6 @@ class ModifyAcuteDiseaseMortality(Component):
         self.intervention = intervention
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.config = builder.configuration
         self.scale = self.config.intervention[self.intervention].mortality_scale
         if self.scale < 0:
@@ -286,7 +281,6 @@ class TobaccoFreeGeneration(Component):
         self.exposure = "tobacco"
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.year = builder.configuration["tobacco_free_generation"].year
         self.clock = builder.time.clock()
         rate_name = "{}_intervention.incidence".format(self.exposure)
@@ -328,7 +322,6 @@ class TobaccoEradication(Component):
         self.exposure = "tobacco"
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.year = builder.configuration["tobacco_eradication"].year
         self.clock = builder.time.clock()
         inc_rate_name = "{}_intervention.incidence".format(self.exposure)

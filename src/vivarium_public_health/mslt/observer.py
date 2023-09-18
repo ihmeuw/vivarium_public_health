@@ -96,7 +96,6 @@ class MorbidityMortality(Component):
         self.output_suffix = output_suffix
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         # Record the key columns from the core multi-state life table.
         self.clock = builder.time.clock()
 
@@ -226,7 +225,6 @@ class Disease(Component):
         self.int_C_col = "{}_C_intervention".format(self.disease)
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         bau_incidence_value = "{}.incidence".format(self.disease)
         int_incidence_value = "{}_intervention.incidence".format(self.disease)
         self.bau_incidence = builder.value.get_value(bau_incidence_value)
@@ -314,7 +312,6 @@ class TobaccoPrevalence(Component):
 
     def setup(self, builder: Builder) -> None:
         self._bin_names = self.get_bin_names()
-        super().setup(builder)
 
         self.config = builder.configuration
         self.clock = builder.time.clock()

@@ -38,7 +38,6 @@ class FertilityDeterministic(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.fractional_new_births = 0
         self.simulants_per_year = (
             builder.configuration.fertility.number_of_new_simulants_each_year
@@ -115,7 +114,6 @@ class FertilityCrudeBirthRate(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.birth_rate = get_live_births_per_year(builder)
 
         self.clock = builder.time.clock()
@@ -190,7 +188,6 @@ class FertilityAgeSpecificRates(Component):
         builder : vivarium.engine.Builder
             Framework coordination object.
         """
-        super().setup(builder)
         age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
         fertility_rate = builder.lookup.build_table(
             age_specific_fertility_rate, parameter_columns=["age", "year"]

@@ -81,7 +81,6 @@ class DiseaseObserver(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification[self.disease]
 
