@@ -93,7 +93,6 @@ class Mortality(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.random = self.get_randomness_stream(builder)
         self.clock = builder.time.clock()
 

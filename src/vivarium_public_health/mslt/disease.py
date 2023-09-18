@@ -47,7 +47,6 @@ class AcuteDisease(Component):
         self.disease = disease
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         """Load the morbidity and mortality data."""
         mty_data = builder.data.load(f"acute_disease.{self.disease}.mortality")
         mty_rate = builder.lookup.build_table(
@@ -152,7 +151,6 @@ class Disease(Component):
 
     def setup(self, builder: Builder) -> None:
         """Load the disease prevalence and rates data."""
-        super().setup(builder)
         data_prefix = "chronic_disease.{}.".format(self.disease)
         bau_prefix = self.disease + "."
         int_prefix = self.disease + "_intervention."

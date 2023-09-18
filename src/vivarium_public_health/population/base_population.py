@@ -29,7 +29,7 @@ from vivarium_public_health.population.data_transformations import (
 class BasePopulation(Component):
     """Component for producing and aging simulants based on demographic data."""
 
-    configuration_defaults = {
+    CONFIGURATION_DEFAULTS = {
         "population": {
             "age_start": 0,
             "age_end": 125,
@@ -38,16 +38,9 @@ class BasePopulation(Component):
         }
     }
 
-    def __repr__(self) -> str:
-        return "BasePopulation()"
-
     ##############
     # Properties #
     ##############
-
-    @property
-    def name(self) -> str:
-        return "base_population"
 
     @property
     def columns_created(self) -> List[str]:
@@ -67,8 +60,6 @@ class BasePopulation(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
-
         self.config = builder.configuration.population
         self.key_columns = builder.configuration.randomness.key_columns
         if self.config.include_sex not in ["Male", "Female", "Both"]:
@@ -177,16 +168,9 @@ class BasePopulation(Component):
 class AgeOutSimulants(Component):
     """Component for handling aged-out simulants"""
 
-    def __repr__(self) -> str:
-        return "AgeOutSimulants()"
-
     ##############
     # Properties #
     ##############
-
-    @property
-    def name(self) -> str:
-        return "age_out_simulants"
 
     @property
     def columns_required(self) -> List[str]:
@@ -206,8 +190,6 @@ class AgeOutSimulants(Component):
         self.config = builder.configuration.population
         if self.config.exit_age is not None:
             self._columns_required = ["age", "exit_time", "tracked"]
-
-        super().setup(builder)
 
     def on_time_step_cleanup(self, event: Event) -> None:
         if self.config.exit_age is None:

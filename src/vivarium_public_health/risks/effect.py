@@ -98,7 +98,6 @@ class RiskEffect(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.exposure_distribution_type = self.get_distribution_type(builder)
         self.exposure = self.get_risk_exposure(builder)
         self.relative_risk = self.get_relative_risk_source(builder)

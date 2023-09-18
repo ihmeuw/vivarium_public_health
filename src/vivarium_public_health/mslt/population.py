@@ -79,7 +79,6 @@ class BasePopulation(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         """Load the population data."""
         self.pop_data = load_population_data(builder)
 
@@ -143,7 +142,6 @@ class Mortality(Component):
 
     def setup(self, builder: Builder) -> None:
         """Load the all-cause mortality rate."""
-        super().setup(builder)
         mortality_data = builder.data.load("cause.all_causes.mortality")
         self.mortality_rate = builder.value.register_rate_producer(
             "mortality_rate",
@@ -208,7 +206,6 @@ class Disability(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         """Load the years lost due to disability (YLD) rate."""
         yld_data = builder.data.load("cause.all_causes.disability_rate")
         yld_rate = builder.lookup.build_table(
