@@ -4,8 +4,8 @@ Vivarium Public Health
 .. image:: https://badge.fury.io/py/vivarium-public-health.svg
     :target: https://badge.fury.io/py/vivarium-public-health
 
-.. image:: https://travis-ci.org/ihmeuw/vivarium_public_health.svg?branch=master
-    :target: https://travis-ci.org/ihmeuw/vivarium_public_health
+.. image:: https://github.com/ihmeuw/vivarium_public_health/actions/workflows/build.yml/badge.svg?branch=main
+    :target: https://github.com/ihmeuw/vivarium_public_health
     :alt: Latest Version
 
 .. image:: https://readthedocs.org/projects/vivarium_public_health/badge/?version=latest
