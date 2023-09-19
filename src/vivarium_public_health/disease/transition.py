@@ -52,7 +52,7 @@ class RateTransition(Transition):
         self.population_view = builder.population.get_view(["alive"])
 
     def compute_transition_rate(self, index):
-        transition_rate = pd.Series(0, index=index)
+        transition_rate = pd.Series(0.0, index=index)
         living = self.population_view.get(index, query='alive == "alive"').index
         base_rates = self.base_rate(living)
         joint_paf = self.joint_paf(living)
