@@ -1,3 +1,7 @@
+**1.0.5 - 09/19/23**
+
+ - Update unit test for dtypes
+
 **1.0.4 - 09/15/23**
 
  - Address Pandas 2.1 FutureWarnings
