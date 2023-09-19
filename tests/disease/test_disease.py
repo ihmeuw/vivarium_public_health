@@ -405,7 +405,7 @@ def test__assign_event_time_for_prevalent_cases():
     check = DiseaseState._assign_event_time_for_prevalent_cases(
         pop_data, current_time, random_func, dwell_time_func
     )
-    assert len(expected) == (expected == check).sum()
+    assert (expected == check).all()
 
 
 def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugins, disease):
