@@ -402,13 +402,14 @@ def test__assign_event_time_for_prevalent_cases():
 
     dwell_time_func = lambda index: pd.Series(10, index=index)
     # 10* 0.4 = 4 ; 4 days before the current time
-    expected = pd.Series(pd.Timestamp(2017, 1, 6, 12), index=pop_data.index)
-
-    assert expected.equals(
-        DiseaseState._assign_event_time_for_prevalent_cases(
-            pop_data, current_time, random_func, dwell_time_func
-        )
+    expected = pd.Series(pd.Timestamp(2017, 1, 6, 12, 0), index=pop_data.index).astype(
+        "datetime64[ns]"
     )
+    actual = DiseaseState._assign_event_time_for_prevalent_cases(
+        pop_data, current_time, random_func, dwell_time_func
+    )
+
+    assert expected.equals(actual)
 
 
 def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugins, disease):
