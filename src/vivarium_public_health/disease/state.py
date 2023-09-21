@@ -64,13 +64,6 @@ class BaseDiseaseState(State):
         self.event_time_column = self.state_id + "_event_time"
         self.event_count_column = self.state_id + "_event_count"
 
-    def register_simulant_initializer(self, builder: "Builder") -> None:
-        builder.population.initializes_simulants(
-            self.on_initialize_simulants,
-            creates_columns=self.columns_created,
-            requires_columns=[self.model],
-        )
-
     ########################
     # Event-driven methods #
     ########################
