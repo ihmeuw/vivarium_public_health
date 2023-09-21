@@ -13,7 +13,6 @@ from vivarium.framework.engine import Builder
 
 
 class ResultsStratifier(Component):
-
     #####################
     # Lifecycle methods #
     #####################
