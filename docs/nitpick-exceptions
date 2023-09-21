@@ -10,8 +10,10 @@ py:class pandas.core.frame.DataFrame
 py:class pandas.core.series.Series
 py:class pandas.core.generic.PandasObject
 
-# TODO: Need to revisit this. Nitpicking here to avoid failing doc builds
+# TODO: Need to revisit this. Nitpicking here to avoid failing builds on 3.8 and 3.9 in LBWSGRisk
 py:class PopulationView
+py:class Logger
+# TODO: Need to revisit this. Nitpicking here to avoid failing everywhere
 py:class Builder
 py:class SimulantData
 py:class Event
