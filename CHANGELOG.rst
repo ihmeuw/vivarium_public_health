@@ -1,3 +1,8 @@
+**2.0.0 - 09/22/23**
+
+ - Refactor all components to inherit from `vivarium.Component`
+ - Refactor components inheriting from another vivarium class to be compatible with vivarium 2.0.0
+
 **1.0.5 - 09/19/23**
 
  - Update unit test for dtypes
