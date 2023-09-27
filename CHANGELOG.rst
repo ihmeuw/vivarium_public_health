@@ -1,3 +1,7 @@
+**2.0.1 - 09/27/23**
+
+ - Address a CopyWithSettingWarning in results stratifier
+
 **2.0.0 - 09/22/23**
 
  - Refactor all components to inherit from `vivarium.Component`

@@ -121,7 +121,7 @@ class ResultsStratifier(Component):
         age_start_mask = age_start < raw_age_bins["age_end"]
         exit_age_mask = raw_age_bins["age_start"] < exit_age if exit_age else True
 
-        age_bins = raw_age_bins.loc[age_start_mask & exit_age_mask, :]
+        age_bins = raw_age_bins.loc[age_start_mask & exit_age_mask, :].copy()
         age_bins["age_group_name"] = (
             age_bins["age_group_name"].str.replace(" ", "_").str.lower()
         )
