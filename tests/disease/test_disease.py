@@ -506,7 +506,7 @@ def test_state_transition_names(disease):
 
 
 def test_artifact_transition_keys(mocker, disease):
-    '''Test that we use expected artifact keys to load transition data.'''
+    """Test that we use expected artifact keys to load transition data."""
     builder = mocker.Mock()
     builder.data.load = mocker.Mock()
     cause = "diarrheal_diseases"
