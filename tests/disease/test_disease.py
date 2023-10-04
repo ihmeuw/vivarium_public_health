@@ -503,3 +503,23 @@ def test_state_transition_names(disease):
         TransitionString("diarrheal_diseases_TO_susceptible_to_diarrheal_diseases"),
         TransitionString("susceptible_to_diarrheal_diseases_TO_diarrheal_diseases"),
     }
+
+
+def test_artifact_transition_keys(mocker, disease):
+    builder = mocker.Mock()
+    builder.data.load = mocker.Mock()
+    cause = "diarrheal_diseases"
+    with_condition = DiseaseState(cause)
+    healthy = SusceptibleState(cause)
+
+    # check incidence rate
+    healthy.add_rate_transition(with_condition)
+    incident_transition = healthy.transition_set.transitions[0]
+    incident_transition.load_transition_rate_data(builder)
+    builder.data.load.assert_called_with('cause.diarrheal_diseases.incidence_rate')
+
+    # check remission rate
+    with_condition.add_rate_transition(healthy)
+    remissive_transition = with_condition.transition_set.transitions[0]
+    remissive_transition.load_transition_rate_data(builder)
+    builder.data.load.assert_called_with('cause.diarrheal_diseases.remission_rate')
