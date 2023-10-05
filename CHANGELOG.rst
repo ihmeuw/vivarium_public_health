@@ -1,3 +1,7 @@
+**2.0.2 - 10/05/23**
+
+ - Bugfix to use correct default artifact key when loading remission data
+
 **2.0.1 - 09/27/23**
 
  - Address a CopyWithSettingWarning in results stratifier
