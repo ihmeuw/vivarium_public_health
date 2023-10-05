@@ -79,7 +79,7 @@ class RateTransition(Transition):
             pipeline_name = f"{self.output_state.state_id}.incidence_rate"
         elif "remission_rate" in self._get_data_functions:
             rate_data = self._get_data_functions["remission_rate"](
-                builder, self.output_state.state_id
+                builder, self.input_state.state_id
             )
             pipeline_name = f"{self.input_state.state_id}.remission_rate"
         elif "transition_rate" in self._get_data_functions:
