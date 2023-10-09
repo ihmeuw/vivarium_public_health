@@ -1,3 +1,7 @@
+**2.0.2 - 10/05/23**
+
+ - Minor bugfix to ensure default remission rate calls the right artifact key
+
 **2.0.1 - 09/27/23**
 
  - Address a CopyWithSettingWarning in results stratifier
