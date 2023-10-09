@@ -1,6 +1,6 @@
 **2.1.0 - 10/05/23**
 
- - No longer using Python 3.8
+ - Remove explicit support for Python 3.8
 
 **2.0.1 - 09/27/23**
 
