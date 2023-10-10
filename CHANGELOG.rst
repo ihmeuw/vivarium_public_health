@@ -1,3 +1,8 @@
+**2.1.0 - 10/05/23**
+
+ - Remove explicit support for Python 3.8
+ - Minor bugfix to ensure default remission rate calls the right artifact key
+
 **2.0.1 - 09/27/23**
 
  - Address a CopyWithSettingWarning in results stratifier
