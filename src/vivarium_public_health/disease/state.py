@@ -12,10 +12,10 @@ import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable, LookupTableData
-from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.population import PopulationView, SimulantData
+from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
-from vivarium.framework.values import list_combiner, Pipeline, union_post_processor
+from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import (
     ProportionTransition,
@@ -334,7 +334,9 @@ class DiseaseState(BaseDiseaseState):
 
         disability_weight_data = self.load_disability_weight_data(builder)
         self.has_disability = is_non_zero(disability_weight_data)
-        self.base_disability_weight = self.get_base_disability_weight(builder, disability_weight_data)
+        self.base_disability_weight = self.get_base_disability_weight(
+            builder, disability_weight_data
+        )
 
         self.disability_weight = self.get_disability_weight_pipeline(builder)
 
@@ -344,7 +346,9 @@ class DiseaseState(BaseDiseaseState):
 
         excess_mortality_data = self.load_excess_mortality_rate_data(builder)
         self.has_excess_mortality = is_non_zero(excess_mortality_data)
-        self.base_excess_mortality_rate = self.get_base_excess_mortality_rate(builder, excess_mortality_data)
+        self.base_excess_mortality_rate = self.get_base_excess_mortality_rate(
+            builder, excess_mortality_data
+        )
         self.excess_mortality_rate = self.get_excess_mortality_rate_pipeline(builder)
         self.joint_paf = self.get_joint_paf(builder)
 
@@ -366,7 +370,9 @@ class DiseaseState(BaseDiseaseState):
         else:
             return builder.data.load(f"{self.cause_type}.{self.state_id}.prevalence")
 
-    def get_prevalence(self, builder: Builder, prevalence_data: LookupTableData) -> LookupTable:
+    def get_prevalence(
+        self, builder: Builder, prevalence_data: LookupTableData
+    ) -> LookupTable:
         return builder.lookup.build_table(
             prevalence_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -377,7 +383,9 @@ class DiseaseState(BaseDiseaseState):
         else:
             return 0
 
-    def get_birth_prevalence(self, builder: Builder, birth_prevalence_data: LookupTableData) -> LookupTable:
+    def get_birth_prevalence(
+        self, builder: Builder, birth_prevalence_data: LookupTableData
+    ) -> LookupTable:
         return builder.lookup.build_table(
             birth_prevalence_data, key_columns=["sex"], parameter_columns=["year"]
         )
@@ -397,7 +405,9 @@ class DiseaseState(BaseDiseaseState):
 
         return dwell_time
 
-    def get_dwell_time_pipeline(self, builder: Builder, dwell_time_data: LookupTableData) -> Pipeline:
+    def get_dwell_time_pipeline(
+        self, builder: Builder, dwell_time_data: LookupTableData
+    ) -> Pipeline:
         return builder.value.register_value_producer(
             f"{self.state_id}.dwell_time",
             source=builder.lookup.build_table(
@@ -405,7 +415,6 @@ class DiseaseState(BaseDiseaseState):
             ),
             requires_columns=["age", "sex"],
         )
-
 
     def load_disability_weight_data(self, builder: Builder) -> LookupTableData:
         if "disability_weight" in self._get_data_functions:
@@ -422,17 +431,19 @@ class DiseaseState(BaseDiseaseState):
 
         return disability_weight
 
-    def get_base_disability_weight(self, builder: Builder, disability_weight_data: LookupTableData) -> LookupTable:
+    def get_base_disability_weight(
+        self, builder: Builder, disability_weight_data: LookupTableData
+    ) -> LookupTable:
         return builder.lookup.build_table(
             disability_weight_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
 
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
-                f"{self.state_id}.disability_weight",
-                source=self.compute_disability_weight,
-                requires_columns=["age", "sex", "alive", self.model],
-            )
+            f"{self.state_id}.disability_weight",
+            source=self.compute_disability_weight,
+            requires_columns=["age", "sex", "alive", self.model],
+        )
 
     def load_excess_mortality_rate_data(self, builder: Builder) -> LookupTableData:
         if "excess_mortality_rate" in self._get_data_functions:
@@ -444,7 +455,9 @@ class DiseaseState(BaseDiseaseState):
                 f"{self.cause_type}.{self.state_id}.excess_mortality_rate"
             )
 
-    def get_base_excess_mortality_rate(self, builder: Builder, excess_mortality_data: LookupTableData) -> LookupTable:
+    def get_base_excess_mortality_rate(
+        self, builder: Builder, excess_mortality_data: LookupTableData
+    ) -> LookupTable:
         return builder.lookup.build_table(
             excess_mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -467,9 +480,7 @@ class DiseaseState(BaseDiseaseState):
         )
 
     def get_randomness_prevalence(self, builder: Builder) -> RandomnessStream:
-        return builder.randomness.get_stream(
-            f"{self.state_id}_prevalent_cases"
-        )
+        return builder.randomness.get_stream(f"{self.state_id}_prevalent_cases")
 
     ##################
     # Public methods #
