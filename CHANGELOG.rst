@@ -1,3 +1,7 @@
+**2.1.1 - 10/13/23**
+
+ - Use methods to setup BaseDiseaseState 
+
 **2.1.0 - 10/05/23**
 
  - Remove explicit support for Python 3.8
