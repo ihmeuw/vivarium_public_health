@@ -1,6 +1,6 @@
 **2.1.1 - 10/13/23**
 
- - Use methods to setup BaseDiseaseState 
+ - Perform actions in DiseaseState setup using class methods rather than hardcoding to allow for cleaner subclassing
 
 **2.1.0 - 10/05/23**
 
