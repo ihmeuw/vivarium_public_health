@@ -1,3 +1,7 @@
+**2.1.1 - 10/13/23**
+
+ - Perform actions in DiseaseState setup using class methods rather than hardcoding to allow for cleaner subclassing
+
 **2.1.0 - 10/05/23**
 
  - Remove explicit support for Python 3.8
