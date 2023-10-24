@@ -127,6 +127,20 @@ class LinearScaleUp(Component):
         return get_endpoint("start"), get_endpoint("end")
 
     def get_scale_up_values(self, builder: Builder) -> Tuple[LookupTable, LookupTable]:
+        """
+        Get the values at the start and end of the scale-up period.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+
+        Returns
+        -------
+        LookupTable
+            A tuple of lookup tables returning the values at the start and end
+            of the scale-up period.
+        """
         scale_up_config = builder.configuration[self.configuration_key]["value"]
 
         def get_endpoint_value(endpoint_type: str) -> LookupTable:
@@ -172,6 +186,23 @@ class LinearScaleUp(Component):
     def get_endpoint_value_from_data(
         self, builder: Builder, endpoint_type: str
     ) -> LookupTable:
+        """
+        Get the value at the start or end of the scale-up period from data.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+        endpoint_type
+            The type of endpoint to get the value for. Allowed values are
+            "start" and "end".
+
+        Returns
+        -------
+        LookupTable
+            A lookup table returning the value at the start or end of the
+            scale-up period.
+        """
         if endpoint_type == "start":
             endpoint_data = builder.data.load(f"{self.treatment}.exposure")
         elif endpoint_type == "end":

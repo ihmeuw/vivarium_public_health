@@ -373,6 +373,20 @@ class DiseaseState(BaseDiseaseState):
     def get_prevalence(
         self, builder: Builder, prevalence_data: LookupTableData
     ) -> LookupTable:
+        """Builds a LookupTable for the prevalence of this state.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+        prevalence_data
+            The data to use to build the LookupTable.
+
+        Returns
+        -------
+        LookupTable
+            The LookupTable for the prevalence of this state.
+        """
         return builder.lookup.build_table(
             prevalence_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -386,6 +400,21 @@ class DiseaseState(BaseDiseaseState):
     def get_birth_prevalence(
         self, builder: Builder, birth_prevalence_data: LookupTableData
     ) -> LookupTable:
+        """
+        Builds a LookupTable for the birth prevalence of this state.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+        birth_prevalence_data
+            The data to use to build the LookupTable.
+
+        Returns
+        -------
+        LookupTable
+            The LookupTable for the birth prevalence of this state.
+        """
         return builder.lookup.build_table(
             birth_prevalence_data, key_columns=["sex"], parameter_columns=["year"]
         )
@@ -434,6 +463,21 @@ class DiseaseState(BaseDiseaseState):
     def get_base_disability_weight(
         self, builder: Builder, disability_weight_data: LookupTableData
     ) -> LookupTable:
+        """
+        Builds a LookupTable for the base disability weight of this state.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+        disability_weight_data
+            The data to use to build the LookupTable.
+
+        Returns
+        -------
+        LookupTable
+            The LookupTable for the disability weight of this state.
+        """
         return builder.lookup.build_table(
             disability_weight_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -458,6 +502,21 @@ class DiseaseState(BaseDiseaseState):
     def get_base_excess_mortality_rate(
         self, builder: Builder, excess_mortality_data: LookupTableData
     ) -> LookupTable:
+        """
+        Builds a LookupTable for the base excess mortality rate of this state.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+        excess_mortality_data
+            The data to use to build the LookupTable.
+
+        Returns
+        -------
+        LookupTable
+            The LookupTable for the base excess mortality rate of this state.
+        """
         return builder.lookup.build_table(
             excess_mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )

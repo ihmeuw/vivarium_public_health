@@ -17,3 +17,5 @@ py:class Logger
 py:class Builder
 py:class SimulantData
 py:class Event
+py:class LookupTable
+py:class Pipeline
