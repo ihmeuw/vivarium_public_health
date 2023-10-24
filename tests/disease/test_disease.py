@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import InteractiveContext
+from vivarium import Component, InteractiveContext
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.utilities import from_yearly
 from vivarium.testing_utilities import TestPopulation, build_table, metadata
@@ -358,11 +358,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
 
-    class PafModifier:
-        @property
-        def name(self):
-            return "paf_modifier"
-
+    class PafModifier(Component):
         def setup(self, builder):
             builder.value.register_value_modifier(
                 "sick.incidence_rate.paf",
@@ -370,7 +366,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
                     build_table(paf, year_start, year_end),
                     key_columns=("sex",),
                     parameter_columns=["age", "year"],
-                    value_columns=None,
+                    value_columns=(),
                 ),
             )
 
