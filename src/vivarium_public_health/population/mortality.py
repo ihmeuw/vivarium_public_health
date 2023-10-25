@@ -128,6 +128,19 @@ class Mortality(Component):
 
     # noinspection PyMethodMayBeStatic
     def get_all_cause_mortality_rate(self, builder: Builder) -> Union[LookupTable, Pipeline]:
+        """
+        Load all cause mortality rate data and build a lookup table or pipeline.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+
+        Returns
+        -------
+        Union[LookupTable, Pipeline]
+            A lookup table or pipeline returning the all cause mortality rate.
+        """
         acmr_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
         return builder.lookup.build_table(
             acmr_data, key_columns=["sex"], parameter_columns=["age", "year"]
@@ -135,6 +148,19 @@ class Mortality(Component):
 
     # noinspection PyMethodMayBeStatic
     def get_life_expectancy(self, builder: Builder) -> Union[LookupTable, Pipeline]:
+        """
+        Load life expectancy data and build a lookup table or pipeline.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+
+        Returns
+        -------
+        Union[LookupTable, Pipeline]
+            A lookup table or pipeline returning the life expectancy.
+        """
         life_expectancy_data = builder.data.load(
             "population.theoretical_minimum_risk_life_expectancy"
         )
@@ -142,6 +168,20 @@ class Mortality(Component):
 
     # noinspection PyMethodMayBeStatic
     def get_raw_unmodeled_csmr(self, builder: Builder) -> Union[LookupTable, Pipeline]:
+        """
+        Load unmodeled cause specific mortality rate data and build a lookup
+        table or pipeline.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+
+        Returns
+        -------
+        Union[LookupTable, Pipeline]
+            A lookup table or pipeline returning the unmodeled csmr.
+        """
         unmodeled_causes = builder.configuration.unmodeled_causes
         raw_csmr = 0.0
         for idx, cause in enumerate(unmodeled_causes):

@@ -121,12 +121,40 @@ class RiskEffect(Component):
         return builder.value.get_value(self.exposure_pipeline_name)
 
     def get_relative_risk_source(self, builder: Builder) -> LookupTable:
+        """
+        Get the relative risk source for this risk effect model.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+
+        Returns
+        -------
+        LookupTable
+            A lookup table containing the relative risk data for this risk
+            effect model.
+        """
         relative_risk_data = get_relative_risk_data(builder, self.risk, self.target)
         return builder.lookup.build_table(
             relative_risk_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
 
     def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
+        """
+        Get the population attributable fraction source for this risk effect model.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+
+        Returns
+        -------
+        LookupTable
+            A lookup table containing the population attributable fraction data
+            for this risk effect model.
+        """
         paf_data = get_population_attributable_fraction_data(builder, self.risk, self.target)
         return builder.lookup.build_table(
             paf_data, key_columns=["sex"], parameter_columns=["age", "year"]
