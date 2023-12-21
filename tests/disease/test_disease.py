@@ -40,10 +40,6 @@ def base_data():
     return _set_prevalence
 
 
-def get_full_pop_index(simulation):
-    return simulation.get_population().index
-
-
 def get_test_prevalence(simulation, key):
     """
     Helper function to calculate the prevalence for the given state(key)
