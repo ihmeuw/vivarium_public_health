@@ -1,3 +1,7 @@
+**2.1.2 - 12/21/23**
+
+ - Fix tests failing due to Vivarium 2.3.0 release
+
 **2.1.1 - 10/13/23**
 
  - Perform actions in DiseaseState setup using class methods rather than hardcoding to allow for cleaner subclassing
