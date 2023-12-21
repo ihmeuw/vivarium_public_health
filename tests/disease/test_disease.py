@@ -39,6 +39,7 @@ def base_data():
 
     return _set_prevalence
 
+
 def get_full_pop_index(simulation):
     return simulation.get_population().index
 
