@@ -15,12 +15,9 @@ from vivarium_public_health.disease import (
     SusceptibleState,
     TransientDiseaseState,
 )
-from vivarium_public_health.utilities import TargetString
+from vivarium.framework.utilities import import_by_path
 
-from vivarium_nih_us_cvd.components.causes.state import (
-    MultiTransitionDiseaseState,
-    MultiTransitionSusceptibleState,
-)
+from vivarium_public_health.utilities import TargetString
 
 
 class CausesConfigurationParser(ComponentConfigurationParser):
@@ -29,6 +26,8 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     `ComponentConfigurationParser` but adds the additional ability to parse a
     `causes` key and create `DiseaseModel` components.
     """
+
+    CAUSE_ALLOWABLE_KEYS = {"model_type", "states", "transitions"}
 
     def parse_component_config(self, component_config: ConfigTree) -> List[Component]:
         """
@@ -55,8 +54,6 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         by adding the contents of external configuration files to the
         `model_override` layer and adding default cause model configuration
         values for all cause models to the `component_config` layer.
-        It also marks states that have multiple exiting transitions with the
-        `is_multi_transition` key in the `model_override` layer.
 
         Parameters
         ----------
@@ -67,6 +64,11 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         -------
         List[Component]
             A list of initialized components.
+
+        Raises
+        ------
+        ConfigurationError
+            If the cause model configuration is invalid
         """
         components = []
 
@@ -85,9 +87,10 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                     )
 
         if "causes" in component_config:
-            self.mark_multi_transition_states(component_config)
-            self.add_default_config_layer(component_config)
-            components += self.get_cause_model_components(component_config["causes"])
+            causes_config = component_config["causes"]
+            # todo validate config
+            self.add_default_config_layer(causes_config)
+            components += self.get_cause_model_components(causes_config)
 
         # Create a copy of the config tree excluding "external_config" and
         # "causes" keys.
@@ -98,62 +101,32 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         components += self.process_level(component_config_dict, [])
         return components
 
-    ##################################
-    # Configuration creation methods #
-    ##################################
+    #########################
+    # Configuration methods #
+    #########################
 
     @staticmethod
-    def mark_multi_transition_states(component_config: ConfigTree) -> None:
-        """
-        Marks states that have multiple exiting transitions using the
-        `is_multi_transition` key.
-
-        Parameters
-        ----------
-        component_config
-            A ConfigTree defining the components to initialize
-
-        Returns
-        -------
-        None
-        """
-        transition_counts = {
-            cause: {state: 0 for state in config.states}
-            for cause, config in component_config.causes.items()
-        }
-
-        for cause, config in component_config.causes.items():
-            for transition in config.transitions.values():
-                transition_counts[cause][transition.source] += 1
-
-        for cause, states in transition_counts.items():
-            for state, counts in states.items():
-                component_config.causes[cause].states[state].update(
-                    {"is_multi_transition": counts > 1},
-                    layer="model_override",
-                    source="causes_configuration_parser",
-                )
-
-    @staticmethod
-    def add_default_config_layer(component_config: ConfigTree) -> None:
+    def add_default_config_layer(causes_config: ConfigTree) -> None:
         """
         Adds a default layer to the provided configuration that specifies
         default values for the cause model configuration.
 
         Parameters
         ----------
-        component_config
-            A ConfigTree that specifies the components to initialize
+        causes_config
+            A ConfigTree defining the cause model configurations
 
         Returns
         -------
         None
         """
-        default_config = {"causes": {}}
-        for cause_name, cause_config in component_config.causes.items():
+        default_config = {}
+        for cause_name, cause_config in causes_config.items():
+
             default_states_config = {}
             default_transitions_config = {}
-            default_config["causes"][cause_name] = {
+            default_config[cause_name] = {
+                "model_type": f"{DiseaseModel.__module__}.{DiseaseModel.__name__}",
                 "states": default_states_config,
                 "transitions": default_transitions_config,
             }
@@ -161,17 +134,17 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             for state_name, state_config in cause_config.states.items():
                 default_states_config[state_name] = {
                     "cause_type": "cause",
-                    "is_multi_transition": False,
                     "transient": False,
                     "allow_self_transition": True,
                     "side_effect": None,
                     "cleanup_function": None,
+                    "state_type": None,
                 }
 
             for transition_name, transition_config in cause_config.transitions.items():
                 default_transitions_config[transition_name] = {"triggered": "NOT_TRIGGERED"}
 
-        component_config.update(
+        causes_config.update(
             default_config, layer="component_configs", source="causes_configuration_parser"
         )
 
@@ -209,7 +182,9 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                     transition_config,
                 )
 
-            cause_models.append(DiseaseModel(cause_name, states=list(states.values())))
+            model_type = import_by_path(cause_config.model_type)
+            model = model_type(cause_name, states=list(states.values()))
+            cause_models.append(model)
 
         return cause_models
 
@@ -252,12 +227,10 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 for name in data_getters_config.keys()
             }
 
-        if state_config.transient:
+        if state_config.state_type is not None:
+            state_type = import_by_path(state_config.state_type)
+        elif state_config.transient:
             state_type = TransientDiseaseState
-        elif state_config.is_multi_transition and state_name == "susceptible":
-            state_type = MultiTransitionSusceptibleState
-        elif state_config.is_multi_transition:
-            state_type = MultiTransitionDiseaseState
         elif state_name == "susceptible":
             state_type = SusceptibleState
         elif state_name == "recovered":
