@@ -6,7 +6,7 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
-from typing import Callable, Dict, List, Optional, Any
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
