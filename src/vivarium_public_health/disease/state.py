@@ -6,7 +6,7 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Any
 
 import numpy as np
 import pandas as pd
@@ -81,6 +81,13 @@ class BaseDiseaseState(State):
     ##################
     # Helper methods #
     ##################
+
+    def get_initialization_parameters(self) -> Dict[str, Any]:
+        """Exclude side effect function and cause type from name and __repr__."""
+        initialization_parameters = super().get_initialization_parameters()
+        del initialization_parameters["side_effect_function"]
+        del initialization_parameters["cause_type"]
+        return initialization_parameters
 
     def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
         return pd.DataFrame(
