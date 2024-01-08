@@ -1,3 +1,7 @@
+**2.1.3 - 01/08/24**
+
+ - Exclude undesirable arguments from the return of `BaseDiseaseState` `name` and `__repr__` methods
+
 **2.1.2 - 12/21/23**
 
  - Fix tests failing due to Vivarium 2.3.0 release
