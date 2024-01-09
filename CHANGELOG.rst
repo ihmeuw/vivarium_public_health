@@ -1,3 +1,7 @@
+**2.1.3 - 01/09/24**
+
+- Update PyPI to 2FA with trusted publisher
+
 **2.1.2 - 12/21/23**
 
  - Fix tests failing due to Vivarium 2.3.0 release
