@@ -1,6 +1,6 @@
 **2.1.3 - 01/09/24**
 
-- Update PyPI to 2FA with trusted publisher
+ - Update PyPI to 2FA with trusted publisher
 
 **2.1.2 - 12/21/23**
 
