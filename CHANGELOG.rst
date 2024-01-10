@@ -1,3 +1,7 @@
+**2.1.4 - 01/10/24**
+
+ - Exclude undesirable arguments from the return of `BaseDiseaseState` `name` and `__repr__` methods
+ 
 **2.1.3 - 01/09/24**
 
  - Update PyPI to 2FA with trusted publisher
