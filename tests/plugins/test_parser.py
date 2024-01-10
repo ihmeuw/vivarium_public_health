@@ -1,4 +1,5 @@
-from typing import Dict, List
+import dataclasses
+from typing import Dict, List, Set, Type
 
 import pytest
 from vivarium import Component, ConfigTree, InteractiveContext
@@ -20,151 +21,304 @@ from vivarium_public_health.testing.mock_artifact import (
     MockArtifactManager as MockArtifactManager_,
 )
 
-SIMPLE_SIR_MODEL = "simple_sir_model"
-SUSCEPTIBLE_STATE = "susceptible"
-SIMPLE_MODEL_INFECTED_STATE = "some_infected_state_name"
-RECOVERED_STATE = "recovered"
+
+SIR_MODEL = "simple_sir_model"
+SIR_SUSCEPTIBLE_NAME = "susceptible_to_simple_sir_model"
+SIR_INFECTED_STATE_NAME = "sir_infected_state_name"
+SIR_RECOVERED_NAME = "recovered_from_simple_sir_model"
 
 COMPLEX_MODEL = "complex_model"
-TRANSIENT_STATE = "some_transient_state_name"
-COMPLEX_MODEL_INFECTED_STATE_1 = "some_other_infected_state_name"
-COMPLEX_MODEL_INFECTED_STATE_2 = "yet_another_infected_state_name"
-COMPLEX_MODEL_INFECTED_STATE_3 = "still_another_infected_state_name"
+COMPLEX_SUSCEPTIBLE_NAME = "susceptible_to_complex_model"
+COMPLEX_INFECTED_STATE_1_NAME = "complex_infected_state_name"
+TRANSIENT_STATE_NAME = "some_transient_state_name"
+COMPLEX_STATE_2_NAME = "another_complex_infected_state_name"
+COMPLEX_STATE_3_NAME = "yet_another_complex_infected_state_name"
 
 
-PREVALENCE_DATA_FROM_FUNCTION = 0.08
+@dataclasses.dataclass
+class TransitionData:
+    source: str
+    sink: str
+    transition_type: Type[Transition]
+    value: float
 
 
-def some_prevalence_function(_, __):
-    return PREVALENCE_DATA_FROM_FUNCTION
+@dataclasses.dataclass
+class StateData:
+    name: str
+    state_type: Type[BaseDiseaseState] = DiseaseState
+    cause_type: str = "cause"
+    is_transient: bool = False
+    allow_self_transition: bool = True
+    prevalence: float = 0.0
+    birth_prevalence: float = 0.0
+    dwell_time: float = 0.0
+    disability_weight: float = 0.0
+    emr: float = 0.0
+
+    transitions: List[TransitionData] = dataclasses.field(default_factory=list)
+
+    def get_transitions(self) -> Dict[str, TransitionData]:
+        """Return a dict of transitions keyed by their sink state name."""
+        return {transition.sink: transition for transition in self.transitions}
 
 
-RATE_DATA_FROM_FUNCTION = 0.95
+SIR_SUSCEPTIBLE_STATE = StateData(
+    name=SIR_SUSCEPTIBLE_NAME,
+    state_type=SusceptibleState,
+    transitions=[
+        TransitionData(SIR_SUSCEPTIBLE_NAME, SIR_INFECTED_STATE_NAME, RateTransition, 0.5)
+    ],
+)
+SIR_INFECTED = StateData(
+    name=SIR_INFECTED_STATE_NAME,
+    prevalence=0.11,
+    disability_weight=0.12,
+    emr=0.13,
+    transitions=[
+        TransitionData(SIR_INFECTED_STATE_NAME, SIR_RECOVERED_NAME, RateTransition, 0.6)
+    ],
+)
+SIR_RECOVERED_STATE = StateData(name=SIR_RECOVERED_NAME, state_type=RecoveredState)
+
+COMPLEX_SUSCEPTIBLE_STATE = StateData(
+    name=COMPLEX_SUSCEPTIBLE_NAME,
+    state_type=SusceptibleState,
+    transitions=[
+        TransitionData(
+            COMPLEX_SUSCEPTIBLE_NAME, COMPLEX_INFECTED_STATE_1_NAME, RateTransition, 0.2
+        )
+    ],
+)
+
+COMPLEX_INFECTED_STATE_1 = StateData(
+    name=COMPLEX_INFECTED_STATE_1_NAME,
+    cause_type="sequela",
+    allow_self_transition=False,
+    prevalence=0.21,
+    disability_weight=0.22,
+    emr=0.23,
+    transitions=[
+        TransitionData(
+            COMPLEX_INFECTED_STATE_1_NAME, TRANSIENT_STATE_NAME, ProportionTransition, 0.25
+        ),
+        TransitionData(
+            COMPLEX_INFECTED_STATE_1_NAME, COMPLEX_STATE_2_NAME, ProportionTransition, 0.75
+        ),
+    ],
+)
+TRANSIENT_STATE = StateData(
+    name=TRANSIENT_STATE_NAME,
+    state_type=TransientDiseaseState,
+    is_transient=True,
+    transitions=[
+        TransitionData(TRANSIENT_STATE_NAME, COMPLEX_STATE_2_NAME, ProportionTransition, 1.0),
+    ],
+)
+COMPLEX_INFECTED_STATE_2 = StateData(
+    name=COMPLEX_STATE_2_NAME,
+    prevalence=0.31,
+    birth_prevalence=0.3,
+    dwell_time=3.0,
+    disability_weight=0.32,
+    emr=0.33,
+    transitions=[
+        TransitionData(COMPLEX_STATE_2_NAME, COMPLEX_STATE_3_NAME, Transition, 0.0),
+    ],
+)
+
+COMPLEX_INFECTED_STATE_3 = StateData(
+    name=COMPLEX_STATE_3_NAME,
+    prevalence=0.41,
+    disability_weight=0.42,
+    emr=0.43,
+    transitions=[
+        TransitionData(
+            COMPLEX_STATE_3_NAME, COMPLEX_INFECTED_STATE_1_NAME, RateTransition, 0.95
+        ),
+        TransitionData(COMPLEX_STATE_3_NAME, COMPLEX_SUSCEPTIBLE_NAME, RateTransition, 0.85),
+    ],
+)
+
+STATES_TO_TEST = [
+    SIR_SUSCEPTIBLE_STATE,
+    SIR_INFECTED,
+    SIR_RECOVERED_STATE,
+    COMPLEX_SUSCEPTIBLE_STATE,
+    COMPLEX_INFECTED_STATE_1,
+    TRANSIENT_STATE,
+    COMPLEX_INFECTED_STATE_2,
+    COMPLEX_INFECTED_STATE_3,
+]
 
 
-def some_rate_function(_, __, ___):
-    return RATE_DATA_FROM_FUNCTION
+def complex_model_infected_1_prevalence(_, __):
+    return COMPLEX_INFECTED_STATE_1.prevalence
 
 
-REMISSION_DATA_FROM_FUNCTION = 0.85
+def complex_model_3_to_1_transition_rate(_, __, ___):
+    return COMPLEX_INFECTED_STATE_3.get_transitions()[COMPLEX_INFECTED_STATE_1_NAME].value
 
 
-def some_remission_function(_, __, ___):
-    return REMISSION_DATA_FROM_FUNCTION
+def complex_model_remission_rate(_, __, ___):
+    return COMPLEX_INFECTED_STATE_3.get_transitions()[COMPLEX_SUSCEPTIBLE_NAME].value
 
 
 class MockArtifactManager(MockArtifactManager_):
     def _load_artifact(self, _: str) -> MockArtifact:
         artifact = MockArtifact()
 
-        artifact.mocks[f"cause.{SIMPLE_MODEL_INFECTED_STATE}.prevalence"] = 0.11
-        artifact.mocks[f"cause.{SIMPLE_MODEL_INFECTED_STATE}.disability_weight"] = 0.12
-        artifact.mocks[f"cause.{SIMPLE_MODEL_INFECTED_STATE}.excess_mortality_rate"] = 0.13
+        artifact.mocks[f"cause.{SIR_INFECTED.name}.prevalence"] = SIR_INFECTED.prevalence
+        artifact.mocks[
+            f"cause.{SIR_INFECTED.name}.disability_weight"
+        ] = SIR_INFECTED.disability_weight
+        artifact.mocks[
+            f"cause.{SIR_INFECTED.name}.excess_mortality_rate"
+        ] = SIR_INFECTED.emr
 
-        artifact.mocks["cause.some_custom_cause.disability_weight"] = 0.22
-        artifact.mocks["cause.some_custom_cause.excess_mortality_rate"] = 0.23
+        artifact.mocks[
+            "cause.some_custom_cause.disability_weight"
+        ] = COMPLEX_INFECTED_STATE_1.disability_weight
+        artifact.mocks[
+            "cause.some_custom_cause.excess_mortality_rate"
+        ] = COMPLEX_INFECTED_STATE_1.emr
 
-        artifact.mocks[f"cause.{COMPLEX_MODEL_INFECTED_STATE_2}.prevalence"] = 0.31
-        artifact.mocks[f"cause.{COMPLEX_MODEL_INFECTED_STATE_2}.disability_weight"] = 0.32
-        artifact.mocks[f"cause.{COMPLEX_MODEL_INFECTED_STATE_2}.excess_mortality_rate"] = 0.33
+        artifact.mocks[
+            f"cause.{COMPLEX_STATE_2_NAME}.prevalence"
+        ] = COMPLEX_INFECTED_STATE_2.prevalence
+        artifact.mocks[
+            f"cause.{COMPLEX_STATE_2_NAME}.disability_weight"
+        ] = COMPLEX_INFECTED_STATE_2.disability_weight
+        artifact.mocks[
+            f"cause.{COMPLEX_STATE_2_NAME}.excess_mortality_rate"
+        ] = COMPLEX_INFECTED_STATE_2.emr
 
-        artifact.mocks[f"cause.{COMPLEX_MODEL_INFECTED_STATE_3}.prevalence"] = 0.41
-        artifact.mocks[f"cause.{COMPLEX_MODEL_INFECTED_STATE_3}.disability_weight"] = 0.42
-        artifact.mocks[f"cause.{COMPLEX_MODEL_INFECTED_STATE_3}.excess_mortality_rate"] = 0.43
+        artifact.mocks[
+            f"cause.{COMPLEX_STATE_3_NAME}.prevalence"
+        ] = COMPLEX_INFECTED_STATE_3.prevalence
+        artifact.mocks[
+            f"cause.{COMPLEX_STATE_3_NAME}.disability_weight"
+        ] = COMPLEX_INFECTED_STATE_3.disability_weight
+        artifact.mocks[
+            f"cause.{COMPLEX_STATE_3_NAME}.excess_mortality_rate"
+        ] = COMPLEX_INFECTED_STATE_3.emr
 
         return artifact
 
 
-# @pytest.fixture(scope="module")
 def get_component_config() -> ConfigTree:
     component_config = {
         "causes": {
-            SIMPLE_SIR_MODEL: {
+            SIR_MODEL: {
                 "states": {
-                    SUSCEPTIBLE_STATE: {},
-                    SIMPLE_MODEL_INFECTED_STATE: {},
-                    RECOVERED_STATE: {},
+                    "susceptible": {},
+                    SIR_INFECTED.name: {},
+                    "recovered": {},
                 },
                 "transitions": {
                     "infected_incidence": {
-                        "source": SUSCEPTIBLE_STATE,
-                        "sink": SIMPLE_MODEL_INFECTED_STATE,
+                        "source": "susceptible",
+                        "sink": SIR_INFECTED.name,
                         "data_type": "rate",
-                        "data_sources": {"incidence_rate": 0.5},
+                        "data_sources": {
+                            "incidence_rate": SIR_SUSCEPTIBLE_STATE.get_transitions()[
+                                SIR_INFECTED.name
+                            ].value
+                        },
                     },
                     "infected_remission": {
-                        "source": SIMPLE_MODEL_INFECTED_STATE,
-                        "sink": RECOVERED_STATE,
+                        "source": SIR_INFECTED.name,
+                        "sink": "recovered",
                         "data_type": "rate",
-                        "data_sources": {"remission_rate": 0.6},
+                        "data_sources": {
+                            "remission_rate": SIR_INFECTED.get_transitions()[
+                                f"recovered_from_{SIR_MODEL}"
+                            ].value
+                        },
                     },
                 },
             },
             COMPLEX_MODEL: {
                 "states": {
-                    SUSCEPTIBLE_STATE: {},
-                    COMPLEX_MODEL_INFECTED_STATE_1: {
-                        "cause_type": "sequela",
-                        "allow_self_transition": False,
+                    "susceptible": {},
+                    COMPLEX_INFECTED_STATE_1.name: {
+                        "cause_type": COMPLEX_INFECTED_STATE_1.cause_type,
+                        "allow_self_transition": COMPLEX_INFECTED_STATE_1.allow_self_transition,
                         "data_sources": {
-                            "prevalence": "tests.plugins.test_parser::some_prevalence_function",
+                            "prevalence": "tests.plugins.test_parser::complex_model_infected_1_prevalence",
                             "disability_weight": "cause.some_custom_cause.disability_weight",
                             "excess_mortality_rate": "cause.some_custom_cause.excess_mortality_rate",
                         },
                     },
-                    TRANSIENT_STATE: {"transient": True},
-                    COMPLEX_MODEL_INFECTED_STATE_2: {
+                    TRANSIENT_STATE_NAME: {"transient": True},
+                    COMPLEX_STATE_2_NAME: {
                         "data_sources": {
-                            "birth_prevalence": 0.3,
-                            "dwell_time": "3 days",
+                            "birth_prevalence": COMPLEX_INFECTED_STATE_2.birth_prevalence,
+                            "dwell_time": f"{COMPLEX_INFECTED_STATE_2.dwell_time} days",
                         },
                     },
-                    COMPLEX_MODEL_INFECTED_STATE_3: {},
+                    COMPLEX_STATE_3_NAME: {},
                 },
                 "transitions": {
                     "infected_state_1_incidence": {
-                        "source": SUSCEPTIBLE_STATE,
-                        "sink": COMPLEX_MODEL_INFECTED_STATE_1,
+                        "source": "susceptible",
+                        "sink": COMPLEX_INFECTED_STATE_1.name,
                         "data_type": "rate",
-                        "data_sources": {"incidence_rate": 0.2},
+                        "data_sources": {
+                            "incidence_rate": COMPLEX_SUSCEPTIBLE_STATE.get_transitions()[
+                                COMPLEX_INFECTED_STATE_1.name
+                            ].value
+                        },
                     },
                     "infected_state_1_to_transient": {
-                        "source": COMPLEX_MODEL_INFECTED_STATE_1,
-                        "sink": TRANSIENT_STATE,
+                        "source": COMPLEX_INFECTED_STATE_1.name,
+                        "sink": TRANSIENT_STATE_NAME,
                         "data_type": "proportion",
-                        "data_sources": {"proportion": 0.25},
+                        "data_sources": {
+                            "proportion": COMPLEX_INFECTED_STATE_1.get_transitions()[
+                                TRANSIENT_STATE_NAME
+                            ].value
+                        },
                     },
                     "infected_state_1_to_infected_state_2": {
-                        "source": COMPLEX_MODEL_INFECTED_STATE_1,
-                        "sink": COMPLEX_MODEL_INFECTED_STATE_2,
+                        "source": COMPLEX_INFECTED_STATE_1.name,
+                        "sink": COMPLEX_STATE_2_NAME,
                         "data_type": "proportion",
-                        "data_sources": {"proportion": 0.75},
+                        "data_sources": {
+                            "proportion": COMPLEX_INFECTED_STATE_1.get_transitions()[
+                                COMPLEX_STATE_2_NAME
+                            ].value
+                        },
                     },
                     "transient_to_infected_state_2": {
-                        "source": TRANSIENT_STATE,
-                        "sink": COMPLEX_MODEL_INFECTED_STATE_2,
+                        "source": TRANSIENT_STATE_NAME,
+                        "sink": COMPLEX_STATE_2_NAME,
                         "data_type": "proportion",
-                        "data_sources": {"proportion": 1.0},
+                        "data_sources": {
+                            "proportion": TRANSIENT_STATE.get_transitions()[
+                                COMPLEX_STATE_2_NAME
+                            ].value
+                        },
                     },
                     "infected_state_2_to_infected_state_3": {
-                        "source": COMPLEX_MODEL_INFECTED_STATE_2,
-                        "sink": COMPLEX_MODEL_INFECTED_STATE_3,
+                        "source": COMPLEX_STATE_2_NAME,
+                        "sink": COMPLEX_STATE_3_NAME,
                         "data_type": "dwell_time",
                     },
                     "infected_state_3_to_infected_state_1": {
-                        "source": COMPLEX_MODEL_INFECTED_STATE_3,
-                        "sink": COMPLEX_MODEL_INFECTED_STATE_1,
+                        "source": COMPLEX_STATE_3_NAME,
+                        "sink": COMPLEX_INFECTED_STATE_1.name,
                         "data_type": "rate",
                         "data_sources": {
-                            "transition_rate": "tests.plugins.test_parser::some_rate_function"
+                            "transition_rate": "tests.plugins.test_parser::complex_model_3_to_1_transition_rate"
                         },
                     },
                     "infected_state_3_remission": {
-                        "source": COMPLEX_MODEL_INFECTED_STATE_3,
-                        "sink": SUSCEPTIBLE_STATE,
+                        "source": COMPLEX_STATE_3_NAME,
+                        "sink": "susceptible",
                         "data_type": "rate",
                         "data_sources": {
-                            "transition_rate": "tests.plugins.test_parser::some_remission_function"
+                            "transition_rate": "tests.plugins.test_parser::complex_model_remission_rate"
                         },
                     },
                 },
@@ -222,17 +376,10 @@ def component_list_parsed_from_config() -> List[Component]:
     return config_parser.parse_component_config(component_config)
 
 
-def _get_transitions_from_state(state: BaseDiseaseState) -> Dict[str, Transition]:
-    return {
-        transition.output_state.state_id: transition
-        for transition in state.transition_set.transitions
-    }
-
-
 def test_parser_returns_list_of_components(component_list_parsed_from_config):
     assert isinstance(component_list_parsed_from_config, list)
     expected_component_names = {
-        f"disease_model.{SIMPLE_SIR_MODEL}",
+        f"disease_model.{SIR_MODEL}",
         f"disease_model.{COMPLEX_MODEL}",
         "test_population",
     }
@@ -241,206 +388,105 @@ def test_parser_returns_list_of_components(component_list_parsed_from_config):
     }
 
 
-def test_simple_sir_disease_model(sim_components):
-    sir_model = sim_components[f"disease_model.{SIMPLE_SIR_MODEL}"]
-    assert isinstance(sir_model, DiseaseModel)
+@pytest.mark.parametrize(
+    "cause, expected_state_names",
+    [
+        (
+            SIR_MODEL,
+            {
+                f"susceptible_state.susceptible_to_{SIR_MODEL}",
+                f"disease_state.{SIR_INFECTED.name}",
+                f"recovered_state.recovered_from_{SIR_MODEL}",
+            },
+        ),
+        (
+            COMPLEX_MODEL,
+            {
+                f"susceptible_state.susceptible_to_{COMPLEX_MODEL}",
+                f"disease_state.{COMPLEX_INFECTED_STATE_1.name}",
+                f"disease_state.{COMPLEX_STATE_2_NAME}",
+                f"disease_state.{COMPLEX_STATE_3_NAME}",
+                f"transient_disease_state.{TRANSIENT_STATE_NAME}",
+            },
+        ),
+    ],
+)
+def test_disease_model(
+    sim_components: Dict[str, Component], cause: str, expected_state_names: Set[str]
+):
+    model = sim_components[f"disease_model.{cause}"]
+    assert isinstance(model, DiseaseModel)
 
     # the disease model's states have the expected names
-    expected_state_names = {
-        f"susceptible_state.susceptible_to_{SIMPLE_SIR_MODEL}",
-        f"disease_state.{SIMPLE_MODEL_INFECTED_STATE}",
-        f"recovered_state.recovered_from_{SIMPLE_SIR_MODEL}",
-    }
-    actual_state_names = {state.name for state in sir_model.sub_components}
+    actual_state_names = {state.name for state in model.sub_components}
     assert actual_state_names == expected_state_names
 
 
-def test_sir_model_susceptible_state(sim_components):
-    susceptible_state = sim_components[f"susceptible_state.susceptible_to_{SIMPLE_SIR_MODEL}"]
-    assert isinstance(susceptible_state, SusceptibleState)
-    assert susceptible_state.state_id == f"susceptible_to_{SIMPLE_SIR_MODEL}"
-
-    # test that it has the expected default values
-    assert susceptible_state.cause_type == "cause"
-    assert not isinstance(susceptible_state, Transient)
-    assert susceptible_state.transition_set.allow_null_transition
-
-    # test that it has the expected transition
-    transitions = _get_transitions_from_state(susceptible_state)
-    assert set(transitions.keys()) == {SIMPLE_MODEL_INFECTED_STATE}
-
-    incidence_transition = transitions[SIMPLE_MODEL_INFECTED_STATE]
-    assert isinstance(incidence_transition, RateTransition)
-    assert incidence_transition.base_rate.data == 0.5
+def test_no_extra_state_components(sim_components: Dict[str, Component]):
+    actual_state_names = {
+        component.state_id
+        for component in sim_components.values()
+        if isinstance(component, BaseDiseaseState)
+    }
+    expected_state_names = {state.name for state in STATES_TO_TEST}
+    assert actual_state_names == expected_state_names
 
 
-def test_sir_model_disease_state(sim_components):
-    infected_state = sim_components[f"disease_state.{SIMPLE_MODEL_INFECTED_STATE}"]
-    assert isinstance(infected_state, DiseaseState)
-    assert infected_state.state_id == SIMPLE_MODEL_INFECTED_STATE
+@pytest.mark.parametrize(
+    "expected_state_data", STATES_TO_TEST, ids=[state.name for state in STATES_TO_TEST]
+)
+def test_disease_state(sim_components: Dict[str, Component], expected_state_data: StateData):
+    name_prefix = {
+        DiseaseState: "disease_state",
+        SusceptibleState: "susceptible_state",
+        TransientDiseaseState: "transient_disease_state",
+        RecoveredState: "recovered_state",
+        BaseDiseaseState: "base_disease_state",
+    }[expected_state_data.state_type]
 
-    # test that it has the expected default values
-    assert infected_state.cause_type == "cause"
-    assert not isinstance(infected_state, Transient)
-    assert infected_state.transition_set.allow_null_transition
+    state = sim_components[f"{name_prefix}.{expected_state_data.name}"]
+    assert isinstance(state, expected_state_data.state_type)
 
-    # test we get the default data sources
-    assert infected_state.prevalence.data == 0.11
-    assert infected_state.birth_prevalence.data == 0.0
-    assert infected_state.dwell_time.source.data == 0.0
-    assert infected_state.base_disability_weight.data == 0.12
-    assert infected_state.base_excess_mortality_rate.data == 0.13
+    # test all shared expected default and configured values
+    assert state.state_id == expected_state_data.name
+    assert state.cause_type == expected_state_data.cause_type
+    assert (
+        state.transition_set.allow_null_transition
+        == expected_state_data.allow_self_transition
+    )
 
-    # test that it has the expected transition
-    transitions = _get_transitions_from_state(infected_state)
-    assert set(transitions.keys()) == {f"recovered_from_{SIMPLE_SIR_MODEL}"}
-    incidence_transition = transitions[f"recovered_from_{SIMPLE_SIR_MODEL}"]
-    assert isinstance(incidence_transition, RateTransition)
-    assert incidence_transition.base_rate.data == 0.6
+    if expected_state_data.is_transient:
+        assert isinstance(state, Transient)
 
+    if isinstance(state, DiseaseState):
+        assert (
+            state.transition_set.allow_null_transition
+            == expected_state_data.allow_self_transition
+        )
 
-def test_sir_recovered_recovered_state(sim_components):
-    recovered_state = sim_components[f"recovered_state.recovered_from_{SIMPLE_SIR_MODEL}"]
-    assert isinstance(recovered_state, RecoveredState)
-    assert recovered_state.state_id == f"recovered_from_{SIMPLE_SIR_MODEL}"
-
-    # test that it has the expected default values
-    assert recovered_state.cause_type == "cause"
-    assert not isinstance(recovered_state, Transient)
-    assert recovered_state.transition_set.allow_null_transition
+        # test we get the expected default and configured data sources
+        assert state.prevalence.data == expected_state_data.prevalence
+        assert state.birth_prevalence.data == expected_state_data.birth_prevalence
+        assert state.dwell_time.source.data == expected_state_data.dwell_time
+        assert state.base_disability_weight.data == expected_state_data.disability_weight
+        assert state.base_excess_mortality_rate.data == expected_state_data.emr
 
     # test that it has the expected transitions
-    assert len(recovered_state.transition_set.transitions) == 0
+    for transition in state.transition_set.transitions:
+        expected_transition_data = expected_state_data.get_transitions()[
+            transition.output_state.state_id
+        ]
+        assert type(transition) == expected_transition_data.transition_type
+        if isinstance(transition, RateTransition):
+            assert transition.base_rate.data == expected_transition_data.value
+        elif isinstance(transition, ProportionTransition):
+            assert transition.proportion.data == expected_transition_data.value
 
 
 # todo test config file references external config file
 # todo test config file defines causes itself
 # todo test config input as dict
 # todo test config file with both local and external definition of causes
-
-
-def test_complex_model(sim_components):
-    complex_model = sim_components[f"disease_model.{COMPLEX_MODEL}"]
-    assert isinstance(complex_model, DiseaseModel)
-
-    # the disease model's states have the expected names
-    expected_state_names = {
-        f"susceptible_state.susceptible_to_{COMPLEX_MODEL}",
-        f"disease_state.{COMPLEX_MODEL_INFECTED_STATE_1}",
-        f"disease_state.{COMPLEX_MODEL_INFECTED_STATE_2}",
-        f"disease_state.{COMPLEX_MODEL_INFECTED_STATE_3}",
-        f"transient_disease_state.{TRANSIENT_STATE}",
-    }
-    actual_state_names = {state.name for state in complex_model.sub_components}
-    assert actual_state_names == expected_state_names
-
-
-def test_complex_model_first_disease_state(sim_components):
-    infected_state = sim_components[f"disease_state.{COMPLEX_MODEL_INFECTED_STATE_1}"]
-    assert isinstance(infected_state, DiseaseState)
-    assert infected_state.state_id == COMPLEX_MODEL_INFECTED_STATE_1
-
-    # test that it has the expected default and configured values
-    assert infected_state.cause_type == "sequela"
-    assert not isinstance(infected_state, Transient)
-    assert not infected_state.transition_set.allow_null_transition
-
-    # test we get the expected default and configured data sources
-    assert infected_state.prevalence.data == PREVALENCE_DATA_FROM_FUNCTION
-    assert infected_state.birth_prevalence.data == 0.0
-    assert infected_state.dwell_time.source.data == 0.0
-    assert infected_state.base_disability_weight.data == 0.22
-    assert infected_state.base_excess_mortality_rate.data == 0.23
-
-    # test that it has the expected transitions
-    transitions = _get_transitions_from_state(infected_state)
-    assert set(transitions.keys()) == {COMPLEX_MODEL_INFECTED_STATE_2, TRANSIENT_STATE}
-
-    to_transient_transition = transitions[TRANSIENT_STATE]
-    assert isinstance(to_transient_transition, ProportionTransition)
-    assert to_transient_transition.proportion.data == 0.25
-
-    to_infected_2_transition = transitions[COMPLEX_MODEL_INFECTED_STATE_2]
-    assert isinstance(to_infected_2_transition, ProportionTransition)
-    assert to_infected_2_transition.proportion.data == 0.75
-
-
-def test_complex_model_transient_disease_state(sim_components):
-    transient_state = sim_components[f"transient_disease_state.{TRANSIENT_STATE}"]
-    assert isinstance(transient_state, TransientDiseaseState)
-    assert transient_state.state_id == TRANSIENT_STATE
-
-    # test that it has the expected default and configured values
-    assert transient_state.cause_type == "cause"
-    assert isinstance(transient_state, Transient)
-
-    # test that it has the expected transitions
-    transitions = _get_transitions_from_state(transient_state)
-    assert set(transitions.keys()) == {COMPLEX_MODEL_INFECTED_STATE_2}
-
-    transition = transitions[COMPLEX_MODEL_INFECTED_STATE_2]
-    assert isinstance(transition, ProportionTransition)
-    assert transition.proportion.data == 1.0
-
-
-def test_complex_model_second_disease_state(sim_components):
-    infected_state = sim_components[f"disease_state.{COMPLEX_MODEL_INFECTED_STATE_2}"]
-    assert isinstance(infected_state, DiseaseState)
-    assert infected_state.state_id == COMPLEX_MODEL_INFECTED_STATE_2
-
-    # test that it has the expected default and configured values
-    assert infected_state.cause_type == "cause"
-    assert not isinstance(infected_state, Transient)
-    assert infected_state.transition_set.allow_null_transition
-
-    # test we get the expected default and configured data sources
-    assert infected_state.prevalence.data == 0.31
-    assert infected_state.birth_prevalence.data == 0.3
-    assert infected_state.dwell_time.source.data == 3.0
-    assert infected_state.base_disability_weight.data == 0.32
-    assert infected_state.base_excess_mortality_rate.data == 0.33
-
-    # test that it has the expected transitions
-    transitions = _get_transitions_from_state(infected_state)
-    assert set(transitions.keys()) == {COMPLEX_MODEL_INFECTED_STATE_3}
-
-    transition = transitions[COMPLEX_MODEL_INFECTED_STATE_3]
-    assert isinstance(transition, Transition)
-    assert not isinstance(transition, ProportionTransition)
-    assert not isinstance(transition, RateTransition)
-
-
-def test_complex_model_third_disease_state(sim_components):
-    infected_state = sim_components[f"disease_state.{COMPLEX_MODEL_INFECTED_STATE_3}"]
-    assert isinstance(infected_state, DiseaseState)
-    assert infected_state.state_id == COMPLEX_MODEL_INFECTED_STATE_3
-
-    # test that it has the expected default values
-    assert infected_state.cause_type == "cause"
-    assert not isinstance(infected_state, Transient)
-    assert infected_state.transition_set.allow_null_transition
-
-    # test we get the default data sources
-    assert infected_state.prevalence.data == 0.41
-    assert infected_state.birth_prevalence.data == 0.0
-    assert infected_state.dwell_time.source.data == 0.0
-    assert infected_state.base_disability_weight.data == 0.42
-    assert infected_state.base_excess_mortality_rate.data == 0.43
-
-    # test that it has the expected transition
-    transitions = _get_transitions_from_state(infected_state)
-    assert set(transitions.keys()) == {
-        COMPLEX_MODEL_INFECTED_STATE_1,
-        f"susceptible_to_{COMPLEX_MODEL}",
-    }
-
-    to_infected_1_transition = transitions[COMPLEX_MODEL_INFECTED_STATE_1]
-    assert isinstance(to_infected_1_transition, RateTransition)
-    assert to_infected_1_transition.base_rate.data == RATE_DATA_FROM_FUNCTION
-
-    to_susceptible_transition = transitions[f"susceptible_to_{COMPLEX_MODEL}"]
-    assert isinstance(to_susceptible_transition, RateTransition)
-    assert to_susceptible_transition.base_rate.data == REMISSION_DATA_FROM_FUNCTION
 
 
 # todo test invalid data source
