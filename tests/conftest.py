@@ -1,7 +1,8 @@
 from pathlib import Path
+from typing import Callable
 
 import pytest
-from vivarium.config_tree import ConfigTree
+from vivarium import ConfigTree
 from vivarium.framework.configuration import build_simulation_configuration
 
 
@@ -23,24 +24,33 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_slow)
 
 
+@pytest.fixture(scope="session")
+def base_config_factory() -> Callable[[], ConfigTree]:
+    def _base_config() -> ConfigTree:
+        config = build_simulation_configuration()
+
+        config.update(
+            {
+                "time": {"start": {"year": 1990}, "end": {"year": 2010}, "step_size": 30.5},
+                "randomness": {"key_columns": ["entrance_time", "age"]},
+            },
+            source=str(Path(__file__).resolve()),
+            layer="model_override",
+        )
+
+        return config
+
+    return _base_config
+
+
 @pytest.fixture(scope="function")
-def base_config():
-    config = build_simulation_configuration()
-
-    config.update(
-        {
-            "time": {"start": {"year": 1990}, "end": {"year": 2010}, "step_size": 30.5},
-            "randomness": {"key_columns": ["entrance_time", "age"]},
-        },
-        source=str(Path(__file__).resolve()),
-        layer="model_override",
-    )
-
-    return config
+def base_config() -> ConfigTree:
+    config = base_config_factory()
+    yield config
 
 
 @pytest.fixture(scope="module")
-def base_plugins():
+def base_plugins() -> ConfigTree:
     config = {
         "required": {
             "data": {

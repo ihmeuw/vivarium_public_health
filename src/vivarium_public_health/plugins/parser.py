@@ -7,6 +7,8 @@ from vivarium import Component, ConfigTree
 from vivarium.framework.components import ComponentConfigurationParser
 from vivarium.framework.engine import Builder
 from vivarium.framework.state_machine import Trigger
+from vivarium.framework.utilities import import_by_path
+
 from vivarium_public_health.disease import (
     BaseDiseaseState,
     DiseaseModel,
@@ -15,8 +17,6 @@ from vivarium_public_health.disease import (
     SusceptibleState,
     TransientDiseaseState,
 )
-from vivarium.framework.utilities import import_by_path
-
 from vivarium_public_health.utilities import TargetString
 
 
@@ -92,14 +92,17 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             self.add_default_config_layer(causes_config)
             components += self.get_cause_model_components(causes_config)
 
-        # Create a copy of the config tree excluding "external_config" and
-        # "causes" keys.
-        component_config_dict = component_config.to_dict()
-        component_config_dict.pop("external_configuration", None)
-        component_config_dict.pop("causes", None)
+        # Parse standard components (i.e. not cause models)
+        standard_component_config = component_config.to_dict()
+        standard_component_config.pop("external_configuration", None)
+        standard_component_config.pop("causes", None)
+        standard_components = (
+            self.process_level(standard_component_config, [])
+            if standard_component_config
+            else []
+        )
 
-        components += self.process_level(component_config_dict, [])
-        return components
+        return components + standard_components
 
     #########################
     # Configuration methods #
@@ -122,7 +125,6 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         """
         default_config = {}
         for cause_name, cause_config in causes_config.items():
-
             default_states_config = {}
             default_transitions_config = {}
             default_config[cause_name] = {
@@ -220,11 +222,11 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         if state_config.cleanup_function:
             # todo handle cleanup functions properly
             state_kwargs["cleanup_function"] = lambda *x: x
-        if "get_data_functions" in state_config:
-            data_getters_config = state_config.get_data_functions
+        if "data_sources" in state_config:
+            data_sources_config = state_config.data_sources
             state_kwargs["get_data_functions"] = {
-                name: self.get_data_getter(name, data_getters_config[name])
-                for name in data_getters_config.keys()
+                name: self.get_data_getter(name, data_sources_config[name])
+                for name in data_sources_config.keys()
             }
 
         if state_config.state_type is not None:
@@ -264,22 +266,22 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         None
         """
         triggered = Trigger[transition_config.triggered]
-        if "get_data_functions" in transition_config:
-            data_getters_config = transition_config.get_data_functions
-            data_getters = {
-                name: self.get_data_getter(name, data_getters_config[name])
-                for name in data_getters_config.keys()
+        if "data_sources" in transition_config:
+            data_sources_config = transition_config.data_sources
+            data_sources = {
+                name: self.get_data_getter(name, data_sources_config[name])
+                for name in data_sources_config.keys()
             }
         else:
-            data_getters = None
+            data_sources = None
 
         if transition_config.data_type == "rate":
             source_state.add_rate_transition(
-                sink_state, get_data_functions=data_getters, triggered=triggered
+                sink_state, get_data_functions=data_sources, triggered=triggered
             )
         elif transition_config.data_type == "proportion":
             source_state.add_proportion_transition(
-                sink_state, get_data_functions=data_getters, triggered=triggered
+                sink_state, get_data_functions=data_sources, triggered=triggered
             )
         elif transition_config.data_type == "dwell_time":
             source_state.add_dwell_time_transition(sink_state, triggered=triggered)
