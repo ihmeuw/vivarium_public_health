@@ -1,8 +1,8 @@
 import dataclasses
-from typing import Dict, List, Set, Type, Tuple
-import yaml
+from typing import Dict, List, Set, Tuple, Type
 
 import pytest
+import yaml
 from vivarium import Component, ConfigTree, InteractiveContext
 from vivarium.framework.state_machine import Transient, Transition
 
@@ -21,7 +21,6 @@ from vivarium_public_health.testing.mock_artifact import MockArtifact
 from vivarium_public_health.testing.mock_artifact import (
     MockArtifactManager as MockArtifactManager_,
 )
-
 
 SIR_MODEL = "simple_sir_model"
 SIR_SUSCEPTIBLE_NAME = "susceptible_to_simple_sir_model"
@@ -191,23 +190,23 @@ class MockArtifactManager(MockArtifactManager_):
         ] = COMPLEX_INFECTED_STATE_1.emr
 
         artifact.mocks[
-            f"cause.{COMPLEX_STATE_2_NAME}.prevalence"
+            f"cause.{COMPLEX_INFECTED_STATE_2.name}.prevalence"
         ] = COMPLEX_INFECTED_STATE_2.prevalence
         artifact.mocks[
-            f"cause.{COMPLEX_STATE_2_NAME}.disability_weight"
+            f"cause.{COMPLEX_INFECTED_STATE_2.name}.disability_weight"
         ] = COMPLEX_INFECTED_STATE_2.disability_weight
         artifact.mocks[
-            f"cause.{COMPLEX_STATE_2_NAME}.excess_mortality_rate"
+            f"cause.{COMPLEX_INFECTED_STATE_2.name}.excess_mortality_rate"
         ] = COMPLEX_INFECTED_STATE_2.emr
 
         artifact.mocks[
-            f"cause.{COMPLEX_STATE_3_NAME}.prevalence"
+            f"cause.{COMPLEX_INFECTED_STATE_3.name}.prevalence"
         ] = COMPLEX_INFECTED_STATE_3.prevalence
         artifact.mocks[
-            f"cause.{COMPLEX_STATE_3_NAME}.disability_weight"
+            f"cause.{COMPLEX_INFECTED_STATE_3.name}.disability_weight"
         ] = COMPLEX_INFECTED_STATE_3.disability_weight
         artifact.mocks[
-            f"cause.{COMPLEX_STATE_3_NAME}.excess_mortality_rate"
+            f"cause.{COMPLEX_INFECTED_STATE_3.name}.excess_mortality_rate"
         ] = COMPLEX_INFECTED_STATE_3.emr
 
         return artifact
@@ -413,9 +412,7 @@ def test_parser_returns_list_of_components():
 
 
 def test_parsing_config_single_external_causes_config_file(tmp_path, resource_filename_mock):
-    causes_config = {
-        "causes": {**SIR_MODEL_CONFIG, **COMPLEX_MODEL_CONFIG}
-    }
+    causes_config = {"causes": {**SIR_MODEL_CONFIG, **COMPLEX_MODEL_CONFIG}}
     with open(tmp_path / "causes_config.yaml", "w") as file:
         yaml.dump(causes_config, file)
 
