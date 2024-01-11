@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Dict, List, Set, Tuple, Type, NamedTuple
+from typing import Dict, List, NamedTuple, Set, Tuple, Type
 
 import pytest
 import yaml
