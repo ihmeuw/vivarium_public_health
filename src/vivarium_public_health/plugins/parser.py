@@ -293,41 +293,41 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
     @staticmethod
     def get_data_getter(
-        name: str, getter: Union[str, float]
+        name: str, source: Union[str, float]
     ) -> Callable[[Builder, Any], Any]:
         """
-        Parses a data getter and returns a callable that can be used to retrieve
+        Parses a data source and returns a callable that can be used to retrieve
         the data.
 
         Parameters
         ----------
         name
             The name of the data getter
-        getter
-            The data getter to parse
+        source
+            The data source to parse
 
         Returns
         -------
         Callable[[Builder, Any], Any]
             A callable that can be used to retrieve the data
         """
-        if isinstance(getter, float):
-            return lambda builder, *_: getter
+        if isinstance(source, float):
+            return lambda builder, *_: source
 
         try:
-            timedelta = pd.Timedelta(getter)
+            timedelta = pd.Timedelta(source)
             return lambda builder, *_: timedelta
         except ValueError:
             pass
 
-        if "::" in getter:
-            module, method = getter.split("::")
+        if "::" in source:
+            module, method = source.split("::")
             return getattr(import_module(module), method)
 
         try:
-            target_string = TargetString(getter)
+            target_string = TargetString(source)
             return lambda builder, *_: builder.data.load(target_string)
         except ValueError:
             pass
 
-        raise ValueError(f"Invalid data getter '{getter}' for '{name}'.")
+        raise ValueError(f"Invalid data source '{source}' for '{name}'.")

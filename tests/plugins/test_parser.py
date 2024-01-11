@@ -567,7 +567,18 @@ def test_disease_state(
 
 
 def test_invalid_data_source_throws_error():
-    # todo define config object with invalid data source
-    # todo call parser.parse_component_config with config object
-    # todo assert that it throws an error
-    pass
+    invalid_data_source_config_dict = {
+        "causes": {
+            "model_name": {
+                "states": {
+                    "susceptible": {},
+                    "infected": {"data_sources": {"prevalence": "bad_data_source"}},
+                },
+                "transitions": {},
+            }
+        }
+    }
+
+    config = create_simulation_config_tree(invalid_data_source_config_dict)
+    with pytest.raises(ValueError, match="Invalid data source"):
+        CausesConfigurationParser().parse_component_config(config)
