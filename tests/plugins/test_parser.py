@@ -1,5 +1,6 @@
 import dataclasses
-from typing import Dict, List, Set, Type
+from typing import Dict, List, Set, Type, Tuple
+import yaml
 
 import pytest
 from vivarium import Component, ConfigTree, InteractiveContext
@@ -36,7 +37,7 @@ COMPLEX_STATE_3_NAME = "yet_another_complex_infected_state_name"
 
 
 @dataclasses.dataclass
-class TransitionData:
+class ExpectedTransitionData:
     source: str
     sink: str
     transition_type: Type[Transition]
@@ -44,7 +45,7 @@ class TransitionData:
 
 
 @dataclasses.dataclass
-class StateData:
+class ExpectedStateData:
     name: str
     state_type: Type[BaseDiseaseState] = DiseaseState
     cause_type: str = "cause"
@@ -56,42 +57,46 @@ class StateData:
     disability_weight: float = 0.0
     emr: float = 0.0
 
-    transitions: List[TransitionData] = dataclasses.field(default_factory=list)
+    transitions: List[ExpectedTransitionData] = dataclasses.field(default_factory=list)
 
-    def get_transitions(self) -> Dict[str, TransitionData]:
+    def get_transitions(self) -> Dict[str, ExpectedTransitionData]:
         """Return a dict of transitions keyed by their sink state name."""
         return {transition.sink: transition for transition in self.transitions}
 
 
-SIR_SUSCEPTIBLE_STATE = StateData(
+SIR_SUSCEPTIBLE_STATE = ExpectedStateData(
     name=SIR_SUSCEPTIBLE_NAME,
     state_type=SusceptibleState,
     transitions=[
-        TransitionData(SIR_SUSCEPTIBLE_NAME, SIR_INFECTED_STATE_NAME, RateTransition, 0.5)
+        ExpectedTransitionData(
+            SIR_SUSCEPTIBLE_NAME, SIR_INFECTED_STATE_NAME, RateTransition, 0.5
+        )
     ],
 )
-SIR_INFECTED = StateData(
+SIR_INFECTED = ExpectedStateData(
     name=SIR_INFECTED_STATE_NAME,
     prevalence=0.11,
     disability_weight=0.12,
     emr=0.13,
     transitions=[
-        TransitionData(SIR_INFECTED_STATE_NAME, SIR_RECOVERED_NAME, RateTransition, 0.6)
+        ExpectedTransitionData(
+            SIR_INFECTED_STATE_NAME, SIR_RECOVERED_NAME, RateTransition, 0.6
+        )
     ],
 )
-SIR_RECOVERED_STATE = StateData(name=SIR_RECOVERED_NAME, state_type=RecoveredState)
+SIR_RECOVERED_STATE = ExpectedStateData(name=SIR_RECOVERED_NAME, state_type=RecoveredState)
 
-COMPLEX_SUSCEPTIBLE_STATE = StateData(
+COMPLEX_SUSCEPTIBLE_STATE = ExpectedStateData(
     name=COMPLEX_SUSCEPTIBLE_NAME,
     state_type=SusceptibleState,
     transitions=[
-        TransitionData(
+        ExpectedTransitionData(
             COMPLEX_SUSCEPTIBLE_NAME, COMPLEX_INFECTED_STATE_1_NAME, RateTransition, 0.2
         )
     ],
 )
 
-COMPLEX_INFECTED_STATE_1 = StateData(
+COMPLEX_INFECTED_STATE_1 = ExpectedStateData(
     name=COMPLEX_INFECTED_STATE_1_NAME,
     cause_type="sequela",
     allow_self_transition=False,
@@ -99,23 +104,25 @@ COMPLEX_INFECTED_STATE_1 = StateData(
     disability_weight=0.22,
     emr=0.23,
     transitions=[
-        TransitionData(
+        ExpectedTransitionData(
             COMPLEX_INFECTED_STATE_1_NAME, TRANSIENT_STATE_NAME, ProportionTransition, 0.25
         ),
-        TransitionData(
+        ExpectedTransitionData(
             COMPLEX_INFECTED_STATE_1_NAME, COMPLEX_STATE_2_NAME, ProportionTransition, 0.75
         ),
     ],
 )
-TRANSIENT_STATE = StateData(
+TRANSIENT_STATE = ExpectedStateData(
     name=TRANSIENT_STATE_NAME,
     state_type=TransientDiseaseState,
     is_transient=True,
     transitions=[
-        TransitionData(TRANSIENT_STATE_NAME, COMPLEX_STATE_2_NAME, ProportionTransition, 1.0),
+        ExpectedTransitionData(
+            TRANSIENT_STATE_NAME, COMPLEX_STATE_2_NAME, ProportionTransition, 1.0
+        ),
     ],
 )
-COMPLEX_INFECTED_STATE_2 = StateData(
+COMPLEX_INFECTED_STATE_2 = ExpectedStateData(
     name=COMPLEX_STATE_2_NAME,
     prevalence=0.31,
     birth_prevalence=0.3,
@@ -123,20 +130,22 @@ COMPLEX_INFECTED_STATE_2 = StateData(
     disability_weight=0.32,
     emr=0.33,
     transitions=[
-        TransitionData(COMPLEX_STATE_2_NAME, COMPLEX_STATE_3_NAME, Transition, 0.0),
+        ExpectedTransitionData(COMPLEX_STATE_2_NAME, COMPLEX_STATE_3_NAME, Transition, 0.0),
     ],
 )
 
-COMPLEX_INFECTED_STATE_3 = StateData(
+COMPLEX_INFECTED_STATE_3 = ExpectedStateData(
     name=COMPLEX_STATE_3_NAME,
     prevalence=0.41,
     disability_weight=0.42,
     emr=0.43,
     transitions=[
-        TransitionData(
+        ExpectedTransitionData(
             COMPLEX_STATE_3_NAME, COMPLEX_INFECTED_STATE_1_NAME, RateTransition, 0.95
         ),
-        TransitionData(COMPLEX_STATE_3_NAME, COMPLEX_SUSCEPTIBLE_NAME, RateTransition, 0.85),
+        ExpectedTransitionData(
+            COMPLEX_STATE_3_NAME, COMPLEX_SUSCEPTIBLE_NAME, RateTransition, 0.85
+        ),
     ],
 )
 
@@ -172,9 +181,7 @@ class MockArtifactManager(MockArtifactManager_):
         artifact.mocks[
             f"cause.{SIR_INFECTED.name}.disability_weight"
         ] = SIR_INFECTED.disability_weight
-        artifact.mocks[
-            f"cause.{SIR_INFECTED.name}.excess_mortality_rate"
-        ] = SIR_INFECTED.emr
+        artifact.mocks[f"cause.{SIR_INFECTED.name}.excess_mortality_rate"] = SIR_INFECTED.emr
 
         artifact.mocks[
             "cause.some_custom_cause.disability_weight"
@@ -206,136 +213,141 @@ class MockArtifactManager(MockArtifactManager_):
         return artifact
 
 
-def get_component_config() -> ConfigTree:
-    component_config = {
-        "causes": {
-            SIR_MODEL: {
-                "states": {
-                    "susceptible": {},
-                    SIR_INFECTED.name: {},
-                    "recovered": {},
-                },
-                "transitions": {
-                    "infected_incidence": {
-                        "source": "susceptible",
-                        "sink": SIR_INFECTED.name,
-                        "data_type": "rate",
-                        "data_sources": {
-                            "incidence_rate": SIR_SUSCEPTIBLE_STATE.get_transitions()[
-                                SIR_INFECTED.name
-                            ].value
-                        },
+SIR_MODEL_CONFIG = {
+    "causes": {
+        SIR_MODEL: {
+            "states": {
+                "susceptible": {},
+                SIR_INFECTED.name: {},
+                "recovered": {},
+            },
+            "transitions": {
+                "infected_incidence": {
+                    "source": "susceptible",
+                    "sink": SIR_INFECTED.name,
+                    "data_type": "rate",
+                    "data_sources": {
+                        "incidence_rate": SIR_SUSCEPTIBLE_STATE.get_transitions()[
+                            SIR_INFECTED.name
+                        ].value
                     },
-                    "infected_remission": {
-                        "source": SIR_INFECTED.name,
-                        "sink": "recovered",
-                        "data_type": "rate",
-                        "data_sources": {
-                            "remission_rate": SIR_INFECTED.get_transitions()[
-                                f"recovered_from_{SIR_MODEL}"
-                            ].value
-                        },
+                },
+                "infected_remission": {
+                    "source": SIR_INFECTED.name,
+                    "sink": "recovered",
+                    "data_type": "rate",
+                    "data_sources": {
+                        "remission_rate": SIR_INFECTED.get_transitions()[
+                            f"recovered_from_{SIR_MODEL}"
+                        ].value
                     },
                 },
             },
-            COMPLEX_MODEL: {
-                "states": {
-                    "susceptible": {},
-                    COMPLEX_INFECTED_STATE_1.name: {
-                        "cause_type": COMPLEX_INFECTED_STATE_1.cause_type,
-                        "allow_self_transition": COMPLEX_INFECTED_STATE_1.allow_self_transition,
-                        "data_sources": {
-                            "prevalence": "tests.plugins.test_parser::complex_model_infected_1_prevalence",
-                            "disability_weight": "cause.some_custom_cause.disability_weight",
-                            "excess_mortality_rate": "cause.some_custom_cause.excess_mortality_rate",
-                        },
-                    },
-                    TRANSIENT_STATE_NAME: {"transient": True},
-                    COMPLEX_STATE_2_NAME: {
-                        "data_sources": {
-                            "birth_prevalence": COMPLEX_INFECTED_STATE_2.birth_prevalence,
-                            "dwell_time": f"{COMPLEX_INFECTED_STATE_2.dwell_time} days",
-                        },
-                    },
-                    COMPLEX_STATE_3_NAME: {},
-                },
-                "transitions": {
-                    "infected_state_1_incidence": {
-                        "source": "susceptible",
-                        "sink": COMPLEX_INFECTED_STATE_1.name,
-                        "data_type": "rate",
-                        "data_sources": {
-                            "incidence_rate": COMPLEX_SUSCEPTIBLE_STATE.get_transitions()[
-                                COMPLEX_INFECTED_STATE_1.name
-                            ].value
-                        },
-                    },
-                    "infected_state_1_to_transient": {
-                        "source": COMPLEX_INFECTED_STATE_1.name,
-                        "sink": TRANSIENT_STATE_NAME,
-                        "data_type": "proportion",
-                        "data_sources": {
-                            "proportion": COMPLEX_INFECTED_STATE_1.get_transitions()[
-                                TRANSIENT_STATE_NAME
-                            ].value
-                        },
-                    },
-                    "infected_state_1_to_infected_state_2": {
-                        "source": COMPLEX_INFECTED_STATE_1.name,
-                        "sink": COMPLEX_STATE_2_NAME,
-                        "data_type": "proportion",
-                        "data_sources": {
-                            "proportion": COMPLEX_INFECTED_STATE_1.get_transitions()[
-                                COMPLEX_STATE_2_NAME
-                            ].value
-                        },
-                    },
-                    "transient_to_infected_state_2": {
-                        "source": TRANSIENT_STATE_NAME,
-                        "sink": COMPLEX_STATE_2_NAME,
-                        "data_type": "proportion",
-                        "data_sources": {
-                            "proportion": TRANSIENT_STATE.get_transitions()[
-                                COMPLEX_STATE_2_NAME
-                            ].value
-                        },
-                    },
-                    "infected_state_2_to_infected_state_3": {
-                        "source": COMPLEX_STATE_2_NAME,
-                        "sink": COMPLEX_STATE_3_NAME,
-                        "data_type": "dwell_time",
-                    },
-                    "infected_state_3_to_infected_state_1": {
-                        "source": COMPLEX_STATE_3_NAME,
-                        "sink": COMPLEX_INFECTED_STATE_1.name,
-                        "data_type": "rate",
-                        "data_sources": {
-                            "transition_rate": "tests.plugins.test_parser::complex_model_3_to_1_transition_rate"
-                        },
-                    },
-                    "infected_state_3_remission": {
-                        "source": COMPLEX_STATE_3_NAME,
-                        "sink": "susceptible",
-                        "data_type": "rate",
-                        "data_sources": {
-                            "transition_rate": "tests.plugins.test_parser::complex_model_remission_rate"
-                        },
-                    },
-                },
-            },
-        },
-        "vivarium": {"testing_utilities": "TestPopulation()"},
+        }
     }
-    return ConfigTree(
-        component_config,
-        layers=[
-            "base",
-            "user_configs",
-            "component_configs",
-            "model_override",
-            "override",
-        ],
-    )
+}
+
+
+COMPLEX_MODEL_CONFIG = {
+    "causes": {
+        COMPLEX_MODEL: {
+            "states": {
+                "susceptible": {},
+                COMPLEX_INFECTED_STATE_1.name: {
+                    "cause_type": COMPLEX_INFECTED_STATE_1.cause_type,
+                    "allow_self_transition": COMPLEX_INFECTED_STATE_1.allow_self_transition,
+                    "data_sources": {
+                        "prevalence": "tests.plugins.test_parser::complex_model_infected_1_prevalence",
+                        "disability_weight": "cause.some_custom_cause.disability_weight",
+                        "excess_mortality_rate": "cause.some_custom_cause.excess_mortality_rate",
+                    },
+                },
+                TRANSIENT_STATE_NAME: {"transient": True},
+                COMPLEX_STATE_2_NAME: {
+                    "data_sources": {
+                        "birth_prevalence": COMPLEX_INFECTED_STATE_2.birth_prevalence,
+                        "dwell_time": f"{COMPLEX_INFECTED_STATE_2.dwell_time} days",
+                    },
+                },
+                COMPLEX_STATE_3_NAME: {},
+            },
+            "transitions": {
+                "infected_state_1_incidence": {
+                    "source": "susceptible",
+                    "sink": COMPLEX_INFECTED_STATE_1.name,
+                    "data_type": "rate",
+                    "data_sources": {
+                        "incidence_rate": COMPLEX_SUSCEPTIBLE_STATE.get_transitions()[
+                            COMPLEX_INFECTED_STATE_1.name
+                        ].value
+                    },
+                },
+                "infected_state_1_to_transient": {
+                    "source": COMPLEX_INFECTED_STATE_1.name,
+                    "sink": TRANSIENT_STATE_NAME,
+                    "data_type": "proportion",
+                    "data_sources": {
+                        "proportion": COMPLEX_INFECTED_STATE_1.get_transitions()[
+                            TRANSIENT_STATE_NAME
+                        ].value
+                    },
+                },
+                "infected_state_1_to_infected_state_2": {
+                    "source": COMPLEX_INFECTED_STATE_1.name,
+                    "sink": COMPLEX_STATE_2_NAME,
+                    "data_type": "proportion",
+                    "data_sources": {
+                        "proportion": COMPLEX_INFECTED_STATE_1.get_transitions()[
+                            COMPLEX_STATE_2_NAME
+                        ].value
+                    },
+                },
+                "transient_to_infected_state_2": {
+                    "source": TRANSIENT_STATE_NAME,
+                    "sink": COMPLEX_STATE_2_NAME,
+                    "data_type": "proportion",
+                    "data_sources": {
+                        "proportion": TRANSIENT_STATE.get_transitions()[
+                            COMPLEX_STATE_2_NAME
+                        ].value
+                    },
+                },
+                "infected_state_2_to_infected_state_3": {
+                    "source": COMPLEX_STATE_2_NAME,
+                    "sink": COMPLEX_STATE_3_NAME,
+                    "data_type": "dwell_time",
+                },
+                "infected_state_3_to_infected_state_1": {
+                    "source": COMPLEX_STATE_3_NAME,
+                    "sink": COMPLEX_INFECTED_STATE_1.name,
+                    "data_type": "rate",
+                    "data_sources": {
+                        "transition_rate": "tests.plugins.test_parser::complex_model_3_to_1_transition_rate"
+                    },
+                },
+                "infected_state_3_remission": {
+                    "source": COMPLEX_STATE_3_NAME,
+                    "sink": "susceptible",
+                    "data_type": "rate",
+                    "data_sources": {
+                        "transition_rate": "tests.plugins.test_parser::complex_model_remission_rate"
+                    },
+                },
+            },
+        }
+    }
+}
+
+
+def create_simulation_config_tree(config_dict: Dict) -> ConfigTree:
+    config_tree_layers = [
+        "base",
+        "user_configs",
+        "component_configs",
+        "model_override",
+        "override",
+    ]
+    return ConfigTree(config_dict, layers=config_tree_layers)
 
 
 @pytest.fixture(scope="module")
@@ -359,33 +371,109 @@ def causes_config_parser_plugins() -> ConfigTree:
     return ConfigTree(config_parser_plugin_config)
 
 
+@pytest.fixture
+def resource_filename_mock(tmp_path, mocker):
+    resource_filename_mock = mocker.patch(
+        "vivarium_public_health.plugins.parser.resource_filename"
+    )
+    resource_filename_mock.side_effect = lambda _, filename: str(tmp_path / filename)
+    return resource_filename_mock
+
+
+ALL_COMPONENTS_CONFIG_DICT = {
+    "causes": {**SIR_MODEL_CONFIG["causes"], **COMPLEX_MODEL_CONFIG["causes"]},
+    "vivarium": {"testing_utilities": "TestPopulation()"},
+}
+
+
 @pytest.fixture(scope="module")
 def sim_components(base_config: ConfigTree, causes_config_parser_plugins: ConfigTree):
     simulation = InteractiveContext(
-        components=get_component_config(),
+        components=create_simulation_config_tree(ALL_COMPONENTS_CONFIG_DICT),
         configuration=base_config,
         plugin_configuration=causes_config_parser_plugins,
     )
     return simulation.list_components()
 
 
-@pytest.fixture(scope="module")
-def component_list_parsed_from_config() -> List[Component]:
-    config_parser = CausesConfigurationParser()
-    component_config = get_component_config()
-    return config_parser.parse_component_config(component_config)
-
-
-def test_parser_returns_list_of_components(component_list_parsed_from_config):
-    assert isinstance(component_list_parsed_from_config, list)
-    expected_component_names = {
+def _test_parsing_of_config_file(
+    component_config: ConfigTree,
+    expected_component_names: Tuple[str] = (
         f"disease_model.{SIR_MODEL}",
         f"disease_model.{COMPLEX_MODEL}",
         "test_population",
+    ),
+):
+    parsed_components = CausesConfigurationParser().parse_component_config(component_config)
+    assert isinstance(parsed_components, list)
+    assert len(parsed_components) == len(expected_component_names)
+    for component in parsed_components:
+        assert component.name in expected_component_names
+
+
+def test_parser_returns_list_of_components():
+    config = create_simulation_config_tree(ALL_COMPONENTS_CONFIG_DICT)
+    _test_parsing_of_config_file(config)
+
+
+def test_parsing_config_single_external_causes_config_file(tmp_path, resource_filename_mock):
+    causes_config = {
+        "causes": {**SIR_MODEL_CONFIG["causes"], **COMPLEX_MODEL_CONFIG["causes"]}
     }
-    assert expected_component_names == {
-        component.name for component in component_list_parsed_from_config
-    }
+    with open(tmp_path / "causes_config.yaml", "w") as file:
+        yaml.dump(causes_config, file)
+
+    component_config = create_simulation_config_tree(
+        {
+            "external_configuration": {"some_repo": ["causes_config.yaml"]},
+            "vivarium": {"testing_utilities": "TestPopulation()"},
+        }
+    )
+    _test_parsing_of_config_file(component_config)
+
+
+def test_parsing_config_multiple_external_causes_config_file(
+    tmp_path, resource_filename_mock
+):
+    with open(tmp_path / "sir.yaml", "w") as file:
+        yaml.dump(SIR_MODEL_CONFIG, file)
+
+    with open(tmp_path / "complex.yaml", "w") as file:
+        yaml.dump(COMPLEX_MODEL_CONFIG, file)
+
+    component_config = create_simulation_config_tree(
+        {
+            "external_configuration": {"some_repo": ["sir.yaml", "complex.yaml"]},
+            "vivarium": {"testing_utilities": "TestPopulation()"},
+        }
+    )
+    _test_parsing_of_config_file(component_config)
+
+
+def test_parsing_config_external_and_local_causes_config_file(
+    tmp_path, resource_filename_mock
+):
+    with open(tmp_path / "sir.yaml", "w") as file:
+        yaml.dump(SIR_MODEL_CONFIG, file)
+
+    component_config = create_simulation_config_tree(
+        {
+            "external_configuration": {"some_repo": ["sir.yaml"]},
+            **COMPLEX_MODEL_CONFIG,
+            "vivarium": {"testing_utilities": "TestPopulation()"},
+        }
+    )
+
+    _test_parsing_of_config_file(component_config)
+
+
+def test_parsing_no_causes_config_file(tmp_path, resource_filename_mock):
+    component_config = create_simulation_config_tree(
+        {"vivarium": {"testing_utilities": "TestPopulation()"}}
+    )
+    _test_parsing_of_config_file(
+        component_config, expected_component_names=("test_population",)
+    )
 
 
 @pytest.mark.parametrize(
@@ -435,7 +523,9 @@ def test_no_extra_state_components(sim_components: Dict[str, Component]):
 @pytest.mark.parametrize(
     "expected_state_data", STATES_TO_TEST, ids=[state.name for state in STATES_TO_TEST]
 )
-def test_disease_state(sim_components: Dict[str, Component], expected_state_data: StateData):
+def test_disease_state(
+    sim_components: Dict[str, Component], expected_state_data: ExpectedStateData
+):
     name_prefix = {
         DiseaseState: "disease_state",
         SusceptibleState: "susceptible_state",
@@ -483,10 +573,8 @@ def test_disease_state(sim_components: Dict[str, Component], expected_state_data
             assert transition.proportion.data == expected_transition_data.value
 
 
-# todo test config file references external config file
-# todo test config file defines causes itself
-# todo test config input as dict
-# todo test config file with both local and external definition of causes
-
-
-# todo test invalid data source
+def test_invalid_data_source_throws_error():
+    # todo define config object with invalid data source
+    # todo call parser.parse_component_config with config object
+    # todo assert that it throws an error
+    pass
