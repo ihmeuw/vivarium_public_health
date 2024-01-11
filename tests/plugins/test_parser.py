@@ -64,7 +64,6 @@ class ExpectedStateData:
 
 
 class ExpectedStates(NamedTuple):
-
     SIR_SUSCEPTIBLE: ExpectedStateData = ExpectedStateData(
         name=SIR_SUSCEPTIBLE_NAME,
         state_type=SusceptibleState,
@@ -85,7 +84,9 @@ class ExpectedStates(NamedTuple):
             )
         ],
     )
-    SIR_RECOVERED: ExpectedStateData = ExpectedStateData(name=SIR_RECOVERED_NAME, state_type=RecoveredState)
+    SIR_RECOVERED: ExpectedStateData = ExpectedStateData(
+        name=SIR_RECOVERED_NAME, state_type=RecoveredState
+    )
 
     COMPLEX_SUSCEPTIBLE: ExpectedStateData = ExpectedStateData(
         name=COMPLEX_SUSCEPTIBLE_NAME,
@@ -106,10 +107,16 @@ class ExpectedStates(NamedTuple):
         emr=0.23,
         transitions=[
             ExpectedTransitionData(
-                COMPLEX_INFECTED_STATE_1_NAME, TRANSIENT_STATE_NAME, ProportionTransition, 0.25
+                COMPLEX_INFECTED_STATE_1_NAME,
+                TRANSIENT_STATE_NAME,
+                ProportionTransition,
+                0.25,
             ),
             ExpectedTransitionData(
-                COMPLEX_INFECTED_STATE_1_NAME, COMPLEX_STATE_2_NAME, ProportionTransition, 0.75
+                COMPLEX_INFECTED_STATE_1_NAME,
+                COMPLEX_STATE_2_NAME,
+                ProportionTransition,
+                0.75,
             ),
         ],
     )
@@ -131,7 +138,9 @@ class ExpectedStates(NamedTuple):
         disability_weight=0.32,
         emr=0.33,
         transitions=[
-            ExpectedTransitionData(COMPLEX_STATE_2_NAME, COMPLEX_STATE_3_NAME, Transition, 0.0),
+            ExpectedTransitionData(
+                COMPLEX_STATE_2_NAME, COMPLEX_STATE_3_NAME, Transition, 0.0
+            ),
         ],
     )
 
@@ -149,6 +158,7 @@ class ExpectedStates(NamedTuple):
             ),
         ],
     )
+
 
 STATES = ExpectedStates()
 
@@ -169,11 +179,15 @@ class MockArtifactManager(MockArtifactManager_):
     def _load_artifact(self, _: str) -> MockArtifact:
         artifact = MockArtifact()
 
-        artifact.mocks[f"cause.{STATES.SIR_INFECTED.name}.prevalence"] = STATES.SIR_INFECTED.prevalence
+        artifact.mocks[
+            f"cause.{STATES.SIR_INFECTED.name}.prevalence"
+        ] = STATES.SIR_INFECTED.prevalence
         artifact.mocks[
             f"cause.{STATES.SIR_INFECTED.name}.disability_weight"
         ] = STATES.SIR_INFECTED.disability_weight
-        artifact.mocks[f"cause.{STATES.SIR_INFECTED.name}.excess_mortality_rate"] = STATES.SIR_INFECTED.emr
+        artifact.mocks[
+            f"cause.{STATES.SIR_INFECTED.name}.excess_mortality_rate"
+        ] = STATES.SIR_INFECTED.emr
 
         artifact.mocks[
             "cause.some_custom_cause.disability_weight"
@@ -506,9 +520,7 @@ def test_no_extra_state_components(sim_components: Dict[str, Component]):
     assert actual_state_names == expected_state_names
 
 
-@pytest.mark.parametrize(
-    "expected_state_data", STATES, ids=[state.name for state in STATES]
-)
+@pytest.mark.parametrize("expected_state_data", STATES, ids=[state.name for state in STATES])
 def test_disease_state(
     sim_components: Dict[str, Component], expected_state_data: ExpectedStateData
 ):
