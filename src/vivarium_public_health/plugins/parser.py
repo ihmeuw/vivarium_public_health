@@ -27,8 +27,6 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     `causes` key and create `DiseaseModel` components.
     """
 
-    CAUSE_ALLOWABLE_KEYS = {"model_type", "states", "transitions"}
-
     def parse_component_config(self, component_config: ConfigTree) -> List[Component]:
         """
         Parses the component configuration and returns a list of components.
@@ -71,9 +69,6 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             If the cause model configuration is invalid
         """
         components = []
-
-        if not component_config:
-            return components
 
         if "external_configuration" in component_config:
             for package, config_files in component_config["external_configuration"].items():

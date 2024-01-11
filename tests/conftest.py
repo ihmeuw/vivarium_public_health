@@ -44,9 +44,8 @@ def base_config_factory() -> Callable[[], ConfigTree]:
 
 
 @pytest.fixture(scope="function")
-def base_config() -> ConfigTree:
-    config = base_config_factory()
-    yield config
+def base_config(base_config_factory) -> ConfigTree:
+    yield base_config_factory()
 
 
 @pytest.fixture(scope="module")
