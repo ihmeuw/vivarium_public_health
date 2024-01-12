@@ -124,6 +124,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             default_transitions_config = {}
             default_config[cause_name] = {
                 "model_type": f"{DiseaseModel.__module__}.{DiseaseModel.__name__}",
+                "initial_state": None,
                 "states": default_states_config,
                 "transitions": default_transitions_config,
             }
@@ -179,8 +180,10 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                     transition_config,
                 )
 
+
             model_type = import_by_path(cause_config.model_type)
-            model = model_type(cause_name, states=list(states.values()))
+            initial_state = states[cause_config.initial_state] if cause_config.initial_state else None
+            model = model_type(cause_name, initial_state=initial_state, states=list(states.values()))
             cause_models.append(model)
 
         return cause_models
