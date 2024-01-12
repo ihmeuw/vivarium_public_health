@@ -180,10 +180,13 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                     transition_config,
                 )
 
-
             model_type = import_by_path(cause_config.model_type)
-            initial_state = states[cause_config.initial_state] if cause_config.initial_state else None
-            model = model_type(cause_name, initial_state=initial_state, states=list(states.values()))
+            initial_state = (
+                states[cause_config.initial_state] if cause_config.initial_state else None
+            )
+            model = model_type(
+                cause_name, initial_state=initial_state, states=list(states.values())
+            )
             cause_models.append(model)
 
         return cause_models
