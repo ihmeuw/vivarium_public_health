@@ -35,6 +35,10 @@ COMPLEX_STATE_2_NAME = "another_complex_infected_state_name"
 COMPLEX_STATE_3_NAME = "yet_another_complex_infected_state_name"
 
 
+class ComplexModel(DiseaseModel):
+    pass
+
+
 @dataclasses.dataclass
 class ExpectedTransitionData:
     source: str
@@ -254,6 +258,7 @@ SIR_MODEL_CONFIG = {
 
 COMPLEX_MODEL_CONFIG = {
     COMPLEX_MODEL: {
+        "model_type": "tests.plugins.test_parser.ComplexModel",
         "states": {
             "susceptible": {},
             STATES.COMPLEX_INFECTED_1.name: {
@@ -349,7 +354,9 @@ def create_simulation_config_tree(config_dict: Dict) -> ConfigTree:
         "model_override",
         "override",
     ]
-    return ConfigTree(config_dict, layers=config_tree_layers)
+    config_tree = ConfigTree(layers=config_tree_layers)
+    config_tree.update(config_dict, layer="model_override")
+    return config_tree
 
 
 @pytest.fixture(scope="module")
@@ -402,7 +409,7 @@ def _test_parsing_of_config_file(
     component_config: ConfigTree,
     expected_component_names: Tuple[str] = (
         f"disease_model.{SIR_MODEL}",
-        f"disease_model.{COMPLEX_MODEL}",
+        f"complex_model.{COMPLEX_MODEL}",
         "test_population",
     ),
 ):
@@ -477,10 +484,11 @@ def test_parsing_no_causes_config_file(tmp_path, resource_filename_mock):
 
 
 @pytest.mark.parametrize(
-    "cause, expected_state_names",
+    "model_name, expected_model_type, expected_state_names",
     [
         (
-            SIR_MODEL,
+            f"disease_model.{SIR_MODEL}",
+            DiseaseModel,
             {
                 f"susceptible_state.{STATES.SIR_SUSCEPTIBLE.name}",
                 f"disease_state.{STATES.SIR_INFECTED.name}",
@@ -488,7 +496,8 @@ def test_parsing_no_causes_config_file(tmp_path, resource_filename_mock):
             },
         ),
         (
-            COMPLEX_MODEL,
+            f"complex_model.{COMPLEX_MODEL}",
+            ComplexModel,
             {
                 f"susceptible_state.{STATES.COMPLEX_SUSCEPTIBLE.name}",
                 f"disease_state.{STATES.COMPLEX_INFECTED_1.name}",
@@ -500,10 +509,13 @@ def test_parsing_no_causes_config_file(tmp_path, resource_filename_mock):
     ],
 )
 def test_disease_model(
-    sim_components: Dict[str, Component], cause: str, expected_state_names: Set[str]
+    sim_components: Dict[str, Component],
+    model_name: str,
+    expected_model_type: Type[DiseaseModel],
+    expected_state_names: Set[str],
 ):
-    model = sim_components[f"disease_model.{cause}"]
-    assert isinstance(model, DiseaseModel)
+    model = sim_components[model_name]
+    assert isinstance(model, expected_model_type)
 
     # the disease model's states have the expected names
     actual_state_names = {state.name for state in model.sub_components}
