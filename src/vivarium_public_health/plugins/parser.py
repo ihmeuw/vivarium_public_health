@@ -181,6 +181,8 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 )
 
             model_type = import_by_path(cause_config.model_type)
+            # TODO: uncomment this once we have proper validation of the config
+            # initial_state = states.get(cause_config.initial_state, None)
             initial_state = (
                 states[cause_config.initial_state] if cause_config.initial_state else None
             )
