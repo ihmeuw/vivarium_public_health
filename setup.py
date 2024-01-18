@@ -16,6 +16,7 @@ if __name__ == "__main__":
 
     install_requirements = [
         "vivarium>=2.0.0",
+        "loguru",
         "numpy",
         "pandas",
         "scipy",
