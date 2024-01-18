@@ -1,3 +1,7 @@
+**2.2.0 - 01/11/24**
+
+ - Implement CausesConfigurationParser to parse causes configuration into DiseaseModel components
+
 **2.1.4 - 01/10/24**
 
  - Exclude undesirable arguments from the return of `BaseDiseaseState` `name` and `__repr__` methods

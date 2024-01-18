@@ -29,6 +29,7 @@ if __name__ == "__main__":
         "pytest",
         "pytest-mock",
         "hypothesis",
+        "pyyaml",
     ]
 
     doc_requirements = [
