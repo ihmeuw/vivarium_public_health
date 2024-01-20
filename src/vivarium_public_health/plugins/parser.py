@@ -1,12 +1,12 @@
 from importlib import import_module
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
 from loguru import logger
 from pkg_resources import resource_filename
 from vivarium import Component, ConfigTree
-from vivarium.config_tree import ConfigurationError
 from vivarium.framework.components import ComponentConfigurationParser
+from vivarium.framework.components.parser import ParsingError
 from vivarium.framework.engine import Builder
 from vivarium.framework.state_machine import Trigger
 from vivarium.framework.utilities import import_by_path
@@ -22,12 +22,35 @@ from vivarium_public_health.disease import (
 from vivarium_public_health.utilities import TargetString
 
 
+class CausesParsingErrors(ParsingError):
+    """
+    Error raised when there is an errors parsing a cause model configuration.
+    """
+
+    def __init__(self, messages: List[str]):
+        super().__init__("\n - " + "\n - ".join(messages))
+
+
 class CausesConfigurationParser(ComponentConfigurationParser):
     """
     Component configuration parser that acts the same as the standard vivarium
     `ComponentConfigurationParser` but adds the additional ability to parse a
     `causes` key and create `DiseaseModel` components.
     """
+
+    DEFAULT_MODEL_CONFIG = {
+        "model_type": f"{DiseaseModel.__module__}.{DiseaseModel.__name__}",
+        "initial_state": None,
+    }
+    DEFAULT_STATE_CONFIG = {
+        "cause_type": "cause",
+        "transient": False,
+        "allow_self_transition": True,
+        "side_effect": None,
+        "cleanup_function": None,
+        "state_type": None,
+    }
+    DEFAULT_TRANSITION_CONFIG = {"triggered": "NOT_TRIGGERED"}
 
     def parse_component_config(self, component_config: ConfigTree) -> List[Component]:
         """
@@ -73,7 +96,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         components = []
 
         if "external_configuration" in component_config:
-            self.validate_external_configuration(component_config["external_configuration"])
+            self._validate_external_configuration(component_config["external_configuration"])
             for package, config_files in component_config["external_configuration"].items():
                 for config_file in config_files.get_value():
                     source = f"{package}::{config_file}"
@@ -86,9 +109,9 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
         if "causes" in component_config:
             causes_config = component_config["causes"]
-            self.validate_causes_config(causes_config)
-            self.add_default_config_layer(causes_config)
-            components += self.get_cause_model_components(causes_config)
+            self._validate_causes_config(causes_config)
+            self._add_default_config_layer(causes_config)
+            components += self._get_cause_model_components(causes_config)
 
         # Parse standard components (i.e. not cause models)
         standard_component_config = component_config.to_dict()
@@ -106,8 +129,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     # Configuration methods #
     #########################
 
-    @staticmethod
-    def add_default_config_layer(causes_config: ConfigTree) -> None:
+    def _add_default_config_layer(self, causes_config: ConfigTree) -> None:
         """
         Adds a default layer to the provided configuration that specifies
         default values for the cause model configuration.
@@ -126,24 +148,16 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             default_states_config = {}
             default_transitions_config = {}
             default_config[cause_name] = {
-                "model_type": f"{DiseaseModel.__module__}.{DiseaseModel.__name__}",
-                "initial_state": None,
+                **self.DEFAULT_MODEL_CONFIG,
                 "states": default_states_config,
                 "transitions": default_transitions_config,
             }
 
             for state_name, state_config in cause_config.states.items():
-                default_states_config[state_name] = {
-                    "cause_type": "cause",
-                    "transient": False,
-                    "allow_self_transition": True,
-                    "side_effect": None,
-                    "cleanup_function": None,
-                    "state_type": None,
-                }
+                default_states_config[state_name] = self.DEFAULT_STATE_CONFIG
 
             for transition_name, transition_config in cause_config.transitions.items():
-                default_transitions_config[transition_name] = {"triggered": "NOT_TRIGGERED"}
+                default_transitions_config[transition_name] = self.DEFAULT_TRANSITION_CONFIG
 
         causes_config.update(
             default_config, layer="component_configs", source="causes_configuration_parser"
@@ -153,7 +167,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     # Cause model creation methods #
     ################################
 
-    def get_cause_model_components(self, causes_config: ConfigTree) -> List[Component]:
+    def _get_cause_model_components(self, causes_config: ConfigTree) -> List[Component]:
         """
         Parses the cause model configuration and returns a list of
         `DiseaseModel` components.
@@ -172,12 +186,12 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
         for cause_name, cause_config in causes_config.items():
             states: Dict[str, BaseDiseaseState] = {
-                state_name: self.get_state(state_name, state_config, cause_name)
+                state_name: self._get_state(state_name, state_config, cause_name)
                 for state_name, state_config in cause_config.states.items()
             }
 
             for transition_config in cause_config.transitions.values():
-                self.add_transition(
+                self._add_transition(
                     states[transition_config.source],
                     states[transition_config.sink],
                     transition_config,
@@ -192,7 +206,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
         return cause_models
 
-    def get_state(
+    def _get_state(
         self, state_name: str, state_config: ConfigTree, cause_name: str
     ) -> BaseDiseaseState:
         """
@@ -227,7 +241,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         if "data_sources" in state_config:
             data_sources_config = state_config.data_sources
             state_kwargs["get_data_functions"] = {
-                name: self.get_data_source(name, data_sources_config[name])
+                name: self._get_data_source(name, data_sources_config[name])
                 for name in data_sources_config.keys()
             }
 
@@ -245,7 +259,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         state = state_type(state_id, **state_kwargs)
         return state
 
-    def add_transition(
+    def _add_transition(
         self,
         source_state: BaseDiseaseState,
         sink_state: BaseDiseaseState,
@@ -271,21 +285,21 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         if "data_sources" in transition_config:
             data_sources_config = transition_config.data_sources
             data_sources = {
-                name: self.get_data_source(name, data_sources_config[name])
+                name: self._get_data_source(name, data_sources_config[name])
                 for name in data_sources_config.keys()
             }
         else:
             data_sources = None
 
-        if transition_config.type == "rate":
+        if transition_config["transition_type"] == "rate":
             source_state.add_rate_transition(
                 sink_state, get_data_functions=data_sources, triggered=triggered
             )
-        elif transition_config.type == "proportion":
+        elif transition_config["transition_type"] == "proportion":
             source_state.add_proportion_transition(
                 sink_state, get_data_functions=data_sources, triggered=triggered
             )
-        elif transition_config.type == "dwell_time":
+        elif transition_config["transition_type"] == "dwell_time":
             source_state.add_dwell_time_transition(sink_state, triggered=triggered)
         else:
             raise ValueError(
@@ -294,7 +308,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             )
 
     @staticmethod
-    def get_data_source(
+    def _get_data_source(
         name: str, source: Union[str, float]
     ) -> Callable[[Builder, Any], Any]:
         """
@@ -338,8 +352,8 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     # Validation methods #
     ######################
 
-    ALLOWABLE_CAUSE_KEYS = {"model_type", "initial_state", "states", "transitions"}
-    ALLOWABLE_STATE_KEYS = {
+    _CAUSE_KEYS = {"model_type", "initial_state", "states", "transitions"}
+    _STATE_KEYS = {
         "state_type",
         "cause_type",
         "transient",
@@ -349,7 +363,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         "cleanup_function",
     }
 
-    ALLOWABLE_DATA_SOURCE_KEYS = {
+    _DATA_SOURCE_KEYS = {
         "state": {
             "prevalence",
             "birth_prevalence",
@@ -364,11 +378,11 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         },
         "proportion_transition": {"proportion"},
     }
-    ALLOWABLE_TRANSITION_KEYS = {"source", "sink", "type", "triggered", "data_sources"}
-    ALLOWABLE_TRANSITION_TYPE_KEYS = {"rate", "proportion", "dwell_time"}
+    _TRANSITION_KEYS = {"source", "sink", "transition_type", "triggered", "data_sources"}
+    _TRANSITION_TYPE_KEYS = {"rate", "proportion", "dwell_time"}
 
     @staticmethod
-    def validate_external_configuration(external_configuration: ConfigTree) -> None:
+    def _validate_external_configuration(external_configuration: ConfigTree) -> None:
         """
         Validates the external configuration.
 
@@ -405,9 +419,9 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                             "be a list of paths to yaml files."
                         )
         if error_messages:
-            raise ConfigurationError("\n".join(error_messages), None)
+            raise CausesParsingErrors(error_messages)
 
-    def validate_causes_config(self, causes_config: ConfigTree) -> None:
+    def _validate_causes_config(self, causes_config: ConfigTree) -> None:
         """
         Validates the cause model configuration.
 
@@ -431,7 +445,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             error_messages += self._validate_cause(cause_name, cause_config)
 
         if error_messages:
-            raise ConfigurationError("\n".join(error_messages), None)
+            raise CausesParsingErrors(error_messages)
 
     def _validate_cause(self, cause_name: str, cause_config: Dict[str, Any]) -> List[str]:
         """
@@ -456,21 +470,16 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             )
             return error_messages
 
-        if not set(cause_config.keys()).issubset(
-            CausesConfigurationParser.ALLOWABLE_CAUSE_KEYS
-        ):
+        if not set(cause_config.keys()).issubset(self._CAUSE_KEYS):
             error_messages.append(
                 f"Cause configuration for cause '{cause_name}' may only"
                 " contain the following keys: "
-                f"{CausesConfigurationParser.ALLOWABLE_CAUSE_KEYS}."
+                f"{self._CAUSE_KEYS}."
             )
 
-        model_type = cause_config.get("model_type", "")
-        if model_type and not (isinstance(model_type, str) and "." in model_type):
-            error_messages.append(
-                f"If 'model_type' is provided for cause '{cause_name}' it "
-                "must be a fully qualified import path for the type of the "
-                f"desired model. Provided'{model_type}'."
+        if "model_type" in cause_config:
+            error_messages += self._validate_imported_type(
+                cause_config["model_type"], cause_name, "model"
             )
 
         states_config = cause_config.get("states", {})
@@ -496,18 +505,15 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 error_messages += self._validate_state(cause_name, state_name, state_config)
 
         transitions_config = cause_config.get("transitions", {})
-        can_parse_transitions = bool(transitions_config)
         if not isinstance(transitions_config, dict):
-            can_parse_transitions = False
             error_messages.append(
                 f"Transitions configuration for cause '{cause_name}' must be "
                 "a dictionary if it is present."
             )
-
-        if can_parse_transitions:
-            for _, transition_config in cause_config["transitions"].items():
+        else:
+            for transition_name, transition_config in transitions_config.items():
                 error_messages += self._validate_transition(
-                    cause_name, transition_config, states_config
+                    cause_name, transition_name, transition_config, states_config
                 )
 
         return error_messages
@@ -541,7 +547,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             )
             return error_messages
 
-        allowable_keys = set(CausesConfigurationParser.ALLOWABLE_STATE_KEYS)
+        allowable_keys = set(self._STATE_KEYS)
         if state_name in ["susceptible", "recovered"]:
             allowable_keys.remove("data_sources")
 
@@ -553,12 +559,9 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             )
 
         state_type = state_config.get("state_type", "")
-        if state_type and not (isinstance(state_type, str) and "." in state_type):
-            error_messages.append(
-                f"If 'model_type' is provided for cause '{cause_name}' it "
-                "must be a fully qualified import path for the type of the "
-                f"desired model. Provided'{state_type}'."
-            )
+        error_messages += self._validate_imported_type(
+            state_type, cause_name, "state", state_name
+        )
 
         if not isinstance(state_config.get("cause_type", ""), str):
             error_messages.append(
@@ -597,13 +600,16 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 "is not supported and will be ignored."
             )
 
-        error_messages += self._validate_data_sources(state_config, cause_name, "state")
+        error_messages += self._validate_data_sources(
+            state_config, cause_name, "state", state_name
+        )
 
         return error_messages
 
     def _validate_transition(
         self,
         cause_name: str,
+        transition_name: str,
         transition_config: Dict[str, Any],
         states_config: Dict[str, Any],
     ) -> List[str]:
@@ -614,8 +620,12 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         ----------
         cause_name
             The name of the cause to which the transition belongs
+        transition_name
+            The name of the transition to validate
         transition_config
             A ConfigTree defining the transition to validate
+        states_config
+            A ConfigTree defining the states for the cause
 
         Returns
         -------
@@ -627,69 +637,126 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         if not isinstance(transition_config, dict):
             error_messages.append(
                 f"Transition configuration for in cause '{cause_name}' and "
-                f"transition '{transition_config}' must be a dictionary."
+                f"transition '{transition_name}' must be a dictionary."
             )
             return error_messages
 
         if not set(transition_config.keys()).issubset(
-            CausesConfigurationParser.ALLOWABLE_TRANSITION_KEYS
+            CausesConfigurationParser._TRANSITION_KEYS
         ):
             error_messages.append(
                 f"Transition configuration for in cause '{cause_name}' and "
-                f"transition '{transition_config}' may only contain the "
-                f"following keys: {CausesConfigurationParser.ALLOWABLE_TRANSITION_KEYS}."
+                f"transition '{transition_name}' may only contain the "
+                f"following keys: {self._TRANSITION_KEYS}."
             )
         source = transition_config.get("source", None)
         sink = transition_config.get("sink", None)
         if sink is None or source is None:
             error_messages.append(
                 f"Transition configuration for in cause '{cause_name}' and "
-                f"transition '{transition_config}' must contain both a source "
+                f"transition '{transition_name}' must contain both a source "
                 f"and a sink."
             )
 
-        if source not in states_config:
+        if source is not None and source not in states_config:
             error_messages.append(
                 f"Transition configuration for in cause '{cause_name}' and "
-                f"transition '{transition_config}' must contain a source that "
+                f"transition '{transition_name}' must contain a source that "
                 f"is present in the states."
             )
-        if sink not in states_config:
+
+        if sink is not None and sink not in states_config:
             error_messages.append(
                 f"Transition configuration for in cause '{cause_name}' and "
-                f"transition '{transition_config}' must contain a sink that "
+                f"transition '{transition_name}' must contain a sink that "
                 f"is present in the states."
             )
-        transition_type = transition_config.get("type", "rate")
-        if transition_type not in CausesConfigurationParser.ALLOWABLE_TRANSITION_TYPE_KEYS:
-            error_messages.append(
-                f"Transition configuration for in cause '{cause_name}' and "
-                f"transition '{transition_config}' may only have one of the following "
-                f"values: {CausesConfigurationParser.ALLOWABLE_TRANSITION_TYPE_KEYS}."
-            )
+
         if (
             "triggered" in transition_config
             and transition_config["triggered"] not in Trigger.__members__
         ):
             error_messages.append(
                 f"Transition configuration for in cause '{cause_name}' and "
-                f"transition '{transition_config}' may only have one of the following "
+                f"transition '{transition_name}' may only have one of the following "
                 f"values: {Trigger.__members__}."
             )
-        if transition_type == "dwell_time" and "data_sources" in transition_config:
+
+        if "transition_type" not in transition_config:
             error_messages.append(
                 f"Transition configuration for in cause '{cause_name}' and "
-                f"transition '{transition_config}' is a dwell-time transition and "
-                f"may not have data sources as dwell-time is configured on the state."
+                f"transition '{transition_name}' must contain a transition type."
             )
         else:
-            error_messages += self._validate_data_sources(
-                transition_config, cause_name, f"{transition_type}_transition"
+            transition_type = transition_config["transition_type"]
+            if transition_type not in self._TRANSITION_TYPE_KEYS:
+                error_messages.append(
+                    f"Transition configuration for in cause '{cause_name}' and "
+                    f"transition '{transition_name}' may only contain the "
+                    f"following values: {self._TRANSITION_TYPE_KEYS}."
+                )
+            if transition_type == "dwell_time" and "data_sources" in transition_config:
+                error_messages.append(
+                    f"Transition configuration for in cause '{cause_name}' and "
+                    f"transition '{transition_name}' is a dwell-time transition and "
+                    f"may not have data sources as dwell-time is configured on the state."
+                )
+            elif transition_type in self._TRANSITION_TYPE_KEYS.difference({"dwell_time"}):
+                error_messages += self._validate_data_sources(
+                    transition_config,
+                    cause_name,
+                    f"{transition_type}_transition",
+                    transition_name,
+                )
+        return error_messages
+
+    @staticmethod
+    def _validate_imported_type(
+        import_path: str, cause_name: str, entity_type: str, entity_name: Optional[str] = None
+    ) -> List[str]:
+        """
+        Validates an imported type and returns a list of error messages.
+
+        Parameters
+        ----------
+        import_path
+            The import path to validate
+        cause_name
+            The name of the cause to which the imported type belongs
+        entity_type
+            The type of the entity to which the imported type belongs
+        entity_name
+            The name of the entity to which the imported type belongs, if it is
+            not a cause
+
+        Returns
+        -------
+        List[str]
+            A list of error messages
+        """
+        expected_type = {"model": DiseaseModel, "state": BaseDiseaseState}[entity_type]
+
+        error_messages = []
+        if not import_path:
+            return error_messages
+
+        try:
+            imported_type = import_by_path(import_path)
+            if not (
+                isinstance(imported_type, type) and issubclass(imported_type, expected_type)
+            ):
+                raise TypeError
+        except (ModuleNotFoundError, AttributeError, TypeError, ValueError):
+            error_messages.append(
+                f"If '{entity_type}_type' is provided for cause '{cause_name}' "
+                f"{f'and {entity_type} {entity_name} ' if entity_name else ''}it "
+                f"must be the fully qualified import path to a {expected_type} "
+                f"implementation. Provided'{import_path}'."
             )
         return error_messages
 
     def _validate_data_sources(
-        self, config: Dict[str, Any], cause_name: str, config_type: str
+        self, config: Dict[str, Any], cause_name: str, config_type: str, config_name: str
     ) -> List[str]:
         """
         Validates the data sources in a configuration and returns a list of
@@ -703,6 +770,8 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             The name of the cause to which the configuration belongs
         config_type
             The type of the configuration to validate
+        config_name
+            The name of the configuration being validated
 
         Returns
         -------
@@ -710,30 +779,27 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             A list of error messages
         """
         error_messages = []
-        data_sources_config = config.get("data_sources", None)
-        if data_sources_config is not None:
-            if not isinstance(data_sources_config, dict):
-                error_messages.append(
-                    f"Data sources configuration for {config_type} '{config}' in "
-                    f"cause '{cause_name}' must be a dictionary if it is present."
-                )
-            else:
-                if not set(data_sources_config.keys()).issubset(
-                    CausesConfigurationParser.ALLOWABLE_DATA_SOURCE_KEYS[config_type]
-                ):
-                    error_messages.append(
-                        f"Data sources configuration for {config_type} '{config}' "
-                        f"in cause '{cause_name}' may only contain the following keys: "
-                        f"{CausesConfigurationParser.ALLOWABLE_DATA_SOURCE_KEYS[config_type]}."
-                    )
+        data_sources_config = config.get("data_sources", {})
+        if not isinstance(data_sources_config, dict):
+            error_messages.append(
+                f"Data sources configuration for {config_type} '{config}' in "
+                f"cause '{cause_name}' must be a dictionary if it is present."
+            )
+            return error_messages
 
-                for name, source in data_sources_config.items():
-                    try:
-                        self.get_data_source(name, source)
-                    except ValueError:
-                        error_messages.append(
-                            f"Configuration for {config_type} '{config}' in "
-                            f"cause '{cause_name}' has an invalid data source at "
-                            f"'{source}'."
-                        )
+        if not set(data_sources_config.keys()).issubset(self._DATA_SOURCE_KEYS[config_type]):
+            error_messages.append(
+                f"Data sources configuration for {config_type} '{config_name}' "
+                f"in cause '{cause_name}' may only contain the following keys: "
+                f"{self._DATA_SOURCE_KEYS[config_type]}."
+            )
+
+        for config_name, source in data_sources_config.items():
+            try:
+                self._get_data_source(config_name, source)
+            except ValueError:
+                error_messages.append(
+                    f"Configuration for {config_type} '{config_name}' in cause "
+                    f"'{cause_name}' has an invalid data source at '{source}'."
+                )
         return error_messages

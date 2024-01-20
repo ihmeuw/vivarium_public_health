@@ -4,7 +4,7 @@ from typing import Any, Dict, List, NamedTuple, Tuple, Type
 import pytest
 import yaml
 from vivarium import Component, ConfigTree, InteractiveContext
-from vivarium.config_tree import ConfigurationError
+from vivarium.framework.components.parser import ParsingError
 from vivarium.framework.state_machine import Transient, Transition
 
 from vivarium_public_health.disease import (
@@ -229,7 +229,7 @@ SIR_MODEL_CONFIG = {
             "infected_incidence": {
                 "source": "susceptible",
                 "sink": STATES.SIR_INFECTED.name,
-                "type": "rate",
+                "transition_type": "rate",
                 "data_sources": {
                     "incidence_rate": STATES.SIR_SUSCEPTIBLE.get_transitions()[
                         STATES.SIR_INFECTED.name
@@ -239,7 +239,7 @@ SIR_MODEL_CONFIG = {
             "infected_remission": {
                 "source": STATES.SIR_INFECTED.name,
                 "sink": "recovered",
-                "type": "rate",
+                "transition_type": "rate",
                 "data_sources": {
                     "remission_rate": STATES.SIR_INFECTED.get_transitions()[
                         f"recovered_from_{SIR_MODEL}"
@@ -279,7 +279,7 @@ COMPLEX_MODEL_CONFIG = {
             "infected_state_1_to_transient": {
                 "source": STATES.COMPLEX_INFECTED_1.name,
                 "sink": TRANSIENT_STATE_NAME,
-                "type": "proportion",
+                "transition_type": "proportion",
                 "data_sources": {
                     "proportion": STATES.COMPLEX_INFECTED_1.get_transitions()[
                         TRANSIENT_STATE_NAME
@@ -289,7 +289,7 @@ COMPLEX_MODEL_CONFIG = {
             "infected_state_1_to_infected_state_2": {
                 "source": STATES.COMPLEX_INFECTED_1.name,
                 "sink": COMPLEX_STATE_2_NAME,
-                "type": "proportion",
+                "transition_type": "proportion",
                 "data_sources": {
                     "proportion": STATES.COMPLEX_INFECTED_1.get_transitions()[
                         COMPLEX_STATE_2_NAME
@@ -299,7 +299,7 @@ COMPLEX_MODEL_CONFIG = {
             "transient_to_infected_state_2": {
                 "source": TRANSIENT_STATE_NAME,
                 "sink": COMPLEX_STATE_2_NAME,
-                "type": "proportion",
+                "transition_type": "proportion",
                 "data_sources": {
                     "proportion": STATES.TRANSIENT.get_transitions()[
                         COMPLEX_STATE_2_NAME
@@ -309,12 +309,12 @@ COMPLEX_MODEL_CONFIG = {
             "infected_state_2_to_infected_state_3": {
                 "source": COMPLEX_STATE_2_NAME,
                 "sink": COMPLEX_STATE_3_NAME,
-                "type": "dwell_time",
+                "transition_type": "dwell_time",
             },
             "infected_state_3_to_infected_state_1": {
                 "source": COMPLEX_STATE_3_NAME,
                 "sink": STATES.COMPLEX_INFECTED_1.name,
-                "type": "rate",
+                "transition_type": "rate",
                 "data_sources": {
                     "transition_rate": "tests.plugins.test_parser::complex_model_3_to_1_transition_rate"
                 },
@@ -322,7 +322,7 @@ COMPLEX_MODEL_CONFIG = {
             "infected_state_3_to_infected_state_2": {
                 "source": COMPLEX_STATE_3_NAME,
                 "sink": STATES.COMPLEX_INFECTED_2.name,
-                "type": "rate",
+                "transition_type": "rate",
                 "data_sources": {
                     "transition_rate": "tests.plugins.test_parser::complex_model_3_to_2_transition_rate"
                 },
@@ -490,7 +490,7 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
             "vivarium": {"testing_utilities": "TestPopulation()"},
         }
     )
-    with pytest.raises(ConfigurationError, match=expected_error_message):
+    with pytest.raises(ParsingError, match=expected_error_message):
         CausesConfigurationParser().parse_component_config(component_config)
 
 
@@ -602,140 +602,176 @@ def test_disease_state(
 # Validation Tests #
 ####################
 
+INVALID_CONFIG_PARAMS = {
+    "not dict": (["some", "strings"], "must be a dictionary"),
+    "invalid key": ({"invalid_key": "value"}, "may only contain the following keys"),
+    "model type no module": (
+        {"model_type": "Model"},
+        "fully qualified import path to a.*DiseaseModel",
+    ),
+    "model type bad module": (
+        {"model_type": "some.repo.Model"},
+        "fully qualified import path to a.*DiseaseModel",
+    ),
+    "model type bad class": (
+        {"model_type": "tests.plugins.test_parser.NonModel"},
+        "fully qualified import path to a.*DiseaseModel",
+    ),
+    "model type not disease model": (
+        {"model_type": "tests.plugins.test_parser.ComplexState"},
+        "fully qualified import path to a.*DiseaseModel",
+    ),
+    "no states key": ({"transitions": {"s": {}}}, "must define at least one state"),
+    "empty states": ({"states": {}}, "must define at least one state"),
+    "states not dict": ({"states": ["s1", "s2"]}, "must be a dictionary"),
+    "state_1 not dict": ({"states": {"s1": ["not", "a", "dict"]}}, "must be a dictionary"),
+    "initial state not in states": (
+        {"initial_state": "not_here", "states": {"s1": {}}},
+        "must be present in the states",
+    ),
+    "invalid state key": ({"states": {"s1": {"bad_key": ""}}}, "state 's1' may only contain"),
+    "susceptible state with data sources": (
+        {"states": {"susceptible": {"data_sources": ""}}},
+        "may only contain",
+    ),
+    "state type no module": (
+        {"states": {"s1": {"state_type": "State"}}},
+        "fully qualified import path to a.*BaseDiseaseState",
+    ),
+    "state type bad module": (
+        {"states": {"s1": {"state_type": "some.repo.State"}}},
+        "fully qualified import path to a.*BaseDiseaseState",
+    ),
+    "state type bad class": (
+        {"states": {"s1": {"state_type": "tests.plugins.test_parser.NonState"}}},
+        "fully qualified import path to a.*BaseDiseaseState",
+    ),
+    "state type not disease state": (
+        {"states": {"s1": {"state_type": "tests.plugins.test_parser.ComplexModel"}}},
+        "fully qualified import path to a.*BaseDiseaseState",
+    ),
+    "invalid cause type": ({"states": {"s1": {"cause_type": 3}}}, "must be a string"),
+    "invalid transient": ({"states": {"s1": {"transient": 3}}}, "must be a bool"),
+    "invalid allow self transition": (
+        {"states": {"s1": {"allow_self_transition": 3}}},
+        "must be a bool",
+    ),
+    "state data sources not dict": (
+        {"states": {"s1": {"data_sources": ""}}},
+        "must be a dictionary",
+    ),
+    "state invalid data sources key": (
+        {"states": {"s1": {"data_sources": {"bad_key": ""}}}},
+        "may only contain",
+    ),
+    "state invalid data sources value": (
+        {"states": {"s1": {"data_sources": {"prevalence": "bad_value"}}}},
+        "has an invalid data source at",
+    ),
+    "transitions not dict": ({"transitions": ["not", "a", "dict"]}, "must be a dictionary"),
+    "transition_1 not dict": (
+        {"transitions": {"t1": ["not", "a", "dict"]}},
+        "must be a dictionary",
+    ),
+    "invalid transition key": ({"transitions": {"t1": {"bad_key": ""}}}, "may only contain"),
+    "missing source and sink": (
+        {"transitions": {"t1": {"transition_type": "rate"}}},
+        "must contain both a source and a sink",
+    ),
+    "missing source": (
+        {"transitions": {"t1": {"sink": "s1"}}},
+        "must contain both a source and a sink",
+    ),
+    "missing sink": (
+        {"transitions": {"t1": {"source": "s1"}}},
+        "must contain both a source and a sink",
+    ),
+    "source not in states": (
+        {
+            "states": {"susceptible": {}, "s2": {}},
+            "transitions": {"t1": {"source": "s1", "sink": "s2"}},
+        },
+        "source that is present in the states",
+    ),
+    "sink not in states": (
+        {
+            "states": {"susceptible": {}, "s2": {}},
+            "transitions": {"t1": {"source": "s2", "sink": "s1"}},
+        },
+        "sink that is present in the states",
+    ),
+    "missing transition type": (
+        {"transitions": {"t1": {"source": "s1"}}},
+        "must contain a transition type",
+    ),
+    "invalid transition type": (
+        {
+            "states": {"susceptible": {}, "s2": {}},
+            "transitions": {
+                "t1": {"source": "susceptible", "sink": "s2", "transition_type": "bad type"}
+            },
+        },
+        "may only contain the following values",
+    ),
+    "invalid triggered value": (
+        {
+            "states": {"susceptible": {}, "s2": {}},
+            "transitions": {
+                "t1": {"source": "susceptible", "sink": "s2", "triggered": "bad_value"}
+            },
+        },
+        "may only have one of the following values",
+    ),
+    "dwell time with data sources": (
+        {"transitions": {"t1": {"transition_type": "dwell_time", "data_sources": {}}}},
+        "may not have data sources",
+    ),
+    "transition data sources not dict": (
+        {"transitions": {"t1": {"transition_type": "rate", "data_sources": ""}}},
+        "must be a dictionary",
+    ),
+    "rate transition invalid data sources key": (
+        {
+            "transitions": {
+                "t1": {"transition_type": "rate", "data_sources": {"proportion": ""}}
+            }
+        },
+        "may only contain",
+    ),
+    "proportion transition invalid data sources key": (
+        {
+            "transitions": {
+                "t1": {
+                    "transition_type": "proportion",
+                    "data_sources": {"transition_rate": ""},
+                }
+            }
+        },
+        "may only contain",
+    ),
+    "transition invalid data sources value": (
+        {
+            "transitions": {
+                "t1": {
+                    "transition_type": "rate",
+                    "data_sources": {"transition_rate": "bad_value"},
+                }
+            }
+        },
+        "has an invalid data source at",
+    ),
+}
+
 
 @pytest.mark.parametrize(
     "model_config, expected_error_message",
-    [
-        (["some", "strings"], "must be a dictionary"),
-        ({"invalid_key": "value"}, "may only contain the following keys"),
-        ({"model_type": "some invalid string"}, "must be a fully qualified import path"),
-        ({"transitions": {"s": {}}}, "must define at least one state"),
-        ({"states": {}}, "must define at least one state"),
-        ({"states": ["s1", "s2"]}, "must be a dictionary"),
-        (
-            {"initial_state": "not_here", "states": {"s1": {}}},
-            "must be present in the states",
-        ),
-        ({"states": {"s1": ["not", "a", "dict"]}}, "must be a dictionary"),
-        ({"states": {"s1": {"bad_key": ""}}}, "state 's1' may only contain"),
-        (
-            {"states": {"susceptible": {"data_sources": ""}}},
-            "state 'susceptible' may only contain",
-        ),
-        ({"states": {"s1": {"state_type": "bad"}}}, "must be a fully qualified import path"),
-        ({"states": {"s1": {"cause_type": 3}}}, "must be a string"),
-        ({"states": {"s1": {"transient": 3}}}, "must be a bool"),
-        ({"states": {"s1": {"allow_self_transition": 3}}}, "must be a bool"),
-        ({"states": {"s1": {"data_sources": ""}}}, "must be a dictionary"),
-        ({"states": {"s1": {"data_sources": {"bad_key": ""}}}}, "may only contain"),
-        (
-            {"states": {"s1": {"data_sources": {"prevalence": "bad_value"}}}},
-            "has an invalid data source at",
-        ),
-        ({"transitions": ["not", "a", "dict"]}, "must be a dictionary"),
-        ({"transitions": {"t1": ["not", "a", "dict"]}}, "must be a dictionary"),
-        ({"transitions": {"t1": {"bad_key": ""}}}, "may only contain"),
-        (
-            {"transitions": {"t1": {"type": "rate"}}},
-            "must contain both a source and a sink",
-        ),
-        ({"transitions": {"t1": {"source": "s1"}}}, "must contain both a source and a sink"),
-        ({"transitions": {"t1": {"sink": "s1"}}}, "must contain both a source and a sink"),
-        (
-            {
-                "states": {"susceptible": {}, "s2": {}},
-                "transitions": {"t1": {"source": "s1", "sink": "s2"}},
-            },
-            "source that is present in the states",
-        ),
-        (
-            {
-                "states": {"susceptible": {}, "s2": {}},
-                "transitions": {"t1": {"source": "s2", "sink": "s1"}},
-            },
-            "sink that is present in the states",
-        ),
-        (
-            {
-                "states": {"susceptible": {}, "s2": {}},
-                "transitions": {
-                    "t1": {"source": "susceptible", "sink": "s2", "type": "bad_type"}
-                },
-            },
-            "may only have one of the following values",
-        ),
-        (
-            {
-                "states": {"susceptible": {}, "s2": {}},
-                "transitions": {
-                    "t1": {"source": "susceptible", "sink": "s2", "triggered": "bad_value"}
-                },
-            },
-            "may only have one of the following values",
-        ),
-        (
-            {"transitions": {"t1": {"type": "dwell_time", "data_sources": {}}}},
-            "may not have data sources",
-        ),
-        ({"transitions": {"t1": {"data_sources": ""}}}, "must be a dictionary"),
-        ({"transitions": {"t1": {"data_sources": {"proportion": ""}}}}, "may only contain"),
-        (
-            {"transitions": {"t1": {"type": "rate", "data_sources": {"proportion": ""}}}},
-            "may only contain",
-        ),
-        (
-            {
-                "transitions": {
-                    "t1": {"type": "proportion", "data_sources": {"incidence_rate": ""}}
-                }
-            },
-            "may only contain",
-        ),
-        (
-            {"transitions": {"t1": {"data_sources": {"incidence_rate": "bad_value"}}}},
-            "has an invalid data source at",
-        ),
-    ],
-    ids=[
-        "not dict",
-        "invalid key",
-        "invalid model type",
-        "no states key",
-        "empty states",
-        "states not dict",
-        "state_1 not dict",
-        "initial state not in states",
-        "invalid state key",
-        "susceptible state with data sources",
-        "invalid state type",
-        "invalid cause type",
-        "invalid transient",
-        "invalid allow_self_transition",
-        "states data sources not dict",
-        "states invalid data source key",
-        "states invalid data source value",
-        "transitions not dict",
-        "transition_1 not dict",
-        "invalid transition key",
-        "missing source and sink",
-        "missing sink",
-        "missing source",
-        "source not in states",
-        "sink not in states",
-        "invalid transition type",
-        "invalid triggered value",
-        "dwell_time with data sources",
-        "transitions data sources not dict",
-        "default rate transition invalid data source key",
-        "explicit rate transition invalid data source key",
-        "proportion transition invalid data source key",
-        "transitions invalid data source value",
-    ],
+    INVALID_CONFIG_PARAMS.values(),
+    ids=INVALID_CONFIG_PARAMS.keys(),
 )
 def test_invalid_model_config_throws_error(model_config: Any, expected_error_message: str):
     config = create_simulation_config_tree({"causes": {"model_name": model_config}})
     expected_error_message = f"cause 'model_name'.*{expected_error_message}"
-    with pytest.raises(ConfigurationError, match=expected_error_message):
+    with pytest.raises(ParsingError, match=expected_error_message):
         CausesConfigurationParser().parse_component_config(config)
 
 
@@ -744,7 +780,7 @@ def test_multiple_errors_present_in_error_message():
         {
             "causes": {
                 "model_name": {
-                    "model_type": "bad_type",
+                    "model_type": "some_not_found_module.Model",
                     "states": ["not", "a", "dict"],
                     "transitions": ["not", "a", "dict"],
                 }
@@ -752,10 +788,10 @@ def test_multiple_errors_present_in_error_message():
         }
     )
     expected_error_message = (
-        "must be a fully qualified import path.*\n"
-        "States configuration for cause 'model_name' must be a dictionary.\n"
-        "Transitions configuration for cause 'model_name' must be a dictionary "
+        "fully qualified import path to a.*DiseaseModel.*"
+        "\n - States configuration for cause 'model_name' must be a dictionary."
+        "\n - Transitions configuration for cause 'model_name' must be a dictionary "
         "if it is present."
     )
-    with pytest.raises(ConfigurationError, match=expected_error_message):
+    with pytest.raises(ParsingError, match=expected_error_message):
         CausesConfigurationParser().parse_component_config(config)
