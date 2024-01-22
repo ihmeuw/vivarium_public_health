@@ -652,6 +652,33 @@ INVALID_CONFIG_PARAMS = {
     ),
     "invalid cause type": ({"states": {"s1": {"cause_type": 3}}}, "must be a string"),
     "invalid transient": ({"states": {"s1": {"transient": 3}}}, "must be a bool"),
+    "state type and susceptible": (
+        {"states": {"susceptible": {"state_type": "tests.plugins.test_parser.ComplexState"}}},
+        "state_type is not an allowed configuration",
+    ),
+    "state type and recovered": (
+        {"states": {"recovered": {"state_type": "tests.plugins.test_parser.ComplexState"}}},
+        "state_type is not an allowed configuration",
+    ),
+    "state type and transient": (
+        {
+            "states": {
+                "s1": {
+                    "state_type": "tests.plugins.test_parser.ComplexState",
+                    "transient": True,
+                }
+            }
+        },
+        "state_type is not an allowed configuration",
+    ),
+    "transient and susceptible": (
+        {"states": {"susceptible": {"transient": True}}},
+        "transient is not an allowed configuration",
+    ),
+    "transient and recovered": (
+        {"states": {"recovered": {"transient": True}}},
+        "transient is not an allowed configuration",
+    ),
     "invalid allow self transition": (
         {"states": {"s1": {"allow_self_transition": 3}}},
         "must be a bool",

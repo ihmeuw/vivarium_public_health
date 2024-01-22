@@ -2,7 +2,6 @@ from importlib import import_module
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
-from loguru import logger
 from pkg_resources import resource_filename
 from vivarium import Component, ConfigTree
 from vivarium.framework.components import ComponentConfigurationParser
@@ -575,29 +574,32 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 f"must be a boolean. Provided {state_config['transient']}."
             )
 
-        if state_type and is_transient:
-            logger.warning(
-                f"State '{state_name}' in cause '{cause_name}' has explicitly "
-                f"configured type {state_type}, but has also provided a "
-                "transient flag. This flag will be ignored."
+        if state_name in ["susceptible", "recovered"] and state_type:
+            error_messages.append(
+                f"The name '{state_name}' in cause '{cause_name}' concretely "
+                f"specifies the state type, so state_type is not an allowed "
+                "configuration."
+            )
+
+        if state_name in ["susceptible", "recovered"] and is_transient:
+            error_messages.append(
+                f"The name '{state_name}' in cause '{cause_name}' concretely "
+                f"specifies the state type, so transient is not an allowed "
+                "configuration."
+            )
+
+        if is_transient and state_type:
+            error_messages.append(
+                f"Specifying transient as True for state '{state_name}' in cause "
+                f"'{cause_name}' concretely specifies the state type, so "
+                "state_type is not an allowed configuration."
             )
 
         if not isinstance(state_config.get("allow_self_transition", True), bool):
             error_messages.append(
-                f"Allow self transition flag for state '{state_name}' in cause '{cause_name}' "
-                f"must be a boolean. Provided {state_config['allow_self_transition']}."
-            )
-
-        if state_config.get("side_effect", None) is not None:
-            logger.warning(
-                f"Side effect for state '{state_name}' in cause '{cause_name}' "
-                "is not supported and will be ignored."
-            )
-
-        if state_config.get("cleanup_function", None) is not None:
-            logger.warning(
-                f"Cleanup function for state '{state_name}' in cause '{cause_name}' "
-                "is not supported and will be ignored."
+                f"Allow self transition flag for state '{state_name}' in cause "
+                f"'{cause_name}' must be a boolean. Provided "
+                f"'{state_config['allow_self_transition']}'."
             )
 
         error_messages += self._validate_data_sources(
