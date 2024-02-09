@@ -1,3 +1,13 @@
+"""
+===============================
+Component Configuration Parsers
+===============================
+
+Component Configuration Parsers in this module are specialized implementations of
+:class:`ComponentConfigurationParser <vivarium.framework.components.parser.ComponentConfigurationParser>`
+that can parse configurations of components specific to the Vivarium Public
+Health package.
+"""
 from importlib import import_module
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -23,7 +33,7 @@ from vivarium_public_health.utilities import TargetString
 
 class CausesParsingErrors(ParsingError):
     """
-    Error raised when there is an errors parsing a cause model configuration.
+    Error raised when there are any errors parsing a cause model configuration.
     """
 
     def __init__(self, messages: List[str]):
@@ -34,13 +44,24 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     """
     Component configuration parser that acts the same as the standard vivarium
     `ComponentConfigurationParser` but adds the additional ability to parse a
-    `causes` key and create `DiseaseModel` components.
+    configuration to create `DiseaseModel` components. These DiseaseModel
+    configurations can either be specified directly in the configuration in a
+    `causes` key or in external configuration files that are specified in the
+    `external_configuration` key.
     """
 
     DEFAULT_MODEL_CONFIG = {
         "model_type": f"{DiseaseModel.__module__}.{DiseaseModel.__name__}",
         "initial_state": None,
     }
+    """
+    If a cause model configuration does not specify a model type or initial 
+    state, these default values will be used. The default model type is 
+    `DiseaseModel` and the
+    default initial state is `None`. If the initial state is not specified,
+    the cause model must have a state named 'susceptible'.
+    """
+
     DEFAULT_STATE_CONFIG = {
         "cause_type": "cause",
         "transient": False,
@@ -49,14 +70,26 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         "cleanup_function": None,
         "state_type": None,
     }
+    """
+    If a state configuration does not specify cause_type, transient, 
+    allow_self_transition, side_effect, cleanup_function, or state_type,
+    these default values will be used. The default cause type is 'cause', the
+    default transient value is False, and the default allow_self_transition
+    value is True.
+    """
+
     DEFAULT_TRANSITION_CONFIG = {"triggered": "NOT_TRIGGERED"}
+    """
+    If a transition configuration does not specify a triggered value, this
+    default value will be used. The default triggered value is 'NOT_TRIGGERED'.
+    """
 
     def parse_component_config(self, component_config: ConfigTree) -> List[Component]:
         """
         Parses the component configuration and returns a list of components.
 
-        In particular, this method looks for an `external_configuration` key and
-        a `causes` key.
+        In particular, this method looks for an `external_configuration` key
+        and/or a `causes` key.
 
         The `external_configuration` key should have names of packages that
         contain cause model configuration files. Within that key should be a list
@@ -72,6 +105,30 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         The `causes` key should contain configuration information for cause
         models.
 
+        .. code-block:: yaml
+
+            causes:
+                cause_1:
+                    model_type: vivarium_public_health.disease.DiseaseModel
+                    initial_state: susceptible
+                    states:
+                        susceptible:
+                            cause_type: cause
+                            data_sources: {}
+                        infected:
+                            cause_type: cause
+                            transient: false
+                            allow_self_transition: true
+                            data_sources: {}
+                    transitions:
+                        transition_1:
+                            source: susceptible
+                            sink: infected
+                            transition_type: rate
+                            data_sources: {}
+
+        # todo add information about the data_sources configuration
+
         Note that this method modifies the simulation's component configuration
         by adding the contents of external configuration files to the
         `model_override` layer and adding default cause model configuration
@@ -84,12 +141,12 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
         Returns
         -------
-        List[Component]
+        List
             A list of initialized components.
 
         Raises
         ------
-        ConfigurationError
+        CausesParsingErrors
             If the cause model configuration is invalid
         """
         components = []
@@ -396,7 +453,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
         Raises
         ------
-        ConfigurationError
+        CausesParsingErrors
             If the external configuration is invalid
         """
         external_configuration = external_configuration.to_dict()
@@ -435,7 +492,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
         Raises
         ------
-        ConfigurationError
+        CausesParsingErrors
             If the cause model configuration is invalid
         """
         causes_config = causes_config.to_dict()
