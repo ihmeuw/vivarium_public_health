@@ -1,4 +1,4 @@
-**2.2.0 - 01/11/24**
+**2.2.0 - 02/13/24**
 
  - Implement CausesConfigurationParser to parse causes configuration into DiseaseModel components
 
