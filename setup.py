@@ -16,6 +16,7 @@ if __name__ == "__main__":
 
     install_requirements = [
         "vivarium>=2.0.0",
+        "loguru",
         "numpy",
         "pandas",
         "scipy",
@@ -29,6 +30,7 @@ if __name__ == "__main__":
         "pytest",
         "pytest-mock",
         "hypothesis",
+        "pyyaml",
     ]
 
     doc_requirements = [
