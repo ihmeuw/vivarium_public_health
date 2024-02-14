@@ -1,6 +1,7 @@
 **2.2.0 - 02/13/24**
 
  - Implement CausesConfigurationParser to parse causes configuration into DiseaseModel components
+ - Bugfix assign sex-location-age demographic proportions by year when only one year in dataset
  
 **2.1.4 - 01/10/24**
 
