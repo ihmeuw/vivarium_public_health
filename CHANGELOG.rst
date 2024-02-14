@@ -1,3 +1,7 @@
+**2.1.5 - 02/13/24**
+
+ - Bugfix assign sex-location-age demographic proportions by year when only one year in dataset
+
 **2.1.4 - 01/10/24**
 
  - Exclude undesirable arguments from the return of `BaseDiseaseState` `name` and `__repr__` methods
