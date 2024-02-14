@@ -7,6 +7,7 @@ This module contains tools for handling raw demographic data and transforming
 it into different distributions for sampling.
 
 """
+
 from collections import namedtuple
 from typing import Tuple, Union
 
@@ -59,22 +60,22 @@ def assign_demographic_proportions(
     population_data["P(sex, location, age| year)"] = (
         population_data.groupby("year_start", as_index=False)
         .apply(lambda sub_pop: sub_pop[["value"]] / sub_pop["value"].sum())
-        .reset_index(level=0)
-        ["value"].fillna(0.0)
+        .reset_index(level=0)["value"]
+        .fillna(0.0)
     )
 
     population_data["P(sex, location | age, year)"] = (
         population_data.groupby(["age", "year_start"], as_index=False)
         .apply(lambda sub_pop: sub_pop["value"] / sub_pop["value"].sum())
-        .reset_index(level=0)
-        ["value"].fillna(0.0)
+        .reset_index(level=0)["value"]
+        .fillna(0.0)
     )
 
     population_data["P(age | year, sex, location)"] = (
         population_data.groupby(["year_start", "sex", "location"], as_index=False)
         .apply(lambda sub_pop: sub_pop["value"] / sub_pop["value"].sum())
-        .reset_index(level=0)
-        ["value"].fillna(0.0)
+        .reset_index(level=0)["value"]
+        .fillna(0.0)
     )
 
     return population_data.sort_values(_SORT_ORDER).reset_index(drop=True)
