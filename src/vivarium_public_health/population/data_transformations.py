@@ -52,25 +52,29 @@ def assign_demographic_proportions(
     if include_sex != "Both":
         population_data.loc[population_data.sex != include_sex, "value"] = 0.0
 
+    # NOTE: when grouping by year alone, we return a dataframe (i.e. sub_pop[["value"]])
+    # to ensure that if there is only one year_start the result is a pd.Series and not a
+    # one-row wide pd.DataFrame.
+    # (https://stackoverflow.com/questions/69109980/unclear-why-groupby-with-single-group-produces-row-dataframe)
     population_data["P(sex, location, age| year)"] = (
         population_data.groupby("year_start", as_index=False)
-        .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
+        .apply(lambda sub_pop: sub_pop[["value"]] / sub_pop["value"].sum())
         .reset_index(level=0)
-        .value.fillna(0.0)
+        ["value"].fillna(0.0)
     )
 
     population_data["P(sex, location | age, year)"] = (
         population_data.groupby(["age", "year_start"], as_index=False)
-        .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
+        .apply(lambda sub_pop: sub_pop["value"] / sub_pop["value"].sum())
         .reset_index(level=0)
-        .value.fillna(0.0)
+        ["value"].fillna(0.0)
     )
 
     population_data["P(age | year, sex, location)"] = (
         population_data.groupby(["year_start", "sex", "location"], as_index=False)
-        .apply(lambda sub_pop: sub_pop.value / sub_pop.value.sum())
+        .apply(lambda sub_pop: sub_pop["value"] / sub_pop["value"].sum())
         .reset_index(level=0)
-        .value.fillna(0.0)
+        ["value"].fillna(0.0)
     )
 
     return population_data.sort_values(_SORT_ORDER).reset_index(drop=True)
