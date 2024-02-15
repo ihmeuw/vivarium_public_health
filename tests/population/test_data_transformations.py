@@ -19,6 +19,20 @@ def pop_data(include_sex):
     return pop_data
 
 
+@pytest.fixture
+def pop_data_single_group():
+    pop_data_single_group = make_uniform_pop_data(age_bin_midpoint=True)
+    # subset to the first sex-location-age-year group
+    g = pop_data_single_group.groupby(["sex", "location", "age", "year_start"])
+    group = list(g.groups)[0]
+    pop_data_single_group = g.get_group(group)
+    sex = pop_data_single_group["sex"].iloc[0]
+    pop_data_single_group = dt.assign_demographic_proportions(
+        pop_data_single_group, include_sex=sex
+    )
+    return pop_data_single_group
+
+
 def test_assign_demographic_proportions(pop_data, include_sex):
     male_scalar, female_scalar = {"Male": (2, 0), "Female": (0, 2), "Both": (1, 1)}[
         include_sex
@@ -48,7 +62,13 @@ def test_assign_demographic_proportions(pop_data, include_sex):
         )
 
 
-def test_rescale_binned_proportions_full_range(pop_data, include_sex):
+def test_single_group_assign_demographic_proportions(pop_data_single_group):
+    assert (pop_data_single_group["P(sex, location, age| year)"] == 1).all()
+    assert (pop_data_single_group["P(sex, location | age, year)"] == 1).all()
+    assert (pop_data_single_group["P(age | year, sex, location)"] == 1).all()
+
+
+def test_rescale_binned_proportions_full_range(pop_data):
     pop_data = pop_data[pop_data.year_start == 1990].reset_index(drop=True)
 
     pop_data_scaled = dt.rescale_binned_proportions(pop_data, age_start=0, age_end=100)
@@ -104,9 +124,9 @@ def test_smooth_ages(pop_data, include_sex):
     simulants = pd.DataFrame(
         {
             "age": [22.5] * 10000 + [52.5] * 10000,
-            "sex": ["Male", "Female"] * 10000
-            if include_sex == "Both"
-            else [include_sex] * 20000,
+            "sex": (
+                ["Male", "Female"] * 10000 if include_sex == "Both" else [include_sex] * 20000
+            ),
             "location": [1, 2] * 10000,
         }
     )
