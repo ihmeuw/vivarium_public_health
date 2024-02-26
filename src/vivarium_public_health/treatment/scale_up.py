@@ -6,14 +6,13 @@ Linear Scale-Up Model
 This module contains tools for applying a linear scale-up to an intervention
 
 """
-from datetime import datetime
 from typing import Any, Callable, Dict, Tuple
 
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.time import Time, get_time_stamp
+from vivarium.framework.time import Time
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.utilities import EntityString
@@ -36,16 +35,10 @@ class LinearScaleUp(Component):
         configuration:
             treatment_scale_up:
                 start:
-                    date:
-                        year: 2020
-                        month: 1
-                        day: 1
+                    date: "2020-01-01"
                     value: 0.0
                 end:
-                    date:
-                        year: 2020
-                        month: 12
-                        day: 31
+                    date: "2020-12-31"
                     value: 0.9
 
     """
@@ -53,8 +46,8 @@ class LinearScaleUp(Component):
     CONFIGURATION_DEFAULTS = {
         "treatment": {
             "date": {
-                "start": "start",
-                "end": "end",
+                "start": "2020-01-01",
+                "end": "2020-12-31",
             },
             "value": {
                 "start": "data",
@@ -114,17 +107,9 @@ class LinearScaleUp(Component):
         return builder.time.clock()
 
     # noinspection PyMethodMayBeStatic
-    def get_scale_up_dates(self, builder: Builder) -> Tuple[datetime, datetime]:
+    def get_scale_up_dates(self, builder: Builder) -> Tuple[pd.Timestamp, pd.Timestamp]:
         scale_up_config = builder.configuration[self.configuration_key]["date"]
-
-        def get_endpoint(endpoint_type: str) -> datetime:
-            if scale_up_config[endpoint_type] == endpoint_type:
-                endpoint = get_time_stamp(builder.configuration.time[endpoint_type])
-            else:
-                endpoint = get_time_stamp(scale_up_config[endpoint_type])
-            return endpoint
-
-        return get_endpoint("start"), get_endpoint("end")
+        return pd.Timestamp(scale_up_config["start"]), pd.Timestamp(scale_up_config["end"])
 
     def get_scale_up_values(self, builder: Builder) -> Tuple[LookupTable, LookupTable]:
         """
