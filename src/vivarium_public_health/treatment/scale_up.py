@@ -107,7 +107,7 @@ class LinearScaleUp(Component):
         return builder.time.clock()
 
     # noinspection PyMethodMayBeStatic
-    def get_scale_up_dates(self, builder: Builder) -> Tuple[Time, Time]:
+    def get_scale_up_dates(self, builder: Builder) -> Tuple[pd.Timestamp, pd.Timestamp]:
         scale_up_config = builder.configuration[self.configuration_key]["date"]
         return pd.Timestamp(scale_up_config["start"]), pd.Timestamp(scale_up_config["end"])
 

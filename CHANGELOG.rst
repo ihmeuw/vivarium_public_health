@@ -1,3 +1,7 @@
+**2.2.1 - 2/26/24**
+
+ - Update LinearScaleUp configuration defaults
+
 **2.2.0 - 02/14/24**
 
  - Implement CausesConfigurationParser to parse causes configuration into DiseaseModel components
