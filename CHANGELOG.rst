@@ -1,3 +1,7 @@
+**2.2.2 - 2/28/24**
+
+ - Fix bug in rescale_binned_proportions to update midpoitn for new age bins
+
 **2.2.1 - 2/26/24**
 
  - Update LinearScaleUp configuration defaults
