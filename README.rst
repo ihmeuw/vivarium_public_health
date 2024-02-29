@@ -31,4 +31,4 @@ or build it from source with
 
 
 `Check out the docs! <https://vivarium.readthedocs.io/projects/vivarium-public-health/en/latest/>`_
--------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
