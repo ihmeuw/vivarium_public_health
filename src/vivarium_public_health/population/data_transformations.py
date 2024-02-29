@@ -138,7 +138,21 @@ def rescale_binned_proportions(
         pop_data.loc[padding_bin.index, columns_to_scale] += remainder
 
         pop_data.loc[min_bin.index, "age_start"] = age_start
+        pop_data.loc[min_bin.index, "age"] = float(
+            (
+                pop_data.loc[min_bin.index, "age_start"].iloc[0]
+                + pop_data.loc[min_bin.index, "age_end"].iloc[0]
+            )
+            / 2
+        )
         pop_data.loc[padding_bin.index, "age_end"] = age_start
+        pop_data.loc[padding_bin.index, "age"] = float(
+            (
+                pop_data.loc[padding_bin.index, "age_start"].iloc[0]
+                + pop_data.loc[padding_bin.index, "age_end"].iloc[0]
+            )
+            / 2
+        )
 
         max_bin = sub_pop[(sub_pop["age_end"] > age_end) & (age_end >= sub_pop["age_start"])]
         padding_bin = sub_pop[sub_pop["age_start"] == float(max_bin["age_end"].iloc[0])]
