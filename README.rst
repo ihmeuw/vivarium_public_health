@@ -29,5 +29,6 @@ or build it from source with
 
   ``> python setup.py install``
 
+
 `Check out the docs! <https://vivarium.readthedocs.io/projects/vivarium-public-health/en/latest/>`_
 -------------------------------------------------------------------
