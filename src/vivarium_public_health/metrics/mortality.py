@@ -7,7 +7,7 @@ This module contains tools for observing cause-specific and
 excess mortality in the simulation, including "other causes".
 
 """
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import pandas as pd
 from vivarium import Component
@@ -22,7 +22,9 @@ class MortalityObserver(Component):
     By default, this counts cause-specific deaths and years of life lost over
     the full course of the simulation. It can be configured to add or remove
     stratification groups to the default groups defined by a
-    :class:ResultsStratifier.
+    :class:ResultsStratifier. The aggregate configuration key can be set to
+    True to aggregate all deaths and ylls into a single observation and remove
+    the stratification by cause of death to improve runtime.
 
     In the model specification, your configuration for this component should
     be specified as, e.g.:
@@ -47,6 +49,7 @@ class MortalityObserver(Component):
             "mortality": {
                 "exclude": [],
                 "include": [],
+                "aggregate": False,
             }
         }
     }
@@ -78,40 +81,84 @@ class MortalityObserver(Component):
         self.causes_of_death = ["other_causes"] + [
             cause.state_id for cause in self._cause_components if cause.has_excess_mortality
         ]
+        if not self.config.aggregate:
+            self._register_cause_specific_observations(builder)
+        else:
+            self._register_aggregate_observations(builder)
 
+    ###################
+    # Private methods #
+    ###################
+
+    def _register_cause_specific_observations(self, builder: Builder) -> None:
         for cause_of_death in self.causes_of_death:
-            builder.results.register_observation(
+            self._register_observation(
+                builder=builder,
                 name=f"death_due_to_{cause_of_death}",
                 pop_filter=f'alive == "dead" and cause_of_death == "{cause_of_death}"',
-                aggregator=self.count_cause_specific_deaths,
+                aggregator=self.count_deaths,
                 requires_columns=["alive", "cause_of_death", "exit_time"],
-                additional_stratifications=self.config.include,
-                excluded_stratifications=self.config.exclude,
-                when="collect_metrics",
             )
-            builder.results.register_observation(
+            self._register_observation(
+                builder=builder,
                 name=f"ylls_due_to_{cause_of_death}",
                 pop_filter=f'alive == "dead" and cause_of_death == "{cause_of_death}"',
-                aggregator=self.calculate_cause_specific_ylls,
+                aggregator=self.calculate_ylls,
                 requires_columns=[
                     "alive",
                     "cause_of_death",
                     "exit_time",
                     "years_of_life_lost",
                 ],
-                additional_stratifications=self.config.include,
-                excluded_stratifications=self.config.exclude,
-                when="collect_metrics",
             )
+
+    def _register_aggregate_observations(self, builder: Builder) -> None:
+        self._register_observation(
+            builder=builder,
+            name="total_deaths",
+            pop_filter='alive == "dead"',
+            aggregator=self.count_deaths,
+            requires_columns=["alive", "exit_time"],
+        )
+        self._register_observation(
+            builder=builder,
+            name="total_ylls",
+            pop_filter='alive == "dead"',
+            aggregator=self.calculate_ylls,
+            requires_columns=[
+                "alive",
+                "cause_of_death",
+                "exit_time",
+                "years_of_life_lost",
+            ],
+        )
+
+    def _register_observation(
+        self,
+        builder: Builder,
+        name: str,
+        pop_filter: str,
+        aggregator: Callable,
+        requires_columns: List[str],
+    ) -> None:
+        builder.results.register_observation(
+            name=name,
+            pop_filter=pop_filter,
+            aggregator=aggregator,
+            requires_columns=requires_columns,
+            additional_stratifications=self.config.include,
+            excluded_stratifications=self.config.exclude,
+            when="collect_metrics",
+        )
 
     ###############
     # Aggregators #
     ###############
 
-    def count_cause_specific_deaths(self, x: pd.DataFrame) -> float:
+    def count_deaths(self, x: pd.DataFrame) -> float:
         died_of_cause = x["exit_time"] > self.clock()
         return sum(died_of_cause)
 
-    def calculate_cause_specific_ylls(self, x: pd.DataFrame) -> float:
+    def calculate_ylls(self, x: pd.DataFrame) -> float:
         died_of_cause = x["exit_time"] > self.clock()
         return x.loc[died_of_cause, "years_of_life_lost"].sum()
