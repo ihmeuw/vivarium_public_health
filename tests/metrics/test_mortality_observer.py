@@ -156,3 +156,51 @@ def test_observation_correctness(simulation_after_one_step):
         assert np.isclose(
             results(pop.index)[observation], expected_ylls[observation], rtol=0.001
         )
+
+
+def test_aggregation_configruation(base_config, base_plugins):
+    observer = MortalityObserver()
+    flu = disease_with_excess_mortality(base_config, "flu", 10)
+    mumps = disease_with_excess_mortality(base_config, "mumps", 20)
+
+    aggregate_sim = InteractiveContext(
+        components=[
+            TestPopulation(),
+            Mortality(),
+            flu,
+            mumps,
+            ResultsStratifier(),
+            observer,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+    aggregate_sim.configuration.update(
+        {
+            "stratification": {
+                "mortality": {
+                    "include": ["sex"],
+                    "aggregate": True,
+                }
+            }
+        }
+    )
+
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    acmr_data = build_table(0.5, year_start - 1, year_end)
+    aggregate_sim._data.write("cause.all_causes.cause_specific_mortality_rate", acmr_data)
+    aggregate_sim.setup()
+    aggregate_sim.step()
+    results = aggregate_sim.get_value("metrics")
+    pop = aggregate_sim.get_population()
+
+    expected_observations = [
+        "MEASURE_total_deaths_SEX_Female",
+        "MEASURE_total_deaths_SEX_Male",
+        "MEASURE_total_ylls_SEX_Female",
+        "MEASURE_total_ylls_SEX_Male",
+    ]
+
+    assert set(expected_observations) == set(results(pop.index).keys())
