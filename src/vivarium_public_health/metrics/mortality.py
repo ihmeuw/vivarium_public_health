@@ -128,6 +128,45 @@ class MortalityObserver(Component):
             when="collect_metrics",
         )
 
+    def _register_aggregate_observations(self, builder: Builder) -> None:
+        self._register_observation(
+            builder=builder,
+            name="total_deaths",
+            pop_filter='alive == "dead"',
+            aggregator=self.count_deaths,
+            requires_columns=["alive", "exit_time"],
+        )
+        self._register_observation(
+            builder=builder,
+            name="total_ylls",
+            pop_filter='alive == "dead"',
+            aggregator=self.calculate_ylls,
+            requires_columns=[
+                "alive",
+                "cause_of_death",
+                "exit_time",
+                "years_of_life_lost",
+            ],
+        )
+
+    def _register_observation(
+        self,
+        builder: Builder,
+        name: str,
+        pop_filter: str,
+        aggregator: Callable,
+        requires_columns: List[str],
+    ) -> None:
+        builder.results.register_observation(
+            name=name,
+            pop_filter=pop_filter,
+            aggregator=aggregator,
+            requires_columns=requires_columns,
+            additional_stratifications=self.config.include,
+            excluded_stratifications=self.config.exclude,
+            when="collect_metrics",
+        )
+
     ###############
     # Aggregators #
     ###############
