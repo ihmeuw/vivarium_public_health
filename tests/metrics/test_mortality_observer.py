@@ -197,10 +197,10 @@ def test_aggregation_configruation(base_config, base_plugins):
     pop = aggregate_sim.get_population()
 
     expected_observations = [
-        "MEASURE_total_deaths_SEX_Female",
-        "MEASURE_total_deaths_SEX_Male",
-        "MEASURE_total_ylls_SEX_Female",
-        "MEASURE_total_ylls_SEX_Male",
+        "MEASURE_death_due_to_all_causes_SEX_Female",
+        "MEASURE_death_due_to_all_causes_SEX_Male",
+        "MEASURE_ylls_due_to_all_causes_SEX_Female",
+        "MEASURE_ylls_due_to_all_causes_SEX_Male",
     ]
 
     assert set(expected_observations) == set(results(pop.index).keys())

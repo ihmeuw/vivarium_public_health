@@ -78,52 +78,44 @@ class MortalityObserver(Component):
         self._cause_components = builder.components.get_components_by_type(
             (DiseaseState, RiskAttributableDisease)
         )
-        self.causes_of_death = ["other_causes"] + [
-            cause.state_id for cause in self._cause_components if cause.has_excess_mortality
-        ]
+
         if not self.config.aggregate:
-            self._register_cause_specific_observations(builder)
+            causes_of_death = ["other_causes"] + [
+                cause.state_id
+                for cause in self._cause_components
+                if cause.has_excess_mortality
+            ]
+            for cause_of_death in causes_of_death:
+                self._register_mortality_observations(
+                    builder, cause_of_death, f'cause_of_death == "{cause_of_death}"'
+                )
         else:
-            self._register_aggregate_observations(builder)
+            self._register_mortality_observations(builder, "all_causes")
 
     ###################
     # Private methods #
     ###################
 
-    def _register_cause_specific_observations(self, builder: Builder) -> None:
-        for cause_of_death in self.causes_of_death:
-            self._register_observation(
-                builder=builder,
-                name=f"death_due_to_{cause_of_death}",
-                pop_filter=f'alive == "dead" and cause_of_death == "{cause_of_death}"',
-                aggregator=self.count_deaths,
-                requires_columns=["alive", "cause_of_death", "exit_time"],
-            )
-            self._register_observation(
-                builder=builder,
-                name=f"ylls_due_to_{cause_of_death}",
-                pop_filter=f'alive == "dead" and cause_of_death == "{cause_of_death}"',
-                aggregator=self.calculate_ylls,
-                requires_columns=[
-                    "alive",
-                    "cause_of_death",
-                    "exit_time",
-                    "years_of_life_lost",
-                ],
-            )
-
-    def _register_aggregate_observations(self, builder: Builder) -> None:
-        self._register_observation(
-            builder=builder,
-            name="total_deaths",
-            pop_filter='alive == "dead"',
+    def _register_mortality_observations(
+        self, builder: Builder, cause: str, additional_pop_filter: str = ""
+    ) -> None:
+        pop_filter = (
+            'alive == "dead"'
+            if additional_pop_filter == ""
+            else f'alive == "dead" and {additional_pop_filter}'
+        )
+        builder.results.register_observation(
+            name=f"death_due_to_{cause}",
+            pop_filter=pop_filter,
             aggregator=self.count_deaths,
             requires_columns=["alive", "exit_time"],
+            additional_stratifications=self.config.include,
+            excluded_stratifications=self.config.exclude,
+            when="collect_metrics",
         )
-        self._register_observation(
-            builder=builder,
-            name="total_ylls",
-            pop_filter='alive == "dead"',
+        builder.results.register_observation(
+            name=f"ylls_due_to_{cause}",
+            pop_filter=pop_filter,
             aggregator=self.calculate_ylls,
             requires_columns=[
                 "alive",
@@ -131,21 +123,6 @@ class MortalityObserver(Component):
                 "exit_time",
                 "years_of_life_lost",
             ],
-        )
-
-    def _register_observation(
-        self,
-        builder: Builder,
-        name: str,
-        pop_filter: str,
-        aggregator: Callable,
-        requires_columns: List[str],
-    ) -> None:
-        builder.results.register_observation(
-            name=name,
-            pop_filter=pop_filter,
-            aggregator=aggregator,
-            requires_columns=requires_columns,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
