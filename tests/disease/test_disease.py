@@ -62,7 +62,6 @@ def test_dwell_time(assign_cause_mock, base_config, base_plugins, disease, base_
         {"time": {"step_size": time_step}, "population": {"population_size": 10}},
         **metadata(__file__),
     )
-
     healthy_state = BaseDiseaseState("healthy")
     data_function = base_data(0)
     data_function["dwell_time"] = lambda _, __: pd.Timedelta(days=28)

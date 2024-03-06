@@ -18,8 +18,8 @@ def config(base_config):
     base_config.update(
         {
             "population": {
-                "age_start": 0,
-                "age_end": 110,
+                "initialization_age_min": 0,
+                "initialization_age_max": 110,
             },
         },
         source=str(Path(__file__).resolve()),
@@ -119,8 +119,8 @@ def test_BasePopulation(config, base_plugins, generate_population_mock, include_
     assert base_pop.demographic_proportions.equals(uniform_pop)
 
     age_params = {
-        "age_start": config.population.age_start,
-        "age_end": config.population.age_end,
+        "age_start": config.population.initialization_age_min,
+        "age_end": config.population.initialization_age_max,
     }
     sub_pop = bp.BasePopulation.get_demographic_proportions_for_creation_time(
         uniform_pop, time_start.year
@@ -155,9 +155,9 @@ def test_age_out_simulants(config, base_plugins):
         {
             "population": {
                 "population_size": start_population_size,
-                "age_start": 4,
-                "age_end": 4,
-                "exit_age": 5,
+                "initialization_age_min": 4,
+                "initialization_age_max": 4,
+                "untracked_age": 5,
             },
             "time": {"step_size": time_step},
         },
