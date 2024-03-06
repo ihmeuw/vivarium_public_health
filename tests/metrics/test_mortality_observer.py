@@ -158,7 +158,7 @@ def test_observation_correctness(simulation_after_one_step):
         )
 
 
-def test_aggregation_configruation(base_config, base_plugins):
+def test_aggregation_configuration(base_config, base_plugins):
     observer = MortalityObserver()
     flu = disease_with_excess_mortality(base_config, "flu", 10)
     mumps = disease_with_excess_mortality(base_config, "mumps", 20)
