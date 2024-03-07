@@ -116,7 +116,7 @@ class ResultsStratifier(Component):
     def get_age_bins(builder: Builder) -> pd.DataFrame:
         raw_age_bins = builder.data.load("population.age_bins")
         age_start = builder.configuration.population.initialization_age_min
-        exit_age = builder.configuration.population.untracked_age
+        exit_age = builder.configuration.population.untracking_age
 
         age_start_mask = age_start < raw_age_bins["age_end"]
         exit_age_mask = raw_age_bins["age_start"] < exit_age if exit_age else True

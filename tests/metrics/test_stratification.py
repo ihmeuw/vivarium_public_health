@@ -70,7 +70,7 @@ def test_results_stratifier_register_stratifications(mocker):
     builder = mocker.Mock()
     builder.data.load = fake_data_load_population_age_bins
     builder.configuration.population.initialization_age_min = 0.0
-    builder.configuration.population.untracked_age = 5.0
+    builder.configuration.population.untracking_age = 5.0
     builder.configuration.time.start.year = 2022
     builder.configuration.time.end.year = 2025
     years_list = ["2022", "2023", "2024", "2025"]
@@ -159,7 +159,7 @@ def test_results_stratifier_get_age_bins(mocker):
     builder = mocker.Mock()
     builder.data.load = fake_data_load_population_age_bins
     builder.configuration.population.initialization_age_min = 0.0
-    builder.configuration.population.untracked_age = 5.0
+    builder.configuration.population.untracking_age = 5.0
     builder.configuration.time.start.year = 2022
     builder.configuration.time.end.year = 2025
 

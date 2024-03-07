@@ -157,7 +157,7 @@ def test_age_out_simulants(config, base_plugins):
                 "population_size": start_population_size,
                 "initialization_age_min": 4,
                 "initialization_age_max": 4,
-                "untracked_age": 5,
+                "untracking_age": 5,
             },
             "time": {"step_size": time_step},
         },

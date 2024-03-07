@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from vivarium import Component
+from vivarium.config_tree import ConfigurationKeyError
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -34,7 +35,7 @@ class BasePopulation(Component):
         "population": {
             "initialization_age_min": 0,
             "initialization_age_max": 125,
-            "untracked_age": None,
+            "untracking_age": None,
             "include_sex": "Both",  # Either Female, Male, or Both
         }
     }
@@ -70,12 +71,9 @@ class BasePopulation(Component):
                 f"Provided value: {self.config.include_sex}."
             )
 
+        # TODO: Remove this when we remove deprecated keys.
         # Validate configuration for deprecated keys
-        deprecated_keys = set(["age_start", "age_end", "exit_age"]).intersection(
-            self.config.keys()
-        )
-        if deprecated_keys:
-            self._validate_config_for_deprecated_keys(deprecated_keys)
+        self._validate_config_for_deprecated_keys()
 
         source_population_structure = load_population_structure(builder)
         self.demographic_proportions = assign_demographic_proportions(
@@ -174,18 +172,29 @@ class BasePopulation(Component):
             demographic_proportions.year_start == reference_years[ref_year_index]
         ]
 
-    def _validate_config_for_deprecated_keys(self, deprecated_keys: set) -> None:
+    # TODO: Remove this method when we remove the deprecated keys
+    def _validate_config_for_deprecated_keys(self) -> None:
         mapper = {
             "age_start": "initialization_age_min",
             "age_end": "initialization_age_max",
-            "exit_age": "untracked_age",
+            "exit_age": "untracking_age",
         }
-
+        deprecated_keys = set(mapper.keys()).intersection(self.config.keys())
         for key in deprecated_keys:
-            if self.config[key] != self.config[mapper[key]]:
+            provided_new_key = False
+            for layer in ["override", "model_override"]:
+                try:
+                    new_key_value = self.config.get_from_layer(mapper[key], layer=layer)
+                    provided_new_key = True
+                    break
+                except ConfigurationKeyError:
+                    pass
+
+            if provided_new_key and self.config[key] != new_key_value:
                 raise ValueError(
-                    f"Configuration contains {key} with a value of {self.config[key]} which is "
-                    f"different from the default value for {mapper[key]} of {self.config[mapper[key]]}. "
+                    f"Configuration contains both '{key}' and '{mapper[key]}' with different values. "
+                    f"These keys cannot both be provide. '{key}' will soon be deprecated so please "
+                    f"use '{mapper[key]}'. "
                 )
             logger.warning(
                 "FutureWarning: "
@@ -217,15 +226,15 @@ class AgeOutSimulants(Component):
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
-        if self.config.untracked_age is not None:
+        if self.config.untracking_age is not None:
             self._columns_required = ["age", "exit_time", "tracked"]
 
     def on_time_step_cleanup(self, event: Event) -> None:
-        if self.config.untracked_age is None:
+        if self.config.untracking_age is None:
             return
 
         population = self.population_view.get(event.index)
-        max_age = float(self.config.untracked_age)
+        max_age = float(self.config.untracking_age)
         pop = population[(population["age"] >= max_age) & population["tracked"]].copy()
         if len(pop) > 0:
             pop["tracked"] = pd.Series(False, index=pop.index)
