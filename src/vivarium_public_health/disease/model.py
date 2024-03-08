@@ -86,8 +86,8 @@ class DiseaseModel(Machine):
         """Perform this component's setup."""
         super().setup(builder)
 
-        self.configuration_age_start = builder.configuration.population.age_start
-        self.configuration_age_end = builder.configuration.population.age_end
+        self.configuration_age_start = builder.configuration.population.initialization_age_min
+        self.configuration_age_end = builder.configuration.population.initialization_age_max
 
         cause_specific_mortality_rate = self.load_cause_specific_mortality_rate_data(builder)
         self.cause_specific_mortality_rate = builder.lookup.build_table(
@@ -140,7 +140,8 @@ class DiseaseModel(Machine):
             else:
                 raise NotImplementedError(
                     "We do not currently support an age 0 cohort. "
-                    "configuration.population.age_start and configuration.population.age_end "
+                    "configuration.population.initialization_age_min and "
+                    "configuration.population.initialization_age_max "
                     "cannot both be 0."
                 )
 

@@ -1,3 +1,7 @@
+**2.3.0 - 3/7/24**
+
+ - Update population configuration keys to be more descriptive
+
 **2.2.3 - 3/6/24**
 
  - Update Mortality Observer to allow running with cause specific or total deaths and ylls.

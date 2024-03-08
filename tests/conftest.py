@@ -37,7 +37,6 @@ def base_config_factory() -> Callable[[], ConfigTree]:
             source=str(Path(__file__).resolve()),
             layer="model_override",
         )
-
         return config
 
     return _base_config

@@ -69,8 +69,8 @@ def test_results_stratifier_register_stratifications(mocker):
     and only the expected stratifications."""
     builder = mocker.Mock()
     builder.data.load = fake_data_load_population_age_bins
-    builder.configuration.population.age_start = 0.0
-    builder.configuration.population.exit_age = 5.0
+    builder.configuration.population.initialization_age_min = 0.0
+    builder.configuration.population.untracking_age = 5.0
     builder.configuration.time.start.year = 2022
     builder.configuration.time.end.year = 2025
     years_list = ["2022", "2023", "2024", "2025"]
@@ -158,8 +158,8 @@ def test_results_stratifier_get_age_bins(mocker):
     """Test that get_age_bins produces expected age_bins DataFrame."""
     builder = mocker.Mock()
     builder.data.load = fake_data_load_population_age_bins
-    builder.configuration.population.age_start = 0.0
-    builder.configuration.population.exit_age = 5.0
+    builder.configuration.population.initialization_age_min = 0.0
+    builder.configuration.population.untracking_age = 5.0
     builder.configuration.time.start.year = 2022
     builder.configuration.time.end.year = 2025
 
