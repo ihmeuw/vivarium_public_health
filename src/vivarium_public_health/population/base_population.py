@@ -193,7 +193,7 @@ class BasePopulation(Component):
             if provided_new_key and self.config[key] != new_key_value:
                 raise ValueError(
                     f"Configuration contains both '{key}' and '{mapper[key]}' with different values. "
-                    f"These keys cannot both be provide. '{key}' will soon be deprecated so please "
+                    f"These keys cannot both be provided. '{key}' will soon be deprecated so please "
                     f"use '{mapper[key]}'. "
                 )
             logger.warning(
