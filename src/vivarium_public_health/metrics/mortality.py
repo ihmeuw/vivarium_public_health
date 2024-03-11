@@ -78,14 +78,11 @@ class MortalityObserver(Component):
         self._cause_components = builder.components.get_components_by_type(
             (DiseaseState, RiskAttributableDisease)
         )
-
+        self.causes_of_death["other_causes"] + [
+            cause.state_id for cause in self._cause_components if cause.has_excess_mortality
+        ]
         if not self.config.aggregate:
-            causes_of_death = ["other_causes"] + [
-                cause.state_id
-                for cause in self._cause_components
-                if cause.has_excess_mortality
-            ]
-            for cause_of_death in causes_of_death:
+            for cause_of_death in self.causes_of_death:
                 self._register_mortality_observations(
                     builder, cause_of_death, f'cause_of_death == "{cause_of_death}"'
                 )
