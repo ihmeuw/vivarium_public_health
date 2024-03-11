@@ -86,7 +86,7 @@ class BaseDiseaseState(State):
         """Exclude side effect function and cause type from name and __repr__."""
         initialization_parameters = super().get_initialization_parameters()
         for key in ["side_effect_function", "cause_type"]:
-            if initialization_parameters[key]:
+            if key in initialization_parameters.keys():
                 del initialization_parameters[key]
         return initialization_parameters
 
