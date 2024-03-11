@@ -81,6 +81,13 @@ class MortalityObserver(Component):
         self.causes_of_death = ["other_causes"] + [
             cause.state_id for cause in self._cause_components if cause.has_excess_mortality
         ]
+        self.required_death_columns = ["alive", "exit_time"]
+        self.required_yll_columns = [
+            "alive",
+            "cause_of_death",
+            "exit_time",
+            "years_of_life_lost",
+        ]
         if not self.config.aggregate:
             for cause_of_death in self.causes_of_death:
                 self._register_mortality_observations(
@@ -105,7 +112,7 @@ class MortalityObserver(Component):
             name=f"death_due_to_{cause}",
             pop_filter=pop_filter,
             aggregator=self.count_deaths,
-            requires_columns=["alive", "exit_time"],
+            requires_columns=self.required_death_columns,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
@@ -114,12 +121,7 @@ class MortalityObserver(Component):
             name=f"ylls_due_to_{cause}",
             pop_filter=pop_filter,
             aggregator=self.calculate_ylls,
-            requires_columns=[
-                "alive",
-                "cause_of_death",
-                "exit_time",
-                "years_of_life_lost",
-            ],
+            requires_columns=self.required_yll_columns,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
