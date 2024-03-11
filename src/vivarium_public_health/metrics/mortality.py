@@ -104,9 +104,9 @@ class MortalityObserver(Component):
         self, builder: Builder, cause: str, additional_pop_filter: str = ""
     ) -> None:
         pop_filter = (
-            'alive == "dead"'
+            'alive == "dead" and tracked == True'
             if additional_pop_filter == ""
-            else f'alive == "dead" and {additional_pop_filter}'
+            else f'alive == "dead" and tracked == True and {additional_pop_filter}'
         )
         builder.results.register_observation(
             name=f"death_due_to_{cause}",
