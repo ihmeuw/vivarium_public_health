@@ -85,8 +85,9 @@ class BaseDiseaseState(State):
     def get_initialization_parameters(self) -> Dict[str, Any]:
         """Exclude side effect function and cause type from name and __repr__."""
         initialization_parameters = super().get_initialization_parameters()
-        del initialization_parameters["side_effect_function"]
-        del initialization_parameters["cause_type"]
+        for key in ["side_effect_function", "cause_type"]:
+            if initialization_parameters[key]:
+                del initialization_parameters[key]
         return initialization_parameters
 
     def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
