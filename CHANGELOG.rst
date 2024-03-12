@@ -1,3 +1,8 @@
+**2.3.1 - 3/11/24**
+
+ - Update Mortality Observer to include tracked in population filter
+ - Fix bug in get_initialization_parameters to only remove existing keys if necessary
+
 **2.3.0 - 3/7/24**
 
  - Update population configuration keys to be more descriptive

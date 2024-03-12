@@ -78,14 +78,18 @@ class MortalityObserver(Component):
         self._cause_components = builder.components.get_components_by_type(
             (DiseaseState, RiskAttributableDisease)
         )
-
+        self.causes_of_death = ["other_causes"] + [
+            cause.state_id for cause in self._cause_components if cause.has_excess_mortality
+        ]
+        self.required_death_columns = ["alive", "exit_time"]
+        self.required_yll_columns = [
+            "alive",
+            "cause_of_death",
+            "exit_time",
+            "years_of_life_lost",
+        ]
         if not self.config.aggregate:
-            causes_of_death = ["other_causes"] + [
-                cause.state_id
-                for cause in self._cause_components
-                if cause.has_excess_mortality
-            ]
-            for cause_of_death in causes_of_death:
+            for cause_of_death in self.causes_of_death:
                 self._register_mortality_observations(
                     builder, cause_of_death, f'cause_of_death == "{cause_of_death}"'
                 )
@@ -100,15 +104,15 @@ class MortalityObserver(Component):
         self, builder: Builder, cause: str, additional_pop_filter: str = ""
     ) -> None:
         pop_filter = (
-            'alive == "dead"'
+            'alive == "dead" and tracked == True'
             if additional_pop_filter == ""
-            else f'alive == "dead" and {additional_pop_filter}'
+            else f'alive == "dead" and tracked == True and {additional_pop_filter}'
         )
         builder.results.register_observation(
             name=f"death_due_to_{cause}",
             pop_filter=pop_filter,
             aggregator=self.count_deaths,
-            requires_columns=["alive", "exit_time"],
+            requires_columns=self.required_death_columns,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
@@ -117,12 +121,7 @@ class MortalityObserver(Component):
             name=f"ylls_due_to_{cause}",
             pop_filter=pop_filter,
             aggregator=self.calculate_ylls,
-            requires_columns=[
-                "alive",
-                "cause_of_death",
-                "exit_time",
-                "years_of_life_lost",
-            ],
+            requires_columns=self.required_yll_columns,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
