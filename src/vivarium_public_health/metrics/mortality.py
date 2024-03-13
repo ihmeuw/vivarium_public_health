@@ -54,6 +54,10 @@ class MortalityObserver(Component):
         }
     }
 
+    def __init__(self):
+        super().__init__(self)
+        self.causes_of_death = ["other_causes"]
+
     ##############
     # Properties #
     ##############
@@ -78,7 +82,7 @@ class MortalityObserver(Component):
         self._cause_components = builder.components.get_components_by_type(
             (DiseaseState, RiskAttributableDisease)
         )
-        self.causes_of_death = ["other_causes"] + [
+        self.causes_of_death += [
             cause.state_id for cause in self._cause_components if cause.has_excess_mortality
         ]
         self.required_death_columns = ["alive", "exit_time"]
