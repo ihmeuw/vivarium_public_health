@@ -57,6 +57,13 @@ class MortalityObserver(Component):
     def __init__(self):
         super().__init__(self)
         self.causes_of_death = ["other_causes"]
+        self.required_death_columns = ["alive", "exit_time"]
+        self.required_yll_columns = [
+            "alive",
+            "cause_of_death",
+            "exit_time",
+            "years_of_life_lost",
+        ]
 
     ##############
     # Properties #
@@ -79,18 +86,11 @@ class MortalityObserver(Component):
     def setup(self, builder: Builder) -> None:
         self.clock = builder.time.clock()
         self.config = builder.configuration.stratification.mortality
-        self._cause_components = builder.components.get_components_by_type(
+        cause_components = builder.components.get_components_by_type(
             (DiseaseState, RiskAttributableDisease)
         )
         self.causes_of_death += [
-            cause.state_id for cause in self._cause_components if cause.has_excess_mortality
-        ]
-        self.required_death_columns = ["alive", "exit_time"]
-        self.required_yll_columns = [
-            "alive",
-            "cause_of_death",
-            "exit_time",
-            "years_of_life_lost",
+            cause.state_id for cause in cause_components if cause.has_excess_mortality
         ]
         if not self.config.aggregate:
             for cause_of_death in self.causes_of_death:
