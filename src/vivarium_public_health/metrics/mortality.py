@@ -55,7 +55,7 @@ class MortalityObserver(Component):
     }
 
     def __init__(self):
-        super().__init__(self)
+        super().__init__()
         self.causes_of_death = ["other_causes"]
         self.required_death_columns = ["alive", "exit_time"]
         self.required_yll_columns = [
