@@ -1,3 +1,7 @@
+**2.3.2 - 3/13/24**
+
+ - Update to Mortality Observer to make subclassing easier.
+
 **2.3.1 - 3/11/24**
 
  - Update Mortality Observer to include tracked in population filter
