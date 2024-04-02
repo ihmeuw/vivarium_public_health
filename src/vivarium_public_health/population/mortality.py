@@ -57,7 +57,30 @@ from vivarium.framework.values import Pipeline, list_combiner, union_post_proces
 
 
 class Mortality(Component):
-    CONFIGURATION_DEFAULTS = {"unmodeled_causes": []}
+    CONFIGURATION_DEFAULTS = {
+        "unmodeled_causes": [],
+        "acmr": {
+            "value": "data",
+            "data_columns": {
+                "continuous_columns": ["age"],
+                "categorical_columns": ["sex", "year"],
+            },
+        },
+        "raw_unmodeled_csmr": {
+            "value": "data",
+            "data_columns": {
+                "continuous_columns": ["age"],
+                "categorical_columns": ["sex", "year"],
+            },
+        },
+        "life_expectancy": {
+            "value": "data",
+            "data_columns": {
+                "continuous_columns": ["age"],
+                "categorical_columns": [],
+            },
+        },
+    }
 
     ##############
     # Properties #
@@ -95,6 +118,7 @@ class Mortality(Component):
     def setup(self, builder: Builder) -> None:
         self.random = self.get_randomness_stream(builder)
         self.clock = builder.time.clock()
+        self.lookup_table_config = builder.configuration.mortality_lookup_columns
 
         self.cause_specific_mortality_rate = self.get_cause_specific_mortality_rate(builder)
         self.mortality_rate = self.get_mortality_rate(builder)
@@ -142,8 +166,11 @@ class Mortality(Component):
             A lookup table or pipeline returning the all cause mortality rate.
         """
         acmr_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
+        lookup_table_column_configs = self.lookup_table_config.acmr
         return builder.lookup.build_table(
-            acmr_data, key_columns=["sex"], parameter_columns=["age", "year"]
+            acmr_data,
+            key_columns=lookup_table_column_configs["key_columns"],
+            parameter_columns=lookup_table_column_configs["parameter_columns"],
         )
 
     # noinspection PyMethodMayBeStatic

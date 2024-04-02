@@ -84,6 +84,10 @@ class Risk(Component):
     CONFIGURATION_DEFAULTS = {
         "risk": {
             "exposure": "data",
+            "data_columns": {
+                "continuous_columns": ["age"],
+                "categorical_columns": ["sex", "year"],
+            },
             "rebinned_exposed": [],
             "category_thresholds": [],
         }
