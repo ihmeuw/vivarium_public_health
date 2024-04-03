@@ -59,14 +59,14 @@ from vivarium.framework.values import Pipeline, list_combiner, union_post_proces
 class Mortality(Component):
     CONFIGURATION_DEFAULTS = {
         "unmodeled_causes": [],
-        "acmr": {
+        "all_cause_mortality_rate": {
             "value": "data",
             "data_columns": {
                 "continuous_columns": ["age"],
                 "categorical_columns": ["sex", "year"],
             },
         },
-        "raw_unmodeled_csmr": {
+        "unmodeled_cause_specific_mortality_rate": {
             "value": "data",
             "data_columns": {
                 "continuous_columns": ["age"],
@@ -118,7 +118,7 @@ class Mortality(Component):
     def setup(self, builder: Builder) -> None:
         self.random = self.get_randomness_stream(builder)
         self.clock = builder.time.clock()
-        self.lookup_table_config = builder.configuration.mortality_lookup_columns
+        
 
         self.cause_specific_mortality_rate = self.get_cause_specific_mortality_rate(builder)
         self.mortality_rate = self.get_mortality_rate(builder)
@@ -144,6 +144,8 @@ class Mortality(Component):
         )
 
     def get_mortality_rate(self, builder: Builder) -> Pipeline:
+        # TODO: need to look at which lookup tables will be used by source and 
+        # figure out which columns are required
         return builder.value.register_rate_producer(
             self.mortality_rate_pipeline_name,
             source=self.calculate_mortality_rate,
@@ -166,12 +168,15 @@ class Mortality(Component):
             A lookup table or pipeline returning the all cause mortality rate.
         """
         acmr_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
-        lookup_table_column_configs = self.lookup_table_config.acmr
-        return builder.lookup.build_table(
-            acmr_data,
-            key_columns=lookup_table_column_configs["key_columns"],
-            parameter_columns=lookup_table_column_configs["parameter_columns"],
-        )
+        lookup_table_column_configs = builder.configuration.acmr.data_columns
+        if builder.configuration.acmr.value == "data":
+            return builder.lookup.build_table(
+                acmr_data,
+                key_columns=lookup_table_column_configs["continuous_columns"],
+                parameter_columns=lookup_table_column_configs["categorical_columns"],
+            )
+        else:
+            return builder.lookup.build_table(builder.configuration.acmr.value)
 
     # noinspection PyMethodMayBeStatic
     def get_life_expectancy(self, builder: Builder) -> Union[LookupTable, Pipeline]:

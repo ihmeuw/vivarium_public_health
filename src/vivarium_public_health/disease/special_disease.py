@@ -87,6 +87,27 @@ class RiskAttributableDisease(Component):
 
     CONFIGURATION_DEFAULTS = {
         "risk_attributable_disease": {
+            "base_disability_weight": {
+                "value": "data",
+                "data_columns": {
+                "continuous_columns": ["age"],
+                "categorical_columns": ["sex", "year"],
+                },
+            },
+            "cause_specific_mortality_rate": {
+                "value": "data",
+                "data_columns": {
+                "continuous_columns": ["age"],
+                "categorical_columns": ["sex", "year"],
+                },
+            },
+            "base_excess_mortality_rate": {
+                "value": "data",
+                "data_columns": {
+                "continuous_columns": ["age"],
+                "categorical_columns": ["sex", "year"],
+                },
+            },
             "threshold": None,
             "mortality": True,
             "recoverable": True,
