@@ -44,7 +44,7 @@ on mortality is calculated, by subtracting the raw unmodeled csmr before adding
 back the modified unmodeled csmr.
 
 """
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any, Dict
 
 import pandas as pd
 from vivarium import Component
@@ -57,34 +57,39 @@ from vivarium.framework.values import Pipeline, list_combiner, union_post_proces
 
 
 class Mortality(Component):
-    CONFIGURATION_DEFAULTS = {
-        "unmodeled_causes": [],
-        "all_cause_mortality_rate": {
-            "value": "data",
-            "data_columns": {
-                "continuous_columns": ["age"],
-                "categorical_columns": ["sex", "year"],
-            },
-        },
-        "unmodeled_cause_specific_mortality_rate": {
-            "value": "data",
-            "data_columns": {
-                "continuous_columns": ["age"],
-                "categorical_columns": ["sex", "year"],
-            },
-        },
-        "life_expectancy": {
-            "value": "data",
-            "data_columns": {
-                "continuous_columns": ["age"],
-                "categorical_columns": [],
-            },
-        },
-    }
 
     ##############
     # Properties #
     ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {
+            "mortality": {
+                "lookup_table": {
+                    "all_cause_mortality_rate": self.build_lookup_table_config(
+                        "data", ["age"], ["sex", "year"]
+                    ),
+                    # todo the same for these tables
+                    "unmodeled_cause_specific_mortality_rate": {
+                        "unmodeled_causes": [],
+                        "special": True,
+                        "value": "data",
+                        "data_columns": {
+                            "continuous_columns": ["age"],
+                            "categorical_columns": ["sex", "year"],
+                        },
+                    },
+                    "life_expectancy": {
+                        "value": "data",
+                        "data_columns": {
+                            "continuous_columns": ["age"],
+                            "categorical_columns": [],
+                        },
+                    },
+                }
+            }
+        }
 
     @property
     def columns_created(self) -> List[str]:
@@ -118,21 +123,28 @@ class Mortality(Component):
     def setup(self, builder: Builder) -> None:
         self.random = self.get_randomness_stream(builder)
         self.clock = builder.time.clock()
-        
 
         self.cause_specific_mortality_rate = self.get_cause_specific_mortality_rate(builder)
         self.mortality_rate = self.get_mortality_rate(builder)
 
-        self.all_cause_mortality_rate = self.get_all_cause_mortality_rate(builder)
-        self.life_expectancy = self.get_life_expectancy(builder)
-
-        self._raw_unmodeled_csmr = self.get_raw_unmodeled_csmr(builder)
         self.unmodeled_csmr = self.get_unmodeled_csmr(builder)
         self.unmodeled_csmr_paf = self.get_unmodeled_csmr_paf(builder)
 
     #################
     # Setup methods #
     #################
+
+    def create_lookup_tables(self, builder: "Builder") -> None:
+        """
+        Create lookup tables for the mortality component.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+        """
+        super().create_lookup_tables(builder)
+        self.unmodeled_cause_specific_mortality_rate = self.get_raw_unmodeled_csmr(builder)
 
     def get_randomness_stream(self, builder) -> RandomnessStream:
         return builder.randomness.get_stream(self._randomness_stream_name)
@@ -151,32 +163,6 @@ class Mortality(Component):
             source=self.calculate_mortality_rate,
             requires_columns=["age", "sex"],
         )
-
-    # noinspection PyMethodMayBeStatic
-    def get_all_cause_mortality_rate(self, builder: Builder) -> Union[LookupTable, Pipeline]:
-        """
-        Load all cause mortality rate data and build a lookup table or pipeline.
-
-        Parameters
-        ----------
-        builder
-            Interface to access simulation managers.
-
-        Returns
-        -------
-        Union[LookupTable, Pipeline]
-            A lookup table or pipeline returning the all cause mortality rate.
-        """
-        acmr_data = builder.data.load("cause.all_causes.cause_specific_mortality_rate")
-        lookup_table_column_configs = builder.configuration.acmr.data_columns
-        if builder.configuration.acmr.value == "data":
-            return builder.lookup.build_table(
-                acmr_data,
-                key_columns=lookup_table_column_configs["continuous_columns"],
-                parameter_columns=lookup_table_column_configs["categorical_columns"],
-            )
-        else:
-            return builder.lookup.build_table(builder.configuration.acmr.value)
 
     # noinspection PyMethodMayBeStatic
     def get_life_expectancy(self, builder: Builder) -> Union[LookupTable, Pipeline]:
@@ -289,9 +275,9 @@ class Mortality(Component):
     ##################################
 
     def calculate_mortality_rate(self, index: pd.Index) -> pd.DataFrame:
-        acmr = self.all_cause_mortality_rate(index)
+        acmr = self.lookup_tables["all_cause_mortality_rate"](index)
         modeled_csmr = self.cause_specific_mortality_rate(index)
-        unmodeled_csmr_raw = self._raw_unmodeled_csmr(index)
+        unmodeled_csmr_raw = self.lookup_tables["unmodeled_cause_specific_mortality_rate"](index)
         unmodeled_csmr = self.unmodeled_csmr(index)
         cause_deleted_mortality_rate = (
             acmr - modeled_csmr - unmodeled_csmr_raw + unmodeled_csmr
@@ -299,6 +285,6 @@ class Mortality(Component):
         return pd.DataFrame({"other_causes": cause_deleted_mortality_rate})
 
     def get_unmodeled_csmr_source(self, index: pd.Index) -> pd.Series:
-        raw_csmr = self._raw_unmodeled_csmr(index)
+        raw_csmr = self.lookup_tables["unmodeled_cause_specific_mortality_rate"](index)
         paf = self.unmodeled_csmr_paf(index)
         return raw_csmr * (1 - paf)
