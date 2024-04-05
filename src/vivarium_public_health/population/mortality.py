@@ -68,28 +68,27 @@ class Mortality(Component):
             "mortality": {
                 "lookup_table": {
                     "all_cause_mortality_rate": self.build_lookup_table_config(
-                        "data", ["age"], ["sex", "year"]
-                    ),
+                        value="data", 
+                        continuous_columns=["age"], 
+                        categorical_columns=["sex", "year"],
+                        ),
+                    },
                     # todo the same for these tables
-                    "unmodeled_cause_specific_mortality_rate": {
-                        "unmodeled_causes": [],
-                        "special": True,
-                        "value": "data",
-                        "data_columns": {
-                            "continuous_columns": ["age"],
-                            "categorical_columns": ["sex", "year"],
-                        },
+                    "unmodeled_cause_specific_mortality_rate": self.build_lookup_table_config(
+                        value= "data",
+                        continuous_columns= ["age"],
+                        categorical_columns= ["sex", "year"],
+                        skip_build= True,
+                        kwargs={"unmodeled_causes": []},
+                    ),
+                    "life_expectancy": { self.build_lookup_table_config(
+                        value="data",
+                        continuous_columns=["age"],
+                        categorical_columns= [],
+                        ),
                     },
-                    "life_expectancy": {
-                        "value": "data",
-                        "data_columns": {
-                            "continuous_columns": ["age"],
-                            "categorical_columns": [],
-                        },
-                    },
-                }
+                },
             }
-        }
 
     @property
     def columns_created(self) -> List[str]:
