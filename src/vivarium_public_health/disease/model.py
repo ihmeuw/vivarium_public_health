@@ -27,19 +27,7 @@ class DiseaseModelError(VivariumError):
 
 
 class DiseaseModel(Machine):
-    
-    CONFIGURATION_DEFAULTS = {
-        "disease_model": {
-            "csmr": {
-                "value": "data",
-                "data_columns": {
-                    "continuous_columns": ["age"],
-                    "categorical_columns": ["sex", "year"],
-                },
-            },
-        }
-    }
-    
+
     ##############
     # Properties #
     ##############

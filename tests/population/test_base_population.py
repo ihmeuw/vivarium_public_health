@@ -13,66 +13,6 @@ from vivarium_public_health import utilities
 from vivarium_public_health.testing.utils import make_uniform_pop_data
 
 
-@pytest.fixture
-def config(base_config):
-    base_config.update(
-        {
-            "population": {
-                "initialization_age_min": 0,
-                "initialization_age_max": 110,
-            },
-        },
-        source=str(Path(__file__).resolve()),
-        layer="model_override",
-    )
-    return base_config
-
-
-@pytest.fixture
-def generate_population_mock(mocker):
-    return mocker.patch(
-        "vivarium_public_health.population.base_population.generate_population"
-    )
-
-
-@pytest.fixture
-def age_bounds_mock(mocker):
-    return mocker.patch(
-        "vivarium_public_health.population.base_population._assign_demography_with_age_bounds"
-    )
-
-
-@pytest.fixture
-def initial_age_mock(mocker):
-    return mocker.patch(
-        "vivarium_public_health.population.base_population._assign_demography_with_initial_age"
-    )
-
-
-def make_base_simulants():
-    simulant_ids = range(100000)
-    creation_time = pd.Timestamp(1990, 7, 2)
-    return pd.DataFrame(
-        {
-            "entrance_time": pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
-            "exit_time": pd.Series(pd.NaT, index=simulant_ids),
-            "alive": pd.Series("alive", index=simulant_ids),
-        },
-        index=simulant_ids,
-    )
-
-
-def make_full_simulants():
-    base_simulants = make_base_simulants()
-    base_simulants["location"] = pd.Series(1, index=base_simulants.index)
-    base_simulants["sex"] = pd.Series("Male", index=base_simulants.index).astype(
-        pd.api.types.CategoricalDtype(categories=["Male", "Female"], ordered=False)
-    )
-    base_simulants["age"] = np.random.uniform(0, 100, len(base_simulants))
-    base_simulants["tracked"] = pd.Series(True, index=base_simulants.index)
-    return base_simulants
-
-
 def test_select_sub_population_data():
     data = pd.DataFrame(
         {
@@ -87,10 +27,12 @@ def test_select_sub_population_data():
     assert sub_pop.year_start.values.item() == 1995
 
 
-def test_BasePopulation(config, base_plugins, generate_population_mock, include_sex):
+def test_BasePopulation(
+    config, make_full_simulants, base_plugins, generate_population_mock, include_sex
+):
     num_days = 600
     time_step = 100  # Days
-    sims = make_full_simulants()
+    sims = make_full_simulants
     start_population_size = len(sims)
 
     generate_population_mock.return_value = sims.drop(columns=["tracked"])
@@ -177,7 +119,9 @@ def test_age_out_simulants(config, base_plugins):
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])
 
 
-def test_generate_population_age_bounds(age_bounds_mock, initial_age_mock, include_sex):
+def test_generate_population_age_bounds(
+    make_base_simulants, age_bounds_mock, initial_age_mock, include_sex
+):
     creation_time = pd.Timestamp(1990, 7, 2)
     step_size = pd.Timedelta(days=1)
     age_params = {"age_start": 0, "age_end": 120}
@@ -186,7 +130,7 @@ def test_generate_population_age_bounds(age_bounds_mock, initial_age_mock, inclu
         include_sex=include_sex,
     )
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
-    sims = make_base_simulants()
+    sims = make_base_simulants
     simulant_ids = sims.index
 
     bp.generate_population(
@@ -209,7 +153,9 @@ def test_generate_population_age_bounds(age_bounds_mock, initial_age_mock, inclu
     initial_age_mock.assert_not_called()
 
 
-def test_generate_population_initial_age(age_bounds_mock, initial_age_mock, include_sex):
+def test_generate_population_initial_age(
+    make_base_simulants, age_bounds_mock, initial_age_mock, include_sex
+):
     creation_time = pd.Timestamp(1990, 7, 2)
     step_size = pd.Timedelta(days=1)
     age_params = {"age_start": 0, "age_end": 0}
@@ -218,7 +164,7 @@ def test_generate_population_initial_age(age_bounds_mock, initial_age_mock, incl
         include_sex=include_sex,
     )
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
-    sims = make_base_simulants()
+    sims = make_base_simulants
     simulant_ids = sims.index
 
     bp.generate_population(
@@ -242,13 +188,13 @@ def test_generate_population_initial_age(age_bounds_mock, initial_age_mock, incl
     age_bounds_mock.assert_not_called()
 
 
-def test__assign_demography_with_initial_age(config, include_sex):
+def test__assign_demography_with_initial_age(config, make_base_simulants, include_sex):
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
         include_sex=include_sex,
     )
     pop_data = pop_data[pop_data.year_start == 1990]
-    simulants = make_base_simulants()
+    simulants = make_base_simulants
     initial_age = 20
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
     step_size = pd.Timedelta(days=config.time.step_size)
@@ -259,13 +205,13 @@ def test__assign_demography_with_initial_age(config, include_sex):
     _check_population(simulants, initial_age, step_size, include_sex)
 
 
-def test__assign_demography_with_initial_age_zero(config, include_sex):
+def test__assign_demography_with_initial_age_zero(make_base_simulants, config, include_sex):
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
         include_sex=include_sex,
     )
     pop_data = pop_data[pop_data.year_start == 1990]
-    simulants = make_base_simulants()
+    simulants = make_base_simulants
     initial_age = 0
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
     step_size = utilities.to_time_delta(config.time.step_size)
@@ -276,13 +222,13 @@ def test__assign_demography_with_initial_age_zero(config, include_sex):
     _check_population(simulants, initial_age, step_size, include_sex)
 
 
-def test__assign_demography_with_initial_age_error(include_sex):
+def test__assign_demography_with_initial_age_error(make_base_simulants, include_sex):
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
         include_sex=include_sex,
     )
     pop_data = pop_data[pop_data.year_start == 1990]
-    simulants = make_base_simulants()
+    simulants = make_base_simulants
     initial_age = 200
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
     step_size = pd.Timedelta(days=1)
@@ -294,13 +240,15 @@ def test__assign_demography_with_initial_age_error(include_sex):
 
 
 @pytest.mark.parametrize(["age_start", "age_end"], [[0, 180], [5, 50], [12, 57]])
-def test__assign_demography_with_age_bounds(include_sex, age_start, age_end):
+def test__assign_demography_with_age_bounds(
+    make_base_simulants, include_sex, age_start, age_end
+):
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
         include_sex=include_sex,
     )
     pop_data = pop_data[pop_data.year_start == 1990]
-    simulants = make_base_simulants()
+    simulants = make_base_simulants
     r = {
         k: get_randomness(k)
         for k in [
@@ -330,12 +278,12 @@ def test__assign_demography_with_age_bounds(include_sex, age_start, age_end):
     assert age_deltas.max() < 100 * expected_average_delta
 
 
-def test__assign_demography_with_age_bounds_error(include_sex):
+def test__assign_demography_with_age_bounds_error(make_base_simulants, include_sex):
     pop_data = dt.assign_demographic_proportions(
         make_uniform_pop_data(age_bin_midpoint=True),
         include_sex=include_sex,
     )
-    simulants = make_base_simulants()
+    simulants = make_base_simulants
     age_start, age_end = 130, 140
     r = {k: get_randomness() for k in ["general_purpose", "bin_selection", "age_smoothing"]}
 

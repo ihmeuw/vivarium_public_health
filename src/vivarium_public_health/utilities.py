@@ -7,10 +7,10 @@ This module contains utility classes and functions for use across
 vivarium_public_health components.
 
 """
-from typing import Iterable, Union
+from typing import Iterable, List, Union
 
 import pandas as pd
-from vivarium.framework.lookup import ScalarValue
+from vivarium.framework.lookup import LookupTable, ScalarValue
 
 
 class EntityString(str):
@@ -97,3 +97,16 @@ def is_non_zero(data: Union[Iterable[ScalarValue], ScalarValue, pd.DataFrame]) -
         attribute_sum = data
 
     return attribute_sum != 0.0
+
+
+def get_lookup_columns(
+    lookup_tables: List[LookupTable], necessary_columns: Iterable = ()
+) -> List[str]:
+    necessary_columns = set(necessary_columns)
+    for lookup_table in lookup_tables:
+        necessary_columns.update(lookup_table.key_columns)
+        necessary_columns.update(lookup_table.parameter_columns)
+    if "year" in necessary_columns:
+        necessary_columns.remove("year")
+
+    return list(necessary_columns)

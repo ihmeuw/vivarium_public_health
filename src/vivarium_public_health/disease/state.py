@@ -292,22 +292,22 @@ class DiseaseState(BaseDiseaseState):
             "dwell_time": {
                 "value": "data",
                 "data_columns": {
-                "continuous_columns": ["age"],
-                "categorical_columns": ["sex", "year"],
+                    "continuous_columns": ["age"],
+                    "categorical_columns": ["sex", "year"],
                 },
             },
             "disability_weight": {
                 "value": "data",
                 "data_columns": {
-                "continuous_columns": ["age"],
-                "categorical_columns": ["sex", "year"],
+                    "continuous_columns": ["age"],
+                    "categorical_columns": ["sex", "year"],
                 },
             },
             "base_excess_mortality": {
                 "value": "data",
                 "data_columns": {
-                "continuous_columns": ["age"],
-                "categorical_columns": ["sex", "year"],
+                    "continuous_columns": ["age"],
+                    "categorical_columns": ["sex", "year"],
                 },
             },
         },
