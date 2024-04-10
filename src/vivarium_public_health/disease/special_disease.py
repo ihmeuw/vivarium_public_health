@@ -85,6 +85,14 @@ class RiskAttributableDisease(Component):
         recoverable : True
     """
 
+    CONFIGURATION_DEFAULTS = {
+        "risk_attributable_disease": {
+            "threshold": None,
+            "mortality": True,
+            "recoverable": True,
+        }
+    }
+
     ##############
     # Properties #
     ##############

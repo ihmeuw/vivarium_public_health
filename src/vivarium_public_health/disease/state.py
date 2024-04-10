@@ -273,46 +273,6 @@ class RecoveredState(NonDiseasedState):
 class DiseaseState(BaseDiseaseState):
     """State representing a disease in a state machine model."""
 
-    CONFIGURATION_DEFAULTS = {
-        "disease_state": {
-            "prevalence": {
-                "value": "data",
-                "data_columns": {
-                    "continuous_columns": ["age"],
-                    "categorical_columns": ["sex", "year"],
-                },
-            },
-            "birth_prevalence": {
-                "value": "data",
-                "data_columns": {
-                    "continuous_columns": ["age"],
-                    "categorical_columns": ["sex", "year"],
-                },
-            },
-            "dwell_time": {
-                "value": "data",
-                "data_columns": {
-                    "continuous_columns": ["age"],
-                    "categorical_columns": ["sex", "year"],
-                },
-            },
-            "disability_weight": {
-                "value": "data",
-                "data_columns": {
-                    "continuous_columns": ["age"],
-                    "categorical_columns": ["sex", "year"],
-                },
-            },
-            "base_excess_mortality": {
-                "value": "data",
-                "data_columns": {
-                    "continuous_columns": ["age"],
-                    "categorical_columns": ["sex", "year"],
-                },
-            },
-        },
-    }
-
     #####################
     # Lifecycle methods #
     #####################

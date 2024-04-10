@@ -73,7 +73,7 @@ class Mortality(Component):
                         value="data",
                         continuous_columns=["age", "year"],
                         categorical_columns=["sex"],
-                        key_name="cause.all_causes.all_cause_mortality_rate",
+                        key_name="cause.all_causes.cause_specific_mortality_rate",
                     ),
                     "unmodeled_cause_specific_mortality_rate": self.build_lookup_table_config(
                         value="data",
