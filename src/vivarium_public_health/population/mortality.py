@@ -68,27 +68,25 @@ class Mortality(Component):
     def configuration_defaults(self) -> Dict[str, Any]:
         return {
             "mortality": {
-                "lookup_tables": {
-                    "all_cause_mortality_rate": self.build_lookup_table_config(
-                        value="data",
-                        continuous_columns=["age", "year"],
-                        categorical_columns=["sex"],
-                        key_name="cause.all_causes.cause_specific_mortality_rate",
-                    ),
-                    "unmodeled_cause_specific_mortality_rate": self.build_lookup_table_config(
-                        value="data",
-                        continuous_columns=["age", "year"],
-                        categorical_columns=["sex"],
-                        skip_build=True,
-                        **{"unmodeled_causes": []},
-                    ),
-                    "life_expectancy": self.build_lookup_table_config(
-                        value="data",
-                        continuous_columns=["age"],
-                        categorical_columns=[],
-                        key_name="population.theoretical_minimum_risk_life_expectancy",
-                    ),
-                },
+                "all_cause_mortality_rate": self.build_lookup_table_config(
+                    value="data",
+                    continuous_columns=["age", "year"],
+                    categorical_columns=["sex"],
+                    key_name="cause.all_causes.cause_specific_mortality_rate",
+                ),
+                "unmodeled_cause_specific_mortality_rate": self.build_lookup_table_config(
+                    value="data",
+                    continuous_columns=["age", "year"],
+                    categorical_columns=["sex"],
+                    build_lookup_table=False,
+                    **{"unmodeled_causes": []},
+                ),
+                "life_expectancy": self.build_lookup_table_config(
+                    value="data",
+                    continuous_columns=["age"],
+                    categorical_columns=[],
+                    key_name="population.theoretical_minimum_risk_life_expectancy",
+                ),
             },
         }
 
@@ -135,7 +133,7 @@ class Mortality(Component):
     # Setup methods #
     #################
 
-    def create_lookup_tables(self, builder: "Builder") -> None:
+    def create_lookup_tables(self, builder: Builder) -> None:
         """
         Create lookup tables for the mortality component.
 
@@ -189,7 +187,7 @@ class Mortality(Component):
             A lookup table or pipeline returning the unmodeled csmr.
         """
         unmodeled_causes_config = (
-            builder.configuration.mortality.lookup_tables.unmodeled_cause_specific_mortality_rate
+            builder.configuration.mortality.unmodeled_cause_specific_mortality_rate
         )
         raw_csmr = 0.0
         for idx, cause in enumerate(unmodeled_causes_config.unmodeled_causes):
