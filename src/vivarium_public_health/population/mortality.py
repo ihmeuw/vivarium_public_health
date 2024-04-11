@@ -143,10 +143,9 @@ class Mortality(Component):
             Interface to access simulation managers.
         """
         super().create_lookup_tables(builder)
-        self.unmodeled_cause_specific_mortality_rate = self.get_raw_unmodeled_csmr(builder)
         self.lookup_tables[
             "unmodeled_cause_specific_mortality_rate"
-        ] = self.unmodeled_cause_specific_mortality_rate
+        ] = self.get_raw_unmodeled_csmr(builder)
 
     def get_randomness_stream(self, builder) -> RandomnessStream:
         return builder.randomness.get_stream(self._randomness_stream_name)
