@@ -78,7 +78,6 @@ class Mortality(Component):
                     value="data",
                     continuous_columns=["age", "year"],
                     categorical_columns=["sex"],
-                    build_lookup_table=False,
                     **{"unmodeled_causes": []},
                 ),
                 "life_expectancy": self.build_lookup_table_config(
@@ -89,6 +88,13 @@ class Mortality(Component):
                 ),
             },
         }
+
+    @property
+    def standard_lookup_tables(self) -> List[str]:
+        return [
+            "all_cause_mortality_rate",
+            "life_expectancy",
+        ]
 
     @property
     def columns_created(self) -> List[str]:
@@ -143,6 +149,7 @@ class Mortality(Component):
             Interface to access simulation managers.
         """
         super().create_lookup_tables(builder)
+        # ONly build custom lookup table if it does not exist in self.lookup_tables
         self.lookup_tables[
             "unmodeled_cause_specific_mortality_rate"
         ] = self.get_raw_unmodeled_csmr(builder)
