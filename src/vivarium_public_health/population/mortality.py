@@ -149,7 +149,6 @@ class Mortality(Component):
             Interface to access simulation managers.
         """
         super().create_lookup_tables(builder)
-        # ONly build custom lookup table if it does not exist in self.lookup_tables
         self.lookup_tables[
             "unmodeled_cause_specific_mortality_rate"
         ] = self.get_raw_unmodeled_csmr(builder)

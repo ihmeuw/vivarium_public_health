@@ -9,12 +9,11 @@ from vivarium_public_health.testing.mock_artifact import MockArtifact
 
 
 def test_mortality_default_lookup_configuration(
-    make_full_simulants, base_plugins, generate_population_mock
+    full_simulants, base_plugins, generate_population_mock
 ):
-    sims = make_full_simulants
-    start_population_size = len(sims)
+    start_population_size = len(full_simulants)
 
-    generate_population_mock.return_value = sims.drop(columns=["tracked"])
+    generate_population_mock.return_value = full_simulants.drop(columns=["tracked"])
     bp = BasePopulation()
     mortality = Mortality()
 

@@ -47,7 +47,7 @@ def include_sex(request):
 
 
 @pytest.fixture
-def make_base_simulants():
+def base_simulants():
     simulant_ids = range(100000)
     creation_time = pd.Timestamp(1990, 7, 2)
     return pd.DataFrame(
@@ -61,8 +61,7 @@ def make_base_simulants():
 
 
 @pytest.fixture
-def make_full_simulants(make_base_simulants):
-    base_simulants = make_base_simulants
+def full_simulants(base_simulants):
     base_simulants["location"] = pd.Series(1, index=base_simulants.index)
     base_simulants["sex"] = pd.Series("Male", index=base_simulants.index).astype(
         pd.api.types.CategoricalDtype(categories=["Male", "Female"], ordered=False)
