@@ -38,4 +38,4 @@ def test_mortality_default_lookup_configuration(
     assert set(expected_lookup_table_keys) == set(lookup_tables.keys())
     assert (lookup_tables["all_cause_mortality_rate"].data["value"] == 0.0).all()
     assert lookup_tables["unmodeled_cause_specific_mortality_rate"].data == 0.0
-    assert isinstance(lookup_tables["life_expectancy"], InterpolatedTable)
+    assert (lookup_tables["life_expectancy"].data["value"] == 98.0).all()
