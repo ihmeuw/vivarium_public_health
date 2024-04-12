@@ -59,6 +59,41 @@ from vivarium_public_health.utilities import get_lookup_columns
 
 
 class Mortality(Component):
+    """
+    This is the mortality component which models sources of mortality for a model.
+    THe component models all cause mortality and allows for disease models to contribute
+    cause specific mortality. Data used by this class should be supplied in the artifact
+    and is configurable in the configuration to build lookup tables. For instance, let's
+    say we want to use sex and hair color to build a lookup table for all cause mortality.
+
+    .. code-block:: yaml
+
+       configuration:
+           mortality:
+               all_cause_mortality_rate:
+                   categorical_columns: ["sex", "hair_color"]
+
+    Similarly, we can do the same thing for unmodeled causes. Here is an example:
+
+    .. code-block:: yaml
+
+       configuration:
+           mortality:
+               unmodeled_cause_specific_mortality_rate:
+                   unmodeled_causes: ["maternal_disorders", maternal_hemorrhage]
+                   categorical_columns: ["sex", "hair_color"]
+
+    Or if we wanted to make the data a scalar value for all cause mortality rate we could
+    configure that as well.
+
+    .. code-block:: yaml
+
+       configuration:
+           mortality:
+               all_cause_mortality_rate:
+                   value: 0.01
+
+    """
 
     ##############
     # Properties #
