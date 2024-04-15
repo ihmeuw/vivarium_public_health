@@ -27,6 +27,7 @@ class DiseaseModelError(VivariumError):
 
 
 class DiseaseModel(Machine):
+
     ##############
     # Properties #
     ##############
