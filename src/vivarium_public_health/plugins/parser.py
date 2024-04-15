@@ -13,13 +13,14 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
 from pkg_resources import resource_filename
-from vivarium import Component, ConfigTree
+
+from layered_config_tree import LayeredConfigTree
+from vivarium import Component
 from vivarium.framework.components import ComponentConfigurationParser
 from vivarium.framework.components.parser import ParsingError
 from vivarium.framework.engine import Builder
 from vivarium.framework.state_machine import Trigger
 from vivarium.framework.utilities import import_by_path
-
 from vivarium_public_health.disease import (
     BaseDiseaseState,
     DiseaseModel,
@@ -84,7 +85,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     default value will be used. The default triggered value is 'NOT_TRIGGERED'.
     """
 
-    def parse_component_config(self, component_config: ConfigTree) -> List[Component]:
+    def parse_component_config(self, component_config: LayeredConfigTree) -> List[Component]:
         """
         Parses the component configuration and returns a list of components.
 
@@ -137,7 +138,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         Parameters
         ----------
         component_config
-            A ConfigTree defining the components to initialize.
+            A LayeredConfigTree defining the components to initialize.
 
         Returns
         -------
@@ -158,7 +159,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                     source = f"{package}::{config_file}"
                     config_file = resource_filename(package, config_file)
 
-                    external_config = ConfigTree(config_file)
+                    external_config = LayeredConfigTree(config_file)
                     component_config.update(
                         external_config, layer="model_override", source=source
                     )
@@ -185,7 +186,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     # Configuration methods #
     #########################
 
-    def _add_default_config_layer(self, causes_config: ConfigTree) -> None:
+    def _add_default_config_layer(self, causes_config: LayeredConfigTree) -> None:
         """
         Adds a default layer to the provided configuration that specifies
         default values for the cause model configuration.
@@ -193,7 +194,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         Parameters
         ----------
         causes_config
-            A ConfigTree defining the cause model configurations
+            A LayeredConfigTree defining the cause model configurations
 
         Returns
         -------
@@ -223,7 +224,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     # Cause model creation methods #
     ################################
 
-    def _get_cause_model_components(self, causes_config: ConfigTree) -> List[Component]:
+    def _get_cause_model_components(self, causes_config: LayeredConfigTree) -> List[Component]:
         """
         Parses the cause model configuration and returns a list of
         `DiseaseModel` components.
@@ -231,7 +232,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         Parameters
         ----------
         causes_config
-            A ConfigTree defining the cause model components to initialize
+            A LayeredConfigTree defining the cause model components to initialize
 
         Returns
         -------
@@ -263,7 +264,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         return cause_models
 
     def _get_state(
-        self, state_name: str, state_config: ConfigTree, cause_name: str
+        self, state_name: str, state_config: LayeredConfigTree, cause_name: str
     ) -> BaseDiseaseState:
         """
         Parses a state configuration and returns an initialized `BaseDiseaseState`
@@ -274,7 +275,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         state_name
             The name of the state to initialize
         state_config
-            A ConfigTree defining the state to initialize
+            A LayeredConfigTree defining the state to initialize
         cause_name
             The name of the cause to which the state belongs
 
@@ -319,7 +320,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         self,
         source_state: BaseDiseaseState,
         sink_state: BaseDiseaseState,
-        transition_config: ConfigTree,
+        transition_config: LayeredConfigTree,
     ) -> None:
         """
         Adds a transition between two states.
@@ -331,7 +332,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         sink_state
             The state the transition ends at
         transition_config
-            A `ConfigTree` defining the transition to add
+            A `LayeredConfigTree` defining the transition to add
 
         Returns
         -------
@@ -438,14 +439,14 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     _TRANSITION_TYPE_KEYS = {"rate", "proportion", "dwell_time"}
 
     @staticmethod
-    def _validate_external_configuration(external_configuration: ConfigTree) -> None:
+    def _validate_external_configuration(external_configuration: LayeredConfigTree) -> None:
         """
         Validates the external configuration.
 
         Parameters
         ----------
         external_configuration
-            A ConfigTree defining the external configuration
+            A LayeredConfigTree defining the external configuration
 
         Returns
         -------
@@ -477,14 +478,14 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         if error_messages:
             raise CausesParsingErrors(error_messages)
 
-    def _validate_causes_config(self, causes_config: ConfigTree) -> None:
+    def _validate_causes_config(self, causes_config: LayeredConfigTree) -> None:
         """
         Validates the cause model configuration.
 
         Parameters
         ----------
         causes_config
-            A ConfigTree defining the cause model configurations
+            A LayeredConfigTree defining the cause model configurations
 
         Returns
         -------
@@ -512,7 +513,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         cause_name
             The name of the cause to validate
         cause_config
-            A ConfigTree defining the cause to validate
+            A LayeredConfigTree defining the cause to validate
 
         Returns
         -------
@@ -587,7 +588,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         state_name
             The name of the state to validate
         state_config
-            A ConfigTree defining the state to validate
+            A LayeredConfigTree defining the state to validate
 
         Returns
         -------
@@ -682,9 +683,9 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         transition_name
             The name of the transition to validate
         transition_config
-            A ConfigTree defining the transition to validate
+            A LayeredConfigTree defining the transition to validate
         states_config
-            A ConfigTree defining the states for the cause
+            A LayeredConfigTree defining the states for the cause
 
         Returns
         -------
@@ -824,7 +825,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         Parameters
         ----------
         config
-            A ConfigTree defining the configuration to validate
+            A LayeredConfigTree defining the configuration to validate
         cause_name
             The name of the cause to which the configuration belongs
         config_type
