@@ -33,7 +33,7 @@ class SimulationDistribution(Component):
 
     #####################
     # Lifecycle methods #
-    #####################
+    #####################test_observation_registration
 
     def __init__(self, risk: str):
         super().__init__()
@@ -43,6 +43,7 @@ class SimulationDistribution(Component):
         distribution_data = get_distribution_data(builder, self.risk)
         self.implementation = get_distribution(self.risk, **distribution_data)
         self.implementation.setup_component(builder)
+        breakpoint()
 
     ##################
     # Public methods #
@@ -192,7 +193,7 @@ class PolytomousDistribution(Component):
         self.exposure = self.get_exposure_parameters(builder)
 
     #################
-    # Setup methods #
+    # Setup methods # 
     #################
 
     def get_categories(self) -> List[str]:
