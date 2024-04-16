@@ -12,15 +12,15 @@ from importlib import import_module
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
-from pkg_resources import resource_filename
-
 from layered_config_tree import LayeredConfigTree
+from pkg_resources import resource_filename
 from vivarium import Component
 from vivarium.framework.components import ComponentConfigurationParser
 from vivarium.framework.components.parser import ParsingError
 from vivarium.framework.engine import Builder
 from vivarium.framework.state_machine import Trigger
 from vivarium.framework.utilities import import_by_path
+
 from vivarium_public_health.disease import (
     BaseDiseaseState,
     DiseaseModel,
@@ -224,7 +224,9 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     # Cause model creation methods #
     ################################
 
-    def _get_cause_model_components(self, causes_config: LayeredConfigTree) -> List[Component]:
+    def _get_cause_model_components(
+        self, causes_config: LayeredConfigTree
+    ) -> List[Component]:
         """
         Parses the cause model configuration and returns a list of
         `DiseaseModel` components.

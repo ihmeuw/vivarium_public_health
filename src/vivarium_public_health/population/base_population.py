@@ -11,14 +11,14 @@ from typing import Callable, Dict, Iterable, List
 
 import numpy as np
 import pandas as pd
-from loguru import logger
-
 from layered_config_tree.exceptions import ConfigurationKeyError
+from loguru import logger
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
+
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import (
     assign_demographic_proportions,

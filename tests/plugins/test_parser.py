@@ -3,11 +3,11 @@ from typing import Any, Dict, List, NamedTuple, Tuple, Type
 
 import pytest
 import yaml
-
 from layered_config_tree import LayeredConfigTree
 from vivarium import Component, InteractiveContext
 from vivarium.framework.components.parser import ParsingError
 from vivarium.framework.state_machine import Transient, Transition
+
 from vivarium_public_health.disease import (
     BaseDiseaseState,
     DiseaseModel,
@@ -383,7 +383,9 @@ ALL_COMPONENTS_CONFIG_DICT = {
 
 
 @pytest.fixture(scope="module")
-def sim_components(base_config: LayeredConfigTree, causes_config_parser_plugins: LayeredConfigTree):
+def sim_components(
+    base_config: LayeredConfigTree, causes_config_parser_plugins: LayeredConfigTree
+):
     simulation = InteractiveContext(
         components=create_simulation_config_tree(ALL_COMPONENTS_CONFIG_DICT),
         configuration=base_config,
