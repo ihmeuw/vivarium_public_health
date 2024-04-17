@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Callable
 
 import pytest
-from vivarium import ConfigTree
+from layered_config_tree import LayeredConfigTree
 from vivarium.framework.configuration import build_simulation_configuration
 
 
@@ -25,8 +25,8 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest.fixture(scope="session")
-def base_config_factory() -> Callable[[], ConfigTree]:
-    def _base_config() -> ConfigTree:
+def base_config_factory() -> Callable[[], LayeredConfigTree]:
+    def _base_config() -> LayeredConfigTree:
         config = build_simulation_configuration()
 
         config.update(
@@ -43,12 +43,12 @@ def base_config_factory() -> Callable[[], ConfigTree]:
 
 
 @pytest.fixture(scope="function")
-def base_config(base_config_factory) -> ConfigTree:
+def base_config(base_config_factory) -> LayeredConfigTree:
     yield base_config_factory()
 
 
 @pytest.fixture(scope="module")
-def base_plugins() -> ConfigTree:
+def base_plugins() -> LayeredConfigTree:
     config = {
         "required": {
             "data": {
@@ -58,4 +58,4 @@ def base_plugins() -> ConfigTree:
         }
     }
 
-    return ConfigTree(config)
+    return LayeredConfigTree(config)

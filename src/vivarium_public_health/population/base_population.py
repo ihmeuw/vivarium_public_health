@@ -11,9 +11,9 @@ from typing import Callable, Dict, Iterable, List
 
 import numpy as np
 import pandas as pd
+from layered_config_tree.exceptions import ConfigurationKeyError
 from loguru import logger
 from vivarium import Component
-from vivarium.config_tree import ConfigurationKeyError
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
