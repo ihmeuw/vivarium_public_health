@@ -169,7 +169,6 @@ class Mortality(Component):
         self.unmodeled_csmr = self.get_unmodeled_csmr(builder)
         self.unmodeled_csmr_paf = self.get_unmodeled_csmr_paf(builder)
         self.mortality_rate = self.get_mortality_rate(builder)
-        breakpoint
 
     #################
     # Setup methods #

@@ -43,7 +43,6 @@ class SimulationDistribution(Component):
         distribution_data = get_distribution_data(builder, self.risk)
         self.implementation = get_distribution(self.risk, **distribution_data)
         self.implementation.setup_component(builder)
-        breakpoint()
 
     ##################
     # Public methods #
@@ -81,23 +80,30 @@ class EnsembleSimulation(Component):
         self._propensity = f"ensemble_propensity_{self.risk}"
 
     def setup(self, builder: Builder) -> None:
-        self.weights = builder.lookup.build_table(
-            self._weights, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
-        self.parameters = {
-            k: builder.lookup.build_table(
-                v, key_columns=["sex"], parameter_columns=["age", "year"]
-            )
-            for k, v in self._parameters.items()
-        }
-
         self.randomness = builder.randomness.get_stream(self._propensity)
 
     ##########################
     # Initialization methods #
     ##########################
 
+    def create_lookup_tables(self, builder: Builder) -> None:
+        configuration = builder.configuration[self.risk.name]["ensemble_distribution_weights"]
+        self.lookup_tables["ensemble_distribution_weights"] = builder.lookup.build_table(
+            self._weights,
+            key_columns=configuration["categorical_columns"],
+            parameter_columns=configuration["continuous_columns"],
+        )
+        self.parameters = {
+            k: builder.lookup.build_table(
+                v,
+                key_columns=configuration["categorical_columns"],
+                parameter_columns=configuration["continuous_columns"],
+            )
+            for k, v in self._parameters.items()
+        }
+
     def get_parameters(self, weights, mean, sd):
+        # TODO: generate index_cols
         index_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
         weights = weights.set_index(index_cols)
         mean = mean.set_index(index_cols)["value"]
@@ -124,7 +130,7 @@ class EnsembleSimulation(Component):
     def ppf(self, q):
         if not q.empty:
             q = clip(q)
-            weights = self.weights(q.index)
+            weights = self.lookup_tables["ensemble_distribution_weights"](q.index)
             parameters = {
                 name: parameter(q.index) for name, parameter in self.parameters.items()
             }
@@ -147,16 +153,21 @@ class ContinuousDistribution(Component):
         self._distribution = distribution
         self._parameters = self.get_parameters(mean, sd)
 
-    def setup(self, builder: Builder) -> None:
-        self.parameters = builder.lookup.build_table(
-            self._parameters, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
-
     ##########################
     # Initialization methods #
     ##########################
 
+    def create_lookup_tables(self, builder: Builder) -> None:
+        # mean and sd must be configured the same way
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        self.parameters = builder.lookup.build_table(
+            self._parameters,
+            key_columns=configuration["categorical_columns"],
+            parameter_columns=configuration["continuous_columns"],
+        )
+
     def get_parameters(self, mean, sd):
+        # TODO: generate index columns
         index = ["sex", "age_start", "age_end", "year_start", "year_end"]
         mean = mean.set_index(index)["value"]
         sd = sd.set_index(index)["value"]
@@ -193,8 +204,16 @@ class PolytomousDistribution(Component):
         self.exposure = self.get_exposure_parameters(builder)
 
     #################
-    # Setup methods # 
+    # Setup methods #
     #################
+
+    def create_lookup_tables(self, builder: Builder) -> None:
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        self.lookup_tables["exposure"] = builder.lookup.build_table(
+            self._exposure_data,
+            key_columns=configuration["categorical_columns"],
+            parameter_columns=configuration["continuous_columns"],
+        )
 
     def get_categories(self) -> List[str]:
         return sorted(
@@ -205,11 +224,7 @@ class PolytomousDistribution(Component):
     def get_exposure_parameters(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.exposure_parameters_pipeline_name,
-            source=builder.lookup.build_table(
-                self._exposure_data,
-                key_columns=["sex"],
-                parameter_columns=["age", "year"],
-            ),
+            source=self.lookup_tables["exposure"],
         )
 
     ##################
@@ -244,19 +259,30 @@ class DichotomousDistribution(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self._base_exposure = builder.lookup.build_table(
-            self._exposure_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
+        self._base_exposure = self.lookup_tables["exposure"]
         self.exposure_proportion = builder.value.register_value_producer(
             f"{self.risk}.exposure_parameters", source=self.exposure
         )
-        base_paf = builder.lookup.build_table(0)
+        base_paf = self.lookup_tables["paf"]
         self.joint_paf = builder.value.register_value_producer(
             f"{self.risk}.exposure_parameters.paf",
             source=lambda index: [base_paf(index)],
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
+
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    def create_lookup_tables(self, builder: Builder) -> None:
+        configuration = builder.configuration[self.risk.name]
+        self.lookup_tables["exposure"] = builder.lookup.build_table(
+            self._exposure_data,
+            key_columns=configuration["exposure"]["categorical_columns"],
+            parameter_columns=configuration["exposure"]["continuous_columns"],
+        )
+        self.lookup_tables["paf"] = builder.lookup.build_table(0)
 
     ##################################
     # Pipeline sources and modifiers #

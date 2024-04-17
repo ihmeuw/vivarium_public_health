@@ -81,51 +81,39 @@ class Risk(Component):
 
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "risk": {
-            "exposure": "data",
-            "rebinned_exposed": [],
-            "category_thresholds": [],
-            # Lookup tables to add
-            #   -weights
-            #   -parameters
-            #   -base exposre
-            #   -base paf
-        }
-    }
-
     ##############
     # Properties #
     ##############
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
-        return {self.risk.name: {
-            # Change exposure (probably a bad idea)- replaces exposure with key and then value: data
-            "exposure": self.build_lookup_table_config(
-                value="data",
-                continuous_columns=["age", "year"],
-                # Parameter should also be here?
-                categorical_columns=["sex"],
-                key_name=f"risk_factor.{self.name}.exposure",
-            ),
-            "rebinned_exposed": [],
-            "category_thresholds": [],
-            "weights": self.build_lookup_table_config(
-                value="data",
-                continuous_columns=["age", "year"],
-                categorical_columns=["sex"],
-                key_name=f"risk_factor.{self.name}.exposure_distribution_weights",
-            ),
-            # Probably don't abbreviate?
-            "paf": self.build_lookup_table_config(
-                value=0,
-                continuous_columns=[],
-                categorical_columns=[],
-                key_name=f"{self.name}.population_attributable_fraction",
-            ),
+        return {
+            self.risk.name: {
+                # Change exposure (probably a bad idea)- replaces exposure with key and then value: data
+                "exposure": self.build_lookup_table_config(
+                    value="data",
+                    continuous_columns=["age", "year"],
+                    # Parameter should also be here?
+                    categorical_columns=["sex"],
+                    key_name=f"risk_factor.{self.name}.exposure",
+                ),
+                "ensemble_distribution_weights": self.build_lookup_table_config(
+                    value="data",
+                    continuous_columns=["age", "year"],
+                    categorical_columns=["sex"],
+                    key_name=f"risk_factor.{self.name}.exposure_distribution_weights",
+                ),
+                "exposure_standard_deviation": self.build_lookup_table_config(
+                    value="data",
+                    continuous_columns=["age", "year"],
+                    categorical_columns=["sex"],
+                    key_name=f"risk_factor.{self.name}.exposure_standard_deviation",
+                ),
+                # rebinned_exosed only used for DichotomousDistribution
+                "rebinned_exposed": [],
+                "category_thresholds": [],
+            }
         }
-    }
 
     @property
     def columns_created(self) -> List[str]:
@@ -138,11 +126,6 @@ class Risk(Component):
             "requires_values": [],
             "requires_streams": [self.randomness_stream_name],
         }
-    
-    @property
-    def standard_lookup_tables(self) -> List[str]:
-        #TODO: update method
-        return []
 
     #####################
     # Lifecycle methods #
@@ -170,7 +153,6 @@ class Risk(Component):
         self.randomness = self.get_randomness_stream(builder)
         self.propensity = self.get_propensity_pipeline(builder)
         self.exposure = self.get_exposure_pipeline(builder)
-        breakpoint()
 
     ##########################
     # Initialization methods #

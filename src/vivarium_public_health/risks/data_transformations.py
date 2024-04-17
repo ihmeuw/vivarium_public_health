@@ -74,7 +74,7 @@ def load_distribution_data(builder, risk: EntityString):
 def get_distribution_type(builder, risk: EntityString):
     risk_config = builder.configuration[risk.name]
 
-    if risk_config["exposure"] == "data" and not risk_config["rebinned_exposed"]:
+    if risk_config["exposure"]["value"] == "data" and not risk_config["rebinned_exposed"]:
         distribution_type = builder.data.load(f"{risk}.distribution")
     else:
         distribution_type = "dichotomous"
@@ -416,6 +416,45 @@ def validate_distribution_data_source(builder, risk: EntityString):
             pass  # All good
     else:
         raise ValueError(f"Unknown risk type {risk.type} for risk {risk.name}")
+
+    validate_lookup_configuration(builder, risk)
+
+
+def validate_lookup_configuration(builder, risk: EntityString) -> None:
+    # Validate the configuration for the distribution type
+    distribution_type = get_distribution_type(builder, risk)
+    config = builder.configuration[risk.name]
+    weights_columns = set(
+        config["exposure_distribution_weights"]["categorical_columns"]
+        + config["exposure_distribution_weights"]["continuous_columns"]
+    )
+    mean_columns = set(
+        config["exposure"]["categorical_columns"] + config["exposure"]["continuous_columns"]
+    )
+    sd_columns = set(
+        config["exposure_standard_deviation"]["categorical_columns"]
+        + config["exposure_standard_deviation"]["continuous_columns"]
+    )
+    if distribution_type == "ensemble":
+        # mean, sd, and distribution weights must all be the same
+        if not weights_columns == mean_columns == sd_columns:
+            raise ValueError(
+                f"For ensemble distributions, the columns for mean, standard deviation, "
+                "and distribution weights must be the same. Your configuration "
+                f"for {risk.name} has mean columns {mean_columns}, standard deviation "
+                f"columns {sd_columns}, and distribution weight columns {weights_columns}."
+            )
+    elif distribution_type in ["normal", "lognormal"]:
+        # mean and sd must be the same
+        if not mean_columns == sd_columns:
+            raise ValueError(
+                f"For normal and lognormal distributions, the columns for mean and "
+                f"standard deviation must be the same. Your configuration for {risk.name} "
+                f"has mean columns {mean_columns} and standard deviation columns {sd_columns}."
+            )
+    else:
+        # Do we need to do anything else here?
+        pass
 
 
 def validate_relative_risk_data_source(builder, risk: EntityString, target: TargetString):
