@@ -16,6 +16,7 @@ if __name__ == "__main__":
 
     install_requirements = [
         "vivarium>=2.0.0",
+        "layered_config_tree>=1.0.1",
         "loguru",
         "numpy<2.0.0",
         "pandas",

@@ -3,7 +3,8 @@ from typing import Any, Dict, List, NamedTuple, Tuple, Type
 
 import pytest
 import yaml
-from vivarium import Component, ConfigTree, InteractiveContext
+from layered_config_tree import LayeredConfigTree
+from vivarium import Component, InteractiveContext
 from vivarium.framework.components.parser import ParsingError
 from vivarium.framework.state_machine import Transient, Transition
 
@@ -332,7 +333,7 @@ COMPLEX_MODEL_CONFIG = {
 }
 
 
-def create_simulation_config_tree(config_dict: Dict) -> ConfigTree:
+def create_simulation_config_tree(config_dict: Dict) -> LayeredConfigTree:
     config_tree_layers = [
         "base",
         "user_configs",
@@ -340,18 +341,18 @@ def create_simulation_config_tree(config_dict: Dict) -> ConfigTree:
         "model_override",
         "override",
     ]
-    config_tree = ConfigTree(layers=config_tree_layers)
+    config_tree = LayeredConfigTree(layers=config_tree_layers)
     config_tree.update(config_dict, layer="model_override")
     return config_tree
 
 
 @pytest.fixture(scope="module")
-def base_config(base_config_factory) -> ConfigTree:
+def base_config(base_config_factory) -> LayeredConfigTree:
     yield base_config_factory()
 
 
 @pytest.fixture(scope="module")
-def causes_config_parser_plugins() -> ConfigTree:
+def causes_config_parser_plugins() -> LayeredConfigTree:
     config_parser_plugin_config = {
         "required": {
             "data": {
@@ -363,7 +364,7 @@ def causes_config_parser_plugins() -> ConfigTree:
             },
         }
     }
-    return ConfigTree(config_parser_plugin_config)
+    return LayeredConfigTree(config_parser_plugin_config)
 
 
 @pytest.fixture
@@ -382,7 +383,9 @@ ALL_COMPONENTS_CONFIG_DICT = {
 
 
 @pytest.fixture(scope="module")
-def sim_components(base_config: ConfigTree, causes_config_parser_plugins: ConfigTree):
+def sim_components(
+    base_config: LayeredConfigTree, causes_config_parser_plugins: LayeredConfigTree
+):
     simulation = InteractiveContext(
         components=create_simulation_config_tree(ALL_COMPONENTS_CONFIG_DICT),
         configuration=base_config,
@@ -397,7 +400,7 @@ def sim_components(base_config: ConfigTree, causes_config_parser_plugins: Config
 
 
 def _test_parsing_of_config_file(
-    component_config: ConfigTree,
+    component_config: LayeredConfigTree,
     expected_component_names: Tuple[str] = (
         f"disease_model.{SIR_MODEL}",
         f"complex_model.{COMPLEX_MODEL}",
