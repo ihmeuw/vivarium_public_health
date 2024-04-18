@@ -36,7 +36,7 @@ class SimulationDistribution(Component):
 
     #####################
     # Lifecycle methods #
-    #####################test_observation_registration
+    #####################
 
     def __init__(self, risk: str):
         super().__init__()
