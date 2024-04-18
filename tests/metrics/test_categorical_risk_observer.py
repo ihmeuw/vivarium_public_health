@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
+from vivarium.framework.lookup.table import InterpolatedTable
 from vivarium.testing_utilities import TestPopulation, build_table
 
 from vivarium_public_health.metrics.risk import CategoricalRiskObserver
@@ -108,3 +109,29 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
             assert np.isclose(
                 results(pop.index)[observation], expected_person_time, rtol=0.001
             )
+
+
+def test_risk_lookup_configuration(categorical_risk, base_config, base_plugins):
+    risk, risk_data = categorical_risk
+
+    simulation = InteractiveContext(
+        components=[
+            TestPopulation(),
+            risk,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+
+    for key, value in risk_data.items():
+        simulation._data.write(f"risk_factor.test_risk.{key}", value)
+
+    simulation.setup()
+    # We have to get the distribution component's lookup tables. This is the distribution class
+    # instantiated by the sub_component of the risk class
+    distribution = risk.sub_components[0].implementation
+    lookup_tables = distribution.lookup_tables
+    # This risk is a PolytomousDistribution so there will only be an exposure lookup table
+    assert set(["exposure"]) == set(lookup_tables.keys())
+    assert isinstance(lookup_tables["exposure"], InterpolatedTable)

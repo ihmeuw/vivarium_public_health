@@ -99,7 +99,7 @@ def get_exposure_data(builder, risk: EntityString):
 
 def load_exposure_data(builder, risk: EntityString):
     risk_config = builder.configuration[risk.name]
-    exposure_source = risk_config["exposure"]
+    exposure_source = risk_config["exposure"]["value"]
 
     if exposure_source == "data":
         exposure_data = builder.data.load(f"{risk}.exposure")
@@ -361,7 +361,7 @@ def get_exposure_effect(builder, risk: EntityString):
 def get_population_attributable_fraction_data(
     builder, risk: EntityString, target: TargetString
 ):
-    exposure_source = builder.configuration[f"{risk.name}"]["exposure"]
+    exposure_source = builder.configuration[f"{risk.name}"]["exposure"]["value"]
     rr_source_type = validate_relative_risk_data_source(builder, risk, target)
 
     if exposure_source == "data" and rr_source_type == "data" and risk.type == "risk_factor":
@@ -388,7 +388,7 @@ def get_population_attributable_fraction_data(
 
 def validate_distribution_data_source(builder, risk: EntityString):
     """Checks that the exposure distribution specification is valid."""
-    exposure_type = builder.configuration[risk.name]["exposure"]
+    exposure_type = builder.configuration[risk.name]["exposure"]["value"]
     rebin = builder.configuration[risk.name]["rebinned_exposed"]
     category_thresholds = builder.configuration[risk.name]["category_thresholds"]
 
@@ -425,8 +425,8 @@ def validate_lookup_configuration(builder, risk: EntityString) -> None:
     distribution_type = get_distribution_type(builder, risk)
     config = builder.configuration[risk.name]
     weights_columns = set(
-        config["exposure_distribution_weights"]["categorical_columns"]
-        + config["exposure_distribution_weights"]["continuous_columns"]
+        config["ensemble_distribution_weights"]["categorical_columns"]
+        + config["ensemble_distribution_weights"]["continuous_columns"]
     )
     mean_columns = set(
         config["exposure"]["categorical_columns"] + config["exposure"]["continuous_columns"]
@@ -453,7 +453,7 @@ def validate_lookup_configuration(builder, risk: EntityString) -> None:
                 f"has mean columns {mean_columns} and standard deviation columns {sd_columns}."
             )
     else:
-        # Do we need to do anything else here?
+        # Currently no other distributions have keys that must have matchign configurations
         pass
 
 

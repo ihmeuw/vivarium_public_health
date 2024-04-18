@@ -18,7 +18,10 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import get_distribution_data
-from vivarium_public_health.utilities import EntityString
+from vivarium_public_health.utilities import (
+    EntityString,
+    get_index_columns_from_lookup_configuration,
+)
 
 
 class MissingDataError(Exception):
@@ -76,11 +79,14 @@ class EnsembleSimulation(Component):
     def __init__(self, risk, weights, mean, sd):
         super().__init__()
         self.risk = EntityString(risk)
-        self._weights, self._parameters = self.get_parameters(weights, mean, sd)
+        self.weights = weights
+        self.mean = mean
+        self.standard_deviation = sd
         self._propensity = f"ensemble_propensity_{self.risk}"
 
     def setup(self, builder: Builder) -> None:
         self.randomness = builder.randomness.get_stream(self._propensity)
+        self._weights, self._parameters = self.get_parameters(builder)
 
     ##########################
     # Initialization methods #
@@ -102,12 +108,14 @@ class EnsembleSimulation(Component):
             for k, v in self._parameters.items()
         }
 
-    def get_parameters(self, weights, mean, sd):
-        # TODO: generate index_cols
-        index_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
-        weights = weights.set_index(index_cols)
-        mean = mean.set_index(index_cols)["value"]
-        sd = sd.set_index(index_cols)["value"]
+    def get_parameters(self, builder: Builder):
+        # weights, mean, and sd all need to have the same index columns for their lookup tables
+        # so we can grab them from the configuration
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        index_cols = get_index_columns_from_lookup_configuration(configuration)
+        weights = self.weights.set_index(index_cols)
+        mean = self.mean.set_index(index_cols)["value"]
+        sd = self.standard_deviation.set_index(index_cols)["value"]
         weights, parameters = EnsembleDistribution.get_parameters(weights, mean=mean, sd=sd)
         return weights.reset_index(), {
             name: p.reset_index() for name, p in parameters.items()
@@ -151,7 +159,11 @@ class ContinuousDistribution(Component):
         super().__init__()
         self.risk = EntityString(risk)
         self._distribution = distribution
-        self._parameters = self.get_parameters(mean, sd)
+        self.mean = mean
+        self.standard_deviation = sd
+
+    def setup(self, builder: Builder) -> None:
+        self._parameters = self.get_parameters(builder)
 
     ##########################
     # Initialization methods #
@@ -166,11 +178,12 @@ class ContinuousDistribution(Component):
             parameter_columns=configuration["continuous_columns"],
         )
 
-    def get_parameters(self, mean, sd):
-        # TODO: generate index columns
-        index = ["sex", "age_start", "age_end", "year_start", "year_end"]
-        mean = mean.set_index(index)["value"]
-        sd = sd.set_index(index)["value"]
+    def get_parameters(self, builder: Builder):
+        # For a continuous distribution, mean and sd need to have the same configuration
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        index_cols = get_index_columns_from_lookup_configuration(configuration)
+        mean = self.mean.set_index(index_cols)["value"]
+        sd = self.standard_deviation.set_index(index_cols)["value"]
         return self._distribution.get_parameters(mean=mean, sd=sd).reset_index()
 
     ##################

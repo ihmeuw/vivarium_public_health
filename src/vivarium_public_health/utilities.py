@@ -110,3 +110,15 @@ def get_lookup_columns(
         necessary_columns.remove("year")
 
     return list(necessary_columns)
+
+
+def get_index_columns_from_lookup_configuration(lookup_configuration: dict) -> List[str]:
+    index_columns = []
+    for column in lookup_configuration["continuous_columns"]:
+        start_column = f"{column}_start"
+        end_column = f"{column}_end"
+        index_columns.append(start_column)
+        index_columns.append(end_column)
+    for column in lookup_configuration["categorical_columns"]:
+        index_columns.append(column)
+    return index_columns
