@@ -89,27 +89,19 @@ class Risk(Component):
     def configuration_defaults(self) -> Dict[str, Any]:
         return {
             self.risk.name: {
-                # Change exposure (probably a bad idea)- replaces exposure with key and then value: data
                 "exposure": self.build_lookup_table_config(
                     value="data",
                     continuous_columns=["age", "year"],
-                    # Parameter should also be here?
                     categorical_columns=["sex"],
-                    key_name=f"risk_factor.{self.name}.exposure",
+                    key_name=f"risk_factor.{self.risk.name}.exposure",
                 ),
-                "ensemble_distribution_weights": self.build_lookup_table_config(
-                    value="data",
-                    continuous_columns=["age", "year"],
-                    categorical_columns=["sex"],
-                    key_name=f"risk_factor.{self.name}.exposure_distribution_weights",
-                ),
-                "exposure_standard_deviation": self.build_lookup_table_config(
-                    value="data",
-                    continuous_columns=["age", "year"],
-                    categorical_columns=["sex"],
-                    key_name=f"risk_factor.{self.name}.exposure_standard_deviation",
-                ),
-                # rebinned_exosed only used for DichotomousDistribution
+                "ensemble_distribution_weights": {
+                    "key_name": f"risk_factor.{self.risk.name}.exposure_distribution_weights",
+                },
+                "exposure_standard_deviation": {
+                    "key_name": f"risk_factor.{self.risk.name}.exposure_standard_deviation",
+                },
+                # rebinned_exposed only used for DichotomousDistribution
                 "rebinned_exposed": [],
                 "category_thresholds": [],
             }

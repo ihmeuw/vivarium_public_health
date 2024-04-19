@@ -7,7 +7,7 @@ This module contains tools for modeling several different risk
 exposure distributions.
 
 """
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -79,23 +79,23 @@ class EnsembleSimulation(Component):
     def __init__(self, risk, weights, mean, sd):
         super().__init__()
         self.risk = EntityString(risk)
-        self.weights = weights
+        self.raw_weights = weights
         self.mean = mean
         self.standard_deviation = sd
         self._propensity = f"ensemble_propensity_{self.risk}"
 
     def setup(self, builder: Builder) -> None:
         self.randomness = builder.randomness.get_stream(self._propensity)
-        self._weights, self._parameters = self.get_parameters(builder)
+        self.input_weights, self._parameters = self.get_parameters(builder)
 
     ##########################
     # Initialization methods #
     ##########################
 
     def create_lookup_tables(self, builder: Builder) -> None:
-        configuration = builder.configuration[self.risk.name]["ensemble_distribution_weights"]
+        configuration = builder.configuration[self.risk.name]["exposure"]
         self.lookup_tables["ensemble_distribution_weights"] = builder.lookup.build_table(
-            self._weights,
+            self.input_weights,
             key_columns=configuration["categorical_columns"],
             parameter_columns=configuration["continuous_columns"],
         )
@@ -108,12 +108,12 @@ class EnsembleSimulation(Component):
             for k, v in self._parameters.items()
         }
 
-    def get_parameters(self, builder: Builder):
-        # weights, mean, and sd all need to have the same index columns for their lookup tables
-        # so we can grab them from the configuration
+    def get_parameters(
+        self, builder: Builder
+    ) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
         configuration = builder.configuration[self.risk.name]["exposure"]
         index_cols = get_index_columns_from_lookup_configuration(configuration)
-        weights = self.weights.set_index(index_cols)
+        weights = self.raw_weights.set_index(index_cols)
         mean = self.mean.set_index(index_cols)["value"]
         sd = self.standard_deviation.set_index(index_cols)["value"]
         weights, parameters = EnsembleDistribution.get_parameters(weights, mean=mean, sd=sd)
@@ -170,7 +170,6 @@ class ContinuousDistribution(Component):
     ##########################
 
     def create_lookup_tables(self, builder: Builder) -> None:
-        # mean and sd must be configured the same way
         configuration = builder.configuration[self.risk.name]["exposure"]
         self.parameters = builder.lookup.build_table(
             self._parameters,
@@ -178,8 +177,7 @@ class ContinuousDistribution(Component):
             parameter_columns=configuration["continuous_columns"],
         )
 
-    def get_parameters(self, builder: Builder):
-        # For a continuous distribution, mean and sd need to have the same configuration
+    def get_parameters(self, builder: Builder) -> pd.DataFrame:
         configuration = builder.configuration[self.risk.name]["exposure"]
         index_cols = get_index_columns_from_lookup_configuration(configuration)
         mean = self.mean.set_index(index_cols)["value"]
@@ -289,11 +287,11 @@ class DichotomousDistribution(Component):
     ##########################
 
     def create_lookup_tables(self, builder: Builder) -> None:
-        configuration = builder.configuration[self.risk.name]
+        configuration = builder.configuration[self.risk.name]["exposure"]
         self.lookup_tables["exposure"] = builder.lookup.build_table(
             self._exposure_data,
-            key_columns=configuration["exposure"]["categorical_columns"],
-            parameter_columns=configuration["exposure"]["continuous_columns"],
+            key_columns=configuration["categorical_columns"],
+            parameter_columns=configuration["continuous_columns"],
         )
         self.lookup_tables["paf"] = builder.lookup.build_table(0)
 

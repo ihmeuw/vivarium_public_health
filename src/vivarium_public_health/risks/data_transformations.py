@@ -102,7 +102,7 @@ def load_exposure_data(builder, risk: EntityString):
     exposure_source = risk_config["exposure"]["value"]
 
     if exposure_source == "data":
-        exposure_data = builder.data.load(f"{risk}.exposure")
+        exposure_data = builder.data.load(risk_config["exposure"]["key_name"])
     else:
         if isinstance(exposure_source, str):  # Build from covariate
             cat1 = builder.data.load(f"{exposure_source}.estimate")
@@ -122,18 +122,24 @@ def load_exposure_data(builder, risk: EntityString):
 
 
 def get_exposure_standard_deviation_data(builder, risk: EntityString):
+    configuration = builder.configuration[risk.name]
     distribution_type = get_distribution_type(builder, risk)
     if distribution_type in ["normal", "lognormal", "ensemble"]:
-        exposure_sd = builder.data.load(f"{risk}.exposure_standard_deviation")
+        exposure_sd = builder.data.load(
+            configuration["exposure_standard_deviation"]["key_name"]
+        )
     else:
         exposure_sd = None
     return exposure_sd
 
 
 def get_exposure_distribution_weights(builder, risk: EntityString):
+    configuration = builder.configuration[risk.name]
     distribution_type = get_distribution_type(builder, risk)
     if distribution_type == "ensemble":
-        weights = builder.data.load(f"{risk}.exposure_distribution_weights")
+        weights = builder.data.load(
+            configuration["ensemble_distribution_weights"]["key_name"]
+        )
         weights = pivot_categorical(weights)
         if "glnorm" in weights.columns:
             if np.any(weights["glnorm"]):
@@ -365,7 +371,9 @@ def get_population_attributable_fraction_data(
     rr_source_type = validate_relative_risk_data_source(builder, risk, target)
 
     if exposure_source == "data" and rr_source_type == "data" and risk.type == "risk_factor":
-        paf_data = builder.data.load(f"{risk}.population_attributable_fraction")
+        paf_data = builder.data.load(
+            builder.configuration[risk.name]["population_attributable_fraction"]["key_name"]
+        )
         correct_target = (paf_data["affected_entity"] == target.name) & (
             paf_data["affected_measure"] == target.measure
         )
@@ -416,45 +424,6 @@ def validate_distribution_data_source(builder, risk: EntityString):
             pass  # All good
     else:
         raise ValueError(f"Unknown risk type {risk.type} for risk {risk.name}")
-
-    validate_lookup_configuration(builder, risk)
-
-
-def validate_lookup_configuration(builder, risk: EntityString) -> None:
-    # Validate the configuration for the distribution type
-    distribution_type = get_distribution_type(builder, risk)
-    config = builder.configuration[risk.name]
-    weights_columns = set(
-        config["ensemble_distribution_weights"]["categorical_columns"]
-        + config["ensemble_distribution_weights"]["continuous_columns"]
-    )
-    mean_columns = set(
-        config["exposure"]["categorical_columns"] + config["exposure"]["continuous_columns"]
-    )
-    sd_columns = set(
-        config["exposure_standard_deviation"]["categorical_columns"]
-        + config["exposure_standard_deviation"]["continuous_columns"]
-    )
-    if distribution_type == "ensemble":
-        # mean, sd, and distribution weights must all be the same
-        if not weights_columns == mean_columns == sd_columns:
-            raise ValueError(
-                f"For ensemble distributions, the columns for mean, standard deviation, "
-                "and distribution weights must be the same. Your configuration "
-                f"for {risk.name} has mean columns {mean_columns}, standard deviation "
-                f"columns {sd_columns}, and distribution weight columns {weights_columns}."
-            )
-    elif distribution_type in ["normal", "lognormal"]:
-        # mean and sd must be the same
-        if not mean_columns == sd_columns:
-            raise ValueError(
-                f"For normal and lognormal distributions, the columns for mean and "
-                f"standard deviation must be the same. Your configuration for {risk.name} "
-                f"has mean columns {mean_columns} and standard deviation columns {sd_columns}."
-            )
-    else:
-        # Currently no other distributions have keys that must have matchign configurations
-        pass
 
 
 def validate_relative_risk_data_source(builder, risk: EntityString, target: TargetString):
