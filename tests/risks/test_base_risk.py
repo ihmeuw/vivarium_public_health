@@ -1,14 +1,44 @@
-# import pytest
+import pytest
+from vivarium import InteractiveContext
+from vivarium.framework.lookup.table import InterpolatedTable
+from vivarium.testing_utilities import TestPopulation, build_table
+
+# from vivarium.interface.interactive import initialize_simulation
+from vivarium_public_health.risks.base_risk import Risk
+
 #
 # import numpy as np
 # import pandas as pd
 # from scipy.stats import norm
+
 #
-# from vivarium.testing_utilities import TestPopulation, metadata
-# from vivarium.interface.interactive import initialize_simulation
-# from vivarium_public_health.risks.base_risk import Risk
-#
-#
+
+
+@pytest.fixture
+def categorical_risk():
+    year_start = 1990
+    year_end = 2010
+    risk = "test_risk"
+    risk_data = dict()
+    exposure_data = build_table(
+        0.25, year_start, year_end, ["age", "year", "sex", "cat1", "cat2", "cat3", "cat4"]
+    ).melt(
+        id_vars=("age_start", "age_end", "year_start", "year_end", "sex"),
+        var_name="parameter",
+        value_name="value",
+    )
+
+    risk_data["exposure"] = exposure_data
+    risk_data["categories"] = {
+        "cat1": "severe",
+        "cat2": "moderate",
+        "cat3": "mild",
+        "cat4": "unexposed",
+    }
+    risk_data["distribution"] = "ordered_polytomous"
+    return Risk(f"risk_factor.{risk}"), risk_data
+
+
 # @pytest.mark.parametrize('propensity', [0.00001, 0.5, 0.99])
 # def test_propensity_effect(propensity, mocker, continuous_risk, base_config, base_plugins):
 #     population_size = 1000
@@ -46,3 +76,29 @@
 #     # Make sure value was correctly pulled from config
 #     sim_exposure_level = simulation.values.get_value('test_risk.exposure_parameters')(simulation.get_population().index)
 #     assert np.all(sim_exposure_level == exposure_level)
+
+
+def test_risk_lookup_configuration(categorical_risk, base_config, base_plugins):
+    risk, risk_data = categorical_risk
+
+    simulation = InteractiveContext(
+        components=[
+            TestPopulation(),
+            risk,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+
+    for key, value in risk_data.items():
+        simulation._data.write(f"risk_factor.test_risk.{key}", value)
+
+    simulation.setup()
+    # We have to get the distribution component's lookup tables. This is the distribution class
+    # instantiated by the sub_component of the risk class
+    distribution = risk.sub_components[0].implementation
+    lookup_tables = distribution.lookup_tables
+    # This risk is a PolytomousDistribution so there will only be an exposure lookup table
+    assert set(["exposure"]) == set(lookup_tables.keys())
+    assert isinstance(lookup_tables["exposure"], InterpolatedTable)

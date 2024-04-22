@@ -74,7 +74,7 @@ def load_distribution_data(builder, risk: EntityString):
 def get_distribution_type(builder, risk: EntityString):
     risk_config = builder.configuration[risk.name]
 
-    if risk_config["exposure"] == "data" and not risk_config["rebinned_exposed"]:
+    if risk_config["exposure"]["value"] == "data" and not risk_config["rebinned_exposed"]:
         distribution_type = builder.data.load(f"{risk}.distribution")
     else:
         distribution_type = "dichotomous"
@@ -99,10 +99,10 @@ def get_exposure_data(builder, risk: EntityString):
 
 def load_exposure_data(builder, risk: EntityString):
     risk_config = builder.configuration[risk.name]
-    exposure_source = risk_config["exposure"]
+    exposure_source = risk_config["exposure"]["value"]
 
     if exposure_source == "data":
-        exposure_data = builder.data.load(f"{risk}.exposure")
+        exposure_data = builder.data.load(risk_config["exposure"]["key_name"])
     else:
         if isinstance(exposure_source, str):  # Build from covariate
             cat1 = builder.data.load(f"{exposure_source}.estimate")
@@ -122,18 +122,24 @@ def load_exposure_data(builder, risk: EntityString):
 
 
 def get_exposure_standard_deviation_data(builder, risk: EntityString):
+    configuration = builder.configuration[risk.name]
     distribution_type = get_distribution_type(builder, risk)
     if distribution_type in ["normal", "lognormal", "ensemble"]:
-        exposure_sd = builder.data.load(f"{risk}.exposure_standard_deviation")
+        exposure_sd = builder.data.load(
+            configuration["exposure_standard_deviation"]["key_name"]
+        )
     else:
         exposure_sd = None
     return exposure_sd
 
 
 def get_exposure_distribution_weights(builder, risk: EntityString):
+    configuration = builder.configuration[risk.name]
     distribution_type = get_distribution_type(builder, risk)
     if distribution_type == "ensemble":
-        weights = builder.data.load(f"{risk}.exposure_distribution_weights")
+        weights = builder.data.load(
+            configuration["ensemble_distribution_weights"]["key_name"]
+        )
         weights = pivot_categorical(weights)
         if "glnorm" in weights.columns:
             if np.any(weights["glnorm"]):
@@ -361,11 +367,13 @@ def get_exposure_effect(builder, risk: EntityString):
 def get_population_attributable_fraction_data(
     builder, risk: EntityString, target: TargetString
 ):
-    exposure_source = builder.configuration[f"{risk.name}"]["exposure"]
+    exposure_source = builder.configuration[f"{risk.name}"]["exposure"]["value"]
     rr_source_type = validate_relative_risk_data_source(builder, risk, target)
 
     if exposure_source == "data" and rr_source_type == "data" and risk.type == "risk_factor":
-        paf_data = builder.data.load(f"{risk}.population_attributable_fraction")
+        paf_data = builder.data.load(
+            builder.configuration[risk.name]["population_attributable_fraction"]["key_name"]
+        )
         correct_target = (paf_data["affected_entity"] == target.name) & (
             paf_data["affected_measure"] == target.measure
         )
@@ -388,7 +396,7 @@ def get_population_attributable_fraction_data(
 
 def validate_distribution_data_source(builder, risk: EntityString):
     """Checks that the exposure distribution specification is valid."""
-    exposure_type = builder.configuration[risk.name]["exposure"]
+    exposure_type = builder.configuration[risk.name]["exposure"]["value"]
     rebin = builder.configuration[risk.name]["rebinned_exposed"]
     category_thresholds = builder.configuration[risk.name]["category_thresholds"]
 

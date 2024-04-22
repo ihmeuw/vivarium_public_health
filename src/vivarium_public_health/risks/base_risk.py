@@ -81,21 +81,31 @@ class Risk(Component):
 
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "risk": {
-            "exposure": "data",
-            "rebinned_exposed": [],
-            "category_thresholds": [],
-        }
-    }
-
     ##############
     # Properties #
     ##############
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
-        return {self.risk.name: self.CONFIGURATION_DEFAULTS["risk"]}
+        return {
+            self.risk.name: {
+                "exposure": self.build_lookup_table_config(
+                    value="data",
+                    continuous_columns=["age", "year"],
+                    categorical_columns=["sex"],
+                    key_name=f"risk_factor.{self.risk.name}.exposure",
+                ),
+                "ensemble_distribution_weights": {
+                    "key_name": f"risk_factor.{self.risk.name}.exposure_distribution_weights",
+                },
+                "exposure_standard_deviation": {
+                    "key_name": f"risk_factor.{self.risk.name}.exposure_standard_deviation",
+                },
+                # rebinned_exposed only used for DichotomousDistribution
+                "rebinned_exposed": [],
+                "category_thresholds": [],
+            }
+        }
 
     @property
     def columns_created(self) -> List[str]:

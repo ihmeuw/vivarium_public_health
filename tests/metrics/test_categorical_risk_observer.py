@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
+from vivarium.framework.lookup.table import InterpolatedTable
 from vivarium.testing_utilities import TestPopulation, build_table
 
 from vivarium_public_health.metrics.risk import CategoricalRiskObserver

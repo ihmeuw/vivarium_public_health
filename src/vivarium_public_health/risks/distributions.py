@@ -7,7 +7,7 @@ This module contains tools for modeling several different risk
 exposure distributions.
 
 """
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,10 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import get_distribution_data
-from vivarium_public_health.utilities import EntityString
+from vivarium_public_health.utilities import (
+    EntityString,
+    get_index_columns_from_lookup_configuration,
+)
 
 
 class MissingDataError(Exception):
@@ -76,31 +79,43 @@ class EnsembleSimulation(Component):
     def __init__(self, risk, weights, mean, sd):
         super().__init__()
         self.risk = EntityString(risk)
-        self._weights, self._parameters = self.get_parameters(weights, mean, sd)
+        self._raw_weights = weights
+        self._mean = mean
+        self._standard_deviation = sd
         self._propensity = f"ensemble_propensity_{self.risk}"
 
     def setup(self, builder: Builder) -> None:
-        self.weights = builder.lookup.build_table(
-            self._weights, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
-        self.parameters = {
-            k: builder.lookup.build_table(
-                v, key_columns=["sex"], parameter_columns=["age", "year"]
-            )
-            for k, v in self._parameters.items()
-        }
-
         self.randomness = builder.randomness.get_stream(self._propensity)
+        self.input_weights, self._parameters = self.get_parameters(builder)
 
     ##########################
     # Initialization methods #
     ##########################
 
-    def get_parameters(self, weights, mean, sd):
-        index_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
-        weights = weights.set_index(index_cols)
-        mean = mean.set_index(index_cols)["value"]
-        sd = sd.set_index(index_cols)["value"]
+    def build_lookup_tables(self, builder: Builder) -> None:
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        self.lookup_tables["ensemble_distribution_weights"] = builder.lookup.build_table(
+            self.input_weights,
+            key_columns=configuration["categorical_columns"],
+            parameter_columns=configuration["continuous_columns"],
+        )
+        self.parameters = {
+            k: builder.lookup.build_table(
+                v,
+                key_columns=configuration["categorical_columns"],
+                parameter_columns=configuration["continuous_columns"],
+            )
+            for k, v in self._parameters.items()
+        }
+
+    def get_parameters(
+        self, builder: Builder
+    ) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        index_cols = get_index_columns_from_lookup_configuration(configuration)
+        weights = self._raw_weights.set_index(index_cols)
+        mean = self._mean.set_index(index_cols)["value"]
+        sd = self._standard_deviation.set_index(index_cols)["value"]
         weights, parameters = EnsembleDistribution.get_parameters(weights, mean=mean, sd=sd)
         return weights.reset_index(), {
             name: p.reset_index() for name, p in parameters.items()
@@ -123,7 +138,7 @@ class EnsembleSimulation(Component):
     def ppf(self, q):
         if not q.empty:
             q = clip(q)
-            weights = self.weights(q.index)
+            weights = self.lookup_tables["ensemble_distribution_weights"](q.index)
             parameters = {
                 name: parameter(q.index) for name, parameter in self.parameters.items()
             }
@@ -144,21 +159,29 @@ class ContinuousDistribution(Component):
         super().__init__()
         self.risk = EntityString(risk)
         self._distribution = distribution
-        self._parameters = self.get_parameters(mean, sd)
+        self._mean = mean
+        self._standard_deviation = sd
 
     def setup(self, builder: Builder) -> None:
-        self.parameters = builder.lookup.build_table(
-            self._parameters, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
+        self._parameters = self.get_parameters(builder)
 
     ##########################
     # Initialization methods #
     ##########################
 
-    def get_parameters(self, mean, sd):
-        index = ["sex", "age_start", "age_end", "year_start", "year_end"]
-        mean = mean.set_index(index)["value"]
-        sd = sd.set_index(index)["value"]
+    def build_lookup_tables(self, builder: Builder) -> None:
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        self.parameters = builder.lookup.build_table(
+            self._parameters,
+            key_columns=configuration["categorical_columns"],
+            parameter_columns=configuration["continuous_columns"],
+        )
+
+    def get_parameters(self, builder: Builder) -> pd.DataFrame:
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        index_cols = get_index_columns_from_lookup_configuration(configuration)
+        mean = self._mean.set_index(index_cols)["value"]
+        sd = self._standard_deviation.set_index(index_cols)["value"]
         return self._distribution.get_parameters(mean=mean, sd=sd).reset_index()
 
     ##################
@@ -195,6 +218,14 @@ class PolytomousDistribution(Component):
     # Setup methods #
     #################
 
+    def build_lookup_tables(self, builder: Builder) -> None:
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        self.lookup_tables["exposure"] = builder.lookup.build_table(
+            self._exposure_data,
+            key_columns=configuration["categorical_columns"],
+            parameter_columns=configuration["continuous_columns"],
+        )
+
     def get_categories(self) -> List[str]:
         return sorted(
             [column for column in self._exposure_data if "cat" in column],
@@ -204,11 +235,7 @@ class PolytomousDistribution(Component):
     def get_exposure_parameters(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.exposure_parameters_pipeline_name,
-            source=builder.lookup.build_table(
-                self._exposure_data,
-                key_columns=["sex"],
-                parameter_columns=["age", "year"],
-            ),
+            source=self.lookup_tables["exposure"],
         )
 
     ##################
@@ -243,19 +270,30 @@ class DichotomousDistribution(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self._base_exposure = builder.lookup.build_table(
-            self._exposure_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
+        self._base_exposure = self.lookup_tables["exposure"]
         self.exposure_proportion = builder.value.register_value_producer(
             f"{self.risk}.exposure_parameters", source=self.exposure
         )
-        base_paf = builder.lookup.build_table(0)
+        base_paf = self.lookup_tables["paf"]
         self.joint_paf = builder.value.register_value_producer(
             f"{self.risk}.exposure_parameters.paf",
             source=lambda index: [base_paf(index)],
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
+
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    def build_lookup_tables(self, builder: Builder) -> None:
+        configuration = builder.configuration[self.risk.name]["exposure"]
+        self.lookup_tables["exposure"] = builder.lookup.build_table(
+            self._exposure_data,
+            key_columns=configuration["categorical_columns"],
+            parameter_columns=configuration["continuous_columns"],
+        )
+        self.lookup_tables["paf"] = builder.lookup.build_table(0)
 
     ##################################
     # Pipeline sources and modifiers #
