@@ -79,9 +79,9 @@ class EnsembleSimulation(Component):
     def __init__(self, risk, weights, mean, sd):
         super().__init__()
         self.risk = EntityString(risk)
-        self.raw_weights = weights
-        self.mean = mean
-        self.standard_deviation = sd
+        self._raw_weights = weights
+        self._mean = mean
+        self._standard_deviation = sd
         self._propensity = f"ensemble_propensity_{self.risk}"
 
     def setup(self, builder: Builder) -> None:
@@ -92,7 +92,7 @@ class EnsembleSimulation(Component):
     # Initialization methods #
     ##########################
 
-    def create_lookup_tables(self, builder: Builder) -> None:
+    def build_lookup_tables(self, builder: Builder) -> None:
         configuration = builder.configuration[self.risk.name]["exposure"]
         self.lookup_tables["ensemble_distribution_weights"] = builder.lookup.build_table(
             self.input_weights,
@@ -113,9 +113,9 @@ class EnsembleSimulation(Component):
     ) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
         configuration = builder.configuration[self.risk.name]["exposure"]
         index_cols = get_index_columns_from_lookup_configuration(configuration)
-        weights = self.raw_weights.set_index(index_cols)
-        mean = self.mean.set_index(index_cols)["value"]
-        sd = self.standard_deviation.set_index(index_cols)["value"]
+        weights = self._raw_weights.set_index(index_cols)
+        mean = self._mean.set_index(index_cols)["value"]
+        sd = self._standard_deviation.set_index(index_cols)["value"]
         weights, parameters = EnsembleDistribution.get_parameters(weights, mean=mean, sd=sd)
         return weights.reset_index(), {
             name: p.reset_index() for name, p in parameters.items()
@@ -159,8 +159,8 @@ class ContinuousDistribution(Component):
         super().__init__()
         self.risk = EntityString(risk)
         self._distribution = distribution
-        self.mean = mean
-        self.standard_deviation = sd
+        self._mean = mean
+        self._standard_deviation = sd
 
     def setup(self, builder: Builder) -> None:
         self._parameters = self.get_parameters(builder)
@@ -169,7 +169,7 @@ class ContinuousDistribution(Component):
     # Initialization methods #
     ##########################
 
-    def create_lookup_tables(self, builder: Builder) -> None:
+    def build_lookup_tables(self, builder: Builder) -> None:
         configuration = builder.configuration[self.risk.name]["exposure"]
         self.parameters = builder.lookup.build_table(
             self._parameters,
@@ -180,8 +180,8 @@ class ContinuousDistribution(Component):
     def get_parameters(self, builder: Builder) -> pd.DataFrame:
         configuration = builder.configuration[self.risk.name]["exposure"]
         index_cols = get_index_columns_from_lookup_configuration(configuration)
-        mean = self.mean.set_index(index_cols)["value"]
-        sd = self.standard_deviation.set_index(index_cols)["value"]
+        mean = self._mean.set_index(index_cols)["value"]
+        sd = self._standard_deviation.set_index(index_cols)["value"]
         return self._distribution.get_parameters(mean=mean, sd=sd).reset_index()
 
     ##################
@@ -218,7 +218,7 @@ class PolytomousDistribution(Component):
     # Setup methods #
     #################
 
-    def create_lookup_tables(self, builder: Builder) -> None:
+    def build_lookup_tables(self, builder: Builder) -> None:
         configuration = builder.configuration[self.risk.name]["exposure"]
         self.lookup_tables["exposure"] = builder.lookup.build_table(
             self._exposure_data,
@@ -286,7 +286,7 @@ class DichotomousDistribution(Component):
     # Initialization methods #
     ##########################
 
-    def create_lookup_tables(self, builder: Builder) -> None:
+    def build_lookup_tables(self, builder: Builder) -> None:
         configuration = builder.configuration[self.risk.name]["exposure"]
         self.lookup_tables["exposure"] = builder.lookup.build_table(
             self._exposure_data,
