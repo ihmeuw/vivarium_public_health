@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import Component, InteractiveContext
-from vivarium.framework.lookup.table import InterpolatedTable
 
 from vivarium_public_health.population import BasePopulation, Mortality
 from vivarium_public_health.testing.mock_artifact import MockArtifact

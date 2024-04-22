@@ -169,13 +169,12 @@ class Mortality(Component):
         self.unmodeled_csmr = self.get_unmodeled_csmr(builder)
         self.unmodeled_csmr_paf = self.get_unmodeled_csmr_paf(builder)
         self.mortality_rate = self.get_mortality_rate(builder)
-        breakpoint
 
     #################
     # Setup methods #
     #################
 
-    def create_lookup_tables(self, builder: Builder) -> None:
+    def build_lookup_tables(self, builder: Builder) -> None:
         """
         Create lookup tables for the mortality component.
 
@@ -184,7 +183,7 @@ class Mortality(Component):
         builder
             Interface to access simulation managers.
         """
-        super().create_lookup_tables(builder)
+        super().build_lookup_tables(builder)
         self.lookup_tables[
             "unmodeled_cause_specific_mortality_rate"
         ] = self.get_raw_unmodeled_csmr(builder)
