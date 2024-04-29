@@ -4,6 +4,7 @@ from typing import Callable
 import pytest
 from layered_config_tree import LayeredConfigTree
 from vivarium.framework.configuration import build_simulation_configuration
+from vivarium_testing_utils import FuzzyChecker
 
 
 def pytest_addoption(parser):
@@ -59,3 +60,12 @@ def base_plugins() -> LayeredConfigTree:
     }
 
     return LayeredConfigTree(config)
+
+
+@pytest.fixture(scope="session")
+def fuzzy_checker() -> FuzzyChecker:
+    checker = FuzzyChecker()
+
+    yield checker
+
+    checker.save_diagnostic_output("../")
