@@ -19,10 +19,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import get_distribution_data
-from vivarium_public_health.utilities import (
-    EntityString,
-    get_lookup_columns,
-)
+from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 
 class MissingDataError(Exception):
