@@ -148,11 +148,14 @@ def test_mortality_cause_of_death(
         # Disease model seems to set mortality rate for that diesease back to 0
         # if a simulant dies from it
         rates = mortality.mortality_rate(pop1.index)[cause_of_death].unique()
+        breakpoint()
         for mortality_rate in rates:
             if mortality_rate == 0:
                 continue
             else:
                 rate = mortality_rate
+            if cause_of_death == "sick":
+                rate *= 0.5  # prevalence
         fuzzy_checker.fuzzy_assert_proportion(
             name=f"test_mortality_rate_{cause_of_death}",
             observed_numerator=len(dead),
