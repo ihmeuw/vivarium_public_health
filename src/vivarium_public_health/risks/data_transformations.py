@@ -32,8 +32,8 @@ def pivot_categorical(
     """Pivots data that is long on categories to be wide."""
     # todo remove if statement when relative risk has been updated
     if risk:
-        # todo remove dependency on artifact manager having exact one value column
-        value_column = builder.data.get_value_columns(f"{risk}.exposure")[0]
+        # todo remove dependency on artifact manager having exactly one value column
+        value_column = builder.data.value_columns()(f"{risk}.exposure")[0]
         pivot_column = "parameter"
         index_cols = [
             column for column in data.columns if column not in [value_column, pivot_column]
@@ -126,7 +126,7 @@ def get_exposure_data(
     ]:
         exposure_data, value_columns = pivot_categorical(builder, risk, exposure_data)
     else:
-        value_columns = builder.data.get_value_columns(f"{risk}.exposure")
+        value_columns = builder.data.value_columns()(f"{risk}.exposure")
 
     return exposure_data, value_columns
 
@@ -138,7 +138,7 @@ def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
     )
 
     if isinstance(exposure_data, (int, float)):
-        value_columns = builder.data.get_value_columns(f"{risk}.exposure")
+        value_columns = builder.data.value_columns()(f"{risk}.exposure")
         cat1 = builder.data.load("population.demographic_dimensions")
         cat1["parameter"] = "cat1"
         cat1[value_columns] = float(exposure_data)

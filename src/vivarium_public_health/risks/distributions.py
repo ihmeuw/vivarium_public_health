@@ -21,7 +21,6 @@ from vivarium.framework.values import Pipeline, list_combiner, union_post_proces
 from vivarium_public_health.risks.data_transformations import get_distribution_data
 from vivarium_public_health.utilities import (
     EntityString,
-    get_index_columns_from_lookup_configuration,
     get_lookup_columns,
 )
 
@@ -112,7 +111,7 @@ class EnsembleSimulation(Component):
     def get_parameters(
         self, builder: Builder
     ) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
-        value_columns = builder.data.get_value_columns(f"{self.risk}.exposure")
+        value_columns = builder.data.value_columns()(f"{self.risk}.exposure")
         index_cols = [
             column
             for column in self._raw_weights.columns
@@ -164,30 +163,22 @@ class ContinuousDistribution(Component):
         super().__init__()
         self.risk = EntityString(risk)
         self._distribution = distribution
-        self._mean = mean
-        self._standard_deviation = sd
+        self._parameters = self.get_parameters(mean, sd)
 
     def setup(self, builder: Builder) -> None:
-        self._parameters = self.get_parameters(builder)
+        # todo update to have flexible columns for lookup table
+        self.parameters = builder.lookup.build_table(
+            self._parameters, key_columns=["sex"], parameter_columns=["age", "year"]
+        )
 
     ##########################
     # Initialization methods #
     ##########################
 
-    def build_lookup_tables(self, builder: Builder) -> None:
-        configuration = builder.configuration[self.risk.name]["exposure"]
-        # todo figure out how to deduce the value columns
-        self.parameters = builder.lookup.build_table(
-            self._parameters,
-            key_columns=configuration["categorical_columns"],
-            parameter_columns=configuration["continuous_columns"],
-        )
-
-    def get_parameters(self, builder: Builder) -> pd.DataFrame:
-        configuration = builder.configuration[self.risk.name]["exposure"]
-        index_cols = get_index_columns_from_lookup_configuration(configuration)
-        mean = self._mean.set_index(index_cols)["value"]
-        sd = self._standard_deviation.set_index(index_cols)["value"]
+    def get_parameters(self, mean, sd):
+        index = ["sex", "age_start", "age_end", "year_start", "year_end"]
+        mean = mean.set_index(index)["value"]
+        sd = sd.set_index(index)["value"]
         return self._distribution.get_parameters(mean=mean, sd=sd).reset_index()
 
     ##################
