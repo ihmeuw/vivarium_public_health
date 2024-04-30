@@ -8,11 +8,12 @@ risk data and performing any necessary data transformations.
 
 """
 
-from typing import Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from loguru import logger
+from vivarium.framework.engine import Builder
 
 from vivarium_public_health.utilities import EntityString, TargetString
 
@@ -21,13 +22,36 @@ from vivarium_public_health.utilities import EntityString, TargetString
 #############
 
 
-def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
+def is_data_from_artifact(data_source: str) -> bool:
+    return isinstance(data_source, str) and "::" not in data_source
+
+
+def pivot_categorical(
+    builder: Builder, risk: Optional[EntityString], data: pd.DataFrame
+) -> Tuple[pd.DataFrame, List[str]]:
     """Pivots data that is long on categories to be wide."""
-    key_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
-    key_cols = [k for k in key_cols if k in data.columns]
-    data = data.pivot_table(index=key_cols, columns="parameter", values="value").reset_index()
-    data.columns.name = None
-    return data
+    # todo remove if statement when relative risk has been updated
+    if risk:
+        # todo remove dependency on artifact manager having exact one value column
+        value_column = builder.data.get_value_columns(f"{risk}.exposure")[0]
+        pivot_column = "parameter"
+        index_cols = [
+            column for column in data.columns if column not in [value_column, pivot_column]
+        ]
+        data = data.pivot_table(
+            index=index_cols, columns=pivot_column, values=value_column
+        ).reset_index()
+        data.columns.name = None
+    else:
+        index_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
+        index_cols = [k for k in index_cols if k in data.columns]
+        data = data.pivot_table(
+            index=index_cols, columns="parameter", values="value"
+        ).reset_index()
+        data.columns.name = None
+
+    value_columns = [column for column in data.columns if column not in index_cols]
+    return data, value_columns
 
 
 ##########################
@@ -35,14 +59,15 @@ def pivot_categorical(data: pd.DataFrame) -> pd.DataFrame:
 ##########################
 
 
-def get_distribution_data(builder, risk: EntityString):
+def get_distribution_data(builder, risk: EntityString) -> Dict[str, Any]:
     validate_distribution_data_source(builder, risk)
     data = load_distribution_data(builder, risk)
+    validate_distribution_data(data)
     return data
 
 
 def get_exposure_post_processor(builder, risk: EntityString):
-    thresholds = builder.configuration[risk.name]["category_thresholds"]
+    thresholds = builder.configuration[risk]["category_thresholds"]
 
     if thresholds:
         thresholds = [-np.inf] + thresholds + [np.inf]
@@ -59,22 +84,27 @@ def get_exposure_post_processor(builder, risk: EntityString):
     return post_processor
 
 
-def load_distribution_data(builder, risk: EntityString):
-    exposure_data = get_exposure_data(builder, risk)
+def load_distribution_data(builder: Builder, risk: EntityString) -> Dict[str, Any]:
+    distribution_type = get_distribution_type(builder, risk)
+    exposure_data, value_columns = get_exposure_data(builder, risk, distribution_type)
 
     data = {
-        "distribution_type": get_distribution_type(builder, risk),
+        "distribution_type": distribution_type,
         "exposure": exposure_data,
-        "exposure_standard_deviation": get_exposure_standard_deviation_data(builder, risk),
-        "weights": get_exposure_distribution_weights(builder, risk),
+        "exposure_value_columns": value_columns,
+        "exposure_standard_deviation": get_exposure_standard_deviation_data(
+            builder, risk, distribution_type
+        ),
+        "weights": get_exposure_distribution_weights(builder, risk, distribution_type),
     }
     return data
 
 
 def get_distribution_type(builder, risk: EntityString):
-    risk_config = builder.configuration[risk.name]
+    risk_config = builder.configuration[risk]
+    exposure = risk_config["data_sources"]["exposure"]
 
-    if risk_config["exposure"]["value"] == "data" and not risk_config["rebinned_exposed"]:
+    if is_data_from_artifact(exposure) and not risk_config["rebinned_exposed"]:
         distribution_type = builder.data.load(f"{risk}.distribution")
     else:
         distribution_type = "dichotomous"
@@ -82,77 +112,72 @@ def get_distribution_type(builder, risk: EntityString):
     return distribution_type
 
 
-def get_exposure_data(builder, risk: EntityString):
+def get_exposure_data(
+    builder, risk: EntityString, distribution_type: str
+) -> Tuple[pd.DataFrame, List[str]]:
     exposure_data = load_exposure_data(builder, risk)
     exposure_data = rebin_exposure_data(builder, risk, exposure_data)
 
-    if get_distribution_type(builder, risk) in [
+    if distribution_type in [
         "dichotomous",
         "ordered_polytomous",
         "unordered_polytomous",
         "lbwsg",
     ]:
-        exposure_data = pivot_categorical(exposure_data)
-
-    return exposure_data
-
-
-def load_exposure_data(builder, risk: EntityString):
-    risk_config = builder.configuration[risk.name]
-    exposure_source = risk_config["exposure"]["value"]
-
-    if exposure_source == "data":
-        exposure_data = builder.data.load(risk_config["exposure"]["key_name"])
+        exposure_data, value_columns = pivot_categorical(builder, risk, exposure_data)
     else:
-        if isinstance(exposure_source, str):  # Build from covariate
-            cat1 = builder.data.load(f"{exposure_source}.estimate")
-            # TODO: Generate a draw.
-            cat1 = cat1[cat1["parameter"] == "mean_value"]
-            cat1["parameter"] = "cat1"
-        else:  # We have a numerical value
-            cat1 = builder.data.load("population.demographic_dimensions")
-            cat1["parameter"] = "cat1"
-            cat1["value"] = float(exposure_source)
+        value_columns = builder.data.get_value_columns(f"{risk}.exposure")
+
+    return exposure_data, value_columns
+
+
+def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
+    risk_component = builder.components.get_component(risk)
+    exposure_data = risk_component.get_data(
+        builder, builder.configuration[risk_component.name]["data_sources"]["exposure"]
+    )
+
+    if isinstance(exposure_data, (int, float)):
+        value_columns = builder.data.get_value_columns(f"{risk}.exposure")
+        cat1 = builder.data.load("population.demographic_dimensions")
+        cat1["parameter"] = "cat1"
+        cat1[value_columns] = float(exposure_data)
+
         cat2 = cat1.copy()
         cat2["parameter"] = "cat2"
-        cat2["value"] = 1 - cat2["value"]
+        cat2[value_columns] = 1 - cat2["value"]
+
         exposure_data = pd.concat([cat1, cat2], ignore_index=True)
 
     return exposure_data
 
 
-def get_exposure_standard_deviation_data(builder, risk: EntityString):
-    configuration = builder.configuration[risk.name]
-    distribution_type = get_distribution_type(builder, risk)
-    if distribution_type in ["normal", "lognormal", "ensemble"]:
-        exposure_sd = builder.data.load(
-            configuration["exposure_standard_deviation"]["key_name"]
-        )
-    else:
-        exposure_sd = None
-    return exposure_sd
+def get_exposure_standard_deviation_data(
+    builder: Builder, risk: EntityString, distribution_type: str
+) -> Union[pd.DataFrame, None]:
+    if distribution_type not in ["normal", "lognormal", "ensemble"]:
+        return None
+    return builder.data.load(builder.configuration[risk]["exposure_standard_deviation"])
 
 
-def get_exposure_distribution_weights(builder, risk: EntityString):
-    configuration = builder.configuration[risk.name]
-    distribution_type = get_distribution_type(builder, risk)
-    if distribution_type == "ensemble":
-        weights = builder.data.load(
-            configuration["ensemble_distribution_weights"]["key_name"]
-        )
-        weights = pivot_categorical(weights)
-        if "glnorm" in weights.columns:
-            if np.any(weights["glnorm"]):
-                raise NotImplementedError("glnorm distribution is not supported")
-            weights = weights.drop(columns=["glnorm"])
-    else:
-        weights = None
-    return weights
+def get_exposure_distribution_weights(
+    builder: Builder, risk: EntityString, distribution_type: str
+) -> Union[Tuple[pd.DataFrame, List[str]], None]:
+    if distribution_type != "ensemble":
+        return None
+
+    weights = builder.data.load(builder.configuration[risk]["ensemble_distribution_weights"])
+    weights, distributions = pivot_categorical(builder, risk, weights)
+    if "glnorm" in weights.columns:
+        if np.any(weights["glnorm"]):
+            raise NotImplementedError("glnorm distribution is not supported")
+        weights = weights.drop(columns=["glnorm"])
+    return weights, distributions
 
 
 def rebin_exposure_data(builder, risk: EntityString, exposure_data: pd.DataFrame):
     validate_rebin_source(builder, risk, exposure_data)
-    rebin_exposed_categories = set(builder.configuration[risk.name]["rebinned_exposed"])
+    rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])
 
     if rebin_exposed_categories:
         exposure_data = _rebin_exposure_data(exposure_data, rebin_exposed_categories)
@@ -189,7 +214,7 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
         "ordered_polytomous",
         "unordered_polytomous",
     ]:
-        relative_risk_data = pivot_categorical(relative_risk_data)
+        relative_risk_data, _ = pivot_categorical(builder, None, relative_risk_data)
         # Check if any values for relative risk are below expected boundary of 1.0
         category_columns = [c for c in relative_risk_data.columns if "cat" in c]
         if not relative_risk_data[
@@ -293,9 +318,10 @@ def rebin_relative_risk_data(
     for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
     (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
     """
-    rebin_exposed_categories = set(builder.configuration[risk.name]["rebinned_exposed"])
+    rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])
 
     if rebin_exposed_categories:
+        # todo make sure this works
         exposure_data = load_exposure_data(builder, risk)
         relative_risk_data = _rebin_relative_risk_data(
             relative_risk_data, exposure_data, rebin_exposed_categories
@@ -367,12 +393,15 @@ def get_exposure_effect(builder, risk: EntityString):
 def get_population_attributable_fraction_data(
     builder, risk: EntityString, target: TargetString
 ):
-    exposure_source = builder.configuration[f"{risk.name}"]["exposure"]["value"]
     rr_source_type = validate_relative_risk_data_source(builder, risk, target)
-
-    if exposure_source == "data" and rr_source_type == "data" and risk.type == "risk_factor":
+    exposure_source = builder.configuration[risk]["data_sources"]["exposure"]
+    if (
+        is_data_from_artifact(exposure_source)
+        and rr_source_type == "data"
+        and risk.type == "risk_factor"
+    ):
         paf_data = builder.data.load(
-            builder.configuration[risk.name]["population_attributable_fraction"]["key_name"]
+            builder.configuration[risk]["population_attributable_fraction"]["key_name"]
         )
         correct_target = (paf_data["affected_entity"] == target.name) & (
             paf_data["affected_measure"] == target.measure
@@ -394,11 +423,11 @@ def get_population_attributable_fraction_data(
 ##############
 
 
-def validate_distribution_data_source(builder, risk: EntityString):
+def validate_distribution_data_source(builder: Builder, risk: EntityString) -> None:
     """Checks that the exposure distribution specification is valid."""
-    exposure_type = builder.configuration[risk.name]["exposure"]["value"]
-    rebin = builder.configuration[risk.name]["rebinned_exposed"]
-    category_thresholds = builder.configuration[risk.name]["category_thresholds"]
+    exposure_type = builder.configuration[risk]["data_sources"]["exposure"]
+    rebin = builder.configuration[risk]["rebinned_exposed"]
+    category_thresholds = builder.configuration[risk]["category_thresholds"]
 
     if risk.type == "alternative_risk_factor":
         if exposure_type != "data" or rebin:
@@ -409,21 +438,21 @@ def validate_distribution_data_source(builder, risk: EntityString):
         if not category_thresholds:
             raise ValueError("Must specify category thresholds to use alternative risks.")
 
-    elif risk.type in ["risk_factor", "coverage_gap"]:
-        if isinstance(exposure_type, (int, float)) and not 0 <= exposure_type <= 1:
-            raise ValueError(f"Exposure should be in the range [0, 1]")
-        elif isinstance(exposure_type, str) and exposure_type.split(".")[0] not in [
-            "covariate",
-            "data",
-        ]:
-            raise ValueError(
-                f"Exposure must be specified as 'data', an integer or float value, "
-                f"or as a string in the format covariate.covariate_name"
-            )
-        else:
-            pass  # All good
-    else:
+    elif risk.type not in ["risk_factor", "coverage_gap"]:
         raise ValueError(f"Unknown risk type {risk.type} for risk {risk.name}")
+
+
+def validate_distribution_data(distribution_data: Dict[str, Any]) -> None:
+    exposure_data = distribution_data["exposure"]
+    val_cols = distribution_data["exposure_value_columns"]
+    if distribution_data["distribution_type"] == "dichotomous":
+        if ((exposure_data[val_cols] < 0) | exposure_data[val_cols] > 1).any().any():
+            raise ValueError(f"Exposure should be in the range [0, 1]")
+    # TODO: validate that weights, standard deviation, and exposure have the
+    #  same index cols for ensemble
+    # TODO: validate that standard deviation and exposure have the same index
+    #  cols for normal and lognormal
+    # TODO: add more data validations
 
 
 def validate_relative_risk_data_source(builder, risk: EntityString, target: TargetString):
@@ -490,9 +519,9 @@ def validate_relative_risk_rebin_source(
 
 
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
-    rebin_exposed_categories = set(builder.configuration[risk.name]["rebinned_exposed"])
+    rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])
 
-    if rebin_exposed_categories and builder.configuration[risk.name]["category_thresholds"]:
+    if rebin_exposed_categories and builder.configuration[risk]["category_thresholds"]:
         raise ValueError(
             f"Rebinning and category thresholds are mutually exclusive. "
             f"You provided both for {risk.name}."
@@ -502,20 +531,23 @@ def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
         f"{risk}.distribution"
     ):
         raise ValueError(
-            f"Rebinning is only supported for polytomous risks. You provided rebinning exposed categories"
-            f'for {risk.name}, which is of type {builder.data.load(f"{risk}.distribution")}.'
+            f"Rebinning is only supported for polytomous risks. You provided "
+            f"rebinning exposed categoriesfor {risk.name}, which is of "
+            f"type {builder.data.load(f'{risk}.distribution')}."
         )
 
     invalid_cats = rebin_exposed_categories.difference(set(data.parameter))
     if invalid_cats:
         raise ValueError(
-            f"The following provided categories for the rebinned exposed category of {risk.name} "
-            f"are not found in the exposure data: {invalid_cats}."
+            f"The following provided categories for the rebinned exposed "
+            f"category of {risk.name} are not found in the exposure data: "
+            f"{invalid_cats}."
         )
 
     if rebin_exposed_categories == set(data.parameter):
         raise ValueError(
-            f"The provided categories for the rebinned exposed category of {risk.name} comprise all "
-            f"categories for the exposure data. At least one category must be left out of the provided "
-            f"categories to be rebinned into the unexposed category."
+            f"The provided categories for the rebinned exposed category of "
+            f"{risk.name} comprise all categories for the exposure data. "
+            f"At least one category must be left out of the provided categories "
+            f"to be rebinned into the unexposed category."
         )
