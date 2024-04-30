@@ -7,6 +7,7 @@ This module contains tools for modeling several different risk
 exposure distributions.
 
 """
+
 from typing import Dict, List, Tuple
 
 import numpy as np
