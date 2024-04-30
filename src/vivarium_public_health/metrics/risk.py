@@ -6,6 +6,7 @@ Risk Observers
 This module contains tools for observing risk exposure during the simulation.
 
 """
+
 from typing import Any, Dict, List, Optional
 
 import pandas as pd

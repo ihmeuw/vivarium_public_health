@@ -44,13 +44,13 @@ on mortality is calculated, by subtracting the raw unmodeled csmr before adding
 back the modified unmodeled csmr.
 
 """
+
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
-from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
@@ -103,24 +103,12 @@ class Mortality(Component):
     def configuration_defaults(self) -> Dict[str, Any]:
         return {
             "mortality": {
-                "all_cause_mortality_rate": self.build_lookup_table_config(
-                    value="data",
-                    continuous_columns=["age", "year"],
-                    categorical_columns=["sex"],
-                    key_name="cause.all_causes.cause_specific_mortality_rate",
-                ),
-                "unmodeled_cause_specific_mortality_rate": self.build_lookup_table_config(
-                    value="data",
-                    continuous_columns=["age", "year"],
-                    categorical_columns=["sex"],
-                    **{"unmodeled_causes": []},
-                ),
-                "life_expectancy": self.build_lookup_table_config(
-                    value="data",
-                    continuous_columns=["age"],
-                    categorical_columns=[],
-                    key_name="population.theoretical_minimum_risk_life_expectancy",
-                ),
+                "data_sources": {
+                    "all_cause_mortality_rate": "cause.all_causes.cause_specific_mortality_rate",
+                    "unmodeled_cause_specific_mortality_rate": "self::load_unmodeled_csmr",
+                    "life_expectancy": "population.theoretical_minimum_risk_life_expectancy",
+                },
+                "unmodeled_causes": [],
             },
         }
 
@@ -174,20 +162,6 @@ class Mortality(Component):
     # Setup methods #
     #################
 
-    def build_lookup_tables(self, builder: Builder) -> None:
-        """
-        Create lookup tables for the mortality component.
-
-        Parameters
-        ----------
-        builder
-            Interface to access simulation managers.
-        """
-        super().build_lookup_tables(builder)
-        self.lookup_tables[
-            "unmodeled_cause_specific_mortality_rate"
-        ] = self.get_raw_unmodeled_csmr(builder)
-
     def get_randomness_stream(self, builder) -> RandomnessStream:
         return builder.randomness.get_stream(self._randomness_stream_name)
 
@@ -210,43 +184,16 @@ class Mortality(Component):
             requires_columns=required_columns,
         )
 
-    # noinspection PyMethodMayBeStatic
-    def get_raw_unmodeled_csmr(self, builder: Builder) -> Union[LookupTable, Pipeline]:
-        """
-        Load unmodeled cause specific mortality rate data and build a lookup
-        table or pipeline.
-
-        Parameters
-        ----------
-        builder
-            Interface to access simulation managers.
-
-        Returns
-        -------
-        Union[LookupTable, Pipeline]
-            A lookup table or pipeline returning the unmodeled csmr.
-        """
-        unmodeled_causes_config = (
-            builder.configuration.mortality.unmodeled_cause_specific_mortality_rate
-        )
+    def load_unmodeled_csmr(self, builder: Builder) -> Union[float, pd.DataFrame]:
+        # todo validate that all data have the same columns
         raw_csmr = 0.0
-        for idx, cause in enumerate(unmodeled_causes_config.unmodeled_causes):
+        for idx, cause in enumerate(builder.configuration.mortality.unmodeled_causes):
             csmr = f"cause.{cause}.cause_specific_mortality_rate"
             if 0 == idx:
                 raw_csmr = builder.data.load(csmr)
             else:
                 raw_csmr.loc[:, "value"] += builder.data.load(csmr).value
-
-        additional_parameters = (
-            {
-                "key_columns": unmodeled_causes_config["categorical_columns"],
-                "parameter_columns": unmodeled_causes_config["continuous_columns"],
-            }
-            if unmodeled_causes_config["unmodeled_causes"]
-            else {}
-        )
-
-        return builder.lookup.build_table(raw_csmr, **additional_parameters)
+        return raw_csmr
 
     def get_unmodeled_csmr(self, builder: Builder) -> Pipeline:
         required_columns = get_lookup_columns(

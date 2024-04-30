@@ -6,6 +6,7 @@ Fertility Models
 This module contains several different models of fertility.
 
 """
+
 from typing import Dict, List, Optional
 
 import numpy as np

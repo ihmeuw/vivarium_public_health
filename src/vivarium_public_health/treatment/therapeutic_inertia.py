@@ -7,6 +7,7 @@ This module contains a model for therapeutic inertia which represents the
 variety of reasons why a treatment algorithm might deviate from guidelines.
 
 """
+
 import pandas as pd
 import scipy.stats
 from vivarium import Component

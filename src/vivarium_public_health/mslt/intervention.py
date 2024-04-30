@@ -7,6 +7,7 @@ This module contains tools for modeling interventions in multi-state lifetable
 simulations.
 
 """
+
 from typing import Any, Dict
 
 from vivarium import Component

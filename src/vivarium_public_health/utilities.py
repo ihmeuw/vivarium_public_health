@@ -7,6 +7,7 @@ This module contains utility classes and functions for use across
 vivarium_public_health components.
 
 """
+
 from typing import Dict, Iterable, List, Union
 
 import pandas as pd

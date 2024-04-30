@@ -7,6 +7,7 @@ This module contains tools for modeling diseases in multi-state lifetable
 simulations.
 
 """
+
 from typing import Any, Dict, List, Optional
 
 import numpy as np

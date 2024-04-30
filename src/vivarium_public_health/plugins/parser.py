@@ -8,6 +8,7 @@ Component Configuration Parsers in this module are specialized implementations o
 that can parse configurations of components specific to the Vivarium Public
 Health package.
 """
+
 from importlib import import_module
 from typing import Any, Callable, Dict, List, Optional, Union
 

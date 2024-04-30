@@ -179,42 +179,42 @@ class MockArtifactManager(MockArtifactManager_):
     def _load_artifact(self, _: str) -> MockArtifact:
         artifact = MockArtifact()
 
-        artifact.mocks[
-            f"cause.{STATES.SIR_INFECTED.name}.prevalence"
-        ] = STATES.SIR_INFECTED.prevalence
-        artifact.mocks[
-            f"cause.{STATES.SIR_INFECTED.name}.disability_weight"
-        ] = STATES.SIR_INFECTED.disability_weight
-        artifact.mocks[
-            f"cause.{STATES.SIR_INFECTED.name}.excess_mortality_rate"
-        ] = STATES.SIR_INFECTED.emr
+        artifact.mocks[f"cause.{STATES.SIR_INFECTED.name}.prevalence"] = (
+            STATES.SIR_INFECTED.prevalence
+        )
+        artifact.mocks[f"cause.{STATES.SIR_INFECTED.name}.disability_weight"] = (
+            STATES.SIR_INFECTED.disability_weight
+        )
+        artifact.mocks[f"cause.{STATES.SIR_INFECTED.name}.excess_mortality_rate"] = (
+            STATES.SIR_INFECTED.emr
+        )
 
-        artifact.mocks[
-            "cause.some_custom_cause.disability_weight"
-        ] = STATES.COMPLEX_INFECTED_1.disability_weight
-        artifact.mocks[
-            "cause.some_custom_cause.excess_mortality_rate"
-        ] = STATES.COMPLEX_INFECTED_1.emr
+        artifact.mocks["cause.some_custom_cause.disability_weight"] = (
+            STATES.COMPLEX_INFECTED_1.disability_weight
+        )
+        artifact.mocks["cause.some_custom_cause.excess_mortality_rate"] = (
+            STATES.COMPLEX_INFECTED_1.emr
+        )
 
-        artifact.mocks[
-            f"cause.{STATES.COMPLEX_INFECTED_2.name}.prevalence"
-        ] = STATES.COMPLEX_INFECTED_2.prevalence
-        artifact.mocks[
-            f"cause.{STATES.COMPLEX_INFECTED_2.name}.disability_weight"
-        ] = STATES.COMPLEX_INFECTED_2.disability_weight
-        artifact.mocks[
-            f"cause.{STATES.COMPLEX_INFECTED_2.name}.excess_mortality_rate"
-        ] = STATES.COMPLEX_INFECTED_2.emr
+        artifact.mocks[f"cause.{STATES.COMPLEX_INFECTED_2.name}.prevalence"] = (
+            STATES.COMPLEX_INFECTED_2.prevalence
+        )
+        artifact.mocks[f"cause.{STATES.COMPLEX_INFECTED_2.name}.disability_weight"] = (
+            STATES.COMPLEX_INFECTED_2.disability_weight
+        )
+        artifact.mocks[f"cause.{STATES.COMPLEX_INFECTED_2.name}.excess_mortality_rate"] = (
+            STATES.COMPLEX_INFECTED_2.emr
+        )
 
-        artifact.mocks[
-            f"cause.{STATES.COMPLEX_INFECTED_3.name}.prevalence"
-        ] = STATES.COMPLEX_INFECTED_3.prevalence
-        artifact.mocks[
-            f"cause.{STATES.COMPLEX_INFECTED_3.name}.disability_weight"
-        ] = STATES.COMPLEX_INFECTED_3.disability_weight
-        artifact.mocks[
-            f"cause.{STATES.COMPLEX_INFECTED_3.name}.excess_mortality_rate"
-        ] = STATES.COMPLEX_INFECTED_3.emr
+        artifact.mocks[f"cause.{STATES.COMPLEX_INFECTED_3.name}.prevalence"] = (
+            STATES.COMPLEX_INFECTED_3.prevalence
+        )
+        artifact.mocks[f"cause.{STATES.COMPLEX_INFECTED_3.name}.disability_weight"] = (
+            STATES.COMPLEX_INFECTED_3.disability_weight
+        )
+        artifact.mocks[f"cause.{STATES.COMPLEX_INFECTED_3.name}.excess_mortality_rate"] = (
+            STATES.COMPLEX_INFECTED_3.emr
+        )
 
         return artifact
 
