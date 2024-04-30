@@ -187,7 +187,7 @@ class Mortality(Component):
     def load_unmodeled_csmr(self, builder: Builder) -> Union[float, pd.DataFrame]:
         # todo validate that all data have the same columns
         raw_csmr = 0.0
-        for idx, cause in enumerate(builder.configuration.mortality.unmodeled_causes):
+        for idx, cause in enumerate(builder.configuration[self.name].unmodeled_causes):
             csmr = f"cause.{cause}.cause_specific_mortality_rate"
             if 0 == idx:
                 raw_csmr = builder.data.load(csmr)
