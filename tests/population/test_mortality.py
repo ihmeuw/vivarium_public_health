@@ -147,7 +147,7 @@ def test_mortality_cause_of_death(
         dead = pop1.loc[pop1["cause_of_death"] == cause_of_death]
         # Disease model seems to set mortality rate for that diesease back to 0
         # if a simulant dies from it
-        rates = mortality.mortality_rate(dead.index)[cause_of_death].unique()
+        rates = mortality.mortality_rate(pop1.index)[cause_of_death].unique()
         for mortality_rate in rates:
             if mortality_rate == 0:
                 continue
