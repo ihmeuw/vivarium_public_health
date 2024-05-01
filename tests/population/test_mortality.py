@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import Component, InteractiveContext
+from vivarium.framework.lookup.table import ScalarTable
 from vivarium.framework.state_machine import Transition
 from vivarium.testing_utilities import build_table
 from vivarium_testing_utils import FuzzyChecker
@@ -100,7 +101,11 @@ def test_mortality_updates_population_columns(setup_sim_with_pop_and_mortality):
 
 
 def test_mortality_cause_of_death(
-    fuzzy_checker, base_config, full_simulants, base_plugins, generate_population_mock
+    fuzzy_checker: FuzzyChecker,
+    base_config,
+    full_simulants,
+    base_plugins,
+    generate_population_mock,
 ):
 
     start_population_size = len(full_simulants)
@@ -148,7 +153,6 @@ def test_mortality_cause_of_death(
         # Disease model seems to set mortality rate for that diesease back to 0
         # if a simulant dies from it
         rates = mortality.mortality_rate(pop1.index)[cause_of_death].unique()
-        breakpoint()
         for mortality_rate in rates:
             if mortality_rate == 0:
                 continue
@@ -172,3 +176,44 @@ def test_mortality_ylls(setup_sim_with_pop_and_mortality):
     dead_idx = pop1.index[pop1["alive"] == "dead"]
     ylls = pop1.loc[dead_idx, "years_of_life_lost"]
     assert (ylls == mortality.lookup_tables["life_expectancy"](dead_idx)).all()
+
+
+def test_no_unmodeled_causes(setup_sim_with_pop_and_mortality):
+    sim, bp, mortality = setup_sim_with_pop_and_mortality
+    # No unmodeled causes by default
+    assert isinstance(
+        mortality.lookup_tables["unmodeled_cause_specific_mortality_rate"], ScalarTable
+    )
+    assert mortality.lookup_tables["unmodeled_cause_specific_mortality_rate"].data == 0.0
+
+
+def test_unmodeled_causes(full_simulants, base_plugins, generate_population_mock):
+    start_population_size = len(full_simulants)
+    generate_population_mock.return_value = full_simulants.drop(columns=["tracked"])
+    bp = BasePopulation()
+    mortality = Mortality()
+
+    sim = InteractiveContext(
+        components=[bp, mortality], plugin_configuration=base_plugins, setup=False
+    )
+    override_config = {
+        "population": {
+            "population_size": start_population_size,
+            "include_sex": "Male",
+        },
+        "mortality": {
+            "unmodeled_cause_specific_mortality_rate": {
+                **{"unmodeled_causes": ["low_birth_weight"]},  # , "malnutrition", "malaria"],
+            }
+        },
+    }
+    sim.configuration.update(override_config)
+    sim.setup()
+    sim.step()
+    pop1 = sim.get_population()
+
+    # Mock artifact is 0.5 for cause.csmr so 0.5 * 3
+    mortality.lookup_tables["unmodeled_cause_specific_mortality_rate"].data = 1.5
+    assert np.isclose(
+        mortality.mortality_rate(pop1.index)["other_causes"].unique()[0] * 365, 0.5
+    )
