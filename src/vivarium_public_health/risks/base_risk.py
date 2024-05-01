@@ -157,6 +157,7 @@ class Risk(Component):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
+        # exposure lookup tables are handled by the SimulationDistribution subcomponent
         pass
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
