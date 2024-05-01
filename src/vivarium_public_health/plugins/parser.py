@@ -245,6 +245,11 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         cause_models = []
 
         for cause_name, cause_config in causes_config.items():
+            data_sources = None
+            if "data_sources" in cause_config:
+                data_sources_config = cause_config.data_sources
+                data_sources = self._get_data_sources(data_sources_config)
+
             states: Dict[str, BaseDiseaseState] = {
                 state_name: self._get_state(state_name, state_config, cause_name)
                 for state_name, state_config in cause_config.states.items()
@@ -260,7 +265,10 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             model_type = import_by_path(cause_config.model_type)
             initial_state = states.get(cause_config.initial_state, None)
             model = model_type(
-                cause_name, initial_state=initial_state, states=list(states.values())
+                cause_name,
+                initial_state=initial_state,
+                states=list(states.values()),
+                get_data_functions=data_sources,
             )
             cause_models.append(model)
 
@@ -300,10 +308,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             state_kwargs["cleanup_function"] = lambda *x: x
         if "data_sources" in state_config:
             data_sources_config = state_config.data_sources
-            state_kwargs["get_data_functions"] = {
-                name: self._get_data_source(name, data_sources_config[name])
-                for name in data_sources_config.keys()
-            }
+            state_kwargs["get_data_functions"] = self._get_data_sources(data_sources_config)
 
         if state_config.state_type is not None:
             state_type = import_by_path(state_config.state_type)
@@ -344,10 +349,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         triggered = Trigger[transition_config.triggered]
         if "data_sources" in transition_config:
             data_sources_config = transition_config.data_sources
-            data_sources = {
-                name: self._get_data_source(name, data_sources_config[name])
-                for name in data_sources_config.keys()
-            }
+            data_sources = self._get_data_sources(data_sources_config)
         else:
             data_sources = None
 
@@ -366,6 +368,25 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 f"Invalid transition data type '{transition_config.type}'"
                 f" provided for transition '{transition_config}'."
             )
+
+    def _get_data_sources(
+        self, config: LayeredConfigTree
+    ) -> Dict[str, Callable[[Builder, Any], Any]]:
+        """
+        Parses a data sources configuration and returns a dictionary of data
+        sources.
+
+        Parameters
+        ----------
+        config
+            A LayeredConfigTree defining the data sources to initialize
+
+        Returns
+        -------
+        Dict[str, Callable[[Builder, Any], Any]]
+            A dictionary of data source getters
+        """
+        return {name: self._get_data_source(name, config[name]) for name in config.keys()}
 
     @staticmethod
     def _get_data_source(
@@ -412,7 +433,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     # Validation methods #
     ######################
 
-    _CAUSE_KEYS = {"model_type", "initial_state", "states", "transitions"}
+    _CAUSE_KEYS = {"model_type", "initial_state", "states", "transitions", "data_sources"}
     _STATE_KEYS = {
         "state_type",
         "cause_type",
@@ -424,6 +445,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     }
 
     _DATA_SOURCE_KEYS = {
+        "cause": {"cause_specific_mortality_rate"},
         "state": {
             "prevalence",
             "birth_prevalence",
@@ -575,6 +597,10 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 error_messages += self._validate_transition(
                     cause_name, transition_name, transition_config, states_config
                 )
+
+        error_messages += self._validate_data_sources(
+            cause_config, cause_name, "cause", cause_name
+        )
 
         return error_messages
 
