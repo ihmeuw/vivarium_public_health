@@ -6,6 +6,7 @@ Disease Transitions
 This module contains tools to model transitions between disease states.
 
 """
+
 from typing import TYPE_CHECKING, Callable, Dict
 
 import pandas as pd

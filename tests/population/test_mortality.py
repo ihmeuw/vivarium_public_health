@@ -1,10 +1,6 @@
-import numpy as np
-import pandas as pd
-import pytest
-from vivarium import Component, InteractiveContext
+from vivarium import InteractiveContext
 
 from vivarium_public_health.population import BasePopulation, Mortality
-from vivarium_public_health.testing.mock_artifact import MockArtifact
 
 
 def test_mortality_default_lookup_configuration(
@@ -24,6 +20,8 @@ def test_mortality_default_lookup_configuration(
             "population_size": start_population_size,
             "include_sex": "Male",
         },
+        # todo test with actual unmodeled causes and non-zero mortality rates
+        "mortality": {"unmodeled_causes": []},
     }
     sim.configuration.update(override_config)
     sim.setup()

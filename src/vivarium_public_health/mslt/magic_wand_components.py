@@ -7,6 +7,7 @@ This module contains tools for making crude adjustments to rates in
 multi-state lifetable simulations.
 
 """
+
 from typing import Any, Dict
 
 from vivarium import Component

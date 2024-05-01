@@ -8,6 +8,7 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
+
 from typing import Callable, Dict, List, Optional
 
 import numpy as np

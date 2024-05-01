@@ -7,6 +7,7 @@ This module contains tools for modeling the core demography in
 multi-state lifetable simulations.
 
 """
+
 from typing import List, Optional
 
 import numpy as np

@@ -7,6 +7,7 @@ This module contains tools for recording various outputs of interest in
 multi-state lifetable simulations.
 
 """
+
 from typing import List, Optional
 
 import pandas as pd

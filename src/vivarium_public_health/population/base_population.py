@@ -7,6 +7,7 @@ This module contains tools for sampling and assigning core demographic
 characteristics to simulants.
 
 """
+
 from typing import Callable, Dict, Iterable, List
 
 import numpy as np
