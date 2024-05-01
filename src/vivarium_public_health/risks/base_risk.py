@@ -87,20 +87,17 @@ class Risk(Component):
     ##############
 
     @property
+    def name(self) -> str:
+        return self.risk
+
+    @property
     def configuration_defaults(self) -> Dict[str, Any]:
         return {
-            self.risk.name: {
-                "exposure": self.build_lookup_table_config(
-                    value="data",
-                    continuous_columns=["age", "year"],
-                    categorical_columns=["sex"],
-                    key_name=f"risk_factor.{self.risk.name}.exposure",
-                ),
-                "ensemble_distribution_weights": {
-                    "key_name": f"risk_factor.{self.risk.name}.exposure_distribution_weights",
-                },
-                "exposure_standard_deviation": {
-                    "key_name": f"risk_factor.{self.risk.name}.exposure_standard_deviation",
+            self.name: {
+                "data_sources": {
+                    "exposure": f"{self.risk}.exposure",
+                    "ensemble_distribution_weights": f"{self.risk}.exposure_distribution_weights",
+                    "exposure_standard_deviation": f"{self.risk}.exposure_standard_deviation",
                 },
                 # rebinned_exposed only used for DichotomousDistribution
                 "rebinned_exposed": [],
@@ -143,6 +140,7 @@ class Risk(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        self.configuration = builder.configuration[self.name]
         self.randomness = self.get_randomness_stream(builder)
         self.propensity = self.get_propensity_pipeline(builder)
         self.exposure = self.get_exposure_pipeline(builder)
@@ -157,6 +155,10 @@ class Risk(Component):
     #################
     # Setup methods #
     #################
+
+    def build_all_lookup_tables(self, builder: "Builder") -> None:
+        # exposure lookup tables are handled by the SimulationDistribution subcomponent
+        pass
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
         return builder.randomness.get_stream(self.randomness_stream_name)
