@@ -7,6 +7,7 @@ This module contains tools for observing cause-specific and
 excess mortality in the simulation, including "other causes".
 
 """
+
 from typing import Callable, List, Optional
 
 import pandas as pd

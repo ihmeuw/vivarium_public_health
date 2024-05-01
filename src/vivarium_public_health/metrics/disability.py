@@ -7,6 +7,7 @@ This module contains tools for observing years lived with disability (YLDs)
 in the simulation.
 
 """
+
 from typing import List
 
 import pandas as pd

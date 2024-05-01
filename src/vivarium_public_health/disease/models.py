@@ -7,6 +7,7 @@ This module contains a collection of frequently used parameterizations of
 disease models.
 
 """
+
 import pandas as pd
 
 from vivarium_public_health.disease.model import DiseaseModel

@@ -6,6 +6,7 @@
 This module contains frequently used, but non-standard disease models.
 
 """
+
 import re
 from collections import namedtuple
 from operator import gt, lt
