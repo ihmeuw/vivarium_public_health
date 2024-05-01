@@ -44,6 +44,10 @@ class ComplexState(DiseaseState):
     pass
 
 
+SIR_MODEL_CSMR = 0.9
+COMPLEX_MODEL_CSMR = 1.4
+
+
 @dataclasses.dataclass
 class ExpectedTransitionData:
     source: str
@@ -179,6 +183,7 @@ class MockArtifactManager(MockArtifactManager_):
     def _load_artifact(self, _: str) -> MockArtifact:
         artifact = MockArtifact()
 
+        artifact.mocks[f"cause.{SIR_MODEL}.cause_specific_mortality_rate"] = SIR_MODEL_CSMR
         artifact.mocks[
             f"cause.{STATES.SIR_INFECTED.name}.prevalence"
         ] = STATES.SIR_INFECTED.prevalence
@@ -256,6 +261,7 @@ COMPLEX_MODEL_CONFIG = {
     COMPLEX_MODEL: {
         "model_type": "tests.plugins.test_parser.ComplexModel",
         "initial_state": STATES.COMPLEX_INFECTED_1.name,
+        "data_sources": {"cause_specific_mortality_rate": COMPLEX_MODEL_CSMR},
         "states": {
             STATES.COMPLEX_INFECTED_1.name: {
                 "cause_type": STATES.COMPLEX_INFECTED_1.cause_type,
@@ -498,11 +504,13 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
 
 
 @pytest.mark.parametrize(
-    "model_name, expected_model_type, expected_initial_state, expected_state_names",
+    "model_name, expected_model_type, expected_csmr, expected_initial_state, "
+    "expected_state_names",
     [
         (
             f"disease_model.{SIR_MODEL}",
             DiseaseModel,
+            SIR_MODEL_CSMR,
             STATES.SIR_SUSCEPTIBLE.name,
             [
                 f"susceptible_state.{STATES.SIR_SUSCEPTIBLE.name}",
@@ -513,6 +521,7 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
         (
             f"complex_model.{COMPLEX_MODEL}",
             ComplexModel,
+            COMPLEX_MODEL_CSMR,
             STATES.COMPLEX_INFECTED_1.name,
             [
                 f"disease_state.{STATES.COMPLEX_INFECTED_1.name}",
@@ -526,6 +535,7 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
 def test_disease_model(
     sim_components: Dict[str, Component],
     model_name: str,
+    expected_csmr: float,
     expected_model_type: Type[DiseaseModel],
     expected_initial_state: str,
     expected_state_names: List[str],
@@ -533,6 +543,8 @@ def test_disease_model(
     model = sim_components[model_name]
     assert isinstance(model, expected_model_type)
     assert model.initial_state == expected_initial_state
+
+    assert model.cause_specific_mortality_rate.data == expected_csmr
 
     # the disease model's states have the expected names
     actual_state_names = {state.name for state in model.sub_components}
@@ -623,6 +635,14 @@ INVALID_CONFIG_PARAMS = {
     "model type not disease model": (
         {"model_type": "tests.plugins.test_parser.ComplexState"},
         "fully qualified import path to a.*DiseaseModel",
+    ),
+    "invalid cause data sources key": (
+        {"data_sources": {"not_a_valid_source": 1.0}},
+        "may only contain",
+    ),
+    "invalid cause data sources value": (
+        {"data_sources": {"cause_specific_mortality_rate": "bad value"}},
+        "has an invalid data source at",
     ),
     "no states key": ({"transitions": {"s": {}}}, "must define at least one state"),
     "empty states": ({"states": {}}, "must define at least one state"),
