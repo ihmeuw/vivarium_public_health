@@ -96,9 +96,9 @@ class Risk(Component):
             self.name: {
                 "data_sources": {
                     "exposure": f"{self.risk}.exposure",
+                    "ensemble_distribution_weights": f"{self.risk}.exposure_distribution_weights",
+                    "exposure_standard_deviation": f"{self.risk}.exposure_standard_deviation",
                 },
-                "ensemble_distribution_weights": f"{self.risk}.exposure_distribution_weights",
-                "exposure_standard_deviation": f"{self.risk}.exposure_standard_deviation",
                 # rebinned_exposed only used for DichotomousDistribution
                 "rebinned_exposed": [],
                 "category_thresholds": [],
