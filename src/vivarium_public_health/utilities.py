@@ -7,7 +7,8 @@ This module contains utility classes and functions for use across
 vivarium_public_health components.
 
 """
-from typing import Dict, Iterable, List, Union
+
+from typing import Iterable, List, Union
 
 import pandas as pd
 from vivarium.framework.lookup import LookupTable, ScalarValue
@@ -104,22 +105,9 @@ def get_lookup_columns(
 ) -> List[str]:
     necessary_columns = set(necessary_columns)
     for lookup_table in lookup_tables:
-        necessary_columns.update(lookup_table.key_columns)
-        necessary_columns.update(lookup_table.parameter_columns)
+        necessary_columns.update(set(lookup_table.key_columns))
+        necessary_columns.update(set(lookup_table.parameter_columns))
     if "year" in necessary_columns:
         necessary_columns.remove("year")
 
     return list(necessary_columns)
-
-
-def get_index_columns_from_lookup_configuration(
-    lookup_configuration: Dict[str, List[str]]
-) -> List[str]:
-    index_columns = []
-    for column in lookup_configuration["continuous_columns"]:
-        start_column = f"{column}_start"
-        end_column = f"{column}_end"
-        index_columns.extend([start_column, end_column])
-    for column in lookup_configuration["categorical_columns"]:
-        index_columns.append(column)
-    return index_columns

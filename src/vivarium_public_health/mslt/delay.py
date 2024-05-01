@@ -7,6 +7,7 @@ This module contains tools to represent delayed effects in a multi-state
 lifetable simulation.
 
 """
+
 from typing import Any, Dict, List, Optional
 
 import numpy as np
