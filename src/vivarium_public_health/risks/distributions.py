@@ -89,7 +89,7 @@ class EnsembleSimulation(Component):
     # Initialization methods #
     ##########################
 
-    def build_lookup_tables(self, builder: Builder) -> None:
+    def build_all_lookup_tables(self, builder: Builder) -> None:
         weights, parameters = self.get_parameters(builder)
         distribution_weights_table = self.build_lookup_table(
             builder, weights, self._distributions
@@ -212,7 +212,7 @@ class PolytomousDistribution(Component):
     # Setup methods #
     #################
 
-    def build_lookup_tables(self, builder: Builder) -> None:
+    def build_all_lookup_tables(self, builder: Builder) -> None:
         self.lookup_tables["exposure"] = self.build_lookup_table(
             builder, self._exposure_data, self.categories
         )
@@ -278,7 +278,7 @@ class DichotomousDistribution(Component):
     # Initialization methods #
     ##########################
 
-    def build_lookup_tables(self, builder: Builder) -> None:
+    def build_all_lookup_tables(self, builder: Builder) -> None:
         self.lookup_tables["exposure"] = self.build_lookup_table(
             builder, self._exposure_data, ["cat1"]
         )

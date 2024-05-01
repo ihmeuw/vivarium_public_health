@@ -156,7 +156,7 @@ class Risk(Component):
     # Setup methods #
     #################
 
-    def build_lookup_tables(self, builder: "Builder") -> None:
+    def build_all_lookup_tables(self, builder: "Builder") -> None:
         pass
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
