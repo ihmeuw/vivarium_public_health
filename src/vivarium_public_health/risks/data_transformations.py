@@ -157,7 +157,8 @@ def get_exposure_standard_deviation_data(
 ) -> Union[pd.DataFrame, None]:
     if distribution_type not in ["normal", "lognormal", "ensemble"]:
         return None
-    return builder.data.load(builder.configuration[risk]["exposure_standard_deviation"])
+    data_source = builder.configuration[risk]["data_sources"]["exposure_standard_deviation"]
+    return builder.data.load(data_source)
 
 
 def get_exposure_distribution_weights(
@@ -166,7 +167,8 @@ def get_exposure_distribution_weights(
     if distribution_type != "ensemble":
         return None
 
-    weights = builder.data.load(builder.configuration[risk]["ensemble_distribution_weights"])
+    data_source = builder.configuration[risk]["data_source"]["ensemble_distribution_weights"]
+    weights = builder.data.load(data_source)
     weights, distributions = pivot_categorical(builder, risk, weights)
     if "glnorm" in weights.columns:
         if np.any(weights["glnorm"]):
