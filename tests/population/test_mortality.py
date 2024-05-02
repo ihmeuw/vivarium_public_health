@@ -33,7 +33,6 @@ def setup_sim_with_pop_and_mortality(
             "population_size": start_population_size,
             "include_sex": "Male",
         },
-        # todo test with actual unmodeled causes and non-zero mortality rates
         "mortality": {"unmodeled_causes": []},
     }
     sim.configuration.update(override_config)
@@ -139,11 +138,7 @@ def test_mortality_cause_of_death(
             "population_size": start_population_size,
             "include_sex": "Male",
         },
-        "mortality": {
-            "all_cause_mortality_rate": {
-                "value": 0.8,
-            }
-        },
+        "mortality": {"data_sources": {"all_cause_mortality_rate": 0.8}},
     }
     sim.configuration.update(override_config)
     sim.setup()
@@ -160,14 +155,14 @@ def test_mortality_cause_of_death(
             if mortality_rate == 0:
                 continue
             else:
-                rate = mortality_rate
+                mortality_rate = mortality_rate
             if cause_of_death == "sick":
-                rate *= 0.5  # prevalence
+                mortality_rate *= 0.5  # prevalence
             fuzzy_checker.fuzzy_assert_proportion(
                 name=f"test_mortality_rate_{cause_of_death}",
                 observed_numerator=len(dead),
                 observed_denominator=len(pop1),
-                target_proportion=rate,
+                target_proportion=mortality_rate,
             )
 
 
