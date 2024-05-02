@@ -233,14 +233,18 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
 
 
 def load_relative_risk_data(
-    builder, risk: EntityString, target: TargetString, source_type: str
+    builder: Builder, risk: EntityString, target: TargetString, source_type: str
 ):
     relative_risk_source = builder.configuration[f"effect_of_{risk.name}_on_{target.name}"][
         target.measure
     ]
+    risk_component = builder.components.get_component(risk)
 
     if source_type == "data":
-        relative_risk_data = builder.data.load(f"{risk}.relative_risk")
+        relative_risk_data = risk_component.get_data(
+            builder,
+            builder.configuration[risk_component.name]["data_sources"]["relative_risk"],
+        )
         correct_target = (relative_risk_data["affected_entity"] == target.name) & (
             relative_risk_data["affected_measure"] == target.measure
         )
@@ -393,25 +397,31 @@ def get_exposure_effect(builder, risk: EntityString):
 
 
 def get_population_attributable_fraction_data(
-    builder, risk: EntityString, target: TargetString
+    builder: Builder, risk: EntityString, target: TargetString
 ):
     rr_source_type = validate_relative_risk_data_source(builder, risk, target)
+    risk_component = builder.components.get_component(risk)
     exposure_source = builder.configuration[risk]["data_sources"]["exposure"]
     if (
         is_data_from_artifact(exposure_source)
         and rr_source_type == "data"
         and risk.type == "risk_factor"
     ):
-        paf_data = builder.data.load(
-            builder.configuration[risk]["population_attributable_fraction"]["key_name"]
+        paf_data = risk_component.get_data(
+            builder,
+            builder.configuration[risk_component.name]["data_sources"][
+                "population_attributable_fraction"
+            ],
         )
         correct_target = (paf_data["affected_entity"] == target.name) & (
             paf_data["affected_measure"] == target.measure
         )
+        # TODO: what to do about this?
         paf_data = paf_data[correct_target].drop(
             columns=["affected_entity", "affected_measure"]
         )
     else:
+        # TODO: what to do about this?
         key_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
         exposure_data = get_exposure_data(builder, risk).set_index(key_cols)
         relative_risk_data = get_relative_risk_data(builder, risk, target).set_index(key_cols)
