@@ -90,13 +90,15 @@ def test_mortality_updates_population_columns(setup_sim_with_pop_and_mortality):
     sim.step()
     pop1 = sim.get_population()
 
-    # Configrm mortalit7y component updated columns correctly
+    # Check mortalit7y component updates columns correctly
     # Note alive will be tested by finding the simulants that died
     columns_to_update = ["cause_of_death", "exit_time", "years_of_life_lost"]
     dead_idx = pop1.index[pop1["alive"] == "dead"]
     for col in columns_to_update:
         assert (pop1.loc[dead_idx, col] != pop0.loc[dead_idx, col]).all()
     assert (pop1.loc[dead_idx, "cause_of_death"] == "other_causes").all()
+    # Only 1 time step taken
+    assert len(pop1.loc[dead_idx, "exit_time"].unique()) == 1
     assert pop1.loc[dead_idx, "exit_time"].unique()[0] == sim._clock._clock_time
 
 
@@ -145,14 +147,15 @@ def test_mortality_cause_of_death(
     }
     sim.configuration.update(override_config)
     sim.setup()
+    mortality_rates = mortality.mortality_rate(sim.get_population().index)
     sim.step()
     # Only other causes and sick for cause of death
     pop1 = sim.get_population()
     for cause_of_death in ["other_causes", "sick"]:
         dead = pop1.loc[pop1["cause_of_death"] == cause_of_death]
-        # Disease model seems to set mortality rate for that diesease back to 0
+        # Disease model seems to set mortality rate for that disease back to 0
         # if a simulant dies from it
-        rates = mortality.mortality_rate(pop1.index)[cause_of_death].unique()
+        rates = mortality_rates[cause_of_death].unique()
         for mortality_rate in rates:
             if mortality_rate == 0:
                 continue
@@ -176,6 +179,9 @@ def test_mortality_ylls(setup_sim_with_pop_and_mortality):
     dead_idx = pop1.index[pop1["alive"] == "dead"]
     ylls = pop1.loc[dead_idx, "years_of_life_lost"]
     assert (ylls == mortality.lookup_tables["life_expectancy"](dead_idx)).all()
+    alive_idx = pop1.index[pop1["alive"] == "alive"]
+    no_ylls = pop1.loc[alive_idx, "years_of_life_lost"]
+    assert (no_ylls == 0).all()
 
 
 def test_no_unmodeled_causes(setup_sim_with_pop_and_mortality):
@@ -202,9 +208,7 @@ def test_unmodeled_causes(full_simulants, base_plugins, generate_population_mock
             "include_sex": "Male",
         },
         "mortality": {
-            "unmodeled_cause_specific_mortality_rate": {
-                **{"unmodeled_causes": ["low_birth_weight"]},  # , "malnutrition", "malaria"],
-            }
+            "unmodeled_causes": ["low_birth_weight", "malnutrition", "malaria"],
         },
     }
     sim.configuration.update(override_config)
