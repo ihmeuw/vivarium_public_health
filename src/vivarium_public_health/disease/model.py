@@ -9,7 +9,7 @@ transitions at simulation initialization and during transitions.
 
 """
 
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -137,8 +137,6 @@ class DiseaseModel(Machine):
 
         assert self.initial_state in {s.state_id for s in self.states}
 
-        # FIXME: this is a hack to figure out whether or not we're at the simulation start based on the fact that the
-        #  fertility components create this user data
         if pop_data.user_data["sim_state"] == "setup":  # simulation start
             if self.configuration_age_start != self.configuration_age_end != 0:
                 state_names, weights_bins = self.get_state_weights(
@@ -205,18 +203,15 @@ class DiseaseModel(Machine):
             raise DiseaseModelError("Disease model must have exactly one SusceptibleState.")
         return susceptible_states[0].state_id
 
-    def get_state_weights(self, pop_index, prevalence_type):
-        states = [
-            s
-            for s in self.states
-            if hasattr(s, f"{prevalence_type}")
-            and getattr(s, f"{prevalence_type}") is not None
-        ]
+    def get_state_weights(
+        self, pop_index: pd.Index, prevalence_type: str
+    ) -> Tuple[List[str], Union[np.ndarray, None]]:
+        states = [state for state in self.states if state.lookup_tables.get(prevalence_type)]
 
         if not states:
             return states, None
 
-        weights = [getattr(s, f"{prevalence_type}")(pop_index) for s in states]
+        weights = [state.lookup_tables.get(prevalence_type)(pop_index) for state in states]
         for w in weights:
             w.reset_index(inplace=True, drop=True)
         weights += ((1 - np.sum(weights, axis=0)),)

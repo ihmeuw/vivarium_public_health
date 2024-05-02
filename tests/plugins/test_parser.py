@@ -595,11 +595,17 @@ def test_disease_state(
         )
 
         # test we get the expected default and configured data sources
-        assert state.prevalence.data == expected_state_data.prevalence
-        assert state.birth_prevalence.data == expected_state_data.birth_prevalence
-        assert state.dwell_time.source.data == expected_state_data.dwell_time
-        assert state.base_disability_weight.data == expected_state_data.disability_weight
-        assert state.base_excess_mortality_rate.data == expected_state_data.emr
+        assert state.lookup_tables["prevalence"].data == expected_state_data.prevalence
+        assert (
+            state.lookup_tables["birth_prevalence"].data
+            == expected_state_data.birth_prevalence
+        )
+        assert state.lookup_tables["dwell_time"].data == expected_state_data.dwell_time
+        assert (
+            state.lookup_tables["disability_weight"].data
+            == expected_state_data.disability_weight
+        )
+        assert state.lookup_tables["excess_mortality_rate"].data == expected_state_data.emr
 
     # test that it has the expected transitions
     for transition in state.transition_set.transitions:
