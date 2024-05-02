@@ -544,7 +544,7 @@ def test_disease_model(
     assert isinstance(model, expected_model_type)
     assert model.initial_state == expected_initial_state
 
-    assert model.cause_specific_mortality_rate.data == expected_csmr
+    assert model.lookup_tables["cause_specific_mortality_rate"].data == expected_csmr
 
     # the disease model's states have the expected names
     actual_state_names = {state.name for state in model.sub_components}
@@ -595,11 +595,17 @@ def test_disease_state(
         )
 
         # test we get the expected default and configured data sources
-        assert state.prevalence.data == expected_state_data.prevalence
-        assert state.birth_prevalence.data == expected_state_data.birth_prevalence
-        assert state.dwell_time.source.data == expected_state_data.dwell_time
-        assert state.base_disability_weight.data == expected_state_data.disability_weight
-        assert state.base_excess_mortality_rate.data == expected_state_data.emr
+        assert state.lookup_tables["prevalence"].data == expected_state_data.prevalence
+        assert (
+            state.lookup_tables["birth_prevalence"].data
+            == expected_state_data.birth_prevalence
+        )
+        assert state.lookup_tables["dwell_time"].data == expected_state_data.dwell_time
+        assert (
+            state.lookup_tables["disability_weight"].data
+            == expected_state_data.disability_weight
+        )
+        assert state.lookup_tables["excess_mortality_rate"].data == expected_state_data.emr
 
     # test that it has the expected transitions
     for transition in state.transition_set.transitions:
@@ -608,9 +614,11 @@ def test_disease_state(
         ]
         assert type(transition) == expected_transition_data.transition_type
         if isinstance(transition, RateTransition):
-            assert transition.base_rate.data == expected_transition_data.value
+            actual_rate = transition.lookup_tables["transition_rate"].data
+            assert actual_rate == expected_transition_data.value
         elif isinstance(transition, ProportionTransition):
-            assert transition.proportion.data == expected_transition_data.value
+            actual_proportion = transition.lookup_tables["proportion"].data
+            assert actual_proportion == expected_transition_data.value
 
 
 ####################
