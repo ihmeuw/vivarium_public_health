@@ -160,12 +160,12 @@ def test_mortality_cause_of_death(
                 rate = mortality_rate
             if cause_of_death == "sick":
                 rate *= 0.5  # prevalence
-        fuzzy_checker.fuzzy_assert_proportion(
-            name=f"test_mortality_rate_{cause_of_death}",
-            observed_numerator=len(dead),
-            observed_denominator=len(pop1),
-            target_proportion=rate,
-        )
+            fuzzy_checker.fuzzy_assert_proportion(
+                name=f"test_mortality_rate_{cause_of_death}",
+                observed_numerator=len(dead),
+                observed_denominator=len(pop1),
+                target_proportion=rate,
+            )
 
 
 def test_mortality_ylls(setup_sim_with_pop_and_mortality):
