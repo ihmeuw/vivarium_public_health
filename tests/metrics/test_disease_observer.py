@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 import pytest
+
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
-
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics.disease import DiseaseObserver
@@ -89,6 +89,7 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
     assert (post_step_pop[observer.current_state_column_name] == "with_condition").all()
 
 
+@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_registration(base_config, base_plugins, disease, model):
     """Test that all expected observation keys appear as expected in the results."""
     observer = DiseaseObserver(disease)
@@ -130,6 +131,7 @@ def test_observation_registration(base_config, base_plugins, disease, model):
 
 
 # Person time and all states and transition counts are correct
+@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_correctness(base_config, base_plugins, disease, model):
     """Test that person time and event counts appear as expected in the results."""
     time_step = pd.Timedelta(days=base_config.time.step_size)

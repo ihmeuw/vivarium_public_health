@@ -7,11 +7,13 @@ This module contains tools for observing years lived with disability (YLDs)
 in the simulation.
 
 """
+
 from typing import List
 
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.results.reporters import aggregate_dataframes_to_csv
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
@@ -80,6 +82,7 @@ class DisabilityObserver(Component):
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
+            report=aggregate_dataframes_to_csv,
         )
 
         for cause_state in cause_states:
@@ -96,6 +99,7 @@ class DisabilityObserver(Component):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
+                report=aggregate_dataframes_to_csv,
             )
 
     #################

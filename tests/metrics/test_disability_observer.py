@@ -3,9 +3,11 @@ from collections import namedtuple
 import numpy as np
 import pandas as pd
 import pytest
-from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation, build_table
+from pandas.api.types import CategoricalDtype
 
+from vivarium import InteractiveContext
+from vivarium.framework.results.reporters import aggregate_dataframes_to_csv
+from vivarium.testing_utilities import TestPopulation, build_table
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
@@ -59,6 +61,7 @@ def test_disability_observer_setup(mocker):
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
         when="time_step__prepare",
+        report=aggregate_dataframes_to_csv,
     )
     builder.results.register_observation.assert_any_call(
         name="ylds_due_to_flu",
@@ -70,6 +73,7 @@ def test_disability_observer_setup(mocker):
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
         when="time_step__prepare",
+        report=aggregate_dataframes_to_csv,
     )
     builder.results.register_observation.assert_any_call(
         name="ylds_due_to_measles",
@@ -81,6 +85,7 @@ def test_disability_observer_setup(mocker):
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
         when="time_step__prepare",
+        report=aggregate_dataframes_to_csv,
     )
     assert builder.results.register_observation.call_count == 3
     assert DiseaseState in observer.disease_classes
@@ -161,20 +166,6 @@ def test_disability_accumulation(
         "sick_0_1": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "sick_cause_1"),
     }
 
-    # Population masks values for keys of expected labels in results from the metrics pipeline
-    yld_stratification_mask = {
-        "MEASURE_ylds_due_to_all_causes_SEX_Female": (pop["sex"] == "Female"),
-        "MEASURE_ylds_due_to_all_causes_SEX_Male": (pop["sex"] == "Male"),
-        "MEASURE_ylds_due_to_sick_cause_0_SEX_Female": (pop["model_0"] == "sick_cause_0")
-        & (pop["sex"] == "Female"),
-        "MEASURE_ylds_due_to_sick_cause_0_SEX_Male": (pop["model_0"] == "sick_cause_0")
-        & (pop["sex"] == "Male"),
-        "MEASURE_ylds_due_to_sick_cause_1_SEX_Female": (pop["model_1"] == "sick_cause_1")
-        & (pop["sex"] == "Female"),
-        "MEASURE_ylds_due_to_sick_cause_1_SEX_Male": (pop["model_1"] == "sick_cause_1")
-        & (pop["sex"] == "Male"),
-    }
-
     # Get pipelines
     disability_weight = simulation.get_value("disability_weight")
     disability_weight_0 = simulation.get_value("sick_cause_0.disability_weight")
@@ -196,19 +187,33 @@ def test_disability_accumulation(
 
     results_out = simulation.get_value("metrics")(pop.index)
 
-    # Check that all expected observation labels are there
-    for label in yld_stratification_mask.keys():
-        assert label in results_out.keys()
+    # Check that all expected observations are there
+    assert set(results_out) == set(
+        ["ylds_due_to_all_causes", "ylds_due_to_sick_cause_0", "ylds_due_to_sick_cause_1"]
+    )
+    # Check that all stratifications exist for all results
+    expected_idx = (
+        pd.DataFrame({"sex": ["Female", "Male"]})
+        .astype(CategoricalDtype)
+        .set_index("sex")
+        .index
+    )
+    for results in results_out.values():
+        assert results.index.equals(expected_idx)
 
     # Check that all the yld values are as expected
+    # yld_masks format: {cause: (filter, dw_pipeline)}
+    yld_masks = {
+        "all_causes": (slice(None), disability_weight),
+        "sick_cause_0": (pop["model_0"] == "sick_cause_0", disability_weight_0),
+        "sick_cause_1": (pop["model_1"] == "sick_cause_1", disability_weight_1),
+    }
     time_scale = time_step / pd.Timedelta("365.25 days")
-    for label in yld_stratification_mask.keys():
-        sub_pop = pop[yld_stratification_mask[label]]
-        if "all_causes" in label:
-            dw = disability_weight
-        elif "cause_0" in label:
-            dw = disability_weight_0
-        else:
-            dw = disability_weight_1
-        expected_ylds = (dw(sub_pop.index) * time_scale).sum()
-        assert np.isclose(expected_ylds, results_out[label], rtol=0.0000001)
+    for cause in ["all_causes", "sick_cause_0", "sick_cause_1"]:
+        pop_filter, dw = yld_masks[cause]
+        cause_specific_pop = pop[pop_filter]
+        for sex in ["Female", "Male"]:
+            sub_pop = cause_specific_pop[cause_specific_pop["sex"] == sex]
+            expected_ylds = (dw(sub_pop.index) * time_scale).sum()
+            actual_ylds = results_out[f"ylds_due_to_{cause}"].loc[sex, "value"]
+            assert np.isclose(expected_ylds, actual_ylds, rtol=0.0000001)
