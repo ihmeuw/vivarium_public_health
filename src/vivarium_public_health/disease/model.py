@@ -9,7 +9,7 @@ transitions at simulation initialization and during transitions.
 
 """
 
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -32,6 +32,16 @@ class DiseaseModel(Machine):
     ##############
     # Properties #
     ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {
+            f"{self.name}": {
+                "data_sources": {
+                    "cause_specific_mortality_rate": "self::load_cause_specific_mortality_rate"
+                },
+            },
+        }
 
     @property
     def columns_created(self) -> List[str]:
@@ -90,13 +100,6 @@ class DiseaseModel(Machine):
 
         self.configuration_age_start = builder.configuration.population.initialization_age_min
         self.configuration_age_end = builder.configuration.population.initialization_age_max
-
-        cause_specific_mortality_rate = self.load_cause_specific_mortality_rate_data(builder)
-        self.cause_specific_mortality_rate = builder.lookup.build_table(
-            cause_specific_mortality_rate,
-            key_columns=["sex"],
-            parameter_columns=["age", "year"],
-        )
         builder.value.register_value_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
@@ -108,11 +111,13 @@ class DiseaseModel(Machine):
     # Setup methods #
     #################
 
-    def load_cause_specific_mortality_rate_data(self, builder):
+    def load_cause_specific_mortality_rate(
+        self, builder: Builder
+    ) -> Union[float, pd.DataFrame]:
         if "cause_specific_mortality_rate" not in self._get_data_functions:
             only_morbid = builder.data.load(f"cause.{self.cause}.restrictions")["yld_only"]
             if only_morbid:
-                csmr_data = 0
+                csmr_data = 0.0
             else:
                 csmr_data = builder.data.load(
                     f"{self.cause_type}.{self.cause}.cause_specific_mortality_rate"
@@ -188,7 +193,7 @@ class DiseaseModel(Machine):
     ##################################
 
     def adjust_cause_specific_mortality_rate(self, index, rate):
-        return rate + self.cause_specific_mortality_rate(index)
+        return rate + self.lookup_tables["cause_specific_mortality_rate"](index)
 
     ####################
     # Helper functions #

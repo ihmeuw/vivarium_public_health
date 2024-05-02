@@ -544,7 +544,7 @@ def test_disease_model(
     assert isinstance(model, expected_model_type)
     assert model.initial_state == expected_initial_state
 
-    assert model.cause_specific_mortality_rate.data == expected_csmr
+    assert model.lookup_tables["cause_specific_mortality_rate"].data == expected_csmr
 
     # the disease model's states have the expected names
     actual_state_names = {state.name for state in model.sub_components}
