@@ -28,6 +28,7 @@ if __name__ == "__main__":
     setup_requires = ["setuptools_scm"]
 
     test_requirements = [
+        "vivarium_testing_utils",
         "pytest",
         "pytest-mock",
         "hypothesis",
