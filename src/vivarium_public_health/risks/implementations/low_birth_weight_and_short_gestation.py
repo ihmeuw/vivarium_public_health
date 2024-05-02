@@ -24,7 +24,11 @@ from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
 from vivarium_public_health.risks.distributions import PolytomousDistribution
-from vivarium_public_health.utilities import EntityString, to_snake_case
+from vivarium_public_health.utilities import (
+    EntityString,
+    get_lookup_columns,
+    to_snake_case,
+)
 
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
@@ -32,13 +36,6 @@ GESTATIONAL_AGE = "gestational_age"
 
 
 class LBWSGDistribution(PolytomousDistribution):
-    CONFIGURATION_DEFAULTS = {
-        "lbwsg_distribution": {
-            "age_column": "age",
-            "sex_column": "sex",
-            "year_column": "year",
-        }
-    }
 
     #####################
     # Lifecycle methods #
@@ -51,9 +48,6 @@ class LBWSGDistribution(PolytomousDistribution):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.config = builder.configuration.lbwsg_distribution
-        self._exposure_data = self.get_exposure_data(builder)
-
         super().setup(builder)
         self.category_intervals = self.get_category_intervals(builder)
 
@@ -61,33 +55,11 @@ class LBWSGDistribution(PolytomousDistribution):
     # Setup methods #
     #################
 
-    def get_exposure_data(self, builder: Builder) -> pd.DataFrame:
+    def build_all_lookup_tables(self, builder: Builder) -> None:
         if self._exposure_data is None:
-            self._exposure_data = get_exposure_data(builder, self.risk)
+            self._exposure_data = get_exposure_data(builder, self.risk, "lbwsg")
 
-        return self._exposure_data.rename(
-            columns={
-                "sex": self.config.sex_column,
-                "age_start": f"{self.config.age_column}_start",
-                "age_end": f"{self.config.age_column}_end",
-                "year_start": f"{self.config.year_column}_start",
-                "year_end": f"{self.config.year_column}_end",
-            }
-        )
-
-    def get_exposure_parameters(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
-            self.exposure_parameters_pipeline_name,
-            source=builder.lookup.build_table(
-                self._exposure_data,
-                key_columns=[self.config.sex_column],
-                parameter_columns=[self.config.age_column, self.config.year_column],
-            ),
-            requires_columns=[
-                self.config.sex_column,
-                self.config.age_column,
-            ],
-        )
+        super().build_all_lookup_tables(builder)
 
     def get_category_intervals(self, builder: Builder) -> Dict[str, Dict[str, pd.Interval]]:
         """
@@ -97,7 +69,7 @@ class LBWSGDistribution(PolytomousDistribution):
         :param builder:
         :return:
         """
-        categories = builder.data.load(f"{self.risk}.categories")
+        categories: Dict[str, str] = builder.data.load(f"{self.risk}.categories")
         category_intervals = {
             axis: {
                 category: self._parse_description(axis, description)
@@ -161,8 +133,8 @@ class LBWSGDistribution(PolytomousDistribution):
 
         if (categorical_propensity is None) == (categorical_exposure is None):
             raise ValueError(
-                "Either categorical propensity of categorical exposure may be provided, but not"
-                " both or neither."
+                "Exactly one of categorical propensity or categorical exposure "
+                "must be provided."
             )
 
         if categorical_exposure is None:
@@ -253,11 +225,15 @@ class LBWSGRisk(Risk):
         return None
 
     def get_birth_exposure_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
+        required_columns = get_lookup_columns(
+            self.exposure_distribution.lookup_tables["exposure"]
+        )
+
         def get_pipeline(axis_: str):
             return builder.value.register_value_producer(
                 self.birth_exposure_pipeline_name(axis_),
                 source=lambda index: self.get_birth_exposure(axis_, index),
-                requires_columns=["age", "sex"],
+                requires_columns=required_columns,
                 requires_streams=[self.randomness_stream_name],
                 preferred_post_processor=get_exposure_post_processor(builder, self.risk),
             )
