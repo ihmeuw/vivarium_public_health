@@ -614,9 +614,11 @@ def test_disease_state(
         ]
         assert type(transition) == expected_transition_data.transition_type
         if isinstance(transition, RateTransition):
-            assert transition.base_rate.data == expected_transition_data.value
+            actual_rate = transition.lookup_tables["transition_rate"].data
+            assert actual_rate == expected_transition_data.value
         elif isinstance(transition, ProportionTransition):
-            assert transition.proportion.data == expected_transition_data.value
+            actual_proportion = transition.lookup_tables["proportion"].data
+            assert actual_proportion == expected_transition_data.value
 
 
 ####################
