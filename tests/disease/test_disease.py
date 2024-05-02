@@ -511,11 +511,11 @@ def test_artifact_transition_keys(mocker, disease):
     # check incidence rate
     healthy.add_rate_transition(with_condition)
     incident_transition = healthy.transition_set.transitions[0]
-    incident_transition.load_transition_rate_data(builder)
+    incident_transition.load_transition_rate(builder)
     builder.data.load.assert_called_with(f"cause.{cause}.incidence_rate")
 
     # check remission rate
     with_condition.add_rate_transition(healthy)
     remissive_transition = with_condition.transition_set.transitions[0]
-    remissive_transition.load_transition_rate_data(builder)
+    remissive_transition.load_transition_rate(builder)
     builder.data.load.assert_called_with(f"cause.{cause}.remission_rate")
