@@ -163,7 +163,6 @@ class RiskAttributableDisease(Component):
         self.clock = builder.time.clock()
 
         disability_weight_data = builder.data.load(f"{self.cause}.disability_weight")
-        self.has_disability = is_non_zero(disability_weight_data)
         self.base_disability_weight = builder.lookup.build_table(
             disability_weight_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
