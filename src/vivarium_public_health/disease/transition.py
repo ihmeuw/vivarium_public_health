@@ -56,7 +56,10 @@ class RateTransition(Transition):
                 f"{self.input_state.state_id}_to_{self.output_state.state_id}.transition_rate"
             )
         else:
-            raise ValueError("Cannot determine rate_transition pipeline name.")
+            raise ValueError(
+                "Cannot determine rate_transition pipeline name: "
+                "no valid data functions supplied."
+            )
         return pipeline_name
 
     #####################
