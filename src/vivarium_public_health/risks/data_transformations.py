@@ -405,12 +405,8 @@ def get_population_attributable_fraction_data(
             columns=["affected_entity", "affected_measure"]
         )
     else:
-        exposure_data, exposure_value_cols = get_exposure_data(builder, risk).set_index(
-            key_cols
-        )
-        relative_risk_data, rr_value_cols = get_relative_risk_data(
-            builder, risk, target
-        ).set_index(key_cols)
+        exposure_data, exposure_value_cols = get_exposure_data(builder, risk)
+        relative_risk_data, rr_value_cols = get_relative_risk_data(builder, risk, target)
         if set(exposure_value_cols) != set(rr_value_cols):
             error_msg = "Exposure and relative risk value columns must match. "
             missing_rr_cols = set(exposure_value_cols).difference(set(rr_value_cols))
