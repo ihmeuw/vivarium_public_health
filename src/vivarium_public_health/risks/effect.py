@@ -103,10 +103,10 @@ class RiskEffect(Component):
     def setup(self, builder: Builder) -> None:
         self.exposure_distribution_type = self.get_distribution_type(builder)
         self.exposure = self.get_risk_exposure(builder)
-        self.relative_risk = get_relative_risk_data(builder, self.risk, self.target)
-        self.population_attributable_fraction = get_population_attributable_fraction_data(
-            builder, self.risk, self.target
-        )
+        # self.relative_risk = get_relative_risk_data(builder, self.risk, self.target)
+        # self.population_attributable_fraction = get_population_attributable_fraction_data(
+        #     builder, self.risk, self.target
+        # )
 
         self.target_modifier = self.get_target_modifier(builder)
 
@@ -116,6 +116,16 @@ class RiskEffect(Component):
     #################
     # Setup methods #
     #################
+
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        paf_data = get_population_attributable_fraction_data(builder, self.risk, self.target)
+        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
+            builder, paf_data
+        )
+        relative_risk_data = get_relative_risk_data(builder, self.risk, self.target)
+        self.lookup_tables["relative_risk"] = self.build_lookup_table(
+            builder, relative_risk_data
+        )
 
     def get_distribution_type(self, builder: Builder) -> str:
         return get_distribution_type(builder, self.risk)
@@ -132,7 +142,7 @@ class RiskEffect(Component):
             scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
 
             def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
-                rr = self.relative_risk(index)
+                rr = self.lookup_tables["relative_risk"](index)
                 exposure = self.exposure(index)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return target * relative_risk
@@ -141,7 +151,7 @@ class RiskEffect(Component):
             index_columns = ["index", self.risk.name]
 
             def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
-                rr = self.relative_risk(index)
+                rr = self.lookup_tables["relative_risk"](index)
                 exposure = self.exposure(index).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
@@ -169,6 +179,6 @@ class RiskEffect(Component):
         )
         builder.value.register_value_modifier(
             self.target_paf_pipeline_name,
-            modifier=self.population_attributable_fraction,
+            modifier=self.lookup_tables["population_attributable_fraction"],
             requires_columns=required_columns,
         )
