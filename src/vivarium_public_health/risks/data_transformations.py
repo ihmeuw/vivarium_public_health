@@ -238,9 +238,7 @@ def load_relative_risk_data(
     from vivarium_public_health.risks import RiskEffect
 
     source_key = RiskEffect.get_name(risk, target)
-    relative_risk_source = (
-        builder.configuration - [source_key]["data_sources"]["relative_risk"]
-    )
+    relative_risk_source = builder.configuration[source_key]["data_sources"]["relative_risk"]
 
     if source_type == "data":
         relative_risk_data = builder.data.load(f"{risk}.relative_risk")
