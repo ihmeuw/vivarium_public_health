@@ -98,8 +98,6 @@ class Risk(Component):
                     "exposure": f"{self.risk}.exposure",
                     "ensemble_distribution_weights": f"{self.risk}.exposure_distribution_weights",
                     "exposure_standard_deviation": f"{self.risk}.exposure_standard_deviation",
-                    "relative_risk": f"{self.risk}.relative_risk",
-                    "population_attributable_fraction": f"{self.risk}.population_attributable_fraction",
                 },
                 # rebinned_exposed only used for DichotomousDistribution
                 "rebinned_exposed": [],

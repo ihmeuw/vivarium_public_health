@@ -234,25 +234,22 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
 
 def load_relative_risk_data(
     builder: Builder, risk: EntityString, target: TargetString, source_type: str
-):  
-    # todo: move rr back to RiskEffect?
-    relative_risk_source = builder.configuration[f"effect_of_{risk.name}_on_{target.name}"][
-        target.measure
-    ]
-    risk_component = builder.components.get_component(risk)
+):
+    from vivarium_public_health.risks import RiskEffect
+
+    source_key = RiskEffect.get_name(risk, target)
+    relative_risk_source = (
+        builder.configuration - [source_key]["data_sources"]["relative_risk"]
+    )
 
     if source_type == "data":
-        relative_risk_data = risk_component.get_data(
-            builder,
-            builder.configuration[risk_component.name]["data_sources"]["relative_risk"],
+        relative_risk_data = builder.data.load(f"{risk}.relative_risk")
+        correct_target = (relative_risk_data["affected_entity"] == target.name) & (
+            relative_risk_data["affected_measure"] == target.measure
         )
-        if isinstance(relative_risk_data, pd.DataFrame):
-            correct_target = (relative_risk_data["affected_entity"] == target.name) & (
-                relative_risk_data["affected_measure"] == target.measure
-            )
-            relative_risk_data = relative_risk_data[correct_target].drop(
-                columns=["affected_entity", "affected_measure"]
-            )
+        relative_risk_data = relative_risk_data[correct_target].drop(
+            columns=["affected_entity", "affected_measure"]
+        )
 
     elif source_type == "relative risk value":
         relative_risk_data = _make_relative_risk_data(
@@ -401,14 +398,8 @@ def get_exposure_effect(builder, risk: EntityString):
 def get_population_attributable_fraction_data(
     builder: Builder, risk: EntityString, target: TargetString
 ):
-    risk_component = builder.components.get_component(risk)
-    paf_data = risk_component.get_data(
-        builder,
-        builder.configuration[risk_component.name]["data_sources"][
-            "population_attributable_fraction"
-        ],
-    )
-    if isinstance(paf_data, pd.DataFrame): 
+    paf_data = builder.data.load(f"{risk}.population_attributable_fraction")
+    if isinstance(paf_data, pd.DataFrame):
         correct_target = (paf_data["affected_entity"] == target.name) & (
             paf_data["affected_measure"] == target.measure
         )
@@ -416,8 +407,12 @@ def get_population_attributable_fraction_data(
             columns=["affected_entity", "affected_measure"]
         )
     else:
-        exposure_data, exposure_value_cols = get_exposure_data(builder, risk).set_index(key_cols)
-        relative_risk_data, rr_value_cols = get_relative_risk_data(builder, risk, target).set_index(key_cols)
+        exposure_data, exposure_value_cols = get_exposure_data(builder, risk).set_index(
+            key_cols
+        )
+        relative_risk_data, rr_value_cols = get_relative_risk_data(
+            builder, risk, target
+        ).set_index(key_cols)
         if set(exposure_value_cols) != set(rr_value_cols):
             error_msg = "Exposure and relative risk value columns must match. "
             missing_rr_cols = set(exposure_value_cols).difference(set(rr_value_cols))
@@ -427,7 +422,7 @@ def get_population_attributable_fraction_data(
             if missing_exposure_cols:
                 error_msg = error_msg + f"Missing exposure columns: {missing_exposure_cols}. "
             raise ValueError(error_msg)
-        # Build up dataframe for pafs
+        # Build up dataframe for paf
         index_cols = [col for col in paf_data.columns if col not in exposure_value_cols]
         exposure_data = exposure_data.set_index(index_cols)
         relative_risk_data = relative_risk_data.set_index(index_cols)
@@ -474,12 +469,18 @@ def validate_distribution_data(distribution_data: Dict[str, Any]) -> None:
 
 
 def validate_relative_risk_data_source(builder, risk: EntityString, target: TargetString):
-    source_key = f"effect_of_{risk.name}_on_{target.name}"
-    relative_risk_source = builder.configuration[source_key][target.measure]
+    from vivarium_public_health.risks import RiskEffect
+
+    source_key = RiskEffect.get_name(risk, target)
+    source_config = builder.configuration[source_key]
 
     provided_keys = set(
-        k for k, v in relative_risk_source.to_dict().items() if isinstance(v, (int, float))
+        k
+        for k, v in source_config["distribution_args"].to_dict().items()
+        if isinstance(v, (int, float))
     )
+    if isinstance(source_config["data_sources"]["relative_risk"], (float, int)):
+        provided_keys.add("relative_risk")
 
     source_map = {
         "data": set(),
@@ -497,24 +498,25 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
     source_type = [k for k, v in source_map.items() if provided_keys == v][0]
 
     if source_type == "relative risk value":
-        if not 1 <= relative_risk_source["relative_risk"] <= 100:
+        relative_risk_value = source_config["data_sources"]["relative_risk"]
+        if not 1 <= relative_risk_value <= 100:
             raise ValueError(
-                f"If specifying a single value for relative risk, it should be in the "
-                f"range [1, 100]. You provided {relative_risk_source['relative_risk']} for {source_key}."
+                "If specifying a single value for relative risk, it should be in the range [1, 100]. "
+                f"You provided {relative_risk_value} for {source_key}."
             )
     elif source_type == "normal distribution":
-        if relative_risk_source["mean"] <= 0 or relative_risk_source["se"] <= 0:
+        if source_config["mean"] <= 0 or source_config["se"] <= 0:
             raise ValueError(
                 f"To specify parameters for a normal distribution for a risk effect, you must provide"
                 f"both mean and se above 0. This is not the case for {source_key}."
             )
     elif source_type == "log distribution":
-        if relative_risk_source["log_mean"] <= 0 or relative_risk_source["log_se"] <= 0:
+        if source_config["log_mean"] <= 0 or source_config["log_se"] <= 0:
             raise ValueError(
                 f"To specify parameters for a log distribution for a risk effect, you must provide"
                 f"both log_mean and log_se above 0. This is not the case for {source_key}."
             )
-        if relative_risk_source["tau_squared"] < 0:
+        if source_config["tau_squared"] < 0:
             raise ValueError(
                 f"To specify parameters for a log distribution for a risk effect, you must provide"
                 f"tau_squared >= 0. This is not the case for {source_key}."

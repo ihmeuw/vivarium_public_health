@@ -8,7 +8,7 @@ exposure models and disease models.
 
 """
 
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -43,22 +43,17 @@ class RiskEffect(Component):
 
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "effect_of_risk_on_target": {
-            "measure": {
-                "relative_risk": None,
-                "mean": None,
-                "se": None,
-                "log_mean": None,
-                "log_se": None,
-                "tau_squared": None,
-            }
-        }
-    }
-
-    ##############
+    ###############
     # Properties #
     ##############
+
+    @property
+    def name(self) -> str:
+        return self.get_name(self.risk, self.target)
+
+    @staticmethod
+    def get_name(risk: EntityString, target: TargetString) -> str:
+        return f"risk_effect.{risk.name}_on_{target.name}"
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
@@ -67,10 +62,18 @@ class RiskEffect(Component):
         this component.
         """
         return {
-            f"effect_of_{self.risk.name}_on_{self.target.name}": {
-                self.target.measure: self.CONFIGURATION_DEFAULTS["effect_of_risk_on_target"][
-                    "measure"
-                ]
+            self.name: {
+                "data_sources": {
+                    "relative_risk": "self::get_relative_risk_source",
+                    "population_attributable_fraction": "self::get_population_attributable_fraction_source",
+                },
+                "distribution_args": {
+                    "mean": None,
+                    "se": None,
+                    "log_mean": None,
+                    "log_se": None,
+                    "tau_squared": None,
+                },
             }
         }
 
@@ -113,21 +116,47 @@ class RiskEffect(Component):
     # Setup methods #
     #################
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        paf_data = get_population_attributable_fraction_data(builder, self.risk, self.target)
-        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-            builder, paf_data
-        )
-        relative_risk_data = get_relative_risk_data(builder, self.risk, self.target)
-        self.lookup_tables["relative_risk"] = self.build_lookup_table(
-            builder, relative_risk_data
-        )
-
     def get_distribution_type(self, builder: Builder) -> str:
         return get_distribution_type(builder, self.risk)
 
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         return builder.value.get_value(self.exposure_pipeline_name)
+
+    def get_relative_risk_source(self, builder: Builder) -> Union[float, pd.DataFrame]:
+        """
+        Get the relative risk source for this risk effect model.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+
+        Returns
+        -------
+        LookupTable
+            A lookup table containing the relative risk data for this risk
+            effect model.
+        """
+        return get_relative_risk_data(builder, self.risk, self.target)
+
+    def get_population_attributable_fraction_source(
+        self, builder: Builder
+    ) -> Union[float, pd.DataFrame]:
+        """
+        Get the population attributable fraction source for this risk effect model.
+
+        Parameters
+        ----------
+        builder
+            Interface to access simulation managers.
+
+        Returns
+        -------
+        LookupTable
+            A lookup table containing the population attributable fraction data
+            for this risk effect model.
+        """
+        return get_population_attributable_fraction_data(builder, self.risk, self.target)
 
     def get_target_modifier(
         self, builder: Builder
