@@ -533,9 +533,10 @@ def validate_relative_risk_rebin_source(
 
 
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
-    rebin_exposed_categories = set(builder.configuration[risk.name]["rebinned_exposed"])
+    # TODO: when this is Falsey, it now throws a ConfigurationError
+    rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])
 
-    if rebin_exposed_categories and builder.configuration[risk.name]["category_thresholds"]:
+    if rebin_exposed_categories and builder.configuration[risk]["category_thresholds"]:
         raise ValueError(
             f"Rebinning and category thresholds are mutually exclusive. "
             f"You provided both for {risk.name}."
