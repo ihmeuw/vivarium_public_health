@@ -103,10 +103,6 @@ class RiskEffect(Component):
     def setup(self, builder: Builder) -> None:
         self.exposure_distribution_type = self.get_distribution_type(builder)
         self.exposure = self.get_risk_exposure(builder)
-        # self.relative_risk = get_relative_risk_data(builder, self.risk, self.target)
-        # self.population_attributable_fraction = get_population_attributable_fraction_data(
-        #     builder, self.risk, self.target
-        # )
 
         self.target_modifier = self.get_target_modifier(builder)
 

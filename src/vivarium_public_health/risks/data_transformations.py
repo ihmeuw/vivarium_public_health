@@ -234,7 +234,8 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
 
 def load_relative_risk_data(
     builder: Builder, risk: EntityString, target: TargetString, source_type: str
-):
+):  
+    # todo: move rr back to RiskEffect?
     relative_risk_source = builder.configuration[f"effect_of_{risk.name}_on_{target.name}"][
         target.measure
     ]
@@ -245,12 +246,13 @@ def load_relative_risk_data(
             builder,
             builder.configuration[risk_component.name]["data_sources"]["relative_risk"],
         )
-        correct_target = (relative_risk_data["affected_entity"] == target.name) & (
-            relative_risk_data["affected_measure"] == target.measure
-        )
-        relative_risk_data = relative_risk_data[correct_target].drop(
-            columns=["affected_entity", "affected_measure"]
-        )
+        if isinstance(relative_risk_data, pd.DataFrame):
+            correct_target = (relative_risk_data["affected_entity"] == target.name) & (
+                relative_risk_data["affected_measure"] == target.measure
+            )
+            relative_risk_data = relative_risk_data[correct_target].drop(
+                columns=["affected_entity", "affected_measure"]
+            )
 
     elif source_type == "relative risk value":
         relative_risk_data = _make_relative_risk_data(
@@ -399,32 +401,36 @@ def get_exposure_effect(builder, risk: EntityString):
 def get_population_attributable_fraction_data(
     builder: Builder, risk: EntityString, target: TargetString
 ):
-    rr_source_type = validate_relative_risk_data_source(builder, risk, target)
     risk_component = builder.components.get_component(risk)
-    exposure_source = builder.configuration[risk]["data_sources"]["exposure"]
-    if (
-        is_data_from_artifact(exposure_source)
-        and rr_source_type == "data"
-        and risk.type == "risk_factor"
-    ):
-        paf_data = risk_component.get_data(
-            builder,
-            builder.configuration[risk_component.name]["data_sources"][
-                "population_attributable_fraction"
-            ],
-        )
+    paf_data = risk_component.get_data(
+        builder,
+        builder.configuration[risk_component.name]["data_sources"][
+            "population_attributable_fraction"
+        ],
+    )
+    if isinstance(paf_data, pd.DataFrame): 
         correct_target = (paf_data["affected_entity"] == target.name) & (
             paf_data["affected_measure"] == target.measure
         )
-        # TODO: what to do about this?
         paf_data = paf_data[correct_target].drop(
             columns=["affected_entity", "affected_measure"]
         )
     else:
-        # TODO: what to do about this?
-        key_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
-        exposure_data = get_exposure_data(builder, risk).set_index(key_cols)
-        relative_risk_data = get_relative_risk_data(builder, risk, target).set_index(key_cols)
+        exposure_data, exposure_value_cols = get_exposure_data(builder, risk).set_index(key_cols)
+        relative_risk_data, rr_value_cols = get_relative_risk_data(builder, risk, target).set_index(key_cols)
+        if set(exposure_value_cols) != set(rr_value_cols):
+            error_msg = "Exposure and relative risk value columns must match. "
+            missing_rr_cols = set(exposure_value_cols).difference(set(rr_value_cols))
+            if missing_rr_cols:
+                error_msg = error_msg + f"Missing relative risk columns: {missing_rr_cols}. "
+            missing_exposure_cols = set(rr_value_cols).difference(set(exposure_value_cols))
+            if missing_exposure_cols:
+                error_msg = error_msg + f"Missing exposure columns: {missing_exposure_cols}. "
+            raise ValueError(error_msg)
+        # Build up dataframe for pafs
+        index_cols = [col for col in paf_data.columns if col not in exposure_value_cols]
+        exposure_data = exposure_data.set_index(index_cols)
+        relative_risk_data = relative_risk_data.set_index(index_cols)
         mean_rr = (exposure_data * relative_risk_data).sum(axis=1)
         paf_data = ((mean_rr - 1) / mean_rr).reset_index().rename(columns={0: "value"})
     return paf_data
