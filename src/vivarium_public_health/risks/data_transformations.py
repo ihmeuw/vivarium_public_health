@@ -174,6 +174,7 @@ def get_exposure_distribution_weights(
         if np.any(weights["glnorm"]):
             raise NotImplementedError("glnorm distribution is not supported")
         weights = weights.drop(columns=["glnorm"])
+        distributions.remove("glnorm")
     return weights, distributions
 
 
