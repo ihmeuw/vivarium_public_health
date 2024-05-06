@@ -205,7 +205,9 @@ def _rebin_exposure_data(
 ###############################
 
 
-def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
+def get_relative_risk_data(
+    builder, risk: EntityString, target: TargetString
+) -> Tuple[pd.DataFrame, List[str]]:
     source_type = validate_relative_risk_data_source(builder, risk, target)
     relative_risk_data = load_relative_risk_data(builder, risk, target, source_type)
     validate_relative_risk_rebin_source(builder, risk, target, relative_risk_data)
@@ -216,7 +218,7 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
         "ordered_polytomous",
         "unordered_polytomous",
     ]:
-        relative_risk_data, _ = pivot_categorical(builder, None, relative_risk_data)
+        relative_risk_data, value_cols = pivot_categorical(builder, None, relative_risk_data)
         # Check if any values for relative risk are below expected boundary of 1.0
         category_columns = [c for c in relative_risk_data.columns if "cat" in c]
         if not relative_risk_data[
@@ -228,13 +230,14 @@ def get_relative_risk_data(builder, risk: EntityString, target: TargetString):
 
     else:
         relative_risk_data = relative_risk_data.drop(columns=["parameter"])
+        value_cols = ["value"]
 
-    return relative_risk_data
+    return relative_risk_data, value_cols
 
 
 def load_relative_risk_data(
     builder: Builder, risk: EntityString, target: TargetString, source_type: str
-):
+) -> pd.DataFrame:
     from vivarium_public_health.risks import RiskEffect
 
     source_key = RiskEffect.get_name(risk, target)
@@ -395,7 +398,7 @@ def get_exposure_effect(builder, risk: EntityString):
 
 def get_population_attributable_fraction_data(
     builder: Builder, risk: EntityString, target: TargetString
-):
+) -> Tuple[pd.DataFrame, List[str]]:
     paf_data = builder.data.load(f"{risk}.population_attributable_fraction")
     if isinstance(paf_data, pd.DataFrame):
         correct_target = (paf_data["affected_entity"] == target.name) & (
@@ -422,7 +425,7 @@ def get_population_attributable_fraction_data(
         relative_risk_data = relative_risk_data.set_index(index_cols)
         mean_rr = (exposure_data * relative_risk_data).sum(axis=1)
         paf_data = ((mean_rr - 1) / mean_rr).reset_index().rename(columns={0: "value"})
-    return paf_data
+    return paf_data, ["value"]
 
 
 ##############

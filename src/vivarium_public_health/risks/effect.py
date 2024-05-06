@@ -8,7 +8,7 @@ exposure models and disease models.
 
 """
 
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -116,13 +116,23 @@ class RiskEffect(Component):
     # Setup methods #
     #################
 
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        relative_risk_data, rr_value_cols = self.get_relative_risk_source(builder)
+        self.lookup_tables["relative_risk"] = self.build_lookup_table(
+            builder, relative_risk_data, rr_value_cols
+        )
+        paf_data, paf_value_cols = self.get_population_attributable_fraction_source(builder)
+        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
+            builder, paf_data, paf_value_cols
+        )
+
     def get_distribution_type(self, builder: Builder) -> str:
         return get_distribution_type(builder, self.risk)
 
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         return builder.value.get_value(self.exposure_pipeline_name)
 
-    def get_relative_risk_source(self, builder: Builder) -> Union[float, pd.DataFrame]:
+    def get_relative_risk_source(self, builder: Builder) -> Tuple[pd.DataFrame, List[str]]:
         """
         Get the relative risk source for this risk effect model.
 
@@ -141,7 +151,7 @@ class RiskEffect(Component):
 
     def get_population_attributable_fraction_source(
         self, builder: Builder
-    ) -> Union[float, pd.DataFrame]:
+    ) -> Tuple[pd.DataFrame, List[str]]:
         """
         Get the population attributable fraction source for this risk effect model.
 
