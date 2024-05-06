@@ -66,7 +66,7 @@ def get_distribution_data(builder, risk: EntityString) -> Dict[str, Any]:
     return data
 
 
-def get_exposure_post_processor(builder, risk: EntityString):
+def get_exposure_post_processor(builder, risk: str):
     thresholds = builder.configuration[risk]["category_thresholds"]
 
     if thresholds:
