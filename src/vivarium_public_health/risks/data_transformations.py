@@ -167,7 +167,7 @@ def get_exposure_distribution_weights(
     if distribution_type != "ensemble":
         return None
 
-    data_source = builder.configuration[risk]["data_source"]["ensemble_distribution_weights"]
+    data_source = builder.configuration[risk]["data_sources"]["ensemble_distribution_weights"]
     weights = builder.data.load(data_source)
     weights, distributions = pivot_categorical(builder, risk, weights)
     if "glnorm" in weights.columns:
