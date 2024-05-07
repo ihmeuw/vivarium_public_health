@@ -63,11 +63,8 @@ class RiskEffect(Component):
         """
         return {
             self.name: {
-                "data_sources": {
-                    "relative_risk": "self::get_relative_risk_source",
-                    "population_attributable_fraction": "self::get_population_attributable_fraction_source",
-                },
                 "distribution_args": {
+                    "relative_risk": None,
                     "mean": None,
                     "se": None,
                     "log_mean": None,

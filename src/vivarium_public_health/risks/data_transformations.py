@@ -242,7 +242,9 @@ def load_relative_risk_data(
     from vivarium_public_health.risks import RiskEffect
 
     source_key = RiskEffect.get_name(risk, target)
-    relative_risk_source = builder.configuration[source_key]["data_sources"]["relative_risk"]
+    relative_risk_source = builder.configuration[source_key]["distribution_args"][
+        "relative_risk"
+    ]
 
     if source_type == "data":
         relative_risk_data = builder.data.load(f"{risk}.relative_risk")
@@ -477,8 +479,6 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
         for k, v in source_config["distribution_args"].to_dict().items()
         if isinstance(v, (int, float))
     )
-    if isinstance(source_config["data_sources"]["relative_risk"], (float, int)):
-        provided_keys.add("relative_risk")
 
     source_map = {
         "data": set(),
@@ -496,11 +496,10 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
     source_type = [k for k, v in source_map.items() if provided_keys == v][0]
 
     if source_type == "relative risk value":
-        relative_risk_value = source_config["data_sources"]["relative_risk"]
-        if not 1 <= relative_risk_value <= 100:
+        if not 1 <= source_type <= 100:
             raise ValueError(
                 "If specifying a single value for relative risk, it should be in the range [1, 100]. "
-                f"You provided {relative_risk_value} for {source_key}."
+                f"You provided {source_type} for {source_key}."
             )
     elif source_type == "normal distribution":
         if source_config["mean"] <= 0 or source_config["se"] <= 0:
@@ -537,7 +536,7 @@ def validate_relative_risk_rebin_source(
 
 
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
-    # TODO: when this is Falsey, it now throws a ConfigurationError
+
     rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])
 
     if rebin_exposed_categories and builder.configuration[risk]["category_thresholds"]:
