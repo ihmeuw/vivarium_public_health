@@ -5,9 +5,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
+
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
@@ -22,7 +22,6 @@ from vivarium_public_health.metrics.stratification import ResultsStratifier
 
 # Subclass of DisabilityObserver for integration testing
 class DisabilityObserver(DisabilityObserver_):
-
     @property
     def configuration_defaults(self):
         return {
