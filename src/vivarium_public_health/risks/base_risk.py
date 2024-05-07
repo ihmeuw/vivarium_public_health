@@ -180,7 +180,7 @@ class Risk(Component):
             source=self.get_current_exposure,
             requires_columns=["age", "sex"],
             requires_values=[self.propensity_pipeline_name],
-            preferred_post_processor=get_exposure_post_processor(builder, self.risk),
+            preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
 
     ########################

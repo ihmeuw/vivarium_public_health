@@ -235,7 +235,7 @@ class LBWSGRisk(Risk):
                 source=lambda index: self.get_birth_exposure(axis_, index),
                 requires_columns=required_columns,
                 requires_streams=[self.randomness_stream_name],
-                preferred_post_processor=get_exposure_post_processor(builder, self.risk),
+                preferred_post_processor=get_exposure_post_processor(builder, self.name),
             )
 
         return {
