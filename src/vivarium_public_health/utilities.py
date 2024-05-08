@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
+
 from vivarium.framework.lookup import LookupTable, ScalarValue
 from vivarium.framework.results import METRICS_COLUMN
-from vivarium.framework.results.observer import StratifiedObserver
 
 
 class EntityString(str):
@@ -130,19 +130,23 @@ def get_index_columns_from_lookup_configuration(
 
 
 def write_dataframe_to_csv(
-    observer: StratifiedObserver,
     measure: str,
     results: pd.DataFrame,
-    extra_cols: Optional[Dict[str, Any]] = {},
+    results_dir: Optional[Union[str, Path]],
+    random_seed: Optional[int],
+    input_draw: Optional[int],
+    extra_cols: Dict[str, Any] = {},
 ) -> None:
     """Utility function for observation 'report' methods to write pd.DataFrames to csv"""
-    results_dir = Path(observer.results_dir)
+    if results_dir is None:
+        raise ValueError("A results_dir must be specified to write out results.")
+    results_dir = Path(results_dir)
     # Add extra cols
-    col_mapper = {"measure": measure}
-    col_mapper.update(extra_cols)
-    col_mapper.update(
-        {"random_seed": observer.random_seed, "input_draw": observer.input_draw}
-    )
+    col_mapper = {
+        **{"measure": measure},
+        **extra_cols,
+        **{"random_seed": random_seed, "input_draw": input_draw},
+    }
     for col, val in col_mapper.items():
         if val is not None:
             results[col] = val

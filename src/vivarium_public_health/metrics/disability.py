@@ -12,7 +12,7 @@ from typing import List
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results.observer import StratifiedObserver
+from vivarium.framework.results import StratifiedObserver
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
@@ -124,4 +124,11 @@ class DisabilityObserver(StratifiedObserver):
     ) -> None:
         """Combine the measure-specific observer results and save to a single file."""
         measure, cause = [s.strip("_") for s in measure.split("due_to")]
-        write_dataframe_to_csv(self, measure, results, {"cause": cause})
+        write_dataframe_to_csv(
+            measure,
+            results,
+            self.results_dir,
+            self.random_seed,
+            self.input_draw,
+            {"cause": cause},
+        )

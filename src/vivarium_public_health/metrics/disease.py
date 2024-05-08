@@ -15,8 +15,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.results.observer import StratifiedObserver
-
+from vivarium.framework.results import StratifiedObserver
 from vivarium_public_health.utilities import to_years, write_dataframe_to_csv
 
 
@@ -148,4 +147,11 @@ class DiseaseObserver(StratifiedObserver):
             extra_col = {"transition": extra_metric}
         else:
             raise ValueError(f"Unknown measure: {measure}")
-        write_dataframe_to_csv(self, measure_name, results, extra_col)
+        write_dataframe_to_csv(
+            measure_name,
+            results,
+            self.results_dir,
+            self.random_seed,
+            self.input_draw,
+            extra_col,
+        )

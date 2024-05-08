@@ -21,4 +21,3 @@ py:class SimulantData
 py:class Event
 py:class LookupTable
 py:class Pipeline
-py:class vivarium.framework.results.observer.StratifedObserver
