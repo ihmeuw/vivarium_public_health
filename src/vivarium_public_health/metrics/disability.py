@@ -12,7 +12,7 @@ from typing import List
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results import StratifiedObserver
+from vivarium.framework.results.observer import StratifiedObserver
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
