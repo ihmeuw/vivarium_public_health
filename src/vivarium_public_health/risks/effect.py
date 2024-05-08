@@ -37,7 +37,7 @@ class RiskEffect(Component):
     .. code-block:: yaml
 
        configuration:
-           effect_of_risk_on_affected_risk:
+            risk_effect.risk_name_on_affected_target:
                exposure_parameters: 2
                incidence_rate: 10
 
