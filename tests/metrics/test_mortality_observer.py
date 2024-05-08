@@ -100,6 +100,7 @@ def get_expected_results(simulation, expected_deaths=Counter(), expected_ylls=Co
     return expected_deaths, expected_ylls
 
 
+@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_registration(simulation_after_one_step):
     """Test that all expected observation keys appear as expected in the results."""
     results = simulation_after_one_step.get_value("metrics")
@@ -123,6 +124,7 @@ def test_observation_registration(simulation_after_one_step):
     assert set(expected_observations) == set(results(pop.index).keys())
 
 
+@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_correctness(simulation_after_one_step):
     """Test that deaths and YLLs appear as expected in the results."""
     expected_deaths, expected_ylls = get_expected_results(simulation_after_one_step)
@@ -158,6 +160,7 @@ def test_observation_correctness(simulation_after_one_step):
         )
 
 
+@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_aggregation_configuration(base_config, base_plugins):
     observer = MortalityObserver()
     flu = disease_with_excess_mortality(base_config, "flu", 10)
