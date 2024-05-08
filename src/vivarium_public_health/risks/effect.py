@@ -53,7 +53,7 @@ class RiskEffect(Component):
 
     @staticmethod
     def get_name(risk: EntityString, target: TargetString) -> str:
-        return f"risk_effect.{risk.name}_on_{target.name}"
+        return f"risk_effect.{risk.name}_on_{target}"
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
