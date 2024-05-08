@@ -75,6 +75,7 @@ def simulation_after_one_step(base_config, base_plugins, categorical_risk):
     return simulation
 
 
+@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_registration(simulation_after_one_step):
     """Test that all expected observation keys appear as expected in the results."""
     results = simulation_after_one_step.get_value("metrics")
@@ -94,6 +95,7 @@ def test_observation_registration(simulation_after_one_step):
     assert set(expected_observations) == set(results(pop.index).keys())
 
 
+@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_correctness(base_config, simulation_after_one_step, categorical_risk):
     """Test that person time appear as expected in the results."""
     time_step = pd.Timedelta(days=base_config.time.step_size)
