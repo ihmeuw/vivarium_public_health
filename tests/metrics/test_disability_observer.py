@@ -1,9 +1,12 @@
+import itertools
 from collections import namedtuple
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
+from vivarium.framework.results import VALUE_COLUMN
 from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
@@ -21,14 +24,16 @@ from vivarium_public_health.metrics.stratification import ResultsStratifier
 
 # Subclass of DisabilityObserver for integration testing
 class DisabilityObserver(DisabilityObserver_):
-    configuration_defaults = {
-        "stratification": {
-            "disability": {
-                "exclude": ["age_group"],
-                "include": ["sex"],
+    @property
+    def configuration_defaults(self):
+        return {
+            "stratification": {
+                "disability": {
+                    "exclude": ["age_group"],
+                    "include": ["sex"],
+                }
             }
         }
-    }
 
 
 def test_disability_observer_setup(mocker):
@@ -39,6 +44,7 @@ def test_disability_observer_setup(mocker):
     builder = mocker.Mock()
     builder.results.register_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
+    builder.configuration.output_data.results_directory = "some/results/directory"
 
     # Set up fake calls for cause-specific register_observation args
     MockCause = namedtuple("MockCause", "state_id")
@@ -49,7 +55,8 @@ def test_disability_observer_setup(mocker):
     builder.value.get_value = lambda n: n
 
     builder.results.register_observation.assert_not_called()
-    observer.setup(builder)
+    observer.setup_component(builder)
+    # Need to mock the results_dir since we didn't run this from cli
     builder.results.register_observation.assert_any_call(
         name="ylds_due_to_all_causes",
         pop_filter='tracked == True and alive == "alive"',
@@ -60,6 +67,7 @@ def test_disability_observer_setup(mocker):
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
         when="time_step__prepare",
+        report=observer.report,
     )
     builder.results.register_observation.assert_any_call(
         name="ylds_due_to_flu",
@@ -71,6 +79,7 @@ def test_disability_observer_setup(mocker):
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
         when="time_step__prepare",
+        report=observer.report,
     )
     builder.results.register_observation.assert_any_call(
         name="ylds_due_to_measles",
@@ -82,6 +91,7 @@ def test_disability_observer_setup(mocker):
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
         when="time_step__prepare",
+        report=observer.report,
     )
     assert builder.results.register_observation.call_count == 3
     assert DiseaseState in observer.disease_classes
@@ -102,7 +112,11 @@ def test__disability_weight_aggregator():
     [(0.25, 0.5), (0.99, 0.1), (0.1, 0.1)],
 )
 def test_disability_accumulation(
-    base_config, base_plugins, disability_weight_value_0, disability_weight_value_1
+    base_config,
+    base_plugins,
+    disability_weight_value_0,
+    disability_weight_value_1,
+    tmpdir,
 ):
     """Integration test for the disability observer and the Results Management system."""
     year_start = base_config.time.start.year
@@ -143,6 +157,9 @@ def test_disability_accumulation(
         "model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1]
     )
 
+    # Add the results dir since we didn't go through cli.py
+    results_dir = Path(tmpdir)
+    base_config.update({"output_data": {"results_directory": str(results_dir)}})
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -164,20 +181,6 @@ def test_disability_accumulation(
         "sick_0_1": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "sick_cause_1"),
     }
 
-    # Population masks values for keys of expected labels in results from the metrics pipeline
-    yld_stratification_mask = {
-        "MEASURE_ylds_due_to_all_causes_SEX_Female": (pop["sex"] == "Female"),
-        "MEASURE_ylds_due_to_all_causes_SEX_Male": (pop["sex"] == "Male"),
-        "MEASURE_ylds_due_to_sick_cause_0_SEX_Female": (pop["model_0"] == "sick_cause_0")
-        & (pop["sex"] == "Female"),
-        "MEASURE_ylds_due_to_sick_cause_0_SEX_Male": (pop["model_0"] == "sick_cause_0")
-        & (pop["sex"] == "Male"),
-        "MEASURE_ylds_due_to_sick_cause_1_SEX_Female": (pop["model_1"] == "sick_cause_1")
-        & (pop["sex"] == "Female"),
-        "MEASURE_ylds_due_to_sick_cause_1_SEX_Male": (pop["model_1"] == "sick_cause_1")
-        & (pop["sex"] == "Male"),
-    }
-
     # Get pipelines
     disability_weight = simulation.get_value("disability_weight")
     disability_weight_0 = simulation.get_value("sick_cause_0.disability_weight")
@@ -197,21 +200,42 @@ def test_disability_accumulation(
             rtol=0.0000001,
         ).all()
 
-    results_out = simulation.get_value("metrics")(pop.index)
+    # Test that metrics are saved out correctly
+    simulation.finalize()
+    simulation.report()
+    results_files = list(results_dir.rglob("*.csv"))
+    assert set(file.name for file in results_files) == set(["ylds.csv"])
+    results = pd.read_csv(results_files[0])
 
-    # Check that all expected observation labels are there
-    for label in yld_stratification_mask.keys():
-        assert label in results_out.keys()
+    # yld_masks format: {cause: (filter, dw_pipeline)}
+    yld_masks = {
+        "all_causes": (slice(None), disability_weight),
+        "sick_cause_0": (pop["model_0"] == "sick_cause_0", disability_weight_0),
+        "sick_cause_1": (pop["model_1"] == "sick_cause_1", disability_weight_1),
+    }
+
+    # Check that all expected observations are there
+    assert set(zip(results["sex"], results["cause"])) == set(
+        itertools.product(*[["Female", "Male"], list(yld_masks)])
+    )
+
+    # Check other columns (NOTE: no input_draw defined so shouldn't be there)
+    assert set(results.columns) == set(
+        ["sex", "cause", "measure", "random_seed", VALUE_COLUMN]
+    )
+    assert (results["measure"] == "ylds").all()
+    assert (results["random_seed"] == 0).all()
 
     # Check that all the yld values are as expected
     time_scale = time_step / pd.Timedelta("365.25 days")
-    for label in yld_stratification_mask.keys():
-        sub_pop = pop[yld_stratification_mask[label]]
-        if "all_causes" in label:
-            dw = disability_weight
-        elif "cause_0" in label:
-            dw = disability_weight_0
-        else:
-            dw = disability_weight_1
-        expected_ylds = (dw(sub_pop.index) * time_scale).sum()
-        assert np.isclose(expected_ylds, results_out[label], rtol=0.0000001)
+    for cause in ["all_causes", "sick_cause_0", "sick_cause_1"]:
+        pop_filter, dw = yld_masks[cause]
+        cause_specific_pop = pop[pop_filter]
+        for sex in ["Female", "Male"]:
+            sub_pop = cause_specific_pop[cause_specific_pop["sex"] == sex]
+            expected_ylds = (dw(sub_pop.index) * time_scale).sum()
+            actual_ylds = results.loc[
+                (results["cause"] == cause) & (results["sex"] == sex), VALUE_COLUMN
+            ].values
+            assert len(actual_ylds) == 1
+            assert np.isclose(expected_ylds, actual_ylds[0], rtol=0.0000001)
