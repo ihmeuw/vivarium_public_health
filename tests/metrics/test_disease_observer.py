@@ -4,10 +4,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+
 from vivarium import InteractiveContext
 from vivarium.framework.results import METRICS_COLUMN
 from vivarium.testing_utilities import TestPopulation, build_table
-
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics.disease import DiseaseObserver
@@ -190,6 +190,19 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     state_person_time = pd.read_csv(results_dir / "state_person_time.csv")
     transition_count = pd.read_csv(results_dir / "transition_count.csv")
 
+    # Check columns (NOTE: no input_draw defined so shouldn't be there)
+    assert set(state_person_time.columns) == set(
+        ["sex", "state", "measure", "random_seed", METRICS_COLUMN]
+    )
+    assert (state_person_time["measure"] == "state_person_time").all()
+    assert (state_person_time["random_seed"] == 0).all()
+    assert set(transition_count.columns) == set(
+        ["sex", "transition", "measure", "random_seed", METRICS_COLUMN]
+    )
+    assert (transition_count["measure"] == "transition_count").all()
+    assert (transition_count["random_seed"] == 0).all()
+
+    # Check values
     actual_tx_count = transition_count.loc[
         transition_count["transition"] == "susceptible_to_with_condition_to_with_condition",
         METRICS_COLUMN,

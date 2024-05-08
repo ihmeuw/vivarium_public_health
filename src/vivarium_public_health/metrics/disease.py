@@ -12,11 +12,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.results import METRICS_COLUMN, StratifiedObserver
-
 from vivarium_public_health.utilities import to_years
 
 
@@ -143,10 +143,15 @@ class DiseaseObserver(StratifiedObserver):
         state = measure.split("_person_time")[0]
         measure = "state_person_time"
         # Add extra cols
-        results["measure"] = measure
-        results["state"] = state
-        results["random_seed"] = self.random_seed
-        results["input_draw"] = self.input_draw
+        col_map = {
+            "measure": measure,
+            "state": state,
+            "random_seed": self.random_seed,
+            "input_draw": self.input_draw,
+        }
+        for col, val in col_map.items():
+            if val is not None:
+                results[col] = val
         # Sort the columns such that the stratifications (index) are first
         # and METRICS_COLUMN is last and sort the rows by the stratifications.
         other_cols = [c for c in results.columns if c != METRICS_COLUMN]
@@ -166,10 +171,15 @@ class DiseaseObserver(StratifiedObserver):
         transition = measure.split("_event_count")[0]
         measure = "transition_count"
         # Add extra cols
-        results["measure"] = measure
-        results["transition"] = transition
-        results["random_seed"] = self.random_seed
-        results["input_draw"] = self.input_draw
+        col_map = {
+            "measure": measure,
+            "transition": transition,
+            "random_seed": self.random_seed,
+            "input_draw": self.input_draw,
+        }
+        for col, val in col_map.items():
+            if val is not None:
+                results[col] = val
         # Sort the columns such that the stratifications (index) are first
         # and METRICS_COLUMN is last and sort the rows by the stratifications.
         other_cols = [c for c in results.columns if c != METRICS_COLUMN]
