@@ -16,6 +16,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.results import StratifiedObserver
+
 from vivarium_public_health.utilities import to_years, write_dataframe_to_csv
 
 
