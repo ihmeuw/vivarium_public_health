@@ -134,6 +134,7 @@ def write_dataframe_to_csv(
     results: pd.DataFrame,
     extra_cols: Optional[Dict[str, Any]] = {},
 ) -> None:
+    """Utility function for observation 'report' methods to write pd.DataFrames to csv"""
     results_dir = Path(observer.results_dir)
     # Add extra cols
     col_mapper = {"measure": measure}
