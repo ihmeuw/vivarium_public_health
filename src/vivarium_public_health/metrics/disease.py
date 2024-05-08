@@ -7,18 +7,20 @@ This module contains tools for observing disease incidence and prevalence
 in the simulation.
 
 """
+
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from vivarium import Component
+
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-
+from vivarium.framework.results import METRICS_COLUMN, StratifiedObserver
 from vivarium_public_health.utilities import to_years
 
 
-class DiseaseObserver(Component):
+class DiseaseObserver(StratifiedObserver):
     """Observes disease counts and person time for a cause.
 
     By default, this observer computes aggregate disease state person time and
@@ -40,15 +42,6 @@ class DiseaseObserver(Component):
                         - "sample_stratification"
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "stratification": {
-            "disease": {
-                "exclude": [],
-                "include": [],
-            }
-        }
-    }
-
     ##############
     # Properties #
     ##############
@@ -57,7 +50,7 @@ class DiseaseObserver(Component):
     def configuration_defaults(self) -> Dict[str, Any]:
         return {
             "stratification": {
-                self.disease: self.CONFIGURATION_DEFAULTS["stratification"]["disease"]
+                self.disease: super().configuration_defaults["stratification"]["disease"]
             }
         }
 
@@ -84,8 +77,12 @@ class DiseaseObserver(Component):
         self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification[self.disease]
 
-        disease_model = builder.components.get_component(f"disease_model.{self.disease}")
+    #################
+    # Setup methods #
+    #################
 
+    def register_observations(self, builder):
+        disease_model = builder.components.get_component(f"disease_model.{self.disease}")
         for state in disease_model.states:
             builder.results.register_observation(
                 name=f"{state.state_id}_person_time",
@@ -95,6 +92,7 @@ class DiseaseObserver(Component):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
+                report=self.report_person_time,
             )
 
         for transition in disease_model.transition_names:
@@ -111,6 +109,7 @@ class DiseaseObserver(Component):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="collect_metrics",
+                report=self.report_event_count,
             )
 
     ########################
@@ -134,3 +133,53 @@ class DiseaseObserver(Component):
 
     def aggregate_state_person_time(self, x: pd.DataFrame) -> float:
         return len(x) * to_years(self.step_size())
+
+    ##################
+    # Report methods #
+    ##################
+
+    def report_person_time(self, measure: str, results: pd.DataFrame):
+        results_dir = Path(self.results_dir)
+        state = measure.split("_person_time")[0]
+        measure = "state_person_time"
+        # Add extra cols
+        results["measure"] = measure
+        results["state"] = state
+        results["random_seed"] = self.random_seed
+        results["input_draw"] = self.input_draw
+        # Sort the columns such that the stratifications (index) are first
+        # and METRICS_COLUMN is last and sort the rows by the stratifications.
+        other_cols = [c for c in results.columns if c != METRICS_COLUMN]
+        results = results[other_cols + [METRICS_COLUMN]].sort_index().reset_index()
+
+        # Concat and save
+        results_file = results_dir / f"{measure}.csv"
+        if not results_file.exists():
+            results.to_csv(results_file, index=False)
+        else:
+            results.to_csv(
+                results_dir / f"{measure}.csv", index=False, mode="a", header=False
+            )
+
+    def report_event_count(self, measure: str, results: pd.DataFrame):
+        results_dir = Path(self.results_dir)
+        transition = measure.split("_event_count")[0]
+        measure = "transition_count"
+        # Add extra cols
+        results["measure"] = measure
+        results["transition"] = transition
+        results["random_seed"] = self.random_seed
+        results["input_draw"] = self.input_draw
+        # Sort the columns such that the stratifications (index) are first
+        # and METRICS_COLUMN is last and sort the rows by the stratifications.
+        other_cols = [c for c in results.columns if c != METRICS_COLUMN]
+        results = results[other_cols + [METRICS_COLUMN]].sort_index().reset_index()
+
+        # Concat and save
+        results_file = results_dir / f"{measure}.csv"
+        if not results_file.exists():
+            results.to_csv(results_file, index=False)
+        else:
+            results.to_csv(
+                results_dir / f"{measure}.csv", index=False, mode="a", header=False
+            )
