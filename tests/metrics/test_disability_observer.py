@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from vivarium import InteractiveContext
+from vivarium.framework.results import METRICS_COLUMN
 from vivarium.testing_utilities import TestPopulation, build_table
 from vivarium_public_health.disease import (
     DiseaseModel,
@@ -216,7 +217,9 @@ def test_disability_accumulation(
     )
 
     # Check other columns (NOTE: no input_draw defined so shouldn't be there)
-    assert set(results.columns) == set(["sex", "cause", "measure", "random_seed", "value"])
+    assert set(results.columns) == set(
+        ["sex", "cause", "measure", "random_seed", METRICS_COLUMN]
+    )
     assert (results["measure"] == "ylds").all()
     assert (results["random_seed"] == 0).all()
 
@@ -229,7 +232,7 @@ def test_disability_accumulation(
             sub_pop = cause_specific_pop[cause_specific_pop["sex"] == sex]
             expected_ylds = (dw(sub_pop.index) * time_scale).sum()
             actual_ylds = results.loc[
-                (results["cause"] == cause) & (results["sex"] == sex), "value"
+                (results["cause"] == cause) & (results["sex"] == sex), METRICS_COLUMN
             ].values
             assert len(actual_ylds) == 1
             assert np.isclose(expected_ylds, actual_ylds[0], rtol=0.0000001)
