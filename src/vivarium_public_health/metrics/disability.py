@@ -12,10 +12,10 @@ from pathlib import Path
 from typing import List
 
 import pandas as pd
-
 from vivarium.framework.engine import Builder
 from vivarium.framework.results import METRICS_COLUMN, StratifiedObserver
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
+
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.utilities import to_years
 
