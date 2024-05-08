@@ -94,7 +94,7 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
 
 
 def test_observation_registration(base_config, base_plugins, disease, model, tmpdir):
-    """Test that all expected observation stratifications appear in the metrics."""
+    """Test that all expected observation stratifications appear in the results."""
     observer = DiseaseObserver(disease)
     # Add the results dir since we didn't go through cli.py
     results_dir = Path(tmpdir)
