@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
+
 from vivarium.framework.lookup import LookupTable, ScalarValue
 from vivarium.framework.results import METRICS_COLUMN, StratifiedObserver
 
@@ -133,7 +134,7 @@ def write_dataframe_to_csv(
     measure: str,
     results: pd.DataFrame,
     extra_cols: Optional[Dict[str, Any]] = {},
-):
+) -> None:
     results_dir = Path(observer.results_dir)
     # Add extra cols
     col_mapper = {"measure": measure}
