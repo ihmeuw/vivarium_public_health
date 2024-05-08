@@ -4,10 +4,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from vivarium import InteractiveContext
 from vivarium.framework.results import METRICS_COLUMN
 from vivarium.testing_utilities import TestPopulation, build_table
+
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics.disease import DiseaseObserver

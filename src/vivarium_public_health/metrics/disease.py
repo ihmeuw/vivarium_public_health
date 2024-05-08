@@ -8,16 +8,16 @@ in the simulation.
 
 """
 
-from pathlib import Path
+from functools import partial
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.results import METRICS_COLUMN, StratifiedObserver
-from vivarium_public_health.utilities import to_years
+from vivarium.framework.results import StratifiedObserver
+
+from vivarium_public_health.utilities import to_years, write_dataframe_to_csv
 
 
 class DiseaseObserver(StratifiedObserver):
@@ -92,7 +92,7 @@ class DiseaseObserver(StratifiedObserver):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
-                report=self.report_person_time,
+                report=partial(self.report, "_person_time"),
             )
 
         for transition in disease_model.transition_names:
@@ -109,7 +109,7 @@ class DiseaseObserver(StratifiedObserver):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="collect_metrics",
-                report=self.report_event_count,
+                report=partial(self.report, "_event_count"),
             )
 
     ########################
@@ -138,58 +138,14 @@ class DiseaseObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def report_person_time(self, measure: str, results: pd.DataFrame):
-        results_dir = Path(self.results_dir)
-        state = measure.split("_person_time")[0]
-        measure = "state_person_time"
-        # Add extra cols
-        col_map = {
-            "measure": measure,
-            "state": state,
-            "random_seed": self.random_seed,
-            "input_draw": self.input_draw,
-        }
-        for col, val in col_map.items():
-            if val is not None:
-                results[col] = val
-        # Sort the columns such that the stratifications (index) are first
-        # and METRICS_COLUMN is last and sort the rows by the stratifications.
-        other_cols = [c for c in results.columns if c != METRICS_COLUMN]
-        results = results[other_cols + [METRICS_COLUMN]].sort_index().reset_index()
-
-        # Concat and save
-        results_file = results_dir / f"{measure}.csv"
-        if not results_file.exists():
-            results.to_csv(results_file, index=False)
+    def report(self, splitter: str, measure: str, results: pd.DataFrame):
+        extra_metric = measure.split(splitter)[0]
+        if "person_time" in measure:
+            measure_name = "state_person_time"
+            extra_col = {"state": extra_metric}
+        elif "event_count" in measure:
+            measure_name = "transition_count"
+            extra_col = {"transition": extra_metric}
         else:
-            results.to_csv(
-                results_dir / f"{measure}.csv", index=False, mode="a", header=False
-            )
-
-    def report_event_count(self, measure: str, results: pd.DataFrame):
-        results_dir = Path(self.results_dir)
-        transition = measure.split("_event_count")[0]
-        measure = "transition_count"
-        # Add extra cols
-        col_map = {
-            "measure": measure,
-            "transition": transition,
-            "random_seed": self.random_seed,
-            "input_draw": self.input_draw,
-        }
-        for col, val in col_map.items():
-            if val is not None:
-                results[col] = val
-        # Sort the columns such that the stratifications (index) are first
-        # and METRICS_COLUMN is last and sort the rows by the stratifications.
-        other_cols = [c for c in results.columns if c != METRICS_COLUMN]
-        results = results[other_cols + [METRICS_COLUMN]].sort_index().reset_index()
-
-        # Concat and save
-        results_file = results_dir / f"{measure}.csv"
-        if not results_file.exists():
-            results.to_csv(results_file, index=False)
-        else:
-            results.to_csv(
-                results_dir / f"{measure}.csv", index=False, mode="a", header=False
-            )
+            raise ValueError(f"Unknown measure: {measure}")
+        write_dataframe_to_csv(self, measure_name, results, extra_col)
