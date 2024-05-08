@@ -12,10 +12,10 @@ from pathlib import Path
 from typing import List
 
 import pandas as pd
+
 from vivarium.framework.engine import Builder
 from vivarium.framework.results.observer import StratifiedObserver
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
-
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.utilities import to_years
 
@@ -125,14 +125,17 @@ class DisabilityObserver(StratifiedObserver):
     ) -> None:
         """Combine the measure-specific observer results and save to a single file."""
         results_dir = Path(self.results_dir)
-        measure, cause = measure.split("due_to")
-        measure = measure.strip("_")
-        cause = cause.strip("_")
+        measure, cause = [s.strip("_") for s in measure.split("due_to")]
         # Add extra cols
-        results["measure"] = measure
-        results["cause"] = cause
-        results["random_seed"] = self.random_seed
-        results["input_draw"] = self.input_draw
+        col_map = {
+            "measure": measure,
+            "cause": cause,
+            "random_seed": self.random_seed,
+            "input_draw": self.input_draw,
+        }
+        for col, val in col_map.items():
+            if val is not None:
+                results[col] = val
         # Sort the columns such that the stratifications (index) are first
         # and "value" is last and sort the rows by the stratifications.
         other_cols = [c for c in results.columns if c != "value"]

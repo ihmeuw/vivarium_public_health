@@ -5,9 +5,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
-
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
@@ -215,13 +215,10 @@ def test_disability_accumulation(
         itertools.product(*[["Female", "Male"], list(yld_masks)])
     )
 
-    # Check other columns
-    assert set(results.columns) == set(
-        ["sex", "cause", "measure", "random_seed", "input_draw", "value"]
-    )
+    # Check other columns (NOTE: no input_draw defined so shouldn't be there)
+    assert set(results.columns) == set(["sex", "cause", "measure", "random_seed", "value"])
     assert (results["measure"] == "ylds").all()
     assert (results["random_seed"] == 0).all()
-    assert (results["input_draw"]).isna().all()
 
     # Check that all the yld values are as expected
     time_scale = time_step / pd.Timedelta("365.25 days")
