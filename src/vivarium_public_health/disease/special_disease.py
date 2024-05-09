@@ -300,9 +300,9 @@ class RiskAttributableDisease(Component):
         )
         sick = self.filter_by_exposure(pop_data.index)
         new_pop.loc[sick, self.cause.name] = self.cause.name
-        new_pop.loc[sick, self.diseased_event_time_column] = (
-            self.clock()
-        )  # match VPH disease, only set w/ condition
+        new_pop.loc[
+            sick, self.diseased_event_time_column
+        ] = self.clock()  # match VPH disease, only set w/ condition
 
         self.population_view.update(new_pop)
 
@@ -315,9 +315,9 @@ class RiskAttributableDisease(Component):
                 pop[self.cause.name] != f"susceptible_to_{self.cause.name}"
             )
             pop.loc[change_to_susceptible, self.susceptible_event_time_column] = event.time
-            pop.loc[change_to_susceptible, self.cause.name] = (
-                f"susceptible_to_{self.cause.name}"
-            )
+            pop.loc[
+                change_to_susceptible, self.cause.name
+            ] = f"susceptible_to_{self.cause.name}"
         change_to_diseased = sick & (pop[self.cause.name] != self.cause.name)
         pop.loc[change_to_diseased, self.diseased_event_time_column] = event.time
         pop.loc[change_to_diseased, self.cause.name] = self.cause.name
