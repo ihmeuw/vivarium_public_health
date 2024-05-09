@@ -5,13 +5,13 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium.framework.results import METRICS_COLUMN
 from vivarium.testing_utilities import TestPopulation, build_table
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics.disease import DiseaseObserver
+from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.utilities import to_years
 
@@ -127,12 +127,12 @@ def test_observation_registration(base_config, base_plugins, disease, model, tmp
     simulation.step()
     simulation.finalize()
     simulation.report()
-    results_files = list(results_dir.rglob("*.csv"))
+    results_files = list(results_dir.rglob("*.parquet"))
     assert set(file.name for file in results_files) == set(
-        ["state_person_time.csv", "transition_count.csv"]
+        ["state_person_time.parquet", "transition_count.parquet"]
     )
-    state_person_time = pd.read_csv(results_dir / "state_person_time.csv")
-    transition_count = pd.read_csv(results_dir / "transition_count.csv")
+    state_person_time = pd.read_parquet(results_dir / "state_person_time.parquet")
+    transition_count = pd.read_parquet(results_dir / "transition_count.parquet")
 
     # Check that all expected observations are present
     assert set(zip(state_person_time["state"], state_person_time["sex"])) == set(
@@ -190,27 +190,28 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     simulation.finalize()
     simulation.report()
 
-    state_person_time = pd.read_csv(results_dir / "state_person_time.csv")
-    transition_count = pd.read_csv(results_dir / "transition_count.csv")
+    state_person_time = pd.read_parquet(results_dir / "state_person_time.parquet")
+    transition_count = pd.read_parquet(results_dir / "transition_count.parquet")
 
     # Check columns (NOTE: no input_draw defined so shouldn't be there)
     assert set(state_person_time.columns) == set(
-        ["sex", "state", "measure", "random_seed", METRICS_COLUMN]
+        ["sex", COLUMNS.STATE, COLUMNS.MEASURE, COLUMNS.SEED, COLUMNS.VALUE]
     )
-    assert (state_person_time["measure"] == "state_person_time").all()
-    assert (state_person_time["random_seed"] == 0).all()
+    assert (state_person_time[COLUMNS.MEASURE] == "state_person_time").all()
+    assert (state_person_time[COLUMNS.SEED] == 0).all()
     assert set(transition_count.columns) == set(
-        ["sex", "transition", "measure", "random_seed", METRICS_COLUMN]
+        ["sex", COLUMNS.TRANSITION, COLUMNS.MEASURE, COLUMNS.SEED, COLUMNS.VALUE]
     )
-    assert (transition_count["measure"] == "transition_count").all()
-    assert (transition_count["random_seed"] == 0).all()
+    assert (transition_count[COLUMNS.MEASURE] == "transition_count").all()
+    assert (transition_count[COLUMNS.SEED] == 0).all()
 
     # Check values
     actual_tx_count = transition_count.loc[
-        transition_count["transition"] == "susceptible_to_with_condition_to_with_condition",
-        METRICS_COLUMN,
+        transition_count[COLUMNS.TRANSITION]
+        == "susceptible_to_with_condition_to_with_condition",
+        COLUMNS.VALUE,
     ].sum()
-    actual_person_times = state_person_time.groupby("state")[METRICS_COLUMN].sum()
+    actual_person_times = state_person_time.groupby("state")[COLUMNS.VALUE].sum()
     assert np.isclose(actual_tx_count, susceptible_at_start, rtol=0.001)
     assert np.isclose(
         actual_person_times["susceptible_to_with_condition"],
