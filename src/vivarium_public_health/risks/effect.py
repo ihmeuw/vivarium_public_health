@@ -37,7 +37,7 @@ class RiskEffect(Component):
     .. code-block:: yaml
 
        configuration:
-           effect_of_risk_on_affected_risk:
+            risk_effect.risk_name_on_affected_target:
                exposure_parameters: 2
                incidence_rate: 10
 
@@ -53,7 +53,7 @@ class RiskEffect(Component):
 
     @staticmethod
     def get_name(risk: EntityString, target: TargetString) -> str:
-        return f"risk_effect.{risk.name}_on_{target.name}"
+        return f"risk_effect.{risk.name}_on_{target}"
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
