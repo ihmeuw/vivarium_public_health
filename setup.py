@@ -23,6 +23,7 @@ if __name__ == "__main__":
         "scipy",
         "tables",
         "risk_distributions>=2.0.11",
+        "pyarrow",
     ]
 
     setup_requires = ["setuptools_scm"]

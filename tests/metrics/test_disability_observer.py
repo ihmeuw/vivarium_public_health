@@ -19,6 +19,7 @@ from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics.disability import (
     DisabilityObserver as DisabilityObserver_,
 )
+from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.stratification import ResultsStratifier
 
 
@@ -203,9 +204,9 @@ def test_disability_accumulation(
     # Test that metrics are saved out correctly
     simulation.finalize()
     simulation.report()
-    results_files = list(results_dir.rglob("*.csv"))
-    assert set(file.name for file in results_files) == set(["ylds.csv"])
-    results = pd.read_csv(results_files[0])
+    results_files = list(results_dir.rglob("*.parquet"))
+    assert set(file.name for file in results_files) == set(["ylds.parquet"])
+    results = pd.read_parquet(results_files[0])
 
     # yld_masks format: {cause: (filter, dw_pipeline)}
     yld_masks = {
@@ -221,10 +222,10 @@ def test_disability_accumulation(
 
     # Check other columns (NOTE: no input_draw defined so shouldn't be there)
     assert set(results.columns) == set(
-        ["sex", "cause", "measure", "random_seed", VALUE_COLUMN]
+        ["sex", COLUMNS.CAUSE, COLUMNS.MEASURE, COLUMNS.SEED, COLUMNS.VALUE]
     )
-    assert (results["measure"] == "ylds").all()
-    assert (results["random_seed"] == 0).all()
+    assert (results[COLUMNS.MEASURE] == "ylds").all()
+    assert (results[COLUMNS.SEED] == 0).all()
 
     # Check that all the yld values are as expected
     time_scale = time_step / pd.Timedelta("365.25 days")
@@ -235,7 +236,7 @@ def test_disability_accumulation(
             sub_pop = cause_specific_pop[cause_specific_pop["sex"] == sex]
             expected_ylds = (dw(sub_pop.index) * time_scale).sum()
             actual_ylds = results.loc[
-                (results["cause"] == cause) & (results["sex"] == sex), VALUE_COLUMN
+                (results[COLUMNS.CAUSE] == cause) & (results["sex"] == sex), COLUMNS.VALUE
             ].values
             assert len(actual_ylds) == 1
             assert np.isclose(expected_ylds, actual_ylds[0], rtol=0.0000001)
