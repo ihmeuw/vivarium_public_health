@@ -18,10 +18,12 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks.data_transformations import (
+    get_distribution_type,
+    get_exposure_data,
     get_exposure_post_processor,
 )
 from vivarium_public_health.risks.distributions import SimulationDistribution
-from vivarium_public_health.utilities import EntityString
+from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 
 class Risk(Component):
@@ -157,8 +159,12 @@ class Risk(Component):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        # exposure lookup tables are handled by the SimulationDistribution subcomponent
-        pass
+        distribution_type = get_distribution_type(builder, self.risk)
+        if "polytomous" in distribution_type or "dichotomous" == distribution_type:
+            exposure, value_columns = get_exposure_data(builder, self.risk, distribution_type)
+            self.exposure_distribution.lookup_tables["exposure"] = self.build_lookup_table(
+                builder, exposure, value_columns
+            )
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
         return builder.randomness.get_stream(self.randomness_stream_name)
@@ -175,10 +181,13 @@ class Risk(Component):
         )
 
     def get_exposure_pipeline(self, builder: Builder) -> Pipeline:
+        required_columns = get_lookup_columns(
+            self.exposure_distribution.lookup_tables.values()
+        )
         return builder.value.register_value_producer(
             self.exposure_pipeline_name,
             source=self.get_current_exposure,
-            requires_columns=["age", "sex"],
+            requires_columns=required_columns,
             requires_values=[self.propensity_pipeline_name],
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
