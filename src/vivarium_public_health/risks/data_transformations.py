@@ -62,7 +62,6 @@ def pivot_categorical(
 def get_distribution_data(builder, risk: EntityString) -> Dict[str, Any]:
     validate_distribution_data_source(builder, risk)
     data = load_distribution_data(builder, risk)
-    validate_distribution_data(data)
     return data
 
 
@@ -86,12 +85,11 @@ def get_exposure_post_processor(builder, risk: str):
 
 def load_distribution_data(builder: Builder, risk: EntityString) -> Dict[str, Any]:
     distribution_type = get_distribution_type(builder, risk)
-    exposure_data, value_columns = get_exposure_data(builder, risk, distribution_type)
+    exposure_data, _ = get_exposure_data(builder, risk, distribution_type)
 
     data = {
         "distribution_type": distribution_type,
         "exposure": exposure_data,
-        "exposure_value_columns": value_columns,
         "exposure_standard_deviation": get_exposure_standard_deviation_data(
             builder, risk, distribution_type
         ),
@@ -128,6 +126,10 @@ def get_exposure_data(
     else:
         value_columns = builder.data.value_columns()(f"{risk}.exposure")
 
+    if distribution_type == "dichotomous" and "cat2" in value_columns:
+        exposure_data = exposure_data.drop(columns="cat2")
+        value_columns.remove("cat2")
+
     return exposure_data, value_columns
 
 
@@ -145,7 +147,7 @@ def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
 
         cat2 = cat1.copy()
         cat2["parameter"] = "cat2"
-        cat2[value_columns] = 1 - cat2["value"]
+        cat2[value_columns] = 1 - cat2[value_columns]
 
         exposure_data = pd.concat([cat1, cat2], ignore_index=True)
 
@@ -453,19 +455,6 @@ def validate_distribution_data_source(builder: Builder, risk: EntityString) -> N
 
     elif risk.type not in ["risk_factor", "coverage_gap"]:
         raise ValueError(f"Unknown risk type {risk.type} for risk {risk.name}")
-
-
-def validate_distribution_data(distribution_data: Dict[str, Any]) -> None:
-    exposure_data = distribution_data["exposure"]
-    val_cols = distribution_data["exposure_value_columns"]
-    if distribution_data["distribution_type"] == "dichotomous":
-        if ((exposure_data[val_cols] < 0) | exposure_data[val_cols] > 1).any().any():
-            raise ValueError(f"Exposure should be in the range [0, 1]")
-    # TODO: validate that weights, standard deviation, and exposure have the
-    #  same index cols for ensemble
-    # TODO: validate that standard deviation and exposure have the same index
-    #  cols for normal and lognormal
-    # TODO: add more data validations
 
 
 def validate_relative_risk_data_source(builder, risk: EntityString, target: TargetString):
