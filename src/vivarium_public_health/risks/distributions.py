@@ -43,6 +43,7 @@ class SimulationDistribution(Component):
     def setup(self, builder: Builder) -> None:
         distribution_data = get_distribution_data(builder, self.risk)
         self.implementation = get_distribution(self.risk, **distribution_data)
+        self.implementation.lookup_tables = self.lookup_tables
         self.implementation.setup_component(builder)
 
     ##################
@@ -193,16 +194,18 @@ class ContinuousDistribution(Component):
 
 
 class PolytomousDistribution(Component):
+    @property
+    def categories(self) -> List[str]:
+        return self.lookup_tables["exposure"].value_columns
+
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str, exposure_data: pd.DataFrame):
+    def __init__(self, risk: str, _exposure_data: pd.DataFrame):
         super().__init__()
         self.risk = EntityString(risk)
-        self._exposure_data = exposure_data
         self.exposure_parameters_pipeline_name = f"{self.risk}.exposure_parameters"
-        self.categories = self.get_categories()
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -211,17 +214,6 @@ class PolytomousDistribution(Component):
     #################
     # Setup methods #
     #################
-
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        self.lookup_tables["exposure"] = self.build_lookup_table(
-            builder, self._exposure_data, self.categories
-        )
-
-    def get_categories(self) -> List[str]:
-        return sorted(
-            [column for column in self._exposure_data if "cat" in column],
-            key=lambda column: int(column[3:]),
-        )
 
     def get_exposure_parameters(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
@@ -255,10 +247,9 @@ class DichotomousDistribution(Component):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str, exposure_data: pd.DataFrame):
+    def __init__(self, risk: str, _exposure_data: pd.DataFrame):
         super().__init__()
         self.risk = EntityString(risk)
-        self._exposure_data = exposure_data.drop(columns="cat2")
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -279,9 +270,10 @@ class DichotomousDistribution(Component):
     ##########################
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        self.lookup_tables["exposure"] = self.build_lookup_table(
-            builder, self._exposure_data, ["cat1"]
-        )
+        exposure_data = self.lookup_tables["exposure"].data
+        value_cols = self.lookup_tables["exposure"].value_columns
+        if ((exposure_data[value_cols] < 0) | exposure_data[value_cols] > 1).any().any():
+            raise ValueError(f"Exposure should be in the range [0, 1]")
         self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
 
     ##################################
@@ -310,7 +302,6 @@ def get_distribution(
     risk: EntityString,
     distribution_type: str,
     exposure: pd.DataFrame,
-    exposure_value_columns: List[str],
     exposure_standard_deviation: Union[pd.DataFrame, None],
     weights: Union[Tuple[pd.DataFrame, List[str]], None],
 ) -> Component:
