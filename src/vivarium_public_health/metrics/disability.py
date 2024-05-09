@@ -16,7 +16,8 @@ from vivarium.framework.results import StratifiedObserver
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from vivarium_public_health.utilities import to_years, write_dataframe_to_csv
+from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe_to_parquet
+from vivarium_public_health.utilities import to_years
 
 
 class DisabilityObserver(StratifiedObserver):
@@ -124,11 +125,11 @@ class DisabilityObserver(StratifiedObserver):
     ) -> None:
         """Combine the measure-specific observer results and save to a single file."""
         measure, cause = [s.strip("_") for s in measure.split("due_to")]
-        write_dataframe_to_csv(
+        write_dataframe_to_parquet(
             measure,
             results,
             self.results_dir,
             self.random_seed,
             self.input_draw,
-            {"cause": cause},
+            {COLUMNS.CAUSE: cause},
         )
