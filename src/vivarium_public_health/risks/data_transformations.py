@@ -329,6 +329,9 @@ def rebin_relative_risk_data(
     for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
     (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
     """
+    if not risk in builder.configuration.to_dict():
+        return relative_risk_data
+
     rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])
 
     if rebin_exposed_categories:
@@ -521,7 +524,8 @@ def validate_relative_risk_rebin_source(
             f"Subsetting {risk} relative risk data to {target.name} {target.measure} "
             "returned an empty DataFrame. Check your artifact."
         )
-    validate_rebin_source(builder, risk, data)
+    if risk in builder.configuration.to_dict():
+        validate_rebin_source(builder, risk, data)
 
 
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
