@@ -13,7 +13,6 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
 from vivarium.framework.lookup import LookupTable, ScalarValue
-from vivarium.framework.results import METRICS_COLUMN
 
 
 class EntityString(str):
@@ -126,37 +125,3 @@ def get_index_columns_from_lookup_configuration(
     for column in lookup_configuration["categorical_columns"]:
         index_columns.append(column)
     return index_columns
-
-
-def write_dataframe_to_csv(
-    measure: str,
-    results: pd.DataFrame,
-    results_dir: Optional[Union[str, Path]],
-    random_seed: Optional[int],
-    input_draw: Optional[int],
-    extra_cols: Dict[str, Any] = {},
-) -> None:
-    """Utility function for observation 'report' methods to write pd.DataFrames to csv"""
-    if results_dir is None:
-        raise ValueError("A results_dir must be specified to write out results.")
-    results_dir = Path(results_dir)
-    # Add extra cols
-    col_mapper = {
-        **{"measure": measure},
-        **extra_cols,
-        **{"random_seed": random_seed, "input_draw": input_draw},
-    }
-    for col, val in col_mapper.items():
-        if val is not None:
-            results[col] = val
-    # Sort the columns such that the stratifications (index) are first
-    # and METRICS_COLUMN is last and sort the rows by the stratifications.
-    other_cols = [c for c in results.columns if c != METRICS_COLUMN]
-    results = results[other_cols + [METRICS_COLUMN]].sort_index().reset_index()
-
-    # Concat and save
-    results_file = results_dir / f"{measure}.csv"
-    if not results_file.exists():
-        results.to_csv(results_file, index=False)
-    else:
-        results.to_csv(results_dir / f"{measure}.csv", index=False, mode="a", header=False)

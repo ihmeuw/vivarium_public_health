@@ -17,7 +17,8 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.results import StratifiedObserver
 
-from vivarium_public_health.utilities import to_years, write_dataframe_to_csv
+from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe_to_csv
+from vivarium_public_health.utilities import to_years
 
 
 class DiseaseObserver(StratifiedObserver):
@@ -142,10 +143,10 @@ class DiseaseObserver(StratifiedObserver):
         extra_metric = measure.split(splitter)[0]
         if "person_time" in measure:
             measure_name = "state_person_time"
-            extra_col = {"state": extra_metric}
+            extra_col = {COLUMNS.STATE: extra_metric}
         elif "event_count" in measure:
             measure_name = "transition_count"
-            extra_col = {"transition": extra_metric}
+            extra_col = {COLUMNS.TRANSITION: extra_metric}
         else:
             raise ValueError(f"Unknown measure: {measure}")
         write_dataframe_to_csv(
