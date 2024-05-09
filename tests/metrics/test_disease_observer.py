@@ -1,7 +1,11 @@
+import itertools
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
+from vivarium.framework.results import METRICS_COLUMN
 from vivarium.testing_utilities import TestPopulation, build_table
 
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
@@ -89,10 +93,12 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
     assert (post_step_pop[observer.current_state_column_name] == "with_condition").all()
 
 
-@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
-def test_observation_registration(base_config, base_plugins, disease, model):
-    """Test that all expected observation keys appear as expected in the results."""
+def test_observation_registration(base_config, base_plugins, disease, model, tmpdir):
+    """Test that all expected observation stratifications appear in the results."""
     observer = DiseaseObserver(disease)
+    # Add the results dir since we didn't go through cli.py
+    results_dir = Path(tmpdir)
+    base_config.update({"output_data": {"results_directory": str(results_dir)}})
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -115,27 +121,37 @@ def test_observation_registration(base_config, base_plugins, disease, model):
     )
 
     simulation.setup()
-    pop = simulation.get_population()
     simulation.step()
-    results = simulation.get_value("metrics")
-    expected_observations = [
-        "MEASURE_susceptible_to_with_condition_person_time_SEX_Female",
-        "MEASURE_susceptible_to_with_condition_person_time_SEX_Male",
-        "MEASURE_with_condition_person_time_SEX_Female",
-        "MEASURE_with_condition_person_time_SEX_Male",
-        "MEASURE_susceptible_to_with_condition_to_with_condition_event_count_SEX_Female",
-        "MEASURE_susceptible_to_with_condition_to_with_condition_event_count_SEX_Male",
-    ]
-    for v in expected_observations:
-        assert v in results(pop.index).keys()
+    simulation.finalize()
+    simulation.report()
+    results_files = list(results_dir.rglob("*.csv"))
+    assert set(file.name for file in results_files) == set(
+        ["state_person_time.csv", "transition_count.csv"]
+    )
+    state_person_time = pd.read_csv(results_dir / "state_person_time.csv")
+    transition_count = pd.read_csv(results_dir / "transition_count.csv")
+
+    # Check that all expected observations are present
+    assert set(zip(state_person_time["state"], state_person_time["sex"])) == set(
+        itertools.product(
+            *[["susceptible_to_with_condition", "with_condition"], ["Female", "Male"]]
+        )
+    )
+    assert set(zip(transition_count["transition"], transition_count["sex"])) == set(
+        itertools.product(
+            *[["susceptible_to_with_condition_to_with_condition"], ["Female", "Male"]]
+        )
+    )
 
 
 # Person time and all states and transition counts are correct
-@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
-def test_observation_correctness(base_config, base_plugins, disease, model):
+def test_observation_correctness(base_config, base_plugins, disease, model, tmpdir):
     """Test that person time and event counts appear as expected in the results."""
     time_step = pd.Timedelta(days=base_config.time.step_size)
     observer = DiseaseObserver(disease)
+    # Add the results dir since we didn't go through cli.py
+    results_dir = Path(tmpdir)
+    base_config.update({"output_data": {"results_directory": str(results_dir)}})
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -159,7 +175,6 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
 
     simulation.setup()
     pop = simulation.get_population()
-    results = simulation.get_value("metrics")
 
     # All simulants should transition to "with_condition"
     susceptible_at_start = len(pop[pop[disease] == "susceptible_to_with_condition"])
@@ -169,32 +184,36 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
     )
 
     simulation.step()
+    simulation.finalize()
+    simulation.report()
 
-    actual_tx_count = sum(
-        [
-            value
-            for key, value in results(simulation.get_population().index).items()
-            if "susceptible_to_with_condition_to_with_condition_event_count" in key
-        ]
+    state_person_time = pd.read_csv(results_dir / "state_person_time.csv")
+    transition_count = pd.read_csv(results_dir / "transition_count.csv")
+
+    # Check columns (NOTE: no input_draw defined so shouldn't be there)
+    assert set(state_person_time.columns) == set(
+        ["sex", "state", "measure", "random_seed", METRICS_COLUMN]
     )
-    actual_susceptible_person_time = sum(
-        [
-            value
-            for key, value in results(simulation.get_population().index).items()
-            if "susceptible_to_with_condition_person_time" in key
-        ]
+    assert (state_person_time["measure"] == "state_person_time").all()
+    assert (state_person_time["random_seed"] == 0).all()
+    assert set(transition_count.columns) == set(
+        ["sex", "transition", "measure", "random_seed", METRICS_COLUMN]
     )
-    actual_with_condition_person_time = sum(
-        [
-            value
-            for key, value in results(simulation.get_population().index).items()
-            if "MEASURE_with_condition_person_time" in key
-        ]
-    )
-    assert np.isclose(susceptible_at_start, actual_tx_count, rtol=2.0)
+    assert (transition_count["measure"] == "transition_count").all()
+    assert (transition_count["random_seed"] == 0).all()
+
+    # Check values
+    actual_tx_count = transition_count.loc[
+        transition_count["transition"] == "susceptible_to_with_condition_to_with_condition",
+        METRICS_COLUMN,
+    ].sum()
+    actual_person_times = state_person_time.groupby("state")[METRICS_COLUMN].sum()
+    assert np.isclose(actual_tx_count, susceptible_at_start, rtol=0.001)
     assert np.isclose(
-        expected_susceptible_person_time, actual_susceptible_person_time, rtol=0.001
+        actual_person_times["susceptible_to_with_condition"],
+        expected_susceptible_person_time,
+        rtol=0.001,
     )
     assert np.isclose(
-        expected_with_condition_person_time, actual_with_condition_person_time, rtol=0.001
+        actual_person_times["with_condition"], expected_with_condition_person_time, rtol=0.001
     )
