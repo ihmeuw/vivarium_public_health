@@ -138,7 +138,7 @@ def test_smooth_ages(pop_data, include_sex):
     )
     # Tolerance is 3*std_dev of the sample mean
     assert math.isclose(
-        smoothed_simulants.age.mean(), 37.5, abs_tol=3 * math.sqrt(13.149778198**2 / 2000)
+        smoothed_simulants.age.mean(), 37.5, abs_tol=3 * math.sqrt(13.149778198 ** 2 / 2000)
     )
 
 
@@ -238,5 +238,5 @@ def test__construct_sampling_parameters():
 def test__compute_ages():
     assert dt._compute_ages(1, 10, 12, 0, 33) == 10 + 33 / 12 * 1
     assert dt._compute_ages(1, 10, 12, 5, 33) == 10 + 12 / 5 * (
-        np.sqrt(1 + 2 * 33 * 5 / 12**2 * 1) - 1
+        np.sqrt(1 + 2 * 33 * 5 / 12 ** 2 * 1) - 1
     )

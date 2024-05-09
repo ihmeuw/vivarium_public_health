@@ -481,7 +481,7 @@ def _compute_ages(
         return start + normalization / height * uniform_rv
     else:
         return start + height / slope * (
-            np.sqrt(1 + 2 * normalization * slope / height**2 * uniform_rv) - 1
+            np.sqrt(1 + 2 * normalization * slope / height ** 2 * uniform_rv) - 1
         )
 
 
