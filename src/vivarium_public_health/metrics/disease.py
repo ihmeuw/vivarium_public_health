@@ -140,20 +140,21 @@ class DiseaseObserver(StratifiedObserver):
     ##################
 
     def report(self, splitter: str, measure: str, results: pd.DataFrame):
-        extra_metric = measure.split(splitter)[0]
+        sub_entity = measure.split(splitter)[0]
         if "person_time" in measure:
-            measure_name = "state_person_time"
-            extra_col = {COLUMNS.STATE: extra_metric}
+            measure_name = "person_time"
         elif "event_count" in measure:
             measure_name = "transition_count"
-            extra_col = {COLUMNS.TRANSITION: extra_metric}
         else:
             raise ValueError(f"Unknown measure: {measure}")
         write_dataframe_to_parquet(
-            measure_name,
-            results,
-            self.results_dir,
-            self.random_seed,
-            self.input_draw,
-            extra_col,
+            results=results,
+            measure=measure_name,
+            entity_type="cause",
+            entity=self.disease,
+            sub_entity=sub_entity,
+            results_dir=self.results_dir,
+            random_seed=self.random_seed,
+            input_draw=self.input_draw,
+            output_filename=f"{measure_name}_{self.disease}",
         )

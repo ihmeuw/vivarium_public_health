@@ -126,10 +126,12 @@ class DisabilityObserver(StratifiedObserver):
         """Combine the measure-specific observer results and save to a single file."""
         measure, cause = [s.strip("_") for s in measure.split("due_to")]
         write_dataframe_to_parquet(
-            measure,
-            results,
-            self.results_dir,
-            self.random_seed,
-            self.input_draw,
-            {COLUMNS.CAUSE: cause},
+            results=results,
+            measure=measure,
+            entity_type="cause",
+            entity=cause,
+            sub_entity=None,
+            results_dir=self.results_dir,
+            random_seed=self.random_seed,
+            input_draw=self.input_draw,
         )

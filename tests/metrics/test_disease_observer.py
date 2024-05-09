@@ -126,18 +126,18 @@ def test_observation_registration(base_config, base_plugins, disease, model, tmp
     simulation.report()
     results_files = list(results_dir.rglob("*.parquet"))
     assert set(file.name for file in results_files) == set(
-        ["state_person_time.parquet", "transition_count.parquet"]
+        ["person_time_t_virus.parquet", "transition_count_t_virus.parquet"]
     )
-    state_person_time = pd.read_parquet(results_dir / "state_person_time.parquet")
-    transition_count = pd.read_parquet(results_dir / "transition_count.parquet")
+    person_time = pd.read_parquet(results_dir / "person_time_t_virus.parquet")
+    transition_count = pd.read_parquet(results_dir / "transition_count_t_virus.parquet")
 
     # Check that all expected observations are present
-    assert set(zip(state_person_time["state"], state_person_time["sex"])) == set(
+    assert set(zip(person_time[COLUMNS.SUB_ENTITY], person_time["sex"])) == set(
         itertools.product(
             *[["susceptible_to_with_condition", "with_condition"], ["Female", "Male"]]
         )
     )
-    assert set(zip(transition_count["transition"], transition_count["sex"])) == set(
+    assert set(zip(transition_count[COLUMNS.SUB_ENTITY], transition_count["sex"])) == set(
         itertools.product(
             *[["susceptible_to_with_condition_to_with_condition"], ["Female", "Male"]]
         )
@@ -187,28 +187,37 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     simulation.finalize()
     simulation.report()
 
-    state_person_time = pd.read_parquet(results_dir / "state_person_time.parquet")
-    transition_count = pd.read_parquet(results_dir / "transition_count.parquet")
+    person_time = pd.read_parquet(results_dir / "person_time_t_virus.parquet")
+    transition_count = pd.read_parquet(results_dir / "transition_count_t_virus.parquet")
 
-    # Check columns (NOTE: no input_draw defined so shouldn't be there)
-    assert set(state_person_time.columns) == set(
-        ["sex", COLUMNS.STATE, COLUMNS.MEASURE, COLUMNS.SEED, COLUMNS.VALUE]
-    )
-    assert (state_person_time[COLUMNS.MEASURE] == "state_person_time").all()
-    assert (state_person_time[COLUMNS.SEED] == 0).all()
-    assert set(transition_count.columns) == set(
-        ["sex", COLUMNS.TRANSITION, COLUMNS.MEASURE, COLUMNS.SEED, COLUMNS.VALUE]
-    )
-    assert (transition_count[COLUMNS.MEASURE] == "transition_count").all()
-    assert (transition_count[COLUMNS.SEED] == 0).all()
+    # Check columns
+    for measure in ["person_time", "transition_count"]:
+        df = eval(measure)
+        assert set(df.columns) == set(
+            [
+                "sex",
+                COLUMNS.MEASURE,
+                COLUMNS.ENTITY_TYPE,
+                COLUMNS.ENTITY,
+                COLUMNS.SUB_ENTITY,
+                COLUMNS.SEED,
+                COLUMNS.DRAW,
+                COLUMNS.VALUE,
+            ]
+        )
+        assert (df[COLUMNS.MEASURE] == measure).all()
+        assert (df[COLUMNS.ENTITY_TYPE] == "cause").all()
+        assert (df[COLUMNS.ENTITY] == "t_virus").all()
+        assert (df[COLUMNS.SEED] == 0).all()
+        assert df[COLUMNS.DRAW].isna().all()
 
     # Check values
     actual_tx_count = transition_count.loc[
-        transition_count[COLUMNS.TRANSITION]
+        transition_count[COLUMNS.SUB_ENTITY]
         == "susceptible_to_with_condition_to_with_condition",
         COLUMNS.VALUE,
     ].sum()
-    actual_person_times = state_person_time.groupby("state")[COLUMNS.VALUE].sum()
+    actual_person_times = person_time.groupby(COLUMNS.SUB_ENTITY)[COLUMNS.VALUE].sum()
     assert np.isclose(actual_tx_count, susceptible_at_start, rtol=0.001)
     assert np.isclose(
         actual_person_times["susceptible_to_with_condition"],

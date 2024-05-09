@@ -212,16 +212,28 @@ def test_disability_accumulation(
     }
 
     # Check that all expected observations are there
-    assert set(zip(results["sex"], results["cause"])) == set(
+    assert set(zip(results["sex"], results[COLUMNS.ENTITY])) == set(
         itertools.product(*[["Female", "Male"], list(yld_masks)])
     )
 
     # Check other columns (NOTE: no input_draw defined so shouldn't be there)
     assert set(results.columns) == set(
-        ["sex", COLUMNS.CAUSE, COLUMNS.MEASURE, COLUMNS.SEED, COLUMNS.VALUE]
+        [
+            "sex",
+            COLUMNS.MEASURE,
+            COLUMNS.ENTITY_TYPE,
+            COLUMNS.ENTITY,
+            COLUMNS.SUB_ENTITY,
+            COLUMNS.SEED,
+            COLUMNS.DRAW,
+            COLUMNS.VALUE,
+        ]
     )
     assert (results[COLUMNS.MEASURE] == "ylds").all()
+    assert (results[COLUMNS.ENTITY_TYPE] == "cause").all()
+    assert results[COLUMNS.SUB_ENTITY].isna().all()
     assert (results[COLUMNS.SEED] == 0).all()
+    assert results[COLUMNS.DRAW].isna().all()
 
     # Check that all the yld values are as expected
     time_scale = time_step / pd.Timedelta("365.25 days")
@@ -232,7 +244,7 @@ def test_disability_accumulation(
             sub_pop = cause_specific_pop[cause_specific_pop["sex"] == sex]
             expected_ylds = (dw(sub_pop.index) * time_scale).sum()
             actual_ylds = results.loc[
-                (results[COLUMNS.CAUSE] == cause) & (results["sex"] == sex), COLUMNS.VALUE
+                (results[COLUMNS.ENTITY] == cause) & (results["sex"] == sex), COLUMNS.VALUE
             ].values
             assert len(actual_ylds) == 1
             assert np.isclose(expected_ylds, actual_ylds[0], rtol=0.0000001)
