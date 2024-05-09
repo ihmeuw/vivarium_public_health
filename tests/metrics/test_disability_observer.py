@@ -200,9 +200,9 @@ def test_disability_accumulation(
     # Test that metrics are saved out correctly
     simulation.finalize()
     simulation.report()
-    results_files = list(results_dir.rglob("*.csv"))
-    assert set(file.name for file in results_files) == set(["ylds.csv"])
-    results = pd.read_csv(results_files[0])
+    results_files = list(results_dir.rglob("*.parquet"))
+    assert set(file.name for file in results_files) == set(["ylds.parquet"])
+    results = pd.read_parquet(results_files[0])
 
     # yld_masks format: {cause: (filter, dw_pipeline)}
     yld_masks = {

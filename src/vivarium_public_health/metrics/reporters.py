@@ -26,7 +26,7 @@ class __Columns(NamedTuple):
 COLUMNS = __Columns()
 
 
-def write_dataframe_to_csv(
+def write_dataframe_to_parquet(
     measure: str,
     results: pd.DataFrame,
     results_dir: Optional[Union[str, Path]],
@@ -34,7 +34,7 @@ def write_dataframe_to_csv(
     input_draw: Optional[int],
     extra_cols: Dict[str, Any] = {},
 ) -> None:
-    """Utility function for observation 'report' methods to write pd.DataFrames to csv"""
+    """Utility function for observation 'report' methods to write pd.DataFrames to parquet"""
     if results_dir is None:
         raise ValueError("A results_dir must be specified to write out results.")
     results_dir = Path(results_dir)
@@ -53,8 +53,10 @@ def write_dataframe_to_csv(
     results = results[other_cols + [COLUMNS.VALUE]].sort_index().reset_index()
 
     # Concat and save
-    results_file = results_dir / f"{measure}.csv"
-    if not results_file.exists():
-        results.to_csv(results_file, index=False)
-    else:
-        results.to_csv(results_dir / f"{measure}.csv", index=False, mode="a", header=False)
+    results_file = results_dir / f"{measure}.parquet"
+    if results_file.exists():
+        # pd.to_parquet does not support an append mode
+        original_results = pd.read_parquet(results_file)
+        results = pd.concat([original_results, results], ignore_index=True)
+
+    results.to_parquet(results_file, index=False)

@@ -124,12 +124,12 @@ def test_observation_registration(base_config, base_plugins, disease, model, tmp
     simulation.step()
     simulation.finalize()
     simulation.report()
-    results_files = list(results_dir.rglob("*.csv"))
+    results_files = list(results_dir.rglob("*.parquet"))
     assert set(file.name for file in results_files) == set(
-        ["state_person_time.csv", "transition_count.csv"]
+        ["state_person_time.parquet", "transition_count.parquet"]
     )
-    state_person_time = pd.read_csv(results_dir / "state_person_time.csv")
-    transition_count = pd.read_csv(results_dir / "transition_count.csv")
+    state_person_time = pd.read_parquet(results_dir / "state_person_time.parquet")
+    transition_count = pd.read_parquet(results_dir / "transition_count.parquet")
 
     # Check that all expected observations are present
     assert set(zip(state_person_time["state"], state_person_time["sex"])) == set(
@@ -187,8 +187,8 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     simulation.finalize()
     simulation.report()
 
-    state_person_time = pd.read_csv(results_dir / "state_person_time.csv")
-    transition_count = pd.read_csv(results_dir / "transition_count.csv")
+    state_person_time = pd.read_parquet(results_dir / "state_person_time.parquet")
+    transition_count = pd.read_parquet(results_dir / "transition_count.parquet")
 
     # Check columns (NOTE: no input_draw defined so shouldn't be there)
     assert set(state_person_time.columns) == set(
