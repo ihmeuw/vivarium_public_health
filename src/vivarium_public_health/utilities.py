@@ -101,7 +101,7 @@ def is_non_zero(data: Union[Iterable[ScalarValue], ScalarValue, pd.DataFrame]) -
 
 
 def get_lookup_columns(
-    lookup_tables: List[LookupTable], necessary_columns: Iterable = ()
+    lookup_tables: Iterable[LookupTable], necessary_columns: Iterable = ()
 ) -> List[str]:
     necessary_columns = set(necessary_columns)
     for lookup_table in lookup_tables:
