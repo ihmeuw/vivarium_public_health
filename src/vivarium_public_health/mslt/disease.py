@@ -281,10 +281,10 @@ class Disease(Component):
                 return
 
         # Calculate common factors.
-        i_bau2 = i_bau ** 2
-        i_int2 = i_int ** 2
-        r2 = r ** 2
-        f2 = f ** 2
+        i_bau2 = i_bau**2
+        i_int2 = i_int**2
+        r2 = r**2
+        f2 = f**2
         f_r = f * r
         i_bau_r = i_bau * r
         i_int_r = i_int * r
