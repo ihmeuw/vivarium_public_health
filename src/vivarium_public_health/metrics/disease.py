@@ -7,18 +7,20 @@ This module contains tools for observing disease incidence and prevalence
 in the simulation.
 
 """
+
+from functools import partial
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.results import StratifiedObserver
 
-from vivarium_public_health.utilities import to_years
+from vivarium_public_health.utilities import to_years, write_dataframe_to_csv
 
 
-class DiseaseObserver(Component):
+class DiseaseObserver(StratifiedObserver):
     """Observes disease counts and person time for a cause.
 
     By default, this observer computes aggregate disease state person time and
@@ -40,15 +42,6 @@ class DiseaseObserver(Component):
                         - "sample_stratification"
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "stratification": {
-            "disease": {
-                "exclude": [],
-                "include": [],
-            }
-        }
-    }
-
     ##############
     # Properties #
     ##############
@@ -57,7 +50,7 @@ class DiseaseObserver(Component):
     def configuration_defaults(self) -> Dict[str, Any]:
         return {
             "stratification": {
-                self.disease: self.CONFIGURATION_DEFAULTS["stratification"]["disease"]
+                self.disease: super().configuration_defaults["stratification"]["disease"]
             }
         }
 
@@ -84,8 +77,12 @@ class DiseaseObserver(Component):
         self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification[self.disease]
 
-        disease_model = builder.components.get_component(f"disease_model.{self.disease}")
+    #################
+    # Setup methods #
+    #################
 
+    def register_observations(self, builder):
+        disease_model = builder.components.get_component(f"disease_model.{self.disease}")
         for state in disease_model.states:
             builder.results.register_observation(
                 name=f"{state.state_id}_person_time",
@@ -95,6 +92,7 @@ class DiseaseObserver(Component):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
+                report=partial(self.report, "_person_time"),
             )
 
         for transition in disease_model.transition_names:
@@ -111,6 +109,7 @@ class DiseaseObserver(Component):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="collect_metrics",
+                report=partial(self.report, "_event_count"),
             )
 
     ########################
@@ -134,3 +133,26 @@ class DiseaseObserver(Component):
 
     def aggregate_state_person_time(self, x: pd.DataFrame) -> float:
         return len(x) * to_years(self.step_size())
+
+    ##################
+    # Report methods #
+    ##################
+
+    def report(self, splitter: str, measure: str, results: pd.DataFrame):
+        extra_metric = measure.split(splitter)[0]
+        if "person_time" in measure:
+            measure_name = "state_person_time"
+            extra_col = {"state": extra_metric}
+        elif "event_count" in measure:
+            measure_name = "transition_count"
+            extra_col = {"transition": extra_metric}
+        else:
+            raise ValueError(f"Unknown measure: {measure}")
+        write_dataframe_to_csv(
+            measure_name,
+            results,
+            self.results_dir,
+            self.random_seed,
+            self.input_draw,
+            extra_col,
+        )
