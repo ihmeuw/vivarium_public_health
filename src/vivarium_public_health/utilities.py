@@ -13,7 +13,6 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
 from vivarium.framework.lookup import LookupTable, ScalarValue
-from vivarium.framework.results import METRICS_COLUMN
 
 
 class EntityString(str):
