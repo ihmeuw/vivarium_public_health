@@ -9,8 +9,8 @@ from vivarium.testing_utilities import TestPopulation, build_table
 
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.disease import DiseaseObserver
+from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.utilities import to_years
 

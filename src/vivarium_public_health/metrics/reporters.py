@@ -1,9 +1,7 @@
 from pathlib import Path
-from typing import Any, Dict, Optional, Union, NamedTuple
+from typing import Any, Dict, NamedTuple, Optional, Union
 
 import pandas as pd
-
-
 from vivarium.framework.results import METRICS_COLUMN
 
 

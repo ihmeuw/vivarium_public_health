@@ -14,10 +14,10 @@ from vivarium_public_health.disease import (
     RiskAttributableDisease,
 )
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.disability import (
     DisabilityObserver as DisabilityObserver_,
 )
+from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.stratification import ResultsStratifier
 
 
