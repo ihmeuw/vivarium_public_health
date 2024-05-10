@@ -290,12 +290,7 @@ class LBWSGRiskEffect(RiskEffect):
 
     @property
     def columns_required(self) -> Optional[List[str]]:
-        columns = set(
-            ["age", "sex"]
-            + get_lookup_columns(self.lookup_tables.values())
-            + self.lbwsg_exposure_column_names
-        )
-        return list(columns)
+        return ["age", "sex"] + self.lbwsg_exposure_column_names
 
     @property
     def initialization_requirements(self) -> Dict[str, List[str]]:
