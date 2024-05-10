@@ -231,26 +231,6 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
 
 def test_different_results_per_disease(base_config, base_plugins, tmpdir):
     """Test that all eash disease observer saves out its own results."""
-    # Set up models
-
-    # year_start = base_config.time.start.year
-    # year_end = base_config.time.end.year
-    # healthy = SusceptibleState("with_condition")
-    # disease_get_data_funcs = {
-    #     "disability_weight": lambda _, __: build_table(0.0, year_start - 1, year_end),
-    #     "prevalence": lambda _, __: build_table(
-    #         0.2, year_start - 1, year_end, ["age", "year", "sex", "value"]
-    #     ),
-    # }
-    # transition_get_data_funcs = {
-    #     "incidence_rate": lambda _, __: build_table(
-    #         0.9, year_start - 1, year_end, ["age", "year", "sex", "value"]
-    #     ),
-    # }
-    # with_condition = DiseaseState("with_condition", get_data_functions=disease_get_data_funcs)
-    # healthy.add_rate_transition(with_condition, transition_get_data_funcs)
-    # return DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
-
     vampiris_healthy_state = SusceptibleState("not_a_vampire")
     vampiris_infected_state = DiseaseState("a_vampire")
     vampiris_healthy_state.add_rate_transition(vampiris_infected_state)
