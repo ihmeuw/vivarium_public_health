@@ -227,3 +227,78 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     assert np.isclose(
         actual_person_times["with_condition"], expected_with_condition_person_time, rtol=0.001
     )
+
+
+def test_different_results_per_disease(base_config, base_plugins, tmpdir):
+    """Test that all eash disease observer saves out its own results."""
+    # Set up models
+
+    # year_start = base_config.time.start.year
+    # year_end = base_config.time.end.year
+    # healthy = SusceptibleState("with_condition")
+    # disease_get_data_funcs = {
+    #     "disability_weight": lambda _, __: build_table(0.0, year_start - 1, year_end),
+    #     "prevalence": lambda _, __: build_table(
+    #         0.2, year_start - 1, year_end, ["age", "year", "sex", "value"]
+    #     ),
+    # }
+    # transition_get_data_funcs = {
+    #     "incidence_rate": lambda _, __: build_table(
+    #         0.9, year_start - 1, year_end, ["age", "year", "sex", "value"]
+    #     ),
+    # }
+    # with_condition = DiseaseState("with_condition", get_data_functions=disease_get_data_funcs)
+    # healthy.add_rate_transition(with_condition, transition_get_data_funcs)
+    # return DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+
+    vampiris_healthy_state = SusceptibleState("not_a_vampire")
+    vampiris_infected_state = DiseaseState("a_vampire")
+    vampiris_healthy_state.add_rate_transition(vampiris_infected_state)
+    vampiris = DiseaseModel(
+        "vampiris",
+        initial_state=vampiris_healthy_state,
+        states=[vampiris_healthy_state, vampiris_infected_state],
+    )
+    hcd_healthy_state = SusceptibleState("not_a_zombie")
+    hcd_infected_state = DiseaseState("a_zombie")
+    hcd_healthy_state.add_rate_transition(hcd_infected_state)
+    human_cortico_deficiency = DiseaseModel(
+        "human_cortico_deficiency",
+        initial_state=hcd_healthy_state,
+        states=[hcd_healthy_state, hcd_infected_state],
+    )
+
+    vampiris_observer = DiseaseObserver("vampiris")
+    hcd_observer = DiseaseObserver("human_cortico_deficiency")
+
+    # Add the results dir since we didn't go through cli.py
+    results_dir = Path(tmpdir)
+    base_config.update({"output_data": {"results_directory": str(results_dir)}})
+
+    simulation = InteractiveContext(
+        components=[
+            TestPopulation(),
+            vampiris,
+            human_cortico_deficiency,
+            ResultsStratifier(),
+            vampiris_observer,
+            hcd_observer,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+
+    simulation.setup()
+    simulation.step()
+    simulation.finalize()
+    simulation.report()
+    results_files = list(results_dir.rglob("*.parquet"))
+    assert set(file.name for file in results_files) == set(
+        [
+            "person_time_vampiris.parquet",
+            "transition_count_vampiris.parquet",
+            "person_time_human_cortico_deficiency.parquet",
+            "transition_count_human_cortico_deficiency.parquet",
+        ]
+    )
