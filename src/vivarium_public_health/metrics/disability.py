@@ -8,7 +8,8 @@ in the simulation.
 
 """
 
-from typing import List
+from functools import partial
+from typing import List, Optional
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -79,7 +80,7 @@ class DisabilityObserver(StratifiedObserver):
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            report=self.report,
+            report=partial(self.report, None),
         )
 
         for cause_state in cause_states:
@@ -96,7 +97,7 @@ class DisabilityObserver(StratifiedObserver):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
-                report=self.report,
+                report=partial(self.report, cause_state),
             )
 
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
@@ -120,17 +121,26 @@ class DisabilityObserver(StratifiedObserver):
 
     def report(
         self,
+        cause_state: Optional[DiseaseState],
         measure: str,
         results: pd.DataFrame,
     ) -> None:
-        """Combine the measure-specific observer results and save to a single file."""
-        measure, cause = [s.strip("_") for s in measure.split("due_to")]
+        """Combine each observation's results and save to a single file"""
+        measure = "ylds"
+        if not cause_state:
+            entity_type = "cause"
+            entity = "all_causes"
+            sub_entity = None
+        else:
+            entity_type = cause_state.cause_type
+            entity = cause_state.model
+            sub_entity = cause_state.state_id
         write_dataframe_to_parquet(
             results=results,
             measure=measure,
-            entity_type="cause",
-            entity=cause,
-            sub_entity=None,
+            entity_type=entity_type,
+            entity=entity,
+            sub_entity=sub_entity,
             results_dir=self.results_dir,
             random_seed=self.random_seed,
             input_draw=self.input_draw,
