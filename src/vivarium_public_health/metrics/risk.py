@@ -6,16 +6,19 @@ Risk Observers
 This module contains tools for observing risk exposure during the simulation.
 
 """
+
+from functools import partial
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.results import StratifiedObserver
 
+from vivarium_public_health.metrics.reporters import write_dataframe_to_parquet
 from vivarium_public_health.utilities import to_years
 
 
-class CategoricalRiskObserver(Component):
+class CategoricalRiskObserver(StratifiedObserver):
     """An observer for a categorical risk factor.
 
     Observes category person time for a risk factor.
@@ -39,15 +42,6 @@ class CategoricalRiskObserver(Component):
                         - "sample_stratification"
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "stratification": {
-            "risk": {
-                "exclude": [],
-                "include": [],
-            }
-        }
-    }
-
     ##############
     # Properties #
     ##############
@@ -60,7 +54,9 @@ class CategoricalRiskObserver(Component):
         """
         return {
             "stratification": {
-                f"{self.risk}": self.CONFIGURATION_DEFAULTS["stratification"]["risk"]
+                f"{self.risk}": super().configuration_defaults["stratification"][
+                    "categorical_risk"
+                ]
             }
         }
 
@@ -76,8 +72,7 @@ class CategoricalRiskObserver(Component):
         """
         Parameters
         ----------
-        risk :
-        name of a risk
+        risk: name of a risk
 
         """
         super().__init__()
@@ -90,6 +85,11 @@ class CategoricalRiskObserver(Component):
         self.config = builder.configuration.stratification[self.risk]
         self.categories = builder.data.load(f"risk_factor.{self.risk}.categories")
 
+    #################
+    # Setup methods #
+    #################
+
+    def register_observations(self, builder):
         for category in self.categories:
             builder.results.register_observation(
                 name=f"{self.risk}_{category}_person_time",
@@ -100,6 +100,7 @@ class CategoricalRiskObserver(Component):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
+                report=partial(self.write_risk_results, category),
             )
 
     ###############
@@ -108,3 +109,20 @@ class CategoricalRiskObserver(Component):
 
     def aggregate_risk_category_person_time(self, x: pd.DataFrame) -> float:
         return len(x) * to_years(self.step_size())
+
+    ##################
+    # Report methods #
+    ##################
+
+    def write_risk_results(self, category: str, measure: str, results: pd.DataFrame) -> None:
+        write_dataframe_to_parquet(
+            results=results,
+            measure="person_time",
+            entity_type="rei",
+            entity=self.risk,
+            sub_entity=category,
+            results_dir=self.results_dir,
+            random_seed=self.random_seed,
+            input_draw=self.input_draw,
+            output_filename=f"person_time_{self.risk}",
+        )
