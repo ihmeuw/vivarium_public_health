@@ -1,5 +1,6 @@
 import itertools
 from collections import namedtuple
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -48,53 +49,42 @@ def test_disability_observer_setup(mocker):
     builder.configuration.output_data.results_directory = "some/results/directory"
 
     # Set up fake calls for cause-specific register_observation args
-    MockCause = namedtuple("MockCause", "state_id")
-    builder.components.get_components_by_type = lambda n: [
-        MockCause("flu"),
-        MockCause("measles"),
-    ]
+    flu = DiseaseState("flu")
+    measles = DiseaseState("measles")
+    builder.components.get_components_by_type = lambda n: [flu, measles]
     builder.value.get_value = lambda n: n
 
     builder.results.register_observation.assert_not_called()
     observer.setup_component(builder)
-    # Need to mock the results_dir since we didn't run this from cli
-    builder.results.register_observation.assert_any_call(
-        name="ylds_due_to_all_causes",
-        pop_filter='tracked == True and alive == "alive"',
-        aggregator_sources=["disability_weight"],
-        aggregator=observer.disability_weight_aggregator,
-        requires_columns=["alive"],
-        requires_values=["disability_weight"],
-        additional_stratifications=observer.config.include,
-        excluded_stratifications=observer.config.exclude,
-        when="time_step__prepare",
-        report=observer.report,
-    )
-    builder.results.register_observation.assert_any_call(
-        name="ylds_due_to_flu",
-        pop_filter='tracked == True and alive == "alive"',
-        aggregator_sources=["flu.disability_weight"],
-        aggregator=observer.disability_weight_aggregator,
-        requires_columns=["alive"],
-        requires_values=["flu.disability_weight"],
-        additional_stratifications=observer.config.include,
-        excluded_stratifications=observer.config.exclude,
-        when="time_step__prepare",
-        report=observer.report,
-    )
-    builder.results.register_observation.assert_any_call(
-        name="ylds_due_to_measles",
-        pop_filter='tracked == True and alive == "alive"',
-        aggregator_sources=["measles.disability_weight"],
-        aggregator=observer.disability_weight_aggregator,
-        requires_columns=["alive"],
-        requires_values=["measles.disability_weight"],
-        additional_stratifications=observer.config.include,
-        excluded_stratifications=observer.config.exclude,
-        when="time_step__prepare",
-        report=observer.report,
-    )
+
+    # Cannot use mocker.assert_any_call() with partial functions as an arg so
+    # instead check each kwarg individually
     assert builder.results.register_observation.call_count == 3
+    for _, kwargs in builder.results.register_observation.call_args_list:
+        assert len(kwargs) == 10
+        assert kwargs["pop_filter"] == 'tracked == True and alive == "alive"'
+        assert kwargs["aggregator"] == observer.disability_weight_aggregator
+        assert kwargs["requires_columns"] == ["alive"]
+        assert kwargs["additional_stratifications"] == observer.config.include
+        assert kwargs["excluded_stratifications"] == observer.config.exclude
+        assert kwargs["when"] == "time_step__prepare"
+        report = kwargs["report"]
+        assert (
+            isinstance(report, partial) and report.func == observer.write_disability_results
+        )
+        if kwargs["name"] == "ylds_due_to_all_causes":
+            assert kwargs["aggregator_sources"] == ["disability_weight"]
+            assert kwargs["requires_values"] == ["disability_weight"]
+            assert report.args == (None,)
+        elif kwargs["name"] == "ylds_due_to_flu":
+            assert kwargs["aggregator_sources"] == ["flu.disability_weight"]
+            assert kwargs["requires_values"] == ["flu.disability_weight"]
+            assert report.args == (flu,)
+        elif kwargs["name"] == "ylds_due_to_measles":
+            assert kwargs["aggregator_sources"] == ["measles.disability_weight"]
+            assert kwargs["requires_values"] == ["measles.disability_weight"]
+            assert report.args == (measles,)
+
     assert DiseaseState in observer.disease_classes
     assert RiskAttributableDisease in observer.disease_classes
 
@@ -208,35 +198,53 @@ def test_disability_accumulation(
     assert set(file.name for file in results_files) == set(["ylds.parquet"])
     results = pd.read_parquet(results_files[0])
 
-    # yld_masks format: {cause: (filter, dw_pipeline)}
+    # yld_masks format: {cause: (state, filter, dw_pipeline)}
     yld_masks = {
-        "all_causes": (slice(None), disability_weight),
-        "sick_cause_0": (pop["model_0"] == "sick_cause_0", disability_weight_0),
-        "sick_cause_1": (pop["model_1"] == "sick_cause_1", disability_weight_1),
+        "all_causes": (None, slice(None), disability_weight),
+        "model_0": ("sick_cause_0", pop["model_0"] == "sick_cause_0", disability_weight_0),
+        "model_1": ("sick_cause_1", pop["model_1"] == "sick_cause_1", disability_weight_1),
     }
 
     # Check that all expected observations are there
-    assert set(zip(results["sex"], results["cause"])) == set(
+    assert set(zip(results["sex"], results[COLUMNS.ENTITY])) == set(
         itertools.product(*[["Female", "Male"], list(yld_masks)])
     )
+    for cause, (state, *_) in yld_masks.items():
+        if state:
+            assert (
+                results.loc[results[COLUMNS.ENTITY] == cause, COLUMNS.SUB_ENTITY] == state
+            ).all()
+        else:
+            assert (
+                results.loc[results[COLUMNS.ENTITY] == cause, COLUMNS.SUB_ENTITY].isna().all()
+            )
 
-    # Check other columns (NOTE: no input_draw defined so shouldn't be there)
     assert set(results.columns) == set(
-        ["sex", COLUMNS.CAUSE, COLUMNS.MEASURE, COLUMNS.SEED, COLUMNS.VALUE]
+        [
+            "sex",
+            COLUMNS.MEASURE,
+            COLUMNS.ENTITY_TYPE,
+            COLUMNS.ENTITY,
+            COLUMNS.SUB_ENTITY,
+            COLUMNS.SEED,
+            COLUMNS.DRAW,
+            COLUMNS.VALUE,
+        ]
     )
     assert (results[COLUMNS.MEASURE] == "ylds").all()
+    assert (results[COLUMNS.ENTITY_TYPE] == "cause").all()
     assert (results[COLUMNS.SEED] == 0).all()
+    assert results[COLUMNS.DRAW].isna().all()
 
     # Check that all the yld values are as expected
     time_scale = time_step / pd.Timedelta("365.25 days")
-    for cause in ["all_causes", "sick_cause_0", "sick_cause_1"]:
-        pop_filter, dw = yld_masks[cause]
+    for cause, (state, pop_filter, dw) in yld_masks.items():
         cause_specific_pop = pop[pop_filter]
         for sex in ["Female", "Male"]:
             sub_pop = cause_specific_pop[cause_specific_pop["sex"] == sex]
             expected_ylds = (dw(sub_pop.index) * time_scale).sum()
             actual_ylds = results.loc[
-                (results[COLUMNS.CAUSE] == cause) & (results["sex"] == sex), COLUMNS.VALUE
+                (results[COLUMNS.ENTITY] == cause) & (results["sex"] == sex), COLUMNS.VALUE
             ].values
             assert len(actual_ylds) == 1
             assert np.isclose(expected_ylds, actual_ylds[0], rtol=0.0000001)
