@@ -8,13 +8,12 @@ implementation that has been used in several public health models.
 """
 
 import pickle
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.lifecycle import LifeCycleError
-from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 from vivarium.framework.values import Pipeline
 
@@ -287,7 +286,7 @@ class LBWSGRiskEffect(RiskEffect):
 
     @property
     def columns_created(self) -> List[str]:
-        return self._rr_column_names
+        return self.rr_column_names
 
     @property
     def columns_required(self) -> Optional[List[str]]:
@@ -300,6 +299,10 @@ class LBWSGRiskEffect(RiskEffect):
             "requires_values": [],
             "requires_streams": [],
         }
+
+    @property
+    def rr_column_names(self) -> List[str]:
+        return [self.relative_risk_column_name(age_group) for age_group in self.age_intervals]
 
     #####################
     # Lifecycle methods #
@@ -315,7 +318,7 @@ class LBWSGRiskEffect(RiskEffect):
             f"effect_of_{self.risk.name}_on_{self.target.name}.relative_risk"
         )
 
-    def relative_risk_column_name(self, age_group_id) -> str:
+    def relative_risk_column_name(self, age_group_id: str) -> str:
         return (
             f"effect_of_{self.risk.name}_on_{age_group_id}_{self.target.name}_relative_risk"
         )
@@ -323,20 +326,34 @@ class LBWSGRiskEffect(RiskEffect):
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.age_intervals = self.get_age_intervals(builder)
-        self._rr_column_names = self.get_rr_column_names()
 
         super().setup(builder)
         self.interpolator = self.get_interpolator(builder)
+        self.relative_risk = self.get_relative_risk_pipeline(builder)
 
     #################
     # Setup methods #
     #################
+
+    # noinspection PyAttributeOutsideInit
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        paf_data, paf_value_cols = self.get_population_attributable_fraction_source(builder)
+        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
+            builder, paf_data, paf_value_cols
+        )
 
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.DataFrame]:
         def exposure(index: pd.Index) -> pd.DataFrame:
             return self.population_view.subview(self.lbwsg_exposure_column_names).get(index)
 
         return exposure
+
+    def get_population_attributable_fraction_source(
+        self, builder: Builder
+    ) -> Tuple[pd.DataFrame, List[str]]:
+        paf_key = f"{self.risk}.population_attributable_fraction"
+        paf_data = builder.data.load(paf_key)
+        return paf_data, builder.data.value_columns()(paf_key)
 
     def get_target_modifier(
         self, builder: Builder
@@ -350,7 +367,7 @@ class LBWSGRiskEffect(RiskEffect):
         builder.value.register_value_modifier(
             self.target_pipeline_name,
             modifier=self.target_modifier,
-            requires_columns=["age", "sex"],
+            requires_values=[self.relative_risk_pipeline_name],
         )
 
     def get_age_intervals(self, builder: Builder) -> Dict[str, pd.Interval]:
@@ -369,21 +386,11 @@ class LBWSGRiskEffect(RiskEffect):
             for age_start in exposed_age_group_starts
         }
 
-    def get_rr_column_names(self) -> List[str]:
-        return [self.relative_risk_column_name(age_group) for age_group in self.age_intervals]
-
-    def get_relative_risk_source(self, builder: Builder) -> Pipeline:
+    def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.relative_risk_pipeline_name,
             source=self.get_relative_risk,
-            requires_columns=["age"] + self._rr_column_names,
-        )
-
-    def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
-        return builder.lookup.build_table(
-            builder.data.load(f"{self.risk}.population_attributable_fraction"),
-            key_columns=["sex"],
-            parameter_columns=["age", "year"],
+            requires_columns=["age"] + self.rr_column_names,
         )
 
     def get_interpolator(self, builder: Builder) -> pd.Series:
@@ -428,7 +435,7 @@ class LBWSGRiskEffect(RiskEffect):
             self.TMREL_BIRTH_WEIGHT_INTERVAL.left <= birth_weight
         )
 
-        def get_relative_risk_for_age_group(age_group: int) -> pd.Series:
+        def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
             column_name = self.relative_risk_column_name(age_group)
             log_relative_risk = pd.Series(0.0, index=pop_data.index, name=column_name)
 
