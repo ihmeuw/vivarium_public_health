@@ -96,7 +96,7 @@ class DiseaseObserver(StratifiedObserver):
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
                 report=partial(
-                    self.report,
+                    self.write_disease_results,
                     measure_name="person_time",
                     entity_type=entity_type,
                     entity=entity,
@@ -119,7 +119,7 @@ class DiseaseObserver(StratifiedObserver):
                 excluded_stratifications=self.config.exclude,
                 when="collect_metrics",
                 report=partial(
-                    self.report,
+                    self.write_disease_results,
                     measure_name="transition_count",
                     entity_type=entity_type,
                     entity=entity,
@@ -153,7 +153,7 @@ class DiseaseObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def report(
+    def write_disease_results(
         self,
         measure_name: str,
         entity_type: str,
