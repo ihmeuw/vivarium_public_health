@@ -12,9 +12,11 @@ class __Columns(NamedTuple):
     MEASURE: str = "measure"
     SEED: str = "random_seed"
     DRAW: str = "input_draw"
-    CAUSE: str = "cause"
     TRANSITION: str = "transition"
     STATE: str = "state"
+    ENTITY_TYPE: str = "entity_type"
+    SUB_ENTITY: str = "sub_entity"
+    ENTITY: str = "entity"
 
     @property
     def name(self):
@@ -25,12 +27,15 @@ COLUMNS = __Columns()
 
 
 def write_dataframe_to_parquet(
-    measure: str,
     results: pd.DataFrame,
+    measure: str,
+    entity_type: str,
+    entity: str,
+    sub_entity: Optional[str],
     results_dir: Optional[Union[str, Path]],
     random_seed: Optional[int],
     input_draw: Optional[int],
-    extra_cols: Dict[str, Any] = {},
+    output_filename: Optional[str] = None,
 ) -> None:
     """Utility function for observation 'report' methods to write pd.DataFrames to parquet"""
     if results_dir is None:
@@ -38,20 +43,24 @@ def write_dataframe_to_parquet(
     results_dir = Path(results_dir)
     # Add extra cols
     col_mapper = {
-        **{COLUMNS.MEASURE: measure},
-        **extra_cols,
-        **{COLUMNS.SEED: random_seed, COLUMNS.DRAW: input_draw},
+        COLUMNS.MEASURE: measure,
+        COLUMNS.ENTITY_TYPE: entity_type,
+        COLUMNS.ENTITY: entity,
+        COLUMNS.SUB_ENTITY: sub_entity,
+        COLUMNS.SEED: random_seed,
+        COLUMNS.DRAW: input_draw,
     }
     for col, val in col_mapper.items():
-        if val is not None:
-            results[col] = val
+        results[col] = val
+
     # Sort the columns such that the stratifications (index) are first,
     # the value column is last, and sort the rows by the stratifications.
     other_cols = [c for c in results.columns if c != COLUMNS.VALUE]
     results = results[other_cols + [COLUMNS.VALUE]].sort_index().reset_index()
 
     # Concat and save
-    results_file = results_dir / f"{measure}.parquet"
+    output_filename = measure if not output_filename else output_filename
+    results_file = results_dir / f"{output_filename}.parquet"
     if results_file.exists():
         # pd.to_parquet does not support an append mode
         original_results = pd.read_parquet(results_file)
