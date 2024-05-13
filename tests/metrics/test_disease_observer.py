@@ -126,18 +126,18 @@ def test_observation_registration(base_config, base_plugins, disease, model, tmp
     simulation.report()
     results_files = list(results_dir.rglob("*.parquet"))
     assert set(file.name for file in results_files) == set(
-        ["state_person_time.parquet", "transition_count.parquet"]
+        ["person_time_t_virus.parquet", "transition_count_t_virus.parquet"]
     )
-    state_person_time = pd.read_parquet(results_dir / "state_person_time.parquet")
-    transition_count = pd.read_parquet(results_dir / "transition_count.parquet")
+    person_time = pd.read_parquet(results_dir / "person_time_t_virus.parquet")
+    transition_count = pd.read_parquet(results_dir / "transition_count_t_virus.parquet")
 
     # Check that all expected observations are present
-    assert set(zip(state_person_time["state"], state_person_time["sex"])) == set(
+    assert set(zip(person_time[COLUMNS.SUB_ENTITY], person_time["sex"])) == set(
         itertools.product(
             *[["susceptible_to_with_condition", "with_condition"], ["Female", "Male"]]
         )
     )
-    assert set(zip(transition_count["transition"], transition_count["sex"])) == set(
+    assert set(zip(transition_count[COLUMNS.SUB_ENTITY], transition_count["sex"])) == set(
         itertools.product(
             *[["susceptible_to_with_condition_to_with_condition"], ["Female", "Male"]]
         )
@@ -187,28 +187,37 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     simulation.finalize()
     simulation.report()
 
-    state_person_time = pd.read_parquet(results_dir / "state_person_time.parquet")
-    transition_count = pd.read_parquet(results_dir / "transition_count.parquet")
+    person_time = pd.read_parquet(results_dir / "person_time_t_virus.parquet")
+    transition_count = pd.read_parquet(results_dir / "transition_count_t_virus.parquet")
 
-    # Check columns (NOTE: no input_draw defined so shouldn't be there)
-    assert set(state_person_time.columns) == set(
-        ["sex", COLUMNS.STATE, COLUMNS.MEASURE, COLUMNS.SEED, COLUMNS.VALUE]
-    )
-    assert (state_person_time[COLUMNS.MEASURE] == "state_person_time").all()
-    assert (state_person_time[COLUMNS.SEED] == 0).all()
-    assert set(transition_count.columns) == set(
-        ["sex", COLUMNS.TRANSITION, COLUMNS.MEASURE, COLUMNS.SEED, COLUMNS.VALUE]
-    )
-    assert (transition_count[COLUMNS.MEASURE] == "transition_count").all()
-    assert (transition_count[COLUMNS.SEED] == 0).all()
+    # Check columns
+    for measure in ["person_time", "transition_count"]:
+        df = eval(measure)
+        assert set(df.columns) == set(
+            [
+                "sex",
+                COLUMNS.MEASURE,
+                COLUMNS.ENTITY_TYPE,
+                COLUMNS.ENTITY,
+                COLUMNS.SUB_ENTITY,
+                COLUMNS.SEED,
+                COLUMNS.DRAW,
+                COLUMNS.VALUE,
+            ]
+        )
+        assert (df[COLUMNS.MEASURE] == measure).all()
+        assert (df[COLUMNS.ENTITY_TYPE] == "cause").all()
+        assert (df[COLUMNS.ENTITY] == "t_virus").all()
+        assert (df[COLUMNS.SEED] == 0).all()
+        assert df[COLUMNS.DRAW].isna().all()
 
     # Check values
     actual_tx_count = transition_count.loc[
-        transition_count[COLUMNS.TRANSITION]
+        transition_count[COLUMNS.SUB_ENTITY]
         == "susceptible_to_with_condition_to_with_condition",
         COLUMNS.VALUE,
     ].sum()
-    actual_person_times = state_person_time.groupby("state")[COLUMNS.VALUE].sum()
+    actual_person_times = person_time.groupby(COLUMNS.SUB_ENTITY)[COLUMNS.VALUE].sum()
     assert np.isclose(actual_tx_count, susceptible_at_start, rtol=0.001)
     assert np.isclose(
         actual_person_times["susceptible_to_with_condition"],
@@ -217,4 +226,59 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     )
     assert np.isclose(
         actual_person_times["with_condition"], expected_with_condition_person_time, rtol=0.001
+    )
+
+
+def test_different_results_per_disease(base_config, base_plugins, tmpdir):
+    """Test that all eash disease observer saves out its own results."""
+    vampiris_healthy_state = SusceptibleState("not_a_vampire")
+    vampiris_infected_state = DiseaseState("a_vampire")
+    vampiris_healthy_state.add_rate_transition(vampiris_infected_state)
+    vampiris = DiseaseModel(
+        "vampiris",
+        initial_state=vampiris_healthy_state,
+        states=[vampiris_healthy_state, vampiris_infected_state],
+    )
+    hcd_healthy_state = SusceptibleState("not_a_zombie")
+    hcd_infected_state = DiseaseState("a_zombie")
+    hcd_healthy_state.add_rate_transition(hcd_infected_state)
+    human_cortico_deficiency = DiseaseModel(
+        "human_cortico_deficiency",
+        initial_state=hcd_healthy_state,
+        states=[hcd_healthy_state, hcd_infected_state],
+    )
+
+    vampiris_observer = DiseaseObserver("vampiris")
+    hcd_observer = DiseaseObserver("human_cortico_deficiency")
+
+    # Add the results dir since we didn't go through cli.py
+    results_dir = Path(tmpdir)
+    base_config.update({"output_data": {"results_directory": str(results_dir)}})
+
+    simulation = InteractiveContext(
+        components=[
+            TestPopulation(),
+            vampiris,
+            human_cortico_deficiency,
+            ResultsStratifier(),
+            vampiris_observer,
+            hcd_observer,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+
+    simulation.setup()
+    simulation.step()
+    simulation.finalize()
+    simulation.report()
+    results_files = list(results_dir.rglob("*.parquet"))
+    assert set(file.name for file in results_files) == set(
+        [
+            "person_time_vampiris.parquet",
+            "transition_count_vampiris.parquet",
+            "person_time_human_cortico_deficiency.parquet",
+            "transition_count_human_cortico_deficiency.parquet",
+        ]
     )
