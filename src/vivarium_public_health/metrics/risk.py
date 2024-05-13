@@ -42,15 +42,6 @@ class CategoricalRiskObserver(StratifiedObserver):
                         - "sample_stratification"
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "stratification": {
-            "risk": {
-                "exclude": [],
-                "include": [],
-            }
-        }
-    }
-
     ##############
     # Properties #
     ##############
