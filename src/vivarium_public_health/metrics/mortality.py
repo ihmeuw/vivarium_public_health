@@ -7,16 +7,19 @@ This module contains tools for observing cause-specific and
 excess mortality in the simulation, including "other causes".
 
 """
-from typing import Callable, List, Optional
+
+from functools import partial
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
-from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.results import StratifiedObserver
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
+from vivarium_public_health.metrics.reporters import write_dataframe_to_parquet
 
 
-class MortalityObserver(Component):
+class MortalityObserver(StratifiedObserver):
     """An observer for cause-specific deaths and ylls (including "other causes").
 
     By default, this counts cause-specific deaths and years of life lost over
@@ -44,16 +47,6 @@ class MortalityObserver(Component):
     As a result, the model specification should list this observer after causes.
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "stratification": {
-            "mortality": {
-                "exclude": [],
-                "include": [],
-                "aggregate": False,
-            }
-        }
-    }
-
     def __init__(self):
         super().__init__()
         self.causes_of_death = ["other_causes"]
@@ -68,6 +61,16 @@ class MortalityObserver(Component):
     ##############
     # Properties #
     ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        """
+        A dictionary containing the defaults for any configurations managed by
+        this component.
+        """
+        config_defaults = super().configuration_defaults.copy()
+        config_defaults["stratification"]["mortality"]["aggregate"] = False
+        return config_defaults
 
     @property
     def columns_required(self) -> Optional[List[str]]:
@@ -92,6 +95,8 @@ class MortalityObserver(Component):
         self.causes_of_death += [
             cause.state_id for cause in cause_components if cause.has_excess_mortality
         ]
+
+    def register_observations(self, builder: Builder) -> None:
         if not self.config.aggregate:
             for cause_of_death in self.causes_of_death:
                 self._register_mortality_observations(
@@ -105,21 +110,23 @@ class MortalityObserver(Component):
     ###################
 
     def _register_mortality_observations(
-        self, builder: Builder, cause: str, additional_pop_filter: str = ""
+        self, builder: Builder, cause: str, additional_pop_filter: Optional[str] = None
     ) -> None:
+        basic_filter = 'alive == "dead" and tracked == True'
         pop_filter = (
-            'alive == "dead" and tracked == True'
-            if additional_pop_filter == ""
-            else f'alive == "dead" and tracked == True and {additional_pop_filter}'
+            basic_filter
+            if not additional_pop_filter
+            else " and ".join([basic_filter, additional_pop_filter])
         )
         builder.results.register_observation(
-            name=f"death_due_to_{cause}",
+            name=f"deaths_due_to_{cause}",
             pop_filter=pop_filter,
             aggregator=self.count_deaths,
             requires_columns=self.required_death_columns,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
+            report=partial(self.write_mortality_results, cause),
         )
         builder.results.register_observation(
             name=f"ylls_due_to_{cause}",
@@ -129,6 +136,7 @@ class MortalityObserver(Component):
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
+            report=partial(self.write_mortality_results, cause),
         )
 
     ###############
@@ -142,3 +150,22 @@ class MortalityObserver(Component):
     def calculate_ylls(self, x: pd.DataFrame) -> float:
         died_of_cause = x["exit_time"] > self.clock()
         return x.loc[died_of_cause, "years_of_life_lost"].sum()
+
+    ##################
+    # Report methods #
+    ##################
+
+    def write_mortality_results(
+        self, cause: str, measure: str, results: pd.DataFrame
+    ) -> None:
+        measure_name = measure.split("_due_to_")[0]
+        write_dataframe_to_parquet(
+            results=results,
+            measure=measure_name,
+            entity_type="cause",
+            entity=cause,
+            sub_entity=None,  # FIXME
+            results_dir=self.results_dir,
+            random_seed=self.random_seed,
+            input_draw=self.input_draw,
+        )
