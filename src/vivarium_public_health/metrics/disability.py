@@ -8,7 +8,8 @@ in the simulation.
 
 """
 
-from typing import List
+from functools import partial
+from typing import List, Optional
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -79,7 +80,7 @@ class DisabilityObserver(StratifiedObserver):
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            report=self.report,
+            report=partial(self.write_disability_results, None),
         )
 
         for cause_state in cause_states:
@@ -96,7 +97,7 @@ class DisabilityObserver(StratifiedObserver):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
-                report=self.report,
+                report=partial(self.write_disability_results, cause_state),
             )
 
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
@@ -118,18 +119,24 @@ class DisabilityObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def report(
+    def write_disability_results(
         self,
+        cause_state: Optional[DiseaseState],
         measure: str,
         results: pd.DataFrame,
     ) -> None:
-        """Combine the measure-specific observer results and save to a single file."""
-        measure, cause = [s.strip("_") for s in measure.split("due_to")]
+        """Combine each observation's results and save to a single file"""
+
+        kwargs = {
+            "entity_type": cause_state.cause_type if cause_state else "cause",
+            "entity": cause_state.model if cause_state else "all_causes",
+            "sub_entity": cause_state.state_id if cause_state else None,
+            "results_dir": self.results_dir,
+            "random_seed": self.random_seed,
+            "input_draw": self.input_draw,
+        }
         write_dataframe_to_parquet(
-            measure,
-            results,
-            self.results_dir,
-            self.random_seed,
-            self.input_draw,
-            {COLUMNS.CAUSE: cause},
+            results=results,
+            measure="ylds",
+            **kwargs,
         )
