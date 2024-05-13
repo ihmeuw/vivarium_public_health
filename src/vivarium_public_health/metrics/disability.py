@@ -80,7 +80,7 @@ class DisabilityObserver(StratifiedObserver):
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            report=partial(self.report, None),
+            report=partial(self.write_disability_results, None),
         )
 
         for cause_state in cause_states:
@@ -97,7 +97,7 @@ class DisabilityObserver(StratifiedObserver):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
-                report=partial(self.report, cause_state),
+                report=partial(self.write_disability_results, cause_state),
             )
 
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
@@ -119,29 +119,24 @@ class DisabilityObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def report(
+    def write_disability_results(
         self,
         cause_state: Optional[DiseaseState],
         measure: str,
         results: pd.DataFrame,
     ) -> None:
         """Combine each observation's results and save to a single file"""
-        measure = "ylds"
-        if not cause_state:
-            entity_type = "cause"
-            entity = "all_causes"
-            sub_entity = None
-        else:
-            entity_type = cause_state.cause_type
-            entity = cause_state.model
-            sub_entity = cause_state.state_id
+
+        kwargs = {
+            "entity_type": cause_state.cause_type if cause_state else "cause",
+            "entity": cause_state.model if cause_state else "all_causes",
+            "sub_entity": cause_state.state_id if cause_state else None,
+            "results_dir": self.results_dir,
+            "random_seed": self.random_seed,
+            "input_draw": self.input_draw,
+        }
         write_dataframe_to_parquet(
             results=results,
-            measure=measure,
-            entity_type=entity_type,
-            entity=entity,
-            sub_entity=sub_entity,
-            results_dir=self.results_dir,
-            random_seed=self.random_seed,
-            input_draw=self.input_draw,
+            measure="ylds",
+            **kwargs,
         )

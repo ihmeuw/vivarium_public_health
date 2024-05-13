@@ -67,7 +67,9 @@ def test_disability_observer_setup(mocker):
         assert kwargs["excluded_stratifications"] == observer.config.exclude
         assert kwargs["when"] == "time_step__prepare"
         report = kwargs["report"]
-        assert isinstance(report, partial) and report.func == observer.report
+        assert (
+            isinstance(report, partial) and report.func == observer.write_disability_results
+        )
         if kwargs["name"] == "ylds_due_to_all_causes":
             assert kwargs["aggregator_sources"] == ["disability_weight"]
             assert kwargs["requires_values"] == ["disability_weight"]
