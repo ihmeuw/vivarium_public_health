@@ -1,3 +1,6 @@
+import itertools
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -6,6 +9,7 @@ from vivarium.framework.lookup.table import InterpolatedTable
 from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
+from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.risk import CategoricalRiskObserver
 from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.risks.base_risk import Risk
@@ -42,9 +46,11 @@ def categorical_risk():
 
 
 @pytest.fixture()
-def simulation_after_one_step(base_config, base_plugins, categorical_risk):
+def simulation_after_one_step(base_config, base_plugins, categorical_risk, tmpdir):
     risk, risk_data = categorical_risk
     observer = CategoricalRiskObserver(f"{risk.risk.name}")
+    # Add the results dir since we didn't go through cli.py
+    base_config.update({"output_data": {"results_directory": str(tmpdir)}})
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -71,31 +77,25 @@ def simulation_after_one_step(base_config, base_plugins, categorical_risk):
 
     simulation.setup()
     simulation.step()
+    simulation.finalize()
+    simulation.report()
 
     return simulation
 
 
-@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_registration(simulation_after_one_step):
-    """Test that all expected observation keys appear as expected in the results."""
-    results = simulation_after_one_step.get_value("metrics")
-    pop = simulation_after_one_step.get_population()
+    """Test that all expected observation stratifications appear in the results."""
+    results_dir = Path(simulation_after_one_step.configuration.output_data.results_directory)
+    results_files = list(results_dir.rglob("*.parquet"))
+    assert set(file.name for file in results_files) == set(["person_time_test_risk.parquet"])
 
-    expected_observations = [
-        "MEASURE_test_risk_cat1_person_time_SEX_Female",
-        "MEASURE_test_risk_cat1_person_time_SEX_Male",
-        "MEASURE_test_risk_cat2_person_time_SEX_Female",
-        "MEASURE_test_risk_cat2_person_time_SEX_Male",
-        "MEASURE_test_risk_cat3_person_time_SEX_Female",
-        "MEASURE_test_risk_cat3_person_time_SEX_Male",
-        "MEASURE_test_risk_cat4_person_time_SEX_Female",
-        "MEASURE_test_risk_cat4_person_time_SEX_Male",
-    ]
+    person_time = pd.read_parquet(results_files[0])
 
-    assert set(expected_observations) == set(results(pop.index).keys())
+    assert set(zip(person_time[COLUMNS.SUB_ENTITY], person_time["sex"])) == set(
+        itertools.product(*[["cat1", "cat2", "cat3", "cat4"], ["Female", "Male"]])
+    )
 
 
-@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_correctness(base_config, simulation_after_one_step, categorical_risk):
     """Test that person time appear as expected in the results."""
     time_step = pd.Timedelta(days=base_config.time.step_size)
@@ -105,14 +105,64 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
 
     pop = simulation_after_one_step.get_population()
     exposure = simulation_after_one_step.get_value("test_risk.exposure")(pop.index)
-    results = simulation_after_one_step.get_value("metrics")
+
+    results_dir = Path(simulation_after_one_step.configuration.output_data.results_directory)
+    results_files = list(results_dir.rglob("*.parquet"))
+    assert set(file.name for file in results_files) == set(["person_time_test_risk.parquet"])
+    results = pd.read_parquet(results_files[0])
 
     for category in exposure_categories:
         for sex in ["Male", "Female"]:
-            observation = f"MEASURE_test_risk_{category}_person_time_SEX_{sex}"
             expected_person_time = sum(
                 (exposure == category) & (pop["sex"] == sex)
             ) * to_years(time_step)
-            assert np.isclose(
-                results(pop.index)[observation], expected_person_time, rtol=0.001
-            )
+            actual_person_time = results.loc[
+                (results[COLUMNS.SUB_ENTITY] == category) & (results["sex"] == sex),
+                COLUMNS.VALUE,
+            ].values[0]
+            assert np.isclose(expected_person_time, actual_person_time, rtol=0.001)
+
+
+def test_different_results_per_risk(base_config, base_plugins, categorical_risk, tmpdir):
+    """Test that each  observer saves out its own results."""
+
+    results_dir = Path(tmpdir)
+    base_config.update({"output_data": {"results_directory": str(results_dir)}})
+
+    risk, risk_data = categorical_risk
+    risk_observer = CategoricalRiskObserver(f"{risk.risk.name}")
+
+    # Set up a second risk factor
+    another_risk = Risk("risk_factor.another_test_risk")
+    another_risk_observer = CategoricalRiskObserver(f"{another_risk.risk.name}")
+
+    simulation = InteractiveContext(
+        components=[
+            TestPopulation(),
+            ResultsStratifier(),
+            risk,
+            risk_observer,
+            another_risk,
+            another_risk_observer,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+
+    for key, value in risk_data.items():
+        simulation._data.write(f"risk_factor.test_risk.{key}", value)
+        simulation._data.write(f"risk_factor.another_test_risk.{key}", value)
+
+    simulation.setup()
+    simulation.step()
+    simulation.finalize()
+    simulation.report()
+
+    results_files = list(results_dir.rglob("*.parquet"))
+    assert set(file.name for file in results_files) == set(
+        [
+            "person_time_test_risk.parquet",
+            "person_time_another_test_risk.parquet",
+        ]
+    )
