@@ -100,7 +100,7 @@ class CategoricalRiskObserver(StratifiedObserver):
                 additional_stratifications=self.config.include,
                 excluded_stratifications=self.config.exclude,
                 when="time_step__prepare",
-                report=partial(self.report, category),
+                report=partial(self.write_risk_results, category),
             )
 
     ###############
@@ -114,7 +114,7 @@ class CategoricalRiskObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def report(self, category: str, measure: str, results: pd.DataFrame) -> None:
+    def write_risk_results(self, category: str, measure: str, results: pd.DataFrame) -> None:
         write_dataframe_to_parquet(
             results=results,
             measure="person_time",
