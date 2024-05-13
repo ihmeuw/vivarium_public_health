@@ -172,5 +172,5 @@ class DiseaseObserver(StratifiedObserver):
             results_dir=self.results_dir,
             random_seed=self.random_seed,
             input_draw=self.input_draw,
-            output_filename=f"{measure_name}_{self.disease}",
+            output_filename=f"{measure_name}_{entity}",
         )
