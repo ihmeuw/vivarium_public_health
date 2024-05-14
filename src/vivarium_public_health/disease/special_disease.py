@@ -6,6 +6,7 @@
 This module contains frequently used, but non-standard disease models.
 
 """
+
 import re
 from collections import namedtuple
 from operator import gt, lt
@@ -142,6 +143,8 @@ class RiskAttributableDisease(Component):
         self.cause = EntityString(cause)
         self.risk = EntityString(risk)
         self.state_column = self.cause.name
+        self.cause_type = "risk_attributable_disease"
+        self.model = self.risk.name
         self.state_id = self.cause.name
         self.diseased_event_time_column = f"{self.cause.name}_event_time"
         self.susceptible_event_time_column = f"susceptible_to_{self.cause.name}_event_time"
