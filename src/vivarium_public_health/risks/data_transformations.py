@@ -209,7 +209,10 @@ def _rebin_exposure_data(
 
 
 def get_relative_risk_data(
-    builder, risk: EntityString, target: TargetString, distribution_type: str = None,
+    builder,
+    risk: EntityString,
+    target: TargetString,
+    distribution_type: str = None,
 ) -> Tuple[pd.DataFrame, List[str]]:
     source_type = validate_relative_risk_data_source(builder, risk, target)
     relative_risk_data = load_relative_risk_data(builder, risk, target, source_type)
