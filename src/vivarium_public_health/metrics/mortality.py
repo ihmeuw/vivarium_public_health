@@ -47,7 +47,7 @@ class MortalityObserver(StratifiedObserver):
     As a result, the model specification should list this observer after causes.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.causes_of_death = ["other_causes"]
         self.required_death_columns = ["alive", "exit_time"]
