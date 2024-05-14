@@ -105,6 +105,25 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
     assert set(file.name for file in results_files) == set(["person_time_test_risk.parquet"])
     results = pd.read_parquet(results_files[0])
 
+    # Check columns
+    assert set(results.columns) == set(
+        [
+            "sex",
+            COLUMNS.MEASURE,
+            COLUMNS.ENTITY_TYPE,
+            COLUMNS.ENTITY,
+            COLUMNS.SUB_ENTITY,
+            COLUMNS.SEED,
+            COLUMNS.DRAW,
+            COLUMNS.VALUE,
+        ]
+    )
+
+    assert (results[COLUMNS.MEASURE] == "person_time").all()
+    assert (results[COLUMNS.ENTITY_TYPE] == "rei").all()
+    assert (results[COLUMNS.ENTITY] == "test_risk").all()
+    assert (results[COLUMNS.SEED] == 0).all()
+    assert results[COLUMNS.DRAW].isna().all()
     for category in exposure_categories:
         for sex in ["Male", "Female"]:
             expected_person_time = sum(
