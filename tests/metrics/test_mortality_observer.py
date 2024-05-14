@@ -139,6 +139,29 @@ def test_observation_correctness(simulation_after_one_step):
     results_dir = Path(simulation_after_one_step.configuration.output_data.results_directory)
     deaths = pd.read_parquet(results_dir / "deaths.parquet")
     ylls = pd.read_parquet(results_dir / "ylls.parquet")
+
+    # Check columns
+    for measure in ["deaths", "ylls"]:
+        df = eval(measure)
+        assert set(df.columns) == set(
+            [
+                "sex",
+                COLUMNS.MEASURE,
+                COLUMNS.ENTITY_TYPE,
+                COLUMNS.ENTITY,
+                COLUMNS.SUB_ENTITY,
+                COLUMNS.SEED,
+                COLUMNS.DRAW,
+                COLUMNS.VALUE,
+            ]
+        )
+        assert (df[COLUMNS.MEASURE] == measure).all()
+        assert (df[COLUMNS.ENTITY_TYPE] == "cause").all()
+        assert set(df[COLUMNS.ENTITY]) == set(["other_causes", "flu", "mumps"])
+        assert (df[COLUMNS.SEED] == 0).all()
+        assert df[COLUMNS.DRAW].isna().all()
+
+    # Check values. We already checked correctness of pipeline, so let's compare to that.
     metrics_df = pd.concat([df for df in simulation_after_one_step.get_results().values()])
     assert metrics_df.loc[metrics_df["measure"] == "deaths", "value"].equals(
         deaths.set_index("sex")["value"]
