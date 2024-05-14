@@ -48,6 +48,7 @@ def simulation_after_one_step(base_config, base_plugins, tmpdir):
     base_config.update({"output_data": {"results_directory": str(tmpdir)}})
     flu = disease_with_excess_mortality(base_config, "flu", 10)
     mumps = disease_with_excess_mortality(base_config, "mumps", 20)
+    # TODO: Add test against using a RiskAttributableDisease in addition to a DiseaseModel
 
     simulation = InteractiveContext(
         components=[
