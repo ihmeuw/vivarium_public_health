@@ -167,6 +167,7 @@ class LBWSGDistribution(PolytomousDistribution):
         endpoints = {
             BIRTH_WEIGHT: [
 <<<<<<< HEAD
+<<<<<<< HEAD
                 float(val)
                 for val in description.split(", [")[1].split(")")[0].split("]")[0].split(", ")
             ],
@@ -179,6 +180,14 @@ class LBWSGDistribution(PolytomousDistribution):
             GESTATIONAL_AGE: [
                 float(val) for val in description.split("- [")[1].split(")")[0].split('+')[0].split(", ")
 >>>>>>> 7e573ae0 (update LBWSG parsing)
+=======
+                float(val)
+                for val in description.split(", [")[1].split(")")[0].split("]")[0].split(", ")
+            ],
+            GESTATIONAL_AGE: [
+                float(val)
+                for val in description.split("- [")[1].split(")")[0].split("+")[0].split(", ")
+>>>>>>> 10aaa054 (lint)
             ],
         }[axis]
         return pd.Interval(*endpoints, closed="left")  # noqa
