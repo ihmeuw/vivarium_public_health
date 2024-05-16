@@ -7,6 +7,8 @@ This module contains tools for stratifying observed quantities
 by specified characteristics through the vivarium results interface.
 """
 
+from __future__ import annotations
+
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -78,7 +80,7 @@ class ResultsStratifier(Component):
     # Mappers #
     ###########
 
-    def map_age_groups(self, pop: pd.DataFrame) -> pd.Series:
+    def map_age_groups(self, pop: pd.DataFrame) -> pd.Series[str]:
         """Map age with age group name strings
 
         Parameters
@@ -97,7 +99,7 @@ class ResultsStratifier(Component):
         return age_group
 
     @staticmethod
-    def map_year(pop: pd.DataFrame) -> pd.Series:
+    def map_year(pop: pd.DataFrame) -> pd.Series[str]:
         """Map datetime with year
 
         Parameters

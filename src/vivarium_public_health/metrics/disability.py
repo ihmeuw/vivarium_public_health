@@ -9,7 +9,7 @@ in the simulation.
 """
 
 from functools import partial
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -46,14 +46,14 @@ class DisabilityObserver(StratifiedObserver):
     ##############
 
     @property
-    def disease_classes(self) -> List:
+    def disease_classes(self) -> List[Any]:
         return [DiseaseState, RiskAttributableDisease]
 
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.disability_weight_pipeline_name = "disability_weight"
 

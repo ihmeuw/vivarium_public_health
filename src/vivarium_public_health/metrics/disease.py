@@ -67,7 +67,7 @@ class DiseaseObserver(StratifiedObserver):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, disease: str):
+    def __init__(self, disease: str) -> None:
         super().__init__()
         self.disease = disease
         self.current_state_column_name = self.disease
@@ -82,7 +82,7 @@ class DiseaseObserver(StratifiedObserver):
     # Setup methods #
     #################
 
-    def register_observations(self, builder):
+    def register_observations(self, builder: Builder) -> None:
         disease_model = builder.components.get_component(f"disease_model.{self.disease}")
         entity_type = disease_model.cause_type
         entity = disease_model.cause
@@ -161,7 +161,7 @@ class DiseaseObserver(StratifiedObserver):
         sub_entity: str,
         measure: str,
         results: pd.DataFrame,
-    ):
+    ) -> None:
         """Combine each observation's results and save to a single file"""
         write_dataframe_to_parquet(
             results=results,
