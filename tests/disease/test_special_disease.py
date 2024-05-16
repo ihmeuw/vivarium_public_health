@@ -29,9 +29,7 @@ test_data = [
 
 
 @pytest.mark.parametrize("distribution, categories, threshold", test_data)
-def test_filter_by_exposure_categorical(
-    disease_mock, mocker, distribution, categories, threshold
-):
+def test_filter_by_exposure_categorical(disease_mock, distribution, categories, threshold):
     disease = disease_mock(distribution)
     test_index = range(500)
     per_cat = len(test_index) // len(categories)
