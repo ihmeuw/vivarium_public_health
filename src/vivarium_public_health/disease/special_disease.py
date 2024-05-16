@@ -97,8 +97,7 @@ class RiskAttributableDisease(Component):
 
     @property
     def name(self):
-        # return f"disease_model.{self.cause.name}"
-        return self.cause.name
+        return f"risk_attributable_disease.{self.cause.name}"
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
