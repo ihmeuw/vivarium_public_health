@@ -86,7 +86,7 @@ class ResultsStratifier(Component):
         Parameters
         ----------
         pop
-            A DataFrame with one column, an age to be mapped to an age group name string
+            A pd.DataFrame with one column, an age to be mapped to an age group name string
 
         Returns
         ------
@@ -105,7 +105,7 @@ class ResultsStratifier(Component):
         Parameters
         ----------
         pop
-            A DataFrame with one column, a datetime to be mapped to year
+            A pd.DataFrame with one column, a datetime to be mapped to year
 
         Returns
         ------
