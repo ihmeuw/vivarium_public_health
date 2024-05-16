@@ -62,7 +62,7 @@ class MortalityObserver(StratifiedObserver):
     ##############
 
     @property
-    def disease_classes(self) -> List:
+    def mortality_classes(self) -> List:
         return [DiseaseState, RiskAttributableDisease]
 
     @property
@@ -95,7 +95,7 @@ class MortalityObserver(StratifiedObserver):
 
     def register_observations(self, builder: Builder) -> None:
         disease_components = builder.components.get_components_by_type(
-            tuple(self.disease_classes)
+            tuple(self.mortality_classes)
         )
         if not self.config.aggregate:
             causes_of_death = [
