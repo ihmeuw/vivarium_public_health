@@ -1,5 +1,4 @@
 import itertools
-from collections import namedtuple
 from functools import partial
 from pathlib import Path
 
@@ -9,6 +8,7 @@ import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
+from tests.test_utilities import finalize_sim_and_get_results
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
@@ -83,8 +83,7 @@ def test_disability_observer_setup(mocker):
             assert kwargs["requires_values"] == ["measles.disability_weight"]
             assert report.args == (measles,)
 
-    assert DiseaseState in observer.disease_classes
-    assert RiskAttributableDisease in observer.disease_classes
+    assert set(observer.disease_classes) == set([DiseaseState, RiskAttributableDisease])
 
 
 def test__disability_weight_aggregator():
@@ -137,6 +136,7 @@ def test_disability_accumulation(
     disability_state_1 = DiseaseState(
         "sick_cause_1", get_data_functions=disability_get_data_funcs_1
     )
+    # TODO: Add test against using a RiskAttributableDisease in addition to a DiseaseModel
     model_0 = DiseaseModel(
         "model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0]
     )
@@ -188,11 +188,8 @@ def test_disability_accumulation(
         ).all()
 
     # Test that metrics are saved out correctly
-    simulation.finalize()
-    simulation.report()
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(["ylds.parquet"])
-    results = pd.read_parquet(results_files[0])
+    results = finalize_sim_and_get_results(simulation, ["ylds"])
+    results = results["ylds"]
 
     # yld_masks format: {cause: (state, filter, dw_pipeline)}
     yld_masks = {

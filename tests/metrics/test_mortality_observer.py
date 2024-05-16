@@ -1,13 +1,17 @@
+import itertools
 from collections import Counter
 
 import numpy as np
+import pandas as pd
 import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
+from tests.test_utilities import finalize_sim_and_get_results
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics import MortalityObserver
+from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.population import Mortality
 
@@ -38,10 +42,13 @@ def disease_with_excess_mortality(base_config, disease_name, emr_value) -> Disea
 
 
 @pytest.fixture()
-def simulation_after_one_step(base_config, base_plugins):
+def simulation_after_one_step(base_config, base_plugins, tmpdir):
     observer = MortalityObserver()
+    # Add the results dir since we didn't go through cli.py
+    base_config.update({"output_data": {"results_directory": str(tmpdir)}})
     flu = disease_with_excess_mortality(base_config, "flu", 10)
     mumps = disease_with_excess_mortality(base_config, "mumps", 20)
+    # TODO: Add test against using a RiskAttributableDisease in addition to a DiseaseModel
 
     simulation = InteractiveContext(
         components=[
@@ -77,7 +84,7 @@ def simulation_after_one_step(base_config, base_plugins):
     return simulation
 
 
-def get_expected_results(simulation, expected_deaths=Counter(), expected_ylls=Counter()):
+def get_expected_results(simulation, expected_values=Counter()):
     """Get expected results given a simulation. If expected deaths, for example, are not provided, return
     the counts of deaths in this time step. If expected deaths are provided, return the counts of deaths
     in the Counter plus the counts for this time step."""
@@ -85,83 +92,83 @@ def get_expected_results(simulation, expected_deaths=Counter(), expected_ylls=Co
 
     for cause in ["other_causes", "flu", "mumps"]:
         for sex in ["Male", "Female"]:
-            deaths_observation = f"MEASURE_death_due_to_{cause}_SEX_{sex}"
+            deaths_observation = f"MEASURE_deaths_due_to_{cause}_SEX_{sex}"
             ylls_observation = f"MEASURE_ylls_due_to_{cause}_SEX_{sex}"
 
             died_of_cause = pop["cause_of_death"] == cause
             is_sex_of_interest = pop["sex"] == sex
             died_this_step = pop["exit_time"] == simulation._clock.time
             is_pop_of_interest = died_of_cause & is_sex_of_interest & died_this_step
-            expected_deaths.update({deaths_observation: sum(is_pop_of_interest)})
-            expected_ylls.update(
+            expected_values.update({deaths_observation: sum(is_pop_of_interest)})
+            expected_values.update(
                 {ylls_observation: sum(pop.loc[is_pop_of_interest, "years_of_life_lost"])}
             )
 
-    return expected_deaths, expected_ylls
+    return expected_values
 
 
-@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_registration(simulation_after_one_step):
-    """Test that all expected observation keys appear as expected in the results."""
-    results = simulation_after_one_step.get_value("metrics")
-    pop = simulation_after_one_step.get_population()
+    """Test that all expected observation stratifications appear in the results."""
+    results = finalize_sim_and_get_results(simulation_after_one_step, ["deaths", "ylls"])
+    deaths = results["deaths"]
+    ylls = results["ylls"]
 
-    expected_observations = [
-        "MEASURE_death_due_to_other_causes_SEX_Female",
-        "MEASURE_death_due_to_other_causes_SEX_Male",
-        "MEASURE_ylls_due_to_other_causes_SEX_Female",
-        "MEASURE_ylls_due_to_other_causes_SEX_Male",
-        "MEASURE_death_due_to_flu_SEX_Female",
-        "MEASURE_death_due_to_flu_SEX_Male",
-        "MEASURE_ylls_due_to_flu_SEX_Female",
-        "MEASURE_ylls_due_to_flu_SEX_Male",
-        "MEASURE_death_due_to_mumps_SEX_Female",
-        "MEASURE_death_due_to_mumps_SEX_Male",
-        "MEASURE_ylls_due_to_mumps_SEX_Female",
-        "MEASURE_ylls_due_to_mumps_SEX_Male",
-    ]
-
-    assert set(expected_observations) == set(results(pop.index).keys())
+    expected_stratifications = set(
+        itertools.product(*[["other_causes", "flu", "mumps"], ["Female", "Male"]])
+    )
+    assert set(zip(deaths[COLUMNS.ENTITY], deaths["sex"])) == expected_stratifications
+    assert set(zip(ylls[COLUMNS.ENTITY], ylls["sex"])) == expected_stratifications
 
 
-@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
 def test_observation_correctness(simulation_after_one_step):
     """Test that deaths and YLLs appear as expected in the results."""
-    expected_deaths, expected_ylls = get_expected_results(simulation_after_one_step)
-    results = simulation_after_one_step.get_value("metrics")
-    pop = simulation_after_one_step.get_population()
-
-    for observation in expected_deaths:
-        assert np.isclose(
-            results(pop.index)[observation], expected_deaths[observation], rtol=0.001
-        )
-    for observation in expected_ylls:
-        assert np.isclose(
-            results(pop.index)[observation], expected_ylls[observation], rtol=0.001
-        )
+    expected = get_expected_results(simulation_after_one_step)
+    _assert_metric_correctness(simulation_after_one_step, expected)
 
     # same test on second time step
     simulation_after_one_step.step()
-    expected_deaths, expected_ylls = get_expected_results(
-        simulation_after_one_step,
-        expected_deaths=expected_deaths,
-        expected_ylls=expected_ylls,
+    expected = get_expected_results(simulation_after_one_step, expected)
+    _assert_metric_correctness(simulation_after_one_step, expected)
+
+    results = finalize_sim_and_get_results(simulation_after_one_step, ["deaths", "ylls"])
+    deaths = results["deaths"]
+    ylls = results["ylls"]
+
+    # Check columns
+    for measure in ["deaths", "ylls"]:
+        df = eval(measure)
+        assert set(df.columns) == set(
+            [
+                "sex",
+                COLUMNS.MEASURE,
+                COLUMNS.ENTITY_TYPE,
+                COLUMNS.ENTITY,
+                COLUMNS.SUB_ENTITY,
+                COLUMNS.SEED,
+                COLUMNS.DRAW,
+                COLUMNS.VALUE,
+            ]
+        )
+        assert (df[COLUMNS.MEASURE] == measure).all()
+        assert (df[COLUMNS.ENTITY_TYPE] == "cause").all()
+        assert set(df[COLUMNS.ENTITY]) == set(["other_causes", "flu", "mumps"])
+        assert (df[COLUMNS.SEED] == 0).all()
+        assert df[COLUMNS.DRAW].isna().all()
+
+    # Check values. We already checked correctness of pipeline, so let's compare to that.
+    metrics_df = pd.concat([df for df in simulation_after_one_step.get_results().values()])
+    assert metrics_df.loc[metrics_df["measure"] == "deaths", "value"].equals(
+        deaths.set_index("sex")["value"]
     )
-    pop = simulation_after_one_step.get_population()
-    results = simulation_after_one_step.get_value("metrics")
-
-    for observation in expected_deaths:
-        assert np.isclose(
-            results(pop.index)[observation], expected_deaths[observation], rtol=0.001
-        )
-    for observation in expected_ylls:
-        assert np.isclose(
-            results(pop.index)[observation], expected_ylls[observation], rtol=0.001
-        )
+    assert metrics_df.loc[metrics_df["measure"] == "ylls", "value"].equals(
+        ylls.set_index("sex")["value"]
+    )
 
 
-@pytest.mark.skip(reason="MIC-4981: update components for new results processing")
-def test_aggregation_configuration(base_config, base_plugins):
+def test_aggregation_configuration(base_config, base_plugins, tmpdir):
+    # Add the results dir since we didn't go through cli.py
+    base_config.update({"output_data": {"results_directory": str(tmpdir)}})
+
     observer = MortalityObserver()
     flu = disease_with_excess_mortality(base_config, "flu", 10)
     mumps = disease_with_excess_mortality(base_config, "mumps", 20)
@@ -196,14 +203,32 @@ def test_aggregation_configuration(base_config, base_plugins):
     aggregate_sim._data.write("cause.all_causes.cause_specific_mortality_rate", acmr_data)
     aggregate_sim.setup()
     aggregate_sim.step()
-    results = aggregate_sim.get_value("metrics")
-    pop = aggregate_sim.get_population()
 
-    expected_observations = [
-        "MEASURE_death_due_to_all_causes_SEX_Female",
-        "MEASURE_death_due_to_all_causes_SEX_Male",
-        "MEASURE_ylls_due_to_all_causes_SEX_Female",
-        "MEASURE_ylls_due_to_all_causes_SEX_Male",
-    ]
+    results = finalize_sim_and_get_results(aggregate_sim, ["deaths", "ylls"])
+    deaths = results["deaths"]
+    ylls = results["ylls"]
 
-    assert set(expected_observations) == set(results(pop.index).keys())
+    expected_stratifications = set(itertools.product(*[["all_causes"], ["Female", "Male"]]))
+
+    assert set(zip(deaths[COLUMNS.ENTITY], deaths["sex"])) == expected_stratifications
+    assert set(zip(ylls[COLUMNS.ENTITY], ylls["sex"])) == expected_stratifications
+
+
+##################
+# Helper functions
+##################
+
+
+def _assert_metric_correctness(simulation_after_one_step, expected):
+    pop = simulation_after_one_step.get_population()
+    results = simulation_after_one_step.get_value("metrics")(pop.index)
+
+    for observation in expected:
+        measure = observation.split("_due_to_")[0].strip("MEASURE_")
+        cause = observation.split("_due_to_")[1].split("_SEX_")[0]
+        sex = observation.split("SEX_")[1]
+        # The metrics are stored as {measure}_due_to_{cause}
+        metric = f"{measure}_due_to_{cause}"
+        assert np.isclose(
+            expected[observation], results[metric].loc[sex, "value"], rtol=0.001
+        )
