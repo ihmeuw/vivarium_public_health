@@ -1,6 +1,5 @@
 import itertools
 from collections import Counter
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -8,6 +7,7 @@ import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
+from tests.test_utilities import finalize_sim_and_get_results
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics import MortalityObserver
@@ -109,13 +109,9 @@ def get_expected_results(simulation, expected_values=Counter()):
 
 def test_observation_registration(simulation_after_one_step):
     """Test that all expected observation stratifications appear in the results."""
-    simulation_after_one_step.finalize()
-    simulation_after_one_step.report()
-    results_dir = Path(simulation_after_one_step.configuration.output_data.results_directory)
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(["deaths.parquet", "ylls.parquet"])
-    deaths = pd.read_parquet(results_dir / "deaths.parquet")
-    ylls = pd.read_parquet(results_dir / "ylls.parquet")
+    results = finalize_sim_and_get_results(simulation_after_one_step, ["deaths", "ylls"])
+    deaths = results["deaths"]
+    ylls = results["ylls"]
 
     expected_stratifications = set(
         itertools.product(*[["other_causes", "flu", "mumps"], ["Female", "Male"]])
@@ -134,12 +130,9 @@ def test_observation_correctness(simulation_after_one_step):
     expected = get_expected_results(simulation_after_one_step, expected)
     _assert_metric_correctness(simulation_after_one_step, expected)
 
-    # ensure actual output files match as well
-    simulation_after_one_step.finalize()
-    simulation_after_one_step.report()
-    results_dir = Path(simulation_after_one_step.configuration.output_data.results_directory)
-    deaths = pd.read_parquet(results_dir / "deaths.parquet")
-    ylls = pd.read_parquet(results_dir / "ylls.parquet")
+    results = finalize_sim_and_get_results(simulation_after_one_step, ["deaths", "ylls"])
+    deaths = results["deaths"]
+    ylls = results["ylls"]
 
     # Check columns
     for measure in ["deaths", "ylls"]:
@@ -210,14 +203,10 @@ def test_aggregation_configuration(base_config, base_plugins, tmpdir):
     aggregate_sim._data.write("cause.all_causes.cause_specific_mortality_rate", acmr_data)
     aggregate_sim.setup()
     aggregate_sim.step()
-    aggregate_sim.finalize()
-    aggregate_sim.report()
 
-    results_dir = Path(aggregate_sim.configuration.output_data.results_directory)
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(["deaths.parquet", "ylls.parquet"])
-    deaths = pd.read_parquet(results_dir / "deaths.parquet")
-    ylls = pd.read_parquet(results_dir / "ylls.parquet")
+    results = finalize_sim_and_get_results(aggregate_sim, ["deaths", "ylls"])
+    deaths = results["deaths"]
+    ylls = results["ylls"]
 
     expected_stratifications = set(itertools.product(*[["all_causes"], ["Female", "Male"]]))
 

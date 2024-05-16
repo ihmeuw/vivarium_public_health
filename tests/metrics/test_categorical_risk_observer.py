@@ -7,6 +7,7 @@ import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
+from tests.test_utilities import finalize_sim_and_get_results
 from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.risk import CategoricalRiskObserver
 from vivarium_public_health.metrics.stratification import ResultsStratifier
@@ -169,13 +170,7 @@ def test_different_results_per_risk(base_config, base_plugins, categorical_risk,
 
     simulation.setup()
     simulation.step()
-    simulation.finalize()
-    simulation.report()
-
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(
-        [
-            "person_time_test_risk.parquet",
-            "person_time_another_test_risk.parquet",
-        ]
+    # Check that internal assertion passes
+    _ = finalize_sim_and_get_results(
+        simulation, ["person_time_test_risk", "person_time_another_test_risk"]
     )
