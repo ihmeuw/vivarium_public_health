@@ -68,7 +68,7 @@ class CategoricalRiskObserver(StratifiedObserver):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str):
+    def __init__(self, risk: str) -> None:
         """
         Parameters
         ----------
@@ -89,7 +89,7 @@ class CategoricalRiskObserver(StratifiedObserver):
     # Setup methods #
     #################
 
-    def register_observations(self, builder):
+    def register_observations(self, builder: Builder) -> None:
         for category in self.categories:
             builder.results.register_observation(
                 name=f"{self.risk}_{category}_person_time",
