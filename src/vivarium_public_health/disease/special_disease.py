@@ -14,12 +14,17 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from vivarium import Component
+from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import TransitionString
-from vivarium_public_health.utilities import EntityString, is_non_zero
+from vivarium_public_health.utilities import (
+    EntityString,
+    get_lookup_columns,
+    is_non_zero,
+)
 
 
 class RiskAttributableDisease(Component):
@@ -86,25 +91,29 @@ class RiskAttributableDisease(Component):
         recoverable : True
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "risk_attributable_disease": {
-            "threshold": None,
-            "mortality": True,
-            "recoverable": True,
-        }
-    }
-
     ##############
     # Properties #
     ##############
 
     @property
     def name(self):
-        return f"disease_model.{self.cause.name}"
+        return f"risk_attributable_disease.{self.cause.name}"
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
-        return {self.cause.name: self.CONFIGURATION_DEFAULTS["risk_attributable_disease"]}
+        return {
+            self.name: {
+                "data_sources": {
+                    "raw_disability_weight": f"{self.cause}.disability_weight",
+                    "cause_specific_mortality_rate": "self::load_cause_specific_mortality_rate_data",
+                    "excess_mortality_rate": "self::load_excess_mortality_rate_data",
+                    "population_attributable_fraction": 0,
+                },
+                "threshold": None,
+                "mortality": True,
+                "recoverable": True,
+            }
+        }
 
     @property
     def columns_created(self) -> List[str]:
@@ -162,46 +171,36 @@ class RiskAttributableDisease(Component):
         self.adjust_state_and_transitions()
         self.clock = builder.time.clock()
 
-        disability_weight_data = builder.data.load(f"{self.cause}.disability_weight")
-        self.base_disability_weight = builder.lookup.build_table(
-            disability_weight_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
         self.disability_weight = builder.value.register_value_producer(
             f"{self.cause.name}.disability_weight",
             source=self.compute_disability_weight,
-            requires_columns=["age", "sex", "alive", self.cause.name],
+            requires_columns=get_lookup_columns(
+                [self.lookup_tables["raw_disability_weight"]]
+            ),
         )
         builder.value.register_value_modifier(
             "disability_weight", modifier=self.disability_weight
         )
-
-        cause_specific_mortality_rate = self.load_cause_specific_mortality_rate_data(builder)
-        self.cause_specific_mortality_rate = builder.lookup.build_table(
-            cause_specific_mortality_rate,
-            key_columns=["sex"],
-            parameter_columns=["age", "year"],
-        )
         builder.value.register_value_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
-            requires_columns=["age", "sex"],
+            requires_columns=get_lookup_columns(
+                [self.lookup_tables["cause_specific_mortality_rate"]]
+            ),
         )
+        self.has_excess_mortality = is_non_zero(self.lookup_tables["excess_mortality_rate"])
 
-        excess_mortality_data = self.load_excess_mortality_rate_data(builder)
-        self.has_excess_mortality = is_non_zero(excess_mortality_data)
-        self.base_excess_mortality_rate = builder.lookup.build_table(
-            excess_mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
         self.excess_mortality_rate = builder.value.register_value_producer(
             self.excess_mortality_rate_pipeline_name,
             source=self.compute_excess_mortality_rate,
-            requires_columns=["age", "sex", "alive", self.cause.name],
+            requires_columns=get_lookup_columns(
+                [self.lookup_tables["excess_mortality_rate"]]
+            ),
             requires_values=[self.excess_mortality_rate_paf_pipeline_name],
         )
-        paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(
             self.excess_mortality_rate_paf_pipeline_name,
-            source=lambda idx: [paf(idx)],
+            source=lambda idx: [self.lookup_tables["population_attributable_fraction"](idx)],
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
@@ -331,13 +330,15 @@ class RiskAttributableDisease(Component):
     def compute_disability_weight(self, index):
         disability_weight = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
-        disability_weight.loc[with_condition] = self.base_disability_weight(with_condition)
+        disability_weight.loc[with_condition] = self.lookup_tables["raw_disability_weight"](
+            with_condition
+        )
         return disability_weight
 
     def compute_excess_mortality_rate(self, index):
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
-        base_excess_mort = self.base_excess_mortality_rate(with_condition)
+        base_excess_mort = self.lookup_tables["excess_mortality_rate"](with_condition)
         joint_mediated_paf = self.joint_paf(with_condition)
         excess_mortality_rate.loc[with_condition] = base_excess_mort * (
             1 - joint_mediated_paf.values
@@ -345,7 +346,7 @@ class RiskAttributableDisease(Component):
         return excess_mortality_rate
 
     def adjust_cause_specific_mortality_rate(self, index, rate):
-        return rate + self.cause_specific_mortality_rate(index)
+        return rate + self.lookup_tables["cause_specific_mortality_rate"](index)
 
     def adjust_mortality_rate(self, index, rates_df):
         """Modifies the baseline mortality rate for a simulant if they are in this state.
