@@ -90,7 +90,7 @@ class ResultsStratifier(Component):
 
         Returns
         ------
-        pd.Series
+        pandas.Series
             A pd.Series with age group name string corresponding to the pop passed into the function
         """
         bins = self.age_bins["age_start"].to_list() + [self.age_bins["age_end"].iloc[-1]]
@@ -109,7 +109,7 @@ class ResultsStratifier(Component):
 
         Returns
         ------
-        pd.Series
+        pandas.Series
             A pd.Series with years corresponding to the pop passed into the function
         """
         return pop.squeeze(axis=1).dt.year.apply(str)
