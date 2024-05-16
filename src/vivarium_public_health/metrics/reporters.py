@@ -19,7 +19,7 @@ class __Columns(NamedTuple):
     ENTITY: str = "entity"
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "columns"
 
 
