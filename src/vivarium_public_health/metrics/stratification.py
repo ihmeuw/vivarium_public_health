@@ -86,11 +86,11 @@ class ResultsStratifier(Component):
         Parameters
         ----------
         pop
-            A DataFrame with one column, an age to be mapped to an age group name string
+            A pd.DataFrame with one column, an age to be mapped to an age group name string
 
         Returns
         ------
-        pandas.Series
+        pd.Series
             A pd.Series with age group name string corresponding to the pop passed into the function
         """
         bins = self.age_bins["age_start"].to_list() + [self.age_bins["age_end"].iloc[-1]]
@@ -105,11 +105,11 @@ class ResultsStratifier(Component):
         Parameters
         ----------
         pop
-            A DataFrame with one column, a datetime to be mapped to year
+            A pd.DataFrame with one column, a datetime to be mapped to year
 
         Returns
         ------
-        pandas.Series
+        pd.Series
             A pd.Series with years corresponding to the pop passed into the function
         """
         return pop.squeeze(axis=1).dt.year.apply(str)
