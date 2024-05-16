@@ -9,7 +9,7 @@ excess mortality in the simulation, including "other causes".
 """
 
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -49,7 +49,6 @@ class MortalityObserver(StratifiedObserver):
 
     def __init__(self) -> None:
         super().__init__()
-        self.causes_of_death = ["other_causes"]
         self.required_death_columns = ["alive", "exit_time"]
         self.required_yll_columns = [
             "alive",
@@ -63,12 +62,16 @@ class MortalityObserver(StratifiedObserver):
     ##############
 
     @property
+    def mortality_classes(self) -> List:
+        return [DiseaseState, RiskAttributableDisease]
+
+    @property
     def configuration_defaults(self) -> Dict[str, Any]:
         """
         A dictionary containing the defaults for any configurations managed by
         this component.
         """
-        config_defaults = super().configuration_defaults.copy()
+        config_defaults = super().configuration_defaults
         config_defaults["stratification"]["mortality"]["aggregate"] = False
         return config_defaults
 
@@ -89,19 +92,22 @@ class MortalityObserver(StratifiedObserver):
     def setup(self, builder: Builder) -> None:
         self.clock = builder.time.clock()
         self.config = builder.configuration.stratification.mortality
-        cause_components = builder.components.get_components_by_type(
-            (DiseaseState, RiskAttributableDisease)
-        )
-        self.causes_of_death += [
-            cause.state_id for cause in cause_components if cause.has_excess_mortality
-        ]
 
     def register_observations(self, builder: Builder) -> None:
+        disease_components = builder.components.get_components_by_type(
+            tuple(self.mortality_classes)
+        )
         if not self.config.aggregate:
-            for cause_of_death in self.causes_of_death:
+            causes_of_death = [
+                cause for cause in disease_components if cause.has_excess_mortality
+            ]
+            for cause_of_death in causes_of_death:
                 self._register_mortality_observations(
-                    builder, cause_of_death, f'cause_of_death == "{cause_of_death}"'
+                    builder, cause_of_death, f'cause_of_death == "{cause_of_death.state_id}"'
                 )
+            self._register_mortality_observations(
+                builder, "other_causes", 'cause_of_death == "other_causes"'
+            )
         else:
             self._register_mortality_observations(builder, "all_causes")
 
@@ -110,7 +116,10 @@ class MortalityObserver(StratifiedObserver):
     ###################
 
     def _register_mortality_observations(
-        self, builder: Builder, cause: str, additional_pop_filter: Optional[str] = None
+        self,
+        builder: Builder,
+        cause_state: Union[str, DiseaseState, RiskAttributableDisease],
+        additional_pop_filter: Optional[str] = None,
     ) -> None:
         basic_filter = 'alive == "dead" and tracked == True'
         pop_filter = (
@@ -118,25 +127,26 @@ class MortalityObserver(StratifiedObserver):
             if not additional_pop_filter
             else " and ".join([basic_filter, additional_pop_filter])
         )
+        measure = cause_state.state_id if not isinstance(cause_state, str) else cause_state
         builder.results.register_observation(
-            name=f"deaths_due_to_{cause}",
+            name=f"deaths_due_to_{measure}",
             pop_filter=pop_filter,
             aggregator=self.count_deaths,
             requires_columns=self.required_death_columns,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            report=partial(self.write_mortality_results, cause),
+            report=partial(self.write_mortality_results, cause_state),
         )
         builder.results.register_observation(
-            name=f"ylls_due_to_{cause}",
+            name=f"ylls_due_to_{measure}",
             pop_filter=pop_filter,
             aggregator=self.calculate_ylls,
             requires_columns=self.required_yll_columns,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            report=partial(self.write_mortality_results, cause),
+            report=partial(self.write_mortality_results, cause_state),
         )
 
     ###############
@@ -156,16 +166,24 @@ class MortalityObserver(StratifiedObserver):
     ##################
 
     def write_mortality_results(
-        self, cause: str, measure: str, results: pd.DataFrame
+        self,
+        cause_state: Union[str, DiseaseState, RiskAttributableDisease],
+        measure: str,
+        results: pd.DataFrame,
     ) -> None:
         measure_name = measure.split("_due_to_")[0]
+        kwargs = {
+            "entity_type": (
+                cause_state.cause_type if not isinstance(cause_state, str) else "cause"
+            ),
+            "entity": cause_state.model if not isinstance(cause_state, str) else cause_state,
+            "sub_entity": cause_state.state_id if not isinstance(cause_state, str) else None,
+            "results_dir": self.results_dir,
+            "random_seed": self.random_seed,
+            "input_draw": self.input_draw,
+        }
         write_dataframe_to_parquet(
             results=results,
             measure=measure_name,
-            entity_type="cause",
-            entity=cause,
-            sub_entity=None,  # FIXME
-            results_dir=self.results_dir,
-            random_seed=self.random_seed,
-            input_draw=self.input_draw,
+            **kwargs,
         )
