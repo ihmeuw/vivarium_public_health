@@ -8,6 +8,7 @@ from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
 from tests.test_utilities import build_table_with_age
+from tests.test_utilities import finalize_sim_and_get_results
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics.disease import DiseaseObserver
@@ -125,14 +126,11 @@ def test_observation_registration(base_config, base_plugins, disease, model, tmp
 
     simulation.setup()
     simulation.step()
-    simulation.finalize()
-    simulation.report()
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(
-        ["person_time_t_virus.parquet", "transition_count_t_virus.parquet"]
+    results = finalize_sim_and_get_results(
+        simulation, ["person_time_t_virus", "transition_count_t_virus"]
     )
-    person_time = pd.read_parquet(results_dir / "person_time_t_virus.parquet")
-    transition_count = pd.read_parquet(results_dir / "transition_count_t_virus.parquet")
+    person_time = results["person_time_t_virus"]
+    transition_count = results["transition_count_t_virus"]
 
     # Check that all expected observations are present
     assert set(zip(person_time[COLUMNS.SUB_ENTITY], person_time["sex"])) == set(
@@ -187,11 +185,11 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     )
 
     simulation.step()
-    simulation.finalize()
-    simulation.report()
-
-    person_time = pd.read_parquet(results_dir / "person_time_t_virus.parquet")
-    transition_count = pd.read_parquet(results_dir / "transition_count_t_virus.parquet")
+    results = finalize_sim_and_get_results(
+        simulation, ["person_time_t_virus", "transition_count_t_virus"]
+    )
+    person_time = results["person_time_t_virus"]
+    transition_count = results["transition_count_t_virus"]
 
     # Check columns
     for measure in ["person_time", "transition_count"]:
@@ -274,14 +272,13 @@ def test_different_results_per_disease(base_config, base_plugins, tmpdir):
 
     simulation.setup()
     simulation.step()
-    simulation.finalize()
-    simulation.report()
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(
+    # Ensure the helper function passes its "assert set" check
+    _ = finalize_sim_and_get_results(
+        simulation,
         [
-            "person_time_vampiris.parquet",
-            "transition_count_vampiris.parquet",
-            "person_time_human_cortico_deficiency.parquet",
-            "transition_count_human_cortico_deficiency.parquet",
-        ]
+            "person_time_vampiris",
+            "transition_count_vampiris",
+            "person_time_human_cortico_deficiency",
+            "transition_count_human_cortico_deficiency",
+        ],
     )

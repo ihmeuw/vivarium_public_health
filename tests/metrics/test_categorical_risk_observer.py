@@ -9,6 +9,7 @@ from vivarium.framework.lookup.table import InterpolatedTable
 from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
+from tests.test_utilities import finalize_sim_and_get_results
 from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.risk import CategoricalRiskObserver
 from vivarium_public_health.metrics.stratification import ResultsStratifier
@@ -111,6 +112,25 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
     assert set(file.name for file in results_files) == set(["person_time_test_risk.parquet"])
     results = pd.read_parquet(results_files[0])
 
+    # Check columns
+    assert set(results.columns) == set(
+        [
+            "sex",
+            COLUMNS.MEASURE,
+            COLUMNS.ENTITY_TYPE,
+            COLUMNS.ENTITY,
+            COLUMNS.SUB_ENTITY,
+            COLUMNS.SEED,
+            COLUMNS.DRAW,
+            COLUMNS.VALUE,
+        ]
+    )
+
+    assert (results[COLUMNS.MEASURE] == "person_time").all()
+    assert (results[COLUMNS.ENTITY_TYPE] == "rei").all()
+    assert (results[COLUMNS.ENTITY] == "test_risk").all()
+    assert (results[COLUMNS.SEED] == 0).all()
+    assert results[COLUMNS.DRAW].isna().all()
     for category in exposure_categories:
         for sex in ["Male", "Female"]:
             expected_person_time = sum(
@@ -156,13 +176,7 @@ def test_different_results_per_risk(base_config, base_plugins, categorical_risk,
 
     simulation.setup()
     simulation.step()
-    simulation.finalize()
-    simulation.report()
-
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(
-        [
-            "person_time_test_risk.parquet",
-            "person_time_another_test_risk.parquet",
-        ]
+    # Check that internal assertion passes
+    _ = finalize_sim_and_get_results(
+        simulation, ["person_time_test_risk", "person_time_another_test_risk"]
     )
