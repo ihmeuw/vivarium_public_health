@@ -8,20 +8,23 @@ exposure models and disease models.
 
 """
 
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import LookupTable
 
 from vivarium_public_health.risks.data_transformations import (
     get_distribution_type,
     get_population_attributable_fraction_data,
     get_relative_risk_data,
 )
-from vivarium_public_health.utilities import EntityString, TargetString
+from vivarium_public_health.utilities import (
+    EntityString,
+    TargetString,
+    get_lookup_columns,
+)
 
 
 class RiskEffect(Component):
@@ -34,28 +37,23 @@ class RiskEffect(Component):
     .. code-block:: yaml
 
        configuration:
-           effect_of_risk_on_affected_risk:
+            risk_effect.risk_name_on_affected_target:
                exposure_parameters: 2
                incidence_rate: 10
 
     """
 
-    CONFIGURATION_DEFAULTS = {
-        "effect_of_risk_on_target": {
-            "measure": {
-                "relative_risk": None,
-                "mean": None,
-                "se": None,
-                "log_mean": None,
-                "log_se": None,
-                "tau_squared": None,
-            }
-        }
-    }
-
-    ##############
+    ###############
     # Properties #
     ##############
+
+    @property
+    def name(self) -> str:
+        return self.get_name(self.risk, self.target)
+
+    @staticmethod
+    def get_name(risk: EntityString, target: TargetString) -> str:
+        return f"risk_effect.{risk.name}_on_{target}"
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
@@ -64,10 +62,15 @@ class RiskEffect(Component):
         this component.
         """
         return {
-            f"effect_of_{self.risk.name}_on_{self.target.name}": {
-                self.target.measure: self.CONFIGURATION_DEFAULTS["effect_of_risk_on_target"][
-                    "measure"
-                ]
+            self.name: {
+                "distribution_args": {
+                    "relative_risk": None,
+                    "mean": None,
+                    "se": None,
+                    "log_mean": None,
+                    "log_se": None,
+                    "tau_squared": None,
+                },
             }
         }
 
@@ -100,10 +103,6 @@ class RiskEffect(Component):
     def setup(self, builder: Builder) -> None:
         self.exposure_distribution_type = self.get_distribution_type(builder)
         self.exposure = self.get_risk_exposure(builder)
-        self.relative_risk = self.get_relative_risk_source(builder)
-        self.population_attributable_fraction = (
-            self.get_population_attributable_fraction_source(builder)
-        )
 
         self.target_modifier = self.get_target_modifier(builder)
 
@@ -114,13 +113,23 @@ class RiskEffect(Component):
     # Setup methods #
     #################
 
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        relative_risk_data, rr_value_cols = self.get_relative_risk_source(builder)
+        self.lookup_tables["relative_risk"] = self.build_lookup_table(
+            builder, relative_risk_data, rr_value_cols
+        )
+        paf_data, paf_value_cols = self.get_population_attributable_fraction_source(builder)
+        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
+            builder, paf_data, paf_value_cols
+        )
+
     def get_distribution_type(self, builder: Builder) -> str:
         return get_distribution_type(builder, self.risk)
 
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         return builder.value.get_value(self.exposure_pipeline_name)
 
-    def get_relative_risk_source(self, builder: Builder) -> LookupTable:
+    def get_relative_risk_source(self, builder: Builder) -> Tuple[pd.DataFrame, List[str]]:
         """
         Get the relative risk source for this risk effect model.
 
@@ -135,12 +144,11 @@ class RiskEffect(Component):
             A lookup table containing the relative risk data for this risk
             effect model.
         """
-        relative_risk_data = get_relative_risk_data(builder, self.risk, self.target)
-        return builder.lookup.build_table(
-            relative_risk_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
+        return get_relative_risk_data(builder, self.risk, self.target)
 
-    def get_population_attributable_fraction_source(self, builder: Builder) -> LookupTable:
+    def get_population_attributable_fraction_source(
+        self, builder: Builder
+    ) -> Tuple[pd.DataFrame, List[str]]:
         """
         Get the population attributable fraction source for this risk effect model.
 
@@ -155,10 +163,7 @@ class RiskEffect(Component):
             A lookup table containing the population attributable fraction data
             for this risk effect model.
         """
-        paf_data = get_population_attributable_fraction_data(builder, self.risk, self.target)
-        return builder.lookup.build_table(
-            paf_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
+        return get_population_attributable_fraction_data(builder, self.risk, self.target)
 
     def get_target_modifier(
         self, builder: Builder
@@ -169,7 +174,7 @@ class RiskEffect(Component):
             scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
 
             def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
-                rr = self.relative_risk(index)
+                rr = self.lookup_tables["relative_risk"](index)
                 exposure = self.exposure(index)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return target * relative_risk
@@ -178,7 +183,7 @@ class RiskEffect(Component):
             index_columns = ["index", self.risk.name]
 
             def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
-                rr = self.relative_risk(index)
+                rr = self.lookup_tables["relative_risk"](index)
                 exposure = self.exposure(index).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
@@ -198,12 +203,14 @@ class RiskEffect(Component):
             self.target_pipeline_name,
             modifier=self.target_modifier,
             requires_values=[f"{self.risk.name}.exposure"],
-            requires_columns=["age", "sex"],
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
+        required_columns = get_lookup_columns(
+            [self.lookup_tables["population_attributable_fraction"]]
+        )
         builder.value.register_value_modifier(
             self.target_paf_pipeline_name,
-            modifier=self.population_attributable_fraction,
-            requires_columns=["age", "sex"],
+            modifier=self.lookup_tables["population_attributable_fraction"],
+            requires_columns=required_columns,
         )

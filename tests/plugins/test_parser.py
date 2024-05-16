@@ -3,7 +3,8 @@ from typing import Any, Dict, List, NamedTuple, Tuple, Type
 
 import pytest
 import yaml
-from vivarium import Component, ConfigTree, InteractiveContext
+from layered_config_tree import LayeredConfigTree
+from vivarium import Component, InteractiveContext
 from vivarium.framework.components.parser import ParsingError
 from vivarium.framework.state_machine import Transient, Transition
 
@@ -41,6 +42,10 @@ class ComplexModel(DiseaseModel):
 
 class ComplexState(DiseaseState):
     pass
+
+
+SIR_MODEL_CSMR = 0.9
+COMPLEX_MODEL_CSMR = 1.4
 
 
 @dataclasses.dataclass
@@ -178,6 +183,7 @@ class MockArtifactManager(MockArtifactManager_):
     def _load_artifact(self, _: str) -> MockArtifact:
         artifact = MockArtifact()
 
+        artifact.mocks[f"cause.{SIR_MODEL}.cause_specific_mortality_rate"] = SIR_MODEL_CSMR
         artifact.mocks[
             f"cause.{STATES.SIR_INFECTED.name}.prevalence"
         ] = STATES.SIR_INFECTED.prevalence
@@ -255,6 +261,7 @@ COMPLEX_MODEL_CONFIG = {
     COMPLEX_MODEL: {
         "model_type": "tests.plugins.test_parser.ComplexModel",
         "initial_state": STATES.COMPLEX_INFECTED_1.name,
+        "data_sources": {"cause_specific_mortality_rate": COMPLEX_MODEL_CSMR},
         "states": {
             STATES.COMPLEX_INFECTED_1.name: {
                 "cause_type": STATES.COMPLEX_INFECTED_1.cause_type,
@@ -332,7 +339,7 @@ COMPLEX_MODEL_CONFIG = {
 }
 
 
-def create_simulation_config_tree(config_dict: Dict) -> ConfigTree:
+def create_simulation_config_tree(config_dict: Dict) -> LayeredConfigTree:
     config_tree_layers = [
         "base",
         "user_configs",
@@ -340,18 +347,18 @@ def create_simulation_config_tree(config_dict: Dict) -> ConfigTree:
         "model_override",
         "override",
     ]
-    config_tree = ConfigTree(layers=config_tree_layers)
+    config_tree = LayeredConfigTree(layers=config_tree_layers)
     config_tree.update(config_dict, layer="model_override")
     return config_tree
 
 
 @pytest.fixture(scope="module")
-def base_config(base_config_factory) -> ConfigTree:
+def base_config(base_config_factory) -> LayeredConfigTree:
     yield base_config_factory()
 
 
 @pytest.fixture(scope="module")
-def causes_config_parser_plugins() -> ConfigTree:
+def causes_config_parser_plugins() -> LayeredConfigTree:
     config_parser_plugin_config = {
         "required": {
             "data": {
@@ -363,7 +370,7 @@ def causes_config_parser_plugins() -> ConfigTree:
             },
         }
     }
-    return ConfigTree(config_parser_plugin_config)
+    return LayeredConfigTree(config_parser_plugin_config)
 
 
 @pytest.fixture
@@ -382,7 +389,9 @@ ALL_COMPONENTS_CONFIG_DICT = {
 
 
 @pytest.fixture(scope="module")
-def sim_components(base_config: ConfigTree, causes_config_parser_plugins: ConfigTree):
+def sim_components(
+    base_config: LayeredConfigTree, causes_config_parser_plugins: LayeredConfigTree
+):
     simulation = InteractiveContext(
         components=create_simulation_config_tree(ALL_COMPONENTS_CONFIG_DICT),
         configuration=base_config,
@@ -397,7 +406,7 @@ def sim_components(base_config: ConfigTree, causes_config_parser_plugins: Config
 
 
 def _test_parsing_of_config_file(
-    component_config: ConfigTree,
+    component_config: LayeredConfigTree,
     expected_component_names: Tuple[str] = (
         f"disease_model.{SIR_MODEL}",
         f"complex_model.{COMPLEX_MODEL}",
@@ -495,11 +504,13 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
 
 
 @pytest.mark.parametrize(
-    "model_name, expected_model_type, expected_initial_state, expected_state_names",
+    "model_name, expected_model_type, expected_csmr, expected_initial_state, "
+    "expected_state_names",
     [
         (
             f"disease_model.{SIR_MODEL}",
             DiseaseModel,
+            SIR_MODEL_CSMR,
             STATES.SIR_SUSCEPTIBLE.name,
             [
                 f"susceptible_state.{STATES.SIR_SUSCEPTIBLE.name}",
@@ -510,6 +521,7 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
         (
             f"complex_model.{COMPLEX_MODEL}",
             ComplexModel,
+            COMPLEX_MODEL_CSMR,
             STATES.COMPLEX_INFECTED_1.name,
             [
                 f"disease_state.{STATES.COMPLEX_INFECTED_1.name}",
@@ -523,6 +535,7 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
 def test_disease_model(
     sim_components: Dict[str, Component],
     model_name: str,
+    expected_csmr: float,
     expected_model_type: Type[DiseaseModel],
     expected_initial_state: str,
     expected_state_names: List[str],
@@ -530,6 +543,8 @@ def test_disease_model(
     model = sim_components[model_name]
     assert isinstance(model, expected_model_type)
     assert model.initial_state == expected_initial_state
+
+    assert model.lookup_tables["cause_specific_mortality_rate"].data == expected_csmr
 
     # the disease model's states have the expected names
     actual_state_names = {state.name for state in model.sub_components}
@@ -580,11 +595,17 @@ def test_disease_state(
         )
 
         # test we get the expected default and configured data sources
-        assert state.prevalence.data == expected_state_data.prevalence
-        assert state.birth_prevalence.data == expected_state_data.birth_prevalence
-        assert state.dwell_time.source.data == expected_state_data.dwell_time
-        assert state.base_disability_weight.data == expected_state_data.disability_weight
-        assert state.base_excess_mortality_rate.data == expected_state_data.emr
+        assert state.lookup_tables["prevalence"].data == expected_state_data.prevalence
+        assert (
+            state.lookup_tables["birth_prevalence"].data
+            == expected_state_data.birth_prevalence
+        )
+        assert state.lookup_tables["dwell_time"].data == expected_state_data.dwell_time
+        assert (
+            state.lookup_tables["disability_weight"].data
+            == expected_state_data.disability_weight
+        )
+        assert state.lookup_tables["excess_mortality_rate"].data == expected_state_data.emr
 
     # test that it has the expected transitions
     for transition in state.transition_set.transitions:
@@ -593,9 +614,11 @@ def test_disease_state(
         ]
         assert type(transition) == expected_transition_data.transition_type
         if isinstance(transition, RateTransition):
-            assert transition.base_rate.data == expected_transition_data.value
+            actual_rate = transition.lookup_tables["transition_rate"].data
+            assert actual_rate == expected_transition_data.value
         elif isinstance(transition, ProportionTransition):
-            assert transition.proportion.data == expected_transition_data.value
+            actual_proportion = transition.lookup_tables["proportion"].data
+            assert actual_proportion == expected_transition_data.value
 
 
 ####################
@@ -620,6 +643,14 @@ INVALID_CONFIG_PARAMS = {
     "model type not disease model": (
         {"model_type": "tests.plugins.test_parser.ComplexState"},
         "fully qualified import path to a.*DiseaseModel",
+    ),
+    "invalid cause data sources key": (
+        {"data_sources": {"not_a_valid_source": 1.0}},
+        "may only contain",
+    ),
+    "invalid cause data sources value": (
+        {"data_sources": {"cause_specific_mortality_rate": "bad value"}},
+        "has an invalid data source at",
     ),
     "no states key": ({"transitions": {"s": {}}}, "must define at least one state"),
     "empty states": ({"states": {}}, "must define at least one state"),

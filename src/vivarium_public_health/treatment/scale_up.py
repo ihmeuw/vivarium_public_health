@@ -6,6 +6,7 @@ Linear Scale-Up Model
 This module contains tools for applying a linear scale-up to an intervention
 
 """
+
 from typing import Any, Callable, Dict, Tuple
 
 import pandas as pd

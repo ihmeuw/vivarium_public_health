@@ -8,7 +8,8 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
-from typing import Callable, Dict, List, Optional
+
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -27,9 +28,20 @@ class DiseaseModelError(VivariumError):
 
 
 class DiseaseModel(Machine):
+
     ##############
     # Properties #
     ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {
+            f"{self.name}": {
+                "data_sources": {
+                    "cause_specific_mortality_rate": "self::load_cause_specific_mortality_rate"
+                },
+            },
+        }
 
     @property
     def columns_created(self) -> List[str]:
@@ -88,13 +100,6 @@ class DiseaseModel(Machine):
 
         self.configuration_age_start = builder.configuration.population.initialization_age_min
         self.configuration_age_end = builder.configuration.population.initialization_age_max
-
-        cause_specific_mortality_rate = self.load_cause_specific_mortality_rate_data(builder)
-        self.cause_specific_mortality_rate = builder.lookup.build_table(
-            cause_specific_mortality_rate,
-            key_columns=["sex"],
-            parameter_columns=["age", "year"],
-        )
         builder.value.register_value_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
@@ -106,11 +111,13 @@ class DiseaseModel(Machine):
     # Setup methods #
     #################
 
-    def load_cause_specific_mortality_rate_data(self, builder):
+    def load_cause_specific_mortality_rate(
+        self, builder: Builder
+    ) -> Union[float, pd.DataFrame]:
         if "cause_specific_mortality_rate" not in self._get_data_functions:
             only_morbid = builder.data.load(f"cause.{self.cause}.restrictions")["yld_only"]
             if only_morbid:
-                csmr_data = 0
+                csmr_data = 0.0
             else:
                 csmr_data = builder.data.load(
                     f"{self.cause_type}.{self.cause}.cause_specific_mortality_rate"
@@ -130,8 +137,6 @@ class DiseaseModel(Machine):
 
         assert self.initial_state in {s.state_id for s in self.states}
 
-        # FIXME: this is a hack to figure out whether or not we're at the simulation start based on the fact that the
-        #  fertility components create this user data
         if pop_data.user_data["sim_state"] == "setup":  # simulation start
             if self.configuration_age_start != self.configuration_age_end != 0:
                 state_names, weights_bins = self.get_state_weights(
@@ -186,7 +191,7 @@ class DiseaseModel(Machine):
     ##################################
 
     def adjust_cause_specific_mortality_rate(self, index, rate):
-        return rate + self.cause_specific_mortality_rate(index)
+        return rate + self.lookup_tables["cause_specific_mortality_rate"](index)
 
     ####################
     # Helper functions #
@@ -198,18 +203,15 @@ class DiseaseModel(Machine):
             raise DiseaseModelError("Disease model must have exactly one SusceptibleState.")
         return susceptible_states[0].state_id
 
-    def get_state_weights(self, pop_index, prevalence_type):
-        states = [
-            s
-            for s in self.states
-            if hasattr(s, f"{prevalence_type}")
-            and getattr(s, f"{prevalence_type}") is not None
-        ]
+    def get_state_weights(
+        self, pop_index: pd.Index, prevalence_type: str
+    ) -> Tuple[List[str], Union[np.ndarray, None]]:
+        states = [state for state in self.states if state.lookup_tables.get(prevalence_type)]
 
         if not states:
             return states, None
 
-        weights = [getattr(s, f"{prevalence_type}")(pop_index) for s in states]
+        weights = [state.lookup_tables.get(prevalence_type)(pop_index) for state in states]
         for w in weights:
             w.reset_index(inplace=True, drop=True)
         weights += ((1 - np.sum(weights, axis=0)),)

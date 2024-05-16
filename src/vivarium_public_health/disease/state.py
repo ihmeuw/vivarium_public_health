@@ -6,12 +6,13 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
+
 from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import LookupTable, LookupTableData
+from vivarium.framework.lookup import LookupTableData
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
@@ -22,7 +23,7 @@ from vivarium_public_health.disease.transition import (
     RateTransition,
     TransitionString,
 )
-from vivarium_public_health.utilities import is_non_zero
+from vivarium_public_health.utilities import get_lookup_columns, is_non_zero
 
 
 class BaseDiseaseState(State):
@@ -273,6 +274,24 @@ class RecoveredState(NonDiseasedState):
 class DiseaseState(BaseDiseaseState):
     """State representing a disease in a state machine model."""
 
+    ##############
+    # Properties #
+    ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        return {
+            f"{self.name}": {
+                "data_sources": {
+                    "prevalence": "self::load_prevalence",
+                    "birth_prevalence": "self::load_birth_prevalence",
+                    "dwell_time": "self::load_dwell_time",
+                    "disability_weight": "self::load_disability_weight",
+                    "excess_mortality_rate": "self::load_excess_mortality_rate",
+                },
+            },
+        }
+
     #####################
     # Lifecycle methods #
     #####################
@@ -331,31 +350,15 @@ class DiseaseState(BaseDiseaseState):
         super().setup(builder)
         self.clock = builder.time.clock()
 
-        prevalence_data = self.load_prevalence_data(builder)
-        self.prevalence = self.get_prevalence(builder, prevalence_data)
-
-        birth_prevalence_data = self.load_birth_prevalence_data(builder)
-        self.birth_prevalence = self.get_birth_prevalence(builder, birth_prevalence_data)
-
-        dwell_time_data = self.load_dwell_time_data(builder)
-        self.dwell_time = self.get_dwell_time_pipeline(builder, dwell_time_data)
-
-        disability_weight_data = self.load_disability_weight_data(builder)
-        self.has_disability = is_non_zero(disability_weight_data)
-        self.base_disability_weight = self.get_base_disability_weight(
-            builder, disability_weight_data
-        )
-
+        self.dwell_time = self.get_dwell_time_pipeline(builder)
         self.disability_weight = self.get_disability_weight_pipeline(builder)
 
         builder.value.register_value_modifier(
             "disability_weight", modifier=self.disability_weight
         )
 
-        excess_mortality_data = self.load_excess_mortality_rate_data(builder)
-        self.has_excess_mortality = is_non_zero(excess_mortality_data)
-        self.base_excess_mortality_rate = self.get_base_excess_mortality_rate(
-            builder, excess_mortality_data
+        self.has_excess_mortality = is_non_zero(
+            self.lookup_tables["excess_mortality_rate"].data
         )
         self.excess_mortality_rate = self.get_excess_mortality_rate_pipeline(builder)
         self.joint_paf = self.get_joint_paf(builder)
@@ -372,62 +375,19 @@ class DiseaseState(BaseDiseaseState):
     # Setup methods #
     #################
 
-    def load_prevalence_data(self, builder: Builder) -> LookupTableData:
+    def load_prevalence(self, builder: Builder) -> LookupTableData:
         if "prevalence" in self._get_data_functions:
             return self._get_data_functions["prevalence"](builder, self.state_id)
         else:
             return builder.data.load(f"{self.cause_type}.{self.state_id}.prevalence")
 
-    def get_prevalence(
-        self, builder: Builder, prevalence_data: LookupTableData
-    ) -> LookupTable:
-        """Builds a LookupTable for the prevalence of this state.
-
-        Parameters
-        ----------
-        builder
-            Interface to access simulation managers.
-        prevalence_data
-            The data to use to build the LookupTable.
-
-        Returns
-        -------
-        LookupTable
-            The LookupTable for the prevalence of this state.
-        """
-        return builder.lookup.build_table(
-            prevalence_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
-
-    def load_birth_prevalence_data(self, builder: Builder) -> LookupTableData:
+    def load_birth_prevalence(self, builder: Builder) -> LookupTableData:
         if "birth_prevalence" in self._get_data_functions:
             return self._get_data_functions["birth_prevalence"](builder, self.state_id)
         else:
             return 0
 
-    def get_birth_prevalence(
-        self, builder: Builder, birth_prevalence_data: LookupTableData
-    ) -> LookupTable:
-        """
-        Builds a LookupTable for the birth prevalence of this state.
-
-        Parameters
-        ----------
-        builder
-            Interface to access simulation managers.
-        birth_prevalence_data
-            The data to use to build the LookupTable.
-
-        Returns
-        -------
-        LookupTable
-            The LookupTable for the birth prevalence of this state.
-        """
-        return builder.lookup.build_table(
-            birth_prevalence_data, key_columns=["sex"], parameter_columns=["year"]
-        )
-
-    def load_dwell_time_data(self, builder: Builder) -> LookupTableData:
+    def load_dwell_time(self, builder: Builder) -> LookupTableData:
         if "dwell_time" in self._get_data_functions:
             dwell_time = self._get_data_functions["dwell_time"](builder, self.state_id)
         else:
@@ -442,18 +402,15 @@ class DiseaseState(BaseDiseaseState):
 
         return dwell_time
 
-    def get_dwell_time_pipeline(
-        self, builder: Builder, dwell_time_data: LookupTableData
-    ) -> Pipeline:
+    def get_dwell_time_pipeline(self, builder: Builder) -> Pipeline:
+        required_columns = get_lookup_columns([self.lookup_tables["dwell_time"]])
         return builder.value.register_value_producer(
             f"{self.state_id}.dwell_time",
-            source=builder.lookup.build_table(
-                dwell_time_data, key_columns=["sex"], parameter_columns=["age", "year"]
-            ),
-            requires_columns=["age", "sex"],
+            source=self.lookup_tables["dwell_time"],
+            requires_columns=required_columns,
         )
 
-    def load_disability_weight_data(self, builder: Builder) -> LookupTableData:
+    def load_disability_weight(self, builder: Builder) -> LookupTableData:
         if "disability_weight" in self._get_data_functions:
             disability_weight = self._get_data_functions["disability_weight"](
                 builder, self.state_id
@@ -468,36 +425,15 @@ class DiseaseState(BaseDiseaseState):
 
         return disability_weight
 
-    def get_base_disability_weight(
-        self, builder: Builder, disability_weight_data: LookupTableData
-    ) -> LookupTable:
-        """
-        Builds a LookupTable for the base disability weight of this state.
-
-        Parameters
-        ----------
-        builder
-            Interface to access simulation managers.
-        disability_weight_data
-            The data to use to build the LookupTable.
-
-        Returns
-        -------
-        LookupTable
-            The LookupTable for the disability weight of this state.
-        """
-        return builder.lookup.build_table(
-            disability_weight_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
-
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
+        lookup_columns = get_lookup_columns([self.lookup_tables["disability_weight"]])
         return builder.value.register_value_producer(
             f"{self.state_id}.disability_weight",
             source=self.compute_disability_weight,
-            requires_columns=["age", "sex", "alive", self.model],
+            requires_columns=lookup_columns + ["alive", self.model],
         )
 
-    def load_excess_mortality_rate_data(self, builder: Builder) -> LookupTableData:
+    def load_excess_mortality_rate(self, builder: Builder) -> LookupTableData:
         if "excess_mortality_rate" in self._get_data_functions:
             return self._get_data_functions["excess_mortality_rate"](builder, self.state_id)
         elif builder.data.load(f"cause.{self.model}.restrictions")["yld_only"]:
@@ -507,33 +443,12 @@ class DiseaseState(BaseDiseaseState):
                 f"{self.cause_type}.{self.state_id}.excess_mortality_rate"
             )
 
-    def get_base_excess_mortality_rate(
-        self, builder: Builder, excess_mortality_data: LookupTableData
-    ) -> LookupTable:
-        """
-        Builds a LookupTable for the base excess mortality rate of this state.
-
-        Parameters
-        ----------
-        builder
-            Interface to access simulation managers.
-        excess_mortality_data
-            The data to use to build the LookupTable.
-
-        Returns
-        -------
-        LookupTable
-            The LookupTable for the base excess mortality rate of this state.
-        """
-        return builder.lookup.build_table(
-            excess_mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
-
     def get_excess_mortality_rate_pipeline(self, builder: Builder) -> Pipeline:
+        lookup_columns = get_lookup_columns([self.lookup_tables["excess_mortality_rate"]])
         return builder.value.register_rate_producer(
             self.excess_mortality_rate_pipeline_name,
             source=self.compute_excess_mortality_rate,
-            requires_columns=["age", "sex", "alive", self.model],
+            requires_columns=lookup_columns + ["alive", self.model],
             requires_values=[self.excess_mortality_rate_paf_pipeline_name],
         )
 
@@ -618,13 +533,15 @@ class DiseaseState(BaseDiseaseState):
         """
         disability_weight = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
-        disability_weight.loc[with_condition] = self.base_disability_weight(with_condition)
+        disability_weight.loc[with_condition] = self.lookup_tables["disability_weight"](
+            with_condition
+        )
         return disability_weight
 
     def compute_excess_mortality_rate(self, index: pd.Index) -> pd.Series:
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
-        base_excess_mort = self.base_excess_mortality_rate(with_condition)
+        base_excess_mort = self.lookup_tables["excess_mortality_rate"](with_condition)
         joint_mediated_paf = self.joint_paf(with_condition)
         excess_mortality_rate.loc[with_condition] = base_excess_mort * (
             1 - joint_mediated_paf.values

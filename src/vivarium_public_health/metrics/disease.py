@@ -7,6 +7,7 @@ This module contains tools for observing disease incidence and prevalence
 in the simulation.
 
 """
+
 from typing import Any, Dict, List, Optional
 
 import pandas as pd

@@ -7,6 +7,9 @@ This module contains a mock version of the artifact manager for use with
 testing vivarium_public_health components.
 
 """
+
+from typing import List
+
 import pandas as pd
 from vivarium.framework.artifact import ArtifactManager
 from vivarium.testing_utilities import build_table
@@ -16,7 +19,7 @@ from vivarium_public_health.testing.utils import make_age_bins, make_uniform_pop
 MOCKERS = {
     "cause": {
         "prevalence": 0,
-        "cause_specific_mortality_rate": 0,
+        "cause_specific_mortality_rate": 0.5,
         "excess_mortality_rate": 0,
         "remission_rate": 0,
         "incidence_rate": 0.001,
@@ -126,6 +129,7 @@ class MockArtifact:
 
 class MockArtifactManager(ArtifactManager):
     def __init__(self):
+        super().__init__()
         self.artifact = self._load_artifact(None)
 
     @property

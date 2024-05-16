@@ -7,6 +7,7 @@ This module contains simple intervention models that work at the population
 level by providing direct shifts to epidemiological measures.
 
 """
+
 from typing import Any, Dict, List, Optional
 
 from vivarium import Component

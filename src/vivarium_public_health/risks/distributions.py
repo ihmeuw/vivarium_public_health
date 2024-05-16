@@ -7,7 +7,8 @@ This module contains tools for modeling several different risk
 exposure distributions.
 
 """
-from typing import Dict, List
+
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -18,7 +19,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import get_distribution_data
-from vivarium_public_health.utilities import EntityString
+from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 
 class MissingDataError(Exception):
@@ -35,13 +36,14 @@ class SimulationDistribution(Component):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str):
+    def __init__(self, risk: EntityString):
         super().__init__()
-        self.risk = EntityString(risk)
+        self.risk = risk
 
     def setup(self, builder: Builder) -> None:
         distribution_data = get_distribution_data(builder, self.risk)
         self.implementation = get_distribution(self.risk, **distribution_data)
+        self.implementation.lookup_tables = self.lookup_tables
         self.implementation.setup_component(builder)
 
     ##################
@@ -76,31 +78,46 @@ class EnsembleSimulation(Component):
     def __init__(self, risk, weights, mean, sd):
         super().__init__()
         self.risk = EntityString(risk)
-        self._weights, self._parameters = self.get_parameters(weights, mean, sd)
+        self._raw_weights, self._distributions = weights
+        self._mean = mean
+        self._standard_deviation = sd
         self._propensity = f"ensemble_propensity_{self.risk}"
 
     def setup(self, builder: Builder) -> None:
-        self.weights = builder.lookup.build_table(
-            self._weights, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
-        self.parameters = {
-            k: builder.lookup.build_table(
-                v, key_columns=["sex"], parameter_columns=["age", "year"]
-            )
-            for k, v in self._parameters.items()
-        }
-
         self.randomness = builder.randomness.get_stream(self._propensity)
 
     ##########################
     # Initialization methods #
     ##########################
 
-    def get_parameters(self, weights, mean, sd):
-        index_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
-        weights = weights.set_index(index_cols)
-        mean = mean.set_index(index_cols)["value"]
-        sd = sd.set_index(index_cols)["value"]
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        weights, parameters = self.get_parameters(builder)
+        distribution_weights_table = self.build_lookup_table(
+            builder, weights, self._distributions
+        )
+        self.lookup_tables["ensemble_distribution_weights"] = distribution_weights_table
+        key_columns = distribution_weights_table.key_columns
+        parameter_columns = distribution_weights_table.parameter_columns
+
+        self.parameters = {
+            parameter: builder.lookup.build_table(
+                data, key_columns=key_columns, parameter_columns=parameter_columns
+            )
+            for parameter, data in parameters.items()
+        }
+
+    def get_parameters(
+        self, builder: Builder
+    ) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
+        value_columns = builder.data.value_columns()(f"{self.risk}.exposure")
+        index_cols = [
+            column
+            for column in self._raw_weights.columns
+            if column not in self._distributions
+        ]
+        weights = self._raw_weights.set_index(index_cols)
+        mean = self._mean.set_index(index_cols)[value_columns].squeeze(axis=1)
+        sd = self._standard_deviation.set_index(index_cols)[value_columns].squeeze(axis=1)
         weights, parameters = EnsembleDistribution.get_parameters(weights, mean=mean, sd=sd)
         return weights.reset_index(), {
             name: p.reset_index() for name, p in parameters.items()
@@ -123,7 +140,7 @@ class EnsembleSimulation(Component):
     def ppf(self, q):
         if not q.empty:
             q = clip(q)
-            weights = self.weights(q.index)
+            weights = self.lookup_tables["ensemble_distribution_weights"](q.index)
             parameters = {
                 name: parameter(q.index) for name, parameter in self.parameters.items()
             }
@@ -147,6 +164,7 @@ class ContinuousDistribution(Component):
         self._parameters = self.get_parameters(mean, sd)
 
     def setup(self, builder: Builder) -> None:
+        # todo update to have flexible columns for lookup table
         self.parameters = builder.lookup.build_table(
             self._parameters, key_columns=["sex"], parameter_columns=["age", "year"]
         )
@@ -176,39 +194,32 @@ class ContinuousDistribution(Component):
 
 
 class PolytomousDistribution(Component):
+    @property
+    def categories(self) -> List[str]:
+        return self.lookup_tables["exposure"].value_columns
+
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str, exposure_data: pd.DataFrame):
+    def __init__(self, risk: str, _exposure_data: pd.DataFrame):
         super().__init__()
         self.risk = EntityString(risk)
-        self._exposure_data = exposure_data
         self.exposure_parameters_pipeline_name = f"{self.risk}.exposure_parameters"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.categories = self.get_categories()
         self.exposure = self.get_exposure_parameters(builder)
 
     #################
     # Setup methods #
     #################
 
-    def get_categories(self) -> List[str]:
-        return sorted(
-            [column for column in self._exposure_data if "cat" in column],
-            key=lambda column: int(column[3:]),
-        )
-
     def get_exposure_parameters(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.exposure_parameters_pipeline_name,
-            source=builder.lookup.build_table(
-                self._exposure_data,
-                key_columns=["sex"],
-                parameter_columns=["age", "year"],
-            ),
+            source=self.lookup_tables["exposure"],
+            requires_columns=get_lookup_columns([self.lookup_tables["exposure"]]),
         )
 
     ##################
@@ -236,33 +247,41 @@ class DichotomousDistribution(Component):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str, exposure_data: pd.DataFrame):
+    def __init__(self, risk: str, _exposure_data: pd.DataFrame):
         super().__init__()
-        self.risk = risk
-        self._exposure_data = exposure_data.drop(columns="cat2")
+        self.risk = EntityString(risk)
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self._base_exposure = builder.lookup.build_table(
-            self._exposure_data, key_columns=["sex"], parameter_columns=["age", "year"]
-        )
         self.exposure_proportion = builder.value.register_value_producer(
-            f"{self.risk}.exposure_parameters", source=self.exposure
+            f"{self.risk}.exposure_parameters",
+            source=self.exposure,
+            requires_columns=get_lookup_columns([self.lookup_tables["exposure"]]),
         )
-        base_paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(
             f"{self.risk}.exposure_parameters.paf",
-            source=lambda index: [base_paf(index)],
+            source=lambda index: [self.lookup_tables["paf"](index)],
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
+
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        exposure_data = self.lookup_tables["exposure"].data
+        value_cols = self.lookup_tables["exposure"].value_columns
+        if ((exposure_data[value_cols] < 0) | exposure_data[value_cols] > 1).any().any():
+            raise ValueError(f"Exposure should be in the range [0, 1]")
+        self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
 
     ##################################
     # Pipeline sources and modifiers #
     ##################################
 
     def exposure(self, index: pd.Index) -> pd.Series:
-        base_exposure = self._base_exposure(index).values
+        base_exposure = self.lookup_tables["exposure"](index).values
         joint_paf = self.joint_paf(index).values
         return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
 
@@ -279,7 +298,13 @@ class DichotomousDistribution(Component):
         )
 
 
-def get_distribution(risk, distribution_type, exposure, exposure_standard_deviation, weights):
+def get_distribution(
+    risk: EntityString,
+    distribution_type: str,
+    exposure: pd.DataFrame,
+    exposure_standard_deviation: Union[pd.DataFrame, None],
+    weights: Union[Tuple[pd.DataFrame, List[str]], None],
+) -> Component:
     if distribution_type == "dichotomous":
         distribution = DichotomousDistribution(risk, exposure)
     elif "polytomous" in distribution_type:

@@ -16,6 +16,7 @@ if __name__ == "__main__":
 
     install_requirements = [
         "vivarium>=2.0.0",
+        "layered_config_tree>=1.0.1",
         "loguru",
         "numpy",
         "pandas",
@@ -27,6 +28,7 @@ if __name__ == "__main__":
     setup_requires = ["setuptools_scm"]
 
     test_requirements = [
+        "vivarium_testing_utils",
         "pytest",
         "pytest-mock",
         "hypothesis",
