@@ -153,6 +153,13 @@ class LBWSGDistribution(PolytomousDistribution):
         """
         Parses a string corresponding to a low birth weight and short gestation
         category to an Interval.
+        An example of a standard description:
+        'Neonatal preterm and LBWSG (estimation years) - [0, 24) wks, [0, 500) g'
+        An example of an edge case for gestational age:
+        'Neonatal preterm and LBWSG (estimation years) - [40, 42+] wks, [2000, 2500) g'
+        An example of an edge case of birth weight:
+        'Neonatal preterm and LBWSG (estimation years) - [36, 37) wks, [4000, 9999] g'
+        
         :param axis:
         :param description:
         :return:
