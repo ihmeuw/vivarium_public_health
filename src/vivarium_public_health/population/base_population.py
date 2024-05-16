@@ -72,9 +72,8 @@ class BasePopulation(Component):
                 f"Provided value: {self.config.include_sex}."
             )
 
-        # TODO: Remove this when we remove deprecated keys.
-        # Validate configuration for deprecated keys
-        self._validate_config_for_deprecated_keys()
+        # Validate configuration for age keys
+        self._validate_age_keys()
 
         source_population_structure = load_population_structure(builder)
         self.demographic_proportions = assign_demographic_proportions(
@@ -173,35 +172,13 @@ class BasePopulation(Component):
             demographic_proportions.year_start == reference_years[ref_year_index]
         ]
 
-    # TODO: Remove this method when we remove the deprecated keys
-    def _validate_config_for_deprecated_keys(self) -> None:
-        mapper = {
-            "age_start": "initialization_age_min",
-            "age_end": "initialization_age_max",
-            "exit_age": "untracking_age",
-        }
-        deprecated_keys = set(mapper.keys()).intersection(self.config.keys())
-        for key in deprecated_keys:
-            provided_new_key = False
-            for layer in ["override", "model_override"]:
-                try:
-                    new_key_value = self.config.get_from_layer(mapper[key], layer=layer)
-                    provided_new_key = True
-                    break
-                except ConfigurationKeyError:
-                    pass
-
-            if provided_new_key and self.config[key] != new_key_value:
-                raise ValueError(
-                    f"Configuration contains both '{key}' and '{mapper[key]}' with different values. "
-                    f"These keys cannot both be provided. '{key}' will soon be deprecated so please "
-                    f"use '{mapper[key]}'. "
-                )
-            logger.warning(
-                "FutureWarning: "
-                f"Configuration key '{key}' will be deprecated in future versions of Vivarium "
-                f"Public Health. Use the new key '{mapper[key]}' instead."
-            )
+    def _validate_age_keys(self) -> None:
+        if self.config.age_start:
+            raise KeyError("age_start is no longer supported. Use initialization_age_min instead.")
+        if self.config.age_end:
+            raise KeyError("age_end is no longer supported. Use initialization_age_max instead.")
+        if self.config.exit_age:
+            raise KeyError("exit_age is no longer supported. Use untracking_age instead.")
 
 
 class AgeOutSimulants(Component):
