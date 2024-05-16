@@ -159,7 +159,7 @@ class LBWSGDistribution(PolytomousDistribution):
         'Neonatal preterm and LBWSG (estimation years) - [40, 42+] wks, [2000, 2500) g'
         An example of an edge case of birth weight:
         'Neonatal preterm and LBWSG (estimation years) - [36, 37) wks, [4000, 9999] g'
-        
+
         :param axis:
         :param description:
         :return:
