@@ -104,4 +104,3 @@ def test__subset_relative_risk_to_empty_dataframe(base_config, base_plugins):
     error_msg = f"Subsetting {risk_effect.risk} relative risk data to {target.name} {target.measure} returned an empty DataFrame. Check your artifact"
     with pytest.raises(ValueError, match=error_msg):
         get_relative_risk_data(sim._builder, risk_effect.risk, target)
-
