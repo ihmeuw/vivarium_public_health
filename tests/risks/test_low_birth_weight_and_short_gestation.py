@@ -4,6 +4,7 @@ from vivarium_public_health.risks.implementations.low_birth_weight_and_short_ges
     LBWSGDistribution,
 )
 
+
 @pytest.mark.parametrize(
     "description, expected_age_values, expected_weight_values",
     [
