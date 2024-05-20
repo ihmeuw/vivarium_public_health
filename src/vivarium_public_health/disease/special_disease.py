@@ -167,7 +167,7 @@ class RiskAttributableDisease(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder):
-        self.recoverable = builder.configuration[self.cause.name].recoverable
+        self.recoverable = builder.configuration[self.name].recoverable
         self.adjust_state_and_transitions()
         self.clock = builder.time.clock()
 
@@ -212,7 +212,7 @@ class RiskAttributableDisease(Component):
 
         distribution = builder.data.load(f"{self.risk}.distribution")
         exposure_pipeline = builder.value.get_value(f"{self.risk.name}.exposure")
-        threshold = builder.configuration[self.cause.name].threshold
+        threshold = builder.configuration[self.name].threshold
 
         self.filter_by_exposure = self.get_exposure_filter(
             distribution, exposure_pipeline, threshold
@@ -229,7 +229,7 @@ class RiskAttributableDisease(Component):
             )
 
     def load_cause_specific_mortality_rate_data(self, builder):
-        if builder.configuration[self.cause.name].mortality:
+        if builder.configuration[self.name].mortality:
             csmr_data = builder.data.load(
                 f"cause.{self.cause.name}.cause_specific_mortality_rate"
             )
@@ -238,7 +238,7 @@ class RiskAttributableDisease(Component):
         return csmr_data
 
     def load_excess_mortality_rate_data(self, builder):
-        if builder.configuration[self.cause.name].mortality:
+        if builder.configuration[self.name].mortality:
             emr_data = builder.data.load(f"cause.{self.cause.name}.excess_mortality_rate")
         else:
             emr_data = 0
