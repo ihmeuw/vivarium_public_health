@@ -100,7 +100,6 @@ class MortalityObserver(StratifiedObserver):
         ]
 
     def register_observations(self, builder: Builder) -> None:
-        # self._register_mortality_observations(builder, self.config.aggregate)
         pop_filter = 'alive == "dead" and tracked == True'
         additional_stratifications = self.config.include
         if not self.config.aggregate:
@@ -167,22 +166,22 @@ class MortalityObserver(StratifiedObserver):
         results[COLUMNS.MEASURE] = measure
 
         results.loc[results[COLUMNS.ENTITY] == "other_causes", COLUMNS.ENTITY_TYPE] = "cause"
-        results.loc[
-            results[COLUMNS.ENTITY] == "other_causes", COLUMNS.SUB_ENTITY
-        ] = "other_causes"
+        results.loc[results[COLUMNS.ENTITY] == "other_causes", COLUMNS.SUB_ENTITY] = (
+            "other_causes"
+        )
 
         results.loc[results[COLUMNS.ENTITY] == "all_causes", COLUMNS.ENTITY_TYPE] = "cause"
-        results.loc[
-            results[COLUMNS.ENTITY] == "all_causes", COLUMNS.SUB_ENTITY
-        ] = "all_causes"
+        results.loc[results[COLUMNS.ENTITY] == "all_causes", COLUMNS.SUB_ENTITY] = (
+            "all_causes"
+        )
 
         for cause in self.causes_of_death:
-            results.loc[
-                results[COLUMNS.ENTITY] == cause.state_id, COLUMNS.ENTITY_TYPE
-            ] = cause.cause_type
-            results.loc[
-                results[COLUMNS.ENTITY] == cause.state_id, COLUMNS.SUB_ENTITY
-            ] = cause.state_id
+            results.loc[results[COLUMNS.ENTITY] == cause.state_id, COLUMNS.ENTITY_TYPE] = (
+                cause.cause_type
+            )
+            results.loc[results[COLUMNS.ENTITY] == cause.state_id, COLUMNS.SUB_ENTITY] = (
+                cause.state_id
+            )
 
         results["random_seed"] = self.random_seed
         results["input_draw"] = self.input_draw
