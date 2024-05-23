@@ -8,7 +8,7 @@ risk data and performing any necessary data transformations.
 
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -16,6 +16,9 @@ from loguru import logger
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.utilities import EntityString, TargetString
+
+if TYPE_CHECKING:
+    from vivarium_public_health.risks import Risk
 
 #############
 # Utilities #
@@ -27,28 +30,19 @@ def is_data_from_artifact(data_source: str) -> bool:
 
 
 def pivot_categorical(
-    builder: Builder, risk: Optional[EntityString], data: pd.DataFrame
+    builder: Builder, risk: EntityString, data: pd.DataFrame
 ) -> Tuple[pd.DataFrame, List[str]]:
     """Pivots data that is long on categories to be wide."""
-    # todo remove if statement when relative risk has been updated
-    if risk:
-        # todo remove dependency on artifact manager having exactly one value column
-        value_column = builder.data.value_columns()(f"{risk}.exposure")[0]
-        pivot_column = "parameter"
-        index_cols = [
-            column for column in data.columns if column not in [value_column, pivot_column]
-        ]
-        data = data.pivot_table(
-            index=index_cols, columns=pivot_column, values=value_column
-        ).reset_index()
-        data.columns.name = None
-    else:
-        index_cols = ["sex", "age_start", "age_end", "year_start", "year_end"]
-        index_cols = [k for k in index_cols if k in data.columns]
-        data = data.pivot_table(
-            index=index_cols, columns="parameter", values="value"
-        ).reset_index()
-        data.columns.name = None
+    # todo remove dependency on artifact manager having exactly one value column
+    value_column = builder.data.value_columns()(f"{risk}.exposure")[0]
+    pivot_column = "parameter"
+    index_cols = [
+        column for column in data.columns if column not in [value_column, pivot_column]
+    ]
+    data = data.pivot_table(
+        index=index_cols, columns=pivot_column, values=value_column
+    ).reset_index()
+    data.columns.name = None
 
     value_columns = [column for column in data.columns if column not in index_cols]
     return data, value_columns
@@ -59,8 +53,8 @@ def pivot_categorical(
 ##########################
 
 
-def get_distribution_data(builder, risk: EntityString) -> Dict[str, Any]:
-    validate_distribution_data_source(builder, risk)
+def get_distribution_data(builder, risk: "Risk") -> Dict[str, Any]:
+    validate_distribution_data_source(builder, risk.risk)
     data = load_distribution_data(builder, risk)
     return data
 
@@ -83,31 +77,19 @@ def get_exposure_post_processor(builder, risk: str):
     return post_processor
 
 
-def load_distribution_data(builder: Builder, risk: EntityString) -> Dict[str, Any]:
-    distribution_type = get_distribution_type(builder, risk)
-    exposure_data, _ = get_exposure_data(builder, risk, distribution_type)
+def load_distribution_data(builder: Builder, risk: "Risk") -> Dict[str, Any]:
+    distribution_type = risk.distribution_type
+    exposure_data, _ = get_exposure_data(builder, risk.risk, distribution_type)
 
     data = {
         "distribution_type": distribution_type,
         "exposure": exposure_data,
         "exposure_standard_deviation": get_exposure_standard_deviation_data(
-            builder, risk, distribution_type
+            builder, risk.risk, distribution_type
         ),
-        "weights": get_exposure_distribution_weights(builder, risk, distribution_type),
+        "weights": get_exposure_distribution_weights(builder, risk.risk, distribution_type),
     }
     return data
-
-
-def get_distribution_type(builder, risk: EntityString):
-    risk_config = builder.configuration[risk]
-    exposure = risk_config["data_sources"]["exposure"]
-
-    if is_data_from_artifact(exposure) and not risk_config["rebinned_exposed"]:
-        distribution_type = builder.data.load(f"{risk}.distribution")
-    else:
-        distribution_type = "dichotomous"
-
-    return distribution_type
 
 
 def get_exposure_data(
@@ -212,15 +194,13 @@ def get_relative_risk_data(
     builder,
     risk: EntityString,
     target: TargetString,
-    distribution_type: str = None,
+    distribution_type: str,
 ) -> Tuple[pd.DataFrame, List[str]]:
     source_type = validate_relative_risk_data_source(builder, risk, target)
     relative_risk_data = load_relative_risk_data(builder, risk, target, source_type)
     validate_relative_risk_rebin_source(builder, risk, target, relative_risk_data)
     relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
 
-    if distribution_type is None:
-        distribution_type = get_distribution_type(builder, risk)
     if distribution_type in [
         "dichotomous",
         "ordered_polytomous",
@@ -370,47 +350,13 @@ def _rebin_relative_risk_data(
     return relative_risk_data.drop(columns=["value_x", "value_y"])
 
 
-def get_exposure_effect(builder, risk: EntityString):
-    distribution_type = get_distribution_type(builder, risk)
-    risk_exposure = builder.value.get_value(f"{risk.name}.exposure")
-
-    if distribution_type in ["normal", "lognormal", "ensemble"]:
-        tmred = builder.data.load(f"{risk}.tmred")
-        tmrel = 0.5 * (tmred["min"] + tmred["max"])
-        scale = builder.data.load(f"{risk}.relative_risk_scalar")
-
-        def exposure_effect(rates, rr):
-            exposure = risk_exposure(rr.index)
-            relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
-            return rates * relative_risk
-
-    else:
-
-        def exposure_effect(rates, rr: pd.DataFrame) -> pd.Series:
-            index_columns = ["index", risk.name]
-
-            exposure = risk_exposure(rr.index).reset_index()
-            exposure.columns = index_columns
-            exposure = exposure.set_index(index_columns)
-
-            relative_risk = rr.stack().reset_index()
-            relative_risk.columns = index_columns + ["value"]
-            relative_risk = relative_risk.set_index(index_columns)
-
-            effect = relative_risk.loc[exposure.index, "value"].droplevel(risk.name)
-            affected_rates = rates * effect
-            return affected_rates
-
-    return exposure_effect
-
-
 ##################################################
 # Population attributable fraction data handlers #
 ##################################################
 
 
 def get_population_attributable_fraction_data(
-    builder: Builder, risk: EntityString, target: TargetString
+    builder: Builder, risk: EntityString, target: TargetString, distribution_type: str
 ) -> Tuple[pd.DataFrame, List[str]]:
     paf_data = builder.data.load(f"{risk}.population_attributable_fraction")
     if isinstance(paf_data, pd.DataFrame):
@@ -421,8 +367,12 @@ def get_population_attributable_fraction_data(
             columns=["affected_entity", "affected_measure"]
         )
     else:
-        exposure_data, exposure_value_cols = get_exposure_data(builder, risk)
-        relative_risk_data, rr_value_cols = get_relative_risk_data(builder, risk, target)
+        exposure_data, exposure_value_cols = get_exposure_data(
+            builder, risk, distribution_type
+        )
+        relative_risk_data, rr_value_cols = get_relative_risk_data(
+            builder, risk, target, distribution_type
+        )
         if set(exposure_value_cols) != set(rr_value_cols):
             error_msg = "Exposure and relative risk value columns must match. "
             missing_rr_cols = set(exposure_value_cols).difference(set(rr_value_cols))

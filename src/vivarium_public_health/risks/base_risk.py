@@ -18,12 +18,20 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks.data_transformations import (
-    get_distribution_type,
     get_exposure_data,
     get_exposure_post_processor,
 )
 from vivarium_public_health.risks.distributions import SimulationDistribution
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
+
+DISTRIBUTION_TYPES = [
+    "dichotomous",
+    "ordered_polytomous",
+    "unordered_polytomous",
+    "normal",
+    "lognormal",
+    "ensemble",
+]
 
 
 class Risk(Component):
@@ -101,6 +109,7 @@ class Risk(Component):
                     "ensemble_distribution_weights": f"{self.risk}.exposure_distribution_weights",
                     "exposure_standard_deviation": f"{self.risk}.exposure_standard_deviation",
                 },
+                "distribution_type": f"{self.risk}.distribution",
                 # rebinned_exposed only used for DichotomousDistribution
                 "rebinned_exposed": [],
                 "category_thresholds": [],
@@ -132,6 +141,7 @@ class Risk(Component):
         """
         super().__init__()
         self.risk = EntityString(risk)
+        self.distribution_type = None
         self.exposure_distribution = self.get_exposure_distribution()
         self._sub_components = [self.exposure_distribution]
 
@@ -140,6 +150,27 @@ class Risk(Component):
         self.propensity_pipeline_name = f"{self.risk.name}.propensity"
         self.exposure_pipeline_name = f"{self.risk.name}.exposure"
 
+    ##########################
+    # Initialization methods #
+    ##########################
+
+    def get_exposure_distribution(self) -> SimulationDistribution:
+        return SimulationDistribution(self)
+
+    #################
+    # Setup methods #
+    #################
+
+    def build_all_lookup_tables(self, builder: "Builder") -> None:
+        self.distribution_type = self.get_distribution_type(builder)
+        if "polytomous" in self.distribution_type or "dichotomous" == self.distribution_type:
+            exposure, value_columns = get_exposure_data(
+                builder, self.risk, self.distribution_type
+            )
+            self.exposure_distribution.lookup_tables["exposure"] = self.build_lookup_table(
+                builder, exposure, value_columns
+            )
+
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.configuration = builder.configuration[self.name]
@@ -147,24 +178,12 @@ class Risk(Component):
         self.propensity = self.get_propensity_pipeline(builder)
         self.exposure = self.get_exposure_pipeline(builder)
 
-    ##########################
-    # Initialization methods #
-    ##########################
-
-    def get_exposure_distribution(self) -> SimulationDistribution:
-        return SimulationDistribution(self.risk)
-
-    #################
-    # Setup methods #
-    #################
-
-    def build_all_lookup_tables(self, builder: "Builder") -> None:
-        distribution_type = get_distribution_type(builder, self.risk)
-        if "polytomous" in distribution_type or "dichotomous" == distribution_type:
-            exposure, value_columns = get_exposure_data(builder, self.risk, distribution_type)
-            self.exposure_distribution.lookup_tables["exposure"] = self.build_lookup_table(
-                builder, exposure, value_columns
-            )
+    def get_distribution_type(self, builder: Builder) -> str:
+        distribution_config = builder.configuration[self.name]["distribution_type"]
+        if distribution_config in DISTRIBUTION_TYPES:
+            return distribution_config
+        # todo deal with incorrect typing
+        return self.get_data(builder, distribution_config)
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
         return builder.randomness.get_stream(self.randomness_stream_name)

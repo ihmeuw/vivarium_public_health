@@ -16,7 +16,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.risks.data_transformations import (
-    get_distribution_type,
     get_population_attributable_fraction_data,
     get_relative_risk_data,
 )
@@ -95,13 +94,14 @@ class RiskEffect(Component):
         self.risk = EntityString(risk)
         self.target = TargetString(target)
 
+        self._exposure_distribution_type = None
+
         self.exposure_pipeline_name = f"{self.risk.name}.exposure"
         self.target_pipeline_name = f"{self.target.name}.{self.target.measure}"
         self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.exposure_distribution_type = self.get_distribution_type(builder)
         self.exposure = self.get_risk_exposure(builder)
 
         self.target_modifier = self.get_target_modifier(builder)
@@ -114,6 +114,7 @@ class RiskEffect(Component):
     #################
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
+        self._exposure_distribution_type = self.get_distribution_type(builder)
         relative_risk_data, rr_value_cols = self.get_relative_risk_source(builder)
         self.lookup_tables["relative_risk"] = self.build_lookup_table(
             builder, relative_risk_data, rr_value_cols
@@ -124,7 +125,16 @@ class RiskEffect(Component):
         )
 
     def get_distribution_type(self, builder: Builder) -> str:
-        return get_distribution_type(builder, self.risk)
+        from vivarium_public_health.risks import Risk
+
+        risk_exposure_component = builder.components.get_component(self.risk)
+        if not isinstance(risk_exposure_component, Risk):
+            raise ValueError(
+                f"Risk effect model {self.name} requires a Risk component named {self.risk}"
+            )
+        if risk_exposure_component.distribution_type:
+            return risk_exposure_component.distribution_type
+        return risk_exposure_component.get_distribution_type(builder)
 
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         return builder.value.get_value(self.exposure_pipeline_name)
@@ -144,7 +154,9 @@ class RiskEffect(Component):
             A lookup table containing the relative risk data for this risk
             effect model.
         """
-        return get_relative_risk_data(builder, self.risk, self.target)
+        return get_relative_risk_data(
+            builder, self.risk, self.target, self._exposure_distribution_type
+        )
 
     def get_population_attributable_fraction_source(
         self, builder: Builder
@@ -163,12 +175,14 @@ class RiskEffect(Component):
             A lookup table containing the population attributable fraction data
             for this risk effect model.
         """
-        return get_population_attributable_fraction_data(builder, self.risk, self.target)
+        return get_population_attributable_fraction_data(
+            builder, self.risk, self.target, self._exposure_distribution_type
+        )
 
     def get_target_modifier(
         self, builder: Builder
     ) -> Callable[[pd.Index, pd.Series], pd.Series]:
-        if self.exposure_distribution_type in ["normal", "lognormal", "ensemble"]:
+        if self._exposure_distribution_type in ["normal", "lognormal", "ensemble"]:
             tmred = builder.data.load(f"{self.risk}.tmred")
             tmrel = 0.5 * (tmred["min"] + tmred["max"])
             scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
