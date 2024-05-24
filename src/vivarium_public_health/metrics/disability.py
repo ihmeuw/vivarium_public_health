@@ -144,9 +144,9 @@ class DisabilityObserver(StratifiedObserver):
 
         results[COLUMNS.MEASURE] = measure
         results[COLUMNS.ENTITY_TYPE] = "cause"
-        results.loc[results[COLUMNS.SUB_ENTITY] == "all_causes", COLUMNS.ENTITY] = (
-            "all_causes"
-        )
+        results.loc[
+            results[COLUMNS.SUB_ENTITY] == "all_causes", COLUMNS.ENTITY
+        ] = "all_causes"
         for cause in self.causes_of_disease:
             cause_mask = results[COLUMNS.SUB_ENTITY] == cause.state_id
             results.loc[cause_mask, COLUMNS.ENTITY] = cause.model
