@@ -21,6 +21,8 @@ jobs:
         shell: bash -le {0}
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -32,30 +34,50 @@ jobs:
           else
             echo "branch_name=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           fi
+      - name: Install dependencies
+        run: |
+          pip install .[dev]
       - name: check for upstream branch
         run: |
-          if git ls-remote --exit-code --heads https://github.com/ihmeuw/vivarium.git ${branch_name} == "0"; then
-            echo "upstream_exist=true" >> $GITHUB_ENV
-          else
-            echo "upstream_exist=false" >> $GITHUB_ENV
-          fi
+          vivarium_branch_name='main'
+          branch_name_to_check=${branch_name}
+          while [ "$branch_name_to_check" != "$vivarium_branch_name" ]
+          do
+            echo "Checking for vivarium branch: ${branch_name_to_check}"
+            if
+              git ls-remote --exit-code \
+              --heads https://github.com/ihmeuw/vivarium.git ${branch_name_to_check} == "0"
+            then
+              vivarium_branch_name=${branch_name_to_check}
+              echo "vivarium_branch_name=${branch_name_to_check}" >> $GITHUB_ENV
+            else
+              branch_name_to_check="$( \
+                git show-branch -a \
+                | grep '\*' \
+                | grep -v `git rev-parse --abbrev-ref HEAD` \
+                | head -n1 \
+                | sed 's/[^\[]*//' \
+                | awk 'match($0, /\[[a-zA-Z0-9\/.-]+\]/) { print substr( $0, RSTART+1, RLENGTH-2 )}' \
+                | sed 's/^origin\///' \
+              )"
+              git checkout ${branch_name_to_check}
+            fi
+          done
+          git checkout ${branch_name}
       - name: print environment values
         run: |
           cat $GITHUB_ENV
       - name: Update pip
         run: |
           python -m pip install --upgrade pip
-      - name: Retrieve upstream branch if exists
-        if: env.upstream_exist == 'true'
+      - name: Retrieve vivarium branch
+        if: env.vivarium_branch_name != 'main'
         run: |
-          echo "Cloning upstream branch: ${branch_name}"
-          git clone --branch=${branch_name} https://github.com/ihmeuw/vivarium.git
+          echo "Cloning upstream branch: ${vivarium_branch_name}"
+          git clone --branch=${vivarium_branch_name} https://github.com/ihmeuw/vivarium.git
           pushd vivarium
           pip install .
           popd
-      - name: Install dependencies
-        run: |
-          pip install .[dev]
       - name: Lint
         run: |
           pip install black==22.3.0 isort
