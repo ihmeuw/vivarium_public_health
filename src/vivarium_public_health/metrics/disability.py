@@ -8,8 +8,6 @@ in the simulation.
 
 """
 
-from __future__ import annotations
-
 from typing import Any, List, Union
 
 import pandas as pd
@@ -103,9 +101,7 @@ class DisabilityObserver(StratifiedObserver):
     # Aggregators #
     ###############
 
-    def disability_weight_aggregator(
-        self, dw: pd.DataFrame
-    ) -> Union[float, pd.Series[float]]:
+    def disability_weight_aggregator(self, dw: pd.DataFrame) -> Union[float, pd.Series]:
         aggregated_dw = (dw * to_years(self.step_size)).sum().squeeze()
         if isinstance(aggregated_dw, pd.Series):
             aggregated_dw.index.name = "cause_of_disability"
