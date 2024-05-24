@@ -8,15 +8,14 @@ excess mortality in the simulation, including "other causes".
 
 """
 
-from functools import partial
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.results import StratifiedObserver
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from vivarium_public_health.metrics.reporters import write_dataframe_to_parquet
+from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe
 
 
 class MortalityObserver(StratifiedObserver):
@@ -49,7 +48,7 @@ class MortalityObserver(StratifiedObserver):
 
     def __init__(self) -> None:
         super().__init__()
-        self.required_death_columns = ["alive", "exit_time"]
+        self.required_death_columns = ["alive", "exit_time", "cause_of_death"]
         self.required_yll_columns = [
             "alive",
             "cause_of_death",
@@ -92,61 +91,44 @@ class MortalityObserver(StratifiedObserver):
     def setup(self, builder: Builder) -> None:
         self.clock = builder.time.clock()
         self.config = builder.configuration.stratification.mortality
+        self.causes_of_death = [
+            cause
+            for cause in builder.components.get_components_by_type(
+                tuple(self.mortality_classes)
+            )
+            if cause.has_excess_mortality
+        ]
 
     def register_observations(self, builder: Builder) -> None:
-        disease_components = builder.components.get_components_by_type(
-            tuple(self.mortality_classes)
-        )
+        pop_filter = 'alive == "dead" and tracked == True'
+        additional_stratifications = self.config.include
         if not self.config.aggregate:
-            causes_of_death = [
-                cause for cause in disease_components if cause.has_excess_mortality
-            ]
-            for cause_of_death in causes_of_death:
-                self._register_mortality_observations(
-                    builder, cause_of_death, f'cause_of_death == "{cause_of_death.state_id}"'
-                )
-            self._register_mortality_observations(
-                builder, "other_causes", 'cause_of_death == "other_causes"'
+            additional_stratifications += ["cause_of_death"]
+            builder.results.register_stratification(
+                "cause_of_death",
+                [cause.state_id for cause in self.causes_of_death]
+                + ["not_dead", "other_causes"],
+                requires_columns=["cause_of_death"],
             )
-        else:
-            self._register_mortality_observations(builder, "all_causes")
-
-    ###################
-    # Private methods #
-    ###################
-
-    def _register_mortality_observations(
-        self,
-        builder: Builder,
-        cause_state: Union[str, DiseaseState, RiskAttributableDisease],
-        additional_pop_filter: Optional[str] = None,
-    ) -> None:
-        basic_filter = 'alive == "dead" and tracked == True'
-        pop_filter = (
-            basic_filter
-            if not additional_pop_filter
-            else " and ".join([basic_filter, additional_pop_filter])
-        )
-        measure = cause_state.state_id if not isinstance(cause_state, str) else cause_state
         builder.results.register_observation(
-            name=f"deaths_due_to_{measure}",
+            name="deaths",
             pop_filter=pop_filter,
             aggregator=self.count_deaths,
             requires_columns=self.required_death_columns,
-            additional_stratifications=self.config.include,
+            additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            report=partial(self.write_mortality_results, cause_state),
+            report=self.write_mortality_results,
         )
         builder.results.register_observation(
-            name=f"ylls_due_to_{measure}",
+            name="ylls",
             pop_filter=pop_filter,
             aggregator=self.calculate_ylls,
             requires_columns=self.required_yll_columns,
-            additional_stratifications=self.config.include,
+            additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            report=partial(self.write_mortality_results, cause_state),
+            report=self.write_mortality_results,
         )
 
     ###############
@@ -167,23 +149,41 @@ class MortalityObserver(StratifiedObserver):
 
     def write_mortality_results(
         self,
-        cause_state: Union[str, DiseaseState, RiskAttributableDisease],
         measure: str,
         results: pd.DataFrame,
     ) -> None:
-        measure_name = measure.split("_due_to_")[0]
-        kwargs = {
-            "entity_type": (
-                cause_state.cause_type if not isinstance(cause_state, str) else "cause"
-            ),
-            "entity": cause_state.model if not isinstance(cause_state, str) else cause_state,
-            "sub_entity": cause_state.state_id if not isinstance(cause_state, str) else None,
-            "results_dir": self.results_dir,
-            "random_seed": self.random_seed,
-            "input_draw": self.input_draw,
-        }
-        write_dataframe_to_parquet(
+        """Format dataframe and write out"""
+
+        results = results.reset_index()
+
+        if self.config.aggregate:
+            results[COLUMNS.ENTITY] = "all_causes"
+        else:
+            results.rename(columns={"cause_of_death": COLUMNS.ENTITY}, inplace=True)
+
+        results = results[results[COLUMNS.ENTITY] != "not_dead"]
+        results[COLUMNS.MEASURE] = measure
+        results[COLUMNS.ENTITY_TYPE] = "cause"
+        results.loc[
+            results[COLUMNS.ENTITY] == "other_causes", COLUMNS.SUB_ENTITY
+        ] = "other_causes"
+        results.loc[
+            results[COLUMNS.ENTITY] == "all_causes", COLUMNS.SUB_ENTITY
+        ] = "all_causes"
+        for cause in self.causes_of_death:
+            cause_mask = results[COLUMNS.ENTITY] == cause.state_id
+            results.loc[cause_mask, COLUMNS.ENTITY_TYPE] = cause.cause_type
+            results.loc[cause_mask, COLUMNS.SUB_ENTITY] = cause.state_id
+        results["random_seed"] = self.random_seed
+        results["input_draw"] = self.input_draw
+
+        # Reorder columns so stratifcations are first and value is last
+        results = results[
+            [c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]
+        ]
+
+        write_dataframe(
             results=results,
-            measure=measure_name,
-            **kwargs,
+            measure=measure,
+            results_dir=self.results_dir,
         )
