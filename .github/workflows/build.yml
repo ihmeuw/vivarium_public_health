@@ -41,7 +41,6 @@ jobs:
         run: |
           pip install .[dev]
           git checkout ${branch_name}
-          echo "branch_name=${branch_name}"
       - name: check for upstream branch
         run: |
           vivarium_branch_name='main'
