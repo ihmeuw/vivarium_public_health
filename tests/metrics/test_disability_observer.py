@@ -55,33 +55,24 @@ def test_disability_observer_setup(mocker):
     builder.results.register_observation.assert_not_called()
     observer.setup_component(builder)
 
-    # Cannot use mocker.assert_any_call() with partial functions as an arg so
-    # instead check each kwarg individually
-    assert builder.results.register_observation.call_count == 3
-    for _, kwargs in builder.results.register_observation.call_args_list:
-        assert len(kwargs) == 10
-        assert kwargs["pop_filter"] == 'tracked == True and alive == "alive"'
-        assert kwargs["aggregator"] == observer.disability_weight_aggregator
-        assert kwargs["requires_columns"] == ["alive"]
-        assert kwargs["additional_stratifications"] == observer.config.include
-        assert kwargs["excluded_stratifications"] == observer.config.exclude
-        assert kwargs["when"] == "time_step__prepare"
-        report = kwargs["report"]
-        assert (
-            isinstance(report, partial) and report.func == observer.write_disability_results
-        )
-        if kwargs["name"] == "ylds_due_to_all_causes":
-            assert kwargs["aggregator_sources"] == ["disability_weight"]
-            assert kwargs["requires_values"] == ["disability_weight"]
-            assert report.args == (None,)
-        elif kwargs["name"] == "ylds_due_to_flu":
-            assert kwargs["aggregator_sources"] == ["flu.disability_weight"]
-            assert kwargs["requires_values"] == ["flu.disability_weight"]
-            assert report.args == (flu,)
-        elif kwargs["name"] == "ylds_due_to_measles":
-            assert kwargs["aggregator_sources"] == ["measles.disability_weight"]
-            assert kwargs["requires_values"] == ["measles.disability_weight"]
-            assert report.args == (measles,)
+    assert builder.results.register_observation.call_count == 1
+    cause_pipelines = [
+        "disability_weight",
+        "flu.disability_weight",
+        "measles.disability_weight",
+    ]
+    builder.results.register_observation.assert_any_call(
+        name="ylds",
+        pop_filter='tracked == True and alive == "alive"',
+        aggregator_sources=cause_pipelines,
+        aggregator=observer.disability_weight_aggregator,
+        requires_columns=["alive"],
+        requires_values=cause_pipelines,
+        additional_stratifications=observer.config.include,
+        excluded_stratifications=observer.config.exclude,
+        when="time_step__prepare",
+        report=observer.write_disability_results,
+    )
 
     assert set(observer.disease_classes) == set([DiseaseState, RiskAttributableDisease])
 
@@ -207,10 +198,11 @@ def test_disability_accumulation(
             assert (
                 results.loc[results[COLUMNS.ENTITY] == cause, COLUMNS.SUB_ENTITY] == state
             ).all()
-        else:
+        else:  # all_causes
             assert (
-                results.loc[results[COLUMNS.ENTITY] == cause, COLUMNS.SUB_ENTITY].isna().all()
-            )
+                results.loc[results[COLUMNS.ENTITY] == cause, COLUMNS.SUB_ENTITY]
+                == "all_causes"
+            ).all()
 
     assert set(results.columns) == set(
         [

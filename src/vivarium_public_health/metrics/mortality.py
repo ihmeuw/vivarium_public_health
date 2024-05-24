@@ -75,7 +75,7 @@ class MortalityObserver(StratifiedObserver):
         return config_defaults
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> List[str]:
         return [
             "alive",
             "years_of_life_lost",
