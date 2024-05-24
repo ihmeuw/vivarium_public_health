@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, NamedTuple, Optional, Union
+from typing import NamedTuple, Optional, Union
 
 import pandas as pd
 from vivarium.framework.results import METRICS_COLUMN
@@ -26,6 +26,18 @@ class __Columns(NamedTuple):
 COLUMNS = __Columns()
 
 
+def write_dataframe(
+    results: pd.DataFrame,
+    measure: str,
+    results_dir: Optional[Union[str, Path]],
+) -> None:
+    """Utility function for observation 'report' methods to write pd.DataFrames to parquet"""
+    if results_dir is None:
+        raise ValueError("A results_dir must be specified to write out results.")
+    results.to_parquet(Path(results_dir) / f"{measure}.parquet", index=False)
+
+
+# FIXME: remove this when ready
 def write_dataframe_to_parquet(
     results: pd.DataFrame,
     measure: str,

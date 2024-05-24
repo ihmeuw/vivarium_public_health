@@ -123,21 +123,24 @@ def test_observation_registration(simulation_after_one_step):
 
 def test_observation_correctness(simulation_after_one_step):
     """Test that deaths and YLLs appear as expected in the results."""
+    pop = simulation_after_one_step.get_population()
+    metrics = simulation_after_one_step.get_value("metrics")(pop.index)
     expected = get_expected_results(simulation_after_one_step)
-    _assert_metric_correctness(simulation_after_one_step, expected)
+    _assert_metric_correctness(metrics, expected)
 
     # same test on second time step
     simulation_after_one_step.step()
     expected = get_expected_results(simulation_after_one_step, expected)
-    _assert_metric_correctness(simulation_after_one_step, expected)
+    _assert_metric_correctness(metrics, expected)
 
     results = finalize_sim_and_get_results(simulation_after_one_step, ["deaths", "ylls"])
     deaths = results["deaths"]
     ylls = results["ylls"]
 
-    # Check columns
     for measure in ["deaths", "ylls"]:
         df = eval(measure)
+
+        # Check columns
         assert set(df.columns) == set(
             [
                 "sex",
@@ -156,14 +159,14 @@ def test_observation_correctness(simulation_after_one_step):
         assert (df[COLUMNS.SEED] == 0).all()
         assert df[COLUMNS.DRAW].isna().all()
 
-    # Check values. We already checked correctness of pipeline, so let's compare to that.
-    metrics_df = pd.concat([df for df in simulation_after_one_step.get_results().values()])
-    assert metrics_df.loc[metrics_df["measure"] == "deaths", "value"].equals(
-        deaths.set_index("sex")["value"]
-    )
-    assert metrics_df.loc[metrics_df["measure"] == "ylls", "value"].equals(
-        ylls.set_index("sex")["value"]
-    )
+        # Check values. We already checked correctness of pipeline, so let's compare to that.
+        metrics_df = (
+            metrics[measure].reset_index().rename(columns={"cause_of_death": COLUMNS.ENTITY})
+        )
+        metrics_df = metrics_df.loc[metrics_df[COLUMNS.ENTITY] != "not_dead"].reset_index(
+            drop=True
+        )
+        assert metrics_df.equals(df[["sex", COLUMNS.ENTITY, COLUMNS.VALUE]])
 
 
 def test_aggregation_configuration(base_config, base_plugins, tmpdir):
@@ -220,16 +223,12 @@ def test_aggregation_configuration(base_config, base_plugins, tmpdir):
 ##################
 
 
-def _assert_metric_correctness(simulation_after_one_step, expected):
-    pop = simulation_after_one_step.get_population()
-    results = simulation_after_one_step.get_value("metrics")(pop.index)
+def _assert_metric_correctness(metrics, expected):
 
     for observation in expected:
         measure = observation.split("_due_to_")[0].strip("MEASURE_")
         cause = observation.split("_due_to_")[1].split("_SEX_")[0]
         sex = observation.split("SEX_")[1]
-        # The metrics are stored as {measure}_due_to_{cause}
-        metric = f"{measure}_due_to_{cause}"
         assert np.isclose(
-            expected[observation], results[metric].loc[sex, "value"], rtol=0.001
+            expected[observation], metrics[measure].loc[(sex, cause), "value"], rtol=0.001
         )
