@@ -150,6 +150,12 @@ class Risk(Component):
         self.propensity_pipeline_name = f"{self.risk.name}.propensity"
         self.exposure_pipeline_name = f"{self.risk.name}.exposure"
 
+    # noinspection PyAttributeOutsideInit
+    def setup_component(self, builder: "Builder") -> None:
+        self.configuration = builder.configuration[self.name]
+        self.distribution_type = self.get_distribution_type(builder)
+        super().setup_component(builder)
+
     ##########################
     # Initialization methods #
     ##########################
@@ -161,8 +167,14 @@ class Risk(Component):
     # Setup methods #
     #################
 
+    def get_distribution_type(self, builder: Builder) -> str:
+        distribution_type = self.configuration["distribution_type"]
+        if distribution_type in DISTRIBUTION_TYPES:
+            return distribution_type
+        # todo deal with incorrect typing
+        return self.get_data(builder, distribution_type)
+
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        self.distribution_type = self.get_distribution_type(builder)
         if "polytomous" in self.distribution_type or "dichotomous" == self.distribution_type:
             exposure, value_columns = get_exposure_data(
                 builder, self.risk, self.distribution_type
@@ -173,17 +185,9 @@ class Risk(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.configuration = builder.configuration[self.name]
         self.randomness = self.get_randomness_stream(builder)
         self.propensity = self.get_propensity_pipeline(builder)
         self.exposure = self.get_exposure_pipeline(builder)
-
-    def get_distribution_type(self, builder: Builder) -> str:
-        distribution_config = builder.configuration[self.name]["distribution_type"]
-        if distribution_config in DISTRIBUTION_TYPES:
-            return distribution_config
-        # todo deal with incorrect typing
-        return self.get_data(builder, distribution_config)
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
         return builder.randomness.get_stream(self.randomness_stream_name)
