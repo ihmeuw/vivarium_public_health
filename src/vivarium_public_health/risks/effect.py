@@ -125,6 +125,7 @@ class RiskEffect(Component):
         )
 
     def get_distribution_type(self, builder: Builder) -> str:
+        """Get the distribution type for the risk from the configuration."""
         from vivarium_public_health.risks import Risk
 
         risk_exposure_component = builder.components.get_component(self.risk)

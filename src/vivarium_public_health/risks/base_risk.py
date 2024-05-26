@@ -168,6 +168,23 @@ class Risk(Component):
     #################
 
     def get_distribution_type(self, builder: Builder) -> str:
+        """
+        Get the distribution type for the risk from the configuration.
+
+        If the configured distribution type is not one of the supported types,
+        it is assumed to be a data source and the data is retrieved using the
+        get_data method.
+
+        Parameters
+        ----------
+        builder : Builder
+            the builder object
+
+        Returns
+        -------
+        str
+            the distribution type
+        """
         distribution_type = self.configuration["distribution_type"]
         if distribution_type in DISTRIBUTION_TYPES:
             return distribution_type
