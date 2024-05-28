@@ -18,12 +18,20 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks.data_transformations import (
-    get_distribution_type,
     get_exposure_data,
     get_exposure_post_processor,
 )
 from vivarium_public_health.risks.distributions import SimulationDistribution
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
+
+DISTRIBUTION_TYPES = [
+    "dichotomous",
+    "ordered_polytomous",
+    "unordered_polytomous",
+    "normal",
+    "lognormal",
+    "ensemble",
+]
 
 
 class Risk(Component):
@@ -101,6 +109,7 @@ class Risk(Component):
                     "ensemble_distribution_weights": f"{self.risk}.exposure_distribution_weights",
                     "exposure_standard_deviation": f"{self.risk}.exposure_standard_deviation",
                 },
+                "distribution_type": f"{self.risk}.distribution",
                 # rebinned_exposed only used for DichotomousDistribution
                 "rebinned_exposed": [],
                 "category_thresholds": [],
@@ -132,6 +141,7 @@ class Risk(Component):
         """
         super().__init__()
         self.risk = EntityString(risk)
+        self.distribution_type = None
         self.exposure_distribution = self.get_exposure_distribution()
         self._sub_components = [self.exposure_distribution]
 
@@ -141,30 +151,60 @@ class Risk(Component):
         self.exposure_pipeline_name = f"{self.risk.name}.exposure"
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder) -> None:
+    def setup_component(self, builder: "Builder") -> None:
         self.configuration = builder.configuration[self.name]
-        self.randomness = self.get_randomness_stream(builder)
-        self.propensity = self.get_propensity_pipeline(builder)
-        self.exposure = self.get_exposure_pipeline(builder)
+        self.distribution_type = self.get_distribution_type(builder)
+        super().setup_component(builder)
 
     ##########################
     # Initialization methods #
     ##########################
 
     def get_exposure_distribution(self) -> SimulationDistribution:
-        return SimulationDistribution(self.risk)
+        return SimulationDistribution(self)
 
     #################
     # Setup methods #
     #################
 
+    def get_distribution_type(self, builder: Builder) -> str:
+        """
+        Get the distribution type for the risk from the configuration.
+
+        If the configured distribution type is not one of the supported types,
+        it is assumed to be a data source and the data is retrieved using the
+        get_data method.
+
+        Parameters
+        ----------
+        builder : Builder
+            the builder object
+
+        Returns
+        -------
+        str
+            the distribution type
+        """
+        distribution_type = self.configuration["distribution_type"]
+        if distribution_type in DISTRIBUTION_TYPES:
+            return distribution_type
+        # todo deal with incorrect typing
+        return self.get_data(builder, distribution_type)
+
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        distribution_type = get_distribution_type(builder, self.risk)
-        if "polytomous" in distribution_type or "dichotomous" == distribution_type:
-            exposure, value_columns = get_exposure_data(builder, self.risk, distribution_type)
+        if "polytomous" in self.distribution_type or "dichotomous" == self.distribution_type:
+            exposure, value_columns = get_exposure_data(
+                builder, self.risk, self.distribution_type
+            )
             self.exposure_distribution.lookup_tables["exposure"] = self.build_lookup_table(
                 builder, exposure, value_columns
             )
+
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder) -> None:
+        self.randomness = self.get_randomness_stream(builder)
+        self.propensity = self.get_propensity_pipeline(builder)
+        self.exposure = self.get_exposure_pipeline(builder)
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
         return builder.randomness.get_stream(self.randomness_stream_name)
