@@ -9,7 +9,7 @@ from vivarium_public_health.risks.data_transformations import (
     get_relative_risk_data,
 )
 from vivarium_public_health.risks.effect import RiskEffect
-from vivarium_public_health.utilities import EntityString, TargetString
+from vivarium_public_health.utilities import TargetString
 
 
 @pytest.mark.parametrize(
@@ -103,4 +103,6 @@ def test__subset_relative_risk_to_empty_dataframe(base_config, base_plugins):
 
     error_msg = f"Subsetting {risk_effect.risk} relative risk data to {target.name} {target.measure} returned an empty DataFrame. Check your artifact"
     with pytest.raises(ValueError, match=error_msg):
-        get_relative_risk_data(sim._builder, risk_effect.risk, target)
+        get_relative_risk_data(
+            sim._builder, risk_effect.risk, target, risk_effect._exposure_distribution_type
+        )
