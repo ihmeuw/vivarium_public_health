@@ -8,7 +8,7 @@ exposure distributions.
 
 """
 
-from typing import Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -21,14 +21,17 @@ from vivarium.framework.values import Pipeline, list_combiner, union_post_proces
 from vivarium_public_health.risks.data_transformations import get_distribution_data
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
+if TYPE_CHECKING:
+    from vivarium_public_health.risks import Risk
+
 
 class MissingDataError(Exception):
     pass
 
 
 # FIXME: This is a hack.  It's wrapping up an adaptor pattern in another
-# adaptor pattern, which is gross, but would require some more difficult
-# refactoring which is thoroughly out of scope right now. -J.C. 8/25/19
+#  adaptor pattern, which is gross, but would require some more difficult
+#  refactoring which is thoroughly out of scope right now. -J.C. 8/25/19
 class SimulationDistribution(Component):
     """Wrapper around a variety of distribution implementations."""
 
@@ -36,12 +39,13 @@ class SimulationDistribution(Component):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: EntityString):
+    def __init__(self, risk_component: "Risk"):
         super().__init__()
-        self.risk = risk
+        self._risk_component = risk_component
+        self.risk = self._risk_component.risk
 
     def setup(self, builder: Builder) -> None:
-        distribution_data = get_distribution_data(builder, self.risk)
+        distribution_data = get_distribution_data(builder, self._risk_component)
         self.implementation = get_distribution(self.risk, **distribution_data)
         self.implementation.lookup_tables = self.lookup_tables
         self.implementation.setup_component(builder)
