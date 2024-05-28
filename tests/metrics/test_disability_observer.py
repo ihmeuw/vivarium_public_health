@@ -149,6 +149,9 @@ def test_disability_accumulation(
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
+
+    # Take two time steps (not just one in order to ensure metrics are updating properly)
+    simulation.step()
     simulation.step()
 
     pop = simulation.get_population()
@@ -222,7 +225,7 @@ def test_disability_accumulation(
     assert results[COLUMNS.DRAW].isna().all()
 
     # Check that all the yld values are as expected
-    time_scale = time_step / pd.Timedelta("365.25 days")
+    time_scale = time_step / pd.Timedelta("365.25 days") * 2
     for cause, (state, pop_filter, dw) in yld_masks.items():
         cause_specific_pop = pop[pop_filter]
         for sex in ["Female", "Male"]:

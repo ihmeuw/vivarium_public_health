@@ -123,26 +123,28 @@ class DisabilityObserver(StratifiedObserver):
         """
 
         # Drop the unused 'value' column and rename the pipeline names to causes
-        results.drop(columns=["value"], inplace=True)
-        results.rename(columns={"disability_weight": "all_causes"}, inplace=True)
-        results.rename(
-            columns={col: col.replace(".disability_weight", "") for col in results.columns},
-            inplace=True,
+        results = (
+            results.drop(columns=["value"])
+            .rename(columns={"disability_weight": "all_causes"})
+            .rename(
+                columns={
+                    col: col.replace(".disability_weight", "") for col in results.columns
+                },
+            )
         )
 
         # Stack the causes of disability
-        idx_names = list(results.index.names)
+        idx_names = list(results.index.names) + [COLUMNS.SUB_ENTITY]
         results = pd.DataFrame(results.stack(), columns=[COLUMNS.VALUE])
         # Name the new index level
-        idx_names += [COLUMNS.SUB_ENTITY]
         results.index.set_names(idx_names, inplace=True)
         results = results.reset_index()
 
         results[COLUMNS.MEASURE] = measure
         results[COLUMNS.ENTITY_TYPE] = "cause"
-        results.loc[
-            results[COLUMNS.SUB_ENTITY] == "all_causes", COLUMNS.ENTITY
-        ] = "all_causes"
+        results.loc[results[COLUMNS.SUB_ENTITY] == "all_causes", COLUMNS.ENTITY] = (
+            "all_causes"
+        )
         for cause in self.causes_of_disease:
             cause_mask = results[COLUMNS.SUB_ENTITY] == cause.state_id
             results.loc[cause_mask, COLUMNS.ENTITY] = cause.model
