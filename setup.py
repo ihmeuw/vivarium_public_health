@@ -43,6 +43,11 @@ if __name__ == "__main__":
         "matplotlib",
     ]
 
+    lint_requirements = [
+        "black==22.3.0",
+        "isort",
+    ]
+
     setup(
         name=about["__title__"],
         description=about["__summary__"],
@@ -80,7 +85,7 @@ if __name__ == "__main__":
         extras_require={
             "docs": doc_requirements,
             "test": test_requirements,
-            "dev": doc_requirements + test_requirements,
+            "dev": doc_requirements + test_requirements + lint_requirements,
         },
         zip_safe=False,
         use_scm_version={
