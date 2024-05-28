@@ -15,6 +15,7 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 
+from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import (
     get_population_attributable_fraction_data,
     get_relative_risk_data,
@@ -126,8 +127,6 @@ class RiskEffect(Component):
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
-        from vivarium_public_health.risks import Risk
-
         risk_exposure_component = builder.components.get_component(self.risk)
         if not isinstance(risk_exposure_component, Risk):
             raise ValueError(
