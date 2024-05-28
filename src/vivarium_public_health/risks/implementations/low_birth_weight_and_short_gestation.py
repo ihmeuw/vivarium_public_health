@@ -19,8 +19,6 @@ from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks import Risk, RiskEffect
 from vivarium_public_health.risks.data_transformations import (
-    get_distribution_type,
-    get_exposure_data,
     get_exposure_post_processor,
 )
 from vivarium_public_health.risks.distributions import PolytomousDistribution
@@ -218,14 +216,6 @@ class LBWSGRisk(Risk):
     #################
     # Setup methods #
     #################
-
-    def build_all_lookup_tables(self, builder: "Builder") -> None:
-        distribution_type = get_distribution_type(builder, self.risk)
-        if "polytomous" in distribution_type or "dichotomous" == distribution_type:
-            exposure, value_columns = get_exposure_data(builder, self.risk, distribution_type)
-            self.exposure_distribution.lookup_tables["exposure"] = self.build_lookup_table(
-                builder, exposure, value_columns
-            )
 
     def get_propensity_pipeline(self, builder: Builder) -> Optional[Pipeline]:
         # Propensity only used on initialization; not being saved to avoid a cycle
