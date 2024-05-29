@@ -14,7 +14,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.results import StratifiedObserver
 
-from vivarium_public_health.metrics.reporters import write_dataframe_to_parquet
+from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe
 from vivarium_public_health.utilities import to_years
 
 
@@ -90,18 +90,22 @@ class CategoricalRiskObserver(StratifiedObserver):
     #################
 
     def register_observations(self, builder: Builder) -> None:
-        for category in self.categories:
-            builder.results.register_observation(
-                name=f"{self.risk}_{category}_person_time",
-                pop_filter=f'alive == "alive" and `{self.exposure_pipeline_name}`=="{category}" and tracked==True',
-                aggregator=self.aggregate_risk_category_person_time,
-                requires_columns=["alive"],
-                requires_values=[self.exposure_pipeline_name],
-                additional_stratifications=self.config.include,
-                excluded_stratifications=self.config.exclude,
-                when="time_step__prepare",
-                report=partial(self.write_risk_results, category),
-            )
+        builder.results.register_stratification(
+            f"{self.risk}",
+            list(self.categories.keys()),
+            requires_values=[self.exposure_pipeline_name],
+        )
+        builder.results.register_observation(
+            name=f"person_time_{self.risk}",
+            pop_filter=f'alive == "alive" and tracked==True',
+            aggregator=self.aggregate_risk_category_person_time,
+            requires_columns=["alive"],
+            requires_values=[self.exposure_pipeline_name],
+            additional_stratifications=self.config.include + [self.risk],
+            excluded_stratifications=self.config.exclude,
+            when="time_step__prepare",
+            report=self.write_risk_results,
+        )
 
     ###############
     # Aggregators #
@@ -114,15 +118,22 @@ class CategoricalRiskObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def write_risk_results(self, category: str, measure: str, results: pd.DataFrame) -> None:
-        write_dataframe_to_parquet(
+    def write_risk_results(self, measure: str, results: pd.DataFrame) -> None:
+        """Format dataframe and write out"""
+        results = results.reset_index()
+        results.rename(columns={self.risk: COLUMNS.SUB_ENTITY}, inplace=True)
+        results[COLUMNS.MEASURE] = "person_time"
+        results[COLUMNS.ENTITY_TYPE] = "rei"
+        results[COLUMNS.ENTITY] = self.risk
+        results[COLUMNS.SEED] = self.random_seed
+        results[COLUMNS.DRAW] = self.input_draw
+
+        results = results[
+            [c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]
+        ]
+
+        write_dataframe(
             results=results,
-            measure="person_time",
-            entity_type="rei",
-            entity=self.risk,
-            sub_entity=category,
+            measure=measure,
             results_dir=self.results_dir,
-            random_seed=self.random_seed,
-            input_draw=self.input_draw,
-            output_filename=f"person_time_{self.risk}",
         )

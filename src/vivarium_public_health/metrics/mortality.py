@@ -177,7 +177,6 @@ class MortalityObserver(StratifiedObserver):
         results["random_seed"] = self.random_seed
         results["input_draw"] = self.input_draw
 
-        # Reorder columns so stratifcations are first and value is last
         results = results[
             [c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]
         ]
