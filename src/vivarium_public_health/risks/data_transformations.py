@@ -79,11 +79,12 @@ def get_exposure_post_processor(builder, risk: str):
 
 def load_distribution_data(builder: Builder, risk: "Risk") -> Dict[str, Any]:
     distribution_type = risk.distribution_type
-    exposure_data, _ = get_exposure_data(builder, risk.risk, distribution_type)
+    exposure_data, value_columns = get_exposure_data(builder, risk.risk, distribution_type)
 
     data = {
         "distribution_type": distribution_type,
         "exposure": exposure_data,
+        "exposure_value_columns": value_columns,
         "exposure_standard_deviation": get_exposure_standard_deviation_data(
             builder, risk.risk, distribution_type
         ),

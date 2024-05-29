@@ -94,8 +94,7 @@ def test_risk_lookup_configuration(categorical_risk, base_config, base_plugins):
     simulation.setup()
     # We have to get the distribution component's lookup tables. This is the distribution class
     # instantiated by the sub_component of the risk class
-    distribution = risk.sub_components[0].implementation
-    lookup_tables = distribution.lookup_tables
+    lookup_tables = risk.exposure_distribution.lookup_tables
     # This risk is a PolytomousDistribution so there will only be an exposure lookup table
     assert set(["exposure"]) == set(lookup_tables.keys())
     assert isinstance(lookup_tables["exposure"], InterpolatedTable)
