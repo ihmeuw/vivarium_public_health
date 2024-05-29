@@ -8,8 +8,6 @@ in the simulation.
 
 """
 
-from __future__ import annotations
-
 from functools import partial
 from typing import Any, Dict, List
 
@@ -143,7 +141,7 @@ class DiseaseObserver(StratifiedObserver):
             ),
         )
 
-    def map_transitions(self, df: pd.DataFrame) -> pd.Series[str]:
+    def map_transitions(self, df: pd.DataFrame) -> pd.Series:
         transitions = pd.Series(index=df.index)
         transition_mask = df[self.previous_state_column_name] != df[self.disease]
         transitions[~transition_mask] = "no_transition"
