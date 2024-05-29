@@ -22,11 +22,7 @@ from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
 from vivarium_public_health.risks.distributions import PolytomousDistribution
-from vivarium_public_health.utilities import (
-    EntityString,
-    get_lookup_columns,
-    to_snake_case,
-)
+from vivarium_public_health.utilities import get_lookup_columns, to_snake_case
 
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
@@ -35,23 +31,14 @@ GESTATIONAL_AGE = "gestational_age"
 
 class LBWSGDistribution(PolytomousDistribution):
 
-    #####################
-    # Lifecycle methods #
-    #####################
-
-    def __init__(self, exposure_data: pd.DataFrame = None):
-        super().__init__(
-            EntityString("risk_factor.low_birth_weight_and_short_gestation"), exposure_data
-        )
+    #################
+    # Setup methods #
+    #################
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self.category_intervals = self.get_category_intervals(builder)
-
-    #################
-    # Setup methods #
-    #################
 
     def get_category_intervals(self, builder: Builder) -> Dict[str, Dict[str, pd.Interval]]:
         """
@@ -210,8 +197,10 @@ class LBWSGRisk(Risk):
     # Initialization methods #
     ##########################
 
-    def get_exposure_distribution(self) -> LBWSGDistribution:
-        return LBWSGDistribution()
+    def get_exposure_distribution(self, builder: Builder) -> LBWSGDistribution:
+        exposure_distribution = LBWSGDistribution(self)
+        exposure_distribution.setup_component(builder)
+        return exposure_distribution
 
     #################
     # Setup methods #
