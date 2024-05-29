@@ -24,9 +24,6 @@ from vivarium_public_health.utilities import get_lookup_columns
 if TYPE_CHECKING:
     from vivarium_public_health.risks import Risk
 
-if TYPE_CHECKING:
-    from vivarium_public_health.risks import Risk
-
 
 class MissingDataError(Exception):
     pass
