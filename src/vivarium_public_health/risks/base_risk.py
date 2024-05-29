@@ -18,10 +18,12 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks.data_transformations import (
-    get_exposure_data,
     get_exposure_post_processor,
 )
-from vivarium_public_health.risks.distributions import SimulationDistribution
+from vivarium_public_health.risks.distributions import (
+    RISK_EXPOSURE_DISTRIBUTIONS,
+    RiskExposureDistribution,
+)
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 DISTRIBUTION_TYPES = [
@@ -142,8 +144,6 @@ class Risk(Component):
         super().__init__()
         self.risk = EntityString(risk)
         self.distribution_type = None
-        self.exposure_distribution = self.get_exposure_distribution()
-        self._sub_components = [self.exposure_distribution]
 
         self.randomness_stream_name = f"initial_{self.risk.name}_propensity"
         self.propensity_column_name = f"{self.risk.name}_propensity"
@@ -154,14 +154,8 @@ class Risk(Component):
     def setup_component(self, builder: "Builder") -> None:
         self.configuration = builder.configuration[self.name]
         self.distribution_type = self.get_distribution_type(builder)
+        self.exposure_distribution = self.get_exposure_distribution(builder)
         super().setup_component(builder)
-
-    ##########################
-    # Initialization methods #
-    ##########################
-
-    def get_exposure_distribution(self) -> SimulationDistribution:
-        return SimulationDistribution(self)
 
     #################
     # Setup methods #
@@ -186,19 +180,44 @@ class Risk(Component):
             the distribution type
         """
         distribution_type = self.configuration["distribution_type"]
-        if distribution_type in DISTRIBUTION_TYPES:
+        if distribution_type in RISK_EXPOSURE_DISTRIBUTIONS.keys():
             return distribution_type
         # todo deal with incorrect typing
         return self.get_data(builder, distribution_type)
 
+    def get_exposure_distribution(self, builder: Builder) -> RiskExposureDistribution:
+        """
+        Creates and sets up the exposure distribution component for the Risk
+        based on its distribution type.
+
+        Parameters
+        ----------
+        builder : Builder
+            the builder object
+
+        Returns
+        -------
+        RiskExposureDistribution
+            the exposure distribution
+
+        Raises
+        ------
+        NotImplementedError
+            if the distribution type is not supported
+        """
+        try:
+            exposure_distribution = RISK_EXPOSURE_DISTRIBUTIONS[self.distribution_type](self)
+        except KeyError:
+            raise NotImplementedError(
+                f"Distribution type {self.distribution_type} is not supported."
+            )
+
+        exposure_distribution.setup_component(builder)
+        return exposure_distribution
+
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        if "polytomous" in self.distribution_type or "dichotomous" == self.distribution_type:
-            exposure, value_columns = get_exposure_data(
-                builder, self.risk, self.distribution_type
-            )
-            self.exposure_distribution.lookup_tables["exposure"] = self.build_lookup_table(
-                builder, exposure, value_columns
-            )
+        # All lookup tables are built in the exposure distribution
+        pass
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -228,7 +247,10 @@ class Risk(Component):
             self.exposure_pipeline_name,
             source=self.get_current_exposure,
             requires_columns=required_columns,
-            requires_values=[self.propensity_pipeline_name],
+            requires_values=[
+                self.propensity_pipeline_name,
+                self.exposure_distribution.parameters_pipeline_name,
+            ],
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
 
