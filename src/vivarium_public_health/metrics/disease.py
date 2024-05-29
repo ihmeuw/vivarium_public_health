@@ -82,29 +82,33 @@ class DiseaseObserver(StratifiedObserver):
     def setup(self, builder: Builder) -> None:
         self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification[self.disease]
-        self.disease_model = builder.components.get_component(f"disease_model.{self.disease}")
 
     #################
     # Setup methods #
     #################
 
     def register_observations(self, builder: Builder) -> None:
+        disease_model = builder.components.get_component(f"disease_model.{self.disease}")
+
         builder.results.register_stratification(
             self.disease,
-            [state.state_id for state in self.disease_model.states],
+            [state.state_id for state in disease_model.states],
             requires_columns=[self.disease],
         )
+
         transition_stratification_name = f"transition_{self.disease}"
         builder.results.register_stratification(
             transition_stratification_name,
-            categories=self.disease_model.transition_names + ["no_transition"],
+            categories=disease_model.transition_names + ["no_transition"],
             mapper=self.map_transitions,
             requires_columns=[self.disease, self.previous_state_column_name],
             is_vectorized=True,
         )
+
         pop_filter = 'alive == "alive" and tracked==True'
-        entity_type = self.disease_model.cause_type
-        entity = self.disease_model.cause
+        entity_type = disease_model.cause_type
+        entity = disease_model.cause
+
         builder.results.register_observation(
             name=f"person_time_{self.disease}",
             pop_filter=pop_filter,
@@ -121,7 +125,7 @@ class DiseaseObserver(StratifiedObserver):
                 sub_entity_col=self.disease,
             ),
         )
-        # for transition in self.disease_model.transition_names:
+
         builder.results.register_observation(
             name=f"transition_count_{self.disease}",
             pop_filter=pop_filter,
