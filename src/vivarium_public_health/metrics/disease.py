@@ -9,7 +9,7 @@ in the simulation.
 """
 
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -17,7 +17,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.results import StratifiedObserver
 
-from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe_to_parquet
+from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe
 from vivarium_public_health.utilities import to_years
 
 
@@ -60,8 +60,14 @@ class DiseaseObserver(StratifiedObserver):
         return [self.previous_state_column_name]
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> List[str]:
         return [self.disease]
+
+    @property
+    def initialization_requirements(self) -> Dict[str, List[str]]:
+        return {
+            "requires_columns": [self.disease],
+        }
 
     #####################
     # Lifecycle methods #
@@ -70,7 +76,6 @@ class DiseaseObserver(StratifiedObserver):
     def __init__(self, disease: str) -> None:
         super().__init__()
         self.disease = disease
-        self.current_state_column_name = self.disease
         self.previous_state_column_name = f"previous_{self.disease}"
 
     # noinspection PyAttributeOutsideInit
@@ -84,57 +89,82 @@ class DiseaseObserver(StratifiedObserver):
 
     def register_observations(self, builder: Builder) -> None:
         disease_model = builder.components.get_component(f"disease_model.{self.disease}")
+
+        builder.results.register_stratification(
+            self.disease,
+            [state.state_id for state in disease_model.states],
+            requires_columns=[self.disease],
+        )
+
+        transition_stratification_name = f"transition_{self.disease}"
+        builder.results.register_stratification(
+            transition_stratification_name,
+            categories=disease_model.transition_names + ["no_transition"],
+            mapper=self.map_transitions,
+            requires_columns=[self.disease, self.previous_state_column_name],
+            is_vectorized=True,
+        )
+
+        pop_filter = 'alive == "alive" and tracked==True'
         entity_type = disease_model.cause_type
         entity = disease_model.cause
-        for state in disease_model.states:
-            builder.results.register_observation(
-                name=f"{state.state_id}_person_time",
-                pop_filter=f'alive == "alive" and {self.disease} == "{state.state_id}" and tracked==True',
-                aggregator=self.aggregate_state_person_time,
-                requires_columns=["alive", self.disease],
-                additional_stratifications=self.config.include,
-                excluded_stratifications=self.config.exclude,
-                when="time_step__prepare",
-                report=partial(
-                    self.write_disease_results,
-                    measure_name="person_time",
-                    entity_type=entity_type,
-                    entity=entity,
-                    sub_entity=state.state_id,
-                ),
-            )
 
-        for transition in disease_model.transition_names:
-            filter_string = (
-                f'{self.previous_state_column_name} == "{transition.from_state}" '
-                f'and {self.disease} == "{transition.to_state}" '
-                f"and tracked==True "
-                f'and alive == "alive"'
-            )
-            builder.results.register_observation(
-                name=f"{transition}_event_count",
-                pop_filter=filter_string,
-                requires_columns=[self.previous_state_column_name, self.disease],
-                additional_stratifications=self.config.include,
-                excluded_stratifications=self.config.exclude,
-                when="collect_metrics",
-                report=partial(
-                    self.write_disease_results,
-                    measure_name="transition_count",
-                    entity_type=entity_type,
-                    entity=entity,
-                    sub_entity=transition,
-                ),
-            )
+        builder.results.register_observation(
+            name=f"person_time_{self.disease}",
+            pop_filter=pop_filter,
+            aggregator=self.aggregate_state_person_time,
+            requires_columns=["alive", self.disease],
+            additional_stratifications=self.config.include + [self.disease],
+            excluded_stratifications=self.config.exclude,
+            when="time_step__prepare",
+            report=partial(
+                self.write_disease_results,
+                measure_name="person_time",
+                entity_type=entity_type,
+                entity=entity,
+                sub_entity_col=self.disease,
+            ),
+        )
+
+        builder.results.register_observation(
+            name=f"transition_count_{self.disease}",
+            pop_filter=pop_filter,
+            requires_columns=[
+                self.previous_state_column_name,
+                self.disease,
+            ],
+            additional_stratifications=self.config.include + [transition_stratification_name],
+            excluded_stratifications=self.config.exclude,
+            when="collect_metrics",
+            report=partial(
+                self.write_disease_results,
+                measure_name="transition_count",
+                entity_type=entity_type,
+                entity=entity,
+                sub_entity_col=transition_stratification_name,
+            ),
+        )
+
+    def map_transitions(self, df: pd.DataFrame) -> pd.Series:
+        transitions = pd.Series(index=df.index)
+        transition_mask = df[self.previous_state_column_name] != df[self.disease]
+        transitions[~transition_mask] = "no_transition"
+        transitions[transition_mask] = (
+            df[self.previous_state_column_name].astype(str)
+            + "_to_"
+            + df[self.disease].astype(str)
+        )
+        return transitions
 
     ########################
     # Event-driven methods #
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        self.population_view.update(
-            pd.Series("", index=pop_data.index, name=self.previous_state_column_name)
-        )
+        """Initialize the previous state column to the current state"""
+        pop = self.population_view.subview([self.disease]).get(pop_data.index)
+        pop[self.previous_state_column_name] = pop[self.disease]
+        self.population_view.update(pop)
 
     def on_time_step_prepare(self, event: Event) -> None:
         # This enables tracking of transitions between states
@@ -158,19 +188,29 @@ class DiseaseObserver(StratifiedObserver):
         measure_name: str,
         entity_type: str,
         entity: str,
-        sub_entity: str,
+        sub_entity_col: str,
         measure: str,
         results: pd.DataFrame,
     ) -> None:
-        """Combine each observation's results and save to a single file"""
-        write_dataframe_to_parquet(
+        """Format dataframe and write out"""
+
+        results = results.reset_index()
+        # Remove no_transitions
+        if measure_name == "transition_count":
+            results = results[results[sub_entity_col] != "no_transition"]
+        results.rename(columns={sub_entity_col: COLUMNS.SUB_ENTITY}, inplace=True)
+        results[COLUMNS.MEASURE] = measure_name
+        results[COLUMNS.ENTITY_TYPE] = entity_type
+        results[COLUMNS.ENTITY] = entity
+        results["random_seed"] = self.random_seed
+        results["input_draw"] = self.input_draw
+
+        results = results[
+            [c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]
+        ]
+
+        write_dataframe(
             results=results,
-            measure=measure_name,
-            entity_type=entity_type,
-            entity=entity,
-            sub_entity=sub_entity,
+            measure=measure,
             results_dir=self.results_dir,
-            random_seed=self.random_seed,
-            input_draw=self.input_draw,
-            output_filename=f"{measure_name}_{entity}",
         )
