@@ -72,8 +72,8 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
 
     pop = simulation.get_population()
 
-    # Assert that the previous_state column is all empty
-    assert (pop[observer.previous_state_column_name] == "").all()
+    # Assert that the previous_state column equals the current state column
+    assert (pop[observer.previous_state_column_name] == pop[observer.disease]).all()
 
     simulation.step()
     post_step_pop = simulation.get_population()
@@ -84,14 +84,14 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
             ["susceptible_to_with_condition", "with_condition"]
         )
     ).all()
-    assert (post_step_pop[observer.current_state_column_name] == "with_condition").all()
+    assert (post_step_pop[observer.disease] == "with_condition").all()
 
     simulation.step()
     post_step_pop = simulation.get_population()
 
     # All simulants are currently and were previously "with_condition"
     assert (post_step_pop[observer.previous_state_column_name] == "with_condition").all()
-    assert (post_step_pop[observer.current_state_column_name] == "with_condition").all()
+    assert (post_step_pop[observer.disease] == "with_condition").all()
 
 
 def test_observation_registration(base_config, base_plugins, disease, model, tmpdir):
