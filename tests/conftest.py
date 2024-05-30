@@ -67,5 +67,5 @@ def fuzzy_checker() -> FuzzyChecker:
     checker = FuzzyChecker()
 
     yield checker
-
-    checker.save_diagnostic_output("../")
+    test_dir = Path(__file__).resolve().parent
+    checker.save_diagnostic_output(test_dir)
