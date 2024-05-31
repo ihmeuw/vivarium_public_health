@@ -58,6 +58,7 @@ jobs:
               --heads https://github.com/ihmeuw/vivarium.git ${branch_name_to_check} == "0"
             then
               vivarium_branch_name=${branch_name_to_check}
+              echo "Found matching branch: ${vivarium_branch_name}"
               echo "vivarium_branch_name=${branch_name_to_check}" >> $GITHUB_ENV
             else
               branch_name_to_check="$( \
