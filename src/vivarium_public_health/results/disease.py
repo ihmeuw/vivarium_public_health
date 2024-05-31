@@ -17,7 +17,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.results import StratifiedObserver
 
-from vivarium_public_health.metrics.columns import COLUMNS
+from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.utilities import to_years
 
 

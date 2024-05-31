@@ -1,8 +1,8 @@
 ================================
-Simulation Observers and Metrics
+Simulation Observers and Results
 ================================
 
-.. automodule:: vivarium_public_health.metrics
+.. automodule:: vivarium_public_health.results
 
 .. toctree::
    :maxdepth: 2

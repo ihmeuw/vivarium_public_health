@@ -7,9 +7,9 @@ import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
-from vivarium_public_health.metrics.columns import COLUMNS
-from vivarium_public_health.metrics.risk import CategoricalRiskObserver
-from vivarium_public_health.metrics.stratification import ResultsStratifier
+from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.risk import CategoricalRiskObserver
+from vivarium_public_health.results.stratification import ResultsStratifier
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.utilities import to_years
 

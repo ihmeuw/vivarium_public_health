@@ -15,7 +15,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.results import StratifiedObserver
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from vivarium_public_health.metrics.columns import COLUMNS
+from vivarium_public_health.results.columns import COLUMNS
 
 
 class MortalityObserver(StratifiedObserver):

@@ -13,11 +13,11 @@ from vivarium_public_health.disease import (
     RiskAttributableDisease,
 )
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.metrics.columns import COLUMNS
-from vivarium_public_health.metrics.disability import (
+from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.disability import (
     DisabilityObserver as DisabilityObserver_,
 )
-from vivarium_public_health.metrics.stratification import ResultsStratifier
+from vivarium_public_health.results.stratification import ResultsStratifier
 
 
 # Subclass of DisabilityObserver for integration testing

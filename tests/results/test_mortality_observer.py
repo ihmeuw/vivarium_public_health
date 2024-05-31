@@ -8,10 +8,10 @@ from vivarium.testing_utilities import TestPopulation, build_table
 
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.metrics import MortalityObserver
-from vivarium_public_health.metrics.columns import COLUMNS
-from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.population import Mortality
+from vivarium_public_health.results import MortalityObserver
+from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.stratification import ResultsStratifier
 
 
 def disease_with_excess_mortality(base_config, disease_name, emr_value) -> DiseaseModel:

@@ -16,7 +16,7 @@ from vivarium.framework.results import StratifiedObserver
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from vivarium_public_health.metrics.columns import COLUMNS
+from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.utilities import to_years
 
 
