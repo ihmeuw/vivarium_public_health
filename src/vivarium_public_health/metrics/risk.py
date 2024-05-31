@@ -103,7 +103,7 @@ class CategoricalRiskObserver(StratifiedObserver):
             additional_stratifications=self.config.include + [self.risk],
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            format_results=self.format_results,
+            formatter=self.formatter,
         )
 
     ###############
@@ -117,7 +117,7 @@ class CategoricalRiskObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def format_results(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
+    def formatter(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         results = results.reset_index()
         results.rename(columns={self.risk: COLUMNS.SUB_ENTITY}, inplace=True)
         results[COLUMNS.MEASURE] = "person_time"

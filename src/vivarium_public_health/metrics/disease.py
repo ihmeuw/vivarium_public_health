@@ -117,8 +117,8 @@ class DiseaseObserver(StratifiedObserver):
             additional_stratifications=self.config.include + [self.disease],
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            format_results=partial(
-                self.format_results,
+            formatter=partial(
+                self.formatter,
                 measure_name="person_time",
                 entity_type=entity_type,
                 entity=entity,
@@ -136,8 +136,8 @@ class DiseaseObserver(StratifiedObserver):
             additional_stratifications=self.config.include + [transition_stratification_name],
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            format_results=partial(
-                self.format_results,
+            formatter=partial(
+                self.formatter,
                 measure_name="transition_count",
                 entity_type=entity_type,
                 entity=entity,
@@ -183,7 +183,7 @@ class DiseaseObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def format_results(
+    def formatter(
         self,
         measure_name: str,
         entity_type: str,

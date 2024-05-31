@@ -86,7 +86,7 @@ class DisabilityObserver(StratifiedObserver):
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            format_results=self.format_results,
+            formatter=self.formatter,
         )
 
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
@@ -111,7 +111,7 @@ class DisabilityObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def format_results(
+    def formatter(
         self,
         measure: str,
         results: pd.DataFrame,

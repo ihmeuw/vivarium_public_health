@@ -118,7 +118,7 @@ class MortalityObserver(StratifiedObserver):
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            format_results=self.format_results,
+            formatter=self.formatter,
         )
         builder.results.register_observation(
             name="ylls",
@@ -128,7 +128,7 @@ class MortalityObserver(StratifiedObserver):
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            format_results=self.format_results,
+            formatter=self.formatter,
         )
 
     ###############
@@ -147,7 +147,7 @@ class MortalityObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def format_results(
+    def formatter(
         self,
         measure: str,
         results: pd.DataFrame,
