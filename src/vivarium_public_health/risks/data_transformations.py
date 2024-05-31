@@ -8,7 +8,7 @@ risk data and performing any necessary data transformations.
 
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd

@@ -127,9 +127,13 @@ class EnsembleDistribution(RiskExposureDistribution):
 
         raw_weights = raw_weights.set_index(index_cols)
         if isinstance(self.exposure_data, pd.DataFrame):
-            self.exposure_data = self.exposure_data.set_index(index_cols)[value_columns].squeeze(axis=1)
+            self.exposure_data = self.exposure_data.set_index(index_cols)[
+                value_columns
+            ].squeeze(axis=1)
         if isinstance(self.standard_deviation, pd.DataFrame):
-            self.standard_deviation = self.standard_deviation.set_index(index_cols)[value_columns].squeeze(axis=1)
+            self.standard_deviation = self.standard_deviation.set_index(index_cols)[
+                value_columns
+            ].squeeze(axis=1)
 
         weights, parameters = rd.EnsembleDistribution.get_parameters(
             raw_weights, mean=self.exposure_data, sd=self.standard_deviation
@@ -210,10 +214,16 @@ class ContinuousDistribution(RiskExposureDistribution):
         index = [col for col in self.exposure_data.columns if col not in value_columns]
 
         if isinstance(self.exposure_data, pd.DataFrame):
-            self.exposure_data = self.exposure_data.set_index(index)[value_columns].squeeze(axis=1)
+            self.exposure_data = self.exposure_data.set_index(index)[value_columns].squeeze(
+                axis=1
+            )
         if isinstance(self.standard_deviation, pd.DataFrame):
-            self.standard_deviation = self.standard_deviation.set_index(index)[value_columns].squeeze(axis=1)
-        parameters = self._distribution.get_parameters(mean=self.exposure_data, sd=self.standard_deviation)
+            self.standard_deviation = self.standard_deviation.set_index(index)[
+                value_columns
+            ].squeeze(axis=1)
+        parameters = self._distribution.get_parameters(
+            mean=self.exposure_data, sd=self.standard_deviation
+        )
 
         self.lookup_tables["parameters"] = self.build_lookup_table(
             builder, parameters.reset_index(), list(parameters.columns)
