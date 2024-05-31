@@ -8,7 +8,7 @@ risk data and performing any necessary data transformations.
 
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union, Optional
 
 import numpy as np
 import pandas as pd
@@ -95,9 +95,12 @@ def load_distribution_data(builder: Builder, risk: "Risk") -> Dict[str, Any]:
 
 def get_exposure_data(
     builder, risk: EntityString, distribution_type: str
-) -> Tuple[pd.DataFrame, List[str]]:
+) -> Tuple[Union[int, float, pd.DataFrame], Optional[List[str]]]:
     exposure_data = load_exposure_data(builder, risk)
     exposure_data = rebin_exposure_data(builder, risk, exposure_data)
+
+    if isinstance(exposure_data, (int, float)):
+        return exposure_data, None
 
     if distribution_type in [
         "dichotomous",
@@ -109,32 +112,14 @@ def get_exposure_data(
     else:
         value_columns = builder.data.value_columns()(f"{risk}.exposure")
 
-    if distribution_type == "dichotomous" and "cat2" in value_columns:
-        exposure_data = exposure_data.drop(columns="cat2")
-        value_columns.remove("cat2")
-
     return exposure_data, value_columns
 
 
 def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
     risk_component = builder.components.get_component(risk)
-    exposure_data = risk_component.get_data(
+    return risk_component.get_data(
         builder, builder.configuration[risk_component.name]["data_sources"]["exposure"]
     )
-
-    if isinstance(exposure_data, (int, float)):
-        value_columns = builder.data.value_columns()(f"{risk}.exposure")
-        cat1 = builder.data.load("population.demographic_dimensions")
-        cat1["parameter"] = "cat1"
-        cat1[value_columns] = float(exposure_data)
-
-        cat2 = cat1.copy()
-        cat2["parameter"] = "cat2"
-        cat2[value_columns] = 1 - cat2[value_columns]
-
-        exposure_data = pd.concat([cat1, cat2], ignore_index=True)
-
-    return exposure_data
 
 
 def get_exposure_standard_deviation_data(
@@ -485,6 +470,9 @@ def validate_relative_risk_rebin_source(
 
 
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
+
+    if not isinstance(data, pd.DataFrame):
+        return
 
     rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])
 

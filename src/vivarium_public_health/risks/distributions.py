@@ -126,11 +126,13 @@ class EnsembleDistribution(RiskExposureDistribution):
         index_cols = [column for column in raw_weights.columns if column not in distributions]
 
         raw_weights = raw_weights.set_index(index_cols)
-        mean = self.exposure_data.set_index(index_cols)[value_columns].squeeze(axis=1)
-        sd = self.standard_deviation.set_index(index_cols)[value_columns].squeeze(axis=1)
+        if isinstance(self.exposure_data, pd.DataFrame):
+            self.exposure_data = self.exposure_data.set_index(index_cols)[value_columns].squeeze(axis=1)
+        if isinstance(self.standard_deviation, pd.DataFrame):
+            self.standard_deviation = self.standard_deviation.set_index(index_cols)[value_columns].squeeze(axis=1)
 
         weights, parameters = rd.EnsembleDistribution.get_parameters(
-            raw_weights, mean=mean, sd=sd
+            raw_weights, mean=self.exposure_data, sd=self.standard_deviation
         )
         weights = weights.reset_index()
         parameters = {name: p.reset_index() for name, p in parameters.items()}
@@ -207,9 +209,11 @@ class ContinuousDistribution(RiskExposureDistribution):
         value_columns = builder.data.value_columns()(f"{self.risk}.exposure")
         index = [col for col in self.exposure_data.columns if col not in value_columns]
 
-        mean = self.exposure_data.set_index(index)[value_columns].squeeze(axis=1)
-        sd = self.standard_deviation.set_index(index)[value_columns].squeeze(axis=1)
-        parameters = self._distribution.get_parameters(mean=mean, sd=sd)
+        if isinstance(self.exposure_data, pd.DataFrame):
+            self.exposure_data = self.exposure_data.set_index(index)[value_columns].squeeze(axis=1)
+        if isinstance(self.standard_deviation, pd.DataFrame):
+            self.standard_deviation = self.standard_deviation.set_index(index)[value_columns].squeeze(axis=1)
+        parameters = self._distribution.get_parameters(mean=self.exposure_data, sd=self.standard_deviation)
 
         self.lookup_tables["parameters"] = self.build_lookup_table(
             builder, parameters.reset_index(), list(parameters.columns)
@@ -285,13 +289,17 @@ class DichotomousDistribution(RiskExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
+        if isinstance(self.exposure_data, pd.DataFrame):
+            any_negatives = (self.exposure_data[self.exposure_value_columns] < 0).any().any()
+            any_over_one = (self.exposure_data[self.exposure_value_columns] > 1).any().any()
+            if any_negatives or any_over_one:
+                raise ValueError(f"All exposures must be in the range [0, 1] for {self.risk}")
+        elif self.exposure_data < 0 or self.exposure_data > 1:
+            raise ValueError(f"Exposure must be in the range [0, 1] for {self.risk}")
+
         self.lookup_tables["exposure"] = self.build_lookup_table(
             builder, self.exposure_data, self.exposure_value_columns
         )
-        any_negatives = (self.exposure_data[self.exposure_value_columns] < 0).any().any()
-        any_over_one = (self.exposure_data[self.exposure_value_columns] > 1).any().any()
-        if any_negatives or any_over_one:
-            raise ValueError(f"All exposures must be in the range [0, 1]")
         self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
 
     # noinspection PyAttributeOutsideInit
