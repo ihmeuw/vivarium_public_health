@@ -7,11 +7,10 @@ import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
-from tests.test_utilities import finalize_sim_and_get_results
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
+from vivarium_public_health.metrics.columns import COLUMNS
 from vivarium_public_health.metrics.disease import DiseaseObserver
-from vivarium_public_health.metrics.reporters import COLUMNS
 from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.utilities import to_years
 
@@ -94,12 +93,9 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
     assert (post_step_pop[observer.disease] == "with_condition").all()
 
 
-def test_observation_registration(base_config, base_plugins, disease, model, tmpdir):
+def test_observation_registration(base_config, base_plugins, disease, model):
     """Test that all expected observation stratifications appear in the results."""
     observer = DiseaseObserver(disease)
-    # Add the results dir since we didn't go through cli.py
-    results_dir = Path(tmpdir)
-    base_config.update({"output_data": {"results_directory": str(results_dir)}})
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -123,9 +119,7 @@ def test_observation_registration(base_config, base_plugins, disease, model, tmp
 
     simulation.setup()
     simulation.step()
-    results = finalize_sim_and_get_results(
-        simulation, ["person_time_t_virus", "transition_count_t_virus"]
-    )
+    results = simulation.get_results()
     person_time = results["person_time_t_virus"]
     transition_count = results["transition_count_t_virus"]
 
@@ -143,13 +137,10 @@ def test_observation_registration(base_config, base_plugins, disease, model, tmp
 
 
 # Person time and all states and transition counts are correct
-def test_observation_correctness(base_config, base_plugins, disease, model, tmpdir):
+def test_observation_correctness(base_config, base_plugins, disease, model):
     """Test that person time and event counts appear as expected in the results."""
     time_step = pd.Timedelta(days=base_config.time.step_size)
     observer = DiseaseObserver(disease)
-    # Add the results dir since we didn't go through cli.py
-    results_dir = Path(tmpdir)
-    base_config.update({"output_data": {"results_directory": str(results_dir)}})
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -182,9 +173,7 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     )
 
     simulation.step()
-    results = finalize_sim_and_get_results(
-        simulation, ["person_time_t_virus", "transition_count_t_virus"]
-    )
+    results = simulation.get_results()
     person_time = results["person_time_t_virus"]
     transition_count = results["transition_count_t_virus"]
 
@@ -227,7 +216,7 @@ def test_observation_correctness(base_config, base_plugins, disease, model, tmpd
     )
 
 
-def test_different_results_per_disease(base_config, base_plugins, tmpdir):
+def test_different_results_per_disease(base_config, base_plugins):
     """Test that all eash disease observer saves out its own results."""
     vampiris_healthy_state = SusceptibleState("not_a_vampire")
     vampiris_infected_state = DiseaseState("a_vampire")
@@ -249,10 +238,6 @@ def test_different_results_per_disease(base_config, base_plugins, tmpdir):
     vampiris_observer = DiseaseObserver("vampiris")
     hcd_observer = DiseaseObserver("human_cortico_deficiency")
 
-    # Add the results dir since we didn't go through cli.py
-    results_dir = Path(tmpdir)
-    base_config.update({"output_data": {"results_directory": str(results_dir)}})
-
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -269,13 +254,12 @@ def test_different_results_per_disease(base_config, base_plugins, tmpdir):
 
     simulation.setup()
     simulation.step()
-    # Ensure the helper function passes its "assert set" check
-    _ = finalize_sim_and_get_results(
-        simulation,
+    results = simulation.get_results()
+    assert set(results) == set(
         [
             "person_time_vampiris",
             "transition_count_vampiris",
             "person_time_human_cortico_deficiency",
             "transition_count_human_cortico_deficiency",
-        ],
+        ]
     )

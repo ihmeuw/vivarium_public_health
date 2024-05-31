@@ -7,14 +7,13 @@ This module contains tools for observing risk exposure during the simulation.
 
 """
 
-from functools import partial
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.results import StratifiedObserver
 
-from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe
+from vivarium_public_health.metrics.columns import COLUMNS
 from vivarium_public_health.utilities import to_years
 
 
@@ -104,7 +103,7 @@ class CategoricalRiskObserver(StratifiedObserver):
             additional_stratifications=self.config.include + [self.risk],
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            report=self.write_risk_results,
+            format_results=self.format_results,
         )
 
     ###############
@@ -118,8 +117,7 @@ class CategoricalRiskObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def write_risk_results(self, measure: str, results: pd.DataFrame) -> None:
-        """Format dataframe and write out"""
+    def format_results(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         results = results.reset_index()
         results.rename(columns={self.risk: COLUMNS.SUB_ENTITY}, inplace=True)
         results[COLUMNS.MEASURE] = "person_time"
@@ -128,12 +126,4 @@ class CategoricalRiskObserver(StratifiedObserver):
         results[COLUMNS.SEED] = self.random_seed
         results[COLUMNS.DRAW] = self.input_draw
 
-        results = results[
-            [c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]
-        ]
-
-        write_dataframe(
-            results=results,
-            measure=measure,
-            results_dir=self.results_dir,
-        )
+        return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]

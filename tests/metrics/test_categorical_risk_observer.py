@@ -7,8 +7,7 @@ import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
-from tests.test_utilities import finalize_sim_and_get_results
-from vivarium_public_health.metrics.reporters import COLUMNS
+from vivarium_public_health.metrics.columns import COLUMNS
 from vivarium_public_health.metrics.risk import CategoricalRiskObserver
 from vivarium_public_health.metrics.stratification import ResultsStratifier
 from vivarium_public_health.risks.base_risk import Risk
@@ -41,11 +40,9 @@ def categorical_risk():
 
 
 @pytest.fixture()
-def simulation_after_one_step(base_config, base_plugins, categorical_risk, tmpdir):
+def simulation_after_one_step(base_config, base_plugins, categorical_risk):
     risk, risk_data = categorical_risk
     observer = CategoricalRiskObserver(f"{risk.risk.name}")
-    # Add the results dir since we didn't go through cli.py
-    base_config.update({"output_data": {"results_directory": str(tmpdir)}})
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -80,11 +77,10 @@ def simulation_after_one_step(base_config, base_plugins, categorical_risk, tmpdi
 
 def test_observation_registration(simulation_after_one_step):
     """Test that all expected observation stratifications appear in the results."""
-    results_dir = Path(simulation_after_one_step.configuration.output_data.results_directory)
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(["person_time_test_risk.parquet"])
+    results = simulation_after_one_step.get_results()
+    assert set(results) == set(["person_time_test_risk"])
 
-    person_time = pd.read_parquet(results_files[0])
+    person_time = results["person_time_test_risk"]
 
     assert set(zip(person_time[COLUMNS.SUB_ENTITY], person_time["sex"])) == set(
         itertools.product(*[["cat1", "cat2", "cat3", "cat4"], ["Female", "Male"]])
@@ -101,10 +97,9 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
     pop = simulation_after_one_step.get_population()
     exposure = simulation_after_one_step.get_value("test_risk.exposure")(pop.index)
 
-    results_dir = Path(simulation_after_one_step.configuration.output_data.results_directory)
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(["person_time_test_risk.parquet"])
-    results = pd.read_parquet(results_files[0])
+    results = simulation_after_one_step.get_results()
+    assert set(results) == set(["person_time_test_risk"])
+    results = results["person_time_test_risk"]
 
     # Check columns
     assert set(results.columns) == set(
@@ -137,11 +132,8 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
             assert np.isclose(expected_person_time, actual_person_time, rtol=0.001)
 
 
-def test_different_results_per_risk(base_config, base_plugins, categorical_risk, tmpdir):
-    """Test that each  observer saves out its own results."""
-
-    results_dir = Path(tmpdir)
-    base_config.update({"output_data": {"results_directory": str(results_dir)}})
+def test_different_results_per_risk(base_config, base_plugins, categorical_risk):
+    """Test that each observer saves its own results."""
 
     risk, risk_data = categorical_risk
     risk_observer = CategoricalRiskObserver(f"{risk.risk.name}")
@@ -163,14 +155,16 @@ def test_different_results_per_risk(base_config, base_plugins, categorical_risk,
         plugin_configuration=base_plugins,
         setup=False,
     )
-
     for key, value in risk_data.items():
         simulation._data.write(f"risk_factor.test_risk.{key}", value)
         simulation._data.write(f"risk_factor.another_test_risk.{key}", value)
 
+    assert not simulation.get_results()
     simulation.setup()
     simulation.step()
-    # Check that internal assertion passes
-    _ = finalize_sim_and_get_results(
-        simulation, ["person_time_test_risk", "person_time_another_test_risk"]
-    )
+    results = simulation.get_results()
+    assert set(results) == set(["person_time_test_risk", "person_time_another_test_risk"])
+    assert (
+        results["person_time_test_risk"]["value"]
+        != results["person_time_another_test_risk"]["value"]
+    ).all()

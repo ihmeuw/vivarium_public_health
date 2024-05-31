@@ -8,14 +8,14 @@ excess mortality in the simulation, including "other causes".
 
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.results import StratifiedObserver
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe
+from vivarium_public_health.metrics.columns import COLUMNS
 
 
 class MortalityObserver(StratifiedObserver):
@@ -118,7 +118,7 @@ class MortalityObserver(StratifiedObserver):
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            report=self.write_mortality_results,
+            format_results=self.format_results,
         )
         builder.results.register_observation(
             name="ylls",
@@ -128,7 +128,7 @@ class MortalityObserver(StratifiedObserver):
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            report=self.write_mortality_results,
+            format_results=self.format_results,
         )
 
     ###############
@@ -147,13 +147,11 @@ class MortalityObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def write_mortality_results(
+    def format_results(
         self,
         measure: str,
         results: pd.DataFrame,
-    ) -> None:
-        """Format dataframe and write out"""
-
+    ) -> pd.DataFrame:
         results = results.reset_index()
 
         if self.config.aggregate:
@@ -177,12 +175,4 @@ class MortalityObserver(StratifiedObserver):
         results["random_seed"] = self.random_seed
         results["input_draw"] = self.input_draw
 
-        results = results[
-            [c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]
-        ]
-
-        write_dataframe(
-            results=results,
-            measure=measure,
-            results_dir=self.results_dir,
-        )
+        return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]
