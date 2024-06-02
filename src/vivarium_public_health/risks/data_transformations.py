@@ -117,6 +117,32 @@ def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
     )
 
 
+def get_exposure_standard_deviation_data(
+    builder: Builder, risk: EntityString, distribution_type: str
+) -> Union[pd.DataFrame, None]:
+    if distribution_type not in ["normal", "lognormal", "ensemble"]:
+        return None
+    data_source = builder.configuration[risk]["data_sources"]["exposure_standard_deviation"]
+    return builder.data.load(data_source)
+
+
+def get_exposure_distribution_weights(
+    builder: Builder, risk: EntityString, distribution_type: str
+) -> Union[Tuple[pd.DataFrame, List[str]], None]:
+    if distribution_type != "ensemble":
+        return None
+
+    data_source = builder.configuration[risk]["data_sources"]["ensemble_distribution_weights"]
+    weights = builder.data.load(data_source)
+    weights, distributions = pivot_categorical(builder, risk, weights)
+    if "glnorm" in weights.columns:
+        if np.any(weights["glnorm"]):
+            raise NotImplementedError("glnorm distribution is not supported")
+        weights = weights.drop(columns=["glnorm"])
+        distributions.remove("glnorm")
+    return weights, distributions
+
+
 def rebin_exposure_data(builder, risk: EntityString, exposure_data: pd.DataFrame):
     validate_rebin_source(builder, risk, exposure_data)
     rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])

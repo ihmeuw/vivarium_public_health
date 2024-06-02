@@ -122,6 +122,7 @@ class EnsembleDistribution(RiskExposureDistribution):
     # Lifecycle methods #
     #####################
 
+    # todo shouldn't distribution type not be an argument?
     def __init__(self, risk: EntityString, distribution_type: str = "ensemble") -> None:
         super().__init__(risk, distribution_type)
         self._propensity = f"ensemble_propensity_{self.risk}"
