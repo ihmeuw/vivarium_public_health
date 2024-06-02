@@ -469,7 +469,7 @@ def validate_relative_risk_rebin_source(
         validate_rebin_source(builder, risk, data)
 
 
-def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame):
+def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame) -> None:
 
     if not isinstance(data, pd.DataFrame):
         return
