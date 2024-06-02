@@ -199,7 +199,8 @@ def test_polytomous_risk(polytomous_risk, base_config, base_plugins):
     )
 
 
-def test_dichotomous_risk(base_config, base_plugins):
+@pytest.mark.parametrize("scalar_exposure", [True, False])
+def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
     risk = Risk("risk_factor.test_risk")
     rr_data = pd.DataFrame(
         {
@@ -213,6 +214,15 @@ def test_dichotomous_risk(base_config, base_plugins):
     )
 
     data = {
+        f"{risk.name}.exposure": pd.DataFrame(
+            {
+                "year_start": 1990,
+                "year_end": 1991,
+                "sex": ["Male"] * 2 + ["Female"] * 2,
+                "parameter": ["cat1", "cat2"] * 2,
+                "value": [0.25, 0.75] * 2,
+            }
+        ),
         f"{risk.name}.relative_risk": rr_data.reset_index(),
         f"{risk.name}.population_attributable_fraction": pd.DataFrame(
             {
@@ -226,12 +236,13 @@ def test_dichotomous_risk(base_config, base_plugins):
         ),
     }
 
+    data_sources = {"data_sources": {"exposure": 0.25}} if scalar_exposure else {}
     base_config.update(
         {
             "population": {"population_size": 50000},
             "risk_factor.test_risk": {
-                "data_sources": {"exposure": 0.25},
-                "distribution_type": "dichotomous",
+                **data_sources,
+                **{"distribution_type": "dichotomous"},
             },
         }
     )
