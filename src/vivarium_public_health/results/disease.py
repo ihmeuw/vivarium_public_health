@@ -17,7 +17,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.results import StratifiedObserver
 
-from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe
+from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.utilities import to_years
 
 
@@ -117,8 +117,8 @@ class DiseaseObserver(StratifiedObserver):
             additional_stratifications=self.config.include + [self.disease],
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            report=partial(
-                self.write_disease_results,
+            formatter=partial(
+                self.formatter,
                 measure_name="person_time",
                 entity_type=entity_type,
                 entity=entity,
@@ -136,8 +136,8 @@ class DiseaseObserver(StratifiedObserver):
             additional_stratifications=self.config.include + [transition_stratification_name],
             excluded_stratifications=self.config.exclude,
             when="collect_metrics",
-            report=partial(
-                self.write_disease_results,
+            formatter=partial(
+                self.formatter,
                 measure_name="transition_count",
                 entity_type=entity_type,
                 entity=entity,
@@ -183,7 +183,7 @@ class DiseaseObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def write_disease_results(
+    def formatter(
         self,
         measure_name: str,
         entity_type: str,
@@ -191,9 +191,7 @@ class DiseaseObserver(StratifiedObserver):
         sub_entity_col: str,
         measure: str,
         results: pd.DataFrame,
-    ) -> None:
-        """Format dataframe and write out"""
-
+    ) -> pd.DataFrame:
         results = results.reset_index()
         # Remove no_transitions
         if measure_name == "transition_count":
@@ -205,12 +203,4 @@ class DiseaseObserver(StratifiedObserver):
         results["random_seed"] = self.random_seed
         results["input_draw"] = self.input_draw
 
-        results = results[
-            [c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]
-        ]
-
-        write_dataframe(
-            results=results,
-            measure=measure,
-            results_dir=self.results_dir,
-        )
+        return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]
