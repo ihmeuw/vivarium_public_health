@@ -1,5 +1,4 @@
 import itertools
-from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -8,18 +7,17 @@ import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
 
-from tests.test_utilities import finalize_sim_and_get_results
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
     RiskAttributableDisease,
 )
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.metrics.disability import (
+from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.disability import (
     DisabilityObserver as DisabilityObserver_,
 )
-from vivarium_public_health.metrics.reporters import COLUMNS
-from vivarium_public_health.metrics.stratification import ResultsStratifier
+from vivarium_public_health.results.stratification import ResultsStratifier
 
 
 # Subclass of DisabilityObserver for integration testing
@@ -71,7 +69,7 @@ def test_disability_observer_setup(mocker):
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
         when="time_step__prepare",
-        report=observer.write_disability_results,
+        formatter=observer.formatter,
     )
 
     assert set(observer.disease_classes) == set([DiseaseState, RiskAttributableDisease])
@@ -95,7 +93,6 @@ def test_disability_accumulation(
     base_plugins,
     disability_weight_value_0,
     disability_weight_value_1,
-    tmpdir,
 ):
     """Integration test for the disability observer and the Results Management system."""
     year_start = base_config.time.start.year
@@ -136,8 +133,6 @@ def test_disability_accumulation(
     )
 
     # Add the results dir since we didn't go through cli.py
-    results_dir = Path(tmpdir)
-    base_config.update({"output_data": {"results_directory": str(results_dir)}})
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -181,9 +176,8 @@ def test_disability_accumulation(
             rtol=0.0000001,
         ).all()
 
-    # Test that metrics are saved out correctly
-    results = finalize_sim_and_get_results(simulation, ["ylds"])
-    results = results["ylds"]
+    # Test that metrics are correct
+    results = simulation.get_results()["ylds"]
 
     # yld_masks format: {cause: (state, filter, dw_pipeline)}
     yld_masks = {

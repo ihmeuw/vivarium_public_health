@@ -44,17 +44,3 @@ def test_TargetString_pass(s):
     assert t.type == target_type
     assert t.name == target_name
     assert t.measure == target_measure
-
-
-def finalize_sim_and_get_results(sim, measures):
-    sim.finalize()
-    sim.report()
-    results_dir = Path(sim.configuration.output_data.results_directory)
-    results_files = list(results_dir.rglob("*.parquet"))
-    assert set(file.name for file in results_files) == set(
-        f"{measure}.parquet" for measure in measures
-    )
-    results = {}
-    for measure in measures:
-        results[measure] = pd.read_parquet(results_dir / f"{measure}.parquet")
-    return results
