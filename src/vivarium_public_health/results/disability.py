@@ -16,7 +16,7 @@ from vivarium.framework.results import StratifiedObserver
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
-from vivarium_public_health.metrics.reporters import COLUMNS, write_dataframe
+from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.utilities import to_years
 
 
@@ -86,7 +86,7 @@ class DisabilityObserver(StratifiedObserver):
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            report=self.write_disability_results,
+            formatter=self.formatter,
         )
 
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
@@ -111,12 +111,12 @@ class DisabilityObserver(StratifiedObserver):
     # Report methods #
     ##################
 
-    def write_disability_results(
+    def formatter(
         self,
         measure: str,
         results: pd.DataFrame,
-    ) -> None:
-        """Format dataframe and write out. Note that ylds are unique in that we
+    ) -> pd.DataFrame:
+        """Format results. Note that ylds are unique in that we
         can't stratify by cause of disability (because there can be multiple at
         once), and so the results here are actually wide by disability weight
         pipeline name.
@@ -152,12 +152,4 @@ class DisabilityObserver(StratifiedObserver):
         results["random_seed"] = self.random_seed
         results["input_draw"] = self.input_draw
 
-        results = results[
-            [c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]
-        ]
-
-        write_dataframe(
-            results=results,
-            measure=measure,
-            results_dir=self.results_dir,
-        )
+        return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]
