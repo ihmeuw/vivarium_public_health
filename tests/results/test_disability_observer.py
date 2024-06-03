@@ -1,12 +1,10 @@
 import itertools
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation, build_table
-
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
@@ -40,6 +38,7 @@ def test_disability_observer_setup(mocker):
 
     observer = DisabilityObserver_()
     builder = mocker.Mock()
+    mocker.patch("vivarium.component.Component.build_all_lookup_tables")
     builder.results.register_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
     builder.configuration.output_data.results_directory = "some/results/directory"
