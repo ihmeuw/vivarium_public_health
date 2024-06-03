@@ -1,6 +1,6 @@
 import pandas as pd
 
-from vivarium_public_health.metrics.stratification import ResultsStratifier
+from vivarium_public_health.results.stratification import ResultsStratifier
 
 
 # Age bins prior to get_age_bins
