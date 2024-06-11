@@ -32,23 +32,13 @@ MOCKERS = {
         "exposure_standard_deviation": 15,
         "relative_risk": build_table(
             [1.5, "continuous", "test_cause", "incidence_rate"],
-            1990,
-            2017,
-            (
-                "age",
-                "sex",
-                "year",
-                "value",
-                "parameter",
-                "affected_entity",
-                "affected_measure",
-            ),
+            parameter_columns={"age": (0, 125), "year": (1990, 2017)},
+            value_columns=["value", "parameter", "affected_entity", "affected_measure"],
         ),
         "population_attributable_fraction": build_table(
             [1, "test_cause_1", "incidence_rate"],
-            1990,
-            2017,
-            ("age", "sex", "year", "value", "cause", "affected_measure"),
+            parameter_columns={"age": (0, 125), "year": (1990, 2017)},
+            value_columns=["value", "cause", "affected_measure"],
         ),
         "tmred": lambda *args, **kwargs: {
             "distribution": "uniform",
@@ -75,17 +65,15 @@ MOCKERS = {
     "etiology": {
         "population_attributable_fraction": build_table(
             [1, "incidence_rate"],
-            1990,
-            2017,
-            ("age", "sex", "year", "value", "affected_measure"),
+            parameter_columns={"age": (0, 125), "year": (1990, 2017)},
+            value_columns=["value", "affected_measure"],
         ),
     },
     "healthcare_entity": {
         "cost": build_table(
             [0, "outpatient_visits"],
-            1990,
-            2017,
-            ("age", "sex", "year", "value", "healthcare_entity"),
+            parameter_columns={"age": (0, 125), "year": (1990, 2017)},
+            value_columns=["value", "healthcare_entity"],
         ),
         "utilization_rate": 0,
     },
@@ -95,7 +83,10 @@ MOCKERS = {
         "age_bins": make_age_bins(),
         "structure": make_uniform_pop_data(),
         "theoretical_minimum_risk_life_expectancy": (
-            build_table(98.0, 1990, 1990)
+            build_table(
+                98.0,
+                parameter_columns={"age": (0, 125), "year": (1990, 1991)},
+            )
             .query('sex=="Female"')
             .filter(["age_start", "age_end", "value"])
         ),
@@ -119,7 +110,10 @@ class MockArtifact:
         if callable(value):
             value = value(entity_key)
         elif not isinstance(value, (pd.DataFrame, pd.Series)):
-            value = build_table(value, 1990, 2018)
+            value = build_table(
+                value,
+                parameter_columns={"age": (0, 125), "year": (1990, 2018)},
+            )
 
         return value
 

@@ -17,12 +17,14 @@ def disease_with_excess_mortality(base_config, disease_name, emr_value) -> Disea
     year_end = base_config.time.end.year
     healthy = SusceptibleState(disease_name, allow_self_transition=True)
     disease_get_data_funcs = {
-        "disability_weight": lambda *_: build_table(0.0, year_start - 1, year_end),
+        "disability_weight": lambda *_: build_table(
+            0.0, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
+        ),
         "prevalence": lambda *_: build_table(
-            0.5, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            0.5, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
         ),
         "excess_mortality_rate": lambda *_: build_table(
-            emr_value, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            emr_value, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
         ),
     }
     with_condition = DiseaseState(disease_name, get_data_functions=disease_get_data_funcs)
@@ -30,7 +32,7 @@ def disease_with_excess_mortality(base_config, disease_name, emr_value) -> Disea
         with_condition,
         get_data_functions={
             "incidence_rate": lambda *_: build_table(
-                0.1, year_start - 1, year_end, ["age", "year", "sex", "value"]
+                0.1, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
             )
         },
     )
@@ -68,7 +70,9 @@ def simulation_after_one_step(base_config, base_plugins):
 
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
-    acmr_data = build_table(0.5, year_start - 1, year_end)
+    acmr_data = build_table(
+        0.5, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
+    )
     simulation._data.write("cause.all_causes.cause_specific_mortality_rate", acmr_data)
 
     simulation.setup()
@@ -189,7 +193,9 @@ def test_aggregation_configuration(base_config, base_plugins):
 
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
-    acmr_data = build_table(0.5, year_start - 1, year_end)
+    acmr_data = build_table(
+        0.5, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
+    )
     aggregate_sim._data.write("cause.all_causes.cause_specific_mortality_rate", acmr_data)
     aggregate_sim.setup()
     aggregate_sim.step()

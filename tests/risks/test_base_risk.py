@@ -21,7 +21,9 @@ def categorical_risk():
     risk = "test_risk"
     risk_data = dict()
     exposure_data = build_table(
-        0.25, year_start, year_end, ["age", "year", "sex", "cat1", "cat2", "cat3", "cat4"]
+        0.25,
+        parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+        value_columns=["cat1", "cat2", "cat3", "cat4"],
     ).melt(
         id_vars=("age_start", "age_end", "year_start", "year_end", "sex"),
         var_name="parameter",

@@ -23,14 +23,16 @@ def model(base_config, disease: str) -> DiseaseModel:
     year_end = base_config.time.end.year
     healthy = SusceptibleState("with_condition")
     disease_get_data_funcs = {
-        "disability_weight": lambda _, __: build_table(0.0, year_start - 1, year_end),
+        "disability_weight": lambda _, __: build_table(
+            0.0, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
+        ),
         "prevalence": lambda _, __: build_table(
-            0.2, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            0.2, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
         ),
     }
     transition_get_data_funcs = {
         "incidence_rate": lambda _, __: build_table(
-            0.9, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            0.9, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
         ),
     }
     with_condition = DiseaseState("with_condition", get_data_functions=disease_get_data_funcs)

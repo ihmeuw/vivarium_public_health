@@ -122,9 +122,11 @@ def test_mortality_cause_of_death(
         "dwell_time": lambda _, __: pd.Timedelta(days=0),
         "disability_weight": lambda _, __: 0.0,
         "prevalence": lambda _, __: build_table(
-            0.5, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            0.5, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
         ),
-        "excess_mortality_rate": lambda _, __: build_table(0.7, year_start - 1, year_end),
+        "excess_mortality_rate": lambda _, __: build_table(
+            0.7, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
+        ),
     }
     mortality_state = DiseaseState("sick", get_data_functions=mort_get_data_funcs)
     healthy.add_transition(Transition(healthy, mortality_state))

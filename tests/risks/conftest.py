@@ -12,7 +12,9 @@ def make_test_data_table(values: List, parameter="cat") -> pd.DataFrame:
     year_end = 2010
 
     if len(values) == 1:
-        df = build_table(values[0], year_start, year_end, ("age", "year", "sex", "value"))
+        df = build_table(
+            values[0], parameter_columns={"age": (0, 125), "year": (year_start, year_end)}
+        )
     else:
         cats = (
             [f"{parameter}{i+1}" for i in range(len(values))]
@@ -24,9 +26,8 @@ def make_test_data_table(values: List, parameter="cat") -> pd.DataFrame:
             df.append(
                 build_table(
                     [cat, value],
-                    year_start,
-                    year_end,
-                    ("age", "year", "sex", "parameter", "value"),
+                    parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+                    value_columns=["parameter", "value"],
                 )
             )
         df = pd.concat(df)
@@ -48,9 +49,8 @@ def continuous_risk():
         rr_data.append(
             build_table(
                 [1.01, cause],
-                year_start,
-                year_end,
-                ["age", "sex", "year", "value", "cause"],
+                parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+                value_columns=["value", "cause"],
             ).melt(
                 id_vars=("age_start", "age_end", "year_start", "year_end", "sex", "cause"),
                 var_name="parameter",
@@ -59,7 +59,9 @@ def continuous_risk():
         )
         paf_data.append(
             build_table(
-                [1, cause], year_start, year_end, ["age", "sex", "year", "value", "cause"]
+                [1, cause],
+                parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+                value_columns=["value", "cause"],
             )
         )
     rr_data = pd.concat(rr_data)
@@ -101,7 +103,9 @@ def dichotomous_risk():
     risk = "test_risk"
     risk_data = dict()
     exposure_data = build_table(
-        0.5, year_start, year_end, ["age", "year", "sex", "cat1", "cat2"]
+        0.5,
+        parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+        value_columns=["cat1", "cat2"],
     ).melt(
         id_vars=("age_start", "age_end", "year_start", "year_end", "sex"),
         var_name="parameter",
@@ -115,9 +119,8 @@ def dichotomous_risk():
         rr_data.append(
             build_table(
                 [1.01, 1, cause],
-                year_start,
-                year_end,
-                ["age", "year", "sex", "cat1", "cat2", "cause"],
+                parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+                value_columns=["cat1", "cat2", "cause"],
             ).melt(
                 id_vars=("age_start", "age_end", "year_start", "year_end", "sex", "cause"),
                 var_name="parameter",
@@ -126,7 +129,9 @@ def dichotomous_risk():
         )
         paf_data.append(
             build_table(
-                [1, cause], year_start, year_end, ["age", "sex", "year", "value", "cause"]
+                [1, cause],
+                parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+                value_columns=["value", "cause"],
             )
         )
     rr_data = pd.concat(rr_data)
@@ -138,7 +143,9 @@ def dichotomous_risk():
     risk_data["population_attributable_fraction"] = paf_data
     risk_data["affected_causes"] = affected_causes
     risk_data["affected_risk_factors"] = []
-    incidence_rate = build_table(0.01, year_start, year_end)
+    incidence_rate = build_table(
+        0.01, parameter_columns={"age": (0, 125), "year": (year_start, year_end)}
+    )
     risk_data["incidence_rate"] = incidence_rate
     risk_data["distribution"] = "dichotomous"
     return Risk(f"risk_factor.{risk}"), risk_data
@@ -151,7 +158,9 @@ def polytomous_risk():
     risk = "test_risk"
     risk_data = dict()
     exposure_data = build_table(
-        0.25, year_start, year_end, ["age", "year", "sex", "cat1", "cat2", "cat3", "cat4"]
+        0.25,
+        parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+        value_columns=["cat1", "cat2", "cat3", "cat4"],
     ).melt(
         id_vars=("age_start", "age_end", "year_start", "year_end", "sex"),
         var_name="parameter",
@@ -165,9 +174,8 @@ def polytomous_risk():
         rr_data.append(
             build_table(
                 [1.03, 1.02, 1.01, 1, cause],
-                year_start,
-                year_end,
-                ["age", "year", "sex", "cat1", "cat2", "cat3", "cat4", "cause"],
+                parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+                value_columns=["cat1", "cat2", "cat3", "cat4", "cause"],
             ).melt(
                 id_vars=("age_start", "age_end", "year_start", "year_end", "sex", "cause"),
                 var_name="parameter",
@@ -176,7 +184,9 @@ def polytomous_risk():
         )
         paf_data.append(
             build_table(
-                [1, cause], year_start, year_end, ["age", "sex", "year", "value", "cause"]
+                [1, cause],
+                parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+                value_columns=["value", "cause"],
             )
         )
     rr_data = pd.concat(rr_data)
@@ -188,7 +198,9 @@ def polytomous_risk():
     risk_data["population_attributable_fraction"] = paf_data
     risk_data["affected_causes"] = affected_causes
     risk_data["affected_risk_factors"] = []
-    incidence_rate = build_table(0.01, year_start, year_end)
+    incidence_rate = build_table(
+        0.01, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
+    )
     risk_data["incidence_rate"] = incidence_rate
     risk_data["distribution"] = "polytomous"
     return Risk(f"risk_factor.{risk}"), risk_data
@@ -203,9 +215,8 @@ def coverage_gap():
     cg_exposed = 0.6
     cg_exposure_data = build_table(
         [cg_exposed, 1 - cg_exposed],
-        year_start,
-        year_end,
-        ["age", "year", "sex", "cat1", "cat2"],
+        parameter_columns={"age": (0, 125), "year": (year_start, year_end)},
+        value_columns=["cat1", "cat2"],
     ).melt(
         id_vars=(
             "age_start",
@@ -220,7 +231,9 @@ def coverage_gap():
 
     rr = 2
     rr_data = build_table(
-        [rr, 1], year_start, year_end, ["age", "year", "sex", "cat1", "cat2"]
+        [rr, 1],
+        parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)},
+        value_columns=["cat1", "cat2"],
     ).melt(
         id_vars=("age_start", "age_end", "year_start", "year_end", "sex"),
         var_name="parameter",
@@ -231,7 +244,9 @@ def coverage_gap():
     paf = (rr * cg_exposed + (1 - cg_exposed) - 1) / (rr * cg_exposed + (1 - cg_exposed))
 
     paf_data = build_table(
-        paf, year_start, year_end, ["age", "year", "sex", "population_attributable_fraction"]
+        paf,
+        parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)},
+        value_columns=["population_attributable_fraction"],
     ).melt(
         id_vars=("age_start", "age_end", "year_start", "year_end", "sex"),
         var_name="population_attributable_fraction",

@@ -113,18 +113,20 @@ def test_disability_accumulation(
     healthy_1 = SusceptibleState("healthy_1")
     disability_get_data_funcs_0 = {
         "disability_weight": lambda _, __: build_table(
-            disability_weight_value_0, year_start - 1, year_end
+            disability_weight_value_0,
+            parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)},
         ),
         "prevalence": lambda _, __: build_table(
-            0.45, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            0.45, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
         ),
     }
     disability_get_data_funcs_1 = {
         "disability_weight": lambda _, __: build_table(
-            disability_weight_value_1, year_start - 1, year_end
+            disability_weight_value_1,
+            parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)},
         ),
         "prevalence": lambda _, __: build_table(
-            0.65, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            0.65, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
         ),
     }
     disability_state_0 = DiseaseState(
