@@ -6,9 +6,9 @@ import pytest
 from vivarium import Component, InteractiveContext
 from vivarium.framework.lookup.table import ScalarTable
 from vivarium.framework.state_machine import Transition
-from vivarium.testing_utilities import build_table
 from vivarium_testing_utils import FuzzyChecker
 
+from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import BaseDiseaseState, DiseaseModel, DiseaseState
 from vivarium_public_health.population import BasePopulation, Mortality
 
@@ -121,11 +121,11 @@ def test_mortality_cause_of_death(
     mort_get_data_funcs = {
         "dwell_time": lambda _, __: pd.Timedelta(days=0),
         "disability_weight": lambda _, __: 0.0,
-        "prevalence": lambda _, __: build_table(
-            0.5, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
+        "prevalence": lambda _, __: build_table_with_age(
+            0.5, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "excess_mortality_rate": lambda _, __: build_table(
-            0.7, parameter_columns={"age": (0, 125), "year": (year_start - 1, year_end)}
+        "excess_mortality_rate": lambda _, __: build_table_with_age(
+            0.7, parameter_columns={"year": (year_start - 1, year_end)}
         ),
     }
     mortality_state = DiseaseState("sick", get_data_functions=mort_get_data_funcs)

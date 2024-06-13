@@ -12,8 +12,8 @@ from typing import List
 
 import pandas as pd
 from vivarium.framework.artifact import ArtifactManager
-from vivarium.testing_utilities import build_table
 
+from tests.test_utilities import build_table_with_age
 from vivarium_public_health.testing.utils import make_age_bins, make_uniform_pop_data
 
 MOCKERS = {
@@ -30,14 +30,14 @@ MOCKERS = {
         "distribution": lambda *args, **kwargs: "ensemble",
         "exposure": 120,
         "exposure_standard_deviation": 15,
-        "relative_risk": build_table(
+        "relative_risk": build_table_with_age(
             [1.5, "continuous", "test_cause", "incidence_rate"],
-            parameter_columns={"age": (0, 125), "year": (1990, 2017)},
+            parameter_columns={"year": (1990, 2017)},
             value_columns=["value", "parameter", "affected_entity", "affected_measure"],
         ),
-        "population_attributable_fraction": build_table(
+        "population_attributable_fraction": build_table_with_age(
             [1, "test_cause_1", "incidence_rate"],
-            parameter_columns={"age": (0, 125), "year": (1990, 2017)},
+            parameter_columns={"year": (1990, 2017)},
             value_columns=["value", "cause", "affected_measure"],
         ),
         "tmred": lambda *args, **kwargs: {
@@ -63,16 +63,16 @@ MOCKERS = {
         "disability_weight": pd.DataFrame({"value": [0]}),
     },
     "etiology": {
-        "population_attributable_fraction": build_table(
+        "population_attributable_fraction": build_table_with_age(
             [1, "incidence_rate"],
-            parameter_columns={"age": (0, 125), "year": (1990, 2017)},
+            parameter_columns={"year": (1990, 2017)},
             value_columns=["value", "affected_measure"],
         ),
     },
     "healthcare_entity": {
-        "cost": build_table(
+        "cost": build_table_with_age(
             [0, "outpatient_visits"],
-            parameter_columns={"age": (0, 125), "year": (1990, 2017)},
+            parameter_columns={"year": (1990, 2017)},
             value_columns=["value", "healthcare_entity"],
         ),
         "utilization_rate": 0,
@@ -83,9 +83,9 @@ MOCKERS = {
         "age_bins": make_age_bins(),
         "structure": make_uniform_pop_data(),
         "theoretical_minimum_risk_life_expectancy": (
-            build_table(
+            build_table_with_age(
                 98.0,
-                parameter_columns={"age": (0, 125), "year": (1990, 1991)},
+                parameter_columns={"year": (1990, 1991)},
             )
             .query('sex=="Female"')
             .filter(["age_start", "age_end", "value"])
@@ -110,9 +110,9 @@ class MockArtifact:
         if callable(value):
             value = value(entity_key)
         elif not isinstance(value, (pd.DataFrame, pd.Series)):
-            value = build_table(
+            value = build_table_with_age(
                 value,
-                parameter_columns={"age": (0, 125), "year": (1990, 2018)},
+                parameter_columns={"year": (1990, 2018)},
             )
 
         return value

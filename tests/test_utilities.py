@@ -1,6 +1,10 @@
+from typing import Any, Dict, List
+
 import hypothesis.strategies as st
+import pandas as pd
 import pytest
 from hypothesis import given
+from vivarium.testing_utilities import build_table
 
 from vivarium_public_health.utilities import EntityString, TargetString
 
@@ -41,3 +45,13 @@ def test_TargetString_pass(s):
     assert t.type == target_type
     assert t.name == target_name
     assert t.measure == target_measure
+
+
+def build_table_with_age(
+    value: Any,
+    parameter_columns: Dict = {"year": (1990, 2020)},
+    key_columns: Dict = {"sex": ("Female", "Male")},
+    value_columns: List = ["value"],
+) -> pd.DataFrame:
+    parameter_columns["age"] = (0, 125)
+    return build_table(value, parameter_columns, key_columns, value_columns)

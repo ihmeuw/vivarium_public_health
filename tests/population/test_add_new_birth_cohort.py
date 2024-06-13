@@ -4,8 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation, build_table, metadata
+from vivarium.testing_utilities import TestPopulation, metadata
 
+from tests.test_utilities import build_table_with_age
 from vivarium_public_health import utilities
 from vivarium_public_health.population import (
     FertilityAgeSpecificRates,
@@ -35,9 +36,8 @@ def config(base_config):
 
 def crude_birth_rate_data(live_births=500):
     return (
-        build_table(
+        build_table_with_age(
             ["mean_value", live_births],
-            parameter_columns={"age": (0, 125), "year": (1990, 2017)},
             value_columns=["parameter", "value"],
         )
         .query('age_start == 25 and sex != "Both"')
@@ -180,9 +180,7 @@ def test_fertility_module(base_config, base_plugins):
         setup=False,
     )
 
-    asfr_data = build_table(
-        0.05, parameter_columns={"age": (0, 125), "year": (1990, 2017)}
-    ).rename(columns={"value": "mean_value"})
+    asfr_data = build_table_with_age(0.05).rename(columns={"value": "mean_value"})
     simulation._data.write("covariate.age_specific_fertility_rate.estimate", asfr_data)
 
     simulation.setup()
