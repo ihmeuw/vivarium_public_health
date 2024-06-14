@@ -76,7 +76,7 @@ class DisabilityObserver(StratifiedObserver):
         cause_pipelines = [self.disability_weight_pipeline_name] + [
             f"{cause.state_id}.disability_weight" for cause in self.causes_of_disease
         ]
-        builder.results.register_observation(
+        builder.results.register_adding_observation(
             name="ylds",
             pop_filter='tracked == True and alive == "alive"',
             aggregator_sources=cause_pipelines,
