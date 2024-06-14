@@ -13,8 +13,9 @@ from typing import List
 import pandas as pd
 from vivarium.framework.artifact import ArtifactManager
 
-from tests.test_utilities import build_table_with_age
 from vivarium_public_health.testing.utils import make_age_bins, make_uniform_pop_data
+
+from ....tests.test_utilities import build_table_with_age
 
 MOCKERS = {
     "cause": {
