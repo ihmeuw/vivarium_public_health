@@ -55,7 +55,8 @@ def build_table_with_age(
     key_columns: Dict = {"sex": ("Female", "Male")},
     value_columns: List = ["value"],
 ) -> pd.DataFrame:
-    parameter_columns["age"] = (0, 125)
+    if "age" not in parameter_columns:
+        parameter_columns["age"] = (0, 125)
     return build_table(value, parameter_columns, key_columns, value_columns)
 
 
