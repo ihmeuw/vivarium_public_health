@@ -1,3 +1,7 @@
+**2.3.3 - 06/17/24**
+
+ - Hotfix pin numpy below 2.0
+
 **2.3.2 - 3/13/24**
 
  - Update to Mortality Observer to make subclassing easier.
