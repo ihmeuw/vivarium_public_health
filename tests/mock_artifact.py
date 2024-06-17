@@ -35,12 +35,10 @@ MOCKERS = {
         "exposure_standard_deviation": 15,
         "relative_risk": build_table_with_age(
             [1.5, "continuous", "test_cause", "incidence_rate"],
-            parameter_columns={"year": (1990, 2017)},
             value_columns=["value", "parameter", "affected_entity", "affected_measure"],
         ),
         "population_attributable_fraction": build_table_with_age(
             [1, "test_cause_1", "incidence_rate"],
-            parameter_columns={"year": (1990, 2017)},
             value_columns=["value", "cause", "affected_measure"],
         ),
         "tmred": lambda *args, **kwargs: {
@@ -68,14 +66,12 @@ MOCKERS = {
     "etiology": {
         "population_attributable_fraction": build_table_with_age(
             [1, "incidence_rate"],
-            parameter_columns={"year": (1990, 2017)},
             value_columns=["value", "affected_measure"],
         ),
     },
     "healthcare_entity": {
         "cost": build_table_with_age(
             [0, "outpatient_visits"],
-            parameter_columns={"year": (1990, 2017)},
             value_columns=["value", "healthcare_entity"],
         ),
         "utilization_rate": 0,
@@ -115,7 +111,6 @@ class MockArtifact:
         elif not isinstance(value, (pd.DataFrame, pd.Series)):
             value = build_table_with_age(
                 value,
-                parameter_columns={"year": (1990, 2018)},
             )
 
         return value
