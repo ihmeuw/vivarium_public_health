@@ -94,7 +94,7 @@ class CategoricalRiskObserver(StratifiedObserver):
             list(self.categories.keys()),
             requires_values=[self.exposure_pipeline_name],
         )
-        builder.results.register_observation(
+        builder.results.register_adding_observation(
             name=f"person_time_{self.risk}",
             pop_filter=f'alive == "alive" and tracked==True',
             aggregator=self.aggregate_risk_category_person_time,
