@@ -110,7 +110,7 @@ class MortalityObserver(StratifiedObserver):
                 + ["not_dead", "other_causes"],
                 requires_columns=["cause_of_death"],
             )
-        builder.results.register_observation(
+        builder.results.register_adding_observation(
             name="deaths",
             pop_filter=pop_filter,
             aggregator=self.count_deaths,
@@ -120,7 +120,7 @@ class MortalityObserver(StratifiedObserver):
             when="collect_metrics",
             formatter=self.formatter,
         )
-        builder.results.register_observation(
+        builder.results.register_adding_observation(
             name="ylls",
             pop_filter=pop_filter,
             aggregator=self.calculate_ylls,
