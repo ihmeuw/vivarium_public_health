@@ -113,22 +113,22 @@ class MortalityObserver(StratifiedObserver):
         builder.results.register_adding_observation(
             name="deaths",
             pop_filter=pop_filter,
-            aggregator=self.count_deaths,
+            when="collect_metrics",
             requires_columns=self.required_death_columns,
+            results_formatter=self.formatter,
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
-            when="collect_metrics",
-            formatter=self.formatter,
+            aggregator=self.count_deaths,
         )
         builder.results.register_adding_observation(
             name="ylls",
             pop_filter=pop_filter,
-            aggregator=self.calculate_ylls,
+            when="collect_metrics",
             requires_columns=self.required_yll_columns,
+            results_formatter=self.formatter,
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
-            when="collect_metrics",
-            formatter=self.formatter,
+            aggregator=self.calculate_ylls,
         )
 
     ###############

@@ -97,13 +97,13 @@ class CategoricalRiskObserver(StratifiedObserver):
         builder.results.register_adding_observation(
             name=f"person_time_{self.risk}",
             pop_filter=f'alive == "alive" and tracked==True',
-            aggregator=self.aggregate_risk_category_person_time,
+            when="time_step__prepare",
             requires_columns=["alive"],
             requires_values=[self.exposure_pipeline_name],
+            results_formatter=self.formatter,
             additional_stratifications=self.config.include + [self.risk],
             excluded_stratifications=self.config.exclude,
-            when="time_step__prepare",
-            formatter=self.formatter,
+            aggregator=self.aggregate_risk_category_person_time,
         )
 
     ###############

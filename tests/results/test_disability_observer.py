@@ -69,7 +69,7 @@ def test_disability_observer_setup(mocker):
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
         when="time_step__prepare",
-        formatter=observer.formatter,
+        results_formatter=observer.formatter,
     )
 
     assert set(observer.disease_classes) == set([DiseaseState, RiskAttributableDisease])
