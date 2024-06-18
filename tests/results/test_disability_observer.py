@@ -8,6 +8,7 @@ from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium.testing_utilities import TestPopulation
+
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
@@ -42,7 +43,7 @@ def test_disability_observer_setup(mocker):
     observer = DisabilityObserver_()
     builder = mocker.Mock()
     mocker.patch("vivarium.component.Component.build_all_lookup_tables")
-    builder.results.register_observation = mocker.Mock()
+    builder.results.register_adding_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
     builder.configuration.output_data.results_directory = "some/results/directory"
 
@@ -52,16 +53,16 @@ def test_disability_observer_setup(mocker):
     builder.components.get_components_by_type = lambda n: [flu, measles]
     builder.value.get_value = lambda n: n
 
-    builder.results.register_observation.assert_not_called()
+    builder.results.register_adding_observation.assert_not_called()
     observer.setup_component(builder)
 
-    assert builder.results.register_observation.call_count == 1
+    assert builder.results.register_adding_observation.call_count == 1
     cause_pipelines = [
         "disability_weight",
         "flu.disability_weight",
         "measles.disability_weight",
     ]
-    builder.results.register_observation.assert_any_call(
+    builder.results.register_adding_observation.assert_any_call(
         name="ylds",
         pop_filter='tracked == True and alive == "alive"',
         aggregator_sources=cause_pipelines,
