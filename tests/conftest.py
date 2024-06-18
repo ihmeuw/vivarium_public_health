@@ -53,7 +53,7 @@ def base_plugins() -> LayeredConfigTree:
     config = {
         "required": {
             "data": {
-                "controller": "vivarium_public_health.testing.mock_artifact.MockArtifactManager",
+                "controller": "tests.mock_artifact.MockArtifactManager",
                 "builder_interface": "vivarium.framework.artifact.ArtifactInterface",
             }
         }

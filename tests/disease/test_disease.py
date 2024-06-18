@@ -4,8 +4,9 @@ import pytest
 from vivarium import Component, InteractiveContext
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.utilities import from_yearly
-from vivarium.testing_utilities import TestPopulation, build_table, metadata
+from vivarium.testing_utilities import TestPopulation, metadata
 
+from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import (
     BaseDiseaseState,
     DiseaseModel,
@@ -113,7 +114,10 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
 
     mort_get_data_funcs = {
         "dwell_time": lambda _, __: pd.Timedelta(days=14),
-        "excess_mortality_rate": lambda _, __: build_table(0.7, year_start - 1, year_end),
+        "excess_mortality_rate": lambda _, __: build_table_with_age(
+            0.7,
+            parameter_columns={"year": (year_start - 1, year_end)},
+        ),
         "disability_weight": lambda _, __: 0.0,
     }
 
@@ -274,10 +278,14 @@ def test_mortality_rate(base_config, base_plugins, disease):
     mort_get_data_funcs = {
         "dwell_time": lambda _, __: pd.Timedelta(days=0),
         "disability_weight": lambda _, __: 0.0,
-        "prevalence": lambda _, __: build_table(
-            0.000001, year_start - 1, year_end, ["age", "year", "sex", "value"]
+        "prevalence": lambda _, __: build_table_with_age(
+            0.000001,
+            parameter_columns={"year": (year_start - 1, year_end)},
         ),
-        "excess_mortality_rate": lambda _, __: build_table(0.7, year_start - 1, year_end),
+        "excess_mortality_rate": lambda _, __: build_table_with_age(
+            0.7,
+            parameter_columns={"year": (year_start - 1, year_end)},
+        ),
     }
 
     mortality_state = DiseaseState("sick", get_data_functions=mort_get_data_funcs)
@@ -362,7 +370,10 @@ def test_risk_deletion(base_config, base_plugins, disease):
             builder.value.register_value_modifier(
                 "sick.incidence_rate.paf",
                 modifier=simulation._tables.build_table(
-                    build_table(paf, year_start, year_end),
+                    build_table_with_age(
+                        paf,
+                        parameter_columns={"year": (year_start, year_end)},
+                    ),
                     key_columns=("sex",),
                     parameter_columns=["age", "year"],
                     value_columns=(),

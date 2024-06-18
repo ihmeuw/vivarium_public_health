@@ -1,6 +1,7 @@
 import dataclasses
 from typing import Any, Dict, List, NamedTuple, Tuple, Type
 
+import numpy as np
 import pytest
 import yaml
 from layered_config_tree import LayeredConfigTree
@@ -8,6 +9,8 @@ from vivarium import Component, InteractiveContext
 from vivarium.framework.components.parser import ParsingError
 from vivarium.framework.state_machine import Transient, Transition
 
+from tests.mock_artifact import MockArtifact
+from tests.mock_artifact import MockArtifactManager as MockArtifactManager_
 from vivarium_public_health.disease import (
     BaseDiseaseState,
     DiseaseModel,
@@ -19,10 +22,6 @@ from vivarium_public_health.disease import (
     TransientDiseaseState,
 )
 from vivarium_public_health.plugins import CausesConfigurationParser
-from vivarium_public_health.testing.mock_artifact import MockArtifact
-from vivarium_public_health.testing.mock_artifact import (
-    MockArtifactManager as MockArtifactManager_,
-)
 
 SIR_MODEL = "simple_sir_model"
 SIR_SUSCEPTIBLE_NAME = "susceptible_to_simple_sir_model"

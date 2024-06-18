@@ -3,8 +3,9 @@ from collections import Counter
 import numpy as np
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation, build_table
+from vivarium.testing_utilities import TestPopulation
 
+from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics import MortalityObserver
@@ -17,20 +18,22 @@ def disease_with_excess_mortality(base_config, disease_name, emr_value) -> Disea
     year_end = base_config.time.end.year
     healthy = SusceptibleState(disease_name, allow_self_transition=True)
     disease_get_data_funcs = {
-        "disability_weight": lambda *_: build_table(0.0, year_start - 1, year_end),
-        "prevalence": lambda *_: build_table(
-            0.5, year_start - 1, year_end, ["age", "year", "sex", "value"]
+        "disability_weight": lambda *_: build_table_with_age(
+            0.0, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "excess_mortality_rate": lambda *_: build_table(
-            emr_value, year_start - 1, year_end, ["age", "year", "sex", "value"]
+        "prevalence": lambda *_: build_table_with_age(
+            0.5, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+        "excess_mortality_rate": lambda *_: build_table_with_age(
+            emr_value, parameter_columns={"year": (year_start - 1, year_end)}
         ),
     }
     with_condition = DiseaseState(disease_name, get_data_functions=disease_get_data_funcs)
     healthy.add_rate_transition(
         with_condition,
         get_data_functions={
-            "incidence_rate": lambda *_: build_table(
-                0.1, year_start - 1, year_end, ["age", "year", "sex", "value"]
+            "incidence_rate": lambda *_: build_table_with_age(
+                0.1, parameter_columns={"year": (year_start - 1, year_end)}
             )
         },
     )
@@ -68,7 +71,9 @@ def simulation_after_one_step(base_config, base_plugins):
 
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
-    acmr_data = build_table(0.5, year_start - 1, year_end)
+    acmr_data = build_table_with_age(
+        0.5, parameter_columns={"year": (year_start - 1, year_end)}
+    )
     simulation._data.write("cause.all_causes.cause_specific_mortality_rate", acmr_data)
 
     simulation.setup()
@@ -189,7 +194,9 @@ def test_aggregation_configuration(base_config, base_plugins):
 
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
-    acmr_data = build_table(0.5, year_start - 1, year_end)
+    acmr_data = build_table_with_age(
+        0.5, parameter_columns={"year": (year_start - 1, year_end)}
+    )
     aggregate_sim._data.write("cause.all_causes.cause_specific_mortality_rate", acmr_data)
     aggregate_sim.setup()
     aggregate_sim.step()

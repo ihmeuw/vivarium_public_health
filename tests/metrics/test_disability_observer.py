@@ -4,8 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation, build_table
+from vivarium.testing_utilities import TestPopulation
 
+from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
@@ -112,19 +113,21 @@ def test_disability_accumulation(
     healthy_0 = SusceptibleState("healthy_0")
     healthy_1 = SusceptibleState("healthy_1")
     disability_get_data_funcs_0 = {
-        "disability_weight": lambda _, __: build_table(
-            disability_weight_value_0, year_start - 1, year_end
+        "disability_weight": lambda _, __: build_table_with_age(
+            disability_weight_value_0,
+            parameter_columns={"year": (year_start - 1, year_end)},
         ),
-        "prevalence": lambda _, __: build_table(
-            0.45, year_start - 1, year_end, ["age", "year", "sex", "value"]
+        "prevalence": lambda _, __: build_table_with_age(
+            0.45, parameter_columns={"year": (year_start - 1, year_end)}
         ),
     }
     disability_get_data_funcs_1 = {
-        "disability_weight": lambda _, __: build_table(
-            disability_weight_value_1, year_start - 1, year_end
+        "disability_weight": lambda _, __: build_table_with_age(
+            disability_weight_value_1,
+            parameter_columns={"year": (year_start - 1, year_end)},
         ),
-        "prevalence": lambda _, __: build_table(
-            0.65, year_start - 1, year_end, ["age", "year", "sex", "value"]
+        "prevalence": lambda _, __: build_table_with_age(
+            0.65, parameter_columns={"year": (year_start - 1, year_end)}
         ),
     }
     disability_state_0 = DiseaseState(
