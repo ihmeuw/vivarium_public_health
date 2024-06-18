@@ -6,7 +6,7 @@ import pytest
 from vivarium.testing_utilities import get_randomness
 
 import vivarium_public_health.population.data_transformations as dt
-from vivarium_public_health.testing.utils import make_uniform_pop_data
+from tests.test_utilities import make_uniform_pop_data
 
 
 @pytest.fixture

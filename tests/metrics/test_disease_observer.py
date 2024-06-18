@@ -2,8 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation, build_table
+from vivarium.testing_utilities import TestPopulation
 
+from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.metrics.disease import DiseaseObserver
@@ -23,14 +24,16 @@ def model(base_config, disease: str) -> DiseaseModel:
     year_end = base_config.time.end.year
     healthy = SusceptibleState("with_condition")
     disease_get_data_funcs = {
-        "disability_weight": lambda _, __: build_table(0.0, year_start - 1, year_end),
-        "prevalence": lambda _, __: build_table(
-            0.2, year_start - 1, year_end, ["age", "year", "sex", "value"]
+        "disability_weight": lambda _, __: build_table_with_age(
+            0.0, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+        "prevalence": lambda _, __: build_table_with_age(
+            0.2, parameter_columns={"year": (year_start - 1, year_end)}
         ),
     }
     transition_get_data_funcs = {
-        "incidence_rate": lambda _, __: build_table(
-            0.9, year_start - 1, year_end, ["age", "year", "sex", "value"]
+        "incidence_rate": lambda _, __: build_table_with_age(
+            0.9, parameter_columns={"year": (year_start - 1, year_end)}
         ),
     }
     with_condition = DiseaseState("with_condition", get_data_functions=disease_get_data_funcs)
