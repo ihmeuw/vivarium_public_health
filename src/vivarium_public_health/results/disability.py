@@ -79,14 +79,14 @@ class DisabilityObserver(StratifiedObserver):
         builder.results.register_adding_observation(
             name="ylds",
             pop_filter='tracked == True and alive == "alive"',
-            aggregator_sources=cause_pipelines,
-            aggregator=self.disability_weight_aggregator,
+            when="time_step__prepare",
             requires_columns=["alive"],
             requires_values=cause_pipelines,
+            results_formatter=self.formatter,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
-            when="time_step__prepare",
-            formatter=self.formatter,
+            aggregator_sources=cause_pipelines,
+            aggregator=self.disability_weight_aggregator,
         )
 
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
