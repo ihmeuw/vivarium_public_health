@@ -190,16 +190,12 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
                 COLUMNS.ENTITY_TYPE,
                 COLUMNS.ENTITY,
                 COLUMNS.SUB_ENTITY,
-                COLUMNS.SEED,
-                COLUMNS.DRAW,
                 COLUMNS.VALUE,
             ]
         )
         assert (df[COLUMNS.MEASURE] == measure).all()
         assert (df[COLUMNS.ENTITY_TYPE] == "cause").all()
         assert (df[COLUMNS.ENTITY] == "t_virus").all()
-        assert (df[COLUMNS.SEED] == 0).all()
-        assert df[COLUMNS.DRAW].isna().all()
 
     # Check values
     actual_tx_count = transition_count.loc[
