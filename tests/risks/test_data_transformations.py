@@ -4,10 +4,10 @@ from vivarium.interface.interactive import InteractiveContext
 
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.data_transformations import (
-    _rebin_exposure_data,
     _rebin_relative_risk_data,
     get_relative_risk_data,
 )
+from vivarium_public_health.risks.distributions import DichotomousDistribution
 from vivarium_public_health.risks.effect import RiskEffect
 from vivarium_public_health.utilities import TargetString
 
@@ -31,11 +31,11 @@ def test__rebin_exposure_data(rebin_categories, rebinned_values):
             "value": [0.5] * 4 + [0.2] * 4 + [0.3] * 4,
         }
     )
-    rebinned_df = _rebin_exposure_data(df, rebin_categories)
+    rebinned_df = DichotomousDistribution._rebin_exposure_data(df, rebin_categories)
 
-    assert rebinned_df.shape == (8, 4)
-    assert (rebinned_df[rebinned_df.parameter == "cat1"].value == rebinned_values[0]).all()
-    assert (rebinned_df[rebinned_df.parameter == "cat2"].value == rebinned_values[1]).all()
+    assert rebinned_df.shape == (4, 4)
+    assert (rebinned_df.value == rebinned_values[0]).all()
+    assert (rebinned_df["parameter"] == "cat1").all()
 
 
 @pytest.mark.parametrize(
