@@ -62,14 +62,14 @@ def test_disability_observer_setup(mocker):
     builder.results.register_adding_observation.assert_any_call(
         name="ylds",
         pop_filter='tracked == True and alive == "alive"',
-        aggregator_sources=cause_pipelines,
-        aggregator=observer.disability_weight_aggregator,
+        when="time_step__prepare",
         requires_columns=["alive"],
         requires_values=cause_pipelines,
+        results_formatter=observer.formatter,
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
-        when="time_step__prepare",
-        results_formatter=observer.formatter,
+        aggregator_sources=cause_pipelines,
+        aggregator=observer.disability_weight_aggregator,
     )
 
     assert set(observer.disease_classes) == set([DiseaseState, RiskAttributableDisease])
