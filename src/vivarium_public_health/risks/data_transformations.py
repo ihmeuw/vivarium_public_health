@@ -8,7 +8,7 @@ risk data and performing any necessary data transformations.
 
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -16,9 +16,6 @@ from loguru import logger
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.utilities import EntityString, TargetString
-
-if TYPE_CHECKING:
-    from vivarium_public_health.risks import Risk
 
 #############
 # Utilities #
@@ -30,12 +27,32 @@ def is_data_from_artifact(data_source: str) -> bool:
 
 
 def pivot_categorical(
-    builder: Builder, risk: EntityString, data: pd.DataFrame
-) -> Tuple[pd.DataFrame, List[str]]:
+    builder: Builder,
+    risk: EntityString,
+    data: pd.DataFrame,
+    pivot_column: str = "parameter",
+    reset_index: bool = True,
+) -> pd.DataFrame:
     """Pivots data that is long on categories to be wide."""
     # todo remove dependency on artifact manager having exactly one value column
     value_column = builder.data.value_columns()(f"{risk}.exposure")[0]
-    pivot_column = "parameter"
+    index_cols = [
+        column for column in data.columns if column not in [value_column, pivot_column]
+    ]
+    data = data.pivot_table(index=index_cols, columns=pivot_column, values=value_column)
+    if reset_index:
+        data = data.reset_index()
+    data.columns.name = None
+
+    return data
+
+
+def pivot_categorical_for_rrs(
+    builder: Builder, risk: EntityString, data: pd.DataFrame, pivot_column: str = "parameter"
+) -> Tuple[pd.DataFrame, List[str]]:
+    """Pivots data that is long on categories to be wide."""
+    # todo remove this method when RR code has been refactored
+    value_column = builder.data.value_columns()(f"{risk}.exposure")[0]
     index_cols = [
         column for column in data.columns if column not in [value_column, pivot_column]
     ]
@@ -51,12 +68,6 @@ def pivot_categorical(
 ##########################
 # Exposure data handlers #
 ##########################
-
-
-def get_distribution_data(builder, risk: "Risk") -> Dict[str, Any]:
-    validate_distribution_data_source(builder, risk.risk)
-    data = load_distribution_data(builder, risk)
-    return data
 
 
 def get_exposure_post_processor(builder, risk: str):
@@ -77,22 +88,6 @@ def get_exposure_post_processor(builder, risk: str):
     return post_processor
 
 
-def load_distribution_data(builder: Builder, risk: "Risk") -> Dict[str, Any]:
-    distribution_type = risk.distribution_type
-    exposure_data, value_columns = get_exposure_data(builder, risk.risk, distribution_type)
-
-    data = {
-        "distribution_type": distribution_type,
-        "exposure": exposure_data,
-        "exposure_value_columns": value_columns,
-        "exposure_standard_deviation": get_exposure_standard_deviation_data(
-            builder, risk.risk, distribution_type
-        ),
-        "weights": get_exposure_distribution_weights(builder, risk.risk, distribution_type),
-    }
-    return data
-
-
 def get_exposure_data(
     builder, risk: EntityString, distribution_type: str
 ) -> Tuple[Union[int, float, pd.DataFrame], Optional[List[str]]]:
@@ -108,7 +103,7 @@ def get_exposure_data(
         "unordered_polytomous",
         "lbwsg",
     ]:
-        exposure_data, value_columns = pivot_categorical(builder, risk, exposure_data)
+        exposure_data, value_columns = pivot_categorical_for_rrs(builder, risk, exposure_data)
     else:
         value_columns = builder.data.value_columns()(f"{risk}.exposure")
 
@@ -120,32 +115,6 @@ def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
     return risk_component.get_data(
         builder, builder.configuration[risk_component.name]["data_sources"]["exposure"]
     )
-
-
-def get_exposure_standard_deviation_data(
-    builder: Builder, risk: EntityString, distribution_type: str
-) -> Union[pd.DataFrame, None]:
-    if distribution_type not in ["normal", "lognormal", "ensemble"]:
-        return None
-    data_source = builder.configuration[risk]["data_sources"]["exposure_standard_deviation"]
-    return builder.data.load(data_source)
-
-
-def get_exposure_distribution_weights(
-    builder: Builder, risk: EntityString, distribution_type: str
-) -> Union[Tuple[pd.DataFrame, List[str]], None]:
-    if distribution_type != "ensemble":
-        return None
-
-    data_source = builder.configuration[risk]["data_sources"]["ensemble_distribution_weights"]
-    weights = builder.data.load(data_source)
-    weights, distributions = pivot_categorical(builder, risk, weights)
-    if "glnorm" in weights.columns:
-        if np.any(weights["glnorm"]):
-            raise NotImplementedError("glnorm distribution is not supported")
-        weights = weights.drop(columns=["glnorm"])
-        distributions.remove("glnorm")
-    return weights, distributions
 
 
 def rebin_exposure_data(builder, risk: EntityString, exposure_data: pd.DataFrame):
@@ -192,7 +161,9 @@ def get_relative_risk_data(
         "ordered_polytomous",
         "unordered_polytomous",
     ]:
-        relative_risk_data, value_cols = pivot_categorical(builder, None, relative_risk_data)
+        relative_risk_data, value_cols = pivot_categorical_for_rrs(
+            builder, risk, relative_risk_data
+        )
         # Check if any values for relative risk are below expected boundary of 1.0
         category_columns = [c for c in relative_risk_data.columns if "cat" in c]
         if not relative_risk_data[
