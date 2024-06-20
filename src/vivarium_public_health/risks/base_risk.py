@@ -153,16 +153,22 @@ class Risk(Component):
         self.propensity_pipeline_name = f"{self.risk.name}.propensity"
         self.exposure_pipeline_name = f"{self.risk.name}.exposure"
 
-    # noinspection PyAttributeOutsideInit
-    def setup_component(self, builder: "Builder") -> None:
-        self.configuration = builder.configuration[self.name]
-        self.distribution_type = self.get_distribution_type(builder)
-        self.exposure_distribution = self.get_exposure_distribution(builder)
-        super().setup_component(builder)
-
     #################
     # Setup methods #
     #################
+
+    def build_all_lookup_tables(self, builder: "Builder") -> None:
+        # All lookup tables are built in the exposure distribution
+        pass
+
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder) -> None:
+        self.distribution_type = self.get_distribution_type(builder)
+        self.exposure_distribution = self.get_exposure_distribution(builder)
+
+        self.randomness = self.get_randomness_stream(builder)
+        self.propensity = self.get_propensity_pipeline(builder)
+        self.exposure = self.get_exposure_pipeline(builder)
 
     def get_distribution_type(self, builder: Builder) -> str:
         """
@@ -228,16 +234,6 @@ class Risk(Component):
 
         exposure_distribution.setup_component(builder)
         return exposure_distribution
-
-    def build_all_lookup_tables(self, builder: "Builder") -> None:
-        # All lookup tables are built in the exposure distribution
-        pass
-
-    # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder) -> None:
-        self.randomness = self.get_randomness_stream(builder)
-        self.propensity = self.get_propensity_pipeline(builder)
-        self.exposure = self.get_exposure_pipeline(builder)
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
         return builder.randomness.get_stream(self.randomness_stream_name)
