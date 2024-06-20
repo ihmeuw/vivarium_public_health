@@ -21,19 +21,13 @@ from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
 )
 from vivarium_public_health.risks.distributions import (
-    RISK_EXPOSURE_DISTRIBUTIONS,
+    ContinuousDistribution,
+    DichotomousDistribution,
+    EnsembleDistribution,
+    PolytomousDistribution,
     RiskExposureDistribution,
 )
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
-
-DISTRIBUTION_TYPES = [
-    "dichotomous",
-    "ordered_polytomous",
-    "unordered_polytomous",
-    "normal",
-    "lognormal",
-    "ensemble",
-]
 
 
 class Risk(Component):
@@ -93,6 +87,15 @@ class Risk(Component):
                category_thresholds: [7, 8, 9]
 
     """
+
+    exposure_distributions = {
+        "dichotomous": DichotomousDistribution,
+        "ordered_polytomous": PolytomousDistribution,
+        "unordered_polytomous": PolytomousDistribution,
+        "normal": ContinuousDistribution,
+        "lognormal": ContinuousDistribution,
+        "ensemble": EnsembleDistribution,
+    }
 
     ##############
     # Properties #
@@ -180,10 +183,19 @@ class Risk(Component):
             the distribution type
         """
         distribution_type = self.configuration["distribution_type"]
-        if distribution_type in RISK_EXPOSURE_DISTRIBUTIONS.keys():
-            return distribution_type
-        # todo deal with incorrect typing
-        return self.get_data(builder, distribution_type)
+        if distribution_type not in self.exposure_distributions.keys():
+            # todo deal with incorrect typing
+            distribution_type = self.get_data(builder, distribution_type)
+
+        if self.configuration["rebinned_exposed"]:
+            if distribution_type != "dichotomous" or "polytomous" not in distribution_type:
+                raise ValueError(
+                    f"Unsupported risk distribution type '{distribution_type}' "
+                    f"for {self.name}. Rebinned exposed categories are only "
+                    "supported for dichotomous and polytomous distributions."
+                )
+            distribution_type = "dichotomous"
+        return distribution_type
 
     def get_exposure_distribution(self, builder: Builder) -> RiskExposureDistribution:
         """
@@ -206,7 +218,9 @@ class Risk(Component):
             if the distribution type is not supported
         """
         try:
-            exposure_distribution = RISK_EXPOSURE_DISTRIBUTIONS[self.distribution_type](self)
+            exposure_distribution = self.exposure_distributions[self.distribution_type](
+                self.risk, self.distribution_type
+            )
         except KeyError:
             raise NotImplementedError(
                 f"Distribution type {self.distribution_type} is not supported."
