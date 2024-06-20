@@ -112,37 +112,37 @@ class DiseaseObserver(StratifiedObserver):
         builder.results.register_adding_observation(
             name=f"person_time_{self.disease}",
             pop_filter=pop_filter,
-            aggregator=self.aggregate_state_person_time,
-            requires_columns=["alive", self.disease],
-            additional_stratifications=self.config.include + [self.disease],
-            excluded_stratifications=self.config.exclude,
             when="time_step__prepare",
-            formatter=partial(
+            requires_columns=["alive", self.disease],
+            results_formatter=partial(
                 self.formatter,
                 measure_name="person_time",
                 entity_type=entity_type,
                 entity=entity,
                 sub_entity_col=self.disease,
             ),
+            additional_stratifications=self.config.include + [self.disease],
+            excluded_stratifications=self.config.exclude,
+            aggregator=self.aggregate_state_person_time,
         )
 
         builder.results.register_adding_observation(
             name=f"transition_count_{self.disease}",
             pop_filter=pop_filter,
+            when="collect_metrics",
             requires_columns=[
                 self.previous_state_column_name,
                 self.disease,
             ],
-            additional_stratifications=self.config.include + [transition_stratification_name],
-            excluded_stratifications=self.config.exclude,
-            when="collect_metrics",
-            formatter=partial(
+            results_formatter=partial(
                 self.formatter,
                 measure_name="transition_count",
                 entity_type=entity_type,
                 entity=entity,
                 sub_entity_col=transition_stratification_name,
             ),
+            additional_stratifications=self.config.include + [transition_stratification_name],
+            excluded_stratifications=self.config.exclude,
         )
 
     def map_transitions(self, df: pd.DataFrame) -> pd.Series:
