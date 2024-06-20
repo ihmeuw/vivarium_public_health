@@ -12,13 +12,13 @@ from typing import Any, Dict, List
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results import StratifiedObserver
+from vivarium.framework.results import Observer
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.results.columns import COLUMNS
 
 
-class MortalityObserver(StratifiedObserver):
+class MortalityObserver(Observer):
     """An observer for cause-specific deaths and ylls (including "other causes").
 
     By default, this counts cause-specific deaths and years of life lost over
