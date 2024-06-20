@@ -147,16 +147,12 @@ def test_observation_correctness(simulation_after_one_step):
                 COLUMNS.ENTITY_TYPE,
                 COLUMNS.ENTITY,
                 COLUMNS.SUB_ENTITY,
-                COLUMNS.SEED,
-                COLUMNS.DRAW,
                 COLUMNS.VALUE,
             ]
         )
         assert (df[COLUMNS.MEASURE] == measure).all()
         assert (df[COLUMNS.ENTITY_TYPE] == "cause").all()
         assert set(df[COLUMNS.ENTITY]) == set(["other_causes", "flu", "mumps"])
-        assert (df[COLUMNS.SEED] == 0).all()
-        assert df[COLUMNS.DRAW].isna().all()
 
 
 def test_aggregation_configuration(base_config, base_plugins):

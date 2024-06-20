@@ -200,7 +200,5 @@ class DiseaseObserver(StratifiedObserver):
         results[COLUMNS.MEASURE] = measure_name
         results[COLUMNS.ENTITY_TYPE] = entity_type
         results[COLUMNS.ENTITY] = entity
-        results["random_seed"] = self.random_seed
-        results["input_draw"] = self.input_draw
 
         return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]
