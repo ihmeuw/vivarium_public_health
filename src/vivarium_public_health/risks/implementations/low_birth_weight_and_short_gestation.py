@@ -8,7 +8,7 @@ implementation that has been used in several public health models.
 """
 
 import pickle
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -165,6 +165,8 @@ class LBWSGDistribution(PolytomousDistribution):
 class LBWSGRisk(Risk):
     AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 
+    exposure_distributions = {"lbwsg": LBWSGDistribution}
+
     @staticmethod
     def birth_exposure_pipeline_name(axis: str) -> str:
         return f"{axis}.birth_exposure"
@@ -176,6 +178,12 @@ class LBWSGRisk(Risk):
     ##############
     # Properties #
     ##############
+
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        configuration_defaults = super().configuration_defaults
+        configuration_defaults[self.name]["distribution_type"] = "lbwsg"
+        return configuration_defaults
 
     @property
     def columns_created(self) -> List[str]:
@@ -192,15 +200,6 @@ class LBWSGRisk(Risk):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self.birth_exposures = self.get_birth_exposure_pipelines(builder)
-
-    ##########################
-    # Initialization methods #
-    ##########################
-
-    def get_exposure_distribution(self, builder: Builder) -> LBWSGDistribution:
-        exposure_distribution = LBWSGDistribution(self)
-        exposure_distribution.setup_component(builder)
-        return exposure_distribution
 
     #################
     # Setup methods #
