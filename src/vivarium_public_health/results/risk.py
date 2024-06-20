@@ -123,7 +123,5 @@ class CategoricalRiskObserver(StratifiedObserver):
         results[COLUMNS.MEASURE] = "person_time"
         results[COLUMNS.ENTITY_TYPE] = "rei"
         results[COLUMNS.ENTITY] = self.risk
-        results[COLUMNS.SEED] = self.random_seed
-        results[COLUMNS.DRAW] = self.input_draw
 
         return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]

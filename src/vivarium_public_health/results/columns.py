@@ -8,8 +8,6 @@ class __Columns(NamedTuple):
 
     VALUE: str = VALUE_COLUMN
     MEASURE: str = "measure"
-    SEED: str = "random_seed"
-    DRAW: str = "input_draw"
     TRANSITION: str = "transition"
     STATE: str = "state"
     ENTITY_TYPE: str = "entity_type"
