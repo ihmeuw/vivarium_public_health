@@ -149,7 +149,5 @@ class DisabilityObserver(StratifiedObserver):
             cause_mask = results[COLUMNS.SUB_ENTITY] == cause.state_id
             results.loc[cause_mask, COLUMNS.ENTITY] = cause.model
             results.loc[cause_mask, COLUMNS.ENTITY_TYPE] = cause.cause_type
-        results["random_seed"] = self.random_seed
-        results["input_draw"] = self.input_draw
 
         return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]

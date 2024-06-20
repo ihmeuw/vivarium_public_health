@@ -213,15 +213,11 @@ def test_disability_accumulation(
             COLUMNS.ENTITY_TYPE,
             COLUMNS.ENTITY,
             COLUMNS.SUB_ENTITY,
-            COLUMNS.SEED,
-            COLUMNS.DRAW,
             COLUMNS.VALUE,
         ]
     )
     assert (results[COLUMNS.MEASURE] == "ylds").all()
     assert (results[COLUMNS.ENTITY_TYPE] == "cause").all()
-    assert (results[COLUMNS.SEED] == 0).all()
-    assert results[COLUMNS.DRAW].isna().all()
 
     # Check that all the yld values are as expected
     time_scale = time_step / pd.Timedelta("365.25 days") * 2
