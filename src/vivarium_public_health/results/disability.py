@@ -12,7 +12,7 @@ from typing import Any, List, Union
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results import StratifiedObserver
+from vivarium.framework.results import Observer
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
@@ -20,7 +20,7 @@ from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.utilities import to_years
 
 
-class DisabilityObserver(StratifiedObserver):
+class DisabilityObserver(Observer):
     """Counts years lived with disability.
 
     By default, this counts both aggregate and cause-specific years lived
