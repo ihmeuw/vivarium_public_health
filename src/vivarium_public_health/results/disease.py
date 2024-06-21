@@ -15,13 +15,13 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.results import StratifiedObserver
+from vivarium.framework.results import Observer
 
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.utilities import to_years
 
 
-class DiseaseObserver(StratifiedObserver):
+class DiseaseObserver(Observer):
     """Observes disease counts and person time for a cause.
 
     By default, this observer computes aggregate disease state person time and

@@ -11,13 +11,13 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results import StratifiedObserver
+from vivarium.framework.results import Observer
 
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.utilities import to_years
 
 
-class CategoricalRiskObserver(StratifiedObserver):
+class CategoricalRiskObserver(Observer):
     """An observer for a categorical risk factor.
 
     Observes category person time for a risk factor.
