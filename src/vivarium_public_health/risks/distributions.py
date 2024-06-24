@@ -48,18 +48,12 @@ class RiskExposureDistribution(Component, ABC):
     def get_configuration(self, builder: "Builder") -> Optional[LayeredConfigTree]:
         return builder.configuration[self.risk]
 
+    @abstractmethod
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        self.validate_distribution_data_source()
-        self.exposure_data = self.get_exposure_data(builder)
-        self.exposure_value_columns = self.get_exposure_value_columns(builder)
+        raise NotImplementedError
 
     def get_exposure_data(self, builder: Builder) -> Union[int, float, pd.DataFrame]:
         return self.get_data(builder, self.configuration["data_sources"]["exposure"])
-
-    def get_exposure_value_columns(self, builder: Builder) -> Optional[List[str]]:
-        if isinstance(self.exposure_data, pd.DataFrame):
-            return self.get_value_columns(self.exposure_data)
-        return None
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -133,8 +127,7 @@ class EnsembleDistribution(RiskExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        super().build_all_lookup_tables(builder)
-
+        exposure_data = self.get_exposure_data(builder)
         standard_deviation = self.get_data(
             builder,
             self.configuration["data_sources"]["exposure_standard_deviation"],
@@ -155,7 +148,7 @@ class EnsembleDistribution(RiskExposureDistribution):
 
         weights, parameters = rd.EnsembleDistribution.get_parameters(
             raw_weights,
-            mean=get_risk_distribution_parameter(self.get_value_columns, self.exposure_data),
+            mean=get_risk_distribution_parameter(self.get_value_columns, exposure_data),
             sd=get_risk_distribution_parameter(self.get_value_columns, standard_deviation),
         )
 
@@ -246,12 +239,12 @@ class ContinuousDistribution(RiskExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        super().build_all_lookup_tables(builder)
+        exposure_data = self.get_exposure_data(builder)
         standard_deviation = self.get_data(
             builder, self.configuration["data_sources"]["exposure_standard_deviation"]
         )
         parameters = self._distribution.get_parameters(
-            mean=get_risk_distribution_parameter(self.get_value_columns, self.exposure_data),
+            mean=get_risk_distribution_parameter(self.get_value_columns, exposure_data),
             sd=get_risk_distribution_parameter(self.get_value_columns, standard_deviation),
         )
 
@@ -290,22 +283,23 @@ class PolytomousDistribution(RiskExposureDistribution):
     # Setup methods #
     #################
 
-    def get_exposure_value_columns(self, builder: Builder) -> Optional[List[str]]:
-        if isinstance(self.exposure_data, pd.DataFrame):
-            return list(self.exposure_data["parameter"].unique())
-        return None
-
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        super().build_all_lookup_tables(builder)
-        exposure_data = (
-            pivot_categorical(builder, self.risk, self.exposure_data, "parameter")
-            if isinstance(self.exposure_data, pd.DataFrame)
-            else self.exposure_data
-        )
+        exposure_data = self.get_exposure_data(builder)
+        exposure_value_columns = self.get_exposure_value_columns(exposure_data)
+
+        if isinstance(exposure_data, pd.DataFrame):
+            exposure_data = pivot_categorical(builder, self.risk, exposure_data, "parameter")
 
         self.lookup_tables["exposure"] = self.build_lookup_table(
-            builder, exposure_data, self.exposure_value_columns
+            builder, exposure_data, exposure_value_columns
         )
+
+    def get_exposure_value_columns(
+        self, exposure_data: Union[int, float, pd.DataFrame]
+    ) -> Optional[List[str]]:
+        if isinstance(exposure_data, pd.DataFrame):
+            return list(exposure_data["parameter"].unique())
+        return None
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
@@ -341,18 +335,19 @@ class DichotomousDistribution(RiskExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        super().build_all_lookup_tables(builder)
+        exposure_data = self.get_exposure_data(builder)
+        exposure_value_columns = self.get_exposure_value_columns(exposure_data)
 
-        if isinstance(self.exposure_data, pd.DataFrame):
-            any_negatives = (self.exposure_data[self.exposure_value_columns] < 0).any().any()
-            any_over_one = (self.exposure_data[self.exposure_value_columns] > 1).any().any()
+        if isinstance(exposure_data, pd.DataFrame):
+            any_negatives = (exposure_data[exposure_value_columns] < 0).any().any()
+            any_over_one = (exposure_data[exposure_value_columns] > 1).any().any()
             if any_negatives or any_over_one:
                 raise ValueError(f"All exposures must be in the range [0, 1] for {self.risk}")
-        elif self.exposure_data < 0 or self.exposure_data > 1:
+        elif exposure_data < 0 or exposure_data > 1:
             raise ValueError(f"Exposure must be in the range [0, 1] for {self.risk}")
 
         self.lookup_tables["exposure"] = self.build_lookup_table(
-            builder, self.exposure_data, self.exposure_value_columns
+            builder, exposure_data, exposure_value_columns
         )
         self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
 
@@ -385,6 +380,13 @@ class DichotomousDistribution(RiskExposureDistribution):
             .reset_index()
         )
         return exposure_data
+
+    def get_exposure_value_columns(
+        self, exposure_data: Union[int, float, pd.DataFrame]
+    ) -> Optional[List[str]]:
+        if isinstance(exposure_data, pd.DataFrame):
+            return self.get_value_columns(exposure_data)
+        return None
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
