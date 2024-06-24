@@ -69,25 +69,6 @@ class RiskExposureDistribution(Component, ABC):
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         raise NotImplementedError
 
-    ##############
-    # Validators #
-    ##############
-
-    def validate_distribution_data_source(self) -> None:
-        """Checks that the exposure distribution specification is valid."""
-        # todo some of these validations are distribution specific
-        if self.risk.type == "alternative_risk_factor":
-            if self.configuration["rebinned_exposed"]:
-                raise ValueError(
-                    "Parameterized risk components are not available for alternative risks."
-                )
-
-            if not self.configuration["category_thresholds"]:
-                raise ValueError("Must specify category thresholds to use alternative risks.")
-
-        elif self.risk.type not in ["risk_factor", "coverage_gap"]:
-            raise ValueError(f"Unknown risk type {self.risk.type} for risk {self.risk.name}")
-
     ##################
     # Public methods #
     ##################
