@@ -34,10 +34,16 @@ class RiskExposureDistribution(Component, ABC):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: EntityString, distribution_type: str) -> None:
+    def __init__(
+        self,
+        risk: EntityString,
+        distribution_type: str,
+        exposure_data: Optional[Union[int, float, pd.DataFrame]] = None,
+    ) -> None:
         super().__init__()
         self.risk = risk
         self.distribution_type = distribution_type
+        self._exposure_data = exposure_data
 
         self.parameters_pipeline_name = f"{self.risk}.exposure_parameters"
 
@@ -53,6 +59,8 @@ class RiskExposureDistribution(Component, ABC):
         raise NotImplementedError
 
     def get_exposure_data(self, builder: Builder) -> Union[int, float, pd.DataFrame]:
+        if self._exposure_data is not None:
+            return self._exposure_data
         return self.get_data(builder, self.configuration["data_sources"]["exposure"])
 
     # noinspection PyAttributeOutsideInit
