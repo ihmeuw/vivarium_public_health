@@ -188,6 +188,9 @@ class Risk(Component):
         str
             the distribution type
         """
+        if self.configuration is None:
+            self.configuration = self.get_configuration(builder)
+
         distribution_type = self.configuration["distribution_type"]
         if distribution_type not in self.exposure_distributions.keys():
             # todo deal with incorrect typing
