@@ -14,6 +14,7 @@ from typing import Callable, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 import risk_distributions as rd
+from layered_config_tree import LayeredConfigTree
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
@@ -33,31 +34,34 @@ class RiskExposureDistribution(Component, ABC):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: EntityString, distribution_type: str) -> None:
+    def __init__(
+        self,
+        risk: EntityString,
+        distribution_type: str,
+        exposure_data: Optional[Union[int, float, pd.DataFrame]] = None,
+    ) -> None:
         super().__init__()
         self.risk = risk
         self.distribution_type = distribution_type
+        self._exposure_data = exposure_data
 
         self.parameters_pipeline_name = f"{self.risk}.exposure_parameters"
-
-    # noinspection PyAttributeOutsideInit
-    def setup_component(self, builder: "Builder") -> None:
-        self.configuration = builder.configuration[self.risk]
-        self.validate_distribution_data_source()
-        self.exposure_data = self.get_exposure_data(builder)
-        self.exposure_value_columns = self.get_exposure_value_columns(builder)
-
-        super().setup_component(builder)
 
     #################
     # Setup methods #
     #################
 
-    def get_exposure_data(self, builder: Builder) -> Union[int, float, pd.DataFrame]:
-        return self.get_data(builder, self.configuration["data_sources"]["exposure"])
+    def get_configuration(self, builder: "Builder") -> Optional[LayeredConfigTree]:
+        return builder.configuration[self.risk]
 
-    def get_exposure_value_columns(self, builder: Builder) -> Optional[List[str]]:
-        return builder.data.value_columns()(f"{self.risk}.exposure")
+    @abstractmethod
+    def build_all_lookup_tables(self, builder: "Builder") -> None:
+        raise NotImplementedError
+
+    def get_exposure_data(self, builder: Builder) -> Union[int, float, pd.DataFrame]:
+        if self._exposure_data is not None:
+            return self._exposure_data
+        return self.get_data(builder, self.configuration["data_sources"]["exposure"])
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -72,25 +76,6 @@ class RiskExposureDistribution(Component, ABC):
     @abstractmethod
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         raise NotImplementedError
-
-    ##############
-    # Validators #
-    ##############
-
-    def validate_distribution_data_source(self) -> None:
-        """Checks that the exposure distribution specification is valid."""
-        # todo some of these validations are distribution specific
-        if self.risk.type == "alternative_risk_factor":
-            if self.configuration["rebinned_exposed"]:
-                raise ValueError(
-                    "Parameterized risk components are not available for alternative risks."
-                )
-
-            if not self.configuration["category_thresholds"]:
-                raise ValueError("Must specify category thresholds to use alternative risks.")
-
-        elif self.risk.type not in ["risk_factor", "coverage_gap"]:
-            raise ValueError(f"Unknown risk type {self.risk.type} for risk {self.risk.name}")
 
     ##################
     # Public methods #
@@ -126,49 +111,38 @@ class EnsembleDistribution(RiskExposureDistribution):
         super().__init__(risk, distribution_type)
         self._propensity = f"ensemble_propensity_{self.risk}"
 
-    # noinspection PyAttributeOutsideInit
-    def setup_component(self, builder: "Builder") -> None:
-        self.configuration = builder.configuration[self.risk]
-        self.standard_deviation = self.get_exposure_standard_deviation_data(builder)
-        self.weights = self.get_exposure_distribution_weights(builder)
-        self._distributions = list(self.weights["parameter"].unique())
-        super().setup_component(builder)
-
     #################
     # Setup methods #
     #################
 
-    def get_exposure_standard_deviation_data(self, builder: Builder) -> pd.DataFrame:
-        return self.get_data(
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        exposure_data = self.get_exposure_data(builder)
+        standard_deviation = self.get_data(
             builder,
             self.configuration["data_sources"]["exposure_standard_deviation"],
         )
+        weights_source = self.configuration["data_sources"]["ensemble_distribution_weights"]
+        raw_weights = self.get_data(builder, weights_source)
 
-    def get_exposure_distribution_weights(self, builder: Builder) -> pd.DataFrame:
-        data_source = self.configuration["data_sources"]["ensemble_distribution_weights"]
-        value_columns = builder.data.value_columns()(data_source)
-        weights = self.get_data(builder, data_source)
-        glnorm_mask = weights["parameter"] == "glnorm"
-        if np.any(weights.loc[glnorm_mask, value_columns]):
+        glnorm_mask = raw_weights["parameter"] == "glnorm"
+        if np.any(raw_weights.loc[glnorm_mask, self.get_value_columns(weights_source)]):
             raise NotImplementedError("glnorm distribution is not supported")
+        raw_weights = raw_weights[~glnorm_mask]
 
-        return weights[~glnorm_mask]
-
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        value_columns_getter = builder.data.value_columns()
+        distributions = list(raw_weights["parameter"].unique())
 
         raw_weights = pivot_categorical(
-            builder, self.risk, self.weights, pivot_column="parameter", reset_index=False
+            builder, self.risk, raw_weights, pivot_column="parameter", reset_index=False
         )
 
         weights, parameters = rd.EnsembleDistribution.get_parameters(
             raw_weights,
-            mean=get_risk_distribution_parameter(value_columns_getter, self.exposure_data),
-            sd=get_risk_distribution_parameter(value_columns_getter, self.standard_deviation),
+            mean=get_risk_distribution_parameter(self.get_value_columns, exposure_data),
+            sd=get_risk_distribution_parameter(self.get_value_columns, standard_deviation),
         )
 
         distribution_weights_table = self.build_lookup_table(
-            builder, weights.reset_index(), self._distributions
+            builder, weights.reset_index(), distributions
         )
         self.lookup_tables["ensemble_distribution_weights"] = distribution_weights_table
         key_columns = distribution_weights_table.key_columns
@@ -249,26 +223,18 @@ class ContinuousDistribution(RiskExposureDistribution):
                 f"risk {risk.name}."
             )
 
-    # noinspection PyAttributeOutsideInit
-    def setup_component(self, builder: "Builder") -> None:
-        self.standard_deviation = self.get_exposure_standard_deviation_data(builder)
-        super().setup_component(builder)
-
     #################
     # Setup methods #
     #################
 
-    def get_exposure_standard_deviation_data(self, builder: Builder) -> pd.DataFrame:
-        return self.get_data(
-            builder,
-            builder.configuration[self.risk]["data_sources"]["exposure_standard_deviation"],
-        )
-
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        value_columns_getter = builder.data.value_columns()
+        exposure_data = self.get_exposure_data(builder)
+        standard_deviation = self.get_data(
+            builder, self.configuration["data_sources"]["exposure_standard_deviation"]
+        )
         parameters = self._distribution.get_parameters(
-            mean=get_risk_distribution_parameter(value_columns_getter, self.exposure_data),
-            sd=get_risk_distribution_parameter(value_columns_getter, self.standard_deviation),
+            mean=get_risk_distribution_parameter(self.get_value_columns, exposure_data),
+            sd=get_risk_distribution_parameter(self.get_value_columns, standard_deviation),
         )
 
         self.lookup_tables["parameters"] = self.build_lookup_table(
@@ -289,9 +255,8 @@ class ContinuousDistribution(RiskExposureDistribution):
     def ppf(self, quantiles: pd.Series) -> pd.Series:
         if not quantiles.empty:
             quantiles = clip(quantiles)
-            x = self._distribution(parameters=self.exposure_parameters(quantiles.index)).ppf(
-                quantiles
-            )
+            parameters = self.exposure_parameters(quantiles.index)
+            x = self._distribution(parameters=parameters).ppf(quantiles)
             x[x.isnull()] = 0
         else:
             x = pd.Series([])
@@ -307,20 +272,23 @@ class PolytomousDistribution(RiskExposureDistribution):
     # Setup methods #
     #################
 
-    def get_exposure_value_columns(self, builder: Builder) -> Optional[List[str]]:
-        if isinstance(self.exposure_data, pd.DataFrame):
-            return list(self.exposure_data["parameter"].unique())
-        return None
-
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        if isinstance(self.exposure_data, pd.DataFrame):
-            self.exposure_data = pivot_categorical(
-                builder, self.risk, self.exposure_data, "parameter"
-            )
+        exposure_data = self.get_exposure_data(builder)
+        exposure_value_columns = self.get_exposure_value_columns(exposure_data)
+
+        if isinstance(exposure_data, pd.DataFrame):
+            exposure_data = pivot_categorical(builder, self.risk, exposure_data, "parameter")
 
         self.lookup_tables["exposure"] = self.build_lookup_table(
-            builder, self.exposure_data, self.exposure_value_columns
+            builder, exposure_data, exposure_value_columns
         )
+
+    def get_exposure_value_columns(
+        self, exposure_data: Union[int, float, pd.DataFrame]
+    ) -> Optional[List[str]]:
+        if isinstance(exposure_data, pd.DataFrame):
+            return list(exposure_data["parameter"].unique())
+        return None
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
@@ -355,10 +323,22 @@ class DichotomousDistribution(RiskExposureDistribution):
     # Setup methods #
     #################
 
-    def get_exposure_value_columns(self, builder: Builder) -> Optional[List[str]]:
-        if isinstance(self.exposure_data, pd.DataFrame):
-            return builder.data.value_columns()(self.exposure_data)
-        return None
+    def build_all_lookup_tables(self, builder: "Builder") -> None:
+        exposure_data = self.get_exposure_data(builder)
+        exposure_value_columns = self.get_exposure_value_columns(exposure_data)
+
+        if isinstance(exposure_data, pd.DataFrame):
+            any_negatives = (exposure_data[exposure_value_columns] < 0).any().any()
+            any_over_one = (exposure_data[exposure_value_columns] > 1).any().any()
+            if any_negatives or any_over_one:
+                raise ValueError(f"All exposures must be in the range [0, 1] for {self.risk}")
+        elif exposure_data < 0 or exposure_data > 1:
+            raise ValueError(f"Exposure must be in the range [0, 1] for {self.risk}")
+
+        self.lookup_tables["exposure"] = self.build_lookup_table(
+            builder, exposure_data, exposure_value_columns
+        )
+        self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
 
     def get_exposure_data(self, builder: Builder) -> Union[int, float, pd.DataFrame]:
         exposure_data = super().get_exposure_data(builder)
@@ -390,19 +370,12 @@ class DichotomousDistribution(RiskExposureDistribution):
         )
         return exposure_data
 
-    def build_all_lookup_tables(self, builder: "Builder") -> None:
-        if isinstance(self.exposure_data, pd.DataFrame):
-            any_negatives = (self.exposure_data[self.exposure_value_columns] < 0).any().any()
-            any_over_one = (self.exposure_data[self.exposure_value_columns] > 1).any().any()
-            if any_negatives or any_over_one:
-                raise ValueError(f"All exposures must be in the range [0, 1] for {self.risk}")
-        elif self.exposure_data < 0 or self.exposure_data > 1:
-            raise ValueError(f"Exposure must be in the range [0, 1] for {self.risk}")
-
-        self.lookup_tables["exposure"] = self.build_lookup_table(
-            builder, self.exposure_data, self.exposure_value_columns
-        )
-        self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
+    def get_exposure_value_columns(
+        self, exposure_data: Union[int, float, pd.DataFrame]
+    ) -> Optional[List[str]]:
+        if isinstance(exposure_data, pd.DataFrame):
+            return self.get_value_columns(exposure_data)
+        return None
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
