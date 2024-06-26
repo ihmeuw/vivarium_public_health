@@ -12,9 +12,11 @@ py:class pandas.core.generic.PandasObject
 # layered-config-tree
 py:class layered_config_tree.main.LayeredConfigTree
 
-# TODO: Need to revisit this. Nitpicking here to avoid failing builds on 3.8 and 3.9 in LBWSGRisk
+# TODO: Need to revisit this. Nitpicking here to avoid failing builds on 3.9 in LBWSGRisk
 py:class PopulationView
 py:class Logger
+py:class pd.DataFrame
+py:class LayeredConfigTree
 # TODO: Need to revisit this. Nitpicking here to avoid failing everywhere
 py:class Builder
 py:class SimulantData
