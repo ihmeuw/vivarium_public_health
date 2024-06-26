@@ -54,7 +54,7 @@ class CategoricalRiskObserver(Observer):
         return {
             "stratification": {
                 f"{self.risk}": super().configuration_defaults["stratification"][
-                    "categorical_risk"
+                    self.get_configuration_name()
                 ]
             }
         }

@@ -51,7 +51,9 @@ class DiseaseObserver(Observer):
     def configuration_defaults(self) -> Dict[str, Any]:
         return {
             "stratification": {
-                self.disease: super().configuration_defaults["stratification"]["disease"]
+                self.disease: super().configuration_defaults["stratification"][
+                    self.get_configuration_name()
+                ]
             }
         }
 
@@ -146,7 +148,7 @@ class DiseaseObserver(Observer):
         )
 
     def map_transitions(self, df: pd.DataFrame) -> pd.Series:
-        transitions = pd.Series(index=df.index)
+        transitions = pd.Series(index=df.index, dtype=str)
         transition_mask = df[self.previous_state_column_name] != df[self.disease]
         transitions[~transition_mask] = "no_transition"
         transitions[transition_mask] = (

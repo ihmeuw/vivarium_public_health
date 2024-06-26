@@ -71,7 +71,7 @@ class MortalityObserver(Observer):
         this component.
         """
         config_defaults = super().configuration_defaults
-        config_defaults["stratification"]["mortality"]["aggregate"] = False
+        config_defaults["stratification"][self.get_configuration_name()]["aggregate"] = False
         return config_defaults
 
     @property
@@ -90,13 +90,17 @@ class MortalityObserver(Observer):
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.clock = builder.time.clock()
-        self.config = builder.configuration.stratification.mortality
+        self.config = builder.configuration.stratification[self.get_configuration_name()]
         self.causes_of_death = [
             cause
             for cause in builder.components.get_components_by_type(
                 tuple(self.mortality_classes)
             )
             if cause.has_excess_mortality
+        ]
+        self.causes_to_stratify = [cause.state_id for cause in self.causes_of_death] + [
+            "not_dead",
+            "other_causes",
         ]
 
     def register_observations(self, builder: Builder) -> None:
@@ -106,8 +110,7 @@ class MortalityObserver(Observer):
             additional_stratifications += ["cause_of_death"]
             builder.results.register_stratification(
                 "cause_of_death",
-                [cause.state_id for cause in self.causes_of_death]
-                + ["not_dead", "other_causes"],
+                self.causes_to_stratify,
                 requires_columns=["cause_of_death"],
             )
         builder.results.register_adding_observation(
