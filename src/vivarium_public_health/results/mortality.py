@@ -90,6 +90,7 @@ class MortalityObserver(Observer):
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.clock = builder.time.clock()
+        # TODO [MIC-5134]: Use self.get_configuration() (from vivarium.Component)
         self.config = builder.configuration.stratification[self.get_configuration_name()]
         self.causes_of_death = [
             cause
