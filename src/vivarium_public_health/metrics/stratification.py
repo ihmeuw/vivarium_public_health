@@ -30,13 +30,13 @@ class ResultsStratifier(Component):
     #################
 
     def register_stratifications(self, builder: Builder) -> None:
-        builder.results.register_stratification(
-            "age_group",
-            self.age_bins["age_group_name"].to_list(),
-            self.map_age_groups,
-            is_vectorized=True,
-            requires_columns=["age"],
-        )
+        # builder.results.register_stratification(
+        #     "age_group",
+        #     self.age_bins["age_group_name"].to_list(),
+        #     self.map_age_groups,
+        #     is_vectorized=True,
+        #     requires_columns=["age"],
+        # )
         builder.results.register_stratification(
             "current_year",
             [str(year) for year in range(self.start_year, self.end_year + 1)],
