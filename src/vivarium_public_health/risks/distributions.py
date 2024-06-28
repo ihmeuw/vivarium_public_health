@@ -266,7 +266,7 @@ class ContinuousDistribution(RiskExposureDistribution):
 class PolytomousDistribution(RiskExposureDistribution):
     @property
     def categories(self) -> List[str]:
-        return self.lookup_tables["exposure"].value_columns
+        return sorted(self.lookup_tables["exposure"].value_columns)
 
     #################
     # Setup methods #
