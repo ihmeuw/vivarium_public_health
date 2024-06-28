@@ -88,7 +88,7 @@ def rebin_relative_risk_data(
     if not risk in builder.configuration.to_dict():
         return relative_risk_data
 
-    rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])
+    rebin_exposed_categories = sorted(set(builder.configuration[risk]["rebinned_exposed"]))
 
     if rebin_exposed_categories:
         # todo make sure this works

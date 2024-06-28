@@ -201,7 +201,7 @@ class RiskEffect(Component):
             cat2["value"] = 1
             rr_data = pd.concat([cat1, cat2], ignore_index=True)
 
-        rr_value_cols = list(rr_data["parameter"].unique())
+        rr_value_cols = sorted(list(rr_data["parameter"].unique()))
         rr_data = pivot_categorical(builder, self.risk, rr_data, "parameter")
         return rr_data, rr_value_cols
 
@@ -220,7 +220,9 @@ class RiskEffect(Component):
         if not self.risk in builder.configuration.to_dict():
             return relative_risk_data
 
-        rebin_exposed_categories = set(builder.configuration[self.risk]["rebinned_exposed"])
+        rebin_exposed_categories = sorted(
+            set(builder.configuration[self.risk]["rebinned_exposed"])
+        )
 
         if rebin_exposed_categories:
             # todo make sure this works

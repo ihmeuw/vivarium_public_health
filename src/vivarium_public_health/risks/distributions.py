@@ -129,7 +129,7 @@ class EnsembleDistribution(RiskExposureDistribution):
             raise NotImplementedError("glnorm distribution is not supported")
         raw_weights = raw_weights[~glnorm_mask]
 
-        distributions = list(raw_weights["parameter"].unique())
+        distributions = sorted(list(raw_weights["parameter"].unique()))
 
         raw_weights = pivot_categorical(
             builder, self.risk, raw_weights, pivot_column="parameter", reset_index=False
@@ -287,7 +287,7 @@ class PolytomousDistribution(RiskExposureDistribution):
         self, exposure_data: Union[int, float, pd.DataFrame]
     ) -> Optional[List[str]]:
         if isinstance(exposure_data, pd.DataFrame):
-            return list(exposure_data["parameter"].unique())
+            return sorted(list(exposure_data["parameter"].unique()))
         return None
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
@@ -348,7 +348,7 @@ class DichotomousDistribution(RiskExposureDistribution):
 
         # rebin exposure categories
         self.validate_rebin_source(builder, exposure_data)
-        rebin_exposed_categories = set(self.configuration["rebinned_exposed"])
+        rebin_exposed_categories = sorted(set(self.configuration["rebinned_exposed"]))
         if rebin_exposed_categories:
             exposure_data = self._rebin_exposure_data(exposure_data, rebin_exposed_categories)
 
