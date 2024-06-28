@@ -206,12 +206,16 @@ class DiseaseModel(Machine):
     def get_state_weights(
         self, pop_index: pd.Index, prevalence_type: str
     ) -> Tuple[List[str], Union[np.ndarray, None]]:
-        states = sorted([state for state in self.states if state.lookup_tables.get(prevalence_type)])
+        states = sorted(
+            [state for state in self.states if state.lookup_tables.get(prevalence_type)]
+        )
 
         if not states:
             return states, None
 
-        weights = sorted([state.lookup_tables.get(prevalence_type)(pop_index) for state in states])
+        weights = sorted(
+            [state.lookup_tables.get(prevalence_type)(pop_index) for state in states]
+        )
         for w in weights:
             w.reset_index(inplace=True, drop=True)
         weights += ((1 - np.sum(weights, axis=0)),)

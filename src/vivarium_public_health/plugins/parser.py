@@ -433,16 +433,20 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     # Validation methods #
     ######################
 
-    _CAUSE_KEYS = {"model_type", "initial_state", "states", "transitions", "data_sources"}
-    _STATE_KEYS = {
-        "state_type",
-        "cause_type",
-        "transient",
-        "allow_self_transition",
-        "side_effect",
-        "data_sources",
-        "cleanup_function",
-    }
+    _CAUSE_KEYS = sorted(
+        {"model_type", "initial_state", "states", "transitions", "data_sources"}
+    )
+    _STATE_KEYS = sorted(
+        {
+            "state_type",
+            "cause_type",
+            "transient",
+            "allow_self_transition",
+            "side_effect",
+            "data_sources",
+            "cleanup_function",
+        }
+    )
 
     _DATA_SOURCE_KEYS = {
         "cause": {"cause_specific_mortality_rate"},
@@ -460,8 +464,10 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         },
         "proportion_transition": {"proportion"},
     }
-    _TRANSITION_KEYS = {"source", "sink", "transition_type", "triggered", "data_sources"}
-    _TRANSITION_TYPE_KEYS = {"rate", "proportion", "dwell_time"}
+    _TRANSITION_KEYS = sorted(
+        {"source", "sink", "transition_type", "triggered", "data_sources"}
+    )
+    _TRANSITION_TYPE_KEYS = sorted({"rate", "proportion", "dwell_time"})
 
     @staticmethod
     def _validate_external_configuration(external_configuration: LayeredConfigTree) -> None:
