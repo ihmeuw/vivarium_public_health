@@ -110,4 +110,4 @@ def get_lookup_columns(
     if "year" in necessary_columns:
         necessary_columns.remove("year")
 
-    return list(necessary_columns)
+    return sorted(list(necessary_columns))
