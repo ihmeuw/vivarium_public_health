@@ -204,8 +204,8 @@ class FertilityAgeSpecificRates(Component):
 
     def load_age_specific_fertility_rate_data(self, builder: Builder) -> pd.DataFrame:
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
-        columns = ["year_start", "year_end", "age_start", "age_end", "mean_value"]
-        asfr_data = asfr_data.loc[asfr_data.sex == "Female"][columns]
+        columns = ["year_start", "year_end", "age_start", "age_end", "value"]
+        asfr_data = asfr_data.loc[(asfr_data.sex == "Female") & (asfr_data.parameter == "mean_value")].reset_index()[columns]
         return asfr_data
 
     ########################
