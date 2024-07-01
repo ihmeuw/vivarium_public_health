@@ -8,17 +8,19 @@ exposure models and disease models.
 
 """
 
-from typing import Any, Callable, Dict, List, Tuple
+from importlib import import_module
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from layered_config_tree import ConfigurationError
 from vivarium import Component
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import (
-    get_population_attributable_fraction_data,
-    get_relative_risk_data,
+    load_exposure_data,
+    pivot_categorical,
 )
 from vivarium_public_health.utilities import (
     EntityString,
@@ -63,16 +65,23 @@ class RiskEffect(Component):
         """
         return {
             self.name: {
-                "distribution_args": {
-                    "relative_risk": None,
-                    "mean": None,
-                    "se": None,
-                    "log_mean": None,
-                    "log_se": None,
-                    "tau_squared": None,
+                "data_sources": {
+                    "relative_risk": f"{self.risk}.relative_risk",
+                    "population_attributable_fraction": f"{self.risk}.population_attributable_fraction",
+                },
+                "data_source_parameters": {
+                    "relative_risk": {},
                 },
             }
         }
+
+    @property
+    def is_exposure_categorical(self) -> bool:
+        return self._exposure_distribution_type in [
+            "dichotomous",
+            "ordered_polytomous",
+            "unordered_polytomous",
+        ]
 
     #####################
     # Lifecycle methods #
@@ -116,73 +125,140 @@ class RiskEffect(Component):
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         self._exposure_distribution_type = self.get_distribution_type(builder)
-        relative_risk_data, rr_value_cols = self.get_relative_risk_source(builder)
+
+        rr_data = self.get_relative_risk_data(builder)
+        rr_value_cols = None
+        if self.is_exposure_categorical:
+            rr_data, rr_value_cols = self.process_categorical_data(builder, rr_data)
         self.lookup_tables["relative_risk"] = self.build_lookup_table(
-            builder, relative_risk_data, rr_value_cols
+            builder, rr_data, rr_value_cols
         )
-        paf_data, paf_value_cols = self.get_population_attributable_fraction_source(builder)
+
+        paf_data = self.get_filtered_data(
+            builder, self.configuration.data_sources.population_attributable_fraction
+        )
         self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-            builder, paf_data, paf_value_cols
+            builder, paf_data
         )
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
-        risk_exposure_component = builder.components.get_component(self.risk)
-        if not isinstance(risk_exposure_component, Risk):
-            raise ValueError(
-                f"Risk effect model {self.name} requires a Risk component named {self.risk}"
-            )
+        risk_exposure_component = self._get_risk_exposure_class(builder)
         if risk_exposure_component.distribution_type:
             return risk_exposure_component.distribution_type
         return risk_exposure_component.get_distribution_type(builder)
 
+    def get_relative_risk_data(
+        self,
+        builder: Builder,
+        configuration=None,
+    ) -> Union[str, float, pd.DataFrame]:
+        if configuration is None:
+            configuration = self.configuration
+
+        rr_source = configuration.data_sources.relative_risk
+        rr_dist_parameters = configuration.data_source_parameters.relative_risk.to_dict()
+
+        try:
+            distribution = getattr(import_module("scipy.stats"), rr_source)
+            rng = np.random.default_rng(builder.randomness.get_seed(self.name))
+            rr_data = distribution(**rr_dist_parameters).ppf(rng.random())
+        except AttributeError:
+            rr_data = self.get_filtered_data(builder, rr_source)
+        except TypeError:
+            raise ConfigurationError(
+                f"Parameters {rr_dist_parameters} are not valid for distribution {rr_source}."
+            )
+        return rr_data
+
+    def get_filtered_data(
+        self, builder: "Builder", data_source: Union[str, float, pd.DataFrame]
+    ) -> Union[float, pd.DataFrame]:
+        data = super().get_data(builder, data_source)
+
+        if isinstance(data, pd.DataFrame):
+            # filter data to only include the target entity and measure
+            correct_target_mask = True
+            columns_to_drop = []
+            if "affected_entity" in data.columns:
+                correct_target_mask &= data["affected_entity"] == self.target.name
+                columns_to_drop.append("affected_entity")
+            if "affected_measure" in data.columns:
+                correct_target_mask &= data["affected_measure"] == self.target.measure
+                columns_to_drop.append("affected_measure")
+            data = data[correct_target_mask].drop(columns=columns_to_drop)
+        return data
+
+    def process_categorical_data(
+        self, builder: Builder, rr_data: Union[str, float, pd.DataFrame]
+    ) -> Tuple[Union[str, float, pd.DataFrame], List[str]]:
+        if not isinstance(rr_data, pd.DataFrame):
+            cat1 = builder.data.load("population.demographic_dimensions")
+            cat1["parameter"] = "cat1"
+            cat1["value"] = rr_data
+            cat2 = cat1.copy()
+            cat2["parameter"] = "cat2"
+            cat2["value"] = 1
+            rr_data = pd.concat([cat1, cat2], ignore_index=True)
+
+        rr_value_cols = list(rr_data["parameter"].unique())
+        rr_data = pivot_categorical(builder, self.risk, rr_data, "parameter")
+        return rr_data, rr_value_cols
+
+    # todo currently this isn't being called. we need to properly set rrs if
+    #  the exposure has been rebinned
+    def rebin_relative_risk_data(
+        self, builder, relative_risk_data: pd.DataFrame
+    ) -> pd.DataFrame:
+        """When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
+        After rebinning, rr for both exposed and unexposed categories should be the weighted sum of relative risk
+        of the component categories where weights are relative proportions of exposure of those categories.
+        For example, if cat1, cat2, cat3 are exposed categories and cat4 is unexposed with exposure [0.1,0.2,0.3,0.4],
+        for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
+        (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
+        """
+        if not self.risk in builder.configuration.to_dict():
+            return relative_risk_data
+
+        rebin_exposed_categories = set(builder.configuration[self.risk]["rebinned_exposed"])
+
+        if rebin_exposed_categories:
+            # todo make sure this works
+            exposure_data = load_exposure_data(builder, self.risk)
+            relative_risk_data = self._rebin_relative_risk_data(
+                relative_risk_data, exposure_data, rebin_exposed_categories
+            )
+
+        return relative_risk_data
+
+    def _rebin_relative_risk_data(
+        self,
+        relative_risk_data: pd.DataFrame,
+        exposure_data: pd.DataFrame,
+        rebin_exposed_categories: set,
+    ) -> pd.DataFrame:
+        cols = list(exposure_data.columns.difference(["value"]))
+
+        relative_risk_data = relative_risk_data.merge(exposure_data, on=cols)
+        relative_risk_data["value_x"] = relative_risk_data.value_x.multiply(
+            relative_risk_data.value_y
+        )
+        relative_risk_data.parameter = relative_risk_data["parameter"].map(
+            lambda p: "cat1" if p in rebin_exposed_categories else "cat2"
+        )
+        relative_risk_data = relative_risk_data.groupby(cols).sum().reset_index()
+        relative_risk_data["value"] = relative_risk_data.value_x.divide(
+            relative_risk_data.value_y
+        ).fillna(0)
+        return relative_risk_data.drop(columns=["value_x", "value_y"])
+
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         return builder.value.get_value(self.exposure_pipeline_name)
-
-    def get_relative_risk_source(self, builder: Builder) -> Tuple[pd.DataFrame, List[str]]:
-        """
-        Get the relative risk source for this risk effect model.
-
-        Parameters
-        ----------
-        builder
-            Interface to access simulation managers.
-
-        Returns
-        -------
-        LookupTable
-            A lookup table containing the relative risk data for this risk
-            effect model.
-        """
-        return get_relative_risk_data(
-            builder, self.risk, self.target, self._exposure_distribution_type
-        )
-
-    def get_population_attributable_fraction_source(
-        self, builder: Builder
-    ) -> Tuple[pd.DataFrame, List[str]]:
-        """
-        Get the population attributable fraction source for this risk effect model.
-
-        Parameters
-        ----------
-        builder
-            Interface to access simulation managers.
-
-        Returns
-        -------
-        LookupTable
-            A lookup table containing the population attributable fraction data
-            for this risk effect model.
-        """
-        return get_population_attributable_fraction_data(
-            builder, self.risk, self.target, self._exposure_distribution_type
-        )
 
     def get_target_modifier(
         self, builder: Builder
     ) -> Callable[[pd.Index, pd.Series], pd.Series]:
-        if self._exposure_distribution_type in ["normal", "lognormal", "ensemble"]:
+        if not self.is_exposure_categorical:
             tmred = builder.data.load(f"{self.risk}.tmred")
             tmrel = 0.5 * (tmred["min"] + tmred["max"])
             scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
@@ -228,3 +304,15 @@ class RiskEffect(Component):
             modifier=self.lookup_tables["population_attributable_fraction"],
             requires_columns=required_columns,
         )
+
+    ##################
+    # Helper methods #
+    ##################
+
+    def _get_risk_exposure_class(self, builder: Builder) -> Risk:
+        risk_exposure_component = builder.components.get_component(self.risk)
+        if not isinstance(risk_exposure_component, Risk):
+            raise ValueError(
+                f"Risk effect model {self.name} requires a Risk component named {self.risk}"
+            )
+        return risk_exposure_component
