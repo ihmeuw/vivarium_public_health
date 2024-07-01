@@ -1,15 +1,8 @@
 import pandas as pd
 import pytest
-from vivarium.interface.interactive import InteractiveContext
 
-from vivarium_public_health.risks.base_risk import Risk
-from vivarium_public_health.risks.data_transformations import (
-    _rebin_relative_risk_data,
-    get_relative_risk_data,
-)
+from vivarium_public_health.risks.data_transformations import _rebin_relative_risk_data
 from vivarium_public_health.risks.distributions import DichotomousDistribution
-from vivarium_public_health.risks.effect import RiskEffect
-from vivarium_public_health.utilities import TargetString
 
 
 @pytest.mark.parametrize(
@@ -72,37 +65,3 @@ def test__rebin_relative_risk(rebin_categories, rebinned_values):
     assert rebinned_df.shape == (8, 4)
     assert (rebinned_df[rebinned_df.parameter == "cat1"].value == rebinned_values[0]).all()
     assert (rebinned_df[rebinned_df.parameter == "cat2"].value == rebinned_values[1]).all()
-
-
-def test__subset_relative_risk_to_empty_dataframe(base_config, base_plugins):
-    target = TargetString("cause.test_cause.missing_measure")
-    risk = Risk("risk_factor.risk_factor")
-    risk_effect = RiskEffect("risk_factor.risk_factor", "cause.test_cause.missing_measure")
-
-    sim = InteractiveContext(
-        model_specification=None,
-        components=[risk, risk_effect],
-        configuration=base_config,
-        plugin_configuration=base_plugins,
-        setup=False,
-    )
-    sim.configuration.update(
-        {
-            f"effect_of_{risk.name}_on_{target.name}": {
-                f"{target.measure}": {
-                    "relative_risk": None,
-                    "mean": None,
-                    "se": None,
-                    "log_mean": None,
-                    "log_se": None,
-                    "tau_squared": None,
-                },
-            },
-        }
-    )
-
-    error_msg = f"Subsetting {risk_effect.risk} relative risk data to {target.name} {target.measure} returned an empty DataFrame. Check your artifact"
-    with pytest.raises(ValueError, match=error_msg):
-        get_relative_risk_data(
-            sim._builder, risk_effect.risk, target, risk_effect._exposure_distribution_type
-        )

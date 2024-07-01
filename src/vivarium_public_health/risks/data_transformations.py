@@ -8,11 +8,8 @@ risk data and performing any necessary data transformations.
 
 """
 
-from typing import List, Optional, Tuple, Union
-
 import numpy as np
 import pandas as pd
-from loguru import logger
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.utilities import EntityString, TargetString
@@ -20,10 +17,6 @@ from vivarium_public_health.utilities import EntityString, TargetString
 #############
 # Utilities #
 #############
-
-
-def is_data_from_artifact(data_source: str) -> bool:
-    return isinstance(data_source, str) and "::" not in data_source
 
 
 def pivot_categorical(
@@ -45,24 +38,6 @@ def pivot_categorical(
     data.columns.name = None
 
     return data
-
-
-def pivot_categorical_for_rrs(
-    builder: Builder, risk: EntityString, data: pd.DataFrame, pivot_column: str = "parameter"
-) -> Tuple[pd.DataFrame, List[str]]:
-    """Pivots data that is long on categories to be wide."""
-    # todo remove this method when RR code has been refactored
-    value_column = builder.data.value_columns()(f"{risk}.exposure")[0]
-    index_cols = [
-        column for column in data.columns if column not in [value_column, pivot_column]
-    ]
-    data = data.pivot_table(
-        index=index_cols, columns=pivot_column, values=value_column
-    ).reset_index()
-    data.columns.name = None
-
-    value_columns = [column for column in data.columns if column not in index_cols]
-    return data, value_columns
 
 
 ##########################
@@ -88,28 +63,6 @@ def get_exposure_post_processor(builder, risk: str):
     return post_processor
 
 
-def get_exposure_data(
-    builder, risk: EntityString, distribution_type: str
-) -> Tuple[Union[int, float, pd.DataFrame], Optional[List[str]]]:
-    exposure_data = load_exposure_data(builder, risk)
-    exposure_data = rebin_exposure_data(builder, risk, exposure_data)
-
-    if isinstance(exposure_data, (int, float)):
-        return exposure_data, None
-
-    if distribution_type in [
-        "dichotomous",
-        "ordered_polytomous",
-        "unordered_polytomous",
-        "lbwsg",
-    ]:
-        exposure_data, value_columns = pivot_categorical_for_rrs(builder, risk, exposure_data)
-    else:
-        value_columns = builder.data.value_columns()(f"{risk}.exposure")
-
-    return exposure_data, value_columns
-
-
 def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
     risk_component = builder.components.get_component(risk)
     return risk_component.get_data(
@@ -117,148 +70,9 @@ def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
     )
 
 
-def rebin_exposure_data(builder, risk: EntityString, exposure_data: pd.DataFrame):
-    validate_rebin_source(builder, risk, exposure_data)
-    rebin_exposed_categories = set(builder.configuration[risk]["rebinned_exposed"])
-
-    if rebin_exposed_categories:
-        exposure_data = _rebin_exposure_data(exposure_data, rebin_exposed_categories)
-
-    return exposure_data
-
-
-def _rebin_exposure_data(
-    exposure_data: pd.DataFrame, rebin_exposed_categories: set
-) -> pd.DataFrame:
-    exposure_data["parameter"] = exposure_data["parameter"].map(
-        lambda p: "cat1" if p in rebin_exposed_categories else "cat2"
-    )
-    return (
-        exposure_data.groupby(list(exposure_data.columns.difference(["value"])))
-        .sum()
-        .reset_index()
-    )
-
-
 ###############################
 # Relative risk data handlers #
 ###############################
-
-
-def get_relative_risk_data(
-    builder,
-    risk: EntityString,
-    target: TargetString,
-    distribution_type: str,
-) -> Tuple[pd.DataFrame, List[str]]:
-    source_type = validate_relative_risk_data_source(builder, risk, target)
-    relative_risk_data = load_relative_risk_data(builder, risk, target, source_type)
-    validate_relative_risk_rebin_source(builder, risk, target, relative_risk_data)
-    relative_risk_data = rebin_relative_risk_data(builder, risk, relative_risk_data)
-
-    if distribution_type in [
-        "dichotomous",
-        "ordered_polytomous",
-        "unordered_polytomous",
-    ]:
-        relative_risk_data, value_cols = pivot_categorical_for_rrs(
-            builder, risk, relative_risk_data
-        )
-        # Check if any values for relative risk are below expected boundary of 1.0
-        category_columns = [c for c in relative_risk_data.columns if "cat" in c]
-        if not relative_risk_data[
-            (relative_risk_data[category_columns] < 1.0).any(axis=1)
-        ].empty:
-            logger.warning(
-                f"WARNING: Some data values are below the expected boundary of 1.0 for {risk}.relative_risk"
-            )
-
-    else:
-        relative_risk_data = relative_risk_data.drop(columns=["parameter"])
-        value_cols = ["value"]
-
-    return relative_risk_data, value_cols
-
-
-def load_relative_risk_data(
-    builder: Builder, risk: EntityString, target: TargetString, source_type: str
-) -> pd.DataFrame:
-    from vivarium_public_health.risks import RiskEffect
-
-    source_key = RiskEffect.get_name(risk, target)
-    relative_risk_source = builder.configuration[source_key]["distribution_args"][
-        "relative_risk"
-    ]
-
-    if source_type == "data":
-        relative_risk_data = builder.data.load(f"{risk}.relative_risk")
-        correct_target = (relative_risk_data["affected_entity"] == target.name) & (
-            relative_risk_data["affected_measure"] == target.measure
-        )
-        relative_risk_data = relative_risk_data[correct_target].drop(
-            columns=["affected_entity", "affected_measure"]
-        )
-
-    elif source_type == "relative risk value":
-        relative_risk_data = _make_relative_risk_data(
-            builder, float(relative_risk_source["relative_risk"])
-        )
-
-    else:  # distribution
-        parameters = {
-            k: v for k, v in relative_risk_source.to_dict().items() if v is not None
-        }
-        random_state = np.random.RandomState(
-            builder.randomness.get_seed(
-                f"effect_of_{risk.name}_on_{target.name}.{target.measure}"
-            )
-        )
-        cat1_value = generate_relative_risk_from_distribution(random_state, parameters)
-        relative_risk_data = _make_relative_risk_data(builder, cat1_value)
-
-    return relative_risk_data
-
-
-def generate_relative_risk_from_distribution(
-    random_state: np.random.RandomState, parameters: dict
-) -> Union[float, pd.Series, np.ndarray]:
-    first = pd.Series(list(parameters.values())[0])
-    length = len(first)
-    index = first.index
-
-    for v in parameters.values():
-        if length != len(pd.Series(v)) or not index.equals(pd.Series(v).index):
-            raise ValueError(
-                "If specifying vectorized parameters, all parameters "
-                "must be the same length and have the same index."
-            )
-
-    if "mean" in parameters:  # normal distribution
-        rr_value = random_state.normal(parameters["mean"], parameters["se"])
-    elif "log_mean" in parameters:  # log distribution
-        log_value = parameters["log_mean"] + parameters["log_se"] * random_state.randn()
-        if parameters["tau_squared"]:
-            log_value += random_state.normal(0, parameters["tau_squared"])
-        rr_value = np.exp(log_value)
-    else:
-        raise NotImplementedError(
-            f"Only normal distributions (supplying mean and se) and log distributions "
-            f"(supplying log_mean, log_se, and tau_squared) are currently supported."
-        )
-
-    rr_value = np.maximum(1, rr_value)
-
-    return rr_value
-
-
-def _make_relative_risk_data(builder, cat1_value: float) -> pd.DataFrame:
-    cat1 = builder.data.load("population.demographic_dimensions")
-    cat1["parameter"] = "cat1"
-    cat1["value"] = cat1_value
-    cat2 = cat1.copy()
-    cat2["parameter"] = "cat2"
-    cat2["value"] = 1
-    return pd.concat([cat1, cat2], ignore_index=True)
 
 
 def rebin_relative_risk_data(
@@ -305,47 +119,6 @@ def _rebin_relative_risk_data(
         relative_risk_data.value_y
     ).fillna(0)
     return relative_risk_data.drop(columns=["value_x", "value_y"])
-
-
-##################################################
-# Population attributable fraction data handlers #
-##################################################
-
-
-def get_population_attributable_fraction_data(
-    builder: Builder, risk: EntityString, target: TargetString, distribution_type: str
-) -> Tuple[pd.DataFrame, List[str]]:
-    paf_data = builder.data.load(f"{risk}.population_attributable_fraction")
-    if isinstance(paf_data, pd.DataFrame):
-        correct_target = (paf_data["affected_entity"] == target.name) & (
-            paf_data["affected_measure"] == target.measure
-        )
-        paf_data = paf_data[correct_target].drop(
-            columns=["affected_entity", "affected_measure"]
-        )
-    else:
-        exposure_data, exposure_value_cols = get_exposure_data(
-            builder, risk, distribution_type
-        )
-        relative_risk_data, rr_value_cols = get_relative_risk_data(
-            builder, risk, target, distribution_type
-        )
-        if set(exposure_value_cols) != set(rr_value_cols):
-            error_msg = "Exposure and relative risk value columns must match. "
-            missing_rr_cols = set(exposure_value_cols).difference(set(rr_value_cols))
-            if missing_rr_cols:
-                error_msg = error_msg + f"Missing relative risk columns: {missing_rr_cols}. "
-            missing_exposure_cols = set(rr_value_cols).difference(set(exposure_value_cols))
-            if missing_exposure_cols:
-                error_msg = error_msg + f"Missing exposure columns: {missing_exposure_cols}. "
-            raise ValueError(error_msg)
-        # Build up dataframe for paf
-        index_cols = [col for col in paf_data.columns if col not in exposure_value_cols]
-        exposure_data = exposure_data.set_index(index_cols)
-        relative_risk_data = relative_risk_data.set_index(index_cols)
-        mean_rr = (exposure_data * relative_risk_data).sum(axis=1)
-        paf_data = ((mean_rr - 1) / mean_rr).reset_index().rename(columns={0: "value"})
-    return paf_data, ["value"]
 
 
 ##############
