@@ -266,6 +266,8 @@ class ContinuousDistribution(RiskExposureDistribution):
 class PolytomousDistribution(RiskExposureDistribution):
     @property
     def categories(self) -> List[str]:
+        # These need to be sorted so the cumulative sum is in the ocrrect order of categories
+        # and results are therefore reproducible and correct
         return sorted(self.lookup_tables["exposure"].value_columns)
 
     #################
