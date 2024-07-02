@@ -135,21 +135,18 @@ class DisabilityObserver(PublicHealthObserver):
         results.index.set_names(idx_names, inplace=True)
         return results.reset_index()
 
-    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
-        values = pd.Series("cause", index=results.index)
-        for cause in self.causes_of_disease:
-            values[
-                results[results[COLUMNS.SUB_ENTITY] == cause.state_id].index
-            ] = cause.cause_type
-        return values
+    def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        entity_type_map = {
+            cause.state_id: cause.cause_type for cause in self.causes_of_disease
+        }
+        entity_type_map["all_causes"] = "cause"
+        return results[COLUMNS.SUB_ENTITY].map(entity_type_map)
 
-    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
-        values = pd.Series("", index=results.index)
-        for cause in self.causes_of_disease:
-            values[results[results[COLUMNS.SUB_ENTITY] == cause.state_id].index] = cause.model
-        values[results[results[COLUMNS.SUB_ENTITY] == "all_causes"].index] = "all_causes"
-        return values
+    def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        entity_map = {cause.state_id: cause.model for cause in self.causes_of_disease}
+        entity_map["all_causes"] = "all_causes"
+        return results[COLUMNS.SUB_ENTITY].map(entity_map)
 
-    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The sub-entity col was created in the 'format' method
         return results[COLUMNS.SUB_ENTITY]

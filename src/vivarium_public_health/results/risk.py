@@ -122,15 +122,15 @@ class CategoricalRiskObserver(PublicHealthObserver):
         results.rename(columns={self.risk: COLUMNS.SUB_ENTITY}, inplace=True)
         return results
 
-    def get_measure_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_measure_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series("person_time", index=results.index)
 
-    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series("rei", index=results.index)
 
-    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(self.risk, index=results.index)
 
-    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The sub-entity col was created in the 'format' method
         return results[COLUMNS.SUB_ENTITY]

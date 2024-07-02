@@ -177,34 +177,24 @@ class DiseaseObserver(PublicHealthObserver):
         if "transition_count_" in measure:
             results = results[results[self.transition_stratification_name] != "no_transition"]
             sub_entity = self.transition_stratification_name
-        elif "person_time_" in measure:
+        if "person_time_" in measure:
             sub_entity = self.disease
-        else:
-            raise NotImplementedError(
-                "expected measure 'transition_count_xxx' or 'person_time_xxx' but "
-                f"received '{measure}'"
-            )
         results.rename(columns={sub_entity: COLUMNS.SUB_ENTITY}, inplace=True)
         return results
 
-    def get_measure_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_measure_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         if "transition_count_" in measure:
             measure_name = "transition_count"
-        elif "person_time_" in measure:
+        if "person_time_" in measure:
             measure_name = "person_time"
-        else:
-            raise NotImplementedError(
-                "expected measure 'transition_count_xxx' or 'person_time_xxx' but "
-                f"received '{measure}'"
-            )
         return pd.Series(measure_name, index=results.index)
 
-    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(self.entity_type, index=results.index)
 
-    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(self.entity, index=results.index)
 
-    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The sub-entity col was created in the 'format' method
         return results[COLUMNS.SUB_ENTITY]

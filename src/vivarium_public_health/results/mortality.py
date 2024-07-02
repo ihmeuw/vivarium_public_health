@@ -157,22 +157,14 @@ class MortalityObserver(PublicHealthObserver):
             results.rename(columns={"cause_of_death": COLUMNS.ENTITY}, inplace=True)
         return results[results[COLUMNS.ENTITY] != "not_dead"]
 
-    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
-        values = pd.Series("cause", index=results.index)
-        for cause in self.causes_of_death:
-            values[
-                results[results[COLUMNS.ENTITY] == cause.state_id].index
-            ] = cause.cause_type
-        return values
+    def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        entity_type_map = {cause.state_id: cause.cause_type for cause in self.causes_of_death}
+        entity_type_map["other_causes"] = "cause"
+        return results[COLUMNS.ENTITY].map(entity_type_map)
 
-    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The entity col was created in the 'format' method
         return results[COLUMNS.ENTITY]
 
-    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
-        values = pd.Series("", index=results.index)
-        values[results[results[COLUMNS.ENTITY] == "other_causes"].index] = "other_causes"
-        values[results[results[COLUMNS.ENTITY] == "all_causes"].index] = "all_causes"
-        for cause in self.causes_of_death:
-            values[results[COLUMNS.ENTITY] == cause.state_id] = cause.state_id
-        return values
+    def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        return results[COLUMNS.ENTITY]

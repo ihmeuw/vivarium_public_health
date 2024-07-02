@@ -45,24 +45,34 @@ class PublicHealthObserver(Observer):
         """
 
         results = self.format(measure, results)
-        results[COLUMNS.MEASURE] = self.get_measure_col(measure, results)
-        results[COLUMNS.ENTITY_TYPE] = self.get_entity_type_col(measure, results)
-        results[COLUMNS.ENTITY] = self.get_entity_col(measure, results)
-        results[COLUMNS.SUB_ENTITY] = self.get_sub_entity_col(measure, results)
+        results[COLUMNS.MEASURE] = self.get_measure_column(measure, results)
+        results[COLUMNS.ENTITY_TYPE] = self.get_entity_type_column(measure, results)
+        results[COLUMNS.ENTITY] = self.get_entity_column(measure, results)
+        results[COLUMNS.SUB_ENTITY] = self.get_sub_entity_column(measure, results)
 
-        return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]
+        ordered_columns = [
+            COLUMNS.MEASURE,
+            COLUMNS.ENTITY_TYPE,
+            COLUMNS.ENTITY,
+            COLUMNS.SUB_ENTITY,
+        ]
+        ordered_columns += [
+            c for c in results.columns if c not in ordered_columns + [COLUMNS.VALUE]
+        ]
+        ordered_columns += [COLUMNS.VALUE]
+        return results[ordered_columns]
 
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         return results
 
-    def get_measure_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_measure_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(measure, index=results.index)
 
-    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(None, index=results.index)
 
-    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(None, index=results.index)
 
-    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
+    def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(None, index=results.index)
