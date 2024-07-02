@@ -8,8 +8,6 @@ excess mortality in the simulation, including "other causes".
 
 """
 
-from __future__ import annotations
-
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -159,7 +157,7 @@ class MortalityObserver(PublicHealthObserver):
             results.rename(columns={"cause_of_death": COLUMNS.ENTITY}, inplace=True)
         return results[results[COLUMNS.ENTITY] != "not_dead"]
 
-    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         values = pd.Series("cause", index=results.index)
         for cause in self.causes_of_death:
             values[
@@ -167,11 +165,11 @@ class MortalityObserver(PublicHealthObserver):
             ] = cause.cause_type
         return values
 
-    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The entity col was created in the 'format' method
         return results[COLUMNS.ENTITY]
 
-    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         values = pd.Series("", index=results.index)
         values[results[results[COLUMNS.ENTITY] == "other_causes"].index] = "other_causes"
         values[results[results[COLUMNS.ENTITY] == "all_causes"].index] = "all_causes"

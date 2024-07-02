@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Callable, List, Optional, Union
 
 import pandas as pd
@@ -26,7 +24,7 @@ class PublicHealthObserver(Observer):
         additional_stratifications: List[str] = [],
         excluded_stratifications: List[str] = [],
         aggregator_sources: Optional[List[str]] = None,
-        aggregator: Callable[[pd.DataFrame], Union[float, pd.Series[float]]] = len,
+        aggregator: Callable[[pd.DataFrame], Union[float, pd.Series]] = len,
     ):
         builder.results.register_adding_observation(
             name=name,
@@ -57,14 +55,14 @@ class PublicHealthObserver(Observer):
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         return results
 
-    def get_measure_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_measure_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(measure, index=results.index)
 
-    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(None, index=results.index)
 
-    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(None, index=results.index)
 
-    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(None, index=results.index)

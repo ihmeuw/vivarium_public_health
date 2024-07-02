@@ -8,8 +8,6 @@ in the simulation.
 
 """
 
-from __future__ import annotations
-
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -189,7 +187,7 @@ class DiseaseObserver(PublicHealthObserver):
         results.rename(columns={sub_entity: COLUMNS.SUB_ENTITY}, inplace=True)
         return results
 
-    def get_measure_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_measure_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         if "transition_count_" in measure:
             measure_name = "transition_count"
         elif "person_time_" in measure:
@@ -201,12 +199,12 @@ class DiseaseObserver(PublicHealthObserver):
             )
         return pd.Series(measure_name, index=results.index)
 
-    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(self.entity_type, index=results.index)
 
-    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         return pd.Series(self.entity, index=results.index)
 
-    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The sub-entity col was created in the 'format' method
         return results[COLUMNS.SUB_ENTITY]

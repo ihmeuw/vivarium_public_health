@@ -8,8 +8,6 @@ in the simulation.
 
 """
 
-from __future__ import annotations
-
 from typing import Any, List, Union
 
 import pandas as pd
@@ -137,7 +135,7 @@ class DisabilityObserver(PublicHealthObserver):
         results.index.set_names(idx_names, inplace=True)
         return results.reset_index()
 
-    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         values = pd.Series("cause", index=results.index)
         for cause in self.causes_of_disease:
             values[
@@ -145,13 +143,13 @@ class DisabilityObserver(PublicHealthObserver):
             ] = cause.cause_type
         return values
 
-    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         values = pd.Series("", index=results.index)
         for cause in self.causes_of_disease:
             values[results[results[COLUMNS.SUB_ENTITY] == cause.state_id].index] = cause.model
         values[results[results[COLUMNS.SUB_ENTITY] == "all_causes"].index] = "all_causes"
         return values
 
-    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The sub-entity col was created in the 'format' method
         return results[COLUMNS.SUB_ENTITY]
