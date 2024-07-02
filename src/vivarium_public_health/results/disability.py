@@ -12,15 +12,15 @@ from typing import Any, List, Union
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results import Observer
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.observer import PublicHealthObserver
 from vivarium_public_health.utilities import to_years
 
 
-class DisabilityObserver(Observer):
+class DisabilityObserver(PublicHealthObserver):
     """Counts years lived with disability.
 
     By default, this counts both aggregate and cause-specific years lived
@@ -76,13 +76,13 @@ class DisabilityObserver(Observer):
         cause_pipelines = [self.disability_weight_pipeline_name] + [
             f"{cause.state_id}.disability_weight" for cause in self.causes_of_disease
         ]
-        builder.results.register_adding_observation(
+        self.register_adding_observation(
+            builder=builder,
             name="ylds",
             pop_filter='tracked == True and alive == "alive"',
             when="time_step__prepare",
             requires_columns=["alive"],
             requires_values=cause_pipelines,
-            results_formatter=self.formatter,
             additional_stratifications=self.config.include,
             excluded_stratifications=self.config.exclude,
             aggregator_sources=cause_pipelines,
@@ -107,15 +107,11 @@ class DisabilityObserver(Observer):
             aggregated_dw.index.name = "cause_of_disability"
         return aggregated_dw
 
-    ##################
-    # Report methods #
-    ##################
+    ##############################
+    # Results formatting methods #
+    ##############################
 
-    def formatter(
-        self,
-        measure: str,
-        results: pd.DataFrame,
-    ) -> pd.DataFrame:
+    def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         """Format results. Note that ylds are unique in that we
         can't stratify by cause of disability (because there can be multiple at
         once), and so the results here are actually wide by disability weight
@@ -132,22 +128,25 @@ class DisabilityObserver(Observer):
                 },
             )
         )
-
-        # Stack the causes of disability
+        # Get desired index names prior to stacking
         idx_names = list(results.index.names) + [COLUMNS.SUB_ENTITY]
         results = pd.DataFrame(results.stack(), columns=[COLUMNS.VALUE])
         # Name the new index level
         results.index.set_names(idx_names, inplace=True)
-        results = results.reset_index()
+        return results.reset_index()
 
-        results[COLUMNS.MEASURE] = measure
-        results[COLUMNS.ENTITY_TYPE] = "cause"
-        results.loc[
-            results[COLUMNS.SUB_ENTITY] == "all_causes", COLUMNS.ENTITY
-        ] = "all_causes"
-        for cause in self.causes_of_disease:
-            cause_mask = results[COLUMNS.SUB_ENTITY] == cause.state_id
-            results.loc[cause_mask, COLUMNS.ENTITY] = cause.model
-            results.loc[cause_mask, COLUMNS.ENTITY_TYPE] = cause.cause_type
+    def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        entity_type_map = {
+            cause.state_id: cause.cause_type for cause in self.causes_of_disease
+        }
+        entity_type_map["all_causes"] = "cause"
+        return results[COLUMNS.SUB_ENTITY].map(entity_type_map)
 
-        return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]
+    def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        entity_map = {cause.state_id: cause.model for cause in self.causes_of_disease}
+        entity_map["all_causes"] = "all_causes"
+        return results[COLUMNS.SUB_ENTITY].map(entity_map)
+
+    def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        # The sub-entity col was created in the 'format' method
+        return results[COLUMNS.SUB_ENTITY]
