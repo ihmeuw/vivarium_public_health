@@ -8,20 +8,19 @@ in the simulation.
 
 """
 
-from functools import partial
 from typing import Any, Dict, List
 
 import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.results import Observer
 
 from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.observer import PublicHealthObserver
 from vivarium_public_health.utilities import to_years
 
 
-class DiseaseObserver(Observer):
+class DiseaseObserver(PublicHealthObserver):
     """Observes disease counts and person time for a cause.
 
     By default, this observer computes aggregate disease state person time and
@@ -85,6 +84,9 @@ class DiseaseObserver(Observer):
         self.step_size = builder.time.step_size()
         self.config = builder.configuration.stratification[self.disease]
         self.disease_model = builder.components.get_component(f"disease_model.{self.disease}")
+        self.entity_type = self.disease_model.cause_type
+        self.entity = self.disease_model.cause
+        self.transition_stratification_name = f"transition_{self.disease}"
 
     #################
     # Setup methods #
@@ -98,9 +100,8 @@ class DiseaseObserver(Observer):
             requires_columns=[self.disease],
         )
 
-        transition_stratification_name = f"transition_{self.disease}"
         builder.results.register_stratification(
-            transition_stratification_name,
+            self.transition_stratification_name,
             categories=self.disease_model.transition_names + ["no_transition"],
             mapper=self.map_transitions,
             requires_columns=[self.disease, self.previous_state_column_name],
@@ -108,42 +109,28 @@ class DiseaseObserver(Observer):
         )
 
         pop_filter = 'alive == "alive" and tracked==True'
-        entity_type = self.disease_model.cause_type
-        entity = self.disease_model.cause
 
-        builder.results.register_adding_observation(
+        self.register_adding_observation(
+            builder=builder,
             name=f"person_time_{self.disease}",
             pop_filter=pop_filter,
             when="time_step__prepare",
             requires_columns=["alive", self.disease],
-            results_formatter=partial(
-                self.formatter,
-                measure_name="person_time",
-                entity_type=entity_type,
-                entity=entity,
-                sub_entity_col=self.disease,
-            ),
             additional_stratifications=self.config.include + [self.disease],
             excluded_stratifications=self.config.exclude,
             aggregator=self.aggregate_state_person_time,
         )
 
-        builder.results.register_adding_observation(
+        self.register_adding_observation(
+            builder=builder,
             name=f"transition_count_{self.disease}",
             pop_filter=pop_filter,
-            when="collect_metrics",
             requires_columns=[
                 self.previous_state_column_name,
                 self.disease,
             ],
-            results_formatter=partial(
-                self.formatter,
-                measure_name="transition_count",
-                entity_type=entity_type,
-                entity=entity,
-                sub_entity_col=transition_stratification_name,
-            ),
-            additional_stratifications=self.config.include + [transition_stratification_name],
+            additional_stratifications=self.config.include
+            + [self.transition_stratification_name],
             excluded_stratifications=self.config.exclude,
         )
 
@@ -181,26 +168,33 @@ class DiseaseObserver(Observer):
     def aggregate_state_person_time(self, x: pd.DataFrame) -> float:
         return len(x) * to_years(self.step_size())
 
-    ##################
-    # Report methods #
-    ##################
+    ##############################
+    # Results formatting methods #
+    ##############################
 
-    def formatter(
-        self,
-        measure_name: str,
-        entity_type: str,
-        entity: str,
-        sub_entity_col: str,
-        measure: str,
-        results: pd.DataFrame,
-    ) -> pd.DataFrame:
+    def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         results = results.reset_index()
-        # Remove no_transitions
-        if measure_name == "transition_count":
-            results = results[results[sub_entity_col] != "no_transition"]
-        results.rename(columns={sub_entity_col: COLUMNS.SUB_ENTITY}, inplace=True)
-        results[COLUMNS.MEASURE] = measure_name
-        results[COLUMNS.ENTITY_TYPE] = entity_type
-        results[COLUMNS.ENTITY] = entity
+        if "transition_count_" in measure:
+            results = results[results[self.transition_stratification_name] != "no_transition"]
+            sub_entity = self.transition_stratification_name
+        if "person_time_" in measure:
+            sub_entity = self.disease
+        results.rename(columns={sub_entity: COLUMNS.SUB_ENTITY}, inplace=True)
+        return results
 
-        return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]
+    def get_measure_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        if "transition_count_" in measure:
+            measure_name = "transition_count"
+        if "person_time_" in measure:
+            measure_name = "person_time"
+        return pd.Series(measure_name, index=results.index)
+
+    def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        return pd.Series(self.entity_type, index=results.index)
+
+    def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        return pd.Series(self.entity, index=results.index)
+
+    def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        # The sub-entity col was created in the 'format' method
+        return results[COLUMNS.SUB_ENTITY]
