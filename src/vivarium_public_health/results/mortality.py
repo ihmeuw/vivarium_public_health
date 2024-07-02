@@ -8,17 +8,19 @@ excess mortality in the simulation, including "other causes".
 
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict, List
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results import Observer
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.observer import PublicHealthObserver
 
 
-class MortalityObserver(Observer):
+class MortalityObserver(PublicHealthObserver):
     """An observer for cause-specific deaths and ylls (including "other causes").
 
     By default, this counts cause-specific deaths and years of life lost over
@@ -114,22 +116,20 @@ class MortalityObserver(Observer):
                 self.causes_to_stratify,
                 requires_columns=["cause_of_death"],
             )
-        builder.results.register_adding_observation(
+        self.register_adding_observation(
+            builder=builder,
             name="deaths",
             pop_filter=pop_filter,
-            when="collect_metrics",
             requires_columns=self.required_death_columns,
-            results_formatter=self.formatter,
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
             aggregator=self.count_deaths,
         )
-        builder.results.register_adding_observation(
+        self.register_adding_observation(
+            builder=builder,
             name="ylls",
             pop_filter=pop_filter,
-            when="collect_metrics",
             requires_columns=self.required_yll_columns,
-            results_formatter=self.formatter,
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.config.exclude,
             aggregator=self.calculate_ylls,
@@ -147,34 +147,34 @@ class MortalityObserver(Observer):
         died_of_cause = x["exit_time"] > self.clock()
         return x.loc[died_of_cause, "years_of_life_lost"].sum()
 
-    ##################
-    # Report methods #
-    ##################
+    ##############################
+    # Results formatting methods #
+    ##############################
 
-    def formatter(
-        self,
-        measure: str,
-        results: pd.DataFrame,
-    ) -> pd.DataFrame:
+    def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         results = results.reset_index()
-
         if self.config.aggregate:
             results[COLUMNS.ENTITY] = "all_causes"
         else:
             results.rename(columns={"cause_of_death": COLUMNS.ENTITY}, inplace=True)
+        return results[results[COLUMNS.ENTITY] != "not_dead"]
 
-        results = results[results[COLUMNS.ENTITY] != "not_dead"]
-        results[COLUMNS.MEASURE] = measure
-        results[COLUMNS.ENTITY_TYPE] = "cause"
-        results.loc[
-            results[COLUMNS.ENTITY] == "other_causes", COLUMNS.SUB_ENTITY
-        ] = "other_causes"
-        results.loc[
-            results[COLUMNS.ENTITY] == "all_causes", COLUMNS.SUB_ENTITY
-        ] = "all_causes"
+    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+        values = pd.Series("cause", index=results.index)
         for cause in self.causes_of_death:
-            cause_mask = results[COLUMNS.ENTITY] == cause.state_id
-            results.loc[cause_mask, COLUMNS.ENTITY_TYPE] = cause.cause_type
-            results.loc[cause_mask, COLUMNS.SUB_ENTITY] = cause.state_id
+            values[
+                results[results[COLUMNS.ENTITY] == cause.state_id].index
+            ] = cause.cause_type
+        return values
 
-        return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]
+    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+        # The entity col was created in the 'format' method
+        return results[COLUMNS.ENTITY]
+
+    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+        values = pd.Series("", index=results.index)
+        values[results[results[COLUMNS.ENTITY] == "other_causes"].index] = "other_causes"
+        values[results[results[COLUMNS.ENTITY] == "all_causes"].index] = "all_causes"
+        for cause in self.causes_of_death:
+            values[results[COLUMNS.ENTITY] == cause.state_id] = cause.state_id
+        return values

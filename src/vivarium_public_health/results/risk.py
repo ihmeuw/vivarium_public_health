@@ -7,17 +7,19 @@ This module contains tools for observing risk exposure during the simulation.
 
 """
 
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.results import Observer
 
 from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.observer import PublicHealthObserver
 from vivarium_public_health.utilities import to_years
 
 
-class CategoricalRiskObserver(Observer):
+class CategoricalRiskObserver(PublicHealthObserver):
     """An observer for a categorical risk factor.
 
     Observes category person time for a risk factor.
@@ -94,13 +96,13 @@ class CategoricalRiskObserver(Observer):
             list(self.categories.keys()),
             requires_values=[self.exposure_pipeline_name],
         )
-        builder.results.register_adding_observation(
+        self.register_adding_observation(
+            builder=builder,
             name=f"person_time_{self.risk}",
             pop_filter=f'alive == "alive" and tracked==True',
             when="time_step__prepare",
             requires_columns=["alive"],
             requires_values=[self.exposure_pipeline_name],
-            results_formatter=self.formatter,
             additional_stratifications=self.config.include + [self.risk],
             excluded_stratifications=self.config.exclude,
             aggregator=self.aggregate_risk_category_person_time,
@@ -113,15 +115,24 @@ class CategoricalRiskObserver(Observer):
     def aggregate_risk_category_person_time(self, x: pd.DataFrame) -> float:
         return len(x) * to_years(self.step_size())
 
-    ##################
-    # Report methods #
-    ##################
+    ##############################
+    # Results formatting methods #
+    ##############################
 
-    def formatter(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
+    def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         results = results.reset_index()
         results.rename(columns={self.risk: COLUMNS.SUB_ENTITY}, inplace=True)
-        results[COLUMNS.MEASURE] = "person_time"
-        results[COLUMNS.ENTITY_TYPE] = "rei"
-        results[COLUMNS.ENTITY] = self.risk
+        return results
 
-        return results[[c for c in results.columns if c != COLUMNS.VALUE] + [COLUMNS.VALUE]]
+    def get_measure_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+        return pd.Series("person_time", index=results.index)
+
+    def get_entity_type_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+        return pd.Series("rei", index=results.index)
+
+    def get_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+        return pd.Series(self.risk, index=results.index)
+
+    def get_sub_entity_col(self, measure: str, results: pd.DataFrame) -> pd.Series[str]:
+        # The sub-entity col was created in the 'format' method
+        return results[COLUMNS.SUB_ENTITY]
