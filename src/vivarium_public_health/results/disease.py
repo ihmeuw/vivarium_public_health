@@ -172,7 +172,7 @@ class DiseaseObserver(PublicHealthObserver):
     # Results formatting methods #
     ##############################
 
-    def format(self, measure, results) -> pd.DataFrame:
+    def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         results = results.reset_index()
         if "transition_count_" in measure:
             results = results[results[self.transition_stratification_name] != "no_transition"]
