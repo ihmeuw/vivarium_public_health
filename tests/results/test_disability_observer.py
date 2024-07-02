@@ -68,7 +68,7 @@ def test_disability_observer_setup(mocker):
         when="time_step__prepare",
         requires_columns=["alive"],
         requires_values=cause_pipelines,
-        results_formatter=observer.formatter,
+        results_formatter=observer.format_results,
         additional_stratifications=observer.config.include,
         excluded_stratifications=observer.config.exclude,
         aggregator_sources=cause_pipelines,
