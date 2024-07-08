@@ -99,10 +99,10 @@ class DiseaseObserver(PublicHealthObserver):
             [state.state_id for state in self.disease_model.states],
             requires_columns=[self.disease],
         )
-
+        transitions = [str(transition) for transition in self.disease_model.transition_names]
         builder.results.register_stratification(
             self.transition_stratification_name,
-            categories=self.disease_model.transition_names + ["no_transition"],
+            categories=transitions + ["no_transition"],
             mapper=self.map_transitions,
             requires_columns=[self.disease, self.previous_state_column_name],
             is_vectorized=True,
