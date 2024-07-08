@@ -7,8 +7,6 @@ from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
-from vivarium.testing_utilities import TestPopulation
-
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
