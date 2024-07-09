@@ -1,3 +1,4 @@
+from .columns import COLUMNS
 from .disability import DisabilityObserver
 from .disease import DiseaseObserver
 from .mortality import MortalityObserver
