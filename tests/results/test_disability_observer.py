@@ -7,8 +7,6 @@ from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
-from vivarium.testing_utilities import TestPopulation
-
 from vivarium_public_health.disease import (
     DiseaseModel,
     DiseaseState,
@@ -43,6 +41,7 @@ def test_disability_observer_setup(mocker):
     observer = DisabilityObserver_()
     builder = mocker.Mock()
     mocker.patch("vivarium.component.Component.build_all_lookup_tables")
+    mocker.patch("vivarium.component.Component.get_configuration")
     builder.results.register_adding_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
     builder.configuration.output_data.results_directory = "some/results/directory"

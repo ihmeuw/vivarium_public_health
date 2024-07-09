@@ -99,21 +99,21 @@ class MortalityObserver(PublicHealthObserver):
             )
             if cause.has_excess_mortality
         ]
-        self.causes_to_stratify = [cause.state_id for cause in self.causes_of_death] + [
-            "not_dead",
-            "other_causes",
-        ]
 
     def register_observations(self, builder: Builder) -> None:
         pop_filter = 'alive == "dead" and tracked == True'
         additional_stratifications = self.config.include
         if not self.config.aggregate:
-            additional_stratifications += ["cause_of_death"]
+            stratification_categories = [cause.state_id for cause in self.causes_of_death] + [
+                "not_dead",
+                "other_causes",
+            ]
             builder.results.register_stratification(
                 "cause_of_death",
-                self.causes_to_stratify,
+                stratification_categories,
                 requires_columns=["cause_of_death"],
             )
+            additional_stratifications += ["cause_of_death"]
         self.register_adding_observation(
             builder=builder,
             name="deaths",
