@@ -94,11 +94,21 @@ class DiseaseObserver(PublicHealthObserver):
 
     def register_observations(self, builder: Builder) -> None:
 
+        self.register_disease_state_stratification(builder)
+        self.register_transition_stratification(builder)
+
+        pop_filter = 'alive == "alive" and tracked==True'
+        self.register_person_time_observation(builder, pop_filter)
+        self.register_transition_count_observation(builder, pop_filter)
+
+    def register_disease_state_stratification(self, builder: Builder) -> None:
         builder.results.register_stratification(
             self.disease,
             [state.state_id for state in self.disease_model.states],
             requires_columns=[self.disease],
         )
+
+    def register_transition_stratification(self, builder: Builder) -> None:
         transitions = [str(transition) for transition in self.disease_model.transition_names]
         builder.results.register_stratification(
             self.transition_stratification_name,
@@ -108,8 +118,7 @@ class DiseaseObserver(PublicHealthObserver):
             is_vectorized=True,
         )
 
-        pop_filter = 'alive == "alive" and tracked==True'
-
+    def register_person_time_observation(self, builder: Builder, pop_filter: str) -> None:
         self.register_adding_observation(
             builder=builder,
             name=f"person_time_{self.disease}",
@@ -121,6 +130,9 @@ class DiseaseObserver(PublicHealthObserver):
             aggregator=self.aggregate_state_person_time,
         )
 
+    def register_transition_count_observation(
+        self, builder: Builder, pop_filter: str
+    ) -> None:
         self.register_adding_observation(
             builder=builder,
             name=f"transition_count_{self.disease}",
