@@ -10,6 +10,7 @@ This module contains tools for observing risk exposure during the simulation.
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.results.columns import COLUMNS
@@ -78,15 +79,16 @@ class CategoricalRiskObserver(PublicHealthObserver):
         self.risk = risk
         self.exposure_pipeline_name = f"{self.risk}.exposure"
 
-    # noinspection PyAttributeOutsideInit
-    def setup(self, builder: Builder) -> None:
-        self.step_size = builder.time.step_size()
-        self.config = builder.configuration.stratification[self.risk]
-        self.categories = builder.data.load(f"risk_factor.{self.risk}.categories")
-
     #################
     # Setup methods #
     #################
+
+    def setup(self, builder: Builder) -> None:
+        self.step_size = builder.time.step_size()
+        self.categories = builder.data.load(f"risk_factor.{self.risk}.categories")
+
+    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
+        return builder.configuration.stratification[self.risk]
 
     def register_observations(self, builder: Builder) -> None:
         builder.results.register_stratification(
@@ -101,8 +103,8 @@ class CategoricalRiskObserver(PublicHealthObserver):
             when="time_step__prepare",
             requires_columns=["alive"],
             requires_values=[self.exposure_pipeline_name],
-            additional_stratifications=self.config.include + [self.risk],
-            excluded_stratifications=self.config.exclude,
+            additional_stratifications=self.configuration.include + [self.risk],
+            excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_risk_category_person_time,
         )
 
