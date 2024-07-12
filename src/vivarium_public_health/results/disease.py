@@ -11,6 +11,7 @@ in the simulation.
 from typing import Any, Dict, List
 
 import pandas as pd
+from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -79,18 +80,19 @@ class DiseaseObserver(PublicHealthObserver):
         self.disease = disease
         self.previous_state_column_name = f"previous_{self.disease}"
 
-    # noinspection PyAttributeOutsideInit
+    #################
+    # Setup methods #
+    #################
+
     def setup(self, builder: Builder) -> None:
         self.step_size = builder.time.step_size()
-        self.config = builder.configuration.stratification[self.disease]
         self.disease_model = builder.components.get_component(f"disease_model.{self.disease}")
         self.entity_type = self.disease_model.cause_type
         self.entity = self.disease_model.cause
         self.transition_stratification_name = f"transition_{self.disease}"
 
-    #################
-    # Setup methods #
-    #################
+    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
+        return builder.configuration.stratification[self.disease]
 
     def register_observations(self, builder: Builder) -> None:
 
@@ -125,8 +127,8 @@ class DiseaseObserver(PublicHealthObserver):
             pop_filter=pop_filter,
             when="time_step__prepare",
             requires_columns=["alive", self.disease],
-            additional_stratifications=self.config.include + [self.disease],
-            excluded_stratifications=self.config.exclude,
+            additional_stratifications=self.configuration.include + [self.disease],
+            excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_state_person_time,
         )
 
@@ -141,9 +143,9 @@ class DiseaseObserver(PublicHealthObserver):
                 self.previous_state_column_name,
                 self.disease,
             ],
-            additional_stratifications=self.config.include
+            additional_stratifications=self.configuration.include
             + [self.transition_stratification_name],
-            excluded_stratifications=self.config.exclude,
+            excluded_stratifications=self.configuration.exclude,
         )
 
     def map_transitions(self, df: pd.DataFrame) -> pd.Series:
