@@ -11,6 +11,7 @@ excess mortality in the simulation, including "other causes".
 from typing import Any, Dict, List
 
 import pandas as pd
+from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
@@ -83,15 +84,12 @@ class MortalityObserver(PublicHealthObserver):
             "exit_time",
         ]
 
-    #####################
-    # Lifecycle methods #
-    #####################
+    #################
+    # Setup methods #
+    #################
 
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.clock = builder.time.clock()
-        # TODO [MIC-5134]: Use self.get_configuration() (from vivarium.Component)
-        self.config = builder.configuration.stratification[self.get_configuration_name()]
         self.causes_of_death = [
             cause
             for cause in builder.components.get_components_by_type(
@@ -100,10 +98,13 @@ class MortalityObserver(PublicHealthObserver):
             if cause.has_excess_mortality
         ]
 
+    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
+        return builder.configuration.stratification[self.get_configuration_name()]
+
     def register_observations(self, builder: Builder) -> None:
         pop_filter = 'alive == "dead" and tracked == True'
-        additional_stratifications = self.config.include
-        if not self.config.aggregate:
+        additional_stratifications = self.configuration.include
+        if not self.configuration.aggregate:
             stratification_categories = [cause.state_id for cause in self.causes_of_death] + [
                 "not_dead",
                 "other_causes",
@@ -120,7 +121,7 @@ class MortalityObserver(PublicHealthObserver):
             pop_filter=pop_filter,
             requires_columns=self.required_death_columns,
             additional_stratifications=additional_stratifications,
-            excluded_stratifications=self.config.exclude,
+            excluded_stratifications=self.configuration.exclude,
             aggregator=self.count_deaths,
         )
         self.register_adding_observation(
@@ -129,7 +130,7 @@ class MortalityObserver(PublicHealthObserver):
             pop_filter=pop_filter,
             requires_columns=self.required_yll_columns,
             additional_stratifications=additional_stratifications,
-            excluded_stratifications=self.config.exclude,
+            excluded_stratifications=self.configuration.exclude,
             aggregator=self.calculate_ylls,
         )
 
@@ -151,7 +152,7 @@ class MortalityObserver(PublicHealthObserver):
 
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         results = results.reset_index()
-        if self.config.aggregate:
+        if self.configuration.aggregate:
             results[COLUMNS.ENTITY] = "all_causes"
         else:
             results.rename(columns={"cause_of_death": COLUMNS.ENTITY}, inplace=True)

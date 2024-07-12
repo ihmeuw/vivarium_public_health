@@ -11,6 +11,7 @@ in the simulation.
 from typing import Any, List, Union
 
 import pandas as pd
+from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
@@ -56,9 +57,11 @@ class DisabilityObserver(PublicHealthObserver):
         super().__init__()
         self.disability_weight_pipeline_name = "disability_weight"
 
-    # noinspection PyAttributeOutsideInit
+    #################
+    # Setup methods #
+    #################
+
     def setup(self, builder: Builder) -> None:
-        self.config = builder.configuration.stratification.disability
         self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
         self.disability_weight = self.get_disability_weight_pipeline(builder)
         self.causes_of_disease = [
@@ -68,9 +71,8 @@ class DisabilityObserver(PublicHealthObserver):
             )
         ]
 
-    #################
-    # Setup methods #
-    #################
+    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
+        return builder.configuration.stratification.disability
 
     def register_observations(self, builder: Builder) -> None:
         cause_pipelines = [self.disability_weight_pipeline_name] + [
@@ -83,8 +85,8 @@ class DisabilityObserver(PublicHealthObserver):
             when="time_step__prepare",
             requires_columns=["alive"],
             requires_values=cause_pipelines,
-            additional_stratifications=self.config.include,
-            excluded_stratifications=self.config.exclude,
+            additional_stratifications=self.configuration.include,
+            excluded_stratifications=self.configuration.exclude,
             aggregator_sources=cause_pipelines,
             aggregator=self.disability_weight_aggregator,
         )
