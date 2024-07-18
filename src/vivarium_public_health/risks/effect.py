@@ -316,3 +316,96 @@ class RiskEffect(Component):
                 f"Risk effect model {self.name} requires a Risk component named {self.risk}"
             )
         return risk_exposure_component
+
+
+class NonLogLinearRiskEffect(RiskEffect):
+    '''Risk effect for exposure-parametrized relative risks.'''
+    @property
+    def configuration_defaults(self) -> Dict[str, Any]:
+        """
+        A dictionary containing the defaults for any configurations managed by
+        this component.
+        """
+        return {
+            self.name: {
+                "data_sources": {
+                    # TODO: replace with dataframe - possibly override elsewhere
+                    "relative_risk": f"{self.risk}.relative_risk",
+                    "population_attributable_fraction": f"{self.risk}.population_attributable_fraction",
+                },
+            }
+        }
+
+    #################
+    # Setup methods #
+    #################
+
+    def build_all_lookup_tables(self, builder: Builder) -> None:
+        rr_data = self.get_relative_risk_data(builder)
+        # check that rr_data is parametrize by exposure
+        #rr_value_cols = [rr_col_1, rr_col_2, exposure_col_1, exposure_col_2]
+        self.lookup_tables["relative_risk"] = self.build_lookup_table(
+            builder, rr_data, rr_value_cols
+        )
+
+        paf_data = self.get_filtered_data(
+            builder, self.configuration.data_sources.population_attributable_fraction
+        )
+        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
+            builder, paf_data
+        )
+
+    def get_relative_risk_data(
+        self,
+        builder: Builder,
+        configuration=None,
+    ) -> Union[str, float, pd.DataFrame]:
+        if configuration is None:
+            configuration = self.configuration
+
+        # get TMREL
+        # TODO: need access to risk TMRED
+        # TODO: can use entitykey or whatever we use in loader.py to get gbd_mapping entity
+        #if risk.tmred.distribution == 'uniform:
+        #    self.tmrel = np.random.uniform(risk.tmred.min, risk.tmred.max)
+        #elif risk.tmred.distribution == 'draws': # currently only for iron deficiency
+        #    raise DataAbornmalError('need to contact research team to get draws')
+        #else:
+        #    raise SomeError('no TMRED found for risk')
+
+        # calculate RR at TMREL
+        original_rrs = configuration.data_sources.relative_risk
+        # TMREL for each age sex year row
+        demographic_cols = [col for col in original_rrs.index.names if col != 'parameter']
+        # for each combination of demographic cols
+        # interpolate across exposures and RRs
+        # raw_relative_risk_function = scipy.interpolate.interp1d(
+        #     relative_risk_data.exposure, parameter column
+        #     relative_risk_draw,          draw column
+        #     kind='linear',
+        #     bounds_error=False,
+        #     fill_value=(
+        #         relative_risk_draw.min(),
+        #         relative_risk_draw.max(),
+        #     )
+        # )
+        # we have a raw_rr_function for each demographic group
+        # raw_rr_function(tmrel) for each demographic group
+        # merge with original rrs and divide draw cols by rr_at_tmrel column
+        # clip RRs between 0 and 1
+
+        return rr_data
+
+    def get_target_modifier(
+        self, builder: Builder
+    ) -> Callable[[pd.Index, pd.Series], pd.Series]:
+        def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
+            exposures_and_rr_points = self.lookup_tables["relative_risk"](index)
+            exposure = self.exposure(index)
+            # use exposures and rr points to calculate m and b in y=mx+b
+            # ie m = (y2-y1)/(x2-x1) and b = y1 - mx1
+            # plug exposures into mx+b to get our RRs
+            return target * relative_risk
+
+        return adjust_target
+
