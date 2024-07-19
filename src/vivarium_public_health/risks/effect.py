@@ -344,8 +344,17 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         rr_data = self.get_relative_risk_data(builder)
+
         # check that rr_data is parametrize by exposure
         #rr_value_cols = [rr_col_1, rr_col_2, exposure_col_1, exposure_col_2]
+        new_row = rr_data.tail(1).copy()
+        new_row['parameter'] = 9999
+        rr_data = pd.concat([rr_data, new_row]).reset_index()
+        rr_data['left_exposure'] = [0] + rr_data['parameter'][1:].tolist()
+        rr_data['left_rr'] = [rr_data['value'].min()] + rr_data['value'][:-1].tolist()
+        rr_data['right_exposure'] = rr_data['parameter']
+        rr_data['right_rr'] = rr_data['value']
+        import pdb; pdb.set_trace()
         self.lookup_tables["relative_risk"] = self.build_lookup_table(
             builder, rr_data, rr_value_cols
         )
@@ -380,7 +389,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         rr_source = configuration.data_sources.relative_risk
         original_rrs = self.get_filtered_data(builder, rr_source)
         demographic_cols = [col for col in original_rrs.columns if col != 'parameter' and col != 'value']
-        def get_rr_at_tmrel(rr_data: pd.DataFrame) -> np.float:
+        def get_rr_at_tmrel(rr_data: pd.DataFrame) -> float:
             interpolated_rr_function = scipy.interpolate.interp1d(
                 rr_data['parameter'],
                 rr_data['value'],
@@ -393,7 +402,8 @@ class NonLogLinearRiskEffect(RiskEffect):
             )
             rr_at_tmrel = interpolated_rr_function(self.tmrel).item()
             return rr_at_tmrel
-        rrs_at_tmrel = original_rrs.groupby(demographic_cols).apply(get_rr_at_tmrel)
+
+        rrs_at_tmrel = original_rrs.groupby(demographic_cols).apply(get_rr_at_tmrel).rename('rr_at_tmrel')
         rr_data = original_rrs.merge(rrs_at_tmrel.reset_index())
         rr_data['value'] = rr_data['value'] / rr_data['rr_at_tmrel']
         rr_data['value'] = np.clip(rr_data['value'], 1.0, np.inf)
