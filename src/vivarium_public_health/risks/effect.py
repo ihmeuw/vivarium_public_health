@@ -370,32 +370,33 @@ class NonLogLinearRiskEffect(RiskEffect):
         if risk.tmred.distribution == 'uniform':
             self.tmrel = np.random.uniform(risk.tmred.min, risk.tmred.max)
         elif risk.tmred.distribution == 'draws': # currently only for iron deficiency
-            raise DataAbnormalError('TMRED has a non-uniform distribution. You will need to contact the research team to get this data.')
+            # what is the correct error?
+            raise ValueError('TMRED has a non-uniform distribution. You will need to contact the research team to get this data.')
         else:
+            # what is the correct error?
             raise ValueError(f'No TMRED found in gbd_mapping for risk {self.risk.name}')
 
         # calculate RR at TMREL
         rr_source = configuration.data_sources.relative_risk
         original_rrs = self.get_filtered_data(builder, rr_source)
-        import pdb; pdb.set_trace()
-        # TMREL for each age sex year row
-        demographic_cols = [col for col in index_cols if col != 'parameter' and col != 'value']
-        # for each combination of demographic cols
-        # interpolate across exposures and RRs
-        # raw_relative_risk_function = scipy.interpolate.interp1d(
-        #     relative_risk_data.exposure, parameter column
-        #     relative_risk_draw,          draw column
-        #     kind='linear',
-        #     bounds_error=False,
-        #     fill_value=(
-        #         relative_risk_draw.min(),
-        #         relative_risk_draw.max(),
-        #     )
-        # )
-        # we have a raw_rr_function for each demographic group
-        # raw_rr_function(tmrel) for each demographic group
-        # merge with original rrs and divide draw cols by rr_at_tmrel column
-        # clip RRs between 0 and 1
+        demographic_cols = [col for col in original_rrs.columns if col != 'parameter' and col != 'value']
+        def get_rr_at_tmrel(rr_data: pd.DataFrame) -> np.float:
+            interpolated_rr_function = scipy.interpolate.interp1d(
+                rr_data['parameter'],
+                rr_data['value'],
+                kind='linear',
+                bounds_error=False,
+                fill_value=(
+                    rr_data['value'].min(),
+                    rr_data['value'].max(),
+                )
+            )
+            rr_at_tmrel = interpolated_rr_function(self.tmrel).item()
+            return rr_at_tmrel
+        rrs_at_tmrel = original_rrs.groupby(demographic_cols).apply(get_rr_at_tmrel)
+        rr_data = original_rrs.merge(rrs_at_tmrel.reset_index())
+        rr_data['value'] = rr_data['value'] / rr_data['rr_at_tmrel']
+        rr_data['value'] = np.clip(rr_data['value'], 1.0, np.inf)
 
         return rr_data
 
