@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import scipy
 from layered_config_tree import ConfigurationError
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -27,6 +28,8 @@ from vivarium_public_health.utilities import (
     TargetString,
     get_lookup_columns,
 )
+# TODO: discuss...
+from gbd_mapping import risk_factors
 
 
 class RiskEffect(Component):
@@ -329,7 +332,6 @@ class NonLogLinearRiskEffect(RiskEffect):
         return {
             self.name: {
                 "data_sources": {
-                    # TODO: replace with dataframe - possibly override elsewhere
                     "relative_risk": f"{self.risk}.relative_risk",
                     "population_attributable_fraction": f"{self.risk}.population_attributable_fraction",
                 },
@@ -364,19 +366,20 @@ class NonLogLinearRiskEffect(RiskEffect):
             configuration = self.configuration
 
         # get TMREL
-        # TODO: need access to risk TMRED
-        # TODO: can use entitykey or whatever we use in loader.py to get gbd_mapping entity
-        #if risk.tmred.distribution == 'uniform:
-        #    self.tmrel = np.random.uniform(risk.tmred.min, risk.tmred.max)
-        #elif risk.tmred.distribution == 'draws': # currently only for iron deficiency
-        #    raise DataAbornmalError('need to contact research team to get draws')
-        #else:
-        #    raise SomeError('no TMRED found for risk')
+        risk = risk_factors[self.risk.name]
+        if risk.tmred.distribution == 'uniform':
+            self.tmrel = np.random.uniform(risk.tmred.min, risk.tmred.max)
+        elif risk.tmred.distribution == 'draws': # currently only for iron deficiency
+            raise DataAbnormalError('TMRED has a non-uniform distribution. You will need to contact the research team to get this data.')
+        else:
+            raise ValueError(f'No TMRED found in gbd_mapping for risk {self.risk.name}')
 
         # calculate RR at TMREL
-        original_rrs = configuration.data_sources.relative_risk
+        rr_source = configuration.data_sources.relative_risk
+        original_rrs = self.get_filtered_data(builder, rr_source)
+        import pdb; pdb.set_trace()
         # TMREL for each age sex year row
-        demographic_cols = [col for col in original_rrs.index.names if col != 'parameter']
+        demographic_cols = [col for col in index_cols if col != 'parameter' and col != 'value']
         # for each combination of demographic cols
         # interpolate across exposures and RRs
         # raw_relative_risk_function = scipy.interpolate.interp1d(
