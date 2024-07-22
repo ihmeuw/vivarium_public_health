@@ -344,7 +344,6 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         rr_data = self.get_relative_risk_data(builder)
-
         # check that rr_data is parametrize by exposure
         #rr_value_cols = [rr_col_1, rr_col_2, exposure_col_1, exposure_col_2]
         new_row = rr_data.tail(1).copy()
@@ -354,7 +353,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         rr_data['left_rr'] = [rr_data['value'].min()] + rr_data['value'][:-1].tolist()
         rr_data['right_exposure'] = rr_data['parameter']
         rr_data['right_rr'] = rr_data['value']
-        import pdb; pdb.set_trace()
+
         self.lookup_tables["relative_risk"] = self.build_lookup_table(
             builder, rr_data, rr_value_cols
         )
@@ -407,6 +406,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         rr_data = original_rrs.merge(rrs_at_tmrel.reset_index())
         rr_data['value'] = rr_data['value'] / rr_data['rr_at_tmrel']
         rr_data['value'] = np.clip(rr_data['value'], 1.0, np.inf)
+        rr_data = rr_data.drop('rr_at_tmrel', axis=1)
 
         return rr_data
 
