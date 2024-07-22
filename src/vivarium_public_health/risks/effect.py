@@ -346,14 +346,17 @@ class NonLogLinearRiskEffect(RiskEffect):
         rr_data = self.get_relative_risk_data(builder)
         # check that rr_data is parametrize by exposure
         #rr_value_cols = [rr_col_1, rr_col_2, exposure_col_1, exposure_col_2]
-        new_row = rr_data.tail(1).copy()
-        new_row['parameter'] = 9999
-        rr_data = pd.concat([rr_data, new_row]).reset_index()
-        rr_data['left_exposure'] = [0] + rr_data['parameter'][1:].tolist()
-        rr_data['left_rr'] = [rr_data['value'].min()] + rr_data['value'][:-1].tolist()
-        rr_data['right_exposure'] = rr_data['parameter']
-        rr_data['right_rr'] = rr_data['value']
-
+        def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
+            new_row = df.tail(1).copy()
+            new_row['parameter'] = 9999
+            rr_data = pd.concat([df, new_row]).reset_index()
+            rr_data['left_exposure'] = [0] + rr_data['parameter'][1:].tolist()
+            rr_data['left_rr'] = [rr_data['value'].min()] + rr_data['value'][:-1].tolist()
+            rr_data['right_exposure'] = rr_data['parameter']
+            rr_data['right_rr'] = rr_data['value']
+            return rr_data[['parameter', 'left_exposure', 'left_rr', 'right_exposure', 'right_rr']]
+        demographic_cols = [col for col in df.columns if col != 'parameter' and col != 'value']
+        test = rr_data.groupby(demographic_cols).apply(define_rr_intervals)
         self.lookup_tables["relative_risk"] = self.build_lookup_table(
             builder, rr_data, rr_value_cols
         )
@@ -378,10 +381,8 @@ class NonLogLinearRiskEffect(RiskEffect):
         if risk.tmred.distribution == 'uniform':
             self.tmrel = np.random.uniform(risk.tmred.min, risk.tmred.max)
         elif risk.tmred.distribution == 'draws': # currently only for iron deficiency
-            # what is the correct error?
-            raise ValueError('TMRED has a non-uniform distribution. You will need to contact the research team to get this data.')
+            raise ValueError(f'TMRED has a non-uniform distribution. You will need to contact the research team that models {self.risk.name} to get this data.')
         else:
-            # what is the correct error?
             raise ValueError(f'No TMRED found in gbd_mapping for risk {self.risk.name}')
 
         # calculate RR at TMREL
