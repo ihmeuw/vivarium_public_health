@@ -30,8 +30,6 @@ from vivarium_public_health.utilities import (
     TargetString,
     get_lookup_columns,
 )
-# TODO: discuss...
-from gbd_mapping import risk_factors
 
 
 class RiskEffect(Component):
@@ -324,7 +322,7 @@ class RiskEffect(Component):
 
 
 class NonLogLinearRiskEffect(RiskEffect):
-    '''Risk effect for exposure-parametrized relative risks.'''
+    """Risk effect for exposure-parametrized relative risks."""
 
     ##############
     # Properties #
@@ -349,7 +347,6 @@ class NonLogLinearRiskEffect(RiskEffect):
     def columns_created(self) -> List[str]:
         return [f"{self.risk.name}_exposure"]
 
-
     #####################
     # Lifecycle methods #
     #####################
@@ -361,10 +358,11 @@ class NonLogLinearRiskEffect(RiskEffect):
     def on_time_step_prepare(self, event: Event) -> None:
         # exposure_values = self.exposure(event.index)
         # TODO: temporary workaround, investigate why exposure is always 0
-        exposure_values = np.linspace(3,7, num=len(event.index))
-        exposure_col = pd.DataFrame(exposure_values, columns=self.columns_created).astype('object')
+        exposure_values = np.linspace(3, 7, num=len(event.index))
+        exposure_col = pd.DataFrame(exposure_values, columns=self.columns_created).astype(
+            "object"
+        )
         self.population_view.update(exposure_col)
-
 
     #################
     # Setup methods #
@@ -375,31 +373,41 @@ class NonLogLinearRiskEffect(RiskEffect):
         # TODO: add check that rr_data is parametrize by exposure
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
             new_row = df.tail(1).copy()
-            new_row['parameter'] = 9999 # max possible exposure value
+            new_row["parameter"] = 9999  # max possible exposure value
             rr_data = pd.concat([df, new_row]).reset_index()
-            rr_data['left_exposure'] = [0] + rr_data['parameter'][:-1].tolist()
-            rr_data['left_rr'] = [rr_data['value'].min()] + rr_data['value'][:-1].tolist()
-            rr_data['right_exposure'] = rr_data['parameter']
-            rr_data['right_rr'] = rr_data['value']
-            return rr_data[['parameter', 'left_exposure', 'left_rr', 'right_exposure', 'right_rr']]
+            rr_data["left_exposure"] = [0] + rr_data["parameter"][:-1].tolist()
+            rr_data["left_rr"] = [rr_data["value"].min()] + rr_data["value"][:-1].tolist()
+            rr_data["right_exposure"] = rr_data["parameter"]
+            rr_data["right_rr"] = rr_data["value"]
+            return rr_data[
+                ["parameter", "left_exposure", "left_rr", "right_exposure", "right_rr"]
+            ]
+
         # define exposure and rr interval columns
-        demographic_cols = [col for col in rr_data.columns if col != 'parameter' and col != 'value']
-        rr_data = rr_data.groupby(demographic_cols).apply(define_rr_intervals).reset_index(level=-1, drop=True).reset_index()
-        rr_data = rr_data.drop('parameter', axis=1)
-        rr_data[f'{self.risk.name}_exposure_start'] = rr_data['left_exposure']
-        rr_data[f'{self.risk.name}_exposure_end'] = rr_data['right_exposure']
+        demographic_cols = [
+            col for col in rr_data.columns if col != "parameter" and col != "value"
+        ]
+        rr_data = (
+            rr_data.groupby(demographic_cols)
+            .apply(define_rr_intervals)
+            .reset_index(level=-1, drop=True)
+            .reset_index()
+        )
+        rr_data = rr_data.drop("parameter", axis=1)
+        rr_data[f"{self.risk.name}_exposure_start"] = rr_data["left_exposure"]
+        rr_data[f"{self.risk.name}_exposure_end"] = rr_data["right_exposure"]
         # build lookup table
-        rr_value_cols = ['left_exposure', 'left_rr', 'right_exposure', 'right_rr']
+        rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
         self.lookup_tables["relative_risk"] = self.build_lookup_table(
             builder, rr_data, rr_value_cols
         )
 
-        #paf_data = self.get_filtered_data(
+        # paf_data = self.get_filtered_data(
         #    builder, self.configuration.data_sources.population_attributable_fraction
-        #)
-        #self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
+        # )
+        # self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
         #    builder, paf_data
-        #)
+        # )
         self.lookup_tables["population_attributable_fraction"] = builder.lookup.build_table(1)
 
     def get_relative_risk_data(
@@ -411,38 +419,46 @@ class NonLogLinearRiskEffect(RiskEffect):
             configuration = self.configuration
 
         # get TMREL
-        risk = risk_factors[self.risk.name]
-        if risk.tmred.distribution == 'uniform':
-            self.tmrel = np.random.uniform(risk.tmred.min, risk.tmred.max)
-        elif risk.tmred.distribution == 'draws': # currently only for iron deficiency
-            raise ValueError(f'TMRED has a non-uniform distribution. You will need to contact the research team that models {self.risk.name} to get this data.')
+        tmred = builder.data.load(f"{self.risk}.tmred")
+        if tmred.distribution == "uniform":
+            self.tmrel = np.random.uniform(tmred.min, tmred.max)
+        elif tmred.distribution == "draws":  # currently only for iron deficiency
+            raise ValueError(
+                f"TMRED has a non-uniform distribution. You will need to contact the research team that models {self.risk.name} to get this data."
+            )
         else:
-            raise ValueError(f'No TMRED found in gbd_mapping for risk {self.risk.name}')
+            raise ValueError(f"No TMRED found in gbd_mapping for risk {self.risk.name}")
 
         # calculate RR at TMREL
         rr_source = configuration.data_sources.relative_risk
         original_rrs = self.get_filtered_data(builder, rr_source)
-        demographic_cols = [col for col in original_rrs.columns if col != 'parameter' and col != 'value']
+        demographic_cols = [
+            col for col in original_rrs.columns if col != "parameter" and col != "value"
+        ]
 
         def get_rr_at_tmrel(rr_data: pd.DataFrame) -> float:
             interpolated_rr_function = scipy.interpolate.interp1d(
-                rr_data['parameter'],
-                rr_data['value'],
-                kind='linear',
+                rr_data["parameter"],
+                rr_data["value"],
+                kind="linear",
                 bounds_error=False,
                 fill_value=(
-                    rr_data['value'].min(),
-                    rr_data['value'].max(),
-                )
+                    rr_data["value"].min(),
+                    rr_data["value"].max(),
+                ),
             )
             rr_at_tmrel = interpolated_rr_function(self.tmrel).item()
             return rr_at_tmrel
 
-        rrs_at_tmrel = original_rrs.groupby(demographic_cols).apply(get_rr_at_tmrel).rename('rr_at_tmrel')
+        rrs_at_tmrel = (
+            original_rrs.groupby(demographic_cols)
+            .apply(get_rr_at_tmrel)
+            .rename("rr_at_tmrel")
+        )
         rr_data = original_rrs.merge(rrs_at_tmrel.reset_index())
-        rr_data['value'] = rr_data['value'] / rr_data['rr_at_tmrel']
-        rr_data['value'] = np.clip(rr_data['value'], 1.0, np.inf)
-        rr_data = rr_data.drop('rr_at_tmrel', axis=1)
+        rr_data["value"] = rr_data["value"] / rr_data["rr_at_tmrel"]
+        rr_data["value"] = np.clip(rr_data["value"], 1.0, np.inf)
+        rr_data = rr_data.drop("rr_at_tmrel", axis=1)
 
         return rr_data
 
@@ -456,5 +472,5 @@ class NonLogLinearRiskEffect(RiskEffect):
             # ie m = (y2-y1)/(x2-x1) and b = y1 - mx1
             # plug exposures into mx+b to get our RRs
             return target * relative_risk
-        return adjust_target
 
+        return adjust_target
