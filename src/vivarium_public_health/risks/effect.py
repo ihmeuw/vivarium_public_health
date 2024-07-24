@@ -25,6 +25,7 @@ from vivarium_public_health.risks.data_transformations import (
     load_exposure_data,
     pivot_categorical,
 )
+from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.utilities import (
     EntityString,
     TargetString,
@@ -372,9 +373,9 @@ class NonLogLinearRiskEffect(RiskEffect):
         rr_data = self.get_relative_risk_data(builder)
         # TODO: add check that rr_data is parametrize by exposure
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
-            new_row = df.tail(1).copy()
-            new_row["parameter"] = 9999  # max possible exposure value
-            rr_data = pd.concat([df, new_row]).reset_index()
+            max_exposure_row = df.tail(1).copy()
+            max_exposure_row["parameter"] = 9999
+            rr_data = pd.concat([df, max_exposure_row]).reset_index()
             rr_data["left_exposure"] = [0] + rr_data["parameter"][:-1].tolist()
             rr_data["left_rr"] = [rr_data["value"].min()] + rr_data["value"][:-1].tolist()
             rr_data["right_exposure"] = rr_data["parameter"]
@@ -423,11 +424,11 @@ class NonLogLinearRiskEffect(RiskEffect):
         if tmred.distribution == "uniform":
             self.tmrel = np.random.uniform(tmred.min, tmred.max)
         elif tmred.distribution == "draws":  # currently only for iron deficiency
-            raise ValueError(
+            raise MissingDataError(
                 f"TMRED has a non-uniform distribution. You will need to contact the research team that models {self.risk.name} to get this data."
             )
         else:
-            raise ValueError(f"No TMRED found in gbd_mapping for risk {self.risk.name}")
+            raise MissingDataError(f"No TMRED found in gbd_mapping for risk {self.risk.name}")
 
         # calculate RR at TMREL
         rr_source = configuration.data_sources.relative_risk
