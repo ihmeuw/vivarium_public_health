@@ -371,6 +371,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         rr_data = self.get_relative_risk_data(builder)
+
         # TODO: add check that rr_data is parametrize by exposure
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
             max_exposure_row = df.tail(1).copy()
@@ -421,9 +422,9 @@ class NonLogLinearRiskEffect(RiskEffect):
 
         # get TMREL
         tmred = builder.data.load(f"{self.risk}.tmred")
-        if tmred.distribution == "uniform":
-            self.tmrel = np.random.uniform(tmred.min, tmred.max)
-        elif tmred.distribution == "draws":  # currently only for iron deficiency
+        if tmred["distribution"] == "uniform":
+            self.tmrel = np.random.uniform(tmred["min"], tmred["max"])
+        elif tmred["distribution"] == "draws":  # currently only for iron deficiency
             raise MissingDataError(
                 f"TMRED has a non-uniform distribution. You will need to contact the research team that models {self.risk.name} to get this data."
             )
@@ -468,10 +469,15 @@ class NonLogLinearRiskEffect(RiskEffect):
     ) -> Callable[[pd.Index, pd.Series], pd.Series]:
         def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
             rr_intervals = self.lookup_tables["relative_risk"](index)
-            exposure = self.exposure(index)
-            # use exposures and rr points to calculate m and b in y=mx+b
-            # ie m = (y2-y1)/(x2-x1) and b = y1 - mx1
-            # plug exposures into mx+b to get our RRs
+            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
+            x1, x2 = (
+                rr_intervals["left_exposure"].values,
+                rr_intervals["right_exposure"].values,
+            )
+            y1, y2 = rr_intervals["left_rr"].values, rr_intervals["right_rr"].values
+            m = (y2 - y1) / (x2 - x1)
+            b = y1 - m * x1
+            relative_risk = b + m * exposure
             return target * relative_risk
 
         return adjust_target
