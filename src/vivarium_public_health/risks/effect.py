@@ -323,6 +323,7 @@ class RiskEffect(Component):
 
 
 class NonLogLinearRiskEffect(RiskEffect):
+    # TODO: update docstring
     """Risk effect for exposure-parametrized relative risks."""
 
     ##############
@@ -357,11 +358,9 @@ class NonLogLinearRiskEffect(RiskEffect):
         self.population_view.update(exposure_col)
 
     def on_time_step_prepare(self, event: Event) -> None:
-        # exposure_values = self.exposure(event.index)
-        # TODO: temporary workaround, investigate why exposure is always 0
-        exposure_values = np.linspace(3, 7, num=len(event.index))
-        exposure_col = pd.DataFrame(exposure_values, columns=self.columns_created).astype(
-            "object"
+        exposure_values = self.exposure(event.index)
+        exposure_col = pd.Series(
+            exposure_values, name=self.columns_created[0], dtype="object"
         )
         self.population_view.update(exposure_col)
 
@@ -374,13 +373,16 @@ class NonLogLinearRiskEffect(RiskEffect):
 
         # TODO: add check that rr_data is parametrize by exposure
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
+            # create new row for right-most exposure bin (RR is same as max RR)
             max_exposure_row = df.tail(1).copy()
-            max_exposure_row["parameter"] = 9999
+            max_exposure_row["parameter"] = np.inf
             rr_data = pd.concat([df, max_exposure_row]).reset_index()
+
             rr_data["left_exposure"] = [0] + rr_data["parameter"][:-1].tolist()
             rr_data["left_rr"] = [rr_data["value"].min()] + rr_data["value"][:-1].tolist()
             rr_data["right_exposure"] = rr_data["parameter"]
             rr_data["right_rr"] = rr_data["value"]
+
             return rr_data[
                 ["parameter", "left_exposure", "left_rr", "right_exposure", "right_rr"]
             ]
@@ -423,10 +425,12 @@ class NonLogLinearRiskEffect(RiskEffect):
         # get TMREL
         tmred = builder.data.load(f"{self.risk}.tmred")
         if tmred["distribution"] == "uniform":
-            self.tmrel = np.random.uniform(tmred["min"], tmred["max"])
+            draw = builder.configuration.input_data.input_draw_number
+            rng = np.random.default_rng(builder.randomness.get_seed(self.name + str(draw)))
+            self.tmrel = rng.uniform(tmred["min"], tmred["max"])
         elif tmred["distribution"] == "draws":  # currently only for iron deficiency
             raise MissingDataError(
-                f"TMRED has a non-uniform distribution. You will need to contact the research team that models {self.risk.name} to get this data."
+                f"This data has draw-level TMRELs. You will need to contact the research team that models {self.risk.name} to get this data."
             )
         else:
             raise MissingDataError(f"No TMRED found in gbd_mapping for risk {self.risk.name}")
@@ -469,7 +473,9 @@ class NonLogLinearRiskEffect(RiskEffect):
     ) -> Callable[[pd.Index, pd.Series], pd.Series]:
         def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
             rr_intervals = self.lookup_tables["relative_risk"](index)
-            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
+            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"].astype(
+                float
+            )
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
                 rr_intervals["right_exposure"].values,
