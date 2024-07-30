@@ -407,10 +407,10 @@ class NonLogLinearRiskEffect(RiskEffect):
         )
 
         paf_data = self.get_filtered_data(
-           builder, self.configuration.data_sources.population_attributable_fraction
+            builder, self.configuration.data_sources.population_attributable_fraction
         )
         self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-           builder, paf_data
+            builder, paf_data
         )
 
     def get_relative_risk_data(
