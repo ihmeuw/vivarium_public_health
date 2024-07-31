@@ -1,13 +1,24 @@
-# import numpy as np
-# import pandas as pd
+from typing import Any, Dict, Tuple, Union
+
+import numpy as np
+import pandas as pd
+import pytest
+from layered_config_tree import LayeredConfigTree
+from vivarium import Component, InteractiveContext
+from vivarium.framework.engine import Builder
+from vivarium.testing_utilities import TestPopulation
 #
 # from vivarium.framework.utilities import from_yearly
 # from vivarium.testing_utilities import build_table, TestPopulation
 # from vivarium.interface.interactive import initialize_simulation
 #
 # from vivarium_public_health.disease import RateTransition
-# from vivarium_public_health.risks.effect import RiskEffect
-# from vivarium_public_health.risks.base_risk import Risk
+from vivarium_public_health.risks.effect import RiskEffect, NonLogLinearRiskEffect
+
+from vivarium_public_health.disease import SIS
+from vivarium_public_health.risks import RiskEffect
+from vivarium_public_health.risks.base_risk import Risk
+from vivarium_public_health.utilities import EntityString
 #
 #
 # def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
@@ -398,3 +409,67 @@
 #                                                   source=lambda index: pd.Series(0.1, index=index))
 #
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
+
+
+class CustomExposureRisk(Component):
+    # noinspection PyAttributeOutsideInit
+    def __init__(self, risk: str):
+        super().__init__()
+        self.risk = EntityString(risk)
+    def setup(self, builder: Builder):
+        builder.value.register_value_producer(
+            f"{self.risk.name}.exposure",
+            source=self.get_exposure,
+        )
+    def get_exposure(self, index: pd.Index) -> pd.Series:
+        import pdb; pdb.set_trace()
+
+
+def _setup_risk_simulation(
+    config: LayeredConfigTree,
+    plugins: LayeredConfigTree,
+    risk: Union[str, Risk],
+    data: Dict[str, Any],
+    has_risk_effect: bool = True,
+) -> InteractiveContext:
+    if isinstance(risk, str):
+        risk = CustomExposureRisk(risk)
+    components = [TestPopulation(), risk]
+    if has_risk_effect:
+        components.append(SIS("some_disease"))
+        components.append(RiskEffect(risk.name, "cause.some_disease.incidence_rate"))
+
+    simulation = InteractiveContext(
+        components=components,
+        configuration=config,
+        plugin_configuration=plugins,
+        setup=False,
+    )
+
+    for key, value in data.items():
+        simulation._data.write(key, value)
+
+    simulation.setup()
+    return simulation
+
+
+def test_non_loglinear_effect(base_config, base_plugins):
+    risk = CustomExposureRisk("risk_factor.test_risk")
+    effect = NonLogLinearRiskEffect('risk_factor.test_risk', 'cause.some_disease.incidence_rate')
+
+    rr_data = pd.DataFrame(
+        {
+            "affected_entity": "some_disease",
+            "affected_measure": "incidence_rate",
+            "year_start": 1990,
+            "year_end": 1991,
+            "parameter": [1, 3, 5],
+            "value": [1.0, 1.5, 2.0],
+        },
+    )
+
+    data = {
+        f"{risk.name}.relative_risk": rr_data.reset_index(),
+    }
+
+    simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
