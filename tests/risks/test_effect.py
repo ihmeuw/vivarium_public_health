@@ -19,6 +19,8 @@ from vivarium_public_health.disease import SIS
 from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.utilities import EntityString
+from vivarium_public_health.disease import DiseaseModel, DiseaseState
+from vivarium_public_health.disease.state import SusceptibleState
 #
 #
 # def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
@@ -411,6 +413,18 @@ from vivarium_public_health.utilities import EntityString
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
 
 
+def SIWithIncidenceRateOfOne(cause: str) -> DiseaseModel:
+    healthy = SusceptibleState(cause, allow_self_transition=True)
+    infected = DiseaseState(cause, allow_self_transition=True)
+
+    get_data_functions = {
+        "incidence_rate": lambda builder, cause: 1.0
+    }
+    healthy.add_rate_transition(infected, get_data_functions=get_data_functions)
+
+    return DiseaseModel(cause, states=[healthy, infected])
+
+
 class CustomExposureRisk(Component):
     @property
     def name(self) -> str:
@@ -440,7 +454,7 @@ def _setup_risk_simulation(
         risk = CustomExposureRisk(risk)
     components = [TestPopulation(), risk]
     if has_risk_effect:
-        components.append(SIS('some_disease'))
+        components.append(SIWithIncidenceRateOfOne('some_disease'))
         components.append(NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate"))
 
     simulation = InteractiveContext(
