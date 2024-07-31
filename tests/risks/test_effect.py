@@ -412,17 +412,20 @@ from vivarium_public_health.utilities import EntityString
 
 
 class CustomExposureRisk(Component):
-    # noinspection PyAttributeOutsideInit
+    @property
+    def name(self) -> str:
+        return self.risk
     def __init__(self, risk: str):
         super().__init__()
         self.risk = EntityString(risk)
+    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         builder.value.register_value_producer(
             f"{self.risk.name}.exposure",
             source=self.get_exposure,
         )
     def get_exposure(self, index: pd.Index) -> pd.Series:
-        import pdb; pdb.set_trace()
+        return pd.Series([0.5, 0.75, 1, 2, 2.5, 3, 4, 5, 5.5, 10], index=index)
 
 
 def _setup_risk_simulation(
@@ -437,7 +440,7 @@ def _setup_risk_simulation(
     components = [TestPopulation(), risk]
     if has_risk_effect:
         components.append(SIS("some_disease"))
-        components.append(RiskEffect(risk.name, "cause.some_disease.incidence_rate"))
+        components.append(NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate"))
 
     simulation = InteractiveContext(
         components=components,
@@ -464,12 +467,18 @@ def test_non_loglinear_effect(base_config, base_plugins):
             "year_start": 1990,
             "year_end": 1991,
             "parameter": [1, 3, 5],
-            "value": [1.0, 1.5, 2.0],
+            "value": [1.0, 1.2, 2.0],
         },
     )
 
     data = {
         f"{risk.name}.relative_risk": rr_data.reset_index(),
     }
-
+    base_config.update({"population": {"population_size": 10}})
     simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+    pop = simulation.get_population()
+    breakpoint()
+    rates = simulation._values._register_rate_producer('some_disease.incidence_rate',
+                                                     source=lambda index: pd.Series(1.0, index=pop.index))
+    exposure = simulation.get_value(f'{risk.name.name}.exposure')(pop.index)
+    breakpoint()
