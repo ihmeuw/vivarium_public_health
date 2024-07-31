@@ -358,8 +358,8 @@ class NonLogLinearRiskEffect(RiskEffect):
     #####################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        exposure_values = self.exposure(pop_data.index)
-        exposure_col = pd.DataFrame(exposure_values, columns=self.columns_created)
+        exposure = self.exposure(pop_data.index)
+        exposure_col = pd.DataFrame(exposure.values, columns=self.columns_created)
         self.population_view.update(exposure_col)
 
     def on_time_step_prepare(self, event: Event) -> None:
