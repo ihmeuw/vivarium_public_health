@@ -346,6 +346,10 @@ class NonLogLinearRiskEffect(RiskEffect):
         }
 
     @property
+    def initialization_requirements(self) -> List[str]:
+        return {"requires_columns": [f"{self.risk.name}_propensity"]}
+
+    @property
     def columns_created(self) -> List[str]:
         return [f"{self.risk.name}_exposure"]
 
@@ -354,7 +358,8 @@ class NonLogLinearRiskEffect(RiskEffect):
     #####################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        exposure_col = pd.DataFrame(columns=self.columns_created, index=pop_data.index)
+        exposure_values = self.exposure(pop_data.index)
+        exposure_col = pd.DataFrame(exposure_values, columns=self.columns_created)
         self.population_view.update(exposure_col)
 
     def on_time_step_prepare(self, event: Event) -> None:
