@@ -425,7 +425,8 @@ class CustomExposureRisk(Component):
             source=self.get_exposure,
         )
     def get_exposure(self, index: pd.Index) -> pd.Series:
-        return pd.Series([0.5, 0.75, 1, 2, 2.5, 3, 4, 5, 5.5, 10], index=index)
+        data = pd.Series([0.5, 0.75, 1, 2, 2.5, 3, 4, 5, 5.5, 10], index=index)
+        return data
 
 
 def _setup_risk_simulation(
@@ -439,7 +440,7 @@ def _setup_risk_simulation(
         risk = CustomExposureRisk(risk)
     components = [TestPopulation(), risk]
     if has_risk_effect:
-        components.append(SIS("some_disease"))
+        components.append(SIS('some_disease'))
         components.append(NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate"))
 
     simulation = InteractiveContext(
@@ -472,13 +473,13 @@ def test_non_loglinear_effect(base_config, base_plugins):
     )
 
     data = {
-        f"{risk.name}.relative_risk": rr_data.reset_index(),
+        f"{risk.name}.relative_risk": rr_data,
+        f"{risk.name}.population_attributable_fraction": 0,
+        "cause.some_disease.incidence_rate" : 1,
     }
     base_config.update({"population": {"population_size": 10}})
     simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
     pop = simulation.get_population()
-    breakpoint()
-    rates = simulation._values._register_rate_producer('some_disease.incidence_rate',
-                                                     source=lambda index: pd.Series(1.0, index=pop.index))
     exposure = simulation.get_value(f'{risk.name.name}.exposure')(pop.index)
+    rate = simulation.get_value("some_disease.incidence_rate")(pop.index)
     breakpoint()
