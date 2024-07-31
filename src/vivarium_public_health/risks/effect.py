@@ -346,6 +346,10 @@ class NonLogLinearRiskEffect(RiskEffect):
         }
 
     @property
+    def initialization_requirements(self) -> List[str]:
+        return {"requires_values": [f"{self.risk.name}.exposure"]}
+
+    @property
     def columns_created(self) -> List[str]:
         return [f"{self.risk.name}_exposure"]
 
@@ -354,14 +358,13 @@ class NonLogLinearRiskEffect(RiskEffect):
     #####################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        exposure_col = pd.DataFrame(columns=self.columns_created, index=pop_data.index)
+        exposure = self.exposure(pop_data.index)
+        exposure_col = pd.DataFrame(exposure.values, columns=self.columns_created)
         self.population_view.update(exposure_col)
 
     def on_time_step_prepare(self, event: Event) -> None:
         exposure_values = self.exposure(event.index)
-        exposure_col = pd.Series(
-            exposure_values, name=self.columns_created[0], dtype="object"
-        )
+        exposure_col = pd.Series(exposure_values, name=self.columns_created[0])
         self.population_view.update(exposure_col)
 
     #################
@@ -472,9 +475,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     ) -> Callable[[pd.Index, pd.Series], pd.Series]:
         def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
             rr_intervals = self.lookup_tables["relative_risk"](index)
-            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"].astype(
-                float
-            )
+            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
                 rr_intervals["right_exposure"].values,
