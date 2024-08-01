@@ -413,6 +413,13 @@ from vivarium_public_health.utilities import EntityString
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
 
 
+##############################
+# Non Log-Linear Risk Effect #
+##############################
+
+custom_exposure_values = [0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 5.5, 10]
+
+
 class CustomExposureRisk(Component):
     """Risk where we define the exposure manually."""
 
@@ -432,7 +439,7 @@ class CustomExposureRisk(Component):
         )
 
     def get_exposure(self, index: pd.Index) -> pd.Series:
-        data = pd.Series([0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 5.5, 10], index=index)
+        data = pd.Series(custom_exposure_values, index=index)
         return data
 
 
@@ -499,7 +506,7 @@ def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
         pop.index, skip_post_processor=True
     )
     expected_values = np.interp(
-        [0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 5.5, 10],
+        custom_exposure_values,
         risk_effect_exposures,
         np.array(risk_effect_rrs) / 2,  # RRs get divided by RR at TMREL
     )
