@@ -441,14 +441,13 @@ def _setup_risk_simulation(
     plugins: LayeredConfigTree,
     risk: Union[str, Risk],
     data: Dict[str, Any],
-    has_risk_effect: bool = True,
 ) -> InteractiveContext:
-    components = [TestPopulation(), risk]
-    if has_risk_effect:
-        components.append(SI("some_disease"))
-        components.append(
-            NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate")
-        )
+    components = [
+        TestPopulation(),
+        risk,
+        SI("some_disease"),
+        NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate"),
+    ]
 
     simulation = InteractiveContext(
         components=components,
