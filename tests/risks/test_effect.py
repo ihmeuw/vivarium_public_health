@@ -8,8 +8,7 @@ from vivarium import Component, InteractiveContext
 from vivarium.framework.engine import Builder
 from vivarium.testing_utilities import TestPopulation
 
-from vivarium_public_health.disease import SI, DiseaseModel, DiseaseState
-from vivarium_public_health.disease.state import SusceptibleState
+from vivarium_public_health.disease import SI
 from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 
@@ -412,7 +411,6 @@ from vivarium_public_health.utilities import EntityString
 #                                                   source=lambda index: pd.Series(0.1, index=index))
 #
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
-
 
 class CustomExposureRisk(Component):
     @property
