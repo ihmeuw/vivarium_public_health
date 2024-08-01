@@ -28,6 +28,9 @@ class TransitionString(str):
         obj.from_state, obj.to_state = value.split("_TO_")
         return obj
 
+    def __getnewargs__(self):
+        return (self.from_state + "_TO_" + self.to_state,)
+
 
 class RateTransition(Transition):
 
