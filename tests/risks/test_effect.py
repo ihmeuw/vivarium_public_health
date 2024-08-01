@@ -7,20 +7,21 @@ from layered_config_tree import LayeredConfigTree
 from vivarium import Component, InteractiveContext
 from vivarium.framework.engine import Builder
 from vivarium.testing_utilities import TestPopulation
+
+from vivarium_public_health.disease import SI, DiseaseModel, DiseaseState
+from vivarium_public_health.disease.state import SusceptibleState
+from vivarium_public_health.risks import RiskEffect
+from vivarium_public_health.risks.base_risk import Risk
+
 #
 # from vivarium.framework.utilities import from_yearly
 # from vivarium.testing_utilities import build_table, TestPopulation
 # from vivarium.interface.interactive import initialize_simulation
 #
 # from vivarium_public_health.disease import RateTransition
-from vivarium_public_health.risks.effect import RiskEffect, NonLogLinearRiskEffect
-
-from vivarium_public_health.disease import SIS
-from vivarium_public_health.risks import RiskEffect
-from vivarium_public_health.risks.base_risk import Risk
+from vivarium_public_health.risks.effect import NonLogLinearRiskEffect, RiskEffect
 from vivarium_public_health.utilities import EntityString
-from vivarium_public_health.disease import DiseaseModel, DiseaseState
-from vivarium_public_health.disease.state import SusceptibleState
+
 #
 #
 # def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
@@ -413,31 +414,22 @@ from vivarium_public_health.disease.state import SusceptibleState
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
 
 
-def SIWithIncidenceRateOfOne(cause: str) -> DiseaseModel:
-    healthy = SusceptibleState(cause, allow_self_transition=True)
-    infected = DiseaseState(cause, allow_self_transition=True)
-
-    get_data_functions = {
-        "incidence_rate": lambda builder, cause: 1.0
-    }
-    healthy.add_rate_transition(infected, get_data_functions=get_data_functions)
-
-    return DiseaseModel(cause, states=[healthy, infected])
-
-
 class CustomExposureRisk(Component):
     @property
     def name(self) -> str:
         return self.risk
+
     def __init__(self, risk: str):
         super().__init__()
         self.risk = EntityString(risk)
+
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         builder.value.register_value_producer(
             f"{self.risk.name}.exposure",
             source=self.get_exposure,
         )
+
     def get_exposure(self, index: pd.Index) -> pd.Series:
         data = pd.Series([1, 1.5, 2, 2.5, 2.75, 3, 4, 5, 5.5, 10], index=index)
         return data
@@ -454,8 +446,10 @@ def _setup_risk_simulation(
         risk = CustomExposureRisk(risk)
     components = [TestPopulation(), risk]
     if has_risk_effect:
-        components.append(SIWithIncidenceRateOfOne('some_disease'))
-        components.append(NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate"))
+        components.append(SI("some_disease"))
+        components.append(
+            NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate")
+        )
 
     simulation = InteractiveContext(
         components=components,
@@ -473,7 +467,9 @@ def _setup_risk_simulation(
 
 def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
     risk = CustomExposureRisk("risk_factor.test_risk")
-    effect = NonLogLinearRiskEffect('risk_factor.test_risk', 'cause.some_disease.incidence_rate')
+    effect = NonLogLinearRiskEffect(
+        "risk_factor.test_risk", "cause.some_disease.incidence_rate"
+    )
 
     risk_effect_exposures = [2, 3, 5]
     risk_effect_rrs = [2.0, 2.4, 4.0]
@@ -488,20 +484,26 @@ def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
         },
     )
     # enforce TMREL of 2
-    tmred = {'distribution': 'uniform', 'min': 2, 'max': 2, 'inverted': False}
+    tmred = {"distribution": "uniform", "min": 2, "max": 2, "inverted": False}
 
     data = {
         f"{risk.name}.relative_risk": rr_data,
         f"{risk.name}.tmred": tmred,
         f"{risk.name}.population_attributable_fraction": 0,
-        "cause.some_disease.incidence_rate" : 1,
+        "cause.some_disease.incidence_rate": 1,
     }
 
     base_config.update({"population": {"population_size": 10}})
     simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
 
     pop = simulation.get_population()
-    rate = simulation.get_value("some_disease.incidence_rate")(pop.index, skip_post_processor=True)
-    expected_values = np.interp([1, 1.5, 2, 2.5, 2.75, 3, 4, 5, 5.5, 10], risk_effect_exposures, np.array(risk_effect_rrs)/2)
+    rate = simulation.get_value("some_disease.incidence_rate")(
+        pop.index, skip_post_processor=True
+    )
+    expected_values = np.interp(
+        [1, 1.5, 2, 2.5, 2.75, 3, 4, 5, 5.5, 10],
+        risk_effect_exposures,
+        np.array(risk_effect_rrs) / 2,
+    )
 
     assert np.isclose(rate.values, expected_values, rtol=0.0000001).all()
