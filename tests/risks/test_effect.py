@@ -414,6 +414,7 @@ from vivarium_public_health.utilities import EntityString
 
 
 class CustomExposureRisk(Component):
+    '''Risk where we define the exposure manually.'''
     @property
     def name(self) -> str:
         return self.risk
@@ -430,7 +431,7 @@ class CustomExposureRisk(Component):
         )
 
     def get_exposure(self, index: pd.Index) -> pd.Series:
-        data = pd.Series([1, 1.5, 2, 2.5, 2.75, 3, 4, 5, 5.5, 10], index=index)
+        data = pd.Series([0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 5.5, 10], index=index)
         return data
 
 
@@ -470,7 +471,7 @@ def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
         "risk_factor.test_risk", "cause.some_disease.incidence_rate"
     )
 
-    risk_effect_exposures = [2, 3, 5]
+    risk_effect_exposures = [1, 2, 5]
     risk_effect_rrs = [2.0, 2.4, 4.0]
     rr_data = pd.DataFrame(
         {
@@ -482,8 +483,8 @@ def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
             "value": risk_effect_rrs,
         },
     )
-    # enforce TMREL of 2
-    tmred = {"distribution": "uniform", "min": 2, "max": 2, "inverted": False}
+    # enforce TMREL of 1
+    tmred = {"distribution": "uniform", "min": 1, "max": 1, "inverted": False}
 
     data = {
         f"{risk.name}.relative_risk": rr_data,
@@ -500,9 +501,9 @@ def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
         pop.index, skip_post_processor=True
     )
     expected_values = np.interp(
-        [1, 1.5, 2, 2.5, 2.75, 3, 4, 5, 5.5, 10],
+        [0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 5.5, 10],
         risk_effect_exposures,
-        np.array(risk_effect_rrs) / 2,
+        np.array(risk_effect_rrs) / 2, # RRs get divided by RR at TMREL
     )
 
     assert np.isclose(rate.values, expected_values, rtol=0.0000001).all()
