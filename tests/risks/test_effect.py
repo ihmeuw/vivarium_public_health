@@ -439,7 +439,7 @@ class CustomExposureRisk(Component):
             source=self.get_exposure,
         )
     def get_exposure(self, index: pd.Index) -> pd.Series:
-        data = pd.Series([0.5, 0.75, 1, 2, 2.5, 3, 4, 5, 5.5, 10], index=index)
+        data = pd.Series([1, 1.5, 2, 2.5, 2.75, 3, 4, 5, 5.5, 10], index=index)
         return data
 
 
@@ -471,29 +471,37 @@ def _setup_risk_simulation(
     return simulation
 
 
-def test_non_loglinear_effect(base_config, base_plugins):
+def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
     risk = CustomExposureRisk("risk_factor.test_risk")
     effect = NonLogLinearRiskEffect('risk_factor.test_risk', 'cause.some_disease.incidence_rate')
 
+    risk_effect_exposures = [2, 3, 5]
+    risk_effect_rrs = [2.0, 2.4, 4.0]
     rr_data = pd.DataFrame(
         {
             "affected_entity": "some_disease",
             "affected_measure": "incidence_rate",
             "year_start": 1990,
             "year_end": 1991,
-            "parameter": [1, 3, 5],
-            "value": [1.0, 1.2, 2.0],
+            "parameter": risk_effect_exposures,
+            "value": risk_effect_rrs,
         },
     )
+    # enforce TMREL of 2
+    tmred = {'distribution': 'uniform', 'min': 2, 'max': 2, 'inverted': False}
 
     data = {
         f"{risk.name}.relative_risk": rr_data,
+        f"{risk.name}.tmred": tmred,
         f"{risk.name}.population_attributable_fraction": 0,
         "cause.some_disease.incidence_rate" : 1,
     }
+
     base_config.update({"population": {"population_size": 10}})
     simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+
     pop = simulation.get_population()
-    exposure = simulation.get_value(f'{risk.name.name}.exposure')(pop.index)
-    rate = simulation.get_value("some_disease.incidence_rate")(pop.index)
-    breakpoint()
+    rate = simulation.get_value("some_disease.incidence_rate")(pop.index, skip_post_processor=True)
+    expected_values = np.interp([1, 1.5, 2, 2.5, 2.75, 3, 4, 5, 5.5, 10], risk_effect_exposures, np.array(risk_effect_rrs)/2)
+
+    assert np.isclose(rate.values, expected_values, rtol=0.0000001).all()
