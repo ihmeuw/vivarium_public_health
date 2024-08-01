@@ -443,8 +443,6 @@ def _setup_risk_simulation(
     data: Dict[str, Any],
     has_risk_effect: bool = True,
 ) -> InteractiveContext:
-    if isinstance(risk, str):
-        risk = CustomExposureRisk(risk)
     components = [TestPopulation(), risk]
     if has_risk_effect:
         components.append(SI("some_disease"))
