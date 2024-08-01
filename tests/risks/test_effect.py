@@ -414,7 +414,8 @@ from vivarium_public_health.utilities import EntityString
 
 
 class CustomExposureRisk(Component):
-    '''Risk where we define the exposure manually.'''
+    """Risk where we define the exposure manually."""
+
     @property
     def name(self) -> str:
         return self.risk
@@ -503,7 +504,7 @@ def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
     expected_values = np.interp(
         [0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 5.5, 10],
         risk_effect_exposures,
-        np.array(risk_effect_rrs) / 2, # RRs get divided by RR at TMREL
+        np.array(risk_effect_rrs) / 2,  # RRs get divided by RR at TMREL
     )
 
     assert np.isclose(rate.values, expected_values, rtol=0.0000001).all()
