@@ -4,7 +4,6 @@ from typing import Callable
 import pytest
 from layered_config_tree import LayeredConfigTree
 from vivarium.framework.configuration import build_simulation_configuration
-
 from vivarium_testing_utils import FuzzyChecker
 
 
