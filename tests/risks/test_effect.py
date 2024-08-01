@@ -412,6 +412,7 @@ from vivarium_public_health.utilities import EntityString
 #
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
 
+
 class CustomExposureRisk(Component):
     @property
     def name(self) -> str:
