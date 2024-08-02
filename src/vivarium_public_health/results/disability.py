@@ -12,6 +12,7 @@ from typing import Any, List, Union
 
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
+from loguru import logger
 from vivarium.framework.engine import Builder
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
@@ -64,11 +65,41 @@ class DisabilityObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
         self.disability_weight = self.get_disability_weight_pipeline(builder)
-        self.causes_of_disease = [
+        self.set_causes_of_disease(builder)
+
+    def set_causes_of_disease(self, builder: Builder) -> None:
+        """Set the causes of disease to be observed by removing any excluded
+        via the model spec from the list of all diasease class causes.
+        """
+        causes_of_disease = [
             cause
             for cause in builder.components.get_components_by_type(
                 tuple(self.disease_classes)
             )
+        ]
+        excluded_causes = (
+            builder.configuration.stratification.excluded_categories.to_dict().get(
+                "disability", []
+            )
+        )
+
+        # Handle exclusions that don't exist in the list of causes
+        cause_names = [cause.state_id for cause in causes_of_disease]
+        unknown_exclusions = set(excluded_causes) - set(cause_names)
+        if len(unknown_exclusions) > 0:
+            raise ValueError(
+                f"Excluded 'disability' causes {unknown_exclusions} not found in "
+                f"expected categories categories: {cause_names}"
+            )
+
+        # Drop excluded causes
+        if excluded_causes:
+            logger.info(
+                f"'disability' has category exclusion requests: {excluded_causes}\n"
+                "Removing these from the allowable categories."
+            )
+        self.causes_of_disease = [
+            cause for cause in causes_of_disease if cause.state_id not in excluded_causes
         ]
 
     def get_configuration(self, builder: Builder) -> LayeredConfigTree:
