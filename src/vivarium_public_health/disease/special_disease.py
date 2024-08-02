@@ -181,7 +181,7 @@ class RiskAttributableDisease(Component):
             ),
         )
         builder.value.register_value_modifier(
-            "disability_weight", modifier=self.disability_weight
+            "all_causes.disability_weight", modifier=self.disability_weight
         )
         builder.value.register_value_modifier(
             "cause_specific_mortality_rate",
