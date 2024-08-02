@@ -58,9 +58,9 @@ def test_disability_observer_setup(mocker):
 
     assert builder.results.register_adding_observation.call_count == 1
     cause_pipelines = [
-        "disability_weight",
         "flu.disability_weight",
         "measles.disability_weight",
+        "all_causes.disability_weight",
     ]
     builder.results.register_adding_observation.assert_any_call(
         name="ylds",
@@ -75,7 +75,7 @@ def test_disability_observer_setup(mocker):
         aggregator=observer.disability_weight_aggregator,
     )
 
-    assert set(observer.disease_classes) == set([DiseaseState, RiskAttributableDisease])
+    assert set(observer.disability_classes) == set([DiseaseState, RiskAttributableDisease])
 
 
 def test__disability_weight_aggregator():
@@ -163,14 +163,14 @@ def test_disability_accumulation(
     }
 
     # Get pipelines
-    disability_weight = simulation.get_value("disability_weight")
+    disability_weight_all_causes = simulation.get_value("all_causes.disability_weight")
     disability_weight_0 = simulation.get_value("sick_cause_0.disability_weight")
     disability_weight_1 = simulation.get_value("sick_cause_1.disability_weight")
 
     # Check that disability weights are computed as expected
     for sub_pop_key in ["healthy", "sick_0", "sick_1", "sick_0_1"]:
         assert np.isclose(
-            disability_weight(pop[sub_pop_mask[sub_pop_key]].index),
+            disability_weight_all_causes(pop[sub_pop_mask[sub_pop_key]].index),
             (
                 1
                 - (
@@ -186,7 +186,7 @@ def test_disability_accumulation(
 
     # yld_masks format: {cause: (state, filter, dw_pipeline)}
     yld_masks = {
-        "all_causes": (None, slice(None), disability_weight),
+        "all_causes": (None, slice(None), disability_weight_all_causes),
         "model_0": ("sick_cause_0", pop["model_0"] == "sick_cause_0", disability_weight_0),
         "model_1": ("sick_cause_1", pop["model_1"] == "sick_cause_1", disability_weight_1),
     }
@@ -233,7 +233,7 @@ def test_disability_accumulation(
             assert np.isclose(expected_ylds, actual_ylds[0], rtol=0.0000001)
 
 
-@pytest.mark.parametrize("exclusions", [[], ["flu"], ["measles"], ["flu", "measles"]])
+@pytest.mark.parametrize("exclusions", [[], ["flu"], ["all_causes"], ["flu", "all_causes"]])
 def test_set_causes_of_disease(exclusions, mocker):
     observer = DisabilityObserver_()
 
@@ -246,13 +246,12 @@ def test_set_causes_of_disease(exclusions, mocker):
 
     # Set up fake calls for cause-specific register_observation args
     flu = DiseaseState("flu")
-    measles = DiseaseState("measles")
-    builder.components.get_components_by_type = lambda n: [flu, measles]
+    builder.components.get_components_by_type = lambda n: [flu]
 
     observer.setup_component(builder)
-    assert {cause.state_id for cause in observer.causes_of_disease} == {
+    assert {cause.state_id for cause in observer.causes_of_disability} == {
         "flu",
-        "measles",
+        "all_causes",
     } - set(exclusions)
 
 
@@ -273,7 +272,7 @@ def test_set_causes_of_disease_raises(mocker):
     with pytest.raises(
         ValueError,
         match=re.escape(
-            "Excluded 'disability' causes {'arthritis'} not found in expected categories categories: ['flu']"
+            "Excluded 'disability' causes {'arthritis'} not found in expected categories categories: ['flu', 'all_causes']"
         ),
     ):
         observer.setup_component(builder)

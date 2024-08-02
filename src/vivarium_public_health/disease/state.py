@@ -354,7 +354,7 @@ class DiseaseState(BaseDiseaseState):
         self.disability_weight = self.get_disability_weight_pipeline(builder)
 
         builder.value.register_value_modifier(
-            "disability_weight", modifier=self.disability_weight
+            "all_causes.disability_weight", modifier=self.disability_weight
         )
 
         self.has_excess_mortality = is_non_zero(

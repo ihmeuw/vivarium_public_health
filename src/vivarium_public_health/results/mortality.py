@@ -156,6 +156,7 @@ class MortalityObserver(PublicHealthObserver):
             results[COLUMNS.ENTITY] = "all_causes"
         else:
             results.rename(columns={"cause_of_death": COLUMNS.ENTITY}, inplace=True)
+        # FIXME: exlude not_dead from the stratifications instead of having to drop here
         return results[results[COLUMNS.ENTITY] != "not_dead"]
 
     def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
