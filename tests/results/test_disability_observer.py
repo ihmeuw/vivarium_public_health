@@ -1,8 +1,10 @@
 import itertools
+import re
 
 import numpy as np
 import pandas as pd
 import pytest
+from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation
 
@@ -41,6 +43,9 @@ def test_disability_observer_setup(mocker):
     builder.results.register_adding_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
     builder.configuration.output_data.results_directory = "some/results/directory"
+    builder.configuration.stratification.excluded_categories = LayeredConfigTree(
+        {"disability": []}
+    )
 
     # Set up fake calls for cause-specific register_observation args
     flu = DiseaseState("flu")
@@ -226,3 +231,49 @@ def test_disability_accumulation(
             ].values
             assert len(actual_ylds) == 1
             assert np.isclose(expected_ylds, actual_ylds[0], rtol=0.0000001)
+
+
+@pytest.mark.parametrize("exclusions", [[], ["flu"], ["measles"], ["flu", "measles"]])
+def test_set_causes_of_disease(exclusions, mocker):
+    observer = DisabilityObserver_()
+
+    builder = mocker.Mock()
+    mocker.patch("vivarium.component.Component.build_all_lookup_tables")
+    builder.configuration.time.step_size = 28
+    builder.configuration.stratification.excluded_categories = LayeredConfigTree(
+        {"disability": exclusions}
+    )
+
+    # Set up fake calls for cause-specific register_observation args
+    flu = DiseaseState("flu")
+    measles = DiseaseState("measles")
+    builder.components.get_components_by_type = lambda n: [flu, measles]
+
+    observer.setup_component(builder)
+    assert {cause.state_id for cause in observer.causes_of_disease} == {
+        "flu",
+        "measles",
+    } - set(exclusions)
+
+
+def test_set_causes_of_disease_raises(mocker):
+    observer = DisabilityObserver_()
+
+    builder = mocker.Mock()
+    mocker.patch("vivarium.component.Component.build_all_lookup_tables")
+    builder.configuration.time.step_size = 28
+    builder.configuration.stratification.excluded_categories = LayeredConfigTree(
+        {"disability": ["arthritis"]}  # not an instantiated disease
+    )
+
+    # Set up fake calls for cause-specific register_observation args (but NOT 'arthritis')
+    flu = DiseaseState("flu")
+    builder.components.get_components_by_type = lambda n: [flu]
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Excluded 'disability' causes {'arthritis'} not found in expected categories categories: ['flu']"
+        ),
+    ):
+        observer.setup_component(builder)
