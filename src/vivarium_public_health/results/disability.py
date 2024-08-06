@@ -8,11 +8,12 @@ in the simulation.
 
 """
 
-from typing import Any, List, Type, Union
+from typing import Any, List, Union
 
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
 from loguru import logger
+from pandas.api.types import CategoricalDtype
 from vivarium.framework.engine import Builder
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
@@ -48,7 +49,7 @@ class DisabilityObserver(PublicHealthObserver):
     ##############
 
     @property
-    def disability_classes(self) -> List[Type]:
+    def disability_classes(self) -> list[type]:
         """The classes to be considered for causes of disability."""
         return [DiseaseState, RiskAttributableDisease]
 
@@ -71,16 +72,18 @@ class DisabilityObserver(PublicHealthObserver):
 
     def set_causes_of_disability(self, builder: Builder) -> None:
         """Set the causes of disability to be observed by removing any excluded
-        via the model spec from the list of all disability class causes.
+        via the model spec from the list of all disability class causes. We implement
+        exclusions here because disabilities are unique in that they are not
+        registered stratifications and so cannot be excluded during the stratification
+        call like other categories.
         """
         causes_of_disability = list(
             builder.components.get_components_by_type(tuple(self.disability_classes))
         )
         # Convert to SimpleCause instances and add on all_causes
-        all_causes = SimpleCause("all_causes", "all_causes", "cause")
         causes_of_disability = [
             SimpleCause.create_from_disease_state(cause) for cause in causes_of_disability
-        ] + [all_causes]
+        ] + [SimpleCause("all_causes", "all_causes", "cause")]
 
         excluded_causes = (
             builder.configuration.stratification.excluded_categories.to_dict().get(
@@ -165,17 +168,19 @@ class DisabilityObserver(PublicHealthObserver):
         results = pd.DataFrame(results.stack(), columns=[COLUMNS.VALUE])
         # Name the new index level
         results.index.set_names(idx_names, inplace=True)
-        return results.reset_index()
+        results = results.reset_index()
+        results[COLUMNS.SUB_ENTITY] = results[COLUMNS.SUB_ENTITY].astype(CategoricalDtype())
+        return results
 
     def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         entity_type_map = {
             cause.state_id: cause.cause_type for cause in self.causes_of_disability
         }
-        return results[COLUMNS.SUB_ENTITY].map(entity_type_map)
+        return results[COLUMNS.SUB_ENTITY].map(entity_type_map).astype(CategoricalDtype())
 
     def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         entity_map = {cause.state_id: cause.model for cause in self.causes_of_disability}
-        return results[COLUMNS.SUB_ENTITY].map(entity_map)
+        return results[COLUMNS.SUB_ENTITY].map(entity_map).astype(CategoricalDtype())
 
     def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The sub-entity col was created in the 'format' method
