@@ -6,6 +6,8 @@ import pytest
 from layered_config_tree import LayeredConfigTree
 from vivarium import Component, InteractiveContext
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
 from vivarium.testing_utilities import TestPopulation
 
 from vivarium_public_health.disease import SI
@@ -430,6 +432,16 @@ class CustomExposureRisk(Component):
     def __init__(self, risk: str):
         super().__init__()
         self.risk = EntityString(risk)
+        breakpoint()
+        self.exposure_column_name = f"{self.risk.name}_exposure"
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
+        self.population_view.update(exposure_col)
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
+        self.population_view.update(exposure_col)
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
