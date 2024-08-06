@@ -13,6 +13,7 @@ from typing import Any, Dict, List
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
@@ -123,7 +124,7 @@ class Risk(Component):
 
     @property
     def columns_created(self) -> List[str]:
-        return [self.propensity_column_name]
+        return [self.propensity_column_name, self.exposure_column_name]
 
     @property
     def initialization_requirements(self) -> Dict[str, List[str]]:
@@ -152,6 +153,7 @@ class Risk(Component):
         self.propensity_column_name = f"{self.risk.name}_propensity"
         self.propensity_pipeline_name = f"{self.risk.name}.propensity"
         self.exposure_pipeline_name = f"{self.risk.name}.exposure"
+        self.exposure_column_name = f"{self.risk.name}_exposure"
 
     #################
     # Setup methods #
@@ -272,11 +274,19 @@ class Risk(Component):
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        self.population_view.update(
-            pd.Series(
-                self.randomness.get_draw(pop_data.index), name=self.propensity_column_name
-            )
+        propensity_values = self.randomness.get_draw(pop_data.index)
+        df = pd.DataFrame(
+            {
+                self.propensity_column_name: self.randomness.get_draw(pop_data.index),
+                self.exposure_column_name: self.exposure_distribution.ppf(propensity_values),
+            }
         )
+        self.population_view.update(df)
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        exposure_values = self.exposure(event.index)
+        exposure_col = pd.Series(exposure_values, name=self.exposure_column_name)
+        self.population_view.update(exposure_col)
 
     ##################################
     # Pipeline sources and modifiers #
