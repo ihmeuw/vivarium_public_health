@@ -275,12 +275,10 @@ class Risk(Component):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         propensity_values = self.randomness.get_draw(pop_data.index)
-        self.population_view.update(
-            pd.Series(propensity_values, name=self.propensity_column_name)
-        )
         exposure_values = self.exposure_distribution.ppf(propensity_values)
-        exposure_col = pd.Series(exposure_values, index=pop_data.index, name=self.exposure_column_name)
-        self.population_view.update(exposure_col)
+        propensity_col = pd.Series(propensity_values, name=self.propensity_column_name)
+        exposure_col = pd.Series(exposure_values, name=self.exposure_column_name)
+        self.population_view.update(pd.concat[propensity_col, exposure_col], axis=1)
 
     def on_time_step_prepare(self, event: Event) -> None:
         exposure_values = self.exposure(event.index)
