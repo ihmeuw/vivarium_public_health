@@ -429,10 +429,13 @@ class CustomExposureRisk(Component):
     def name(self) -> str:
         return self.risk
 
+    @property
+    def columns_created(self) -> list[str]:
+        return [self.exposure_column_name]
+
     def __init__(self, risk: str):
         super().__init__()
         self.risk = EntityString(risk)
-        breakpoint()
         self.exposure_column_name = f"{self.risk.name}_exposure"
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
