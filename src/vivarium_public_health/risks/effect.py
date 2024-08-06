@@ -349,7 +349,6 @@ class NonLogLinearRiskEffect(RiskEffect):
     def columns_required(self) -> list[str]:
         return [f"{self.risk.name}_exposure"]
 
-
     #################
     # Setup methods #
     #################
