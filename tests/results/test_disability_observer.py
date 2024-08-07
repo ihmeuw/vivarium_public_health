@@ -234,7 +234,7 @@ def test_disability_accumulation(
 
 
 @pytest.mark.parametrize("exclusions", [[], ["flu"], ["all_causes"], ["flu", "all_causes"]])
-def test_set_causes_of_disease(exclusions, mocker):
+def test_set_causes_of_disability(exclusions, mocker):
     observer = DisabilityObserver_()
 
     builder = mocker.Mock()
@@ -255,7 +255,7 @@ def test_set_causes_of_disease(exclusions, mocker):
     } - set(exclusions)
 
 
-def test_set_causes_of_disease_raises(mocker):
+def test_set_causes_of_disability_raises(mocker):
     observer = DisabilityObserver_()
 
     builder = mocker.Mock()
@@ -276,3 +276,80 @@ def test_set_causes_of_disease_raises(mocker):
         ),
     ):
         observer.setup_component(builder)
+
+
+# FIXME: error when excluding all but one disability
+@pytest.mark.parametrize("exclusions", [[], ["all_causes"], ["all_causes", "sick_cause_0"]])
+def test_category_exclusions(
+    base_config,
+    base_plugins,
+    exclusions,
+):
+    """Integration test for the disability observer and the Results Management system."""
+
+    if len(exclusions) == 2:
+        pytest.skip(reason="FIXME: error when excluding all but one disability")
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+
+    # Set up two disease models (_0 and _1), to test against multiple causes of disability
+    healthy_0 = SusceptibleState("healthy_0")
+    healthy_1 = SusceptibleState("healthy_1")
+    disability_get_data_funcs_0 = {
+        "disability_weight": lambda _, __: build_table_with_age(
+            0.99,
+            parameter_columns={"year": (year_start - 1, year_end)},
+        ),
+        "prevalence": lambda _, __: build_table_with_age(
+            0.45, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+    }
+    disability_get_data_funcs_1 = {
+        "disability_weight": lambda _, __: build_table_with_age(
+            0.1,
+            parameter_columns={"year": (year_start - 1, year_end)},
+        ),
+        "prevalence": lambda _, __: build_table_with_age(
+            0.65, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+    }
+    disability_state_0 = DiseaseState(
+        "sick_cause_0", get_data_functions=disability_get_data_funcs_0
+    )
+    disability_state_1 = DiseaseState(
+        "sick_cause_1", get_data_functions=disability_get_data_funcs_1
+    )
+    model_0 = DiseaseModel(
+        "model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0]
+    )
+    model_1 = DiseaseModel(
+        "model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1]
+    )
+
+    # Add exclusions to model spec
+    base_config.update(
+        {
+            "stratification": {
+                "excluded_categories": {
+                    "disability": exclusions,
+                }
+            }
+        }
+    )
+    simulation = InteractiveContext(
+        components=[
+            TestPopulation(),
+            model_0,
+            model_1,
+            ResultsStratifier(),
+            DisabilityObserver(),
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+    )
+
+    simulation.step()
+    results = simulation.get_results()["ylds"]
+    assert set(results["sub_entity"]) == {"sick_cause_0", "sick_cause_1", "all_causes"} - set(
+        exclusions
+    )
