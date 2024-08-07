@@ -12,6 +12,7 @@ from typing import Any, Dict, List
 
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
+from pandas.api.types import CategoricalDtype
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
@@ -116,11 +117,17 @@ class MortalityObserver(PublicHealthObserver):
     def register_observations(self, builder: Builder) -> None:
         pop_filter = 'alive == "dead" and tracked == True'
         additional_stratifications = self.configuration.include
-        # TODO: manually add 'not_dead' to exlusions
         if not self.configuration.aggregate:
+            # manually append 'not_dead' as an excluded cause
+            excluded_categories = (
+                builder.configuration.stratification.excluded_categories.to_dict().get(
+                    "cause_of_death", []
+                )
+            ) + ["not_dead"]
             builder.results.register_stratification(
                 "cause_of_death",
                 [cause.state_id for cause in self.causes_of_death],
+                excluded_categories=excluded_categories,
                 requires_columns=["cause_of_death"],
             )
             additional_stratifications += ["cause_of_death"]
@@ -165,12 +172,11 @@ class MortalityObserver(PublicHealthObserver):
             results[COLUMNS.ENTITY] = "all_causes"
         else:
             results.rename(columns={"cause_of_death": COLUMNS.ENTITY}, inplace=True)
-        # FIXME: exlude not_dead from the stratifications instead of having to drop here
-        return results[results[COLUMNS.ENTITY] != "not_dead"]
+        return results
 
     def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         entity_type_map = {cause.state_id: cause.cause_type for cause in self.causes_of_death}
-        return results[COLUMNS.ENTITY].map(entity_type_map)
+        return results[COLUMNS.ENTITY].map(entity_type_map).astype(CategoricalDtype())
 
     def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The entity col was created in the 'format' method
