@@ -107,16 +107,14 @@ def test_results_stratifier_register_stratifications(mocker):
     # builder.results.register_stratification.assert_any_call(
     #     "event_year",
     #     years_list,
-    #     None,
-    #     rs.map_year,
+    #     mapper=rs.map_year,
     #     is_vectorized=True,
     #     requires_columns=["event_time"],
     # )
     # builder.results.register_stratification.assert_any_call(
     #     "entrance_year",
     #     years_list,
-    #     None,
-    #     rs.map_year,
+    #     mapper=rs.map_year,
     #     is_vectorized=True,
     #     requires_columns=["entrance_time"],
     # )
@@ -124,8 +122,7 @@ def test_results_stratifier_register_stratifications(mocker):
     # builder.results.register_stratification.assert_any_call(
     #     "exit_year",
     #     years_list + ["nan"],
-    #     None
-    #     rs.map_year,
+    #     mapper=rs.map_year,
     #     is_vectorized=True,
     #     requires_columns=["exit_time"],
     # )
