@@ -22,11 +22,7 @@ from vivarium_public_health.risks.data_transformations import (
     load_exposure_data,
     pivot_categorical,
 )
-from vivarium_public_health.utilities import (
-    EntityString,
-    TargetString,
-    get_lookup_columns,
-)
+from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
 
 
 class RiskEffect(Component):
