@@ -356,7 +356,23 @@ class NonLogLinearRiskEffect(RiskEffect):
     def build_all_lookup_tables(self, builder: Builder) -> None:
         rr_data = self.get_relative_risk_data(builder)
 
-        # TODO: add check that rr_data is parametrize by exposure
+        # check that rr_data has 1000 parameter values
+        exposure_values = rr_data["parameter"].values
+        assert len(np.unique(exposure_values)) == 1000
+
+        # and that these values are monotonically increasing within each demographic group
+        demographic_cols = [
+            col for col in rr_data.columns if col != "parameter" and col != "value"
+        ]
+
+        def values_are_monotonically_increasing(df: pd.DataFrame) -> bool:
+            return np.all(df["parameter"].values[1:] >= df["parameter"].values[:-1])
+
+        group_is_increasing = rr_data.groupby(demographic_cols).apply(
+            values_are_monotonically_increasing
+        )
+        assert group_is_increasing.all()
+
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
             # create new row for right-most exposure bin (RR is same as max RR)
             max_exposure_row = df.tail(1).copy()
