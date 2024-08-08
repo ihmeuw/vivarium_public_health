@@ -2,5 +2,20 @@
 line_length = 94
 
 [tool.isort]
+line_length = 94
 profile = "black"
 known_third_party = ["vivarium"]
+multi_line_output = 3 # Vertical Hanging Indent, see https://pypi.org/project/isort/
+
+[tool.pytest.ini_options]
+testpaths = ["tests/"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.coverage.run]
+source = ["vivarium_public_health"]
+
+[tool.coverage.report]
+show_missing = true
