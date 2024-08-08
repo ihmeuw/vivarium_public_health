@@ -30,6 +30,7 @@ from vivarium_public_health.utilities import (
     EntityString,
     TargetString,
     get_lookup_columns,
+    NUM_RR_EXPOSURE_VALUES,
 )
 
 
@@ -369,9 +370,10 @@ class NonLogLinearRiskEffect(RiskEffect):
 
         # check that rr_data has 1000 parameter values
         exposure_values = rr_data["parameter"].values
-        if len(np.unique(exposure_values)) != 1000:
+        breakpoint()
+        if len(np.unique(exposure_values)) != NUM_RR_EXPOSURE_VALUES:
             raise ValueError(
-                f"The parameter column in your {self.risk.name} relative risk data must contain 1000 values to be used in NonLogLinearRiskEffect."
+                f"The parameter column in your {self.risk.name} relative risk data must contain {NUM_RR_EXPOSURE_VALUES} values to be used in NonLogLinearRiskEffect."
             )
 
         # and that these values are monotonically increasing within each demographic group

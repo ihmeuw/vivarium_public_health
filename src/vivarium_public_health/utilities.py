@@ -112,3 +112,6 @@ def get_lookup_columns(
         necessary_columns.remove("year")
 
     return list(necessary_columns)
+
+
+NUM_RR_EXPOSURE_VALUES = 1000
