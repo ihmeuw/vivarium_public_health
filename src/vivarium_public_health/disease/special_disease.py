@@ -20,11 +20,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import TransitionString
-from vivarium_public_health.utilities import (
-    EntityString,
-    get_lookup_columns,
-    is_non_zero,
-)
+from vivarium_public_health.utilities import EntityString, get_lookup_columns, is_non_zero
 
 
 class RiskAttributableDisease(Component):

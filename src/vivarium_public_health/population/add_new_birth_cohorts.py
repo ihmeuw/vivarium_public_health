@@ -17,9 +17,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
 from vivarium_public_health import utilities
-from vivarium_public_health.population.data_transformations import (
-    get_live_births_per_year,
-)
+from vivarium_public_health.population.data_transformations import get_live_births_per_year
 
 # TODO: Incorporate better data into gestational model (probably as a separate component)
 PREGNANCY_DURATION = pd.Timedelta(days=9 * utilities.DAYS_PER_MONTH)

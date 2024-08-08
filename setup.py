@@ -31,6 +31,7 @@ if __name__ == "__main__":
     test_requirements = [
         "vivarium_testing_utils",
         "pytest",
+        "pytest-cov",
         "pytest-mock",
         "hypothesis",
         "pyyaml",
