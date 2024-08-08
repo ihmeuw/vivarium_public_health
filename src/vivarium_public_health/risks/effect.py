@@ -370,7 +370,6 @@ class NonLogLinearRiskEffect(RiskEffect):
 
         # check that rr_data has 1000 parameter values
         exposure_values = rr_data["parameter"].values
-        breakpoint()
         if len(np.unique(exposure_values)) != NUM_RR_EXPOSURE_VALUES:
             raise ValueError(
                 f"The parameter column in your {self.risk.name} relative risk data must contain {NUM_RR_EXPOSURE_VALUES} values to be used in NonLogLinearRiskEffect."
