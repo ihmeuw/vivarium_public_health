@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation, build_table
+from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
@@ -293,8 +293,8 @@ def test_category_exclusions(
         {
             "stratification": {
                 "excluded_categories": {
-                    "person_time_vampiris": person_time_exclusions,
-                    "transition_count_vampiris": transition_count_exclusions,
+                    "vampiris": person_time_exclusions,
+                    "transition_vampiris": transition_count_exclusions,
                 }
             }
         }
@@ -313,18 +313,9 @@ def test_category_exclusions(
     simulation.step()
     person_time = simulation.get_results()["person_time_vampiris"]
     transition_count = simulation.get_results()["transition_count_vampiris"]
-    person_time_categories = {
-        "susceptible_to_human",
-        "turning",
-        "vampire",
-    }
-    transition_count_categories = {
-        "susceptible_to_human_to_turning",
-        "turning_to_vampire",
-    }
-    assert set(person_time["sub_entity"]) == person_time_categories - set(
-        transition_count_exclusions
-    )
-    assert set(transition_count["sub_entity"]) == transition_count_categories - set(
+    assert set(person_time["sub_entity"]) == set(vampiris.state_names) - set(
         person_time_exclusions
+    )
+    assert set(transition_count["sub_entity"]) == set(vampiris.transition_names) - set(
+        transition_count_exclusions
     )
