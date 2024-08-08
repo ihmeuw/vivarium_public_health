@@ -77,8 +77,8 @@ class DisabilityObserver(PublicHealthObserver):
         registered stratifications and so cannot be excluded during the stratification
         call like other categories.
         """
-        causes_of_disability = list(
-            builder.components.get_components_by_type(tuple(self.disability_classes))
+        causes_of_disability = builder.components.get_components_by_type(
+            self.disability_classes
         )
         # Convert to SimpleCause instances and add on all_causes
         causes_of_disability = [
@@ -102,7 +102,7 @@ class DisabilityObserver(PublicHealthObserver):
 
         # Drop excluded causes
         if excluded_causes:
-            logger.info(
+            logger.debug(
                 f"'disability' has category exclusion requests: {excluded_causes}\n"
                 "Removing these from the allowable categories."
             )
