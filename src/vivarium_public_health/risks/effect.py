@@ -27,10 +27,10 @@ from vivarium_public_health.risks.data_transformations import (
 )
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.utilities import (
+    NUM_RR_EXPOSURE_VALUES,
     EntityString,
     TargetString,
     get_lookup_columns,
-    NUM_RR_EXPOSURE_VALUES,
 )
 
 
