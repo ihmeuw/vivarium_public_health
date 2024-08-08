@@ -27,6 +27,7 @@ from vivarium_public_health.risks.data_transformations import (
 )
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.utilities import (
+    NUM_RR_EXPOSURE_VALUES,
     EntityString,
     TargetString,
     get_lookup_columns,
@@ -323,8 +324,19 @@ class RiskEffect(Component):
 
 
 class NonLogLinearRiskEffect(RiskEffect):
-    # TODO: update docstring
-    """Risk effect for exposure-parametrized relative risks."""
+    """A component to model the impact of an exposure-parametrized risk factor on
+    the target rate of some affected entity. This component will
+
+    1) read TMRED data from the artifact and define the TMREL
+    2) calculate the relative risk at TMREL by linearly interpolating over
+       relative risk data defined in the configuration
+    3) divide relative risk data from configuration by RR at TMREL
+       and clip to be greater than 1
+    4) build a LookupTable which returns the exposure and RR of the left and right edges
+       of the RR bin containing a simulant's exposure
+    5) use this LookupTable to modify the target pipeline by linearly interpolating
+       a simulant's RR value and multiplying it by the intended target rate
+    """
 
     ##############
     # Properties #
@@ -356,7 +368,29 @@ class NonLogLinearRiskEffect(RiskEffect):
     def build_all_lookup_tables(self, builder: Builder) -> None:
         rr_data = self.get_relative_risk_data(builder)
 
-        # TODO: add check that rr_data is parametrize by exposure
+        # check that rr_data has 1000 parameter values
+        exposure_values = rr_data["parameter"].values
+        if len(np.unique(exposure_values)) != NUM_RR_EXPOSURE_VALUES:
+            raise ValueError(
+                f"The parameter column in your {self.risk.name} relative risk data must contain {NUM_RR_EXPOSURE_VALUES} values to be used in NonLogLinearRiskEffect."
+            )
+
+        # and that these values are monotonically increasing within each demographic group
+        demographic_cols = [
+            col for col in rr_data.columns if col != "parameter" and col != "value"
+        ]
+
+        def values_are_monotonically_increasing(df: pd.DataFrame) -> bool:
+            return np.all(df["parameter"].values[1:] >= df["parameter"].values[:-1])
+
+        group_is_increasing = rr_data.groupby(demographic_cols).apply(
+            values_are_monotonically_increasing
+        )
+        if not group_is_increasing.all():
+            raise ValueError(
+                "The parameter column in your relative risk data must be monotonically increasing to be used in NonLogLinearRiskEffect."
+            )
+
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
             # create new row for right-most exposure bin (RR is same as max RR)
             max_exposure_row = df.tail(1).copy()
