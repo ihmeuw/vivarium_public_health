@@ -26,11 +26,7 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
-from vivarium_public_health.utilities import (
-    EntityString,
-    TargetString,
-    get_lookup_columns,
-)
+from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
 
 
 class RiskEffect(Component):
