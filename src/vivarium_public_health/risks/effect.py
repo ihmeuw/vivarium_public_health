@@ -433,6 +433,9 @@ class NonLogLinearRiskEffect(RiskEffect):
         # calculate RR at TMREL
         rr_source = configuration.data_sources.relative_risk
         original_rrs = self.get_filtered_data(builder, rr_source)
+
+        self.validate_rr_data(original_rrs)
+
         demographic_cols = [
             col for col in original_rrs.columns if col != "parameter" and col != "value"
         ]

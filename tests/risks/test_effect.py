@@ -494,11 +494,8 @@ def _setup_risk_simulation(
         (["per unit", "per unit", "per unit"], "numeric"),
     ],
 )
-def test_non_loglinear_effect(
-    rr_parameter_data, error_message, base_config, base_plugins, monkeypatch
-):
+def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, base_plugins):
     risk = CustomExposureRisk("risk_factor.test_risk")
-    monkeypatch.setattr("vivarium_public_health.risks.effect.NUM_RR_EXPOSURE_VALUES", 3)
     effect = NonLogLinearRiskEffect(
         "risk_factor.test_risk", "cause.some_disease.incidence_rate"
     )
@@ -529,6 +526,7 @@ def test_non_loglinear_effect(
     if error_message:
         with pytest.raises(ValueError, match=error_message):
             simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+        return
     else:
         simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
 
