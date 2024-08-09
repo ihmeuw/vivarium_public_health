@@ -18,9 +18,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks import Risk, RiskEffect
-from vivarium_public_health.risks.data_transformations import (
-    get_exposure_post_processor,
-)
+from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.risks.distributions import PolytomousDistribution
 from vivarium_public_health.utilities import get_lookup_columns, to_snake_case
 

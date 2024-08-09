@@ -82,15 +82,16 @@ jobs:
         if: env.vivarium_branch_name != 'main'
         run: |
           echo "Cloning upstream branch: ${vivarium_branch_name}"
+          pushd ..
           git clone --branch=${vivarium_branch_name} https://github.com/ihmeuw/vivarium.git
           pushd vivarium
           pip install .
-          popd
+          popd && popd
       - name: Lint
         run: |
           pip install black==22.3.0 isort
-          black . --check --diff
           isort . --check --verbose --only-modified --diff
+          black . --check --diff
       - name: Test
         run: |
           if "${{ github.event_name == 'schedule' }}"; then

@@ -18,9 +18,7 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import Pipeline
 
-from vivarium_public_health.risks.data_transformations import (
-    get_exposure_post_processor,
-)
+from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.risks.distributions import (
     ContinuousDistribution,
     DichotomousDistribution,

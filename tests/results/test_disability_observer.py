@@ -7,11 +7,7 @@ from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
-from vivarium_public_health.disease import (
-    DiseaseModel,
-    DiseaseState,
-    RiskAttributableDisease,
-)
+from vivarium_public_health.disease import DiseaseModel, DiseaseState, RiskAttributableDisease
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.disability import (
