@@ -485,14 +485,24 @@ def _setup_risk_simulation(
     return simulation
 
 
-def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
+@pytest.mark.parametrize(
+    "rr_parameter_data, error_message",
+    [
+        ([1, 2, 5], None),
+        ([2, 1, 5], "monotonic"),
+        (["cat1", "cat2", "cat3"], "numeric"),
+        (["per unit", "per unit", "per unit"], "numeric"),
+    ],
+)
+def test_non_loglinear_effect(
+    rr_parameter_data, error_message, base_config, base_plugins, monkeypatch
+):
     risk = CustomExposureRisk("risk_factor.test_risk")
     monkeypatch.setattr("vivarium_public_health.risks.effect.NUM_RR_EXPOSURE_VALUES", 3)
     effect = NonLogLinearRiskEffect(
         "risk_factor.test_risk", "cause.some_disease.incidence_rate"
     )
 
-    risk_effect_exposures = [1, 2, 5]
     risk_effect_rrs = [2.0, 2.4, 4.0]
     rr_data = pd.DataFrame(
         {
@@ -500,7 +510,7 @@ def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
             "affected_measure": "incidence_rate",
             "year_start": 1990,
             "year_end": 1991,
-            "parameter": risk_effect_exposures,
+            "parameter": rr_parameter_data,
             "value": risk_effect_rrs,
         },
     )
@@ -515,7 +525,12 @@ def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
     }
 
     base_config.update({"population": {"population_size": 10}})
-    simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+
+    if error_message:
+        with pytest.raises(ValueError, match=error_message):
+            simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+    else:
+        simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
 
     pop = simulation.get_population()
     rate = simulation.get_value("some_disease.incidence_rate")(
@@ -523,7 +538,7 @@ def test_non_loglinear_effect(base_config, base_plugins, monkeypatch):
     )
     expected_values = np.interp(
         custom_exposure_values,
-        risk_effect_exposures,
+        rr_parameter_data,
         np.array(risk_effect_rrs) / 2,  # RRs get divided by RR at TMREL
     )
 

@@ -27,7 +27,6 @@ from vivarium_public_health.risks.data_transformations import (
 )
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.utilities import (
-    NUM_RR_EXPOSURE_VALUES,
     EntityString,
     TargetString,
     get_lookup_columns,
@@ -367,29 +366,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
         rr_data = self.get_relative_risk_data(builder)
-
-        # check that rr_data has 1000 parameter values
-        exposure_values = rr_data["parameter"].values
-        if len(np.unique(exposure_values)) != NUM_RR_EXPOSURE_VALUES:
-            raise ValueError(
-                f"The parameter column in your {self.risk.name} relative risk data must contain {NUM_RR_EXPOSURE_VALUES} values to be used in NonLogLinearRiskEffect."
-            )
-
-        # and that these values are monotonically increasing within each demographic group
-        demographic_cols = [
-            col for col in rr_data.columns if col != "parameter" and col != "value"
-        ]
-
-        def values_are_monotonically_increasing(df: pd.DataFrame) -> bool:
-            return np.all(df["parameter"].values[1:] >= df["parameter"].values[:-1])
-
-        group_is_increasing = rr_data.groupby(demographic_cols).apply(
-            values_are_monotonically_increasing
-        )
-        if not group_is_increasing.all():
-            raise ValueError(
-                "The parameter column in your relative risk data must be monotonically increasing to be used in NonLogLinearRiskEffect."
-            )
+        self.validate_rr_data(rr_data)
 
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
             # create new row for right-most exposure bin (RR is same as max RR)
@@ -503,3 +480,32 @@ class NonLogLinearRiskEffect(RiskEffect):
             return target * relative_risk
 
         return adjust_target
+
+    ##############
+    # Validators #
+    ##############
+
+    def validate_rr_data(self, rr_data: pd.DataFrame) -> None:
+        # check that rr_data has numeric parameter data
+        parameter_data_is_numeric = rr_data["parameter"].dtype.kind in "biufc"
+        if not parameter_data_is_numeric:
+            raise ValueError(
+                f"The parameter column in your {self.risk.name} relative risk data must contain numeric data. Its dtype is {rr_data['parameter'].dtype} instead."
+            )
+
+        # and that these RR values are monotonically increasing within each demographic group
+        # so that each simulant's exposure will assign them to either one bin or one RR value
+        demographic_cols = [
+            col for col in rr_data.columns if col != "parameter" and col != "value"
+        ]
+
+        def values_are_monotonically_increasing(df: pd.DataFrame) -> bool:
+            return np.all(df["parameter"].values[1:] >= df["parameter"].values[:-1])
+
+        group_is_increasing = rr_data.groupby(demographic_cols).apply(
+            values_are_monotonically_increasing
+        )
+        if not group_is_increasing.all():
+            raise ValueError(
+                "The parameter column in your relative risk data must be monotonically increasing to be used in NonLogLinearRiskEffect."
+            )
