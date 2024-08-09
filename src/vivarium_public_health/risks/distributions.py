@@ -481,6 +481,10 @@ def get_risk_distribution_parameter(
                 "Expected a single value column for risk data, but found "
                 f"{len(value_columns)}: {value_columns}."
             )
+        # don't return parameter col in continuous and ensemble distribution
+        # means to match standard deviation index
+        if "parameter" in data.columns and set(data["parameter"]) == {"continuous"}:
+            data = data.drop("parameter", axis=1)
         index = [col for col in data.columns if col not in value_columns]
         data = data.set_index(index)[value_columns].squeeze(axis=1)
 
