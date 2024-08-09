@@ -1,13 +1,28 @@
-# import numpy as np
-# import pandas as pd
+from typing import Any, Dict, Tuple, Union
+
+import numpy as np
+import pandas as pd
+import pytest
+from layered_config_tree import LayeredConfigTree
+from vivarium import Component, InteractiveContext
+from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
+from vivarium.testing_utilities import TestPopulation
+
+from vivarium_public_health.disease import SI
+from vivarium_public_health.risks import RiskEffect
+from vivarium_public_health.risks.base_risk import Risk
+
 #
 # from vivarium.framework.utilities import from_yearly
 # from vivarium.testing_utilities import build_table, TestPopulation
 # from vivarium.interface.interactive import initialize_simulation
 #
 # from vivarium_public_health.disease import RateTransition
-# from vivarium_public_health.risks.effect import RiskEffect
-# from vivarium_public_health.risks.base_risk import Risk
+from vivarium_public_health.risks.effect import NonLogLinearRiskEffect, RiskEffect
+from vivarium_public_health.utilities import EntityString
+
 #
 #
 # def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
@@ -398,3 +413,131 @@
 #                                                   source=lambda index: pd.Series(0.1, index=index))
 #
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
+
+
+##############################
+# Non Log-Linear Risk Effect #
+##############################
+
+custom_exposure_values = [0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 5.5, 10]
+
+
+class CustomExposureRisk(Component):
+    """Risk where we define the exposure manually."""
+
+    @property
+    def name(self) -> str:
+        return self.risk
+
+    @property
+    def columns_created(self) -> list[str]:
+        return [self.exposure_column_name]
+
+    def __init__(self, risk: str):
+        super().__init__()
+        self.risk = EntityString(risk)
+        self.exposure_column_name = f"{self.risk.name}_exposure"
+
+    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
+        self.population_view.update(exposure_col)
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
+        self.population_view.update(exposure_col)
+
+    # noinspection PyAttributeOutsideInit
+    def setup(self, builder: Builder):
+        builder.value.register_value_producer(
+            f"{self.risk.name}.exposure",
+            source=self.get_exposure,
+        )
+
+    def get_exposure(self, index: pd.Index) -> pd.Series:
+        data = pd.Series(custom_exposure_values, index=index)
+        return data
+
+
+def _setup_risk_simulation(
+    config: LayeredConfigTree,
+    plugins: LayeredConfigTree,
+    risk: Union[str, Risk],
+    data: Dict[str, Any],
+) -> InteractiveContext:
+    components = [
+        TestPopulation(),
+        risk,
+        SI("some_disease"),
+        NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate"),
+    ]
+
+    simulation = InteractiveContext(
+        components=components,
+        configuration=config,
+        plugin_configuration=plugins,
+        setup=False,
+    )
+
+    for key, value in data.items():
+        simulation._data.write(key, value)
+
+    simulation.setup()
+    return simulation
+
+
+@pytest.mark.parametrize(
+    "rr_parameter_data, error_message",
+    [
+        ([1, 2, 5], None),
+        ([2, 1, 5], "monotonic"),
+        (["cat1", "cat2", "cat3"], "numeric"),
+        (["per unit", "per unit", "per unit"], "numeric"),
+    ],
+)
+def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, base_plugins):
+    risk = CustomExposureRisk("risk_factor.test_risk")
+    effect = NonLogLinearRiskEffect(
+        "risk_factor.test_risk", "cause.some_disease.incidence_rate"
+    )
+
+    risk_effect_rrs = [2.0, 2.4, 4.0]
+    rr_data = pd.DataFrame(
+        {
+            "affected_entity": "some_disease",
+            "affected_measure": "incidence_rate",
+            "year_start": 1990,
+            "year_end": 1991,
+            "parameter": rr_parameter_data,
+            "value": risk_effect_rrs,
+        },
+    )
+    # enforce TMREL of 1
+    tmred = {"distribution": "uniform", "min": 1, "max": 1, "inverted": False}
+
+    data = {
+        f"{risk.name}.relative_risk": rr_data,
+        f"{risk.name}.tmred": tmred,
+        f"{risk.name}.population_attributable_fraction": 0,
+        "cause.some_disease.incidence_rate": 1,
+    }
+
+    base_config.update({"population": {"population_size": 10}})
+
+    if error_message:
+        with pytest.raises(ValueError, match=error_message):
+            simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+        return
+    else:
+        simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+
+    pop = simulation.get_population()
+    rate = simulation.get_value("some_disease.incidence_rate")(
+        pop.index, skip_post_processor=True
+    )
+    expected_values = np.interp(
+        custom_exposure_values,
+        rr_parameter_data,
+        np.array(risk_effect_rrs) / 2,  # RRs get divided by RR at TMREL
+    )
+
+    assert np.isclose(rate.values, expected_values, rtol=0.0000001).all()
