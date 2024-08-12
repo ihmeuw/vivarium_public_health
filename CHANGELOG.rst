@@ -1,3 +1,25 @@
+**3.0.0 - 08/12/24
+
+Breaking changes:
+  - Update components to use new Vivarium lookup table configuration
+  - Refactor Risk and RiskEffect components
+  - Update Observers to use new Vivarium results interface classes and methods
+  - Change the "all_causes" disability weight pipeline from "disability_weight" to "all_causes.disability_weight"
+
+Major changes:
+  - Enable the setting of CSMR using a causes configuration parser
+  - Create cause model and LBWSG risk exposure lookup tables via the configuration
+  - Implement a PublicHealthObserver to help enforce the existence of "measure", "entity_type", "sub_entity", and "entity" columns in the results
+  - Add support for non-loglinear relative risks
+  - Automatically exclude "not_dead" and "no_transition" from cause of death and disease transition results, respectively
+
+Other changes:
+  - Use external layered-config-tree package
+  - Install matching upstream branches in github builds
+  - Stop writing seed and draw columns to the results
+  - Automatically run Jenkins builds on push or pull request
+  - Various other minor updates
+
 **2.3.2 - 3/13/24**
 
  - Update to Mortality Observer to make subclassing easier.
