@@ -12,11 +12,13 @@ from typing import Any, Dict, List
 
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
+from pandas.api.types import CategoricalDtype
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.observer import PublicHealthObserver
+from vivarium_public_health.results.simple_cause import SimpleCause
 
 
 class MortalityObserver(PublicHealthObserver):
@@ -62,7 +64,7 @@ class MortalityObserver(PublicHealthObserver):
     ##############
 
     @property
-    def mortality_classes(self) -> List:
+    def mortality_classes(self) -> list[type]:
         return [DiseaseState, RiskAttributableDisease]
 
     @property
@@ -90,12 +92,23 @@ class MortalityObserver(PublicHealthObserver):
 
     def setup(self, builder: Builder) -> None:
         self.clock = builder.time.clock()
-        self.causes_of_death = [
+        self.set_causes_of_death(builder)
+
+    def set_causes_of_death(self, builder: Builder) -> None:
+        causes_of_death = [
             cause
             for cause in builder.components.get_components_by_type(
                 tuple(self.mortality_classes)
             )
             if cause.has_excess_mortality
+        ]
+
+        # Convert to SimpleCauses and add on other_causes and not_dead
+        self.causes_of_death = [
+            SimpleCause.create_from_disease_state(cause) for cause in causes_of_death
+        ] + [
+            SimpleCause("not_dead", "not_dead", "cause"),
+            SimpleCause("other_causes", "other_causes", "cause"),
         ]
 
     def get_configuration(self, builder: Builder) -> LayeredConfigTree:
@@ -105,13 +118,16 @@ class MortalityObserver(PublicHealthObserver):
         pop_filter = 'alive == "dead" and tracked == True'
         additional_stratifications = self.configuration.include
         if not self.configuration.aggregate:
-            stratification_categories = [cause.state_id for cause in self.causes_of_death] + [
-                "not_dead",
-                "other_causes",
-            ]
+            # manually append 'not_dead' as an excluded cause
+            excluded_categories = (
+                builder.configuration.stratification.excluded_categories.to_dict().get(
+                    "cause_of_death", []
+                )
+            ) + ["not_dead"]
             builder.results.register_stratification(
                 "cause_of_death",
-                stratification_categories,
+                [cause.state_id for cause in self.causes_of_death],
+                excluded_categories=excluded_categories,
                 requires_columns=["cause_of_death"],
             )
             additional_stratifications += ["cause_of_death"]
@@ -156,12 +172,11 @@ class MortalityObserver(PublicHealthObserver):
             results[COLUMNS.ENTITY] = "all_causes"
         else:
             results.rename(columns={"cause_of_death": COLUMNS.ENTITY}, inplace=True)
-        return results[results[COLUMNS.ENTITY] != "not_dead"]
+        return results
 
     def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         entity_type_map = {cause.state_id: cause.cause_type for cause in self.causes_of_death}
-        entity_type_map["other_causes"] = "cause"
-        return results[COLUMNS.ENTITY].map(entity_type_map)
+        return results[COLUMNS.ENTITY].map(entity_type_map).astype(CategoricalDtype())
 
     def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         # The entity col was created in the 'format' method

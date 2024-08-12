@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation, build_table
+from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
@@ -42,6 +42,32 @@ def model(base_config, disease: str) -> DiseaseModel:
     with_condition = DiseaseState("with_condition", get_data_functions=disease_get_data_funcs)
     healthy.add_rate_transition(with_condition, transition_get_data_funcs)
     return DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+
+
+@pytest.fixture
+def vampiris():
+    vampiris_healthy_state = SusceptibleState("human")
+    vampiris_turning_state = DiseaseState("turning")
+    vampiris_infected_state = DiseaseState("vampire")
+    vampiris_healthy_state.add_rate_transition(vampiris_turning_state)
+    vampiris_turning_state.add_rate_transition(vampiris_infected_state)
+    return DiseaseModel(
+        "vampiris",
+        initial_state=vampiris_healthy_state,
+        states=[vampiris_healthy_state, vampiris_turning_state, vampiris_infected_state],
+    )
+
+
+@pytest.fixture
+def human_cortico_deficiency():
+    hcd_healthy_state = SusceptibleState("not_a_zombie")
+    hcd_infected_state = DiseaseState("a_zombie")
+    hcd_healthy_state.add_rate_transition(hcd_infected_state)
+    return DiseaseModel(
+        "human_cortico_deficiency",
+        initial_state=hcd_healthy_state,
+        states=[hcd_healthy_state, hcd_infected_state],
+    )
 
 
 # Updating the previous state
@@ -214,27 +240,12 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
     )
 
 
-def test_different_results_per_disease(base_config, base_plugins):
+def test_different_results_per_disease(
+    vampiris, human_cortico_deficiency, base_config, base_plugins
+):
     """Test that all eash disease observer saves out its own results."""
-    vampiris_healthy_state = SusceptibleState("not_a_vampire")
-    vampiris_infected_state = DiseaseState("a_vampire")
-    vampiris_healthy_state.add_rate_transition(vampiris_infected_state)
-    vampiris = DiseaseModel(
-        "vampiris",
-        initial_state=vampiris_healthy_state,
-        states=[vampiris_healthy_state, vampiris_infected_state],
-    )
-    hcd_healthy_state = SusceptibleState("not_a_zombie")
-    hcd_infected_state = DiseaseState("a_zombie")
-    hcd_healthy_state.add_rate_transition(hcd_infected_state)
-    human_cortico_deficiency = DiseaseModel(
-        "human_cortico_deficiency",
-        initial_state=hcd_healthy_state,
-        states=[hcd_healthy_state, hcd_infected_state],
-    )
-
-    vampiris_observer = DiseaseObserver("vampiris")
-    hcd_observer = DiseaseObserver("human_cortico_deficiency")
+    vampiris_observer = DiseaseObserver(vampiris.cause)
+    hcd_observer = DiseaseObserver(human_cortico_deficiency.cause)
 
     simulation = InteractiveContext(
         components=[
@@ -260,4 +271,51 @@ def test_different_results_per_disease(base_config, base_plugins):
             "person_time_human_cortico_deficiency",
             "transition_count_human_cortico_deficiency",
         ]
+    )
+
+
+@pytest.mark.parametrize(
+    "person_time_exclusions, transition_count_exclusions",
+    [
+        ([], []),
+        (["susceptible_to_human"], ["susceptible_to_human_to_turning"]),
+        (["susceptible_to_human", "turning"], []),
+    ],
+)
+def test_category_exclusions(
+    vampiris, base_config, base_plugins, person_time_exclusions, transition_count_exclusions
+):
+    """Test that we can exclude diseases via the model spec."""
+    vampiris_observer = DiseaseObserver(vampiris.cause)
+
+    # Add exclusions to model spec
+    base_config.update(
+        {
+            "stratification": {
+                "excluded_categories": {
+                    "vampiris": person_time_exclusions,
+                    "transition_vampiris": transition_count_exclusions,
+                }
+            }
+        }
+    )
+    simulation = InteractiveContext(
+        components=[
+            TestPopulation(),
+            vampiris,
+            ResultsStratifier(),
+            vampiris_observer,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+    )
+
+    simulation.step()
+    person_time = simulation.get_results()["person_time_vampiris"]
+    transition_count = simulation.get_results()["transition_count_vampiris"]
+    assert set(person_time["sub_entity"]) == set(vampiris.state_names) - set(
+        person_time_exclusions
+    )
+    assert set(transition_count["sub_entity"]) == set(vampiris.transition_names) - set(
+        transition_count_exclusions
     )

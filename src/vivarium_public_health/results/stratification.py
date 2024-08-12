@@ -35,14 +35,14 @@ class ResultsStratifier(Component):
         builder.results.register_stratification(
             "age_group",
             self.age_bins["age_group_name"].to_list(),
-            self.map_age_groups,
+            mapper=self.map_age_groups,
             is_vectorized=True,
             requires_columns=["age"],
         )
         builder.results.register_stratification(
             "current_year",
             [str(year) for year in range(self.start_year, self.end_year + 1)],
-            self.map_year,
+            mapper=self.map_year,
             is_vectorized=True,
             requires_columns=["current_time"],
         )
@@ -51,7 +51,7 @@ class ResultsStratifier(Component):
         # builder.results.register_stratification(
         #     "event_year",
         #     [str(year) for year in range(self.start_year, self.end_year + 1)],
-        #     self.map_year,
+        #     mapper=self.map_year,
         #     is_vectorized=True,
         #     requires_columns=["event_time"],
         # )
@@ -68,7 +68,7 @@ class ResultsStratifier(Component):
         # builder.results.register_stratification(
         #     "exit_year",
         #     [str(year) for year in range(self.start_year, self.end_year + 1)] + ["nan"],
-        #     self.map_year,
+        #     mapper=self.map_year,
         #     is_vectorized=True,
         #     requires_columns=["exit_time"],
         # )
