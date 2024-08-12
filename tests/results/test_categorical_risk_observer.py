@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium.framework.lookup.table import InterpolatedTable
 from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
@@ -169,3 +168,40 @@ def test_different_results_per_risk(base_config, base_plugins, categorical_risk)
         results["person_time_test_risk"]["value"]
         != results["person_time_another_test_risk"]["value"]
     ).all()
+
+
+@pytest.mark.parametrize("exclusions", [[], ["cat1"], ["cat1", "cat4"]])
+def test_category_exclusions(base_config, base_plugins, categorical_risk, exclusions):
+    risk, risk_data = categorical_risk
+    observer = CategoricalRiskObserver(f"{risk.risk.name}")
+    simulation = InteractiveContext(
+        components=[
+            TestPopulation(),
+            ResultsStratifier(),
+            risk,
+            observer,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+    simulation.configuration.update(
+        {
+            "stratification": {
+                "test_risk": {
+                    "include": ["sex"],
+                },
+                "excluded_categories": {
+                    "test_risk": exclusions,
+                },
+            },
+        },
+    )
+
+    for key, value in risk_data.items():
+        simulation._data.write(f"risk_factor.test_risk.{key}", value)
+
+    simulation.setup()
+    simulation.step()
+    results = simulation.get_results()["person_time_test_risk"]
+    assert set(results["sub_entity"]) == {"cat1", "cat2", "cat3", "cat4"} - set(exclusions)

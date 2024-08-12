@@ -111,10 +111,19 @@ class DiseaseObserver(PublicHealthObserver):
         )
 
     def register_transition_stratification(self, builder: Builder) -> None:
-        transitions = [str(transition) for transition in self.disease_model.transition_names]
+        transitions = [
+            str(transition) for transition in self.disease_model.transition_names
+        ] + ["no_transition"]
+        # manually append 'no_transition' as an excluded transition
+        excluded_categories = (
+            builder.configuration.stratification.excluded_categories.to_dict().get(
+                self.transition_stratification_name, []
+            )
+        ) + ["no_transition"]
         builder.results.register_stratification(
             self.transition_stratification_name,
-            categories=transitions + ["no_transition"],
+            categories=transitions,
+            excluded_categories=excluded_categories,
             mapper=self.map_transitions,
             requires_columns=[self.disease, self.previous_state_column_name],
             is_vectorized=True,
@@ -189,7 +198,6 @@ class DiseaseObserver(PublicHealthObserver):
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         results = results.reset_index()
         if "transition_count_" in measure:
-            results = results[results[self.transition_stratification_name] != "no_transition"]
             sub_entity = self.transition_stratification_name
         if "person_time_" in measure:
             sub_entity = self.disease
