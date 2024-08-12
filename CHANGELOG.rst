@@ -1,4 +1,4 @@
-**3.0.0 - 08/12/24
+**3.0.0 - 08/13/24
 
 Breaking changes:
   - Update components to use new Vivarium lookup table configuration
