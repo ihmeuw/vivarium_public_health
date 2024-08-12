@@ -1,8 +1,10 @@
 import itertools
+import re
 
 import numpy as np
 import pandas as pd
 import pytest
+from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation
 
@@ -41,6 +43,9 @@ def test_disability_observer_setup(mocker):
     builder.results.register_adding_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
     builder.configuration.output_data.results_directory = "some/results/directory"
+    builder.configuration.stratification.excluded_categories = LayeredConfigTree(
+        {"disability": []}
+    )
 
     # Set up fake calls for cause-specific register_observation args
     flu = DiseaseState("flu")
@@ -53,9 +58,9 @@ def test_disability_observer_setup(mocker):
 
     assert builder.results.register_adding_observation.call_count == 1
     cause_pipelines = [
-        "disability_weight",
         "flu.disability_weight",
         "measles.disability_weight",
+        "all_causes.disability_weight",
     ]
     builder.results.register_adding_observation.assert_any_call(
         name="ylds",
@@ -70,7 +75,7 @@ def test_disability_observer_setup(mocker):
         aggregator=observer.disability_weight_aggregator,
     )
 
-    assert set(observer.disease_classes) == set([DiseaseState, RiskAttributableDisease])
+    assert set(observer.disability_classes) == set([DiseaseState, RiskAttributableDisease])
 
 
 def test__disability_weight_aggregator():
@@ -158,14 +163,14 @@ def test_disability_accumulation(
     }
 
     # Get pipelines
-    disability_weight = simulation.get_value("disability_weight")
+    disability_weight_all_causes = simulation.get_value("all_causes.disability_weight")
     disability_weight_0 = simulation.get_value("sick_cause_0.disability_weight")
     disability_weight_1 = simulation.get_value("sick_cause_1.disability_weight")
 
     # Check that disability weights are computed as expected
     for sub_pop_key in ["healthy", "sick_0", "sick_1", "sick_0_1"]:
         assert np.isclose(
-            disability_weight(pop[sub_pop_mask[sub_pop_key]].index),
+            disability_weight_all_causes(pop[sub_pop_mask[sub_pop_key]].index),
             (
                 1
                 - (
@@ -181,7 +186,7 @@ def test_disability_accumulation(
 
     # yld_masks format: {cause: (state, filter, dw_pipeline)}
     yld_masks = {
-        "all_causes": (None, slice(None), disability_weight),
+        "all_causes": (None, slice(None), disability_weight_all_causes),
         "model_0": ("sick_cause_0", pop["model_0"] == "sick_cause_0", disability_weight_0),
         "model_1": ("sick_cause_1", pop["model_1"] == "sick_cause_1", disability_weight_1),
     }
@@ -226,3 +231,125 @@ def test_disability_accumulation(
             ].values
             assert len(actual_ylds) == 1
             assert np.isclose(expected_ylds, actual_ylds[0], rtol=0.0000001)
+
+
+@pytest.mark.parametrize("exclusions", [[], ["flu"], ["all_causes"], ["flu", "all_causes"]])
+def test_set_causes_of_disability(exclusions, mocker):
+    observer = DisabilityObserver_()
+
+    builder = mocker.Mock()
+    mocker.patch("vivarium.component.Component.build_all_lookup_tables")
+    builder.configuration.time.step_size = 28
+    builder.configuration.stratification.excluded_categories = LayeredConfigTree(
+        {"disability": exclusions}
+    )
+
+    # Set up fake calls for cause-specific register_observation args
+    flu = DiseaseState("flu")
+    builder.components.get_components_by_type = lambda n: [flu]
+
+    observer.setup_component(builder)
+    assert {cause.state_id for cause in observer.causes_of_disability} == {
+        "flu",
+        "all_causes",
+    } - set(exclusions)
+
+
+def test_set_causes_of_disability_raises(mocker):
+    observer = DisabilityObserver_()
+
+    builder = mocker.Mock()
+    mocker.patch("vivarium.component.Component.build_all_lookup_tables")
+    builder.configuration.time.step_size = 28
+    builder.configuration.stratification.excluded_categories = LayeredConfigTree(
+        {"disability": ["arthritis"]}  # not an instantiated disease
+    )
+
+    # Set up fake calls for cause-specific register_observation args (but NOT 'arthritis')
+    flu = DiseaseState("flu")
+    builder.components.get_components_by_type = lambda n: [flu]
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Excluded 'disability' causes {'arthritis'} not found in expected categories categories: ['flu', 'all_causes']"
+        ),
+    ):
+        observer.setup_component(builder)
+
+
+# FIXME: error when excluding all but one disability
+@pytest.mark.parametrize("exclusions", [[], ["all_causes"], ["all_causes", "sick_cause_0"]])
+def test_category_exclusions(
+    base_config,
+    base_plugins,
+    exclusions,
+):
+    """Integration test for the disability observer and the Results Management system."""
+
+    if len(exclusions) == 2:
+        pytest.skip(reason="FIXME: error when excluding all but one disability")
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+
+    # Set up two disease models (_0 and _1), to test against multiple causes of disability
+    healthy_0 = SusceptibleState("healthy_0")
+    healthy_1 = SusceptibleState("healthy_1")
+    disability_get_data_funcs_0 = {
+        "disability_weight": lambda _, __: build_table_with_age(
+            0.99,
+            parameter_columns={"year": (year_start - 1, year_end)},
+        ),
+        "prevalence": lambda _, __: build_table_with_age(
+            0.45, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+    }
+    disability_get_data_funcs_1 = {
+        "disability_weight": lambda _, __: build_table_with_age(
+            0.1,
+            parameter_columns={"year": (year_start - 1, year_end)},
+        ),
+        "prevalence": lambda _, __: build_table_with_age(
+            0.65, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+    }
+    disability_state_0 = DiseaseState(
+        "sick_cause_0", get_data_functions=disability_get_data_funcs_0
+    )
+    disability_state_1 = DiseaseState(
+        "sick_cause_1", get_data_functions=disability_get_data_funcs_1
+    )
+    model_0 = DiseaseModel(
+        "model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0]
+    )
+    model_1 = DiseaseModel(
+        "model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1]
+    )
+
+    # Add exclusions to model spec
+    base_config.update(
+        {
+            "stratification": {
+                "excluded_categories": {
+                    "disability": exclusions,
+                }
+            }
+        }
+    )
+    simulation = InteractiveContext(
+        components=[
+            TestPopulation(),
+            model_0,
+            model_1,
+            ResultsStratifier(),
+            DisabilityObserver(),
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+    )
+
+    simulation.step()
+    results = simulation.get_results()["ylds"]
+    assert set(results["sub_entity"]) == {"sick_cause_0", "sick_cause_1", "all_causes"} - set(
+        exclusions
+    )
