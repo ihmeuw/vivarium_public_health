@@ -56,6 +56,7 @@ build-env: # Make a new conda environment
 install: # Install setuptools, install this package in editable mode
 	pip install --upgrade pip setuptools
 	pip install -e .[DEV]
+	pip install git+https://github.com/ihmeuw/vivarium@${GIT_BRANCH}
 
 format: setup.py pyproject.toml $(MAKE_SOURCES) # Run the code formatter and import sorter
 	black $(LOCATIONS)
