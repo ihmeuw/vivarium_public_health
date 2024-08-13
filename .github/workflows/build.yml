@@ -51,7 +51,7 @@ jobs:
             echo "Checking for vivarium branch: ${branch_name_to_check}"
             if [ $iterations -gt 20 ]; then
               echo "Could not find upstream branch"
-              echo "vivarium_branch_name='main'" >> $GITHUB_ENV
+              branch_name_to_check='main'
             fi
             if
               git ls-remote --exit-code \
