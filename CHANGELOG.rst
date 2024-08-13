@@ -8,14 +8,13 @@ Breaking changes:
 
 Major changes:
   - Enable the setting of CSMR using a causes configuration parser
-  - Create cause model and LBWSG risk exposure lookup tables via the configuration
   - Implement a PublicHealthObserver to help enforce the existence of "measure", "entity_type", "sub_entity", and "entity" columns in the results
   - Add support for non-loglinear relative risks
-  - Automatically exclude "not_dead" and "no_transition" from cause of death and disease transition results, respectively
 
 Other changes:
   - Use external layered-config-tree package instead of Vivarium ConfigTree class
   - Install matching upstream branches in github builds
+  - Implement new base RiskExposureDistribution class
   - Stop writing seed and draw columns to the results
   - Automatically run Jenkins builds on push or pull request
   - Various other minor updates
