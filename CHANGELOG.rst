@@ -14,7 +14,7 @@ Major changes:
   - Automatically exclude "not_dead" and "no_transition" from cause of death and disease transition results, respectively
 
 Other changes:
-  - Use external layered-config-tree package
+  - Use external layered-config-tree package instead of Vivarium ConfigTree class
   - Install matching upstream branches in github builds
   - Stop writing seed and draw columns to the results
   - Automatically run Jenkins builds on push or pull request
