@@ -1,3 +1,7 @@
+**3.0.1 - 08/13/24**
+
+ - Hotfix upstream branch name in github build
+
 **3.0.0 - 08/13/24**
 
 Breaking changes:
