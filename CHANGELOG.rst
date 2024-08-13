@@ -2,8 +2,7 @@
 
 Breaking changes:
   - Update components to use new Vivarium lookup table configuration
-  - Refactor Risk component
-  - Implement new base RiskExposureDistribution class
+  - Refactor Risk component to create exposure column in state table
   - Update Observers to use new Vivarium results interface classes and methods
   - Change the "all_causes" disability weight pipeline from "disability_weight" to "all_causes.disability_weight"
 
