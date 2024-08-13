@@ -1,20 +1,20 @@
-**3.0.0 - 08/13/24
+**3.0.0 - 08/13/24**
 
 Breaking changes:
   - Update components to use new Vivarium lookup table configuration
-  - Refactor Risk component to create exposure column in state table
   - Update Observers to use new Vivarium results interface classes and methods
   - Change the "all_causes" disability weight pipeline from "disability_weight" to "all_causes.disability_weight"
 
 Major changes:
+  - Refactor risk components to standardize/simplify risk exposure distributions
   - Enable the setting of CSMR using a causes configuration parser
   - Implement a PublicHealthObserver to help enforce the existence of "measure", "entity_type", "sub_entity", and "entity" columns in the results
+  - Refactor Risk component to create exposure column in state table
   - Add support for non-loglinear relative risks
 
 Other changes:
   - Use external layered-config-tree package instead of Vivarium ConfigTree class
   - Install matching upstream branches in github builds
-  - Implement new base RiskExposureDistribution class
   - Stop writing seed and draw columns to the results
   - Automatically run Jenkins builds on push or pull request
   - Various other minor updates
