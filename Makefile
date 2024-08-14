@@ -62,9 +62,7 @@ install: # Install setuptools, install this package in editable mode
 	@if [ "$(BRANCH_EXISTS)" = "yes" ]; then \
 		pip install git+https://github.com/ihmeuw/vivarium@${GIT_BRANCH}; \
 	else \
-		$(eval GIT_BRANCH := main) \
-		echo "Branch $(GIT_BRANCH)" \
-		pip install git+https://github.com/ihmeuw/vivarium@${GIT_BRANCH}; \
+		pip install git+https://github.com/ihmeuw/vivarium@main; \
 	fi
 
 format: setup.py pyproject.toml $(MAKE_SOURCES) # Run the code formatter and import sorter
