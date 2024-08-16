@@ -36,7 +36,7 @@ pipeline {
     )
     string(
       name: "SLACK_TO",
-      defaultValue: "simsci-ci-status-test",
+      defaultValue: "simsci-ci-status",
       description: "The Slack channel to send messages to."
     )
     booleanParam(
@@ -139,7 +139,7 @@ pipeline {
 
             stage("Install Package") {
               steps {
-                sh "${ACTIVATE} && make install"
+                sh "${ACTIVATE} && make install \"ARGS=${GIT_BRANCH}\""
               }
             }
 

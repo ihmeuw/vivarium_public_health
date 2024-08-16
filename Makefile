@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 this_makefile := $(lastword $(MAKEFILE_LIST)) # Used to automatically list targets
 .DEFAULT_GOAL := list # If someone runs "make", run "make list"
 
@@ -56,6 +57,11 @@ build-env: # Make a new conda environment
 install: # Install setuptools, install this package in editable mode
 	pip install --upgrade pip setuptools
 	pip install -e .[DEV]
+	@echo "Checking if the vivarium repository has the branch $(GIT_BRANCH)..."
+	@$(eval BRANCH_EXISTS=$(shell curl -s https://api.github.com/repos/ihmeuw/vivarium/branches | grep -q '"name": "$(GIT_BRANCH)"' && echo "yes" || echo "no"))
+	@if [ "$(BRANCH_EXISTS)" = "yes" ]; then \
+		pip install git+https://github.com/ihmeuw/vivarium@${GIT_BRANCH}; \
+	fi
 
 format: setup.py pyproject.toml $(MAKE_SOURCES) # Run the code formatter and import sorter
 	black $(LOCATIONS)
