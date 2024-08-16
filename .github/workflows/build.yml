@@ -43,6 +43,7 @@ jobs:
           git checkout ${branch_name}
       - name: check for upstream branch
         run: |
+          echo "Branch name: '${branch_name}'"
           sh get_upstream_branch.sh -b ${branch_name}
       - name: print environment values
         run: |
