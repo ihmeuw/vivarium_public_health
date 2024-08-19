@@ -159,14 +159,14 @@ class DisabilityObserver(PublicHealthObserver):
         pipeline name.
         """
         if len(self.causes_of_disability) > 1:
-            # Drop the unused 'value' column and rename the pipeline names to causes
+            # Drop the unused 'value' column and rename the remaining pipeline names to cause names
             results = results.rename(
                 columns={
                     col: col.replace(".disability_weight", "") for col in results.columns
                 }
             )[[col.state_id for col in self.causes_of_disability]]
         else:
-            # The value column is the single cause of disability
+            # Rename the 'value' column to the single cause of disability
             results = results.rename(
                 columns={COLUMNS.VALUE: self.causes_of_disability[0].state_id}
             )
