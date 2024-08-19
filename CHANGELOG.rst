@@ -1,3 +1,7 @@
+**3.0.1 - 08/19/24**
+
+ - Fix bug in build script when the upstream vivarium branch should be main
+
 **3.0.0 - 08/13/24**
 
 Breaking changes:
