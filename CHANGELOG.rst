@@ -1,4 +1,4 @@
-**3.0.1 - 08/16/24**
+**3.0.1 - 08/19/24**
 
  - Fix bug in build script when the upstream vivarium branch should be main
 
