@@ -19,7 +19,7 @@ do
     dependency_branch_name=${branch_name_to_check}
     echo "Found matching branch: ${dependency_branch_name}"
   else
-    echo "Could not find upstream branch '${branch_name_to_check}'. Finding parent branch."
+    echo "Could not find ${dependency_name} branch '${branch_name_to_check}'. Finding parent branch."
     branch_name_to_check="$( \
       git show-branch -a \
       | grep '\*' \
@@ -30,7 +30,7 @@ do
       | sed 's/^origin\///' \
     )"
     if [ -z "$branch_name_to_check" ]; then
-      echo "Could not find upstream branch. Will use released version."
+      echo "Could not find parent branch. Will use released version of ${dependency_name}."
       branch_name_to_check="main"
     fi
     echo "Checking out branch: ${branch_name_to_check}"

@@ -43,8 +43,8 @@ jobs:
           git checkout ${branch_name}
       - name: check for dependency branches and install if needed
         run: |
-          sh get_upstream_branch.sh layered_config_tree ${branch_name}
-          sh get_upstream_branch.sh vivarium ${branch_name}
+          sh install_dependency_branch.sh layered_config_tree ${branch_name}
+          sh install_dependency_branch.sh vivarium ${branch_name}
       - name: print environment values
         run: |
           cat $GITHUB_ENV
