@@ -41,21 +41,13 @@ jobs:
         run: |
           pip install .[dev]
           git checkout ${branch_name}
-      - name: check for upstream branch
+      - name: check for dependency branches and install if needed
         run: |
-          sh get_upstream_branch.sh ${branch_name}
+          sh get_upstream_branch.sh layered_config_tree ${branch_name}
+          sh get_upstream_branch.sh vivarium ${branch_name}
       - name: print environment values
         run: |
           cat $GITHUB_ENV
-      - name: Retrieve vivarium branch
-        if: env.vivarium_branch_name != 'main'
-        run: |
-          echo "Cloning upstream branch: ${vivarium_branch_name}"
-          pushd ..
-          git clone --branch=${vivarium_branch_name} https://github.com/ihmeuw/vivarium.git
-          pushd vivarium
-          pip install .
-          popd && popd
       - name: Lint
         run: |
           pip install black==22.3.0 isort
