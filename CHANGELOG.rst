@@ -1,3 +1,7 @@
+**3.0.12- 08/19/24**
+
+ - Parameterize the script to find matching dependency branches
+
 **3.0.1 - 08/19/24**
 
  - Fix bug in build script when the upstream vivarium branch should be main
