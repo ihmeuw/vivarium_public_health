@@ -278,17 +278,20 @@ def test_set_causes_of_disability_raises(mocker):
         observer.setup_component(builder)
 
 
-# FIXME: error when excluding all but one disability
-@pytest.mark.parametrize("exclusions", [[], ["all_causes"], ["all_causes", "sick_cause_0"]])
+@pytest.mark.parametrize(
+    "exclusions",
+    [
+        # [],
+        ["all_causes"],
+        ["all_causes", "sick_cause_0"],
+    ],
+)
 def test_category_exclusions(
     base_config,
     base_plugins,
     exclusions,
 ):
     """Integration test for the disability observer and the Results Management system."""
-
-    if len(exclusions) == 2:
-        pytest.skip(reason="FIXME: error when excluding all but one disability")
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
 
