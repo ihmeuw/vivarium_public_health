@@ -158,11 +158,18 @@ class DisabilityObserver(PublicHealthObserver):
         once), and so the results here are actually wide by disability weight
         pipeline name.
         """
-
-        # Drop the unused 'value' column and rename the pipeline names to causes
-        results = results.drop(columns=["value"]).rename(
-            columns={col: col.replace(".disability_weight", "") for col in results.columns},
-        )
+        if len(self.causes_of_disability) > 1:
+            # Drop the unused 'value' column and rename the remaining pipeline names to cause names
+            results = results.rename(
+                columns={
+                    col: col.replace(".disability_weight", "") for col in results.columns
+                }
+            )[[col.state_id for col in self.causes_of_disability]]
+        else:
+            # Rename the 'value' column to the single cause of disability
+            results = results.rename(
+                columns={COLUMNS.VALUE: self.causes_of_disability[0].state_id}
+            )
         # Get desired index names prior to stacking
         idx_names = list(results.index.names) + [COLUMNS.SUB_ENTITY]
         results = pd.DataFrame(results.stack(), columns=[COLUMNS.VALUE])
