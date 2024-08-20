@@ -180,7 +180,13 @@ def test_fertility_module(base_config, base_plugins):
         setup=False,
     )
 
-    asfr_data = build_table_with_age(0.05).rename(columns={"value": "mean_value"})
+    asfr_data = build_table_with_age(
+        0.05,
+        key_columns={
+            "sex": ("Female", "Male"),
+            "parameter": ("lower_value", "mean_value", "upper_value"),
+        },
+    )
     simulation._data.write("covariate.age_specific_fertility_rate.estimate", asfr_data)
 
     simulation.setup()
