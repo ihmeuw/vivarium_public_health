@@ -1,4 +1,4 @@
-**3.0.12- 08/19/24**
+**3.0.2- 08/19/24**
 
  - Parameterize the script to find matching dependency branches
 
@@ -60,11 +60,11 @@ Other changes:
 
  - Implement CausesConfigurationParser to parse causes configuration into DiseaseModel components
  - Bugfix assign sex-location-age demographic proportions by year when only one year in dataset
- 
+
 **2.1.4 - 01/10/24**
 
  - Exclude undesirable arguments from the return of `BaseDiseaseState` `name` and `__repr__` methods
- 
+
 **2.1.3 - 01/09/24**
 
  - Update PyPI to 2FA with trusted publisher
@@ -241,7 +241,7 @@ Other changes:
 **0.10.3 - 12/13/19**
 
  - Fix regression bug in SIR_fixed_duration.
- 
+
 **0.10.2 - 11/29/19**
 
  - Fix disease observer bug that prevented it from loading its configuration.
