@@ -1,3 +1,7 @@
+**3.0.4- 08/20/24**
+
+ - Update FertilityAgeSpecificRates for new data format of age specific fertility rates
+
 **3.0.3- 08/20/24**
 
  - Use external script to find matching dependency branches
