@@ -281,7 +281,7 @@ def test_set_causes_of_disability_raises(mocker):
 @pytest.mark.parametrize(
     "exclusions",
     [
-        # [],
+        [],
         ["all_causes"],
         ["all_causes", "sick_cause_0"],
     ],
