@@ -57,11 +57,22 @@ build-env: # Make a new conda environment
 install: # Install setuptools, install this package in editable mode
 	pip install --upgrade pip setuptools
 	pip install -e .[DEV]
-	@echo "Checking if the vivarium repository has the branch $(GIT_BRANCH)..."
-	@$(eval BRANCH_EXISTS=$(shell curl -s https://api.github.com/repos/ihmeuw/vivarium/branches | grep -q '"name": "$(GIT_BRANCH)"' && echo "yes" || echo "no"))
-	@if [ "$(BRANCH_EXISTS)" = "yes" ]; then \
-		pip install git+https://github.com/ihmeuw/vivarium@${GIT_BRANCH}; \
+	@cd ..
+	@echo "----------------------------------------"
+	@if [ ! -d "vivarium_build_utils" ]; then \
+		# Clone the build utils repo if it doesn't exist. \
+		git clone https://github.com/ihmeuw/vivarium_build_utils.git; \
+	else \
+		echo "vivarium_build_utils already exists. Skipping clone."; \
 	fi
+	@echo "Contents of install_dependency_branch.sh"
+	@echo "----------------------------------------"
+	@cat vivarium_build_utils/install_dependency_branch.sh
+	@echo ""
+	@echo "----------------------------------------"
+	@sh vivarium_build_utils/install_dependency_branch.sh vivarium ${GIT_BRANCH} jenkins
+	@sh vivarium_build_utils/install_dependency_branch.sh layered_config_tree ${GIT_BRANCH} jenkins
+	@sh vivarium_build_utils/install_dependency_branch.sh risk_distributions ${GIT_BRANCH} jenkins
 
 format: setup.py pyproject.toml $(MAKE_SOURCES) # Run the code formatter and import sorter
 	black $(LOCATIONS)

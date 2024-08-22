@@ -52,9 +52,6 @@ pipeline {
         script {
           // Use the name of the branch in the build name
           currentBuild.displayName = "#${BUILD_NUMBER} ${GIT_BRANCH}"
-
-          // Tell BitBucket that a build has started.
-          notifyBitbucket()
         }
       }
     }
@@ -139,7 +136,7 @@ pipeline {
 
             stage("Install Package") {
               steps {
-                sh "${ACTIVATE} && make install \"ARGS=${GIT_BRANCH}\""
+                sh "${ACTIVATE} && make install"
               }
             }
 
@@ -198,16 +195,21 @@ pipeline {
               sh "rm -rf ${CONDA_ENV_PATH}"
               // Delete the workspace directory.
               deleteDir()
-              // Tell BitBucket whether the build succeeded or failed.
-              script {
-                notifyBitbucket()
-              }
             }
             failure {
-              slackSend channel: "#${params.SLACK_TO}",
-                        message: ":x: JOB FAILURE: $JOB_NAME - $BUILD_ID\n\n${BUILD_URL}console\n\n<!channel>",
-                        teamDomain: "ihme",
-                        tokenCredentialId: "slack"
+              script {
+                if (env.BRANCH == "main") {
+                  channelName = "simsci-ci-status"
+                } else {
+                  channelName = "simsci-ci-status-test"
+                }
+              }
+              // TODO: DM the developer instead of the slack channel
+              echo "This build failed on ${GIT_BRANCH}. Sending a failure message to Slack."
+              slackSend channel: "#${channelName}",
+                          message: ":x: JOB FAILURE: $JOB_NAME - $BUILD_ID\n\n${BUILD_URL}console\n\n<!channel>",
+                          teamDomain: "ihme",
+                          tokenCredentialId: "slack"
             }
             success {
               script {
