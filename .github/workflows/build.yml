@@ -51,8 +51,9 @@ jobs:
           cat ../vivarium_build_utils/install_dependency_branch.sh
           echo ""
           echo "----------------------------------------"
-          sh ../vivarium_build_utils/install_dependency_branch.sh layered_config_tree ${branch_name}
-          sh ../vivarium_build_utils/install_dependency_branch.sh vivarium ${branch_name}
+          sh ../vivarium_build_utils/install_dependency_branch.sh layered_config_tree ${branch_name} github
+          sh ../vivarium_build_utils/install_dependency_branch.sh vivarium ${branch_name} github
+          sh ../vivarium_build_utils/install_dependency_branch.sh risk_distributions ${branch_name} github
       - name: print environment values
         run: |
           cat $GITHUB_ENV

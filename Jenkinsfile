@@ -52,9 +52,6 @@ pipeline {
         script {
           // Use the name of the branch in the build name
           currentBuild.displayName = "#${BUILD_NUMBER} ${GIT_BRANCH}"
-
-          // Tell BitBucket that a build has started.
-          notifyBitbucket()
         }
       }
     }
@@ -198,10 +195,6 @@ pipeline {
               sh "rm -rf ${CONDA_ENV_PATH}"
               // Delete the workspace directory.
               deleteDir()
-              // Tell BitBucket whether the build succeeded or failed.
-              script {
-                notifyBitbucket()
-              }
             }
             failure {
               script {
