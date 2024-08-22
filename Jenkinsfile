@@ -139,7 +139,7 @@ pipeline {
 
             stage("Install Package") {
               steps {
-                sh "${ACTIVATE} && make install \"ARGS=${GIT_BRANCH}\""
+                sh "${ACTIVATE} && make install"
               }
             }
 
@@ -205,21 +205,18 @@ pipeline {
             }
             failure {
               script {
-                if (${GIT_BRANCH} == "main") {
-                  echo 'This is the main branch. Sending a failure message to Slack.'
-                  slackSend channel: "#${params.SLACK_TO}",
-                            message: ":x: JOB FAILURE: $JOB_NAME - $BUILD_ID\n\n${BUILD_URL}console\n\n<!channel>",
-                            teamDomain: "ihme",
-                            tokenCredentialId: "slack"
+                if (env.BRANCH == "main") {
+                  channelName = "simsci-ci-status"
                 } else {
-                  echo "This is branch ${GIT_BRANCH}. Sending a failure message to Slack."
-                  // TODO: DM the developer instead of the slack channel
-                  slackSend channel: "#simsci-ci-status-test",
-                            message: ":x: JOB FAILURE: $JOB_NAME - $BUILD_ID\n\n${BUILD_URL}console",
-                            teamDomain: "ihme",
-                            tokenCredentialId: "slack"
+                  channelName = "simsci-ci-status-test"
                 }
               }
+              // TODO: DM the developer instead of the slack channel
+              echo "This build failed on ${GIT_BRANCH}. Sending a failure message to Slack."
+              slackSend channel: "#${channelName}",
+                          message: ":x: JOB FAILURE: $JOB_NAME - $BUILD_ID\n\n${BUILD_URL}console\n\n<!channel>",
+                          teamDomain: "ihme",
+                          tokenCredentialId: "slack"
             }
             success {
               script {
