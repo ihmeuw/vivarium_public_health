@@ -112,3 +112,6 @@ src/vivarium_public_health/_version.py
 
 # FuzzyChecker diagnostics csv
 tests/proportion_test_diagnostics.csv
+
+# macOS
+*.DS_Store
