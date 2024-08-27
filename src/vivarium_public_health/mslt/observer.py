@@ -16,9 +16,8 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 
 
-def output_file(config, suffix, sep="_", ext="csv"):
-    """
-    Determine the output file name for an observer, based on the prefix
+def output_file(config, suffix, sep="_", ext="csv") -> str:
+    """Determine the output file name for an observer, based on the prefix
     defined in ``config.observer.output_prefix`` and the (optional)
     ``config.input_data.input_draw_number``.
 
@@ -33,6 +32,9 @@ def output_file(config, suffix, sep="_", ext="csv"):
     ext
         The output file extension.
 
+    Returns
+    -------
+        The output file name for the observer.
     """
     if "observer" not in config:
         raise ValueError("observer.output_prefix not defined")
@@ -51,16 +53,22 @@ def output_file(config, suffix, sep="_", ext="csv"):
 
 
 class MorbidityMortality(Component):
-    """
-    This class records the all-cause morbidity and mortality rates for each
+    """This class records the all-cause morbidity and mortality rates for each
     cohort at each year of the simulation.
 
-    Parameters
+    Attributes
     ----------
     output_suffix
         The suffix for the CSV file in which to record the
         morbidity and mortality data.
-
+    clock
+        The simulation clock.
+    tables
+        The tables of morbidity and mortality data.
+    table_cols
+        The columns in the tables.
+    output_file
+        The output file for the morbidity and mortality data.
     """
 
     ##############
@@ -148,7 +156,7 @@ class MorbidityMortality(Component):
     # Helper methods #
     ##################
 
-    def calculate_LE(self, table, py_col, denom_col):
+    def calculate_LE(self, table, py_col, denom_col) -> pd.Series:
         """Calculate the life expectancy for each cohort at each time-step.
 
         Parameters
@@ -162,9 +170,7 @@ class MorbidityMortality(Component):
 
         Returns
         -------
-            The life expectancy for each table row, represented as a
-            pandas.Series object.
-
+            The life expectancy for each table row.
         """
         # Group the person-years by cohort.
         group_cols = ["year_of_birth", "sex"]
@@ -180,17 +186,36 @@ class MorbidityMortality(Component):
 
 
 class Disease(Component):
-    """
-    This class records the disease incidence rate and disease prevalence for
+    """This class records the disease incidence rate and disease prevalence for
     each cohort at each year of the simulation.
 
-    Parameters
+    Attributes
     ----------
     disease
         The name of the chronic disease.
     output_suffix
         The suffix for the CSV file in which to record the
         disease data.
+    bau_S_col
+        The name of the BAU susceptible column.
+    bau_C_col
+        The name of the BAU chronic column.
+    int_S_col
+        The name of the intervention susceptible column.
+    int_C_col
+        The name of the intervention chronic column.
+    bau_incidence
+        The incidence rate for the BAU scenario.
+    int_incidence
+        The incidence rate for the intervention scenario.
+    tables
+        The tables of disease data.
+    table_cols
+        The columns in the tables.
+    clock
+        The simulation clock.
+    output_file
+        The output file for the disease data.
 
     """
 
@@ -286,12 +311,23 @@ class Disease(Component):
 class TobaccoPrevalence(Component):
     """This class records the prevalence of tobacco use in the population.
 
-    Parameters
+    Attributes
     ----------
     output_suffix
         The suffix for the CSV file in which to record the
         prevalence data.
-
+    config
+        The builder configuration object.
+    clock
+        The simulation clock.
+    bin_years
+        The number of years post-exposure to consider.
+    tables
+        The tables of tobacco prevalence data.
+    table_cols
+        The columns in the tables.
+    output_file
+        The output file for the tobacco prevalence data.
     """
 
     ##############
@@ -339,7 +375,7 @@ class TobaccoPrevalence(Component):
     # Setup methods #
     #################
 
-    def get_bin_names(self):
+    def get_bin_names(self) -> list[str]:
         """Return the bin names for both the BAU and the intervention scenario.
 
         These names take the following forms:
@@ -356,6 +392,9 @@ class TobaccoPrevalence(Component):
 
         The intervention bin names take the form ``"name_intervention.X"``.
 
+        Returns
+        -------
+            The bin names for tobacco use.
         """
         if self.bin_years == 0:
             delay_bins = [str(0)]

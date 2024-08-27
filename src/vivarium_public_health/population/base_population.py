@@ -126,7 +126,6 @@ class BasePopulation(Component):
         respectively.  Here we are agnostic to the methods of entrance and exit (e.g., birth,
         migration, death, etc.) as these characteristics can be inferred from this column and
         other information about the simulant and the simulation parameters.
-
         """
 
         age_params = {
@@ -282,7 +281,6 @@ def generate_population(
 
     Returns
     -------
-    pandas.DataFrame
         Table with columns
             'entrance_time'
                 The `pandas.Timestamp` describing when the simulant entered
@@ -299,7 +297,6 @@ def generate_population(
                 The location indicating where the simulant resides.
             'sex'
                 Either 'Male' or 'Female'.  The sex of the simulant.
-
     """
     simulants = pd.DataFrame(
         {
@@ -361,7 +358,6 @@ def _assign_demography_with_initial_age(
 
     Returns
     -------
-    pandas.DataFrame
         Table with same columns as `simulants` and with the additional
         columns 'age', 'sex',  and 'location'.
     """
@@ -426,7 +422,6 @@ def _assign_demography_with_age_bounds(
 
     Returns
     -------
-    pandas.DataFrame
         Table with same columns as `simulants` and with the additional columns
         'age', 'sex',  and 'location'.
 
