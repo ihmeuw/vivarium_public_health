@@ -1,4 +1,4 @@
-**3.0.5 - 08/28/24**
+**3.0.5 - 08/29/24**
 
  - Add missing results module-level docstrings
  - Strengthen the SimpleCause docstring
