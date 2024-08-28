@@ -202,7 +202,7 @@ class DiseaseObserver(PublicHealthObserver):
         )
 
     def register_person_time_observation(self, builder: Builder, pop_filter: str) -> None:
-        """Register the person time observation."""
+        """Register a person time observation."""
         self.register_adding_observation(
             builder=builder,
             name=f"person_time_{self.disease}",
