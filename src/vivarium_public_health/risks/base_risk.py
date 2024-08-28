@@ -30,8 +30,7 @@ from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 
 class Risk(Component):
-    """A model for a risk factor defined by either a continuous or a categorical
-    value.
+    """A model for a risk factor defined by either a continuous or a categorical value.
 
     For example,
 
