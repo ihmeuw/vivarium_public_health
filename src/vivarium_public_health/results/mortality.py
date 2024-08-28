@@ -47,6 +47,18 @@ class MortalityObserver(PublicHealthObserver):
     This observer needs to access the has_excess_mortality attribute of the causes
     we're observing, but this attribute gets defined in the setup of the cause models.
     As a result, the model specification should list this observer after causes.
+
+    Attributes
+    ----------
+    required_death_columns
+        Columns required by the deaths observation.
+    required_yll_columns
+        Columns required by the ylls observation.
+    clock
+        The simulation clock.
+    causes_of_death
+        Causes of death to be observed.
+
     """
 
     def __init__(self) -> None:
@@ -65,12 +77,12 @@ class MortalityObserver(PublicHealthObserver):
 
     @property
     def mortality_classes(self) -> list[type]:
+        """The classes to be considered as causes of death."""
         return [DiseaseState, RiskAttributableDisease]
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
-        """
-        A dictionary containing the defaults for any configurations managed by
+        """A dictionary containing the defaults for any configurations managed by
         this component.
         """
         config_defaults = super().configuration_defaults
@@ -79,6 +91,7 @@ class MortalityObserver(PublicHealthObserver):
 
     @property
     def columns_required(self) -> List[str]:
+        """Columns required by this observer."""
         return [
             "alive",
             "years_of_life_lost",
@@ -91,10 +104,22 @@ class MortalityObserver(PublicHealthObserver):
     #################
 
     def setup(self, builder: Builder) -> None:
+        """Set up the observer."""
         self.clock = builder.time.clock()
         self.set_causes_of_death(builder)
 
     def set_causes_of_death(self, builder: Builder) -> None:
+        """Set the causes of death to be observed.
+
+        The causes to be observed are any registered components of class types
+        found in the ``mortality_classes`` property.
+
+        Notes
+        -----
+        We do not actually exclude any categories in this method.
+
+        Also note that we add 'not_dead' and 'other_causes' categories here.
+        """
         causes_of_death = [
             cause
             for cause in builder.components.get_components_by_type(
@@ -112,9 +137,35 @@ class MortalityObserver(PublicHealthObserver):
         ]
 
     def get_configuration(self, builder: Builder) -> LayeredConfigTree:
+        """Get the stratification configuration for this observer.
+
+        Parameters
+        ----------
+        builder
+            The builder object for the simulation.
+
+        Returns
+        -------
+            The stratification configuration for this observer.
+        """
         return builder.configuration.stratification[self.get_configuration_name()]
 
     def register_observations(self, builder: Builder) -> None:
+        """Register stratifications and observations.
+
+        Notes
+        -----
+        Ideally, each observer registers a single observation. This one, however,
+        registeres two.
+
+        While it's typical for all stratification registrations to be encapsulated
+        in a single class (i.e. the
+        :class:ResultsStratifier <vivarium_public_health.results.stratification.ResultsStratifier),
+        this observer potentially registers an additional one. While it could
+        be registered in the ``ResultsStratifier`` as well, it is specific to
+        this observer and so it is registered here while we have easy access
+        to the required categories.
+        """
         pop_filter = 'alive == "dead" and tracked == True'
         additional_stratifications = self.configuration.include
         if not self.configuration.aggregate:
@@ -155,10 +206,12 @@ class MortalityObserver(PublicHealthObserver):
     ###############
 
     def count_deaths(self, x: pd.DataFrame) -> float:
+        """Count the number of deaths that occurred during this time step."""
         died_of_cause = x["exit_time"] > self.clock()
         return sum(died_of_cause)
 
     def calculate_ylls(self, x: pd.DataFrame) -> float:
+        """Calculate the years of life lost during this time step."""
         died_of_cause = x["exit_time"] > self.clock()
         return x.loc[died_of_cause, "years_of_life_lost"].sum()
 
@@ -167,6 +220,26 @@ class MortalityObserver(PublicHealthObserver):
     ##############################
 
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
+        """Rename the appropriate column to 'entity'.
+
+        The primary thing this method does is rename the 'cause_of_death' column
+        to 'entity' (or, it we are aggregating, and there is no 'cause_of_death'
+        column, we simply create a new 'entity' column). We do this here instead
+        of the 'get_entity_column' method simply because we do not want the
+        'cause_of_death' at all. If we keep it here and then return it as the
+        entity column later, the final results would have both.
+
+        Parameters
+        ----------
+        measure
+            The measure.
+        results
+            The results to format.
+
+        Returns
+        -------
+            The formatted results.
+        """
         results = results.reset_index()
         if self.configuration.aggregate:
             results[COLUMNS.ENTITY] = "all_causes"
@@ -175,12 +248,15 @@ class MortalityObserver(PublicHealthObserver):
         return results
 
     def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        """Get the 'entity_type' column values."""
         entity_type_map = {cause.state_id: cause.cause_type for cause in self.causes_of_death}
         return results[COLUMNS.ENTITY].map(entity_type_map).astype(CategoricalDtype())
 
     def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        """Get the 'entity' column values."""
         # The entity col was created in the 'format' method
         return results[COLUMNS.ENTITY]
 
     def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        """Get the 'sub_entity' column values."""
         return results[COLUMNS.ENTITY]

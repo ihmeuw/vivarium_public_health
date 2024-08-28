@@ -5,9 +5,8 @@ Results Stratifier
 
 This module contains tools for stratifying observed quantities
 by specified characteristics through the vivarium results interface.
-"""
 
-from __future__ import annotations
+"""
 
 import pandas as pd
 from vivarium import Component
@@ -15,6 +14,22 @@ from vivarium.framework.engine import Builder
 
 
 class ResultsStratifier(Component):
+    """A component for registering common public health stratifications.
+
+    The purpose of this component is to encapsulate all common public health
+    stratification registrations in one place. This is not enforced, however,
+    and stratification registrations can be done in any component.
+
+    Attributes
+    ----------
+    age_bins
+        The age bins for stratifying by age.
+    start_year
+        The start year of the simulation.
+    end_year
+        The end year of the simulation.
+    """
+
     #####################
     # Lifecycle methods #
     #####################
@@ -32,6 +47,7 @@ class ResultsStratifier(Component):
     #################
 
     def register_stratifications(self, builder: Builder) -> None:
+        """Register stratifications for the simulation."""
         builder.results.register_stratification(
             "age_group",
             self.age_bins["age_group_name"].to_list(),
@@ -80,18 +96,17 @@ class ResultsStratifier(Component):
     # Mappers #
     ###########
 
-    def map_age_groups(self, pop: pd.DataFrame) -> pd.Series[str]:
-        """Map age with age group name strings
+    def map_age_groups(self, pop: pd.DataFrame) -> pd.Series:
+        """Map age with age group name strings.
 
         Parameters
         ----------
         pop
-            A pd.DataFrame with one column, an age to be mapped to an age group name string
+            A table with one column, an age to be mapped to an age group name string.
 
         Returns
-        ------
-        pandas.Series
-            A pd.Series with age group name string corresponding to the pop passed into the function
+        -------
+            The age group name strings corresponding to the pop passed into the function.
         """
         bins = self.age_bins["age_start"].to_list() + [self.age_bins["age_end"].iloc[-1]]
         labels = self.age_bins["age_group_name"].to_list()
@@ -99,23 +114,33 @@ class ResultsStratifier(Component):
         return age_group
 
     @staticmethod
-    def map_year(pop: pd.DataFrame) -> pd.Series[str]:
-        """Map datetime with year
+    def map_year(pop: pd.DataFrame) -> pd.Series:
+        """Map datetime with year.
 
         Parameters
         ----------
         pop
-            A pd.DataFrame with one column, a datetime to be mapped to year
+            A table with one column, a datetime to be mapped to year.
 
         Returns
-        ------
-        pandas.Series
-            A pd.Series with years corresponding to the pop passed into the function
+        -------
+            The years corresponding to the pop passed into the function.
         """
         return pop.squeeze(axis=1).dt.year.apply(str)
 
     @staticmethod
     def get_age_bins(builder: Builder) -> pd.DataFrame:
+        """Get the age bins for stratifying by age.
+
+        Parameters
+        ----------
+        builder
+            The builder object for the simulation.
+
+        Returns
+        -------
+            The age bins for stratifying by age.
+        """
         raw_age_bins = builder.data.load("population.age_bins")
         age_start = builder.configuration.population.initialization_age_min
         exit_age = builder.configuration.population.untracking_age
