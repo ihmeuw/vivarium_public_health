@@ -74,8 +74,9 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     """Default state configuration if it's not explicitly specified."""
 
     DEFAULT_TRANSITION_CONFIG = {"triggered": "NOT_TRIGGERED"}
-    """If a transition configuration does not specify a triggered value, this
-    default value will be used. The default triggered value is 'NOT_TRIGGERED'.
+    """Default triggered value.
+    
+    This value is used if the transition configuration does not explicity specify it.
     """
 
     def parse_component_config(self, component_config: LayeredConfigTree) -> List[Component]:
@@ -178,8 +179,9 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     #########################
 
     def _add_default_config_layer(self, causes_config: LayeredConfigTree) -> None:
-        """Adds a default layer to the provided configuration that specifies
-        default values for the cause model configuration.
+        """Adds a default layer to the provided configuration.
+
+        This default layer specifies values for the cause model configuration.
 
         Parameters
         ----------
@@ -213,8 +215,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _get_cause_model_components(
         self, causes_config: LayeredConfigTree
     ) -> List[Component]:
-        """Parses the cause model configuration and returns a list of
-        `DiseaseModel` components.
+        """Parses the cause model configuration and returns the `DiseaseModel` components.
 
         Parameters
         ----------
@@ -260,8 +261,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _get_state(
         self, state_name: str, state_config: LayeredConfigTree, cause_name: str
     ) -> BaseDiseaseState:
-        """Parses a state configuration and returns an initialized `BaseDiseaseState`
-        object.
+        """Parses a state configuration and returns an initialized `BaseDiseaseState` object.
 
         Parameters
         ----------
@@ -348,8 +348,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _get_data_sources(
         self, config: LayeredConfigTree
     ) -> Dict[str, Callable[[Builder, Any], Any]]:
-        """Parses a data sources configuration and returns a dictionary of data
-        sources.
+        """Parses a data sources configuration and returns the data sources.
 
         Parameters
         ----------
@@ -366,8 +365,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _get_data_source(
         name: str, source: Union[str, float]
     ) -> Callable[[Builder, Any], Any]:
-        """Parses a data source and returns a callable that can be used to retrieve
-        the data.
+        """Parses a data source and returns a callable that can be used to retrieve the data.
 
         Parameters
         ----------
@@ -801,8 +799,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _validate_data_sources(
         self, config: Dict[str, Any], cause_name: str, config_type: str, config_name: str
     ) -> List[str]:
-        """Validates the data sources in a configuration and returns a list of
-        error messages.
+        """Validates the data sources in a configuration and returns any error messages.
 
         Parameters
         ----------
