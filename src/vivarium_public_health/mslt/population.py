@@ -19,8 +19,7 @@ from vivarium.framework.population import SimulantData
 
 
 class BasePopulation(Component):
-    """
-    This component implements the core population demographics: age, sex,
+    """This component implements the core population demographics: age, sex,
     population size.
 
     The configuration options for this component are:
@@ -113,9 +112,9 @@ class BasePopulation(Component):
 
 
 class Mortality(Component):
-    """
-    This component reduces the population size of each cohort over time,
+    """This component reduces the population size of each cohort over time,
     according to the all-cause mortality rate.
+
     """
 
     ##############
@@ -156,8 +155,7 @@ class Mortality(Component):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        """
-        Calculate the number of deaths and survivors at each time-step, for
+        """Calculate the number of deaths and survivors at each time-step, for
         both the BAU and intervention scenarios.
         """
         pop = self.population_view.get(event.index)
@@ -181,10 +179,10 @@ class Mortality(Component):
 
 
 class Disability(Component):
-    """
-    This component calculates the health-adjusted life years (HALYs) for each
+    """This component calculates the health-adjusted life years (HALYs) for each
     cohort over time, according to the years lost due to disability (YLD)
     rate.
+
     """
 
     ##############
@@ -219,8 +217,7 @@ class Disability(Component):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        """
-        Calculate the HALYs for each cohort at each time-step, for both the
+        """Calculate the HALYs for each cohort at each time-step, for both the
         BAU and intervention scenarios.
         """
         pop = self.population_view.get(event.index)

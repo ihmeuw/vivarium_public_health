@@ -100,9 +100,9 @@ class ModifyDiseaseRate(Component):
 
 
 class ModifyDiseaseIncidence(ModifyDiseaseRate):
-    """
-    Interventions that modify a disease incidence rate, based on a PIF lookup
+    """Interventions that modify a disease incidence rate, based on a PIF lookup
     table.
+
     """
 
     def __init__(self, intervention: str, disease: str):
@@ -110,9 +110,9 @@ class ModifyDiseaseIncidence(ModifyDiseaseRate):
 
 
 class ModifyDiseaseMortality(ModifyDiseaseRate):
-    """
-    Interventions that modify a disease fatality rate, based on a PIF lookup
+    """Interventions that modify a disease fatality rate, based on a PIF lookup
     table.
+
     """
 
     def __init__(self, intervention: str, disease: str):
@@ -120,9 +120,9 @@ class ModifyDiseaseMortality(ModifyDiseaseRate):
 
 
 class ModifyDiseaseMorbidity(ModifyDiseaseRate):
-    """
-    Interventions that modify a disease disability rate, based on a PIF lookup
+    """Interventions that modify a disease disability rate, based on a PIF lookup
     table.
+
     """
 
     def __init__(self, intervention: str, disease: str):
@@ -130,10 +130,13 @@ class ModifyDiseaseMorbidity(ModifyDiseaseRate):
 
 
 class ModifyAcuteDiseaseIncidence(Component):
-    """
-    Interventions that modify an acute disease incidence rate.
-    Note that this intervention will simply modify both the disability rate
+    """Interventions that modify an acute disease incidence rate.
+
+    Notes
+    -----
+    This intervention will simply modify both the disability rate
     and the mortality rate for the chosen acute disease.
+
     """
 
     ##############

@@ -5,6 +5,7 @@ Low Birth Weight and Short Gestation
 
 Low birth weight and short gestation (LBWSG) is a non-standard risk
 implementation that has been used in several public health models.
+
 """
 
 import pickle
@@ -39,12 +40,16 @@ class LBWSGDistribution(PolytomousDistribution):
         self.category_intervals = self.get_category_intervals(builder)
 
     def get_category_intervals(self, builder: Builder) -> Dict[str, Dict[str, pd.Interval]]:
-        """
-        Gets the intervals for each category. It is a dictionary from the string
-        "birth_weight" or "gestational_age" to a dictionary from the category
-        name to the interval
-        :param builder:
-        :return:
+        """Gets the intervals for each category.
+
+        Parameters
+        ----------
+        builder
+            The builder object.
+
+        Returns
+        -------
+            The intervals for each category.
         """
         categories: Dict[str, str] = builder.data.load(f"{self.risk}.categories")
         category_intervals = {
@@ -61,16 +66,19 @@ class LBWSGDistribution(PolytomousDistribution):
     ##################
 
     def ppf(self, propensities: pd.DataFrame) -> pd.DataFrame:
-        """
-        Takes a DataFrame with three columns: 'categorical.propensity',
-        'birth_weight.propensity', and 'gestational_age.propensity' which
-        contain each of those propensities for each simulant.
+        """Calculate continuous exposures from propensities.
 
-        Returns a DataFrame with two columns for birth-weight and gestational
-        age exposures.
+        Parameters
+        ----------
+        propensities
+            Propensities DataFrame for each simulant with three columns:
+            'categorical.propensity', 'birth_weight.propensity', and
+            'gestational_age.propensity'.
 
-        :param propensities:
-        :return:
+        Returns
+        -------
+            A DataFrame with two columns for birth-weight and gestational age
+            exposures.
         """
 
         categorical_exposure = super().ppf(propensities[f"{CATEGORICAL}_propensity"])
@@ -88,10 +96,11 @@ class LBWSGDistribution(PolytomousDistribution):
         self,
         axis: str,
         propensity: pd.Series,
-        categorical_propensity: pd.Series = None,
-        categorical_exposure: pd.Series = None,
+        categorical_propensity: Optional[pd.Series] = None,
+        categorical_exposure: Optional[pd.Series] = None,
     ) -> pd.Series:
-        """
+        """Calculate continuous exposures from propensities for a single axis.
+
         Takes an axis (either 'birth_weight' or 'gestational_age'), a propensity
         and either a categorical propensity or a categorical exposure and
         returns continuous exposures for that axis.
@@ -101,11 +110,27 @@ class LBWSGDistribution(PolytomousDistribution):
         categorical exposure parameters pipeline
         ("risk_factor.low_birth_weight_and_short_gestation.exposure_parameters").
 
-        :param axis:
-        :param propensity:
-        :param categorical_propensity:
-        :param categorical_exposure:
-        :return:
+        Parameters
+        ----------
+        axis
+            The axis for which to calculate continuous exposures ('birth_weight'
+            or 'gestational_age').
+        propensity
+            The propensity for the axis.
+        categorical_propensity
+            The categorical propensity for the axis.
+        categorical_exposure
+            The categorical exposure for the axis.
+
+        Returns
+        -------
+            The continuous exposures for the axis.
+
+        Raises
+        ------
+        ValueError
+            If neither categorical propensity nor categorical exposure is provided
+            or both are provided.
         """
 
         if (categorical_propensity is None) == (categorical_exposure is None):
@@ -133,19 +158,15 @@ class LBWSGDistribution(PolytomousDistribution):
 
     @staticmethod
     def _parse_description(axis: str, description: str) -> pd.Interval:
-        """
-        Parses a string corresponding to a low birth weight and short gestation
+        """Parses a string corresponding to a low birth weight and short gestation
         category to an Interval.
+
         An example of a standard description:
         'Neonatal preterm and LBWSG (estimation years) - [0, 24) wks, [0, 500) g'
         An example of an edge case for gestational age:
         'Neonatal preterm and LBWSG (estimation years) - [40, 42+] wks, [2000, 2500) g'
         An example of an edge case of birth weight:
         'Neonatal preterm and LBWSG (estimation years) - [36, 37) wks, [4000, 9999] g'
-
-        :param axis:
-        :param description:
-        :return:
         """
         endpoints = {
             BIRTH_WEIGHT: [

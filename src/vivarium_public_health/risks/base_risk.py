@@ -30,8 +30,9 @@ from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 
 class Risk(Component):
-    """A model for a risk factor defined by either a continuous or a categorical
-    value. For example,
+    """A model for a risk factor defined by either a continuous or a categorical value.
+
+    For example,
 
     #. high systolic blood pressure as a risk where the SBP is not dichotomized
        into hypotension and normal but is treated as the actual SBP
@@ -138,9 +139,10 @@ class Risk(Component):
 
     def __init__(self, risk: str):
         """
+
         Parameters
         ----------
-        risk :
+        risk
             the type and name of a risk, specified as "type.name". Type is singular.
         """
         super().__init__()
@@ -171,8 +173,7 @@ class Risk(Component):
         self.exposure = self.get_exposure_pipeline(builder)
 
     def get_distribution_type(self, builder: Builder) -> str:
-        """
-        Get the distribution type for the risk from the configuration.
+        """Get the distribution type for the risk from the configuration.
 
         If the configured distribution type is not one of the supported types,
         it is assumed to be a data source and the data is retrieved using the
@@ -180,13 +181,12 @@ class Risk(Component):
 
         Parameters
         ----------
-        builder : Builder
-            the builder object
+        builder
+            The builder object.
 
         Returns
         -------
-        str
-            the distribution type
+            The distribution type.
         """
         if self.configuration is None:
             self.configuration = self.get_configuration(builder)
@@ -207,24 +207,22 @@ class Risk(Component):
         return distribution_type
 
     def get_exposure_distribution(self, builder: Builder) -> RiskExposureDistribution:
-        """
-        Creates and sets up the exposure distribution component for the Risk
+        """Creates and sets up the exposure distribution component for the Risk
         based on its distribution type.
 
         Parameters
         ----------
-        builder : Builder
-            the builder object
+        builder
+            The builder object.
 
         Returns
         -------
-        RiskExposureDistribution
-            the exposure distribution
+            The exposure distribution.
 
         Raises
         ------
         NotImplementedError
-            if the distribution type is not supported
+            If the distribution type is not supported.
         """
         try:
             exposure_distribution = self.exposure_distributions[self.distribution_type](

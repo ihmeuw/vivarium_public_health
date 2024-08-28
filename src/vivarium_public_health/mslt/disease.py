@@ -19,7 +19,8 @@ from vivarium.framework.population import SimulantData
 
 
 class AcuteDisease(Component):
-    """
+    """This component characterises an acute disease.
+
     An acute disease has a sufficiently short duration, relative to the
     time-step size, that it is not meaningful to talk about prevalence.
     Instead, it simply contributes an excess mortality rate, and/or a
@@ -32,10 +33,18 @@ class AcuteDisease(Component):
 
     where `<disease>` is the name as provided to the constructor.
 
-    Parameters
+    Attributes
     ----------
     disease
         The disease name (referred to as `<disease>` here).
+    excess_mortality
+        The excess mortality rate for the disease.
+    int_excess_mortality
+        The excess mortality rate for the disease in the intervention scenario.
+    disability_rate
+        The years lost due to disability (YLD) rate for the disease.
+    int_disability_rate
+        The YLD rate for the disease in the intervention scenario.
 
     """
 
@@ -77,16 +86,14 @@ class AcuteDisease(Component):
     ##################################
 
     def mortality_adjustment(self, index, mortality_rate):
-        """
-        Adjust the all-cause mortality rate in the intervention scenario, to
+        """Adjust the all-cause mortality rate in the intervention scenario, to
         account for any change in prevalence (relative to the BAU scenario).
         """
         delta = self.int_excess_mortality(index) - self.excess_mortality(index)
         return mortality_rate + delta
 
     def disability_adjustment(self, index, yld_rate):
-        """
-        Adjust the years lost due to disability (YLD) rate in the intervention
+        """Adjust the years lost due to disability (YLD) rate in the intervention
         scenario, to account for any change in prevalence (relative to the BAU
         scenario).
         """
@@ -106,10 +113,28 @@ class Disease(Component):
 
     where `<disease>` is the name as provided to the constructor.
 
-    Parameters
+    Attributes
     ----------
     disease
         The disease name (referred to as `<disease>` here).
+    clock
+        The simulation clock.
+    start_year
+        The simulation start year.
+    simplified_equations
+        Whether to use simplified equations for the disease model.
+    incidence
+        The incidence rate for the disease.
+    incidence_intervention
+        The incidence rate for the disease in the intervention scenario.
+    remission
+        The remission rate for the disease.
+    excess_mortality
+        The excess mortality rate for the disease.
+    disability_rate
+        The years lost due to disability (YLD) rate for the disease.
+    initial_prevalence
+        The initial prevalence of the disease.
 
     """
 
@@ -231,9 +256,7 @@ class Disease(Component):
         self.population_view.update(pop)
 
     def on_time_step_prepare(self, event: Event) -> None:
-        """
-        Update the disease status for both the BAU and intervention scenarios.
-        """
+        """Update the disease status for both the BAU and intervention scenarios."""
         # Do not update the disease status in the first year, the initial data
         # describe the disease state at the end of the year.
         if self.clock().year == self.start_year:
@@ -356,8 +379,7 @@ class Disease(Component):
     ##################################
 
     def mortality_adjustment(self, index, mortality_rate):
-        """
-        Adjust the all-cause mortality rate in the intervention scenario, to
+        """Adjust the all-cause mortality rate in the intervention scenario, to
         account for any change in disease prevalence (relative to the BAU
         scenario).
         """
@@ -387,8 +409,7 @@ class Disease(Component):
         return mortality_rate + delta
 
     def disability_adjustment(self, index, yld_rate):
-        """
-        Adjust the years lost due to disability (YLD) rate in the intervention
+        """Adjust the years lost due to disability (YLD) rate in the intervention
         scenario, to account for any change in disease prevalence (relative to
         the BAU scenario).
         """

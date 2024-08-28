@@ -17,7 +17,9 @@ from vivarium.framework.engine import Builder
 class TherapeuticInertia(Component):
     """Expose a therapeutic inertia pipeline that defines
     a population-level therapeutic inertia.
-    This is the probability of treatment during a healthcare visit."""
+
+    This is the probability of treatment during a healthcare visit.
+    """
 
     CONFIGURATION_DEFAULTS = {
         "therapeutic_inertia": {

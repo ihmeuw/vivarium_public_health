@@ -19,8 +19,7 @@ from vivarium.framework.population import SimulantData
 
 
 class DelayedRisk(Component):
-    """
-    A delayed risk represents an exposure whose impact takes time to come into
+    """A delayed risk represents an exposure whose impact takes time to come into
     effect (e.g., smoking uptake and cessation).
 
     The data required by this component are:
@@ -320,8 +319,7 @@ class DelayedRisk(Component):
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        """
-        Define the initial distribution of the population across the bins, in
+        """Define the initial distribution of the population across the bins, in
         both the BAU and the intervention scenario.
         """
         # Set all bins to zero, in order to create the required columns.
@@ -364,7 +362,6 @@ class DelayedRisk(Component):
         - New exposures
         - Cessation of exposure
         - Increased duration of time since exposure
-
         """
         if self.clock().year == self.start_year:
             return
@@ -540,6 +537,17 @@ def pivot_load(builder: Builder, entity_key: str) -> pd.DataFrame:
     Performs a long to wide conversion if dataframe has an index column
     named 'measure'.
 
+    Parameters
+    ----------
+    builder
+        The builder object for the simulation.
+    entity_key
+        The key for the entity to be loaded.
+
+    Returns
+    -------
+    pd.DataFrame
+        The loaded data and potentially pivoted data.
     """
     data = builder.data.load(entity_key)
 

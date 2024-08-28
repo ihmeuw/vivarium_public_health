@@ -461,7 +461,6 @@ def clip(q):
     This is bound up in the GBD risk factor PAF calculation process.
     We'll clip the distribution tails so we don't get NaNs back from the
     distribution calls
-
     """
     Q_LOWER_BOUND = 0.0011
     Q_UPPER_BOUND = 0.998
