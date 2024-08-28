@@ -57,10 +57,10 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         "model_type": f"{DiseaseModel.__module__}.{DiseaseModel.__name__}",
         "initial_state": None,
     }
-    """If a cause model configuration does not specify a model type or initial 
-    state, these default values will be used. The default model type is 
-    `DiseaseModel` and the default initial state is `None`. If the initial state 
-    is not specified, the cause model must have a state named 'susceptible'.
+    """Default cause model configuration if it's not explicitly specified.
+    
+    If the initial state is not specified, the cause  model must have a state 
+    named 'susceptible'.
     """
 
     DEFAULT_STATE_CONFIG = {
@@ -71,12 +71,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         "cleanup_function": None,
         "state_type": None,
     }
-    """If a state configuration does not specify cause_type, transient, 
-    allow_self_transition, side_effect, cleanup_function, or state_type,
-    these default values will be used. The default cause type is 'cause', the
-    default transient value is False, and the default allow_self_transition
-    value is True.
-    """
+    """Default state configuration if it's not explicitly specified."""
 
     DEFAULT_TRANSITION_CONFIG = {"triggered": "NOT_TRIGGERED"}
     """If a transition configuration does not specify a triggered value, this
