@@ -42,7 +42,7 @@ class CausesParsingErrors(ParsingError):
 
 
 class CausesConfigurationParser(ComponentConfigurationParser):
-    """Configuration parser for cause model configurations.
+    """Parser for cause model configurations.
 
     Component configuration parser that acts the same as the standard vivarium
     `ComponentConfigurationParser` but adds the additional ability to parse a
