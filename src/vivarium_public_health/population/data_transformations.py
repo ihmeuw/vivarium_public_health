@@ -33,7 +33,6 @@ def assign_demographic_proportions(
 
     Returns
     -------
-    pandas.DataFrame
         Table with columns
             'age' : Midpoint of the age group,
             'age_start' : Lower bound of the age group,
@@ -101,7 +100,6 @@ def rescale_binned_proportions(
 
     Returns
     -------
-    pandas.DataFrame
         Table with the same columns as `pop_data` where all bins outside the range
         (age_start, age_end) have been discarded.  If age_start and age_end
         don't fall cleanly on age boundaries, the bins in which they lie are clipped and
@@ -174,7 +172,6 @@ def rescale_binned_proportions(
 def _add_edge_age_groups(pop_data: pd.DataFrame) -> pd.DataFrame:
     """Pads the population data with age groups that enforce constant
     left interpolation and interpolation to zero on the right.
-
     """
     index_cols = ["location", "year_start", "year_end", "sex"]
     age_cols = ["age", "age_start", "age_end"]
@@ -250,7 +247,6 @@ def smooth_ages(
 
     Returns
     -------
-    pandas.DataFrame
         Table with same columns as `simulants` with ages smoothed out within the age bins.
     """
     simulants = simulants.copy()
@@ -324,7 +320,7 @@ def _get_bins_and_proportions(
 
     Returns
     -------
-    Tuple[EndpointValues, AgeValues]
+        A tuple of endpoints tuples and ages tuples.
         The `EndpointValues` tuple has values (
             age at left edge of bin,
             age at right edge of bin,
@@ -334,7 +330,6 @@ def _get_bins_and_proportions(
             proportion of pop in previous bin,
             proportion of pop in next bin,
         )
-
     """
     left = float(pop_data.loc[pop_data["age"] == age.current, "age_start"].iloc[0])
     right = float(pop_data.loc[pop_data["age"] == age.current, "age_end"].iloc[0])
@@ -405,7 +400,6 @@ def _construct_sampling_parameters(
 
     Returns
     -------
-    Tuple[EndpointValues, EndpointValues, float, float]
         A tuple of (pdf, slope, area, cdf_inflection_point) where
             pdf is a tuple with values (
                 pdf evaluated at left bin edge,
@@ -474,7 +468,6 @@ def _compute_ages(
 
     Returns
     -------
-    Union[np.ndarray, float]
         Smoothed ages from one half of the age bin distribution.
     """
     if abs(slope) < np.finfo(np.float32).eps:

@@ -31,9 +31,12 @@ from vivarium_public_health.utilities import EntityString, TargetString, get_loo
 
 class RiskEffect(Component):
     """A component to model the impact of a risk factor on the target rate of
-    some affected entity. This component can source data either from
-    builder.data or from parameters supplied in the configuration.
-    For a risk named 'risk' that affects 'affected_risk' and 'affected_cause',
+    some affected entity.
+
+    This component can source data either from builder.data or from parameters
+    supplied in the configuration.
+
+    For a risk named 'risk' that affects  'affected_risk' and 'affected_cause',
     the configuration would look like:
 
     .. code-block:: yaml
@@ -59,8 +62,7 @@ class RiskEffect(Component):
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
-        """
-        A dictionary containing the defaults for any configurations managed by
+        """A dictionary containing the defaults for any configurations managed by
         this component.
         """
         return {
@@ -89,13 +91,14 @@ class RiskEffect(Component):
 
     def __init__(self, risk: str, target: str):
         """
+
         Parameters
         ----------
-        risk :
+        risk
             Type and name of risk factor, supplied in the form
             "risk_type.risk_name" where risk_type should be singular (e.g.,
             risk_factor instead of risk_factors).
-        target :
+        target
             Type, name, and target rate of entity to be affected by risk factor,
             supplied in the form "entity_type.entity_name.measure"
             where entity_type should be singular (e.g., cause instead of causes).
@@ -210,7 +213,9 @@ class RiskEffect(Component):
     def rebin_relative_risk_data(
         self, builder, relative_risk_data: pd.DataFrame
     ) -> pd.DataFrame:
-        """When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
+        """Rebin relative risk data.
+
+        When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
         After rebinning, rr for both exposed and unexposed categories should be the weighted sum of relative risk
         of the component categories where weights are relative proportions of exposure of those categories.
         For example, if cat1, cat2, cat3 are exposed categories and cat4 is unexposed with exposure [0.1,0.2,0.3,0.4],
@@ -320,17 +325,18 @@ class RiskEffect(Component):
 
 class NonLogLinearRiskEffect(RiskEffect):
     """A component to model the impact of an exposure-parametrized risk factor on
-    the target rate of some affected entity. This component will
+    the target rate of some affected entity.
 
-    1) read TMRED data from the artifact and define the TMREL
-    2) calculate the relative risk at TMREL by linearly interpolating over
-       relative risk data defined in the configuration
-    3) divide relative risk data from configuration by RR at TMREL
-       and clip to be greater than 1
-    4) build a LookupTable which returns the exposure and RR of the left and right edges
-       of the RR bin containing a simulant's exposure
-    5) use this LookupTable to modify the target pipeline by linearly interpolating
-       a simulant's RR value and multiplying it by the intended target rate
+    This component:
+    1) reads TMRED data from the artifact and define the TMREL
+    2) calculates the relative risk at TMREL by linearly interpolating over
+    relative risk data defined in the configuration
+    3) divides relative risk data from configuration by RR at TMREL
+    and clip to be greater than 1
+    4) builds a LookupTable which returns the exposure and RR of the left and right edges
+    of the RR bin containing a simulant's exposure
+    5) uses this LookupTable to modify the target pipeline by linearly interpolating
+    a simulant's RR value and multiplying it by the intended target rate
     """
 
     ##############
@@ -339,8 +345,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
-        """
-        A dictionary containing the defaults for any configurations managed by
+        """A dictionary containing the defaults for any configurations managed by
         this component.
         """
         return {

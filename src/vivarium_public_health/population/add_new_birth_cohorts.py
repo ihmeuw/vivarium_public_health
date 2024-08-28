@@ -81,8 +81,7 @@ class FertilityCrudeBirthRate(Component):
 
     new_births = sim_pop_size_t0 * live_births / true_pop_size * step_size
 
-    Where
-
+    Where:
     sim_pop_size_t0 = the initial simulation population size
     live_births = annual number of live births in the true population
     true_pop_size = the true population size
@@ -126,6 +125,7 @@ class FertilityCrudeBirthRate(Component):
     def on_time_step(self, event: Event) -> None:
         """Adds new simulants every time step based on the Crude Birth Rate
         and an assumption that birth is a Poisson process
+
         Parameters
         ----------
         event
@@ -151,9 +151,7 @@ class FertilityCrudeBirthRate(Component):
 
 
 class FertilityAgeSpecificRates(Component):
-    """
-    A simulant-specific model for fertility and pregnancies.
-    """
+    """A simulant-specific model for fertility and pregnancies."""
 
     ##############
     # Properties #
@@ -180,11 +178,11 @@ class FertilityAgeSpecificRates(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        """Setup the common randomness stream and
-        age-specific fertility lookup tables.
+        """Setup the common randomness stream and age-specific fertility lookup tables.
+
         Parameters
         ----------
-        builder : vivarium.engine.Builder
+        builder
             Framework coordination object.
         """
         age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
@@ -238,9 +236,10 @@ class FertilityAgeSpecificRates(Component):
 
     def on_time_step(self, event: Event) -> None:
         """Produces new children and updates parent status on time steps.
+
         Parameters
         ----------
-        event : vivarium.population.PopulationEvent
+        event
             The event that triggered the function call.
         """
         # Get a view on all living women who haven't had a child in at least nine months.

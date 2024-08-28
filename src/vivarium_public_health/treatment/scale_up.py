@@ -20,8 +20,7 @@ from vivarium_public_health.utilities import EntityString
 
 
 class LinearScaleUp(Component):
-    """
-    A model for applying a linear scale-up to an intervention.
+    """A model for applying a linear scale-up to an intervention.
 
     This component requires input data for beginning and end dates, as well as
     beginning and end values. Scale-up start and end dates are by default the
@@ -75,10 +74,11 @@ class LinearScaleUp(Component):
 
     def __init__(self, treatment: str):
         """
+
         Parameters
         ----------
-        treatment :
-            the type and name of a treatment, specified as "type.name". Type is singular.
+        treatment
+            The type and name of a treatment, specified as "type.name". Type is singular.
         """
         super().__init__()
         self.treatment = EntityString(treatment)
@@ -113,8 +113,7 @@ class LinearScaleUp(Component):
         return pd.Timestamp(scale_up_config["start"]), pd.Timestamp(scale_up_config["end"])
 
     def get_scale_up_values(self, builder: Builder) -> Tuple[LookupTable, LookupTable]:
-        """
-        Get the values at the start and end of the scale-up period.
+        """Get the values at the start and end of the scale-up period.
 
         Parameters
         ----------
@@ -123,7 +122,6 @@ class LinearScaleUp(Component):
 
         Returns
         -------
-        LookupTable
             A tuple of lookup tables returning the values at the start and end
             of the scale-up period.
         """
@@ -172,8 +170,7 @@ class LinearScaleUp(Component):
     def get_endpoint_value_from_data(
         self, builder: Builder, endpoint_type: str
     ) -> LookupTable:
-        """
-        Get the value at the start or end of the scale-up period from data.
+        """Get the value at the start or end of the scale-up period from data.
 
         Parameters
         ----------
@@ -185,7 +182,6 @@ class LinearScaleUp(Component):
 
         Returns
         -------
-        LookupTable
             A lookup table returning the value at the start or end of the
             scale-up period.
         """

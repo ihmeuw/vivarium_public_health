@@ -78,7 +78,9 @@ def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
 def rebin_relative_risk_data(
     builder, risk: EntityString, relative_risk_data: pd.DataFrame
 ) -> pd.DataFrame:
-    """When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
+    """Rebin relative risk data if necessary.
+
+    When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
     After rebinning, rr for both exposed and unexposed categories should be the weighted sum of relative risk
     of the component categories where weights are relative proportions of exposure of those categories.
     For example, if cat1, cat2, cat3 are exposed categories and cat4 is unexposed with exposure [0.1,0.2,0.3,0.4],

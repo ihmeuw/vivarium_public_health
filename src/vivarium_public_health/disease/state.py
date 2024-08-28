@@ -103,9 +103,8 @@ class BaseDiseaseState(State):
         ----------
         index
             An iterable of integer labels for the simulants.
-        event_time : pandas.Timestamp
+        event_time
             The time at which this transition occurs.
-
         """
         pop = self.population_view.get(index)
         pop[self.event_time_column] = event_time
@@ -141,13 +140,13 @@ class BaseDiseaseState(State):
             The end state after the transition.
 
         get_data_functions
-            map from transition type to the function to pull that transition's data
+            Map from transition type to the function to pull that transition's data.
         triggered
+            The trigger for the transition
 
 
         Returns
         -------
-        RateTransition
             The created transition object.
         """
         transition = RateTransition(self, output, get_data_functions, triggered)
@@ -157,7 +156,7 @@ class BaseDiseaseState(State):
     def add_proportion_transition(
         self,
         output: "BaseDiseaseState",
-        get_data_functions: Dict[str, Callable] = None,
+        get_data_functions: Optional[Dict[str, Callable]] = None,
         triggered=Trigger.NOT_TRIGGERED,
     ) -> ProportionTransition:
         """Builds a ProportionTransition from this state to the given state.
@@ -166,13 +165,13 @@ class BaseDiseaseState(State):
         ----------
         output
             The end state after the transition.
-
         get_data_functions
-            map from transition type to the function to pull that transition's data
+            Map from transition type to the function to pull that transition's data.
+        triggered
+            The trigger for the transition.
 
         Returns
         -------
-        RateTransition
             The created transition object.
         """
         if "proportion" not in get_data_functions:
@@ -302,8 +301,8 @@ class DiseaseState(BaseDiseaseState):
         allow_self_transition: bool = False,
         side_effect_function: Optional[Callable] = None,
         cause_type: str = "cause",
-        get_data_functions: Dict[str, Callable] = None,
-        cleanup_function: Callable = None,
+        get_data_functions: Optional[Dict[str, Callable]] = None,
+        cleanup_function: Optional[Callable] = None,
     ):
         """
         Parameters
@@ -312,14 +311,16 @@ class DiseaseState(BaseDiseaseState):
             The name of this state.
         allow_self_transition
             Whether this state allows simulants to remain in the state for
-            multiple time-steps
+            multiple time-steps.
         side_effect_function
             A function to be called when this state is entered.
         cause_type
             The type of cause represented by this state. Either "cause" or "sequela".
         get_data_functions
             A dictionary containing a mapping to functions to retrieve data for
-            various state attributes
+            various state attributes.
+        cleanup_function
+            The cleanup function.
         """
         super().__init__(
             state_id,
@@ -344,7 +345,7 @@ class DiseaseState(BaseDiseaseState):
 
         Parameters
         ----------
-        builder : `engine.Builder`
+        builder
             Interface to several simulation tools.
         """
         super().setup(builder)
@@ -506,9 +507,9 @@ class DiseaseState(BaseDiseaseState):
         ----------
         index
             An iterable of integer labels for the simulants.
-        event_time:
+        event_time
             The time at which this transition occurs.
-        population_view:
+        population_view
             A view of the internal state of the simulation.
         """
         eligible_index = self._filter_for_transition_eligibility(index, event_time)
@@ -528,7 +529,6 @@ class DiseaseState(BaseDiseaseState):
 
         Returns
         -------
-        `pandas.Series`
             An iterable of disability weights indexed by the provided `index`.
         """
         disability_weight = pd.Series(0.0, index=index)
@@ -555,8 +555,12 @@ class DiseaseState(BaseDiseaseState):
         ----------
         index
             An iterable of integer labels for the simulants.
-        rates_df : `pandas.DataFrame`
+        rates_df
+            A DataFrame of mortality rates.
 
+        Returns
+        -------
+            The modified DataFrame of mortality rates.
         """
         rate = self.excess_mortality_rate(index, skip_post_processor=True)
         rates_df[self.state_id] = rate
@@ -599,17 +603,18 @@ class DiseaseState(BaseDiseaseState):
         infected_at = current_time - pd.to_timedelta(infected_at, unit="D")
         return infected_at
 
-    def _filter_for_transition_eligibility(self, index, event_time):
+    def _filter_for_transition_eligibility(self, index, event_time) -> pd.Index:
         """Filter out all simulants who haven't been in the state for the prescribed dwell time.
 
         Parameters
         ----------
         index
             An iterable of integer labels for the simulants.
+        event_time
+            The time at which this transition occurs.
 
         Returns
         -------
-        pd.Index
             A filtered index of the simulants.
         """
         population = self.population_view.get(index, query='alive == "alive"')

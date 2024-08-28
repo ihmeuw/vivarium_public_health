@@ -59,9 +59,9 @@ from vivarium_public_health.utilities import get_lookup_columns
 
 
 class Mortality(Component):
-    """
-    This is the mortality component which models sources of mortality for a model.
-    THe component models all cause mortality and allows for disease models to contribute
+    """This is the mortality component which models of mortality in a population.
+
+    The component models all cause mortality and allows for disease models to contribute
     cause specific mortality. Data used by this class should be supplied in the artifact
     and is configurable in the configuration to build lookup tables. For instance, let's
     say we want to use sex and hair color to build a lookup table for all cause mortality.
