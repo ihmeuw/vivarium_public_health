@@ -1,7 +1,7 @@
 """
-==================
-Mortality Observer
-==================
+===================
+Mortality Observers
+===================
 
 This module contains tools for observing cause-specific and
 excess mortality in the simulation, including "other causes".
@@ -130,7 +130,7 @@ class MortalityObserver(PublicHealthObserver):
 
         # Convert to SimpleCauses and add on other_causes and not_dead
         self.causes_of_death = [
-            SimpleCause.create_from_disease_state(cause) for cause in causes_of_death
+            SimpleCause.create_from_specific_cause(cause) for cause in causes_of_death
         ] + [
             SimpleCause("not_dead", "not_dead", "cause"),
             SimpleCause("other_causes", "other_causes", "cause"),

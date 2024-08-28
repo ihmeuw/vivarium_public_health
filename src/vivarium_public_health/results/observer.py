@@ -1,3 +1,13 @@
+"""
+===============
+Basic Observers
+===============
+
+This module contains convencience classes for building concrete observers in
+public health models.
+
+"""
+
 from typing import Callable, List, Optional, Union
 
 import pandas as pd

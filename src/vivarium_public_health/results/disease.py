@@ -1,7 +1,7 @@
 """
-================
-Disease Observer
-================
+=================
+Disease Observers
+=================
 
 This module contains tools for observing disease incidence and prevalence
 in the simulation.
