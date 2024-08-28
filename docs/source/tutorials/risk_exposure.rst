@@ -2,13 +2,16 @@
 Non-standard Risk Exposure and Effect Models
 ============================================
 
-:mod:`vivarium_public_health` provides two components for modeling the impact
+:mod:`vivarium_public_health` provides three components for modeling the impact
 of some health attributes on others:
 
 - :class:`~vivarium_public_health.risks.base_risk.Risk`: Model of the
   underlying exposure based on a continuous or categorical distribution.
 - :class:`~vivarium_public_health.risks.effect.RiskEffect`: Model of the
   impact of different exposure levels on another health attribute.
+- :class:`~vivarium_public_health.risks.effect.NonLogLinearRiskEffect`: 
+  Special-case risk effect model where the risk factors are parameterized
+  by exposure levels.
 
 The standard model is to think of exposure to environmental, metabolic, and
 behavioral risk factors and their impact on disease incidence rates. However,
@@ -16,10 +19,11 @@ we've found many situations to extend this model to other attributes, such as
 interventions and their impacts on other risks, diseases, or mortality itself.
 
 In order to support these extended models, we've made the
-:class:`~vivarium_public_health.risks.base_risk.Risk` and
-:class:`~vivarium_public_health.risks.effect.RiskEffect` components
+:class:`~vivarium_public_health.risks.base_risk.Risk`, 
+:class:`~vivarium_public_health.risks.effect.RiskEffect`, and
+:class:`~vivarium_public_health.risks.effect.NonLogLinearRiskEffect` components
 configurable. This tutorial explains the various configuration options you can
-use with these two components.
+use with these components.
 
 .. contents:
    :local:
@@ -29,7 +33,7 @@ Exposure Models
 ---------------
 
 We model exposure using the
-:class:`~vivarium_public_health.risks.base_risk.Risk` component.
+:class:`~vivarium_public_health.risks.base_risk.Risk` or component.
 Consider its configuration options:
 
 - ``"exposure"``: This option represents the exposure data source. It defaults
@@ -217,12 +221,22 @@ Effect Models
 -------------
 
 Non-standard effect models can **only** be used with dichotomous exposure
-models (models where someone is either exposed or not exposed. The available
+models (models where someone is either exposed or not exposed). The available
 configuration options all correspond to generating a relative risk for
 the exposed population from a set of parameters.
 
 We model exposure effects using the
-:class:`~vivarium_public_health.risks.effect.RiskEffect` component.
+:class:`~vivarium_public_health.risks.effect.RiskEffect` or
+:class:`~vivarium_public_health.risks.effect.NonLogLinearRiskEffect` components.
+
+For this tutorial, we'll focus on the ``RiskEffect`` component. The
+``NonLogLinearRiskEffect`` component is a special case of the ``RiskEffect``
+component where the risk factors are parameterized by exposure levels.
+
+.. todo::
+  
+   Add details on how to use the ``NonLogLinearRiskEffect`` component.
+
 Let's look at its configuration options:
 
 - ``"relative_risk"``: Option for specifying a relative risk value directly.

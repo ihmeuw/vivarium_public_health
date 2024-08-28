@@ -17,8 +17,6 @@ import scipy
 from layered_config_tree import ConfigurationError
 from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
-from vivarium.framework.population import SimulantData
 
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import (
@@ -30,8 +28,7 @@ from vivarium_public_health.utilities import EntityString, TargetString, get_loo
 
 
 class RiskEffect(Component):
-    """A component to model the impact of a risk factor on the target rate of
-    some affected entity.
+    """A component to model the effect of a risk factor on an affected entity's target rate.
 
     This component can source data either from builder.data or from parameters
     supplied in the configuration.
@@ -62,9 +59,7 @@ class RiskEffect(Component):
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
-        """A dictionary containing the defaults for any configurations managed by
-        this component.
-        """
+        """Default values for any configurations managed by this component."""
         return {
             self.name: {
                 "data_sources": {
@@ -324,8 +319,10 @@ class RiskEffect(Component):
 
 
 class NonLogLinearRiskEffect(RiskEffect):
-    """A component to model the impact of an exposure-parametrized risk factor on
-    the target rate of some affected entity.
+    """A component to model the exposure-parametrized effect of a risk factor.
+
+    More specifically, this models the effect of the risk factor on the target rate of
+    some affected entity.
 
     This component:
     1) reads TMRED data from the artifact and define the TMREL
@@ -337,6 +334,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     of the RR bin containing a simulant's exposure
     5) uses this LookupTable to modify the target pipeline by linearly interpolating
     a simulant's RR value and multiplying it by the intended target rate
+
     """
 
     ##############
@@ -345,9 +343,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     @property
     def configuration_defaults(self) -> Dict[str, Any]:
-        """A dictionary containing the defaults for any configurations managed by
-        this component.
-        """
+        """Default values for any configurations managed by this component."""
         return {
             self.name: {
                 "data_sources": {
@@ -490,6 +486,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     ##############
 
     def validate_rr_data(self, rr_data: pd.DataFrame) -> None:
+        """Validate the relative risk data."""
         # check that rr_data has numeric parameter data
         parameter_data_is_numeric = rr_data["parameter"].dtype.kind in "biufc"
         if not parameter_data_is_numeric:
