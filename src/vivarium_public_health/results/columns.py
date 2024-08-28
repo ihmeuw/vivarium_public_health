@@ -4,7 +4,7 @@ from vivarium.framework.results import VALUE_COLUMN
 
 
 class __Columns(NamedTuple):
-    """column names"""
+    """Container class for column names used in results dataframes."""
 
     VALUE: str = VALUE_COLUMN
     MEASURE: str = "measure"
