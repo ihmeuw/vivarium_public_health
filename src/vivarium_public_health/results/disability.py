@@ -1,7 +1,7 @@
 """
-===================
-Disability Observer
-===================
+====================
+Disability Observers
+====================
 
 This module contains tools for observing years lived with disability (YLDs)
 in the simulation.
@@ -102,7 +102,7 @@ class DisabilityObserver(PublicHealthObserver):
         )
         # Convert to SimpleCause instances and add on all_causes
         causes_of_disability = [
-            SimpleCause.create_from_disease_state(cause) for cause in causes_of_disability
+            SimpleCause.create_from_specific_cause(cause) for cause in causes_of_disability
         ] + [SimpleCause("all_causes", "all_causes", "cause")]
 
         excluded_causes = (

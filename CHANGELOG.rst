@@ -1,3 +1,9 @@
+**3.0.5 - 08/28/24**
+
+ - Add missing results module-level docstrings
+ - Strengthen the SimpleCause docstring
+ - Rename the SimpleCause class method
+
 **3.0.4 - 08/28/24**
 
  - Strengthen results docstrings and clean up others throughout

@@ -1,12 +1,21 @@
+"""
+============
+Simple Cause
+============
+
+This module contains tools for creating a minimal representation of a cause
+as required by observers.
+
+"""
+
 from dataclasses import dataclass
 
 
 @dataclass
 class SimpleCause:
-    """A simple dataclass to represent the bare minimum information needed
-    for observers, e.g. 'all_causes' as a cause of disability.
+    """A simple dataclass to represent the bare minimum information needed by observers.
 
-    It also includes a class method to convert a provided disease state into a
+    It also includes a class method to convert a provided cause into a
     ``SimpleCause`` instance.
 
     """
@@ -19,6 +28,16 @@ class SimpleCause:
     """The cause type of the cause."""
 
     @classmethod
-    def create_from_disease_state(cls, disease_state: type) -> "SimpleCause":
-        """Create a SimpleCause instance from a"""
-        return cls(disease_state.state_id, disease_state.model, disease_state.cause_type)
+    def create_from_specific_cause(cls, cause: type) -> "SimpleCause":
+        """Create a SimpleCause instance from a more specific cause.
+
+        Parameters
+        ----------
+        cause
+            The cause to be converted into a SimpleCause instance.
+
+        Returns
+        -------
+            A SimpleCause instance.
+        """
+        return cls(cause.state_id, cause.model, cause.cause_type)
