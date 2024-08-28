@@ -232,7 +232,7 @@ class DiseaseObserver(PublicHealthObserver):
         )
 
     def map_transitions(self, df: pd.DataFrame) -> pd.Series:
-        """Map transitions between disease states.
+        """Map previous and current disease states to transition string.
 
         Parameters
         ----------
