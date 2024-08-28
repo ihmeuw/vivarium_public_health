@@ -217,7 +217,7 @@ class DiseaseObserver(PublicHealthObserver):
     def register_transition_count_observation(
         self, builder: Builder, pop_filter: str
     ) -> None:
-        """Register the transition count observation."""
+        """Register a transition count observation."""
         self.register_adding_observation(
             builder=builder,
             name=f"transition_count_{self.disease}",
