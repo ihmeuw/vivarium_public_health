@@ -319,7 +319,7 @@ class RiskEffect(Component):
 
 
 class NonLogLinearRiskEffect(RiskEffect):
-    """A component to model the effect of an exposure-parametrized risk factor.
+    """A component to model the exposure-parametrized effect of a risk factor.
 
     More specifically, this models the effect of the risk factor on the target rate of
     some affected entity.
