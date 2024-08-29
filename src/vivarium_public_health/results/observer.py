@@ -3,7 +3,7 @@
 Basic Observers
 ===============
 
-This module contains convencience classes for building concrete observers in
+This module contains convenience classes for building concrete observers in
 public health models.
 
 """
