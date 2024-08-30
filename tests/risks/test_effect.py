@@ -458,17 +458,18 @@ class CustomExposureRisk(Component):
         return data
 
 
-def _setup_risk_simulation(
+def _setup_risk_effect_simulation(
     config: LayeredConfigTree,
     plugins: LayeredConfigTree,
     risk: Union[str, Risk],
+    risk_effect: RiskEffect,
     data: Dict[str, Any],
 ) -> InteractiveContext:
     components = [
         TestPopulation(),
         risk,
         SI("some_disease"),
-        NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate"),
+        risk_effect,
     ]
 
     simulation = InteractiveContext(
@@ -525,10 +526,10 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
 
     if error_message:
         with pytest.raises(ValueError, match=error_message):
-            simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+            simulation = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
         return
     else:
-        simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+        simulation = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
 
     pop = simulation.get_population()
     rate = simulation.get_value("some_disease.incidence_rate")(
@@ -541,3 +542,49 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
     )
 
     assert np.isclose(rate.values, expected_values, rtol=0.0000001).all()
+
+
+@pytest.mark.parametrize(
+    "rr_source", ["str", "float", "DataFrame"],
+)
+def test_rr_sources(rr_source, dichotomous_risk, base_config, base_plugins):
+    risk = dichotomous_risk
+    effect = RiskEffect(risk.name, "cause.some_disease.incidence_rate")
+
+    # TMREL of 1
+    tmred = {"distribution": "uniform", "min": 1, "max": 1, "inverted": False}
+
+    data = {
+        f"{risk.name}.tmred": tmred,
+        f"{risk.name}.population_attributable_fraction": 0,
+        "cause.some_disease.incidence_rate": 1,
+    }
+
+    if rr_source == "DataFrame":
+        rr_data = pd.DataFrame(
+            {
+                "affected_entity": "some_disease",
+                "affected_measure": "incidence_rate",
+                "year_start": 1990,
+                "year_end": 1991,
+                "value": [2.0, 1.0],
+            },
+            index=pd.Index(["cat1", "cat2"], name="parameter"),
+        )
+        base_config.update({'test_risk': {'data_sources': {'relative_risk': rr_data}}})
+    elif rr_source == "float":
+        base_config.update({'test_risk': {'data_sources': {'relative_risk': 0.9}}})
+    else: # rr_source is a string because it reads from RiskEffect's configuration defaults
+        rr_data = pd.DataFrame(
+            {
+                "affected_entity": "some_disease",
+                "affected_measure": "incidence_rate",
+                "year_start": 1990,
+                "year_end": 1991,
+                "value": [1.5, 1.0],
+            },
+            index=pd.Index(["cat1", "cat2"], name="parameter"),
+        )
+        data[f"{risk.name}.relative_risk"] = rr_data
+
+    simulation = _setup_risk_effect_simulation(base_config, base_plugins, risk, data)
