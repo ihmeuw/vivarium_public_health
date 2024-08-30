@@ -77,7 +77,7 @@ MOCKERS = {
     "population": {
         "age_bins": make_age_bins(),
         "structure": make_uniform_pop_data(),
-        "demographic_dimensions": make_uniform_pop_data().drop(['location','value'], axis=1),
+        "demographic_dimensions": make_uniform_pop_data().drop(["location", "value"], axis=1),
         "theoretical_minimum_risk_life_expectancy": (
             build_table_with_age(
                 98.0,
