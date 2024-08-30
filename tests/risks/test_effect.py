@@ -413,7 +413,46 @@ from vivarium_public_health.utilities import EntityString
 #                                                   source=lambda index: pd.Series(0.1, index=index))
 #
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
+def _setup_risk_effect_simulation(
+    config: LayeredConfigTree,
+    plugins: LayeredConfigTree,
+    risk: Union[str, Risk],
+    risk_effect: RiskEffect,
+    data: Dict[str, Any],
+) -> InteractiveContext:
+    components = [
+        TestPopulation(),
+        risk,
+        SI("test_cause"),
+        risk_effect,
+    ]
 
+    simulation = InteractiveContext(
+        components=components,
+        configuration=config,
+        plugin_configuration=plugins,
+        setup=False,
+    )
+
+    for key, value in data.items():
+        simulation._data.write(key, value)
+
+    simulation.setup()
+    return simulation
+
+
+def build_dichotomous_risk_effect_data(rr_value: float) -> pd.DataFrame:
+    df = pd.DataFrame(
+            {
+                "affected_entity": "test_cause",
+                "affected_measure": "incidence_rate",
+                "year_start": 1990,
+                "year_end": 1991,
+                "value": [rr_value, 1.0],
+            },
+            index=pd.Index(["cat1", "cat2"], name="parameter"),
+        )
+    return df
 
 ##############################
 # Non Log-Linear Risk Effect #
@@ -456,34 +495,6 @@ class CustomExposureRisk(Component):
     def get_exposure(self, index: pd.Index) -> pd.Series:
         data = pd.Series(custom_exposure_values, index=index)
         return data
-
-
-def _setup_risk_effect_simulation(
-    config: LayeredConfigTree,
-    plugins: LayeredConfigTree,
-    risk: Union[str, Risk],
-    risk_effect: RiskEffect,
-    data: Dict[str, Any],
-) -> InteractiveContext:
-    components = [
-        TestPopulation(),
-        risk,
-        SI("test_cause"),
-        risk_effect,
-    ]
-
-    simulation = InteractiveContext(
-        components=components,
-        configuration=config,
-        plugin_configuration=plugins,
-        setup=False,
-    )
-
-    for key, value in data.items():
-        simulation._data.write(key, value)
-
-    simulation.setup()
-    return simulation
 
 
 @pytest.mark.parametrize(
@@ -547,7 +558,7 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
 @pytest.mark.parametrize(
     "rr_source, rr_value", [("str", 2.0), ("float", 0.9), ("DataFrame", 0.5)],
 )
-def test_rr_sources(rr_source, dichotomous_risk, base_config, base_plugins):
+def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plugins):
     risk = dichotomous_risk[0]
     effect = RiskEffect(risk.name, "cause.test_cause.incidence_rate")
     base_config.update({'risk_factor.test_risk': {'data_sources': {'exposure': 1.0}}})
@@ -562,30 +573,12 @@ def test_rr_sources(rr_source, dichotomous_risk, base_config, base_plugins):
     }
 
     if rr_source == "DataFrame":
-        rr_data = pd.DataFrame(
-            {
-                "affected_entity": "test_cause",
-                "affected_measure": "incidence_rate",
-                "year_start": 1990,
-                "year_end": 1991,
-                "value": [rr_value, 1.0],
-            },
-            index=pd.Index(["cat1", "cat2"], name="parameter"),
-        )
+        rr_data = build_dichotomous_risk_effect_data(rr_value)
         base_config.update({'risk_effect.test_risk_on_cause.test_cause.incidence_rate': {'data_sources': {'relative_risk': rr_data}}})
     elif rr_source == "float":
         base_config.update({'risk_effect.test_risk_on_cause.test_cause.incidence_rate': {'data_sources': {'relative_risk': rr_value}}})
     else: # rr_source is a string because it reads from RiskEffect's configuration defaults
-        rr_data = pd.DataFrame(
-            {
-                "affected_entity": "test_cause",
-                "affected_measure": "incidence_rate",
-                "year_start": 1990,
-                "year_end": 1991,
-                "value": [rr_value, 1.0],
-            },
-            index=pd.Index(["cat1", "cat2"], name="parameter"),
-        )
+        rr_data = build_dichotomous_risk_effect_data(rr_value)
         data[f"{risk.name}.relative_risk"] = rr_data
 
     base_config.update({'risk_factor.test_risk': {'distribution_type': 'dichotomous'}})
@@ -593,4 +586,4 @@ def test_rr_sources(rr_source, dichotomous_risk, base_config, base_plugins):
 
     pop = simulation.get_population()
     rate = simulation.get_value("test_cause.incidence_rate")(pop.index, skip_post_processor=True)
-    
+    assert rate.unique()
