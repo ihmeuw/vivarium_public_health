@@ -586,4 +586,4 @@ def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plu
 
     pop = simulation.get_population()
     rate = simulation.get_value("test_cause.incidence_rate")(pop.index, skip_post_processor=True)
-    assert rate.unique()
+    assert set(rate.unique()) == {rr_value}
