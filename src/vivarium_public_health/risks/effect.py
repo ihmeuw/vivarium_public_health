@@ -201,8 +201,8 @@ class RiskEffect(Component):
             cat2["parameter"] = "cat2"
             cat2["value"] = 1
             rr_data = pd.concat([cat1, cat2], ignore_index=True)
-        if 'parameter' in rr_data.index.names:
-            rr_data = rr_data.reset_index('parameter')
+        if "parameter" in rr_data.index.names:
+            rr_data = rr_data.reset_index("parameter")
 
         rr_value_cols = list(rr_data["parameter"].unique())
         rr_data = pivot_categorical(builder, self.risk, rr_data, "parameter")
