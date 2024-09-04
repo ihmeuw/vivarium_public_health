@@ -1,3 +1,7 @@
+**3.0.6 - 09/04/24**
+
+ - Fix bug that was occurring when RiskEffect's rr_source was a float or DataFrame
+
 **3.0.5 - 08/29/24**
 
  - Add missing results module-level docstrings
