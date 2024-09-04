@@ -560,13 +560,13 @@ class CustomExposureRisk(Component):
 def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, base_plugins):
     risk = CustomExposureRisk("risk_factor.test_risk")
     effect = NonLogLinearRiskEffect(
-        "risk_factor.test_risk", "cause.some_disease.incidence_rate"
+        risk.name, "cause.test_cause.incidence_rate"
     )
 
     risk_effect_rrs = [2.0, 2.4, 4.0]
     rr_data = pd.DataFrame(
         {
-            "affected_entity": "some_disease",
+            "affected_entity": "test_cause",
             "affected_measure": "incidence_rate",
             "year_start": 1990,
             "year_end": 1991,
@@ -581,7 +581,7 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
         f"{risk.name}.relative_risk": rr_data,
         f"{risk.name}.tmred": tmred,
         f"{risk.name}.population_attributable_fraction": 0,
-        "cause.some_disease.incidence_rate": 1,
+        "cause.test_cause.incidence_rate": 1,
     }
 
     base_config.update({"population": {"population_size": 10}})
@@ -598,7 +598,7 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
         )
 
     pop = simulation.get_population()
-    rate = simulation.get_value("some_disease.incidence_rate")(
+    rate = simulation.get_value("test_cause.incidence_rate")(
         pop.index, skip_post_processor=True
     )
     expected_values = np.interp(
