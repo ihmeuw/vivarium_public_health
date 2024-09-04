@@ -1,6 +1,8 @@
 **3.0.6 - 09/04/24**
 
  - Fix bug that was occurring when RiskEffect's rr_source was a float or DataFrame
+ - Better handle exposure column creation in Risk component
+ - Rename LBWSRisk 'exposure_column_name()' staticmethod to not collide with Risk attr
 
 **3.0.5 - 08/29/24**
 

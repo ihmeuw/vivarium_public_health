@@ -366,6 +366,10 @@ class NonLogLinearRiskEffect(RiskEffect):
     # Setup methods #
     #################
 
+    @staticmethod
+    def get_name(risk: EntityString, target: TargetString) -> str:
+        return f"non_log_linear_risk_effect.{risk.name}_on_{target}"
+
     def build_all_lookup_tables(self, builder: Builder) -> None:
         rr_data = self.get_relative_risk_data(builder)
         self.validate_rr_data(rr_data)

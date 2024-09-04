@@ -191,7 +191,7 @@ class LBWSGRisk(Risk):
         return f"{axis}.birth_exposure"
 
     @staticmethod
-    def exposure_column_name(axis: str) -> str:
+    def get_exposure_column_name(axis: str) -> str:
         return f"{axis}_exposure"
 
     ##############
@@ -206,7 +206,7 @@ class LBWSGRisk(Risk):
 
     @property
     def columns_created(self) -> List[str]:
-        return [self.exposure_column_name(axis) for axis in self.AXES]
+        return [self.get_exposure_column_name(axis) for axis in self.AXES]
 
     #####################
     # Lifecycle methods #
@@ -256,7 +256,7 @@ class LBWSGRisk(Risk):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         birth_exposures = {
-            self.exposure_column_name(axis): self.birth_exposures[
+            self.get_exposure_column_name(axis): self.birth_exposures[
                 self.birth_exposure_pipeline_name(axis)
             ](pop_data.index)
             for axis in self.AXES
@@ -318,7 +318,7 @@ class LBWSGRiskEffect(RiskEffect):
         super().__init__("risk_factor.low_birth_weight_and_short_gestation", target)
 
         self.lbwsg_exposure_column_names = [
-            LBWSGRisk.exposure_column_name(axis) for axis in LBWSGRisk.AXES
+            LBWSGRisk.get_exposure_column_name(axis) for axis in LBWSGRisk.AXES
         ]
         self.relative_risk_pipeline_name = (
             f"effect_of_{self.risk.name}_on_{self.target.name}.relative_risk"
@@ -433,8 +433,8 @@ class LBWSGRiskEffect(RiskEffect):
         pop = self.population_view.subview(["sex"] + self.lbwsg_exposure_column_names).get(
             pop_data.index
         )
-        birth_weight = pop[LBWSGRisk.exposure_column_name(BIRTH_WEIGHT)]
-        gestational_age = pop[LBWSGRisk.exposure_column_name(GESTATIONAL_AGE)]
+        birth_weight = pop[LBWSGRisk.get_exposure_column_name(BIRTH_WEIGHT)]
+        gestational_age = pop[LBWSGRisk.get_exposure_column_name(GESTATIONAL_AGE)]
 
         is_male = pop["sex"] == "Male"
         is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
