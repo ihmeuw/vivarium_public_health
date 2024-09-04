@@ -559,9 +559,7 @@ class CustomExposureRisk(Component):
 )
 def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, base_plugins):
     risk = CustomExposureRisk("risk_factor.test_risk")
-    effect = NonLogLinearRiskEffect(
-        risk.name, "cause.test_cause.incidence_rate"
-    )
+    effect = NonLogLinearRiskEffect(risk.name, "cause.test_cause.incidence_rate")
 
     risk_effect_rrs = [2.0, 2.4, 4.0]
     rr_data = pd.DataFrame(
