@@ -491,7 +491,7 @@ def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plu
                 }
             }
         )
-    else:  # rr_source is a string because it reads from RiskEffect's configuration defaults
+    else:  # rr_source is a string because it gets read from RiskEffect's configuration defaults
         rr_data = build_dichotomous_risk_effect_data(rr_value)
         data[f"{risk.name}.relative_risk"] = rr_data
 
