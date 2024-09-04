@@ -123,7 +123,10 @@ class Risk(Component):
 
     @property
     def columns_created(self) -> List[str]:
-        return [self.propensity_column_name, self.exposure_column_name]
+        columns_to_create = [self.propensity_column_name]
+        if self.create_exposure_column:
+            columns_to_create.append(self.exposure_column_name)
+        return columns_to_create
 
     @property
     def initialization_requirements(self) -> Dict[str, List[str]]:
@@ -171,6 +174,16 @@ class Risk(Component):
         self.randomness = self.get_randomness_stream(builder)
         self.propensity = self.get_propensity_pipeline(builder)
         self.exposure = self.get_exposure_pipeline(builder)
+
+        # We want to set this to True iff there is a non-loglinear risk effect
+        # on this risk instance
+        self.create_exposure_column = bool(
+            [
+                component
+                for component in builder.components.list_components()
+                if component.startswith(f"non_log_linear_risk_effect.{self.risk.name}_on_")
+            ]
+        )
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration.
@@ -270,19 +283,19 @@ class Risk(Component):
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        propensity_values = self.randomness.get_draw(pop_data.index)
-        df = pd.DataFrame(
-            {
-                self.propensity_column_name: self.randomness.get_draw(pop_data.index),
-                self.exposure_column_name: self.exposure_distribution.ppf(propensity_values),
-            }
+        propensity = pd.Series(
+            self.randomness.get_draw(pop_data.index), name=self.propensity_column_name
         )
-        self.population_view.update(df)
+        self.population_view.update(propensity)
+        self.update_exposure_column(pop_data.index)
 
     def on_time_step_prepare(self, event: Event) -> None:
-        exposure_values = self.exposure(event.index)
-        exposure_col = pd.Series(exposure_values, name=self.exposure_column_name)
-        self.population_view.update(exposure_col)
+        self.update_exposure_column(event.index)
+
+    def update_exposure_column(self, index: pd.Index) -> None:
+        if self.create_exposure_column:
+            exposure = pd.Series(self.exposure(index), name=self.exposure_column_name)
+            self.population_view.update(exposure)
 
     ##################################
     # Pipeline sources and modifiers #
