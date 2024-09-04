@@ -157,16 +157,19 @@ class RiskEffect(Component):
         rr_source = configuration.data_sources.relative_risk
         rr_dist_parameters = configuration.data_source_parameters.relative_risk.to_dict()
 
-        try:
-            distribution = getattr(import_module("scipy.stats"), rr_source)
-            rng = np.random.default_rng(builder.randomness.get_seed(self.name))
-            rr_data = distribution(**rr_dist_parameters).ppf(rng.random())
-        except AttributeError:
+        if isinstance(rr_source, str):
+            try:
+                distribution = getattr(import_module("scipy.stats"), rr_source)
+                rng = np.random.default_rng(builder.randomness.get_seed(self.name))
+                rr_data = distribution(**rr_dist_parameters).ppf(rng.random())
+            except AttributeError:
+                rr_data = self.get_filtered_data(builder, rr_source)
+            except TypeError:
+                raise ConfigurationError(
+                    f"Parameters {rr_dist_parameters} are not valid for distribution {rr_source}."
+                )
+        else:
             rr_data = self.get_filtered_data(builder, rr_source)
-        except TypeError:
-            raise ConfigurationError(
-                f"Parameters {rr_dist_parameters} are not valid for distribution {rr_source}."
-            )
         return rr_data
 
     def get_filtered_data(
@@ -198,6 +201,8 @@ class RiskEffect(Component):
             cat2["parameter"] = "cat2"
             cat2["value"] = 1
             rr_data = pd.concat([cat1, cat2], ignore_index=True)
+        if "parameter" in rr_data.index.names:
+            rr_data = rr_data.reset_index("parameter")
 
         rr_value_cols = list(rr_data["parameter"].unique())
         rr_data = pivot_categorical(builder, self.risk, rr_data, "parameter")

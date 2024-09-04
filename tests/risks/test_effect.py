@@ -23,6 +23,7 @@ from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.effect import NonLogLinearRiskEffect, RiskEffect
 from vivarium_public_health.utilities import EntityString
 
+
 #
 #
 # def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
@@ -413,6 +414,95 @@ from vivarium_public_health.utilities import EntityString
 #                                                   source=lambda index: pd.Series(0.1, index=index))
 #
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
+def _setup_risk_effect_simulation(
+    config: LayeredConfigTree,
+    plugins: LayeredConfigTree,
+    risk: Union[str, Risk],
+    risk_effect: RiskEffect,
+    data: Dict[str, Any],
+) -> InteractiveContext:
+    components = [
+        TestPopulation(),
+        risk,
+        SI("test_cause"),
+        risk_effect,
+    ]
+
+    simulation = InteractiveContext(
+        components=components,
+        configuration=config,
+        plugin_configuration=plugins,
+        setup=False,
+    )
+
+    for key, value in data.items():
+        simulation._data.write(key, value)
+
+    simulation.setup()
+    return simulation
+
+
+def build_dichotomous_risk_effect_data(rr_value: float) -> pd.DataFrame:
+    df = pd.DataFrame(
+        {
+            "affected_entity": "test_cause",
+            "affected_measure": "incidence_rate",
+            "year_start": 1990,
+            "year_end": 1991,
+            "value": [rr_value, 1.0],
+        },
+        index=pd.Index(["cat1", "cat2"], name="parameter"),
+    )
+    return df
+
+
+@pytest.mark.parametrize(
+    "rr_source, rr_value",
+    [("str", 2.0), ("float", 0.9), ("DataFrame", 0.5)],
+)
+def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plugins):
+    risk = dichotomous_risk[0]
+    effect = RiskEffect(risk.name, "cause.test_cause.incidence_rate")
+    base_config.update({"risk_factor.test_risk": {"data_sources": {"exposure": 1.0}}})
+
+    # TMREL of 1
+    tmred = {"distribution": "uniform", "min": 1, "max": 1, "inverted": False}
+
+    data = {
+        f"{risk.name}.tmred": tmred,
+        f"{risk.name}.population_attributable_fraction": 0,
+        "cause.test_cause.incidence_rate": 1,
+    }
+
+    if rr_source == "DataFrame":
+        rr_data = build_dichotomous_risk_effect_data(rr_value)
+        base_config.update(
+            {
+                "risk_effect.test_risk_on_cause.test_cause.incidence_rate": {
+                    "data_sources": {"relative_risk": rr_data}
+                }
+            }
+        )
+    elif rr_source == "float":
+        base_config.update(
+            {
+                "risk_effect.test_risk_on_cause.test_cause.incidence_rate": {
+                    "data_sources": {"relative_risk": rr_value}
+                }
+            }
+        )
+    else:  # rr_source is a string because it gets read from RiskEffect's configuration defaults
+        rr_data = build_dichotomous_risk_effect_data(rr_value)
+        data[f"{risk.name}.relative_risk"] = rr_data
+
+    base_config.update({"risk_factor.test_risk": {"distribution_type": "dichotomous"}})
+    simulation = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
+
+    pop = simulation.get_population()
+    rate = simulation.get_value("test_cause.incidence_rate")(
+        pop.index, skip_post_processor=True
+    )
+    assert set(rate.unique()) == {rr_value}
 
 
 ##############################
@@ -458,33 +548,6 @@ class CustomExposureRisk(Component):
         return data
 
 
-def _setup_risk_simulation(
-    config: LayeredConfigTree,
-    plugins: LayeredConfigTree,
-    risk: Union[str, Risk],
-    data: Dict[str, Any],
-) -> InteractiveContext:
-    components = [
-        TestPopulation(),
-        risk,
-        SI("some_disease"),
-        NonLogLinearRiskEffect(risk.name, "cause.some_disease.incidence_rate"),
-    ]
-
-    simulation = InteractiveContext(
-        components=components,
-        configuration=config,
-        plugin_configuration=plugins,
-        setup=False,
-    )
-
-    for key, value in data.items():
-        simulation._data.write(key, value)
-
-    simulation.setup()
-    return simulation
-
-
 @pytest.mark.parametrize(
     "rr_parameter_data, error_message",
     [
@@ -496,14 +559,12 @@ def _setup_risk_simulation(
 )
 def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, base_plugins):
     risk = CustomExposureRisk("risk_factor.test_risk")
-    effect = NonLogLinearRiskEffect(
-        "risk_factor.test_risk", "cause.some_disease.incidence_rate"
-    )
+    effect = NonLogLinearRiskEffect(risk.name, "cause.test_cause.incidence_rate")
 
     risk_effect_rrs = [2.0, 2.4, 4.0]
     rr_data = pd.DataFrame(
         {
-            "affected_entity": "some_disease",
+            "affected_entity": "test_cause",
             "affected_measure": "incidence_rate",
             "year_start": 1990,
             "year_end": 1991,
@@ -518,20 +579,24 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
         f"{risk.name}.relative_risk": rr_data,
         f"{risk.name}.tmred": tmred,
         f"{risk.name}.population_attributable_fraction": 0,
-        "cause.some_disease.incidence_rate": 1,
+        "cause.test_cause.incidence_rate": 1,
     }
 
     base_config.update({"population": {"population_size": 10}})
 
     if error_message:
         with pytest.raises(ValueError, match=error_message):
-            simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+            simulation = _setup_risk_effect_simulation(
+                base_config, base_plugins, risk, effect, data
+            )
         return
     else:
-        simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
+        simulation = _setup_risk_effect_simulation(
+            base_config, base_plugins, risk, effect, data
+        )
 
     pop = simulation.get_population()
-    rate = simulation.get_value("some_disease.incidence_rate")(
+    rate = simulation.get_value("test_cause.incidence_rate")(
         pop.index, skip_post_processor=True
     )
     expected_values = np.interp(
