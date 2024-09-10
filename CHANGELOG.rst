@@ -1,4 +1,4 @@
-**3.0.7 - 09/06/24**
+**3.0.7 - 09/10/24**
 
  - Properly create the population_view in RateTransition
 
