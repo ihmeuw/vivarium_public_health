@@ -7,7 +7,7 @@ This module contains tools to model transitions between disease states.
 
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -47,6 +47,10 @@ class RateTransition(Transition):
                 },
             },
         }
+
+    @property
+    def columns_required(self) -> Optional[List[str]]:
+        return ["alive"]
 
     @property
     def transition_rate_pipeline_name(self) -> str:
@@ -99,8 +103,6 @@ class RateTransition(Transition):
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
-
-        self.population_view = builder.population.get_view(["alive"])
 
     #################
     # Setup methods #

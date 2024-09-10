@@ -1,3 +1,7 @@
+**3.0.7 - 09/10/24**
+
+ - Properly create the population_view in RateTransition
+
 **3.0.6 - 09/04/24**
 
  - Fix bug that was occurring when RiskEffect's rr_source was a float or DataFrame
