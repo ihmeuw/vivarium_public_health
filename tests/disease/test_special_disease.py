@@ -13,7 +13,7 @@ def disease_mock(mocker):
     def disease_with_distribution(distribution):
         test_disease = RiskAttributableDisease("cause.test_cause", "risk_factor.test_risk")
         test_disease.distribution = distribution
-        test_disease.population_view = mocker.Mock()
+        test_disease._population_view = mocker.Mock()
         test_disease.excess_mortality_rate = mocker.Mock()
         return test_disease
 
