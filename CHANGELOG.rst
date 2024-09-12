@@ -1,3 +1,7 @@
+**3.0.8 - 09/12/24**
+
+ - Fix broken tests in RiskAttributableDisease due to changes in how to set population_view
+
 **3.0.7 - 09/10/24**
 
  - Properly create the population_view in RateTransition
