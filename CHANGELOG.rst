@@ -1,3 +1,7 @@
+**3.0.9 - 09/12/24**
+
+ - Fix broken import in scale_up module
+
 **3.0.8 - 09/12/24**
 
  - Fix broken tests in RiskAttributableDisease due to changes in how to set population_view

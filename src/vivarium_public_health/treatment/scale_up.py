@@ -13,8 +13,8 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.framework.time import Time
 from vivarium.framework.values import Pipeline
+from vivarium.types import Time
 
 from vivarium_public_health.utilities import EntityString
 
