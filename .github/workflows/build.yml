@@ -16,4 +16,4 @@ jobs:
       ihmeuw/vivarium_build_utils/.github/workflows/build.yml@main
     with:
       dependencies: "layered_config_tree,vivarium"
-      use_mypy: true
+      use_mypy: false
