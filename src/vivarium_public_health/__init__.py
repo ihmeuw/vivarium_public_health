@@ -38,7 +38,14 @@ from vivarium_public_health.population import (
     generate_population,
 )
 from vivarium_public_health.results import (
-    
+    COLUMNS,
+    CategoricalRiskObserver,
+    DisabilityObserver,
+    DiseaseObserver,
+    MortalityObserver,
+    PublicHealthObserver,
+    ResultsStratifier,
+    SimpleCause,
 )
 
 __all__ = [
