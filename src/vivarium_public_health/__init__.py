@@ -47,6 +47,19 @@ from vivarium_public_health.results import (
     ResultsStratifier,
     SimpleCause,
 )
+from vivarium_public_health.risks import (
+    ContinuousDistribution,
+    DichotomousDistribution,
+    EnsembleDistribution,
+    LBWSGDistribution,
+    LBWSGRisk,
+    LBWSGRiskEffect,
+    NonLogLinearRiskEffect,
+    PolytomousDistribution,
+    Risk,
+    RiskEffect,
+    RiskExposureDistribution,
+)
 
 __all__ = [
     __author__,
