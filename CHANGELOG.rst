@@ -1,3 +1,7 @@
+**3.0.10 - 10/29/24**
+
+ - Import subpackage classes to top-level namespace
+
 **3.0.9 - 09/12/24**
 
  - Fix broken import in scale_up module
