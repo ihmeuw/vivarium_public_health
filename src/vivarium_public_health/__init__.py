@@ -28,6 +28,18 @@ from vivarium_public_health.disease import (
     TransitionString,
 )
 from vivarium_public_health.plugins import CausesConfigurationParser
+from vivarium_public_health.population import (
+    AgeOutSimulants,
+    BasePopulation,
+    FertilityAgeSpecificRates,
+    FertilityCrudeBirthRate,
+    FertilityDeterministic,
+    Mortality,
+    generate_population,
+)
+from vivarium_public_health.results import (
+    
+)
 
 __all__ = [
     __author__,
