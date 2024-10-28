@@ -27,6 +27,7 @@ from vivarium_public_health.disease import (
     TransientDiseaseState,
     TransitionString,
 )
+from vivarium_public_health.plugins import CausesConfigurationParser
 
 __all__ = [
     __author__,
