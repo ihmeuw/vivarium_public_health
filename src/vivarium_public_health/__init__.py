@@ -61,6 +61,7 @@ from vivarium_public_health.risks import (
     RiskExposureDistribution,
 )
 from vivarium_public_health.treatment import AbsoluteShift, LinearScaleUp, TherapeuticInertia
+from vivarium_public_health.utilities import EntityString, TargetString
 
 __all__ = [
     __author__,
