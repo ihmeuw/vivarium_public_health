@@ -16,4 +16,4 @@ from .state import (
     SusceptibleState,
     TransientDiseaseState,
 )
-from .transition import ProportionTransition, RateTransition, TransitionString
+from .transition import ProportionTransition, RateTransition
