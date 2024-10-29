@@ -47,7 +47,6 @@ from vivarium_public_health.risks import (
 )
 from vivarium_public_health.treatment import AbsoluteShift, LinearScaleUp, TherapeuticInertia
 
-
 __all__ = [
     __author__,
     __copyright__,
