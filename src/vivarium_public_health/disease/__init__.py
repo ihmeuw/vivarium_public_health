@@ -5,6 +5,7 @@ from .models import (
     SIS,
     NeonatalSWC_with_incidence,
     NeonatalSWC_without_incidence,
+    SIR_fixed_duration,
     SIS_fixed_duration,
 )
 from .special_disease import RiskAttributableDisease
