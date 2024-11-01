@@ -283,6 +283,43 @@ def test__assign_demography_with_age_bounds_error(base_simulants, include_sex):
         )
 
 
+def test_scaled_population(
+    config, full_simulants, base_plugins, generate_population_mock, include_sex
+):
+    start_population_size = len(full_simulants)
+    generate_population_mock.return_value = full_simulants.drop(columns=["tracked"])
+
+    base_pop = bp.BasePopulation()
+    components = [base_pop]
+    config.update(
+        {
+            "population": {
+                "population_size": start_population_size,
+                "include_sex": include_sex,
+            },
+            "time": {"step_size": 1},
+        },
+        layer="override",
+    )
+    sim1 = InteractiveContext(
+        components=components, configuration=config, plugin_configuration=base_plugins
+    )
+    unscaled = sim1._data.load("population.structure")
+
+    # Get scaled input data and create a scaled population
+    scalar_data = unscaled.copy().reset_index()
+    scalar_data["scalar"] = 1 - (scalar_data["index"] / len(scalar_data))
+    scalar_data["value"] = scalar_data["value"] * scalar_data["scalar"]
+    scalar_data.drop(columns=["scalar", "index", "age"], inplace=True)
+    scaled_pop = bp.ScaledPopulation(scalar_data)
+    sim2 = InteractiveContext(
+        components=[scaled_pop], configuration=config, plugin_configuration=base_plugins
+    )
+    scaled = sim2._data.load("population.structure")
+
+    assert (scaled["value"] >= unscaled["value"]).all()
+
+
 def _check_population(simulants, initial_age, step_size, include_sex):
     assert len(simulants) == len(simulants.age.unique())
     assert simulants.age.min() > initial_age

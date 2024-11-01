@@ -8,6 +8,8 @@ characteristics to simulants.
 
 """
 
+from __future__ import annotations
+
 from typing import Callable, Dict, Iterable, List
 
 import numpy as np
@@ -76,12 +78,11 @@ class BasePopulation(Component):
         # Validate configuration for deprecated keys
         self._validate_config_for_deprecated_keys()
 
-        source_population_structure = load_population_structure(builder)
+        source_population_structure = self._load_population_structure(builder)
         self.demographic_proportions = assign_demographic_proportions(
             source_population_structure,
             include_sex=self.config.include_sex,
         )
-
         self.randomness = self.get_randomness_streams(builder)
         self.register_simulants = builder.randomness.register_simulants
 
@@ -138,7 +139,6 @@ class BasePopulation(Component):
         demographic_proportions = self.get_demographic_proportions_for_creation_time(
             self.demographic_proportions, pop_data.creation_time.year
         )
-
         self.population_view.update(
             generate_population(
                 simulant_ids=pop_data.index,
@@ -201,6 +201,31 @@ class BasePopulation(Component):
                 f"Configuration key '{key}' will be deprecated in future versions of Vivarium "
                 f"Public Health. Use the new key '{mapper[key]}' instead."
             )
+
+    def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
+        return load_population_structure(builder)
+
+
+class ScaledPopulation(BasePopulation):
+    """Component for scaling the population structure based on a scaling factor."""
+
+    def __init__(self, scaling_factor: str | float | pd.DataFrame):
+        super().__init__()
+        self.scaling_factor = scaling_factor
+
+    def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
+        scaling_factor = self.get_data(builder, self.scaling_factor)
+        population_structure = load_population_structure(builder)
+        if isinstance(scaling_factor, pd.DataFrame):
+            scaling_factor = scaling_factor.set_index(
+                [col for col in scaling_factor.columns if "value" not in col]
+            )
+            population_structure = population_structure.set_index(
+                [col for col in population_structure.columns if "value" not in col]
+            )
+        scaled_population_structure = (population_structure * scaling_factor).reset_index()
+
+        return scaled_population_structure
 
 
 class AgeOutSimulants(Component):
