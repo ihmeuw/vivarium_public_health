@@ -289,8 +289,8 @@ def test_scaled_population(
     start_population_size = len(full_simulants)
     generate_population_mock.return_value = full_simulants.drop(columns=["tracked"])
 
-    base_pop = bp.BasePopulation()
-    components = [base_pop]
+    base_population = bp.BasePopulation()
+    components = [base_population]
     config.update(
         {
             "population": {
@@ -304,20 +304,24 @@ def test_scaled_population(
     sim1 = InteractiveContext(
         components=components, configuration=config, plugin_configuration=base_plugins
     )
-    unscaled = sim1._data.load("population.structure")
+    unscaled = sim1.get_population()
+    unscaled_structure = sim1._data.load("population.structure")
 
     # Get scaled input data and create a scaled population
-    scalar_data = unscaled.copy().reset_index()
+    scalar_data = unscaled_structure.copy().reset_index()
     scalar_data["scalar"] = 1 - (scalar_data["index"] / len(scalar_data))
     scalar_data["value"] = scalar_data["value"] * scalar_data["scalar"]
-    scalar_data.drop(columns=["scalar", "index", "age"], inplace=True)
+    scalar_data.drop(columns=["scalar", "index"], inplace=True)
     scaled_pop = bp.ScaledPopulation(scalar_data)
     sim2 = InteractiveContext(
         components=[scaled_pop], configuration=config, plugin_configuration=base_plugins
     )
-    scaled = sim2._data.load("population.structure")
+    scaled_demographic_proportions = scaled_pop.demographic_proportions[
+        base_population.demographic_proportions.columns
+    ]
+    scaled = sim2.get_population()
 
-    assert (scaled["value"] >= unscaled["value"]).all()
+    assert not base_population.demographic_proportions.equals(scaled_demographic_proportions)
 
 
 def _check_population(simulants, initial_age, step_size, include_sex):

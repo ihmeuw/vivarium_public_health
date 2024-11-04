@@ -207,9 +207,26 @@ class BasePopulation(Component):
 
 
 class ScaledPopulation(BasePopulation):
-    """Component for scaling the population structure based on a scaling factor."""
+    """Component for scaling the population structure based on a scaling factor.
+    This component is to be used in place of the `BasePopulation` component when
+    all simulants in a simulation are a subset of a population and the user needs
+    to scale the population structure to account for the subset of the overall
+    population structure being treated as the total population within the simulation.
+    The scaling factor can be a dataframe passed in with python code or a string that
+    corresponds to an artifact key. If providing an artifact key, users can specify that
+    in the configuration file. For example:
 
-    def __init__(self, scaling_factor: str | float | pd.DataFrame):
+    .. code-block:: yaml
+
+    components:
+        vivarium_public_health:
+            population:
+                - ScaledPopulation("some.artifact.key")
+
+
+    """
+
+    def __init__(self, scaling_factor: str | pd.DataFrame):
         super().__init__()
         self.scaling_factor = scaling_factor
 
@@ -218,10 +235,10 @@ class ScaledPopulation(BasePopulation):
         population_structure = load_population_structure(builder)
         if isinstance(scaling_factor, pd.DataFrame):
             scaling_factor = scaling_factor.set_index(
-                [col for col in scaling_factor.columns if "value" not in col]
+                [col for col in scaling_factor.columns if col != "value"]
             )
             population_structure = population_structure.set_index(
-                [col for col in population_structure.columns if "value" not in col]
+                [col for col in population_structure.columns if col != "value"]
             )
         scaled_population_structure = (population_structure * scaling_factor).reset_index()
 
