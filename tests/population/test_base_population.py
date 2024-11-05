@@ -299,7 +299,7 @@ def test_scaled_population(config, base_plugins, mocker, fuzzy_checker: FuzzyChe
     # Simple pop data
     pop_structure = simple_pop_structure()
     # Simple scalar data to pass to ScaledPopulation
-    scalar_data = simple_pop_structure()
+    scalar_data = simple_pop_structure().drop(columns=["location"])
     scalar_values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
     scalar_data["value"] = scalar_values
 
@@ -315,13 +315,19 @@ def test_scaled_population(config, base_plugins, mocker, fuzzy_checker: FuzzyChe
         components=[scaled_pop], configuration=config, plugin_configuration=base_plugins
     )
     pop = sim.get_population()
-    scaled_proportions = scaled_pop.demographic_proportions
     # Use FuzzyChecker to compare population structure to demographic proportion by
     # iterating through each age_group/sex combination
-    for row in range(len(scaled_proportions)):
-        row_data = scaled_proportions.iloc[row]
+    scaled_structure = pop_structure.copy()
+    scaled_structure["value"] = scaled_structure["value"] * scalar_data["value"]
+    for row in range(len(scaled_structure)):
+        row_data = scaled_structure.iloc[row]
         age_start = row_data["age_start"]
         sex = row_data["sex"]
+        # Get proportion of each age group
+        target_proportion = (
+            row_data["value"]
+            / scaled_structure.loc[scaled_structure["sex"] == sex]["value"].sum()
+        )
         number_of_sims = len(
             pop.loc[
                 (pop["age"] >= age_start)
@@ -332,7 +338,7 @@ def test_scaled_population(config, base_plugins, mocker, fuzzy_checker: FuzzyChe
         fuzzy_checker.fuzzy_assert_proportion(
             observed_numerator=number_of_sims,
             observed_denominator=len(pop.loc[pop["sex"] == sex]),
-            target_proportion=row_data["P(age | year, sex, location)"],
+            target_proportion=target_proportion,
             name=f"scaled_pop_proportion_check_{sex}_{age_start}",
         )
 
