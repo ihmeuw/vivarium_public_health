@@ -282,11 +282,11 @@ class DiseaseState(BaseDiseaseState):
         return {
             f"{self.name}": {
                 "data_sources": {
-                    "prevalence": "self::load_prevalence",
-                    "birth_prevalence": "self::load_birth_prevalence",
-                    "dwell_time": "self::load_dwell_time",
-                    "disability_weight": "self::load_disability_weight",
-                    "excess_mortality_rate": "self::load_excess_mortality_rate",
+                    "prevalence": self.load_prevalence,
+                    "birth_prevalence": self.load_birth_prevalence,
+                    "dwell_time": self.load_dwell_time,
+                    "disability_weight": self.load_disability_weight,
+                    "excess_mortality_rate": self.load_excess_mortality_rate,
                 },
             },
         }

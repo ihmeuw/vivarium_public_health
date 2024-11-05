@@ -43,7 +43,7 @@ class RateTransition(Transition):
         return {
             f"{self.name}": {
                 "data_sources": {
-                    "transition_rate": "self::load_transition_rate",
+                    "transition_rate": self.load_transition_rate,
                 },
             },
         }
@@ -156,7 +156,7 @@ class ProportionTransition(Transition):
         return {
             f"{self.name}": {
                 "data_sources": {
-                    "proportion": "self::load_proportion",
+                    "proportion": self.load_proportion,
                 },
             },
         }

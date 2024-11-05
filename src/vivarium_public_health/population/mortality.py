@@ -105,7 +105,7 @@ class Mortality(Component):
             "mortality": {
                 "data_sources": {
                     "all_cause_mortality_rate": "cause.all_causes.cause_specific_mortality_rate",
-                    "unmodeled_cause_specific_mortality_rate": "self::load_unmodeled_csmr",
+                    "unmodeled_cause_specific_mortality_rate": self.load_unmodeled_csmr,
                     "life_expectancy": "population.theoretical_minimum_risk_life_expectancy",
                 },
                 "unmodeled_causes": [],
