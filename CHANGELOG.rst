@@ -1,4 +1,4 @@
-**3.0.11 - 11/04/24**
+**3.0.11 - 11/05/24**
 
  - Add ScaledPopulation component to population package
 
