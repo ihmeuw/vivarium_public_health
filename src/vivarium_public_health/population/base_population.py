@@ -208,6 +208,7 @@ class BasePopulation(Component):
 
 class ScaledPopulation(BasePopulation):
     """Component for scaling the population structure based on a scaling factor.
+
     This component is to be used in place of the `BasePopulation` component when
     all simulants in a simulation are a subset of a population and the user needs
     to scale the population structure to account for the subset of the overall
@@ -233,13 +234,16 @@ class ScaledPopulation(BasePopulation):
     def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
         scaling_factor = self.get_data(builder, self.scaling_factor)
         population_structure = load_population_structure(builder)
-        if isinstance(scaling_factor, pd.DataFrame):
-            scaling_factor = scaling_factor.set_index(
-                [col for col in scaling_factor.columns if col != "value"]
+        if not isinstance(scaling_factor, pd.DataFrame):
+            raise ValueError(
+                f"Scaling factor must be a pandas DataFrame. Provided value: {scaling_factor}"
             )
-            population_structure = population_structure.set_index(
-                [col for col in population_structure.columns if col != "value"]
-            )
+        scaling_factor = scaling_factor.set_index(
+            [col for col in scaling_factor.columns if col != "value"]
+        )
+        population_structure = population_structure.set_index(
+            [col for col in population_structure.columns if col != "value"]
+        )
         scaled_population_structure = (population_structure * scaling_factor).reset_index()
 
         return scaled_population_structure

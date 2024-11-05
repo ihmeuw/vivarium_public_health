@@ -64,7 +64,7 @@ def make_uniform_pop_data(age_bin_midpoint=False):
     age_bins = [(b.age_start, b.age_end) for b in make_age_bins().itertuples()]
     sexes = ("Male", "Female")
     years = zip(range(1990, 2018), range(1991, 2019))
-    locations = (1, 2)
+    locations = list(range(1, 2))
 
     age_bins, sexes, years, locations = zip(*product(age_bins, sexes, years, locations))
     mins, maxes = zip(*age_bins)
@@ -116,3 +116,39 @@ def make_age_bins():
         names=["age_start", "age_end", "age_group_name"],
     )
     return pd.DataFrame(index=idx).reset_index()
+
+
+def simple_pop_structure() -> pd.DataFrame:
+    # Create simple population structure
+    age_idx = pd.MultiIndex.from_tuples(
+        [
+            (0.0, 25.0, "Young People"),
+            (25.0, 50.0, "Old People"),
+            (50.0, 75.0, "Ancient People"),
+            (75.0, 100.0, "People Who Beat the Odds"),
+        ],
+        names=["age_start", "age_end", "age_group_name"],
+    )
+    age_df = pd.DataFrame(index=age_idx).reset_index()
+    age_bins = [(b.age_start, b.age_end) for b in age_df.itertuples()]
+    sexes = ("Male", "Female")
+    location = ["Kenya"]
+    years = zip(range(2021, 2022), range(2022, 2023))
+
+    age_bins, sexes, years, location = zip(*product(age_bins, sexes, years, location))
+    mins, maxes = zip(*age_bins)
+    year_starts, year_ends = zip(*years)
+
+    pop_structure = pd.DataFrame(
+        {
+            "age_start": mins,
+            "age_end": maxes,
+            "sex": sexes,
+            "year_start": year_starts,
+            "year_end": year_ends,
+            "location": location,
+            # We have 8 demographic groups (4 age groups * 2 sexes)
+            "value": [1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0],
+        }
+    )
+    return pop_structure
