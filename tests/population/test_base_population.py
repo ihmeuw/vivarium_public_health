@@ -284,67 +284,9 @@ def test__assign_demography_with_age_bounds_error(base_simulants, include_sex):
         )
 
 
-def test_scaled_population(config, base_plugins, mocker, fuzzy_checker: FuzzyChecker):
-    config.update(
-        {
-            "population": {
-                "population_size": 1_000_000,
-                "include_sex": "Both",
-            },
-            "time": {"step_size": 1},
-        },
-        layer="override",
-    )
-
-    # Simple pop data
-    pop_structure = simple_pop_structure()
-    # Simple scalar data to pass to ScaledPopulation
-    scalar_data = simple_pop_structure().drop(columns=["location"])
-    scalar_values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
-    scalar_data["value"] = scalar_values
-
-    # Add data to artifact and mock return for plugin
-    mock_art = MockArtifact()
-    mock_art.write("population.structure", pop_structure)
-    mocker.patch(
-        "tests.mock_artifact.MockArtifactManager._load_artifact",
-    ).return_value = mock_art
-
-    scaled_pop = bp.ScaledPopulation(scalar_data)
-    sim = InteractiveContext(
-        components=[scaled_pop], configuration=config, plugin_configuration=base_plugins
-    )
-    pop = sim.get_population()
-    # Use FuzzyChecker to compare population structure to demographic proportion by
-    # iterating through each age_group/sex combination
-    scaled_structure = pop_structure.copy()
-    scaled_structure["value"] = scaled_structure["value"] * scalar_data["value"]
-    for row in range(len(scaled_structure)):
-        row_data = scaled_structure.iloc[row]
-        age_start = row_data["age_start"]
-        sex = row_data["sex"]
-        # Get proportion of each age group
-        target_proportion = (
-            row_data["value"]
-            / scaled_structure.loc[scaled_structure["sex"] == sex]["value"].sum()
-        )
-        number_of_sims = len(
-            pop.loc[
-                (pop["age"] >= age_start)
-                & (pop["age"] <= row_data["age_end"])
-                & (pop["sex"] == sex)
-            ]
-        )
-        fuzzy_checker.fuzzy_assert_proportion(
-            observed_numerator=number_of_sims,
-            observed_denominator=len(pop.loc[pop["sex"] == sex]),
-            target_proportion=target_proportion,
-            name=f"scaled_pop_proportion_check_{sex}_{age_start}",
-        )
-
-
-def test_scaled_population_str_constructor(
-    config, base_plugins, mocker, fuzzy_checker: FuzzyChecker
+@pytest.mark.parametrize("constructor_type", ["string", "data"])
+def test_scaled_population(
+    constructor_type, config, base_plugins, mocker, fuzzy_checker: FuzzyChecker
 ):
     config.update(
         {
@@ -367,13 +309,16 @@ def test_scaled_population_str_constructor(
     # Add data to artifact and mock return for plugin
     mock_art = MockArtifact()
     mock_art.write("population.structure", pop_structure)
-    # This time we want to write the scalar data to the artifact
-    mock_art.write("population.scalar_data", scalar_data)
+    mock_art.write("population.scalar", scalar_data)
     mocker.patch(
         "tests.mock_artifact.MockArtifactManager._load_artifact",
     ).return_value = mock_art
 
-    scaled_pop = bp.ScaledPopulation("population.scalar_data")
+    if constructor_type == "string":
+        scaling_factor = "population.scalar"
+    else:
+        scaling_factor = scalar_data
+    scaled_pop = bp.ScaledPopulation(scaling_factor)
     sim = InteractiveContext(
         components=[scaled_pop], configuration=config, plugin_configuration=base_plugins
     )
@@ -382,15 +327,13 @@ def test_scaled_population_str_constructor(
     # iterating through each age_group/sex combination
     scaled_structure = pop_structure.copy()
     scaled_structure["value"] = scaled_structure["value"] * scalar_data["value"]
+
     for row in range(len(scaled_structure)):
         row_data = scaled_structure.iloc[row]
         age_start = row_data["age_start"]
         sex = row_data["sex"]
         # Get proportion of each age group
-        target_proportion = (
-            row_data["value"]
-            / scaled_structure.loc[scaled_structure["sex"] == sex]["value"].sum()
-        )
+        target_proportion = row_data["value"] / scaled_structure["value"].sum()
         number_of_sims = len(
             pop.loc[
                 (pop["age"] >= age_start)
@@ -400,9 +343,9 @@ def test_scaled_population_str_constructor(
         )
         fuzzy_checker.fuzzy_assert_proportion(
             observed_numerator=number_of_sims,
-            observed_denominator=len(pop.loc[pop["sex"] == sex]),
+            observed_denominator=len(pop),
             target_proportion=target_proportion,
-            name=f"scaled_pop_str_constructor_{sex}_{age_start}",
+            name=f"scaled_pop_proportion_check_{sex}_{age_start}",
         )
 
 

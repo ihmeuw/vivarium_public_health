@@ -130,7 +130,7 @@ def simple_pop_structure() -> pd.DataFrame:
         names=["age_start", "age_end", "age_group_name"],
     )
     age_df = pd.DataFrame(index=age_idx).reset_index()
-    age_bins = [(b.age_start, b.age_end) for b in age_df.itertuples()]
+    age_bins = [(group.age_start, group.age_end) for group in age_df.itertuples()]
     sexes = ("Male", "Female")
     location = ["Kenya"]
     years = zip(range(2021, 2022), range(2022, 2023))

@@ -209,13 +209,11 @@ class BasePopulation(Component):
 class ScaledPopulation(BasePopulation):
     """Component for scaling the population structure based on a scaling factor.
 
-    This component is to be used in place of the `BasePopulation` component when
-    all simulants in a simulation are a subset of a population and the user needs
-    to scale the population structure to account for the subset of the overall
-    population structure being treated as the total population within the simulation.
-    The scaling factor can be a dataframe passed in with python code or a string that
-    corresponds to an artifact key. If providing an artifact key, users can specify that
-    in the configuration file. For example:
+    This component is to be used in place of BasePopulation when all simulants are
+    a subset of the total population and need to be scaled up. The scaling factor
+    can be a dataframe passed in or a string that corresponds to an artifact key.
+    If providing an artifact key, users can specify that in the configuration file.
+    For example:
 
     .. code-block:: yaml
 
@@ -230,6 +228,7 @@ class ScaledPopulation(BasePopulation):
     def __init__(self, scaling_factor: str | pd.DataFrame):
         super().__init__()
         self.scaling_factor = scaling_factor
+        """Set a multiplicative scaling factor for the population structure."""
 
     def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
         scaling_factor = self.get_data(builder, self.scaling_factor)
