@@ -207,10 +207,9 @@ class BasePopulation(Component):
 
 
 class ScaledPopulation(BasePopulation):
-    """Component for scaling the population structure based on a scaling factor.
-
-    This component is to be used in place of BasePopulation when all simulants are
-    a subset of the total population and need to be scaled up. The scaling factor
+    """This component is to be used in place of BasePopulation when all simulants are
+    a subset of the total population and need to be rescaled. The base population
+    structure is multiplied by a provided scaling factor. This scaling factor
     can be a dataframe passed in or a string that corresponds to an artifact key.
     If providing an artifact key, users can specify that in the configuration file.
     For example:

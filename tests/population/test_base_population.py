@@ -309,12 +309,12 @@ def test_scaled_population(
     # Add data to artifact and mock return for plugin
     mock_art = MockArtifact()
     mock_art.write("population.structure", pop_structure)
-    mock_art.write("population.scalar", scalar_data)
     mocker.patch(
         "tests.mock_artifact.MockArtifactManager._load_artifact",
     ).return_value = mock_art
 
     if constructor_type == "string":
+        mock_art.write("population.scalar", scalar_data)
         scaling_factor = "population.scalar"
     else:
         scaling_factor = scalar_data
