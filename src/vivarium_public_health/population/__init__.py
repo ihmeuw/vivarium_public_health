@@ -3,5 +3,5 @@ from .add_new_birth_cohorts import (
     FertilityCrudeBirthRate,
     FertilityDeterministic,
 )
-from .base_population import BasePopulation, generate_population
+from .base_population import BasePopulation, ScaledPopulation, generate_population
 from .mortality import Mortality

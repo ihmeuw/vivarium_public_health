@@ -1,15 +1,16 @@
 import math
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import get_randomness
+from vivarium_testing_utils import FuzzyChecker
 
 import vivarium_public_health.population.base_population as bp
 import vivarium_public_health.population.data_transformations as dt
-from tests.test_utilities import make_uniform_pop_data
+from tests.mock_artifact import MockArtifact
+from tests.test_utilities import make_uniform_pop_data, simple_pop_structure
 from vivarium_public_health import utilities
 
 
@@ -280,6 +281,71 @@ def test__assign_demography_with_age_bounds_error(base_simulants, include_sex):
     with pytest.raises(ValueError):
         bp._assign_demography_with_age_bounds(
             base_simulants, pop_data, age_start, age_end, r, lambda *args, **kwargs: None
+        )
+
+
+@pytest.mark.parametrize("constructor_type", ["string", "data"])
+def test_scaled_population(
+    constructor_type, config, base_plugins, mocker, fuzzy_checker: FuzzyChecker
+):
+    config.update(
+        {
+            "population": {
+                "population_size": 1_000_000,
+                "include_sex": "Both",
+            },
+            "time": {"step_size": 1},
+        },
+        layer="override",
+    )
+
+    # Simple pop data
+    pop_structure = simple_pop_structure()
+    # Simple scalar data to pass to ScaledPopulation
+    scalar_data = simple_pop_structure().drop(columns=["location"])
+    scalar_values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+    scalar_data["value"] = scalar_values
+
+    # Add data to artifact and mock return for plugin
+    mock_art = MockArtifact()
+    mock_art.write("population.structure", pop_structure)
+    mocker.patch(
+        "tests.mock_artifact.MockArtifactManager._load_artifact",
+    ).return_value = mock_art
+
+    if constructor_type == "string":
+        mock_art.write("population.scalar", scalar_data)
+        scaling_factor = "population.scalar"
+    else:
+        scaling_factor = scalar_data
+    scaled_pop = bp.ScaledPopulation(scaling_factor)
+    sim = InteractiveContext(
+        components=[scaled_pop], configuration=config, plugin_configuration=base_plugins
+    )
+    pop = sim.get_population()
+    # Use FuzzyChecker to compare population structure to demographic proportion by
+    # iterating through each age_group/sex combination
+    scaled_structure = pop_structure.copy()
+    scaled_structure["value"] = scaled_structure["value"] * scalar_data["value"]
+
+    for row in range(len(scaled_structure)):
+        row_data = scaled_structure.iloc[row]
+        age_start = row_data["age_start"]
+        sex = row_data["sex"]
+        # Get proportion of each age group
+        target_proportion = row_data["value"] / scaled_structure["value"].sum()
+        number_of_sims = len(
+            pop.loc[
+                (pop["age"] >= age_start)
+                & (pop["age"] <= row_data["age_end"])
+                & (pop["sex"] == sex)
+            ]
+        )
+        fuzzy_checker.fuzzy_assert_proportion(
+            observed_numerator=number_of_sims,
+            observed_denominator=len(pop),
+            target_proportion=target_proportion,
+            name=f"scaled_pop_proportion_check_{sex}_{age_start}",
         )
 
 

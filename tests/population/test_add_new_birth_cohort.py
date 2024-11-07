@@ -130,7 +130,7 @@ def test_FertilityCrudeBirthRate_extrapolate(base_config, base_plugins):
         }
     )
     pop_size = base_config.population.population_size
-    true_pop_size = 50000  # What's available in the mock artifact
+    true_pop_size = 25000  # What's available in the mock artifact
     live_births_by_sex = 500
     components = [TestPopulation(), FertilityCrudeBirthRate()]
 
