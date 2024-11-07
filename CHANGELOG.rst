@@ -2,6 +2,10 @@
 
  - Drop support for python 3.9
 
+**3.0.11 - 11/07/24**
+
+ - Add ScaledPopulation component to population package
+
 **3.0.10 - 10/29/24**
 
  - Import subpackage classes to top-level namespace

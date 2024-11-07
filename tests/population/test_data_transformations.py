@@ -127,7 +127,7 @@ def test_smooth_ages(pop_data, include_sex):
             "sex": (
                 ["Male", "Female"] * 10000 if include_sex == "Both" else [include_sex] * 20000
             ),
-            "location": [1, 2] * 10000,
+            "location": [1] * 20000,
         }
     )
     randomness = get_randomness()
