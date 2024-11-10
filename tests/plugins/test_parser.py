@@ -1,7 +1,6 @@
 import dataclasses
 from typing import Any, Dict, List, NamedTuple, Tuple, Type
 
-import numpy as np
 import pytest
 import yaml
 from layered_config_tree import LayeredConfigTree
@@ -259,7 +258,7 @@ SIR_MODEL_CONFIG = {
 COMPLEX_MODEL_CONFIG = {
     COMPLEX_MODEL: {
         "model_type": "tests.plugins.test_parser.ComplexModel",
-        "initial_state": STATES.COMPLEX_INFECTED_1.name,
+        "residual_state": STATES.COMPLEX_INFECTED_1.name,
         "data_sources": {"cause_specific_mortality_rate": COMPLEX_MODEL_CSMR},
         "states": {
             STATES.COMPLEX_INFECTED_1.name: {
@@ -541,7 +540,7 @@ def test_disease_model(
 ):
     model = sim_components[model_name]
     assert isinstance(model, expected_model_type)
-    assert model.initial_state == expected_initial_state
+    assert model.residual_state == expected_initial_state
 
     assert model.lookup_tables["cause_specific_mortality_rate"].data == expected_csmr
 
