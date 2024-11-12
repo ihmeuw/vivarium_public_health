@@ -1,3 +1,7 @@
+**3.1.0 - 11/07/24**
+
+ - Drop support for python 3.9
+
 **3.0.11 - 11/07/24**
 
  - Add ScaledPopulation component to population package
