@@ -8,6 +8,8 @@ characteristics to simulants.
 
 """
 
+from __future__ import annotations
+
 from typing import Callable, Dict, Iterable, List
 
 import numpy as np
@@ -76,12 +78,11 @@ class BasePopulation(Component):
         # Validate configuration for deprecated keys
         self._validate_config_for_deprecated_keys()
 
-        source_population_structure = load_population_structure(builder)
+        source_population_structure = self._load_population_structure(builder)
         self.demographic_proportions = assign_demographic_proportions(
             source_population_structure,
             include_sex=self.config.include_sex,
         )
-
         self.randomness = self.get_randomness_streams(builder)
         self.register_simulants = builder.randomness.register_simulants
 
@@ -138,7 +139,6 @@ class BasePopulation(Component):
         demographic_proportions = self.get_demographic_proportions_for_creation_time(
             self.demographic_proportions, pop_data.creation_time.year
         )
-
         self.population_view.update(
             generate_population(
                 simulant_ids=pop_data.index,
@@ -201,6 +201,50 @@ class BasePopulation(Component):
                 f"Configuration key '{key}' will be deprecated in future versions of Vivarium "
                 f"Public Health. Use the new key '{mapper[key]}' instead."
             )
+
+    def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
+        return load_population_structure(builder)
+
+
+class ScaledPopulation(BasePopulation):
+    """This component is to be used in place of BasePopulation when all simulants are
+    a subset of the total population and need to be rescaled. The base population
+    structure is multiplied by a provided scaling factor. This scaling factor
+    can be a dataframe passed in or a string that corresponds to an artifact key.
+    If providing an artifact key, users can specify that in the configuration file.
+    For example:
+
+    .. code-block:: yaml
+
+    components:
+        vivarium_public_health:
+            population:
+                - ScaledPopulation("some.artifact.key")
+
+
+    """
+
+    def __init__(self, scaling_factor: str | pd.DataFrame):
+        super().__init__()
+        self.scaling_factor = scaling_factor
+        """Set a multiplicative scaling factor for the population structure."""
+
+    def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
+        scaling_factor = self.get_data(builder, self.scaling_factor)
+        population_structure = load_population_structure(builder)
+        if not isinstance(scaling_factor, pd.DataFrame):
+            raise ValueError(
+                f"Scaling factor must be a pandas DataFrame. Provided value: {scaling_factor}"
+            )
+        scaling_factor = scaling_factor.set_index(
+            [col for col in scaling_factor.columns if col != "value"]
+        )
+        population_structure = population_structure.set_index(
+            [col for col in population_structure.columns if col != "value"]
+        )
+        scaled_population_structure = (population_structure * scaling_factor).reset_index()
+
+        return scaled_population_structure
 
 
 class AgeOutSimulants(Component):
