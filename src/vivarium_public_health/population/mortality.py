@@ -45,7 +45,7 @@ back the modified unmodeled csmr.
 
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import pandas as pd
 from vivarium import Component
@@ -100,7 +100,7 @@ class Mortality(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "mortality": {
                 "data_sources": {
@@ -113,18 +113,18 @@ class Mortality(Component):
         }
 
     @property
-    def standard_lookup_tables(self) -> List[str]:
+    def standard_lookup_tables(self) -> list[str]:
         return [
             "all_cause_mortality_rate",
             "life_expectancy",
         ]
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         return [self.cause_of_death_column_name, self.years_of_life_lost_column_name]
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["alive", "exit_time", "age", "sex"]
 
     @property
@@ -184,7 +184,7 @@ class Mortality(Component):
             requires_columns=required_columns,
         )
 
-    def load_unmodeled_csmr(self, builder: Builder) -> Union[float, pd.DataFrame]:
+    def load_unmodeled_csmr(self, builder: Builder) -> float | pd.DataFrame:
         # todo validate that all data have the same columns
         raw_csmr = 0.0
         for idx, cause in enumerate(builder.configuration[self.name].unmodeled_causes):

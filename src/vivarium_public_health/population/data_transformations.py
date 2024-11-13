@@ -9,7 +9,6 @@ it into different distributions for sampling.
 """
 
 from collections import namedtuple
-from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -302,7 +301,7 @@ def smooth_ages(
 def _get_bins_and_proportions(
     pop_data: pd.DataFrame,
     age: AgeValues,
-) -> Tuple[EndpointValues, AgeValues]:
+) -> tuple[EndpointValues, AgeValues]:
     """Finds and returns the bin edges and the population proportions in
     the current and neighboring bins.
 
@@ -376,7 +375,7 @@ def _get_bins_and_proportions(
 
 def _construct_sampling_parameters(
     age: AgeValues, endpoint: EndpointValues, proportion: AgeValues
-) -> Tuple[EndpointValues, EndpointValues, float, float]:
+) -> tuple[EndpointValues, EndpointValues, float, float]:
     """Calculates some sampling distribution parameters from known values.
 
     Parameters
@@ -442,12 +441,12 @@ def _construct_sampling_parameters(
 
 
 def _compute_ages(
-    uniform_rv: Union[np.ndarray, float],
+    uniform_rv: np.ndarray | float,
     start: float,
     height: float,
     slope: float,
     normalization: float,
-) -> Union[np.ndarray, float]:
+) -> np.ndarray | float:
     """Produces samples from the local age distribution.
 
     Parameters

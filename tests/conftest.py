@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 import pytest
 from layered_config_tree import LayeredConfigTree

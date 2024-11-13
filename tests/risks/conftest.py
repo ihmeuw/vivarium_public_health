@@ -1,5 +1,3 @@
-from typing import List
-
 import pandas as pd
 import pytest
 
@@ -7,7 +5,7 @@ from tests.test_utilities import build_table_with_age
 from vivarium_public_health.risks.base_risk import Risk
 
 
-def make_test_data_table(values: List, parameter="cat") -> pd.DataFrame:
+def make_test_data_table(values: list, parameter="cat") -> pd.DataFrame:
     year_start = 1990  # same as the base config
     year_end = 2010
 

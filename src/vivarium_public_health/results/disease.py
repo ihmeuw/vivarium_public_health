@@ -8,7 +8,7 @@ in the simulation.
 
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
@@ -66,7 +66,7 @@ class DiseaseObserver(PublicHealthObserver):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         """A dictionary containing the defaults for any configurations managed by
         this component.
         """
@@ -79,17 +79,17 @@ class DiseaseObserver(PublicHealthObserver):
         }
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         """Columns created by this observer."""
         return [self.previous_state_column_name]
 
     @property
-    def columns_required(self) -> List[str]:
+    def columns_required(self) -> list[str]:
         """Columns required by this observer."""
         return [self.disease]
 
     @property
-    def initialization_requirements(self) -> Dict[str, List[str]]:
+    def initialization_requirements(self) -> dict[str, list[str]]:
         """Requirements for observer initialization."""
         return {
             "requires_columns": [self.disease],

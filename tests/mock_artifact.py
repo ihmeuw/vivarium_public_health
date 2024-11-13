@@ -8,8 +8,6 @@ testing vivarium_public_health components.
 
 """
 
-from typing import List
-
 import pandas as pd
 from vivarium.framework.artifact import ArtifactManager
 

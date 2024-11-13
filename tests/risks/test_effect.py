@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -417,9 +417,9 @@ from vivarium_public_health.utilities import EntityString
 def _setup_risk_effect_simulation(
     config: LayeredConfigTree,
     plugins: LayeredConfigTree,
-    risk: Union[str, Risk],
+    risk: str | Risk,
     risk_effect: RiskEffect,
-    data: Dict[str, Any],
+    data: dict[str, Any],
 ) -> InteractiveContext:
     components = [
         TestPopulation(),

@@ -8,9 +8,7 @@ characteristics to simulants.
 
 """
 
-from __future__ import annotations
-
-from typing import Callable, Dict, Iterable, List
+from collections.abc import Callable, Iterable
 
 import numpy as np
 import pandas as pd
@@ -48,7 +46,7 @@ class BasePopulation(Component):
     ##############
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         return ["age", "sex", "alive", "location", "entrance_time", "exit_time"]
 
     @property
@@ -91,7 +89,7 @@ class BasePopulation(Component):
     #################
 
     @staticmethod
-    def get_randomness_streams(builder: Builder) -> Dict[str, RandomnessStream]:
+    def get_randomness_streams(builder: Builder) -> dict[str, RandomnessStream]:
         return {
             "general_purpose": builder.randomness.get_stream("population_generation"),
             "bin_selection": builder.randomness.get_stream(
@@ -255,7 +253,7 @@ class AgeOutSimulants(Component):
     ##############
 
     @property
-    def columns_required(self) -> List[str]:
+    def columns_required(self) -> list[str]:
         """A list of the columns this component requires that it did not create."""
         return self._columns_required
 
@@ -290,9 +288,9 @@ def generate_population(
     simulant_ids: pd.Index,
     creation_time: pd.Timestamp,
     step_size: pd.Timedelta,
-    age_params: Dict[str, float],
+    age_params: dict[str, float],
     demographic_proportions: pd.DataFrame,
-    randomness_streams: Dict[str, RandomnessStream],
+    randomness_streams: dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
     key_columns: Iterable[str] = ("entrance_time", "age"),
 ) -> pd.DataFrame:
@@ -378,7 +376,7 @@ def _assign_demography_with_initial_age(
     pop_data: pd.DataFrame,
     initial_age: float,
     step_size: pd.Timedelta,
-    randomness_streams: Dict[str, RandomnessStream],
+    randomness_streams: dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
 ) -> pd.DataFrame:
     """Assigns age, sex, and location information to the provided simulants given a fixed age.
@@ -441,7 +439,7 @@ def _assign_demography_with_age_bounds(
     pop_data: pd.DataFrame,
     age_start: float,
     age_end: float,
-    randomness_streams: Dict[str, RandomnessStream],
+    randomness_streams: dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
     key_columns: Iterable[str] = ("entrance_time", "age"),
 ) -> pd.DataFrame:

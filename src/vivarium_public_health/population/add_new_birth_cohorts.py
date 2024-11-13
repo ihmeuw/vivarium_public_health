@@ -7,8 +7,6 @@ This module contains several different models of fertility.
 
 """
 
-from typing import Dict, List, Optional
-
 import numpy as np
 import pandas as pd
 from vivarium import Component
@@ -158,15 +156,15 @@ class FertilityAgeSpecificRates(Component):
     ##############
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         return ["last_birth_time", "parent_id"]
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["sex"]
 
     @property
-    def initialization_requirements(self) -> Dict[str, List[str]]:
+    def initialization_requirements(self) -> dict[str, list[str]]:
         return {
             "requires_columns": ["sex"],
             "requires_values": [],

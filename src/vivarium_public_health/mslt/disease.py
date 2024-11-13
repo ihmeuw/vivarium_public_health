@@ -8,7 +8,7 @@ simulations.
 
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -143,7 +143,7 @@ class Disease(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             self.disease: {
                 "simplified_no_remission_equations": False,
@@ -151,7 +151,7 @@ class Disease(Component):
         }
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         columns = []
         for scenario in ["", "_intervention"]:
             for rate in ["_S", "_C"]:
@@ -160,11 +160,11 @@ class Disease(Component):
         return columns
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["age", "sex"]
 
     @property
-    def initialization_requirements(self) -> Dict[str, List[str]]:
+    def initialization_requirements(self) -> dict[str, list[str]]:
         return {
             "requires_columns": ["age", "sex"],
             "requires_values": [],

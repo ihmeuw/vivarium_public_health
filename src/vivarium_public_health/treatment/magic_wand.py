@@ -8,7 +8,7 @@ level by providing direct shifts to epidemiological measures.
 
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -30,13 +30,13 @@ class AbsoluteShift(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             f"intervention_on_{self.target.name}": self.CONFIGURATION_DEFAULTS["intervention"]
         }
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["age"]
 
     #####################

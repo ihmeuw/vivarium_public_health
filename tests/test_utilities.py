@@ -1,5 +1,5 @@
 from itertools import product
-from typing import Any, Dict, List
+from typing import Any
 
 import hypothesis.strategies as st
 import numpy as np
@@ -51,9 +51,9 @@ def test_TargetString_pass(s):
 
 def build_table_with_age(
     value: Any,
-    parameter_columns: Dict = {"year": (1990, 2020)},
-    key_columns: Dict = {"sex": ("Female", "Male")},
-    value_columns: List = ["value"],
+    parameter_columns: dict = {"year": (1990, 2020)},
+    key_columns: dict = {"sex": ("Female", "Male")},
+    value_columns: list = ["value"],
 ) -> pd.DataFrame:
     if "age" not in parameter_columns:
         parameter_columns["age"] = (0, 125)

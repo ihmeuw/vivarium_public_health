@@ -7,7 +7,7 @@ This module contains tools for observing risk exposure during the simulation.
 
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
@@ -59,7 +59,7 @@ class CategoricalRiskObserver(PublicHealthObserver):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         """A dictionary containing the defaults for any configurations managed by
         this component.
         """
@@ -72,7 +72,7 @@ class CategoricalRiskObserver(PublicHealthObserver):
         }
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         """The columns required by this observer."""
         return ["alive"]
 

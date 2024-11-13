@@ -8,7 +8,7 @@ multi-state lifetable simulations.
 
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -73,7 +73,7 @@ class ModifyAcuteDiseaseYLD(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "intervention": {
                 self.disease: {
@@ -112,7 +112,7 @@ class ModifyAcuteDiseaseMortality(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "intervention": {
                 self.disease: {

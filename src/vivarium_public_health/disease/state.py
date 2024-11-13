@@ -7,7 +7,8 @@ This module contains tools to manage standard disease states.
 
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -36,11 +37,11 @@ class BaseDiseaseState(State):
         return [self.event_time_column, self.event_count_column]
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return [self.model, "alive"]
 
     @property
-    def initialization_requirements(self) -> Dict[str, List[str]]:
+    def initialization_requirements(self) -> dict[str, list[str]]:
         return {
             "requires_columns": [self.model],
             "requires_values": [],
@@ -55,7 +56,7 @@ class BaseDiseaseState(State):
         self,
         state_id: str,
         allow_self_transition: bool = False,
-        side_effect_function: Optional[Callable] = None,
+        side_effect_function: Callable | None = None,
         cause_type: str = "cause",
     ):
         super().__init__(state_id, allow_self_transition)  # becomes state_id
@@ -83,7 +84,7 @@ class BaseDiseaseState(State):
     # Helper methods #
     ##################
 
-    def get_initialization_parameters(self) -> Dict[str, Any]:
+    def get_initialization_parameters(self) -> dict[str, Any]:
         """Exclude side effect function and cause type from name and __repr__."""
         initialization_parameters = super().get_initialization_parameters()
         for key in ["side_effect_function", "cause_type"]:
@@ -118,7 +119,7 @@ class BaseDiseaseState(State):
     # Public methods #
     ##################
 
-    def get_transition_names(self) -> List[str]:
+    def get_transition_names(self) -> list[str]:
         transitions = []
         for trans in self.transition_set.transitions:
             init_state = trans.input_state.name.split(".")[1]
@@ -129,7 +130,7 @@ class BaseDiseaseState(State):
     def add_rate_transition(
         self,
         output: "BaseDiseaseState",
-        get_data_functions: Dict[str, Callable] = None,
+        get_data_functions: dict[str, Callable] = None,
         triggered=Trigger.NOT_TRIGGERED,
     ) -> RateTransition:
         """Builds a RateTransition from this state to the given state.
@@ -156,7 +157,7 @@ class BaseDiseaseState(State):
     def add_proportion_transition(
         self,
         output: "BaseDiseaseState",
-        get_data_functions: Optional[Dict[str, Callable]] = None,
+        get_data_functions: dict[str, Callable] | None = None,
         triggered=Trigger.NOT_TRIGGERED,
     ) -> ProportionTransition:
         """Builds a ProportionTransition from this state to the given state.
@@ -198,7 +199,7 @@ class NonDiseasedState(BaseDiseaseState):
         self,
         state_id: str,
         allow_self_transition: bool = False,
-        side_effect_function: Optional[Callable] = None,
+        side_effect_function: Callable | None = None,
         cause_type: str = "cause",
         name_prefix: str = "",
     ):
@@ -218,7 +219,7 @@ class NonDiseasedState(BaseDiseaseState):
     def add_rate_transition(
         self,
         output: BaseDiseaseState,
-        get_data_functions: Dict[str, Callable] = None,
+        get_data_functions: dict[str, Callable] = None,
         **kwargs,
     ) -> RateTransition:
         if get_data_functions is None:
@@ -241,7 +242,7 @@ class SusceptibleState(NonDiseasedState):
         self,
         state_id: str,
         allow_self_transition: bool = False,
-        side_effect_function: Optional[Callable] = None,
+        side_effect_function: Callable | None = None,
         cause_type: str = "cause",
     ):
         super().__init__(
@@ -258,7 +259,7 @@ class RecoveredState(NonDiseasedState):
         self,
         state_id: str,
         allow_self_transition: bool = False,
-        side_effect_function: Optional[Callable] = None,
+        side_effect_function: Callable | None = None,
         cause_type: str = "cause",
     ):
         super().__init__(
@@ -278,7 +279,7 @@ class DiseaseState(BaseDiseaseState):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             f"{self.name}": {
                 "data_sources": {
@@ -299,10 +300,10 @@ class DiseaseState(BaseDiseaseState):
         self,
         state_id: str,
         allow_self_transition: bool = False,
-        side_effect_function: Optional[Callable] = None,
+        side_effect_function: Callable | None = None,
         cause_type: str = "cause",
-        get_data_functions: Optional[Dict[str, Callable]] = None,
-        cleanup_function: Optional[Callable] = None,
+        get_data_functions: dict[str, Callable] | None = None,
+        cleanup_function: Callable | None = None,
     ):
         """
         Parameters
@@ -472,7 +473,7 @@ class DiseaseState(BaseDiseaseState):
     def add_rate_transition(
         self,
         output: BaseDiseaseState,
-        get_data_functions: Dict[str, Callable] = None,
+        get_data_functions: dict[str, Callable] = None,
         **kwargs,
     ) -> RateTransition:
         if get_data_functions is None:

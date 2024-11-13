@@ -8,8 +8,6 @@ multi-state lifetable simulations.
 
 """
 
-from typing import List, Optional
-
 import numpy as np
 import pandas as pd
 from vivarium import Component
@@ -50,7 +48,7 @@ class BasePopulation(Component):
     ##############
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         return [
             "age",
             "sex",
@@ -71,7 +69,7 @@ class BasePopulation(Component):
         ]
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["tracked"]
 
     #####################
@@ -122,7 +120,7 @@ class Mortality(Component):
     ##############
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return [
             "population",
             "bau_population",
@@ -190,7 +188,7 @@ class Disability(Component):
     ##############
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return [
             "bau_yld_rate",
             "yld_rate",

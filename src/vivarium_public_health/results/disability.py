@@ -8,8 +8,6 @@ in the simulation.
 
 """
 
-from typing import Union
-
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
 from loguru import logger
@@ -185,7 +183,7 @@ class DisabilityObserver(PublicHealthObserver):
     # Aggregators #
     ###############
 
-    def disability_weight_aggregator(self, dw: pd.DataFrame) -> Union[float, pd.Series]:
+    def disability_weight_aggregator(self, dw: pd.DataFrame) -> float | pd.Series:
         """Aggregate disability weights for the time step.
 
         Parameters

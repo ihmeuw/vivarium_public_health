@@ -9,7 +9,8 @@ implementation that has been used in several public health models.
 """
 
 import pickle
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -39,7 +40,7 @@ class LBWSGDistribution(PolytomousDistribution):
         super().setup(builder)
         self.category_intervals = self.get_category_intervals(builder)
 
-    def get_category_intervals(self, builder: Builder) -> Dict[str, Dict[str, pd.Interval]]:
+    def get_category_intervals(self, builder: Builder) -> dict[str, dict[str, pd.Interval]]:
         """Gets the intervals for each category.
 
         Parameters
@@ -51,7 +52,7 @@ class LBWSGDistribution(PolytomousDistribution):
         -------
             The intervals for each category.
         """
-        categories: Dict[str, str] = builder.data.load(f"{self.risk}.categories")
+        categories: dict[str, str] = builder.data.load(f"{self.risk}.categories")
         category_intervals = {
             axis: {
                 category: self._parse_description(axis, description)
@@ -96,8 +97,8 @@ class LBWSGDistribution(PolytomousDistribution):
         self,
         axis: str,
         propensity: pd.Series,
-        categorical_propensity: Optional[pd.Series] = None,
-        categorical_exposure: Optional[pd.Series] = None,
+        categorical_propensity: pd.Series | None = None,
+        categorical_exposure: pd.Series | None = None,
     ) -> pd.Series:
         """Calculate continuous exposures from propensities for a single axis.
 
@@ -199,13 +200,13 @@ class LBWSGRisk(Risk):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         configuration_defaults = super().configuration_defaults
         configuration_defaults[self.name]["distribution_type"] = "lbwsg"
         return configuration_defaults
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         return [self.get_exposure_column_name(axis) for axis in self.AXES]
 
     #####################
@@ -224,15 +225,15 @@ class LBWSGRisk(Risk):
     # Setup methods #
     #################
 
-    def get_propensity_pipeline(self, builder: Builder) -> Optional[Pipeline]:
+    def get_propensity_pipeline(self, builder: Builder) -> Pipeline | None:
         # Propensity only used on initialization; not being saved to avoid a cycle
         return None
 
-    def get_exposure_pipeline(self, builder: Builder) -> Optional[Pipeline]:
+    def get_exposure_pipeline(self, builder: Builder) -> Pipeline | None:
         # Exposure only used on initialization; not being saved to avoid a cycle
         return None
 
-    def get_birth_exposure_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
+    def get_birth_exposure_pipelines(self, builder: Builder) -> dict[str, Pipeline]:
         required_columns = get_lookup_columns(
             self.exposure_distribution.lookup_tables.values()
         )
@@ -291,15 +292,15 @@ class LBWSGRiskEffect(RiskEffect):
     ##############
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         return self.rr_column_names
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["age", "sex"] + self.lbwsg_exposure_column_names
 
     @property
-    def initialization_requirements(self) -> Dict[str, List[str]]:
+    def initialization_requirements(self) -> dict[str, list[str]]:
         return {
             "requires_columns": ["sex"] + self.lbwsg_exposure_column_names,
             "requires_values": [],
@@ -307,7 +308,7 @@ class LBWSGRiskEffect(RiskEffect):
         }
 
     @property
-    def rr_column_names(self) -> List[str]:
+    def rr_column_names(self) -> list[str]:
         return [self.relative_risk_column_name(age_group) for age_group in self.age_intervals]
 
     #####################
@@ -356,7 +357,7 @@ class LBWSGRiskEffect(RiskEffect):
 
     def get_population_attributable_fraction_source(
         self, builder: Builder
-    ) -> Tuple[pd.DataFrame, List[str]]:
+    ) -> tuple[pd.DataFrame, list[str]]:
         paf_key = f"{self.risk}.population_attributable_fraction"
         paf_data = builder.data.load(paf_key)
         return paf_data, builder.data.value_columns()(paf_key)
@@ -376,7 +377,7 @@ class LBWSGRiskEffect(RiskEffect):
             requires_values=[self.relative_risk_pipeline_name],
         )
 
-    def get_age_intervals(self, builder: Builder) -> Dict[str, pd.Interval]:
+    def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
         exposure = builder.data.load(f"{self.risk}.exposure")
         exposure = exposure[exposure["age_end"] > 0]

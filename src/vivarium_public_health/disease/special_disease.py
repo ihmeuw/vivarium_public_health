@@ -10,7 +10,7 @@ This module contains frequently used, but non-standard disease models.
 import re
 from collections import namedtuple
 from operator import gt, lt
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 from vivarium import Component
@@ -96,7 +96,7 @@ class RiskAttributableDisease(Component):
         return f"risk_attributable_disease.{self.cause.name}"
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             self.name: {
                 "data_sources": {
@@ -112,7 +112,7 @@ class RiskAttributableDisease(Component):
         }
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         return [
             self.cause.name,
             self.diseased_event_time_column,
@@ -120,11 +120,11 @@ class RiskAttributableDisease(Component):
         ]
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["alive"]
 
     @property
-    def initialization_requirements(self) -> Dict[str, List[str]]:
+    def initialization_requirements(self) -> dict[str, list[str]]:
         return {
             "requires_columns": [],
             "requires_values": [f"{self.risk.name}.exposure"],

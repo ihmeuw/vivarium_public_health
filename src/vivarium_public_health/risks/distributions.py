@@ -9,7 +9,7 @@ exposure distributions.
 """
 
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Optional, Union
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -38,7 +38,7 @@ class RiskExposureDistribution(Component, ABC):
         self,
         risk: EntityString,
         distribution_type: str,
-        exposure_data: Optional[Union[int, float, pd.DataFrame]] = None,
+        exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
         super().__init__()
         self.risk = risk
@@ -51,14 +51,14 @@ class RiskExposureDistribution(Component, ABC):
     # Setup methods #
     #################
 
-    def get_configuration(self, builder: "Builder") -> Optional[LayeredConfigTree]:
+    def get_configuration(self, builder: "Builder") -> LayeredConfigTree | None:
         return builder.configuration[self.risk]
 
     @abstractmethod
     def build_all_lookup_tables(self, builder: "Builder") -> None:
         raise NotImplementedError
 
-    def get_exposure_data(self, builder: Builder) -> Union[int, float, pd.DataFrame]:
+    def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
         if self._exposure_data is not None:
             return self._exposure_data
         return self.get_data(builder, self.configuration["data_sources"]["exposure"])
@@ -92,11 +92,11 @@ class EnsembleDistribution(RiskExposureDistribution):
     ##############
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         return [self._propensity]
 
     @property
-    def initialization_requirements(self) -> Dict[str, List[str]]:
+    def initialization_requirements(self) -> dict[str, list[str]]:
         return {
             "requires_columns": [],
             "requires_values": [],
@@ -265,7 +265,7 @@ class ContinuousDistribution(RiskExposureDistribution):
 
 class PolytomousDistribution(RiskExposureDistribution):
     @property
-    def categories(self) -> List[str]:
+    def categories(self) -> list[str]:
         # These need to be sorted so the cumulative sum is in the ocrrect order of categories
         # and results are therefore reproducible and correct
         return sorted(self.lookup_tables["exposure"].value_columns)
@@ -286,8 +286,8 @@ class PolytomousDistribution(RiskExposureDistribution):
         )
 
     def get_exposure_value_columns(
-        self, exposure_data: Union[int, float, pd.DataFrame]
-    ) -> Optional[List[str]]:
+        self, exposure_data: int | float | pd.DataFrame
+    ) -> list[str] | None:
         if isinstance(exposure_data, pd.DataFrame):
             return list(exposure_data["parameter"].unique())
         return None
@@ -342,7 +342,7 @@ class DichotomousDistribution(RiskExposureDistribution):
         )
         self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
 
-    def get_exposure_data(self, builder: Builder) -> Union[int, float, pd.DataFrame]:
+    def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
         exposure_data = super().get_exposure_data(builder)
 
         if isinstance(exposure_data, (int, float)):
@@ -373,8 +373,8 @@ class DichotomousDistribution(RiskExposureDistribution):
         return exposure_data
 
     def get_exposure_value_columns(
-        self, exposure_data: Union[int, float, pd.DataFrame]
-    ) -> Optional[List[str]]:
+        self, exposure_data: int | float | pd.DataFrame
+    ) -> list[str] | None:
         if isinstance(exposure_data, pd.DataFrame):
             return self.get_value_columns(exposure_data)
         return None
@@ -470,9 +470,9 @@ def clip(q):
 
 
 def get_risk_distribution_parameter(
-    value_columns_getter: Callable[[Union[pd.DataFrame]], List[str]],
-    data: Union[float, pd.DataFrame],
-) -> Union[float, pd.Series]:
+    value_columns_getter: Callable[[pd.DataFrame], list[str]],
+    data: float | pd.DataFrame,
+) -> float | pd.Series:
     if isinstance(data, pd.DataFrame):
         value_columns = value_columns_getter(data)
         if len(value_columns) > 1:

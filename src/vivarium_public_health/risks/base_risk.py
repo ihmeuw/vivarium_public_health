@@ -8,7 +8,7 @@ exposure.
 
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 from vivarium import Component
@@ -106,7 +106,7 @@ class Risk(Component):
         return self.risk
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             self.name: {
                 "data_sources": {
@@ -122,14 +122,14 @@ class Risk(Component):
         }
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         columns_to_create = [self.propensity_column_name]
         if self.create_exposure_column:
             columns_to_create.append(self.exposure_column_name)
         return columns_to_create
 
     @property
-    def initialization_requirements(self) -> Dict[str, List[str]]:
+    def initialization_requirements(self) -> dict[str, list[str]]:
         return {
             "requires_columns": [],
             "requires_values": [],
