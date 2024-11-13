@@ -11,6 +11,7 @@ py:class pandas.core.series.Series
 py:class pandas.core.generic.PandasObject
 # layered-config-tree
 py:class layered_config_tree.main.LayeredConfigTree
+py:class vivarium.framework.values.pipeline.Pipeline
 
 # TODO: Need to revisit this. Nitpicking here to avoid failing builds on 3.9 in LBWSGRisk
 py:class PopulationView
@@ -22,4 +23,3 @@ py:class Builder
 py:class SimulantData
 py:class Event
 py:class LookupTable
-py:class Pipeline

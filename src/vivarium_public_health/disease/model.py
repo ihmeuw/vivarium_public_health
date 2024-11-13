@@ -8,7 +8,8 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
-from collections.abc import Callable
+import warnings
+from collections.abc import Callable, Iterable
 from typing import Any
 
 import numpy as np
@@ -38,7 +39,7 @@ class DiseaseModel(Machine):
         return {
             f"{self.name}": {
                 "data_sources": {
-                    "cause_specific_mortality_rate": "self::load_cause_specific_mortality_rate"
+                    "cause_specific_mortality_rate": self.load_cause_specific_mortality_rate,
                 },
             },
         }
@@ -79,16 +80,35 @@ class DiseaseModel(Machine):
         initial_state: BaseDiseaseState | None = None,
         get_data_functions: dict[str, Callable] | None = None,
         cause_type: str = "cause",
+        states: Iterable[BaseDiseaseState] = (),
+        residual_state: BaseDiseaseState | None = None,
         **kwargs,
     ):
-        super().__init__(cause, **kwargs)
+        super().__init__(cause, states=states, **kwargs)
         self.cause = cause
         self.cause_type = cause_type
 
         if initial_state is not None:
-            self.initial_state = initial_state.state_id
+            warnings.warn(
+                "In the future, the 'initial_state' argument to DiseaseModel"
+                " will be used to initialize all simulants into that state. To"
+                " retain the current behavior of defining a residual state, use"
+                " the 'residual_state' argument.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+            if residual_state:
+                raise DiseaseModelError(
+                    "A DiseaseModel cannot be initialized with both"
+                    " 'initial_state and 'residual_state'."
+                )
+
+            self.residual_state = initial_state.state_id
+        elif residual_state is not None:
+            self.residual_state = residual_state.state_id
         else:
-            self.initial_state = self._get_default_initial_state()
+            self.residual_state = self._get_default_residual_state()
 
         self._get_data_functions = (
             get_data_functions if get_data_functions is not None else {}
@@ -135,7 +155,7 @@ class DiseaseModel(Machine):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         population = self.population_view.subview(["age", "sex"]).get(pop_data.index)
 
-        assert self.initial_state in {s.state_id for s in self.states}
+        assert self.residual_state in {s.state_id for s in self.states}
 
         if pop_data.user_data["sim_state"] == "setup":  # simulation start
             if self.configuration_age_start != self.configuration_age_end != 0:
@@ -176,7 +196,7 @@ class DiseaseModel(Machine):
             )
         else:
             condition_column = pd.Series(
-                self.initial_state, index=population.index, name=self.state_column
+                self.residual_state, index=population.index, name=self.state_column
             )
         self.population_view.update(condition_column)
 
@@ -197,7 +217,7 @@ class DiseaseModel(Machine):
     # Helper functions #
     ####################
 
-    def _get_default_initial_state(self):
+    def _get_default_residual_state(self):
         susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]
         if len(susceptible_states) != 1:
             raise DiseaseModelError("Disease model must have exactly one SusceptibleState.")
@@ -219,7 +239,7 @@ class DiseaseModel(Machine):
         weights = np.array(weights).T
         weights_bins = np.cumsum(weights, axis=1)
 
-        state_names = [s.state_id for s in states] + [self.initial_state]
+        state_names = [s.state_id for s in states] + [self.residual_state]
 
         return state_names, weights_bins
 

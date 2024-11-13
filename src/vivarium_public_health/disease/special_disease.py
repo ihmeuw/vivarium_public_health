@@ -14,7 +14,6 @@ from typing import Any
 
 import pandas as pd
 from vivarium import Component
-from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.values import list_combiner, union_post_processor
@@ -101,8 +100,8 @@ class RiskAttributableDisease(Component):
             self.name: {
                 "data_sources": {
                     "raw_disability_weight": f"{self.cause}.disability_weight",
-                    "cause_specific_mortality_rate": "self::load_cause_specific_mortality_rate_data",
-                    "excess_mortality_rate": "self::load_excess_mortality_rate_data",
+                    "cause_specific_mortality_rate": self.load_cause_specific_mortality_rate_data,
+                    "excess_mortality_rate": self.load_excess_mortality_rate_data,
                     "population_attributable_fraction": 0,
                 },
                 "threshold": None,
