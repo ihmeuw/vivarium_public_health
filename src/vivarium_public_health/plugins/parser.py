@@ -9,7 +9,7 @@ that can parse configurations of components specific to the Vivarium Public
 Health package.
 
 """
-
+import warnings
 from importlib import import_module
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -56,11 +56,13 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     DEFAULT_MODEL_CONFIG = {
         "model_type": f"{DiseaseModel.__module__}.{DiseaseModel.__name__}",
         "initial_state": None,
+        "residual_state": None,
     }
     """Default cause model configuration if it's not explicitly specified.
     
-    If the initial state is not specified, the cause  model must have a state 
-    named 'susceptible'.
+    Initial state and residual state cannot both be provided. If neither initial
+    state nor residual state has been specified, the cause  model must have a
+    state named 'susceptible'.
     """
 
     DEFAULT_STATE_CONFIG = {
@@ -104,7 +106,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             causes:
                 cause_1:
                     model_type: vivarium_public_health.disease.DiseaseModel
-                    initial_state: susceptible
+                    residual_state: susceptible
                     states:
                         susceptible:
                             cause_type: cause
@@ -247,11 +249,13 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 )
 
             model_type = import_by_path(cause_config.model_type)
-            initial_state = states.get(cause_config.initial_state, None)
+            residual_state = states.get(
+                cause_config.residual_state, states.get(cause_config.initial_state, None)
+            )
             model = model_type(
                 cause_name,
-                initial_state=initial_state,
                 states=list(states.values()),
+                residual_state=residual_state,
                 get_data_functions=data_sources,
             )
             cause_models.append(model)
@@ -403,7 +407,14 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     # Validation methods #
     ######################
 
-    _CAUSE_KEYS = {"model_type", "initial_state", "states", "transitions", "data_sources"}
+    _CAUSE_KEYS = {
+        "model_type",
+        "initial_state",
+        "states",
+        "transitions",
+        "data_sources",
+        "residual_state",
+    }
     _STATE_KEYS = {
         "state_type",
         "cause_type",
@@ -535,11 +546,28 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             )
         else:
             initial_state = cause_config.get("initial_state", None)
-            if initial_state is not None and initial_state not in states_config:
+            residual_state = cause_config.get("residual_state", None)
+            if initial_state is not None:
+                warnings.warn(
+                    "In the future, the 'initial_state' cause configuration will"
+                    " be used to initialize all simulants into that state. To"
+                    " retain the current behavior of defining a residual state,"
+                    " use the 'residual_state' cause configuration.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                if residual_state is None:
+                    residual_state = initial_state
+                else:
+                    error_messages.append(
+                        "A cause may not have both 'initial_state and"
+                        " 'residual_state' configurations."
+                    )
+
+            if residual_state is not None and residual_state not in states_config:
                 error_messages.append(
-                    f"Initial state '{cause_config['initial_state']}' for cause "
-                    f"'{cause_name}' must be present in the states for cause "
-                    f"'{cause_name}."
+                    f"Residual state '{residual_state}' for cause '{cause_name}'"
+                    f" must be present in the states for cause '{cause_name}."
                 )
             for state_name, state_config in states_config.items():
                 error_messages += self._validate_state(cause_name, state_name, state_config)
