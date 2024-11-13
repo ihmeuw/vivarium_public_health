@@ -1,3 +1,7 @@
+**3.1.1 - 11/12/24**
+
+ - Refactor: Use callables rather than strings to define lookup table builders
+
 **3.1.0 - 11/07/24**
 
  - Drop support for python 3.9

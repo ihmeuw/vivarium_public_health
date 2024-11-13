@@ -38,7 +38,7 @@ class DiseaseModel(Machine):
         return {
             f"{self.name}": {
                 "data_sources": {
-                    "cause_specific_mortality_rate": "self::load_cause_specific_mortality_rate"
+                    "cause_specific_mortality_rate": self.load_cause_specific_mortality_rate,
                 },
             },
         }
