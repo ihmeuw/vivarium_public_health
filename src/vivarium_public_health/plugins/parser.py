@@ -367,9 +367,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         return {name: self._get_data_source(name, config[name]) for name in config.keys()}
 
     @staticmethod
-    def _get_data_source(
-        name: str, source: str | float
-    ) -> Callable[[Builder, Any], Any]:
+    def _get_data_source(name: str, source: str | float) -> Callable[[Builder, Any], Any]:
         """Parses a data source and returns a callable that can be used to retrieve the data.
 
         Parameters
