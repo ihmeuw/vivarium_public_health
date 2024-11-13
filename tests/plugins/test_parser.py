@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, NamedTuple, Type
+from typing import Any, NamedTuple
 
 import pytest
 import yaml
@@ -50,14 +50,14 @@ COMPLEX_MODEL_CSMR = 1.4
 class ExpectedTransitionData:
     source: str
     sink: str
-    transition_type: Type[Transition]
+    transition_type: type[Transition]
     value: float
 
 
 @dataclasses.dataclass
 class ExpectedStateData:
     name: str
-    state_type: Type[BaseDiseaseState] = DiseaseState
+    state_type: type[BaseDiseaseState] = DiseaseState
     cause_type: str = "cause"
     is_transient: bool = False
     allow_self_transition: bool = True
@@ -534,7 +534,7 @@ def test_disease_model(
     sim_components: dict[str, Component],
     model_name: str,
     expected_csmr: float,
-    expected_model_type: Type[DiseaseModel],
+    expected_model_type: type[DiseaseModel],
     expected_initial_state: str,
     expected_state_names: list[str],
 ):
