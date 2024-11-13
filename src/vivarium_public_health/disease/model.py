@@ -198,12 +198,6 @@ class DiseaseModel(Machine):
             )
         self.population_view.update(condition_column)
 
-    def on_time_step(self, event: Event) -> None:
-        self.transition(event.index, event.time)
-
-    def on_time_step_cleanup(self, event: Event) -> None:
-        self.cleanup(event.index, event.time)
-
     ##################################
     # Pipeline sources and modifiers #
     ##################################
