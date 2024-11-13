@@ -9,8 +9,8 @@ transitions at simulation initialization and during transitions.
 
 """
 import warnings
-from collections.abc import Iterable
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable, Iterable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -35,7 +35,7 @@ class DiseaseModel(Machine):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             f"{self.name}": {
                 "data_sources": {
@@ -45,15 +45,15 @@ class DiseaseModel(Machine):
         }
 
     @property
-    def columns_created(self) -> List[str]:
+    def columns_created(self) -> list[str]:
         return [self.state_column]
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["age", "sex"]
 
     @property
-    def initialization_requirements(self) -> Dict[str, List[str]]:
+    def initialization_requirements(self) -> dict[str, list[str]]:
         return {
             "requires_columns": ["age", "sex"],
             "requires_values": [],
@@ -61,11 +61,11 @@ class DiseaseModel(Machine):
         }
 
     @property
-    def state_names(self) -> List[str]:
+    def state_names(self) -> list[str]:
         return [s.state_id for s in self.states]
 
     @property
-    def transition_names(self) -> List[TransitionString]:
+    def transition_names(self) -> list[TransitionString]:
         return [
             state_name for state in self.states for state_name in state.get_transition_names()
         ]
@@ -77,8 +77,8 @@ class DiseaseModel(Machine):
     def __init__(
         self,
         cause: str,
-        initial_state: Optional[BaseDiseaseState] = None,
-        get_data_functions: Optional[Dict[str, Callable]] = None,
+        initial_state: BaseDiseaseState | None = None,
+        get_data_functions: dict[str, Callable] | None = None,
         cause_type: str = "cause",
         states: Iterable[BaseDiseaseState] = (),
         residual_state: BaseDiseaseState | None = None,
@@ -131,9 +131,7 @@ class DiseaseModel(Machine):
     # Setup methods #
     #################
 
-    def load_cause_specific_mortality_rate(
-        self, builder: Builder
-    ) -> Union[float, pd.DataFrame]:
+    def load_cause_specific_mortality_rate(self, builder: Builder) -> float | pd.DataFrame:
         if "cause_specific_mortality_rate" not in self._get_data_functions:
             only_morbid = builder.data.load(f"cause.{self.cause}.restrictions")["yld_only"]
             if only_morbid:
@@ -219,7 +217,7 @@ class DiseaseModel(Machine):
 
     def get_state_weights(
         self, pop_index: pd.Index, prevalence_type: str
-    ) -> Tuple[List[str], Union[np.ndarray, None]]:
+    ) -> tuple[list[str], np.ndarray | None]:
         states = [state for state in self.states if state.lookup_tables.get(prevalence_type)]
 
         if not states:

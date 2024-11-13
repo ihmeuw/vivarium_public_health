@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,7 @@ from vivarium_public_health.utilities import EntityString
 
 
 @pytest.fixture
-def polytomous_risk() -> Tuple[Risk, Dict[str, Any]]:
+def polytomous_risk() -> tuple[Risk, dict[str, Any]]:
     risk = "risk_factor.test_risk"
     risk_data = {}
     exposure_data = build_table_with_age(
@@ -65,8 +65,8 @@ def polytomous_risk() -> Tuple[Risk, Dict[str, Any]]:
 def _setup_risk_simulation(
     config: LayeredConfigTree,
     plugins: LayeredConfigTree,
-    risk: Union[str, Risk],
-    data: Dict[str, Any],
+    risk: str | Risk,
+    data: dict[str, Any],
     has_risk_effect: bool = True,
 ) -> InteractiveContext:
     if isinstance(risk, str):
@@ -149,8 +149,8 @@ def test_polytomous_risk_lookup_configuration(polytomous_risk, base_config, base
 def _check_exposure_and_rr(
     simulation: InteractiveContext,
     risk: EntityString,
-    expected_exposures: Dict[str, float],
-    expected_rrs: Dict[str, float],
+    expected_exposures: dict[str, float],
+    expected_rrs: dict[str, float],
 ) -> None:
     population = simulation.get_population()
     exposure = simulation.get_value(f"{risk.name}.exposure")(population.index)

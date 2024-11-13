@@ -8,8 +8,6 @@ multi-state lifetable simulations.
 
 """
 
-from typing import List, Optional
-
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -76,7 +74,7 @@ class MorbidityMortality(Component):
     ##############
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return [
             "age",
             "sex",
@@ -224,7 +222,7 @@ class Disease(Component):
     ##############
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return [
             "age",
             "sex",
@@ -238,7 +236,7 @@ class Disease(Component):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, disease: str, output_suffix: Optional[str] = None):
+    def __init__(self, disease: str, output_suffix: str | None = None):
         super().__init__()
         self.disease = disease
         if output_suffix is None:
@@ -335,7 +333,7 @@ class TobaccoPrevalence(Component):
     ##############
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["age", "sex", "bau_population", "population"] + self._bin_names
 
     #####################

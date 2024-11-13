@@ -7,9 +7,8 @@ This module contains utility classes and functions for use across
 vivarium_public_health components.
 
 """
-
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
 from vivarium.framework.lookup import LookupTable, ScalarValue
@@ -77,7 +76,7 @@ DAYS_PER_YEAR = 365.25
 DAYS_PER_MONTH = DAYS_PER_YEAR / 12
 
 
-def to_time_delta(span_in_days: Union[int, float, str]):
+def to_time_delta(span_in_days: int | float | str):
     span_in_days = float(span_in_days)
     days, remainder = span_in_days // 1, span_in_days % 1
     hours, remainder = (24 * remainder) // 24, (24 * remainder) % 24
@@ -90,7 +89,7 @@ def to_years(time: pd.Timedelta) -> float:
     return time / pd.Timedelta(days=DAYS_PER_YEAR)
 
 
-def is_non_zero(data: Union[Iterable[ScalarValue], ScalarValue, pd.DataFrame]) -> bool:
+def is_non_zero(data: Iterable[ScalarValue] | ScalarValue | pd.DataFrame) -> bool:
     if isinstance(data, pd.DataFrame):
         attribute_sum = data.value.sum()
     elif isinstance(data, Iterable):
@@ -103,7 +102,7 @@ def is_non_zero(data: Union[Iterable[ScalarValue], ScalarValue, pd.DataFrame]) -
 
 def get_lookup_columns(
     lookup_tables: Iterable[LookupTable], necessary_columns: Iterable = ()
-) -> List[str]:
+) -> list[str]:
     necessary_columns = set(necessary_columns)
     for lookup_table in lookup_tables:
         necessary_columns.update(set(lookup_table.key_columns))

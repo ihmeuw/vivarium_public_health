@@ -8,7 +8,7 @@ excess mortality in the simulation, including "other causes".
 
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
@@ -81,7 +81,7 @@ class MortalityObserver(PublicHealthObserver):
         return [DiseaseState, RiskAttributableDisease]
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         """A dictionary containing the defaults for any configurations managed by
         this component.
         """
@@ -90,7 +90,7 @@ class MortalityObserver(PublicHealthObserver):
         return config_defaults
 
     @property
-    def columns_required(self) -> List[str]:
+    def columns_required(self) -> list[str]:
         """Columns required by this observer."""
         return [
             "alive",

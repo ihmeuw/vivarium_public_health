@@ -1,5 +1,6 @@
 **3.1.2 - 11/13/24**
 
+ - Modernize type hinting
  - Refactor: Update DiseaseModel to rely on Machine's time-step and time-step-cleanup methods
 
 **3.1.1 - 11/12/24**

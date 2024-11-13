@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict, List, NamedTuple, Tuple, Type
+from typing import Any, NamedTuple
 
 import pytest
 import yaml
@@ -50,14 +50,14 @@ COMPLEX_MODEL_CSMR = 1.4
 class ExpectedTransitionData:
     source: str
     sink: str
-    transition_type: Type[Transition]
+    transition_type: type[Transition]
     value: float
 
 
 @dataclasses.dataclass
 class ExpectedStateData:
     name: str
-    state_type: Type[BaseDiseaseState] = DiseaseState
+    state_type: type[BaseDiseaseState] = DiseaseState
     cause_type: str = "cause"
     is_transient: bool = False
     allow_self_transition: bool = True
@@ -67,9 +67,9 @@ class ExpectedStateData:
     disability_weight: float = 0.0
     emr: float = 0.0
 
-    transitions: List[ExpectedTransitionData] = dataclasses.field(default_factory=list)
+    transitions: list[ExpectedTransitionData] = dataclasses.field(default_factory=list)
 
-    def get_transitions(self) -> Dict[str, ExpectedTransitionData]:
+    def get_transitions(self) -> dict[str, ExpectedTransitionData]:
         """Return a dict of transitions keyed by their sink state name."""
         return {transition.sink: transition for transition in self.transitions}
 
@@ -337,7 +337,7 @@ COMPLEX_MODEL_CONFIG = {
 }
 
 
-def create_simulation_config_tree(config_dict: Dict) -> LayeredConfigTree:
+def create_simulation_config_tree(config_dict: dict) -> LayeredConfigTree:
     config_tree_layers = [
         "base",
         "user_configs",
@@ -405,7 +405,7 @@ def sim_components(
 
 def _test_parsing_of_config_file(
     component_config: LayeredConfigTree,
-    expected_component_names: Tuple[str] = (
+    expected_component_names: tuple[str] = (
         f"disease_model.{SIR_MODEL}",
         f"complex_model.{COMPLEX_MODEL}",
         "test_population",
@@ -531,12 +531,12 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
     ],
 )
 def test_disease_model(
-    sim_components: Dict[str, Component],
+    sim_components: dict[str, Component],
     model_name: str,
     expected_csmr: float,
-    expected_model_type: Type[DiseaseModel],
+    expected_model_type: type[DiseaseModel],
     expected_initial_state: str,
-    expected_state_names: List[str],
+    expected_state_names: list[str],
 ):
     model = sim_components[model_name]
     assert isinstance(model, expected_model_type)
@@ -549,7 +549,7 @@ def test_disease_model(
     assert actual_state_names == set(expected_state_names)
 
 
-def test_no_extra_state_components(sim_components: Dict[str, Component]):
+def test_no_extra_state_components(sim_components: dict[str, Component]):
     actual_state_names = {
         component.state_id
         for component in sim_components.values()
@@ -561,7 +561,7 @@ def test_no_extra_state_components(sim_components: Dict[str, Component]):
 
 @pytest.mark.parametrize("expected_state_data", STATES, ids=[state.name for state in STATES])
 def test_disease_state(
-    sim_components: Dict[str, Component], expected_state_data: ExpectedStateData
+    sim_components: dict[str, Component], expected_state_data: ExpectedStateData
 ):
     name_prefix = {
         DiseaseState: "disease_state",

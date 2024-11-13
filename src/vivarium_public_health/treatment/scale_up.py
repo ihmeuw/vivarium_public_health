@@ -7,7 +7,8 @@ This module contains tools for applying a linear scale-up to an intervention
 
 """
 
-from typing import Any, Callable, Dict, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 from vivarium import Component
@@ -61,7 +62,7 @@ class LinearScaleUp(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {self.configuration_key: self.CONFIGURATION_DEFAULTS["treatment"]}
 
     @property
@@ -108,11 +109,11 @@ class LinearScaleUp(Component):
         return builder.time.clock()
 
     # noinspection PyMethodMayBeStatic
-    def get_scale_up_dates(self, builder: Builder) -> Tuple[pd.Timestamp, pd.Timestamp]:
+    def get_scale_up_dates(self, builder: Builder) -> tuple[pd.Timestamp, pd.Timestamp]:
         scale_up_config = builder.configuration[self.configuration_key]["date"]
         return pd.Timestamp(scale_up_config["start"]), pd.Timestamp(scale_up_config["end"])
 
-    def get_scale_up_values(self, builder: Builder) -> Tuple[LookupTable, LookupTable]:
+    def get_scale_up_values(self, builder: Builder) -> tuple[LookupTable, LookupTable]:
         """Get the values at the start and end of the scale-up period.
 
         Parameters
@@ -137,7 +138,7 @@ class LinearScaleUp(Component):
         return get_endpoint_value("start"), get_endpoint_value("end")
 
     # noinspection PyMethodMayBeStatic
-    def get_required_pipelines(self, builder: Builder) -> Dict[str, Pipeline]:
+    def get_required_pipelines(self, builder: Builder) -> dict[str, Pipeline]:
         return {}
 
     def register_intervention_modifiers(self, builder: Builder):

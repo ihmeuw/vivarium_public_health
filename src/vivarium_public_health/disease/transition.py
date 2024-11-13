@@ -7,7 +7,8 @@ This module contains tools to model transitions between disease states.
 
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -39,7 +40,7 @@ class RateTransition(Transition):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             f"{self.name}": {
                 "data_sources": {
@@ -49,7 +50,7 @@ class RateTransition(Transition):
         }
 
     @property
-    def columns_required(self) -> Optional[List[str]]:
+    def columns_required(self) -> list[str] | None:
         return ["alive"]
 
     @property
@@ -77,7 +78,7 @@ class RateTransition(Transition):
         self,
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
-        get_data_functions: Dict[str, Callable] = None,
+        get_data_functions: dict[str, Callable] = None,
         triggered=Trigger.NOT_TRIGGERED,
     ):
         super().__init__(
@@ -108,7 +109,7 @@ class RateTransition(Transition):
     # Setup methods #
     #################
 
-    def load_transition_rate(self, builder: Builder) -> Union[float, pd.DataFrame]:
+    def load_transition_rate(self, builder: Builder) -> float | pd.DataFrame:
         if "incidence_rate" in self._get_data_functions:
             rate_data = self._get_data_functions["incidence_rate"](
                 builder, self.output_state.state_id
@@ -152,7 +153,7 @@ class ProportionTransition(Transition):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             f"{self.name}": {
                 "data_sources": {
@@ -169,7 +170,7 @@ class ProportionTransition(Transition):
         self,
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
-        get_data_functions: Dict[str, Callable] = None,
+        get_data_functions: dict[str, Callable] = None,
         triggered=Trigger.NOT_TRIGGERED,
     ):
         super().__init__(
@@ -183,7 +184,7 @@ class ProportionTransition(Transition):
     # Setup methods #
     #################
 
-    def load_proportion(self, builder: Builder) -> Union[float, pd.DataFrame]:
+    def load_proportion(self, builder: Builder) -> float | pd.DataFrame:
         if "proportion" not in self._get_data_functions:
             raise ValueError("Must supply a proportion function")
         return self._get_data_functions["proportion"](builder, self.output_state.state_id)

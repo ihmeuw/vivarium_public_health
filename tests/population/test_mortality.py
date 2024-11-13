@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -16,7 +14,7 @@ from vivarium_public_health.population import BasePopulation, Mortality
 @pytest.fixture
 def setup_sim_with_pop_and_mortality(
     full_simulants, base_plugins, generate_population_mock
-) -> Tuple[InteractiveContext, Component, Component]:
+) -> tuple[InteractiveContext, Component, Component]:
 
     # Initializes an Interactive context with BasePopulation and Mortality components
     start_population_size = len(full_simulants)

@@ -8,7 +8,7 @@ simulations.
 
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from vivarium import Component
 from vivarium.framework.engine import Builder
@@ -22,7 +22,7 @@ class ModifyAllCauseMortality(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "intervention": {
                 self.intervention: {
@@ -62,7 +62,7 @@ class ModifyDiseaseRate(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "intervention": {
                 self.intervention: {
@@ -144,7 +144,7 @@ class ModifyAcuteDiseaseIncidence(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "intervention": {
                 self.intervention: {
@@ -187,7 +187,7 @@ class ModifyAcuteDiseaseMorbidity(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "intervention": {
                 self.intervention: {
@@ -228,7 +228,7 @@ class ModifyAcuteDiseaseMortality(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "intervention": {
                 self.intervention: {
@@ -269,7 +269,7 @@ class TobaccoFreeGeneration(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "tobacco_free_generation": {
                 "year": 2020,
@@ -310,7 +310,7 @@ class TobaccoEradication(Component):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         return {
             "tobacco_eradication": {
                 "year": 2020,

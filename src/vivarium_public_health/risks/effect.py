@@ -7,9 +7,9 @@ This module contains tools for modeling the relationship between risk
 exposure models and disease models.
 
 """
-
+from collections.abc import Callable
 from importlib import import_module
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -58,7 +58,7 @@ class RiskEffect(Component):
         return f"risk_effect.{risk.name}_on_{target}"
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         """Default values for any configurations managed by this component."""
         return {
             self.name: {
@@ -150,7 +150,7 @@ class RiskEffect(Component):
         self,
         builder: Builder,
         configuration=None,
-    ) -> Union[str, float, pd.DataFrame]:
+    ) -> str | float | pd.DataFrame:
         if configuration is None:
             configuration = self.configuration
 
@@ -173,8 +173,8 @@ class RiskEffect(Component):
         return rr_data
 
     def get_filtered_data(
-        self, builder: "Builder", data_source: Union[str, float, pd.DataFrame]
-    ) -> Union[float, pd.DataFrame]:
+        self, builder: "Builder", data_source: str | float | pd.DataFrame
+    ) -> float | pd.DataFrame:
         data = super().get_data(builder, data_source)
 
         if isinstance(data, pd.DataFrame):
@@ -191,8 +191,8 @@ class RiskEffect(Component):
         return data
 
     def process_categorical_data(
-        self, builder: Builder, rr_data: Union[str, float, pd.DataFrame]
-    ) -> Tuple[Union[str, float, pd.DataFrame], List[str]]:
+        self, builder: Builder, rr_data: str | float | pd.DataFrame
+    ) -> tuple[str | float | pd.DataFrame, list[str]]:
         if not isinstance(rr_data, pd.DataFrame):
             cat1 = builder.data.load("population.demographic_dimensions")
             cat1["parameter"] = "cat1"
@@ -347,7 +347,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     ##############
 
     @property
-    def configuration_defaults(self) -> Dict[str, Any]:
+    def configuration_defaults(self) -> dict[str, Any]:
         """Default values for any configurations managed by this component."""
         return {
             self.name: {
@@ -419,7 +419,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         self,
         builder: Builder,
         configuration=None,
-    ) -> Union[str, float, pd.DataFrame]:
+    ) -> str | float | pd.DataFrame:
         if configuration is None:
             configuration = self.configuration
 

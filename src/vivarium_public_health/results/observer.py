@@ -8,7 +8,7 @@ public health models.
 
 """
 
-from typing import Callable, List, Optional, Union
+from collections.abc import Callable
 
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -32,12 +32,12 @@ class PublicHealthObserver(Observer):
         name: str,
         pop_filter: str,
         when: str = "collect_metrics",
-        requires_columns: List[str] = [],
-        requires_values: List[str] = [],
-        additional_stratifications: List[str] = [],
-        excluded_stratifications: List[str] = [],
-        aggregator_sources: Optional[List[str]] = None,
-        aggregator: Callable[[pd.DataFrame], Union[float, pd.Series]] = len,
+        requires_columns: list[str] = [],
+        requires_values: list[str] = [],
+        additional_stratifications: list[str] = [],
+        excluded_stratifications: list[str] = [],
+        aggregator_sources: list[str] | None = None,
+        aggregator: Callable[[pd.DataFrame], float | pd.Series] = len,
     ) -> None:
         """Registers an adding observation to the results system.
 
