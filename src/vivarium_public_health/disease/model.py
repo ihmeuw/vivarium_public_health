@@ -131,9 +131,7 @@ class DiseaseModel(Machine):
     # Setup methods #
     #################
 
-    def load_cause_specific_mortality_rate(
-        self, builder: Builder
-    ) -> float | pd.DataFrame:
+    def load_cause_specific_mortality_rate(self, builder: Builder) -> float | pd.DataFrame:
         if "cause_specific_mortality_rate" not in self._get_data_functions:
             only_morbid = builder.data.load(f"cause.{self.cause}.restrictions")["yld_only"]
             if only_morbid:
