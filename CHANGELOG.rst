@@ -1,3 +1,7 @@
+**3.1.2 - 11/13/24**
+
+ - Refactor: Update DiseaseModel to rely on Machine's time-step and time-step-cleanup methods
+
 **3.1.1 - 11/12/24**
 
  - Feature: Rename DiseaseModel initial_state to residual_state
