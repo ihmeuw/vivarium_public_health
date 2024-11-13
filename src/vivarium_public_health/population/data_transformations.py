@@ -13,6 +13,7 @@ from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
+from vivarium.framework.engine import Builder
 from vivarium.framework.randomness import RandomnessStream
 
 _SORT_ORDER = ["location", "year_start", "sex", "age_start"]
@@ -493,11 +494,12 @@ def get_cause_deleted_mortality_rate(all_cause_mortality_rate, list_of_csmrs):
     )
 
 
-def load_population_structure(builder):
+def load_population_structure(builder: Builder) -> pd.DataFrame:
     data = builder.data.load("population.structure")
     # create an age column which is the midpoint of the age group
     data["age"] = data.apply(lambda row: (row["age_start"] + row["age_end"]) / 2, axis=1)
     data["location"] = builder.data.load("population.location")
+
     return data
 
 

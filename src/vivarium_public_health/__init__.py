@@ -30,6 +30,7 @@ from vivarium_public_health.population import (
     FertilityCrudeBirthRate,
     FertilityDeterministic,
     Mortality,
+    ScaledPopulation,
 )
 from vivarium_public_health.results import (
     CategoricalRiskObserver,
