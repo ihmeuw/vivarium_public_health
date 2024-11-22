@@ -1,3 +1,8 @@
+**3.1.3 - 11/22/24**
+
+ - Feature: Enable initializing a population of all newborns
+ - Refactor: Update DiseaseModel to leverage the on_initialize_simulants method of Machine
+
 **3.1.2 - 11/13/24**
 
  - Modernize type hinting
