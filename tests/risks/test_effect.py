@@ -606,3 +606,43 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
     )
 
     assert np.isclose(rate.values, expected_values, rtol=0.0000001).all()
+
+
+def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
+    risk = dichotomous_risk[0]
+    effect = RiskEffect(risk.name, "cause.test_cause.incidence_rate")
+    base_config.update({"risk_factor.test_risk": {"data_sources": {"exposure": 0.75}}})
+
+    # TMREL of 1
+    tmred = {"distribution": "uniform", "min": 1, "max": 1, "inverted": False}
+
+    data = {
+        f"{risk.name}.tmred": tmred,
+        f"{risk.name}.population_attributable_fraction": 0,
+        "cause.test_cause.incidence_rate": 1,
+    }
+    rr_value = 1.4
+    base_config.update(
+        {
+            "risk_effect.test_risk_on_cause.test_cause.incidence_rate": {
+                "data_sources": {"relative_risk": rr_value}
+            }
+        }
+    )
+
+    base_config.update({"risk_factor.test_risk": {"distribution_type": "dichotomous"}})
+    sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
+    pop = sim.get_population()
+
+    expected_pipeline_name = f"{effect.risk.name}_on_{effect.target.name}.relative_risk"
+    assert expected_pipeline_name in sim.list_values()
+
+    rr_mapper = {
+        "cat1": 1.4,
+        "cat2": 1.0,
+    }
+    for exposure in rr_mapper:
+        exposure_pipeline = sim.get_value(f"{effect.risk.name}.exposure")(pop.index)
+        exposure_idx = exposure_pipeline.loc[exposure_pipeline == exposure].index
+        relative_risk = sim.get_value(expected_pipeline_name)(exposure_idx)
+        assert (relative_risk == rr_mapper[exposure]).all()

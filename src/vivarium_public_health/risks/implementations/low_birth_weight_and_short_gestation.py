@@ -336,7 +336,7 @@ class LBWSGRiskEffect(RiskEffect):
 
         super().setup(builder)
         self.interpolator = self.get_interpolator(builder)
-        self.relative_risk = self.get_relative_risk_pipeline(builder)
+        self.relative_risk = self.get_relative_risk(builder)
 
     #################
     # Setup methods #
@@ -393,7 +393,7 @@ class LBWSGRiskEffect(RiskEffect):
             for age_start in exposed_age_group_starts
         }
 
-    def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
+    def get_relative_risk(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.relative_risk_pipeline_name,
             source=self.get_relative_risk,

@@ -112,8 +112,13 @@ class RiskEffect(Component):
     def setup(self, builder: Builder) -> None:
         self.exposure = self.get_risk_exposure(builder)
 
-        self.target_modifier = self.get_target_modifier(builder)
-
+        self.relative_risk = self.get_relative_risk(builder)
+        self.relative_risk_pipeline = builder.value.register_value_producer(
+            f"{self.risk.name}_on_{self.target.name}.relative_risk",
+            self.relative_risk,
+            component=self,
+            required_resources=[self.exposure],
+        )
         self.register_target_modifier(builder)
         self.register_paf_modifier(builder)
 
@@ -124,7 +129,7 @@ class RiskEffect(Component):
     def build_all_lookup_tables(self, builder: Builder) -> None:
         self._exposure_distribution_type = self.get_distribution_type(builder)
 
-        rr_data = self.get_relative_risk_data(builder)
+        rr_data = self.load_relative_risk(builder)
         rr_value_cols = None
         if self.is_exposure_categorical:
             rr_data, rr_value_cols = self.process_categorical_data(builder, rr_data)
@@ -146,7 +151,7 @@ class RiskEffect(Component):
             return risk_exposure_component.distribution_type
         return risk_exposure_component.get_distribution_type(builder)
 
-    def get_relative_risk_data(
+    def load_relative_risk(
         self,
         builder: Builder,
         configuration=None,
@@ -260,24 +265,46 @@ class RiskEffect(Component):
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         return builder.value.get_value(self.exposure_pipeline_name)
 
-    def get_target_modifier(
-        self, builder: Builder
-    ) -> Callable[[pd.Index, pd.Series], pd.Series]:
+    def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
+        relative_risk = self.relative_risk_pipeline(index)
+        return target * relative_risk
+
+    def register_target_modifier(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            self.target_pipeline_name,
+            modifier=self.adjust_target,
+            component=self,
+            required_resources=[self.relative_risk_pipeline],
+        )
+
+    def register_paf_modifier(self, builder: Builder) -> None:
+        required_columns = get_lookup_columns(
+            [self.lookup_tables["population_attributable_fraction"]]
+        )
+        builder.value.register_value_modifier(
+            self.target_paf_pipeline_name,
+            modifier=self.lookup_tables["population_attributable_fraction"],
+            component=self,
+            required_resources=required_columns,
+        )
+
+    def get_relative_risk(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+
         if not self.is_exposure_categorical:
             tmred = builder.data.load(f"{self.risk}.tmred")
             tmrel = 0.5 * (tmred["min"] + tmred["max"])
             scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
 
-            def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
+            def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
                 exposure = self.exposure(index)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
-                return target * relative_risk
+                return relative_risk
 
         else:
             index_columns = ["index", self.risk.name]
 
-            def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
+            def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
                 exposure = self.exposure(index).reset_index()
                 exposure.columns = index_columns
@@ -288,27 +315,9 @@ class RiskEffect(Component):
                 relative_risk = relative_risk.set_index(index_columns)
 
                 effect = relative_risk.loc[exposure.index, "value"].droplevel(self.risk.name)
-                affected_rates = target * effect
-                return affected_rates
+                return effect
 
-        return adjust_target
-
-    def register_target_modifier(self, builder: Builder) -> None:
-        builder.value.register_value_modifier(
-            self.target_pipeline_name,
-            modifier=self.target_modifier,
-            requires_values=[f"{self.risk.name}.exposure"],
-        )
-
-    def register_paf_modifier(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns(
-            [self.lookup_tables["population_attributable_fraction"]]
-        )
-        builder.value.register_value_modifier(
-            self.target_paf_pipeline_name,
-            modifier=self.lookup_tables["population_attributable_fraction"],
-            requires_columns=required_columns,
-        )
+        return generate_relative_risk
 
     ##################
     # Helper methods #
@@ -371,7 +380,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         return f"non_log_linear_risk_effect.{risk.name}_on_{target}"
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        rr_data = self.get_relative_risk_data(builder)
+        rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
 
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
@@ -415,7 +424,7 @@ class NonLogLinearRiskEffect(RiskEffect):
             builder, paf_data
         )
 
-    def get_relative_risk_data(
+    def load_relative_risk(
         self,
         builder: Builder,
         configuration=None,
