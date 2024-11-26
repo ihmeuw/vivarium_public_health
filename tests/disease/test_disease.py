@@ -180,30 +180,16 @@ def test_prevalence_single_state_with_migration(
         (disease_status == "sick").sum(), disease_status.size, test_prevalence_level
     )
 
-    simulation.step()
-    disease_status = simulation.get_population()[disease]
-    fuzzy_checker.fuzzy_assert_proportion(
-        (disease_status == "sick").sum(), disease_status.size, test_prevalence_level
-    )
-
-    simulation.simulant_creator(
-        50000,
-        population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
-    )
-    disease_status = simulation.get_population()[disease]
-    fuzzy_checker.fuzzy_assert_proportion(
-        (disease_status == "sick").sum(), disease_status.size, test_prevalence_level
-    )
-
-    simulation.step()
-    simulation.simulant_creator(
-        50000,
-        population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
-    )
-    disease_status = simulation.get_population()[disease]
-    fuzzy_checker.fuzzy_assert_proportion(
-        (disease_status == "sick").sum(), disease_status.size, test_prevalence_level
-    )
+    for _ in range(3):
+        simulation.step()
+        simulation.simulant_creator(
+            50000,
+            population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
+        )
+        disease_status = simulation.get_population()[disease]
+        fuzzy_checker.fuzzy_assert_proportion(
+            (disease_status == "sick").sum(), disease_status.size, test_prevalence_level
+        )
 
 
 @pytest.mark.parametrize(
