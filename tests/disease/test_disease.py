@@ -24,18 +24,11 @@ def disease():
 
 
 @pytest.fixture
-def assign_cause_mock(mocker):
-    return mocker.patch(
-        "vivarium_public_health.disease.model.DiseaseModel.assign_initial_status_to_simulants"
-    )
-
-
-@pytest.fixture
 def base_data():
     def _set_prevalence(p):
         base_function = dict()
-        base_function["dwell_time"] = lambda _, __: pd.Timedelta(days=1)
-        base_function["prevalence"] = lambda _, __: p
+        base_function["dwell_time"] = lambda *_: pd.Timedelta(days=1)
+        base_function["prevalence"] = lambda *_: p
         return base_function
 
     return _set_prevalence
@@ -53,11 +46,8 @@ def get_test_prevalence(simulation, key):
     return result
 
 
-def test_dwell_time(assign_cause_mock, base_config, base_plugins, disease, base_data):
+def test_dwell_time(base_config, base_plugins, disease, base_data):
     time_step = 10
-    assign_cause_mock.side_effect = lambda population, *args: pd.DataFrame(
-        {"condition_state": "healthy"}, index=population.index
-    )
 
     base_config.update(
         {"time": {"step_size": time_step}, "population": {"population_size": 10}},
@@ -65,8 +55,8 @@ def test_dwell_time(assign_cause_mock, base_config, base_plugins, disease, base_
     )
     healthy_state = BaseDiseaseState("healthy")
     data_function = base_data(0)
-    data_function["dwell_time"] = lambda _, __: pd.Timedelta(days=28)
-    data_function["disability_weight"] = lambda _, __: 0.0
+    data_function["dwell_time"] = lambda *_: pd.Timedelta(days=28)
+    data_function["disability_weight"] = lambda *_: 0.0
     event_state = DiseaseState("event", get_data_functions=data_function)
     done_state = BaseDiseaseState("sick")
 
@@ -113,12 +103,12 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     healthy_state = BaseDiseaseState("healthy")
 
     mort_get_data_funcs = {
-        "dwell_time": lambda _, __: pd.Timedelta(days=14),
-        "excess_mortality_rate": lambda _, __: build_table_with_age(
+        "dwell_time": lambda *_: pd.Timedelta(days=14),
+        "excess_mortality_rate": lambda *_: build_table_with_age(
             0.7,
             parameter_columns={"year": (year_start - 1, year_end)},
         ),
-        "disability_weight": lambda _, __: 0.0,
+        "disability_weight": lambda *_: 0.0,
     }
 
     mortality_state = DiseaseState("event", get_data_functions=mort_get_data_funcs)
@@ -164,7 +154,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
 
 @pytest.mark.parametrize("test_prevalence_level", [0, 0.35, 1])
 def test_prevalence_single_state_with_migration(
-    base_config, base_plugins, disease, base_data, test_prevalence_level
+    fuzzy_checker, base_config, base_plugins, disease, base_data, test_prevalence_level
 ):
     """
     Test the prevalence for the single state over newly migrated population.
@@ -173,12 +163,9 @@ def test_prevalence_single_state_with_migration(
     properly assigned to new simulants based on the prevalence data and pre-existing simulants status
 
     """
-    year_start = base_config.time.start.year
-    year_end = base_config.time.end.year
-
     healthy = BaseDiseaseState("healthy")
     data_funcs = base_data(test_prevalence_level)
-    data_funcs.update({"disability_weight": lambda _, __: 0.0})
+    data_funcs.update({"disability_weight": lambda *_: 0.0})
     sick = DiseaseState("sick", get_data_functions=data_funcs)
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
     base_config.update({"population": {"population_size": 50000}}, **metadata(__file__))
@@ -187,29 +174,22 @@ def test_prevalence_single_state_with_migration(
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
-    error_message = "initial status of simulants should be matched to the prevalence data."
-    assert np.isclose(
-        get_test_prevalence(simulation, "sick"), test_prevalence_level, 0.01
-    ), error_message
-    simulation.step()
-    assert np.isclose(
-        get_test_prevalence(simulation, "sick"), test_prevalence_level, 0.01
-    ), error_message
-    simulation.simulant_creator(
-        50000,
-        population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
+
+    disease_status = simulation.get_population()[disease]
+    fuzzy_checker.fuzzy_assert_proportion(
+        (disease_status == "sick").sum(), disease_status.size, test_prevalence_level
     )
-    assert np.isclose(
-        get_test_prevalence(simulation, "sick"), test_prevalence_level, 0.01
-    ), error_message
-    simulation.step()
-    simulation.simulant_creator(
-        50000,
-        population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
-    )
-    assert np.isclose(
-        get_test_prevalence(simulation, "sick"), test_prevalence_level, 0.01
-    ), error_message
+
+    for _ in range(3):
+        simulation.step()
+        simulation.simulant_creator(
+            50000,
+            population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
+        )
+        disease_status = simulation.get_population()[disease]
+        fuzzy_checker.fuzzy_assert_proportion(
+            (disease_status == "sick").sum(), disease_status.size, test_prevalence_level
+        )
 
 
 @pytest.mark.parametrize(
@@ -227,7 +207,7 @@ def test_prevalence_multiple_sequelae(
     sequela = dict()
     for i, p in enumerate(test_prevalence_level):
         data_funcs = base_data(p)
-        data_funcs.update({"disability_weight": lambda _, __: 0.0})
+        data_funcs.update({"disability_weight": lambda *_: 0.0})
         sequela[i] = DiseaseState("sequela" + str(i), get_data_functions=data_funcs)
 
     model = DiseaseModel(
@@ -251,21 +231,6 @@ def test_prevalence_multiple_sequelae(
         test_prevalence_level,
         0.02,
     ), error_message
-
-
-def test_prevalence_single_simulant():
-    # pandas has a bug on the case of single element with non-zero index; this test is to catch that case
-    test_index = [20]
-    initial_state = "healthy"
-    simulants_df = pd.DataFrame({"sex": "Female", "age": 3, "sex_id": 2.0}, index=test_index)
-    state_names = ["sick", "healthy"]
-    weights = np.array([[1, 1]])
-    simulants = DiseaseModel.assign_initial_status_to_simulants(
-        simulants_df, state_names, weights, pd.Series(0.5, index=test_index)
-    )
-    expected = simulants_df[["age", "sex"]]
-    expected["condition_state"] = "sick"
-    assert expected.equals(simulants)
 
 
 def test_mortality_rate(base_config, base_plugins, disease):
@@ -312,8 +277,8 @@ def test_mortality_rate(base_config, base_plugins, disease):
 def test_incidence(base_config, base_plugins, disease):
     time_step = pd.Timedelta(days=base_config.time.step_size)
 
-    healthy = BaseDiseaseState("healthy")
-    sick = BaseDiseaseState("sick")
+    healthy = SusceptibleState("healthy")
+    sick = DiseaseState("sick")
 
     key = f"sequela.acute_myocardial_infarction_first_2_days.incidence_rate"
     transition = RateTransition(
@@ -353,8 +318,8 @@ def test_risk_deletion(base_config, base_plugins, disease):
     base_rate = 0.7
     paf = 0.1
 
-    healthy = BaseDiseaseState("healthy")
-    sick = BaseDiseaseState("sick")
+    healthy = SusceptibleState("healthy")
+    sick = DiseaseState("sick")
     key = "sequela.acute_myocardial_infarction_first_2_days.incidence_rate"
     transition = RateTransition(
         input_state=healthy,
@@ -416,11 +381,11 @@ def test__assign_event_time_for_prevalent_cases():
 
 
 def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugins, disease):
-    healthy = BaseDiseaseState("healthy")
+    healthy = SusceptibleState("healthy")
 
     data_funcs = {
-        "prevalence": lambda _, __: 1,
-        "birth_prevalence": lambda _, __: 0.5,
+        "prevalence": lambda *_: 1,
+        "birth_prevalence": lambda *_: 0.5,
         "disability_weight": lambda _, __: 0,
     }
     with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
@@ -429,7 +394,13 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugin
 
     pop_size = 2000
     base_config.update(
-        {"population": {"population_size": pop_size, "age_start": 0, "age_end": 5}},
+        {
+            "population": {
+                "population_size": pop_size,
+                "initialization_age_min": 0,
+                "initialization_age_max": 5,
+            }
+        },
         **metadata(__file__),
     )
     simulation = InteractiveContext(
@@ -458,15 +429,23 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugin
     assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.83, 0.01)
 
 
-def test_no_birth_prevalence_initial_assignment(base_config, base_plugins, disease):
-    healthy = BaseDiseaseState("healthy")
+def test_no_birth_prevalence_initial_assignment(
+    fuzzy_checker, base_config, base_plugins, disease
+):
+    healthy = SusceptibleState("healthy")
 
-    data_funcs = {"prevalence": lambda _, __: 1, "disability_weight": lambda _, __: 0}
+    data_funcs = {"prevalence": lambda *_: 1, "disability_weight": lambda _, __: 0}
     with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
 
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
     base_config.update(
-        {"population": {"population_size": 1000, "age_start": 0, "age_end": 5}},
+        {
+            "population": {
+                "population_size": 1000,
+                "initialization_age_min": 0,
+                "initialization_age_max": 5,
+            }
+        },
         **metadata(__file__),
     )
     simulation = InteractiveContext(
@@ -476,7 +455,10 @@ def test_no_birth_prevalence_initial_assignment(base_config, base_plugins, disea
     )
 
     # prevalence should be used for assigning initial status at sim start
-    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 1)
+    disease_status = simulation.get_population()[disease]
+    fuzzy_checker.fuzzy_assert_proportion(
+        (disease_status == "with_condition").sum(), disease_status.size, 1
+    )
 
     # with no birth prevalence provided, it should default to 0 for ages start = end = 0
     simulation.step()
@@ -484,7 +466,11 @@ def test_no_birth_prevalence_initial_assignment(base_config, base_plugins, disea
         1000,
         population_configuration={"age_start": 0, "age_end": 0, "sim_state": "time_step"},
     )
-    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.5, 0.01)
+
+    disease_status = simulation.get_population()[disease]
+    fuzzy_checker.fuzzy_assert_proportion(
+        (disease_status == "with_condition").sum(), disease_status.size, 0.5
+    )
 
     # and default to prevalence for ages not start = end = 0
     simulation.step()
@@ -492,7 +478,49 @@ def test_no_birth_prevalence_initial_assignment(base_config, base_plugins, disea
         1000,
         population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
     )
-    assert np.isclose(get_test_prevalence(simulation, "with_condition"), 0.67, 0.01)
+
+    disease_status = simulation.get_population()[disease]
+    fuzzy_checker.fuzzy_assert_proportion(
+        (disease_status == "with_condition").sum(), disease_status.size, 2.0 / 3.0
+    )
+
+
+def test_birth_prevalence_initial_assignment(
+    fuzzy_checker, base_config, base_plugins, disease
+):
+    healthy = SusceptibleState("healthy")
+
+    data_funcs = {
+        "prevalence": lambda *_: 1,
+        "birth_prevalence": lambda *_: 0.5,
+        "disability_weight": lambda _, __: 0,
+    }
+    with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
+
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+
+    pop_size = 2000
+    base_config.update(
+        {
+            "population": {
+                "population_size": pop_size,
+                "initialization_age_min": 0,
+                "initialization_age_max": 0,
+            }
+        },
+        **metadata(__file__),
+    )
+    simulation = InteractiveContext(
+        components=[TestPopulation(), model],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+    )
+
+    # birth prevalence should be used for assigning initial status at sim start
+    disease_status = simulation.get_population()[disease]
+    fuzzy_checker.fuzzy_assert_proportion(
+        (disease_status == "with_condition").sum(), disease_status.size, 0.5
+    )
 
 
 def test_state_transition_names(disease):

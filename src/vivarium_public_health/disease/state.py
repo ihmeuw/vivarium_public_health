@@ -13,11 +13,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
-from vivarium.framework.lookup import LookupTableData
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
+from vivarium.types import LookupTableData
 
 from vivarium_public_health.disease.transition import (
     ProportionTransition,
@@ -28,9 +28,24 @@ from vivarium_public_health.utilities import get_lookup_columns, is_non_zero
 
 
 class BaseDiseaseState(State):
+
     ##############
     # Properties #
     ##############
+
+    @property
+    def configuration_defaults(self) -> dict[str, Any]:
+        configuration_defaults = super().configuration_defaults
+        additional_defaults = {
+            "prevalence": self.prevalence,
+            "birth_prevalence": self.birth_prevalence,
+        }
+        data_sources = {
+            **configuration_defaults[self.name]["data_sources"],
+            **additional_defaults,
+        }
+        configuration_defaults[self.name]["data_sources"] = data_sources
+        return configuration_defaults
 
     @property
     def columns_created(self):
@@ -59,13 +74,15 @@ class BaseDiseaseState(State):
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
     ):
-        super().__init__(state_id, allow_self_transition)  # becomes state_id
+        super().__init__(state_id, allow_self_transition)
         self.cause_type = cause_type
 
         self.side_effect_function = side_effect_function
 
         self.event_time_column = self.state_id + "_event_time"
         self.event_count_column = self.state_id + "_event_count"
+        self.prevalence = 0.0
+        self.birth_prevalence = 0.0
 
     ########################
     # Event-driven methods #
@@ -87,10 +104,7 @@ class BaseDiseaseState(State):
     def get_initialization_parameters(self) -> dict[str, Any]:
         """Exclude side effect function and cause type from name and __repr__."""
         initialization_parameters = super().get_initialization_parameters()
-        for key in ["side_effect_function", "cause_type"]:
-            if key in initialization_parameters.keys():
-                del initialization_parameters[key]
-        return initialization_parameters
+        return {"state_id": initialization_parameters["state_id"]}
 
     def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
         return pd.DataFrame(
@@ -253,6 +267,13 @@ class SusceptibleState(NonDiseasedState):
             name_prefix="susceptible_to_",
         )
 
+    ##################
+    # Public methods #
+    ##################
+
+    def has_initialization_weights(self) -> bool:
+        return True
+
 
 class RecoveredState(NonDiseasedState):
     def __init__(
@@ -280,17 +301,20 @@ class DiseaseState(BaseDiseaseState):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        return {
-            f"{self.name}": {
-                "data_sources": {
-                    "prevalence": self.load_prevalence,
-                    "birth_prevalence": self.load_birth_prevalence,
-                    "dwell_time": self.load_dwell_time,
-                    "disability_weight": self.load_disability_weight,
-                    "excess_mortality_rate": self.load_excess_mortality_rate,
-                },
-            },
+        configuration_defaults = super().configuration_defaults
+        additional_defaults = {
+            "prevalence": self.load_prevalence,
+            "birth_prevalence": self.load_birth_prevalence,
+            "dwell_time": self.load_dwell_time,
+            "disability_weight": self.load_disability_weight,
+            "excess_mortality_rate": self.load_excess_mortality_rate,
         }
+        data_sources = {
+            **configuration_defaults[self.name]["data_sources"],
+            **additional_defaults,
+        }
+        configuration_defaults[self.name]["data_sources"] = data_sources
+        return configuration_defaults
 
     #####################
     # Lifecycle methods #
@@ -323,6 +347,7 @@ class DiseaseState(BaseDiseaseState):
         cleanup_function
             The cleanup function.
         """
+
         super().__init__(
             state_id,
             allow_self_transition=allow_self_transition,
@@ -469,6 +494,9 @@ class DiseaseState(BaseDiseaseState):
     ##################
     # Public methods #
     ##################
+
+    def has_initialization_weights(self) -> bool:
+        return True
 
     def add_rate_transition(
         self,
