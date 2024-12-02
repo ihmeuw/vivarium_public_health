@@ -266,25 +266,6 @@ class RiskEffect(Component):
         relative_risk = self.relative_risk(index)
         return target * relative_risk
 
-    def register_target_modifier(self, builder: Builder) -> None:
-        builder.value.register_value_modifier(
-            self.target_pipeline_name,
-            modifier=self.adjust_target,
-            component=self,
-            required_resources=[self.relative_risk],
-        )
-
-    def register_paf_modifier(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns(
-            [self.lookup_tables["population_attributable_fraction"]]
-        )
-        builder.value.register_value_modifier(
-            self.target_paf_pipeline_name,
-            modifier=self.lookup_tables["population_attributable_fraction"],
-            component=self,
-            required_resources=required_columns,
-        )
-
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
 
         if not self.is_exposure_categorical:
@@ -322,6 +303,25 @@ class RiskEffect(Component):
             self._relative_risk_source,
             component=self,
             required_resources=[self.exposure],
+        )
+
+    def register_target_modifier(self, builder: Builder) -> None:
+        builder.value.register_value_modifier(
+            self.target_pipeline_name,
+            modifier=self.adjust_target,
+            component=self,
+            required_resources=[self.relative_risk],
+        )
+
+    def register_paf_modifier(self, builder: Builder) -> None:
+        required_columns = get_lookup_columns(
+            [self.lookup_tables["population_attributable_fraction"]]
+        )
+        builder.value.register_value_modifier(
+            self.target_paf_pipeline_name,
+            modifier=self.lookup_tables["population_attributable_fraction"],
+            component=self,
+            required_resources=required_columns,
         )
 
     ##################
