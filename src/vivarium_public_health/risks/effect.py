@@ -481,10 +481,8 @@ class NonLogLinearRiskEffect(RiskEffect):
 
         return rr_data
 
-    def get_target_modifier(
-        self, builder: Builder
-    ) -> Callable[[pd.Index, pd.Series], pd.Series]:
-        def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
+    def get_relative_risk(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        def generate_relative_risk(index: pd.Index) -> pd.Series:
             rr_intervals = self.lookup_tables["relative_risk"](index)
             exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
             x1, x2 = (
@@ -495,9 +493,9 @@ class NonLogLinearRiskEffect(RiskEffect):
             m = (y2 - y1) / (x2 - x1)
             b = y1 - m * x1
             relative_risk = b + m * exposure
-            return target * relative_risk
+            return relative_risk
 
-        return adjust_target
+        return generate_relative_risk
 
     ##############
     # Validators #
