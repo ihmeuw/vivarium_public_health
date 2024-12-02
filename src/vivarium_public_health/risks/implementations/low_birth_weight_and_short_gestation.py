@@ -336,7 +336,6 @@ class LBWSGRiskEffect(RiskEffect):
 
         super().setup(builder)
         self.interpolator = self.get_interpolator(builder)
-        self.relative_risk = self.get_relative_risk(builder)
 
     #################
     # Setup methods #
@@ -396,7 +395,7 @@ class LBWSGRiskEffect(RiskEffect):
     def get_relative_risk(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.relative_risk_pipeline_name,
-            source=self.get_relative_risk,
+            source=self.get_relative_risk_source,
             requires_columns=["age"] + self.rr_column_names,
         )
 
@@ -470,7 +469,7 @@ class LBWSGRiskEffect(RiskEffect):
     # Pipeline sources and modifiers #
     ##################################
 
-    def get_relative_risk(self, index: pd.Index) -> pd.Series:
+    def get_relative_risk_source(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
         relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_pipeline_name)
 

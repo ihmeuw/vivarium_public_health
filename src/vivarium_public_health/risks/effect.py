@@ -17,6 +17,7 @@ import scipy
 from layered_config_tree import ConfigurationError
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import (
@@ -112,13 +113,9 @@ class RiskEffect(Component):
     def setup(self, builder: Builder) -> None:
         self.exposure = self.get_risk_exposure(builder)
 
+        self._relative_risk_source = self.get_relative_risk_source(builder)
         self.relative_risk = self.get_relative_risk(builder)
-        self.relative_risk_pipeline = builder.value.register_value_producer(
-            f"{self.risk.name}_on_{self.target.name}.relative_risk",
-            self.relative_risk,
-            component=self,
-            required_resources=[self.exposure],
-        )
+
         self.register_target_modifier(builder)
         self.register_paf_modifier(builder)
 
@@ -266,7 +263,7 @@ class RiskEffect(Component):
         return builder.value.get_value(self.exposure_pipeline_name)
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
-        relative_risk = self.relative_risk_pipeline(index)
+        relative_risk = self.relative_risk(index)
         return target * relative_risk
 
     def register_target_modifier(self, builder: Builder) -> None:
@@ -274,7 +271,7 @@ class RiskEffect(Component):
             self.target_pipeline_name,
             modifier=self.adjust_target,
             component=self,
-            required_resources=[self.relative_risk_pipeline],
+            required_resources=[self.relative_risk],
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
@@ -288,7 +285,7 @@ class RiskEffect(Component):
             required_resources=required_columns,
         )
 
-    def get_relative_risk(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+    def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
 
         if not self.is_exposure_categorical:
             tmred = builder.data.load(f"{self.risk}.tmred")
@@ -318,6 +315,14 @@ class RiskEffect(Component):
                 return effect
 
         return generate_relative_risk
+
+    def get_relative_risk(self, builder: Builder) -> Pipeline:
+        return builder.value.register_value_producer(
+            f"{self.risk.name}_on_{self.target.name}.relative_risk",
+            self._relative_risk_source,
+            component=self,
+            required_resources=[self.exposure],
+        )
 
     ##################
     # Helper methods #
@@ -481,7 +486,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
         return rr_data
 
-    def get_relative_risk(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+    def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         def generate_relative_risk(index: pd.Index) -> pd.Series:
             rr_intervals = self.lookup_tables["relative_risk"](index)
             exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
