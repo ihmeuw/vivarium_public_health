@@ -1,3 +1,7 @@
+**3.1.3 - 12/03/24**
+
+ - Feature: Create relative risk pipeline
+
 **3.1.2 - 11/13/24**
 
  - Modernize type hinting
