@@ -94,6 +94,6 @@ build-package: $(MAKE_SOURCES) # Build the package as a pip wheel
 	@echo "Ignore, Created by Makefile, `date`" > $@
 
 clean: # Delete build artifacts and do any custom cleanup such as spinning down services
-	@rm -rf format lint build-doc build-package integration .pytest_cache
+	@rm -rf format build-doc build-package integration .pytest_cache
 	@rm -rf dist output
 	$(shell find . -type f -name '*py[co]' -delete -o -type d -name __pycache__ -delete)
