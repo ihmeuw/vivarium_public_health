@@ -111,7 +111,6 @@ def rescale_binned_proportions(
         raise ValueError(
             "Provided population data is insufficient to model the requested age range."
         )
-
     age_start = max(pop_data["age_start"].min(), age_start)
     age_end = min(pop_data["age_end"].max(), age_end) - 1e-8
     pop_data = _add_edge_age_groups(pop_data.copy())
@@ -126,7 +125,6 @@ def rescale_binned_proportions(
             (sub_pop["age_start"] <= age_start) & (age_start < sub_pop["age_end"])
         ]
         padding_bin = sub_pop[sub_pop["age_end"] == float(min_bin["age_start"].iloc[0])]
-
         min_scale = (float(min_bin["age_end"].iloc[0]) - age_start) / float(
             min_bin["age_end"].iloc[0] - min_bin["age_start"].iloc[0]
         )
@@ -165,6 +163,21 @@ def rescale_binned_proportions(
 
         pop_data.loc[max_bin.index, "age_end"] = age_end
         pop_data.loc[padding_bin.index, "age_start"] = age_end
+        # Update age to be within bounds
+        pop_data.loc[max_bin.index, "age"] = float(
+            (
+                pop_data.loc[max_bin.index, "age_start"].iloc[0]
+                + pop_data.loc[max_bin.index, "age_end"].iloc[0]
+            )
+            / 2
+        )
+        pop_data.loc[padding_bin.index, "age"] = float(
+            (
+                pop_data.loc[padding_bin.index, "age_start"].iloc[0]
+                + pop_data.loc[padding_bin.index, "age_end"].iloc[0]
+            )
+            / 2
+        )
 
     return pop_data[col_order].sort_values(_SORT_ORDER).reset_index(drop=True)
 
@@ -177,7 +190,6 @@ def _add_edge_age_groups(pop_data: pd.DataFrame) -> pd.DataFrame:
     age_cols = ["age", "age_start", "age_end"]
     other_cols = [c for c in pop_data.columns if c not in index_cols + age_cols]
     pop_data = pop_data.set_index(index_cols)
-
     # For the lower bin, we want constant interpolation off the left side
     min_valid_age = pop_data["age_start"].min()
     # This bin width needs to be the same as the lowest bin.

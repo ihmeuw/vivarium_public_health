@@ -1,3 +1,7 @@
+**3.1.4 - TBD/TBD/TBD**
+
+ - Bugfix: Generate population within specified age bounds
+
 **3.1.3 - 12/03/24**
 
  - Feature: Create relative risk pipeline

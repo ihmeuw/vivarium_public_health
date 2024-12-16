@@ -490,4 +490,5 @@ def _assign_demography_with_age_bounds(
         simulants, pop_data, randomness_streams["age_smoothing_age_bounds"]
     )
     register_simulants(simulants[list(key_columns)])
+
     return simulants

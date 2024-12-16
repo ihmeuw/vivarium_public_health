@@ -378,3 +378,26 @@ def _check_locations(simulants):
             1 / len(simulants.location.unique()),
             abs_tol=0.01,
         )
+
+
+@pytest.mark.parametrize("age_start, age_end", [(0, 100), (2, 52), (21, 67), (12, 48)])
+def test_population_age_start_end(base_config, base_plugins, age_start, age_end):
+    components = [bp.BasePopulation()]
+    base_config.update(
+        {
+            "population": {
+                "initialization_age_min": age_start,
+                "initialization_age_max": age_end,
+            },
+        },
+    )
+
+    simulation = InteractiveContext(
+        components=components,
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+    )
+
+    pop = simulation.get_population()
+    assert pop.age.min() >= age_start
+    assert pop.age.max() <= age_end
