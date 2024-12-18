@@ -540,7 +540,7 @@ def test_disease_model(
 ):
     model = sim_components[model_name]
     assert isinstance(model, expected_model_type)
-    assert model.residual_state == expected_initial_state
+    assert model.residual_state.state_id == expected_initial_state
 
     assert model.lookup_tables["cause_specific_mortality_rate"].data == expected_csmr
 
