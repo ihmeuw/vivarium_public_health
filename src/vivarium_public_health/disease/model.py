@@ -14,18 +14,14 @@ from functools import partial
 from typing import Any
 
 import pandas as pd
-from vivarium.exceptions import VivariumError
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
 from vivarium.framework.state_machine import Machine
-from vivarium.types import LookupTableData
+from vivarium.types import DataInput, LookupTableData
 
+from vivarium_public_health.disease.exceptions import DiseaseModelError
 from vivarium_public_health.disease.state import BaseDiseaseState, SusceptibleState
 from vivarium_public_health.disease.transition import TransitionString
-
-
-class DiseaseModelError(VivariumError):
-    pass
 
 
 class DiseaseModel(Machine):
@@ -82,14 +78,31 @@ class DiseaseModel(Machine):
         cause_type: str = "cause",
         states: Iterable[BaseDiseaseState] = (),
         residual_state: BaseDiseaseState | None = None,
-    ):
+        cause_specific_mortality_rate: DataInput | None = None,
+    ) -> None:
         super().__init__(cause, states=states)
         self.cause = cause
         self.cause_type = cause_type
         self.residual_state = self._get_residual_state(initial_state, residual_state)
+        self._csmr_source = cause_specific_mortality_rate
         self._get_data_functions = (
             get_data_functions if get_data_functions is not None else {}
         )
+
+        if get_data_functions is not None:
+            warnings.warn(
+                "The argument 'get_data_functions' has been deprecated. Use"
+                " cause_specific_mortality_rate instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+            if cause_specific_mortality_rate is not None:
+                raise DiseaseModelError(
+                    "It is not allowed to pass cause_specific_mortality_rate"
+                    " both as a stand-alone argument and as part of"
+                    " get_data_functions."
+                )
 
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
@@ -132,7 +145,10 @@ class DiseaseModel(Machine):
     #################
 
     def load_cause_specific_mortality_rate(self, builder: Builder) -> float | pd.DataFrame:
-        if "cause_specific_mortality_rate" not in self._get_data_functions:
+        if (
+            "cause_specific_mortality_rate" not in self._get_data_functions
+            and self._csmr_source is None
+        ):
             only_morbid = builder.data.load(f"cause.{self.cause}.restrictions")["yld_only"]
             if only_morbid:
                 csmr_data = 0.0
@@ -140,6 +156,8 @@ class DiseaseModel(Machine):
                 csmr_data = builder.data.load(
                     f"{self.cause_type}.{self.cause}.cause_specific_mortality_rate"
                 )
+        elif self._csmr_source is not None:
+            csmr_data = self.get_data(builder, self._csmr_source)
         else:
             csmr_data = self._get_data_functions["cause_specific_mortality_rate"](
                 self.cause, builder
