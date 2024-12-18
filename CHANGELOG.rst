@@ -1,3 +1,9 @@
+**3.1.4 - 11/22/24**
+
+ - Feature: Enable initializing a population of all newborns
+ - Feature: Enable setting data sources directly on DiseaseModel components
+ - Refactor: Update DiseaseModel to leverage the on_initialize_simulants method of Machine
+
 **3.1.3 - 12/03/24**
 
  - Feature: Create relative risk pipeline
