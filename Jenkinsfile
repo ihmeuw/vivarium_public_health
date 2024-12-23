@@ -13,14 +13,16 @@ def githubUsernameToSlackName(github_author) {
 pipeline_name="vivarium_public_health"
 conda_env_name="${pipeline_name}-${BRANCH_NAME}-${BUILD_NUMBER}"
 conda_env_path="/tmp/${conda_env_name}"
-CRON_SETTINGS = BRANCH_NAME == "main" ? '''H H(20-23) * * *''' : ""
 // defaults for conda and pip are a local directory /svc-simsci for improved speed.
 // In the past, we used /ihme/code/* on the NFS (which is slower)
 shared_path="/svc-simsci"
+// comma separated string list of branches to run periodic builds on
+scheduled_branches = "main"
+CRON_SETTINGS = scheduled_branches.split(',').collect{it.trim()}.contains(BRANCH_NAME) ? 'H H(20-23) * * *' : ''
 
 
 pipeline {
-  // This agent runs as svc-simsci on node jenkinsagent-ci-p02.
+  // This agent runs as svc-simsci on node simsci-ci-coordinator-01.
   // It has access to standard IHME filesystems and singularity
   agent { label "coordinator" }
   triggers {
@@ -79,8 +81,8 @@ pipeline {
         // customWorkspace setting must be ran within a node
         agent {
           node {
-            // Run child tasks on simsci-jenkinsagent-ci-p01 or simsci-jenkinsagent-ci-p02.
-              label "jenkins-agent"
+            // Run child tasks on simsci-jenkinsagent-ci-p01.
+              label "matrix-tasks"
           }
         }
         axes {
