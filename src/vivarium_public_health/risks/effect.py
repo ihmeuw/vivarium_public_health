@@ -114,7 +114,7 @@ class RiskEffect(Component):
         self.exposure = self.get_risk_exposure(builder)
 
         self._relative_risk_source = self.get_relative_risk_source(builder)
-        self.relative_risk = self.get_relative_risk(builder)
+        self.relative_risk = self.get_relative_risk_pipeline(builder)
 
         self.register_target_modifier(builder)
         self.register_paf_modifier(builder)
@@ -297,7 +297,7 @@ class RiskEffect(Component):
 
         return generate_relative_risk
 
-    def get_relative_risk(self, builder: Builder) -> Pipeline:
+    def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             f"{self.risk.name}_on_{self.target.name}.relative_risk",
             self._relative_risk_source,

@@ -1,3 +1,7 @@
+**3.2.0 - 1/10/25**
+
+ - Bugfix: Fix bug in LBWSGRiskEffect where relative risk pipeline was not properly created
+
 **3.1.4 - 11/22/24**
 
  - Feature: Enable initializing a population of all newborns

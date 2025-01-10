@@ -361,18 +361,11 @@ class LBWSGRiskEffect(RiskEffect):
         paf_data = builder.data.load(paf_key)
         return paf_data, builder.data.value_columns()(paf_key)
 
-    def get_target_modifier(
-        self, builder: Builder
-    ) -> Callable[[pd.Index, pd.Series], pd.Series]:
-        def adjust_target(index: pd.Index, target: pd.Series) -> pd.Series:
-            return target * self.relative_risk(index)
-
-        return adjust_target
-
     def register_target_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
             self.target_pipeline_name,
-            modifier=self.target_modifier,
+            modifier=self.adjust_target,
+            component=self,
             requires_values=[self.relative_risk_pipeline_name],
         )
 
@@ -392,11 +385,12 @@ class LBWSGRiskEffect(RiskEffect):
             for age_start in exposed_age_group_starts
         }
 
-    def get_relative_risk(self, builder: Builder) -> Pipeline:
+    def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.relative_risk_pipeline_name,
-            source=self.get_relative_risk_source,
-            requires_columns=["age"] + self.rr_column_names,
+            source=self._relative_risk_source,
+            component=self,
+            required_resources=["age"] + self.rr_column_names,
         )
 
     def get_interpolator(self, builder: Builder) -> pd.Series:
@@ -469,7 +463,7 @@ class LBWSGRiskEffect(RiskEffect):
     # Pipeline sources and modifiers #
     ##################################
 
-    def get_relative_risk_source(self, index: pd.Index) -> pd.Series:
+    def _get_relative_risk(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(index)
         relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_pipeline_name)
 
@@ -479,3 +473,6 @@ class LBWSGRiskEffect(RiskEffect):
                 age_group_mask, self.relative_risk_column_name(age_group)
             ]
         return relative_risk
+
+    def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        return self._get_relative_risk
