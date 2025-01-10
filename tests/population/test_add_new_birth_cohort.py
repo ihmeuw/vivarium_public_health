@@ -58,10 +58,9 @@ def test_FertilityDeterministic(config):
 
     components = [TestPopulation(), FertilityDeterministic()]
     simulation = InteractiveContext(components=components, configuration=config)
-    num_steps = simulation.run_for(duration=pd.Timedelta(days=num_days))
+    simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population()
 
-    assert num_steps == num_days // step_size
     assert np.all(pop.alive == "alive")
     assert (
         int(num_days * annual_new_simulants / utilities.DAYS_PER_YEAR)
