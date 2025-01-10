@@ -266,7 +266,7 @@ def coverage_gap():
 
 @pytest.fixture
 def mock_rr_interpolators() -> pd.DataFrame:
-    rr_interpolators = pd.read_csv("tests/data/rr_interpolators.csv")
+    rr_interpolators = pd.read_csv("tests/data/rr_interpolator.csv")
     idx_cols = [col for col in rr_interpolators.columns if "draw" not in col]
     rr_interpolators = rr_interpolators.rename(columns={"draw_0": "value"})
     return rr_interpolators
