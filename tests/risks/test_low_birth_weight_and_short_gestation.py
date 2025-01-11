@@ -68,7 +68,7 @@ def test_lbwsg_risk_effect_rr_pipeline(
 
     # Only have neontal age groups
     age_start = 0.0
-    age_end = 28 / 365.0
+    age_end = 1.0
     base_config.update(
         {
             "population": {
@@ -99,7 +99,7 @@ def test_lbwsg_risk_effect_rr_pipeline(
 
     # Test the 4 different demographic groups
     for sex in ["Male", "Female"]:
-        for age_group_name in ["early_neonatal", "late_neonatal"]:
+        for age_group_name in ["early_neonatal", "late_neonatal", "post_neonatal"]:
             interpolator = lbwsg_effect.interpolator[sex, age_group_name]
             demo_idx = sim_data.index[
                 (sim_data["sex"] == sex) & (sim_data["age_group_name"] == age_group_name)
@@ -114,6 +114,8 @@ def test_lbwsg_risk_effect_rr_pipeline(
                 )
             )
             assert (actual_rr == sub_pop["expected_rr"]).all()
+            if age_group_name == "post_neonatal":
+                assert (actual_rr == 1.0).all()
 
 
 def make_categorical_exposure_data(data: pd.DataFrame) -> pd.DataFrame:
