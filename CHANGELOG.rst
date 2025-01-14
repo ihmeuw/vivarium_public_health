@@ -1,3 +1,7 @@
+**3.1.5 - 01/14/25**
+
+ - Bugfix: Vivarium InteractiveContext no longer returns int
+
 **3.1.4 - 11/22/24**
 
  - Feature: Enable initializing a population of all newborns
