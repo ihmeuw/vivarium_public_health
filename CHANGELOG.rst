@@ -1,4 +1,4 @@
-**3.2.0 - 1/13/25**
+**3.2.0 - 1/14/25**
 
  - Bugfix: Fix bug in LBWSGRiskEffect where relative risk pipeline was not properly created
 
