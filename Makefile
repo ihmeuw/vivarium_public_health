@@ -61,7 +61,7 @@ install: # Install setuptools, install this package in editable mode
 	@echo "----------------------------------------"
 	@if [ ! -d "vivarium_build_utils" ]; then \
 		# Clone the build utils repo if it doesn't exist. \
-		git clone -b bugfix/pnast/mic-5777 https://github.com/ihmeuw/vivarium_build_utils.git; \
+		git clone https://github.com/ihmeuw/vivarium_build_utils.git; \
 	else \
 		echo "vivarium_build_utils already exists. Skipping clone."; \
 	fi
