@@ -1,3 +1,7 @@
+**3.2.0 - 1/15/25**
+
+ - Bugfix: Fix bug in LBWSGRiskEffect where relative risk pipeline was not properly created
+
 **3.1.5 - 01/14/25**
 
  - Bugfix: Vivarium InteractiveContext no longer returns int
