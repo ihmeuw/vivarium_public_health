@@ -48,7 +48,6 @@ def crude_birth_rate_data(live_births=500):
 def test_FertilityDeterministic(config):
     pop_size = config.population.population_size
     annual_new_simulants = 1000
-    step_size = config.time.step_size
     num_days = 100
 
     config.update(
@@ -58,9 +57,12 @@ def test_FertilityDeterministic(config):
 
     components = [TestPopulation(), FertilityDeterministic()]
     simulation = InteractiveContext(components=components, configuration=config)
+    start_time = simulation.current_time
     simulation.run_for(duration=pd.Timedelta(days=num_days))
+    end_time = simulation.current_time
     pop = simulation.get_population()
 
+    assert (end_time - start_time) / pd.Timedelta(days=1) == num_days
     assert np.all(pop.alive == "alive")
     assert (
         int(num_days * annual_new_simulants / utilities.DAYS_PER_YEAR)
