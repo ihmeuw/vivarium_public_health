@@ -19,7 +19,7 @@ if not (
     # NOTE: Python 3.5 does not support f-strings
     error = (
         "\n--------------------------------------------\n"
-        "Error: EasyLink runs under python {min_version}-{max_version}.\n"
+        "Error: Vivarium Public Health runs under python {min_version}-{max_version}.\n"
         "You are running python {py_version}.\n".format(
             min_version=min_version.base_version,
             max_version=max_version.base_version,
