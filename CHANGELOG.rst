@@ -1,3 +1,7 @@
+**3.2.1 - 1/30/25**
+
+ - Get python versions from python_versions.json
+
 **3.2.0 - 1/15/25**
 
  - Bugfix: Fix bug in LBWSGRiskEffect where relative risk pipeline was not properly created
