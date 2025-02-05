@@ -1,7 +1,34 @@
 #!/usr/bin/env python
+import json
 import os
+import sys
 
+from packaging.version import parse
 from setuptools import find_packages, setup
+
+with open("python_versions.json", "r") as f:
+    supported_python_versions = json.load(f)
+
+python_versions = [parse(v) for v in supported_python_versions]
+min_version = min(python_versions)
+max_version = max(python_versions)
+if not (
+    min_version <= parse(".".join([str(v) for v in sys.version_info[:2]])) <= max_version
+):
+    py_version = ".".join([str(v) for v in sys.version_info[:3]])
+    # NOTE: Python 3.5 does not support f-strings
+    error = (
+        "\n--------------------------------------------\n"
+        "Error: Vivarium Public Health runs under python {min_version}-{max_version}.\n"
+        "You are running python {py_version}.\n".format(
+            min_version=min_version.base_version,
+            max_version=max_version.base_version,
+            py_version=py_version,
+        )
+        + "--------------------------------------------\n"
+    )
+    print(error, file=sys.stderr)
+    sys.exit(1)
 
 if __name__ == "__main__":
     base_dir = os.path.dirname(__file__)
