@@ -124,7 +124,7 @@ def test_lbwsg_risk_effect_rr_pipeline(
 
 def make_categorical_data(data: pd.DataFrame) -> pd.DataFrame:
     # Takes age gropus and adds sex, years, categories, and values
-    rr_dfs = []
+    dfs = []
     for year in range(1990, 2017):
         tmp = data.copy()
         tmp["year_start"] = year
@@ -141,6 +141,6 @@ def make_categorical_data(data: pd.DataFrame) -> pd.DataFrame:
         female_tmp = categories_df.copy()
         female_tmp["sex"] = "Female"
         age_sex_df = pd.concat([male_tmp, female_tmp])
-        rr_dfs.append(age_sex_df)
+        dfs.append(age_sex_df)
 
-    return pd.concat(rr_dfs)
+    return pd.concat(dfs)
