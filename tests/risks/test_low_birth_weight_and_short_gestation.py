@@ -56,11 +56,15 @@ def test_lbwsg_risk_effect_rr_pipeline(
     # Create exposure with matching demograph index as age_bins
     age_bins = make_age_bins()
     agees = age_bins.drop(columns="age_group_name")
-    exposure_data = make_categorical_exposure_data(agees)
+    # Have to match age bins and rr data to make age intervals
+    rr_data = make_categorical_data(agees)
+    # Exposure data used for risk component
+    exposure = make_categorical_data(agees)
 
     # Add data dict to add to artifact
     data = {
-        f"{risk.name}.exposure": exposure_data,
+        f"{risk.name}.exposure": exposure,
+        f"{risk.name}.relative_risk": rr_data,
         f"{risk.name}.population_attributable_fraction": 0,
         f"{risk.name}.categories": categories,
         f"{risk.name}.relative_risk_interpolator": mock_rr_interpolators,
@@ -118,9 +122,9 @@ def test_lbwsg_risk_effect_rr_pipeline(
                 assert (actual_rr == 1.0).all()
 
 
-def make_categorical_exposure_data(data: pd.DataFrame) -> pd.DataFrame:
+def make_categorical_data(data: pd.DataFrame) -> pd.DataFrame:
     # Takes age gropus and adds sex, years, categories, and values
-    exposure_dfs = []
+    rr_dfs = []
     for year in range(1990, 2017):
         tmp = data.copy()
         tmp["year_start"] = year
@@ -137,6 +141,6 @@ def make_categorical_exposure_data(data: pd.DataFrame) -> pd.DataFrame:
         female_tmp = categories_df.copy()
         female_tmp["sex"] = "Female"
         age_sex_df = pd.concat([male_tmp, female_tmp])
-        exposure_dfs.append(age_sex_df)
+        rr_dfs.append(age_sex_df)
 
-    return pd.concat(exposure_dfs)
+    return pd.concat(rr_dfs)
