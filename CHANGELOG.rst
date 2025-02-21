@@ -1,4 +1,4 @@
-**3.2.2 - 2/20/25**
+**3.2.2 - 2/21/25**
 
  - Bugfix: Use relative risk data to get age intervals for LBWSGRiskEffect
 
