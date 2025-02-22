@@ -1,3 +1,7 @@
+**3.2.2 - 2/21/25**
+
+ - Bugfix: Use relative risk data to get age intervals for LBWSGRiskEffect
+
 **3.2.1 - 1/30/25**
 
  - Get python versions from python_versions.json
