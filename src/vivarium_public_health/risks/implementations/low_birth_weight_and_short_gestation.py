@@ -202,6 +202,9 @@ class LBWSGRisk(Risk):
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         configuration_defaults = super().configuration_defaults
+        configuration_defaults[self.name]["data_sources"][
+            "exposure"
+        ] = f"{self.risk}.birth_exposure"
         configuration_defaults[self.name]["distribution_type"] = "lbwsg"
         return configuration_defaults
 

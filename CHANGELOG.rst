@@ -1,3 +1,7 @@
+**3.3.0 - 03/17/25**
+
+ - Feature: Use birth exposure artifact key for LBWSG components
+
 **3.2.2 - 2/21/25**
 
  - Bugfix: Use relative risk data to get age intervals for LBWSGRiskEffect
