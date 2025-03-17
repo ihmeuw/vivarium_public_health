@@ -131,9 +131,9 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
     }
     # Create exposure with matching demograph index as age_bins
     age_bins = make_age_bins()
-    agees = age_bins.drop(columns="age_group_name")
+    ages = age_bins.drop(columns="age_group_name")
     # Have to match age bins and rr data to make age intervals
-    rr_data = make_categorical_data(agees)
+    rr_data = make_categorical_data(ages)
     # Format birth exposure data
     exposure = pd.DataFrame(
         {

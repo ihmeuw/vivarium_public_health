@@ -1,4 +1,4 @@
-**3.3.0 - 03/17/25**
+**4.0.0 - 03/17/25**
 
  - Feature: Use birth exposure artifact key for LBWSG components
 
