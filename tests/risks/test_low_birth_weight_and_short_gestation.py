@@ -41,9 +41,7 @@ def test_parsing_lbwsg_descriptions(description, expected_weight_values, expecte
     assert age_interval.right == expected_age_values[1]
 
 
-def test_lbwsg_risk_effect_rr_pipeline(
-    base_config, base_plugins, mocker, mock_rr_interpolators
-):
+def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interpolators):
 
     risk = LBWSGRisk()
     lbwsg_effect = LBWSGRiskEffect("cause.test_cause.cause_specific_mortality_rate")
@@ -63,7 +61,7 @@ def test_lbwsg_risk_effect_rr_pipeline(
 
     # Add data dict to add to artifact
     data = {
-        f"{risk.name}.exposure": exposure,
+        f"{risk.name}.birth_exposure": exposure,
         f"{risk.name}.relative_risk": rr_data,
         f"{risk.name}.population_attributable_fraction": 0,
         f"{risk.name}.categories": categories,
@@ -120,6 +118,59 @@ def test_lbwsg_risk_effect_rr_pipeline(
             assert (actual_rr == sub_pop["expected_rr"]).all()
             if age_group_name == "post_neonatal":
                 assert (actual_rr == 1.0).all()
+
+
+def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
+    risk = LBWSGRisk()
+    lbwsg_effect = LBWSGRiskEffect("cause.test_cause.cause_specific_mortality_rate")
+
+    # Add mock data to artifact
+    categories = {
+        "cat81": "Neonatal preterm and LBWSG (estimation years) - [28, 30) wks, [2500, 3000) g",
+        "cat82": "Neonatal preterm and LBWSG (estimation years) - [28, 30) wks, [3000, 3500) g",
+    }
+    # Create exposure with matching demograph index as age_bins
+    age_bins = make_age_bins()
+    ages = age_bins.drop(columns="age_group_name")
+    # Have to match age bins and rr data to make age intervals
+    rr_data = make_categorical_data(ages)
+    # Format birth exposure data
+    exposure = pd.DataFrame(
+        {
+            "sex": ["Male", "Female", "Male", "Female"],
+            "year_start": [2021, 2021, 2021, 2021],
+            "year_end": [2022, 2022, 2022, 2022],
+            "parameter": ["cat81", "cat81", "cat82", "cat82"],
+            "value": [0.75, 0.75, 0.25, 0.25],
+        }
+    )
+
+    # Add data dict to add to artifact
+    data = {
+        f"{risk.name}.birth_exposure": exposure,
+        f"{risk.name}.relative_risk": rr_data,
+        f"{risk.name}.population_attributable_fraction": 0,
+        f"{risk.name}.categories": categories,
+        f"{risk.name}.relative_risk_interpolator": mock_rr_interpolators,
+    }
+
+    # Only have neontal age groups
+    age_start = 0.0
+    age_end = 1.0
+    base_config.update(
+        {
+            "population": {
+                "initialization_age_start": age_start,
+                "initialization_age_max": age_end,
+            }
+        }
+    )
+    sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
+    pop = sim.get_population()
+
+    # Assert LBWSG birth exposure columns were created
+    assert "birth_weight_exposure" in pop.columns
+    assert "gestational_age_exposure" in pop.columns
 
 
 def make_categorical_data(data: pd.DataFrame) -> pd.DataFrame:
