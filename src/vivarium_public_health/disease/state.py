@@ -15,6 +15,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
+from vivarium.framework.resource import Resource
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 from vivarium.types import DataInput, LookupTableData
@@ -57,12 +58,8 @@ class BaseDiseaseState(State):
         return [self.model, "alive"]
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": [self.model],
-            "requires_values": [],
-            "requires_streams": [],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return [self.model]
 
     #####################
     # Lifecycle methods #

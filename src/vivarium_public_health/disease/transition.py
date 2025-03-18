@@ -132,6 +132,7 @@ class RateTransition(Transition):
         self.transition_rate = builder.value.register_rate_producer(
             self.transition_rate_pipeline_name,
             source=self.compute_transition_rate,
+            component=self,
             requires_columns=lookup_columns + ["alive"],
             requires_values=[f"{self.transition_rate_pipeline_name}.paf"],
         )
@@ -139,6 +140,7 @@ class RateTransition(Transition):
         self.joint_paf = builder.value.register_value_producer(
             f"{self.transition_rate_pipeline_name}.paf",
             source=lambda index: [paf(index)],
+            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
