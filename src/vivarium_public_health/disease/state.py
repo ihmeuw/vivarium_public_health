@@ -594,7 +594,9 @@ class DiseaseState(BaseDiseaseState):
         )
 
     def get_randomness_prevalence(self, builder: Builder) -> RandomnessStream:
-        return builder.randomness.get_stream(f"{self.state_id}_prevalent_cases")
+        return builder.randomness.get_stream(
+            f"{self.state_id}_prevalent_cases", component=self
+        )
 
     ##################
     # Public methods #

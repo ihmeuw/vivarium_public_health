@@ -20,7 +20,9 @@ class MortalityShift(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        builder.value.register_value_modifier("mortality_rate", self.mortality_adjustment)
+        builder.value.register_value_modifier(
+            "mortality_rate", self.mortality_adjustment, component=self
+        )
 
     ##################################
     # Pipeline sources and modifiers #
@@ -36,7 +38,9 @@ class YLDShift(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        builder.value.register_value_modifier("yld_rate", self.disability_adjustment)
+        builder.value.register_value_modifier(
+            "yld_rate", self.disability_adjustment, component=self
+        )
 
     ##################################
     # Pipeline sources and modifiers #
@@ -56,7 +60,9 @@ class IncidenceShift(Component):
 
     def setup(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
-            f"{self.disease}_intervention.incidence", self.incidence_adjustment
+            f"{self.disease}_intervention.incidence",
+            self.incidence_adjustment,
+            component=self,
         )
 
     ##################################
@@ -95,7 +101,9 @@ class ModifyAcuteDiseaseYLD(Component):
         if self.scale < 0:
             raise ValueError(f"Invalid YLD scale: {self.scale}")
         builder.value.register_value_modifier(
-            f"{self.disease}_intervention.yld_rate", self.disability_adjustment
+            f"{self.disease}_intervention.yld_rate",
+            self.disability_adjustment,
+            component=self,
         )
 
     ##################################
@@ -134,7 +142,9 @@ class ModifyAcuteDiseaseMortality(Component):
         if self.scale < 0:
             raise ValueError(f"Invalid mortality scale: {self.scale}")
         builder.value.register_value_modifier(
-            f"{self.disease}_intervention.excess_mortality", self.mortality_adjustment
+            f"{self.disease}_intervention.excess_mortality",
+            self.mortality_adjustment,
+            component=self,
         )
 
     ##################################
