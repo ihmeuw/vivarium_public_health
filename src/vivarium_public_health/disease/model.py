@@ -114,7 +114,8 @@ class DiseaseModel(Machine):
         builder.value.register_value_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
-            requires_columns=["age", "sex"],
+            component=self,
+            required_resources=["age", "sex"],
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:

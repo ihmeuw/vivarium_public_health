@@ -16,6 +16,7 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import TransitionString
@@ -123,12 +124,8 @@ class RiskAttributableDisease(Component):
         return ["alive"]
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": [],
-            "requires_values": [f"{self.risk.name}.exposure"],
-            "requires_streams": [],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return [self.exposure_pipeline]
 
     @property
     def state_names(self):
@@ -171,17 +168,21 @@ class RiskAttributableDisease(Component):
         self.disability_weight = builder.value.register_value_producer(
             f"{self.cause.name}.disability_weight",
             source=self.compute_disability_weight,
-            requires_columns=get_lookup_columns(
+            component=self,
+            required_resources=get_lookup_columns(
                 [self.lookup_tables["raw_disability_weight"]]
             ),
         )
         builder.value.register_value_modifier(
-            "all_causes.disability_weight", modifier=self.disability_weight
+            "all_causes.disability_weight",
+            modifier=self.disability_weight,
+            component=self,
         )
         builder.value.register_value_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
-            requires_columns=get_lookup_columns(
+            component=self,
+            required_resources=get_lookup_columns(
                 [self.lookup_tables["cause_specific_mortality_rate"]]
             ),
         )
@@ -190,29 +191,32 @@ class RiskAttributableDisease(Component):
         self.excess_mortality_rate = builder.value.register_value_producer(
             self.excess_mortality_rate_pipeline_name,
             source=self.compute_excess_mortality_rate,
-            requires_columns=get_lookup_columns(
+            component=self,
+            required_resources=get_lookup_columns(
                 [self.lookup_tables["excess_mortality_rate"]]
-            ),
-            requires_values=[self.excess_mortality_rate_paf_pipeline_name],
+            )
+            + [self.joint_paf],
         )
         self.joint_paf = builder.value.register_value_producer(
             self.excess_mortality_rate_paf_pipeline_name,
             source=lambda idx: [self.lookup_tables["population_attributable_fraction"](idx)],
+            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
         builder.value.register_value_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
-            requires_values=[self.excess_mortality_rate_pipeline_name],
+            component=self,
+            required_resources=[self.excess_mortality_rate],
         )
 
         distribution = builder.data.load(f"{self.risk}.distribution")
-        exposure_pipeline = builder.value.get_value(f"{self.risk.name}.exposure")
+        self.exposure_pipeline = builder.value.get_value(f"{self.risk.name}.exposure")
         threshold = builder.configuration[self.name].threshold
 
         self.filter_by_exposure = self.get_exposure_filter(
-            distribution, exposure_pipeline, threshold
+            distribution, self.exposure_pipeline, threshold
         )
 
     #################
