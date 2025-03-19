@@ -17,6 +17,7 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.lifecycle import LifeCycleError
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks import Risk, RiskEffect
@@ -245,8 +246,8 @@ class LBWSGRisk(Risk):
             return builder.value.register_value_producer(
                 self.birth_exposure_pipeline_name(axis_),
                 source=lambda index: self.get_birth_exposure(axis_, index),
-                requires_columns=required_columns,
-                requires_streams=[self.randomness_stream_name],
+                component=self,
+                required_resources=required_columns + [self.randomness],
                 preferred_post_processor=get_exposure_post_processor(builder, self.name),
             )
 
@@ -303,12 +304,8 @@ class LBWSGRiskEffect(RiskEffect):
         return ["age", "sex"] + self.lbwsg_exposure_column_names
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": ["sex"] + self.lbwsg_exposure_column_names,
-            "requires_values": [],
-            "requires_streams": [],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return ["sex"] + self.lbwsg_exposure_column_names
 
     @property
     def rr_column_names(self) -> list[str]:
@@ -369,7 +366,7 @@ class LBWSGRiskEffect(RiskEffect):
             self.target_pipeline_name,
             modifier=self.adjust_target,
             component=self,
-            requires_values=[self.relative_risk_pipeline_name],
+            required_resources=[self.relative_risk_pipeline_name],
         )
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
