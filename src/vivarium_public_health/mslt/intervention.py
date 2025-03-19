@@ -44,7 +44,9 @@ class ModifyAllCauseMortality(Component):
         self.scale = self.config.intervention[self.intervention]["scale"]
         if self.scale < 0:
             raise ValueError("Invalid scale: {}".format(self.scale))
-        builder.value.register_value_modifier("mortality_rate", self.mortality_adjustment)
+        builder.value.register_value_modifier(
+            "mortality_rate", self.mortality_adjustment, component=self
+        )
 
     ##################################
     # Pipeline sources and modifiers #
@@ -89,7 +91,7 @@ class ModifyDiseaseRate(Component):
         if self.scale < 0:
             raise ValueError("Invalid scale: {}".format(self.scale))
         rate_name = "{}_intervention.{}".format(self.disease, self.rate)
-        builder.value.register_value_modifier(rate_name, self.adjust_rate)
+        builder.value.register_value_modifier(rate_name, self.adjust_rate, component=self)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -167,9 +169,9 @@ class ModifyAcuteDiseaseIncidence(Component):
         if self.scale < 0:
             raise ValueError("Invalid incidence scale: {}".format(self.scale))
         yld_rate = "{}_intervention.yld_rate".format(self.intervention)
-        builder.value.register_value_modifier(yld_rate, self.rate_adjustment)
+        builder.value.register_value_modifier(yld_rate, self.rate_adjustment, component=self)
         mort_rate = "{}_intervention.excess_mortality".format(self.intervention)
-        builder.value.register_value_modifier(mort_rate, self.rate_adjustment)
+        builder.value.register_value_modifier(mort_rate, self.rate_adjustment, component=self)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -210,7 +212,9 @@ class ModifyAcuteDiseaseMorbidity(Component):
         if self.scale < 0:
             raise ValueError("Invalid YLD scale: {}".format(self.scale))
         rate = "{}_intervention.yld_rate".format(self.intervention)
-        builder.value.register_value_modifier(rate, self.disability_adjustment)
+        builder.value.register_value_modifier(
+            rate, self.disability_adjustment, component=self
+        )
 
     ##################################
     # Pipeline sources and modifiers #
@@ -251,7 +255,7 @@ class ModifyAcuteDiseaseMortality(Component):
         if self.scale < 0:
             raise ValueError("Invalid mortality scale: {}".format(self.scale))
         rate = "{}_intervention.excess_mortality".format(self.intervention)
-        builder.value.register_value_modifier(rate, self.mortality_adjustment)
+        builder.value.register_value_modifier(rate, self.mortality_adjustment, component=self)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -288,7 +292,7 @@ class TobaccoFreeGeneration(Component):
         self.year = builder.configuration["tobacco_free_generation"].year
         self.clock = builder.time.clock()
         rate_name = "{}_intervention.incidence".format(self.exposure)
-        builder.value.register_value_modifier(rate_name, self.adjust_rate)
+        builder.value.register_value_modifier(rate_name, self.adjust_rate, component=self)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -329,9 +333,13 @@ class TobaccoEradication(Component):
         self.year = builder.configuration["tobacco_eradication"].year
         self.clock = builder.time.clock()
         inc_rate_name = "{}_intervention.incidence".format(self.exposure)
-        builder.value.register_value_modifier(inc_rate_name, self.adjust_inc_rate)
+        builder.value.register_value_modifier(
+            inc_rate_name, self.adjust_inc_rate, component=self
+        )
         rem_rate_name = "{}_intervention.remission".format(self.exposure)
-        builder.value.register_value_modifier(rem_rate_name, self.adjust_rem_rate)
+        builder.value.register_value_modifier(
+            rem_rate_name, self.adjust_rem_rate, component=self
+        )
 
     ##################################
     # Pipeline sources and modifiers #

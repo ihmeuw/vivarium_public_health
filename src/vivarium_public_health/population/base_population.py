@@ -88,18 +88,19 @@ class BasePopulation(Component):
     # Setup methods #
     #################
 
-    @staticmethod
-    def get_randomness_streams(builder: Builder) -> dict[str, RandomnessStream]:
+    def get_randomness_streams(self, builder: Builder) -> dict[str, RandomnessStream]:
         return {
-            "general_purpose": builder.randomness.get_stream("population_generation"),
+            "general_purpose": builder.randomness.get_stream(
+                "population_generation", component=self
+            ),
             "bin_selection": builder.randomness.get_stream(
-                "bin_selection", initializes_crn_attributes=True
+                "bin_selection", component=self, initializes_crn_attributes=True
             ),
             "age_smoothing": builder.randomness.get_stream(
-                "age_smoothing", initializes_crn_attributes=True
+                "age_smoothing", component=self, initializes_crn_attributes=True
             ),
             "age_smoothing_age_bounds": builder.randomness.get_stream(
-                "age_smoothing_age_bounds", initializes_crn_attributes=True
+                "age_smoothing_age_bounds", component=self, initializes_crn_attributes=True
             ),
         }
 

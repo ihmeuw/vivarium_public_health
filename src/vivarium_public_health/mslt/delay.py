@@ -16,6 +16,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 
 
 class DelayedRisk(Component):
@@ -111,12 +112,8 @@ class DelayedRisk(Component):
         return ["age", "sex", "population"]
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": ["age", "sex", "population"],
-            "requires_values": [],
-            "requires_streams": [],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return ["age", "sex", "population"]
 
     #####################
     # Lifecycle methods #
@@ -168,9 +165,11 @@ class DelayedRisk(Component):
         )
         inc_name = "{}.incidence".format(self.risk)
         inc_int_name = "{}_intervention.incidence".format(self.risk)
-        self.incidence = builder.value.register_rate_producer(inc_name, source=inc_data)
+        self.incidence = builder.value.register_rate_producer(
+            inc_name, source=inc_data, component=self
+        )
         self.int_incidence = builder.value.register_rate_producer(
-            inc_int_name, source=inc_data
+            inc_int_name, source=inc_data, component=self
         )
 
         # Load the remission rates for the BAU and intervention scenarios.
@@ -183,9 +182,11 @@ class DelayedRisk(Component):
         )
         rem_name = "{}.remission".format(self.risk)
         rem_int_name = "{}_intervention.remission".format(self.risk)
-        self.remission = builder.value.register_rate_producer(rem_name, source=rem_data)
+        self.remission = builder.value.register_rate_producer(
+            rem_name, source=rem_data, component=self
+        )
         self.int_remission = builder.value.register_rate_producer(
-            rem_int_name, source=rem_data
+            rem_int_name, source=rem_data, component=self
         )
 
         # We apply separate mortality rates to the different exposure bins.
@@ -255,6 +256,7 @@ class DelayedRisk(Component):
             source=builder.lookup.build_table(
                 mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
             ),
+            component=self,
         )
 
     #################
@@ -312,7 +314,7 @@ class DelayedRisk(Component):
         for template in rate_templates:
             rate_name = template.format(disease)
             modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
-            builder.value.register_value_modifier(rate_name, modifier)
+            builder.value.register_value_modifier(rate_name, modifier, component=self)
 
     ########################
     # Event-driven methods #

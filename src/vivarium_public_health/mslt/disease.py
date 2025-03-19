@@ -16,6 +16,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 
 
 class AcuteDisease(Component):
@@ -67,19 +68,23 @@ class AcuteDisease(Component):
             yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         self.excess_mortality = builder.value.register_rate_producer(
-            f"{self.disease}.excess_mortality", source=mty_rate
+            f"{self.disease}.excess_mortality", source=mty_rate, component=self
         )
         self.int_excess_mortality = builder.value.register_rate_producer(
-            f"{self.disease}_intervention.excess_mortality", source=mty_rate
+            f"{self.disease}_intervention.excess_mortality", source=mty_rate, component=self
         )
         self.disability_rate = builder.value.register_rate_producer(
-            f"{self.disease}.yld_rate", source=yld_rate
+            f"{self.disease}.yld_rate", source=yld_rate, component=self
         )
         self.int_disability_rate = builder.value.register_rate_producer(
-            f"{self.disease}_intervention.yld_rate", source=yld_rate
+            f"{self.disease}_intervention.yld_rate", source=yld_rate, component=self
         )
-        builder.value.register_value_modifier("mortality_rate", self.mortality_adjustment)
-        builder.value.register_value_modifier("yld_rate", self.disability_adjustment)
+        builder.value.register_value_modifier(
+            "mortality_rate", self.mortality_adjustment, component=self
+        )
+        builder.value.register_value_modifier(
+            "yld_rate", self.disability_adjustment, component=self
+        )
 
     ##################################
     # Pipeline sources and modifiers #
@@ -164,12 +169,8 @@ class Disease(Component):
         return ["age", "sex"]
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": ["age", "sex"],
-            "requires_values": [],
-            "requires_streams": [],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return ["age", "sex"]
 
     def __init__(self, disease: str):
         super().__init__()
@@ -192,10 +193,10 @@ class Disease(Component):
             inc_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         self.incidence = builder.value.register_rate_producer(
-            bau_prefix + "incidence", source=i
+            bau_prefix + "incidence", source=i, component=self
         )
         self.incidence_intervention = builder.value.register_rate_producer(
-            int_prefix + "incidence", source=i
+            int_prefix + "incidence", source=i, component=self
         )
 
         rem_data = builder.data.load(data_prefix + "remission")
@@ -203,7 +204,7 @@ class Disease(Component):
             rem_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         self.remission = builder.value.register_rate_producer(
-            bau_prefix + "remission", source=r
+            bau_prefix + "remission", source=r, component=self
         )
 
         mty_data = builder.data.load(data_prefix + "mortality")
@@ -211,7 +212,7 @@ class Disease(Component):
             mty_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         self.excess_mortality = builder.value.register_rate_producer(
-            bau_prefix + "excess_mortality", source=f
+            bau_prefix + "excess_mortality", source=f, component=self
         )
 
         yld_data = builder.data.load(data_prefix + "morbidity")
@@ -219,7 +220,7 @@ class Disease(Component):
             yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         self.disability_rate = builder.value.register_rate_producer(
-            bau_prefix + "yld_rate", source=yld_rate
+            bau_prefix + "yld_rate", source=yld_rate, component=self
         )
 
         prev_data = builder.data.load(data_prefix + "prevalence")
@@ -227,8 +228,12 @@ class Disease(Component):
             prev_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
 
-        builder.value.register_value_modifier("mortality_rate", self.mortality_adjustment)
-        builder.value.register_value_modifier("yld_rate", self.disability_adjustment)
+        builder.value.register_value_modifier(
+            "mortality_rate", self.mortality_adjustment, component=self
+        )
+        builder.value.register_value_modifier(
+            "yld_rate", self.disability_adjustment, component=self
+        )
 
     ########################
     # Event-driven methods #

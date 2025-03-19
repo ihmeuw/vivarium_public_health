@@ -191,7 +191,7 @@ class FertilityAgeSpecificRates(Component):
             "fertility rate", source=fertility_rate, requires_columns=["age"]
         )
 
-        self.randomness = builder.randomness.get_stream("fertility")
+        self.randomness = builder.randomness.get_stream("fertility", component=self)
         self.simulant_creator = builder.population.get_simulant_creator()
 
     #################
