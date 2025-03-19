@@ -325,6 +325,10 @@ class DiseaseState(BaseDiseaseState):
     ##############
 
     @property
+    def initialization_requirements(self) -> list[str | Resource]:
+        return super().initialization_requirements + [self.randomness_prevalence]
+
+    @property
     def configuration_defaults(self) -> dict[str, Any]:
         configuration_defaults = super().configuration_defaults
         additional_defaults = {
