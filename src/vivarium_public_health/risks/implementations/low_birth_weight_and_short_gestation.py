@@ -366,7 +366,7 @@ class LBWSGRiskEffect(RiskEffect):
             self.target_pipeline_name,
             modifier=self.adjust_target,
             component=self,
-            required_resources=[self.relative_risk_pipeline_name],
+            required_resources=[self.relative_risk],
         )
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
