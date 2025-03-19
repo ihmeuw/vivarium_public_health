@@ -175,6 +175,7 @@ class DisabilityObserver(PublicHealthObserver):
         return builder.value.register_value_producer(
             self.disability_weight_pipeline_name,
             source=lambda index: [pd.Series(0.0, index=index)],
+            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )

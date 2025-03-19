@@ -15,6 +15,7 @@ from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.observer import PublicHealthObserver
@@ -89,11 +90,9 @@ class DiseaseObserver(PublicHealthObserver):
         return [self.disease]
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
+    def initialization_requirements(self) -> list[str | Resource]:
         """Requirements for observer initialization."""
-        return {
-            "requires_columns": [self.disease],
-        }
+        return [self.disease]
 
     #####################
     # Lifecycle methods #

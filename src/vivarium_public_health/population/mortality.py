@@ -169,6 +169,7 @@ class Mortality(Component):
         return builder.value.register_value_producer(
             self.cause_specific_mortality_rate_pipeline_name,
             source=builder.lookup.build_table(0),
+            component=self,
         )
 
     def get_mortality_rate(self, builder: Builder) -> Pipeline:
@@ -181,7 +182,8 @@ class Mortality(Component):
         return builder.value.register_rate_producer(
             self.mortality_rate_pipeline_name,
             source=self.calculate_mortality_rate,
-            requires_columns=required_columns,
+            component=self,
+            required_resources=required_columns,
         )
 
     def load_unmodeled_csmr(self, builder: Builder) -> float | pd.DataFrame:
@@ -202,7 +204,8 @@ class Mortality(Component):
         return builder.value.register_value_producer(
             self.unmodeled_csmr_pipeline_name,
             source=self.get_unmodeled_csmr_source,
-            requires_columns=required_columns,
+            component=self,
+            required_resources=required_columns,
         )
 
     def get_unmodeled_csmr_paf(self, builder: Builder) -> Pipeline:
@@ -210,6 +213,7 @@ class Mortality(Component):
         return builder.value.register_value_producer(
             self.unmodeled_csmr_paf_pipeline_name,
             source=lambda index: [unmodeled_csmr_paf(index)],
+            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
