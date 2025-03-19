@@ -169,7 +169,7 @@ class RiskAttributableDisease(Component):
             f"{self.cause.name}.disability_weight",
             source=self.compute_disability_weight,
             component=self,
-            requires_columns=get_lookup_columns(
+            required_resources=get_lookup_columns(
                 [self.lookup_tables["raw_disability_weight"]]
             ),
         )
@@ -182,7 +182,7 @@ class RiskAttributableDisease(Component):
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
             component=self,
-            requires_columns=get_lookup_columns(
+            required_resources=get_lookup_columns(
                 [self.lookup_tables["cause_specific_mortality_rate"]]
             ),
         )
@@ -192,10 +192,10 @@ class RiskAttributableDisease(Component):
             self.excess_mortality_rate_pipeline_name,
             source=self.compute_excess_mortality_rate,
             component=self,
-            requires_columns=get_lookup_columns(
+            required_resources=get_lookup_columns(
                 [self.lookup_tables["excess_mortality_rate"]]
-            ),
-            requires_values=[self.excess_mortality_rate_paf_pipeline_name],
+            )
+            + [self.joint_paf],
         )
         self.joint_paf = builder.value.register_value_producer(
             self.excess_mortality_rate_paf_pipeline_name,
@@ -208,7 +208,7 @@ class RiskAttributableDisease(Component):
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
             component=self,
-            requires_values=[self.excess_mortality_rate_pipeline_name],
+            required_resources=[self.excess_mortality_rate],
         )
 
         distribution = builder.data.load(f"{self.risk}.distribution")

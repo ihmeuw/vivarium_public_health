@@ -115,7 +115,7 @@ class DiseaseModel(Machine):
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
             component=self,
-            requires_columns=["age", "sex"],
+            required_resources=["age", "sex"],
         )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:

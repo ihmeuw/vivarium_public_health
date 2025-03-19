@@ -129,13 +129,6 @@ class RateTransition(Transition):
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         lookup_columns = get_lookup_columns([self.lookup_tables["transition_rate"]])
-        self.transition_rate = builder.value.register_rate_producer(
-            self.transition_rate_pipeline_name,
-            source=self.compute_transition_rate,
-            component=self,
-            requires_columns=lookup_columns + ["alive"],
-            requires_values=[f"{self.transition_rate_pipeline_name}.paf"],
-        )
         paf = builder.lookup.build_table(0)
         self.joint_paf = builder.value.register_value_producer(
             f"{self.transition_rate_pipeline_name}.paf",
@@ -143,6 +136,12 @@ class RateTransition(Transition):
             component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
+        )
+        self.transition_rate = builder.value.register_rate_producer(
+            self.transition_rate_pipeline_name,
+            source=self.compute_transition_rate,
+            component=self,
+            required_resources=lookup_columns + ["alive", self.joint_paf],
         )
 
     #################

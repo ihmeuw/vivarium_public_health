@@ -462,19 +462,22 @@ class DiseaseState(BaseDiseaseState):
         self.disability_weight = self.get_disability_weight_pipeline(builder)
 
         builder.value.register_value_modifier(
-            "all_causes.disability_weight", modifier=self.disability_weight
+            "all_causes.disability_weight",
+            modifier=self.disability_weight,
+            component=self,
         )
 
         self.has_excess_mortality = is_non_zero(
             self.lookup_tables["excess_mortality_rate"].data
         )
-        self.excess_mortality_rate = self.get_excess_mortality_rate_pipeline(builder)
         self.joint_paf = self.get_joint_paf(builder)
+        self.excess_mortality_rate = self.get_excess_mortality_rate_pipeline(builder)
 
         builder.value.register_value_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
-            requires_values=[self.excess_mortality_rate_pipeline_name],
+            component=self,
+            required_resources=[self.excess_mortality_rate],
         )
 
         self.randomness_prevalence = self.get_randomness_prevalence(builder)
@@ -528,7 +531,8 @@ class DiseaseState(BaseDiseaseState):
         return builder.value.register_value_producer(
             f"{self.state_id}.dwell_time",
             source=self.lookup_tables["dwell_time"],
-            requires_columns=required_columns,
+            component=self,
+            required_resources=required_columns,
         )
 
     def get_disability_weight_source(self, disability_weight: DataInput | None) -> DataInput:
@@ -553,7 +557,8 @@ class DiseaseState(BaseDiseaseState):
         return builder.value.register_value_producer(
             f"{self.state_id}.disability_weight",
             source=self.compute_disability_weight,
-            requires_columns=lookup_columns + ["alive", self.model],
+            component=self,
+            required_resources=lookup_columns + ["alive", self.model],
         )
 
     def get_excess_mortality_rate_source(
@@ -580,8 +585,8 @@ class DiseaseState(BaseDiseaseState):
         return builder.value.register_rate_producer(
             self.excess_mortality_rate_pipeline_name,
             source=self.compute_excess_mortality_rate,
-            requires_columns=lookup_columns + ["alive", self.model],
-            requires_values=[self.excess_mortality_rate_paf_pipeline_name],
+            component=self,
+            required_resources=lookup_columns + ["alive", self.model, self.joint_paf],
         )
 
     def get_joint_paf(self, builder: Builder) -> Pipeline:
@@ -589,12 +594,15 @@ class DiseaseState(BaseDiseaseState):
         return builder.value.register_value_producer(
             self.excess_mortality_rate_paf_pipeline_name,
             source=lambda idx: [paf(idx)],
+            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
 
     def get_randomness_prevalence(self, builder: Builder) -> RandomnessStream:
-        return builder.randomness.get_stream(f"{self.state_id}_prevalent_cases")
+        return builder.randomness.get_stream(
+            f"{self.state_id}_prevalent_cases", component=self
+        )
 
     ##################
     # Public methods #
