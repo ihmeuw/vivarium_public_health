@@ -46,7 +46,7 @@ class TherapeuticInertia(Component):
         self._therapeutic_inertia = self.initialize_therapeutic_inertia(builder)
         ti_source = lambda index: pd.Series(self._therapeutic_inertia, index=index)
         self.therapeutic_inertia = builder.value.register_value_producer(
-            "therapeutic_inertia", source=ti_source
+            "therapeutic_inertia", source=ti_source, component=self
         )
 
     #################
