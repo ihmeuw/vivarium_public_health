@@ -250,7 +250,7 @@ class Risk(Component):
         return exposure_distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
-        return builder.randomness.get_stream(self.randomness_stream_name)
+        return builder.randomness.get_stream(self.randomness_stream_name, component=self)
 
     def get_propensity_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(

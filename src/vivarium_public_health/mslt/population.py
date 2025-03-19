@@ -146,6 +146,7 @@ class Mortality(Component):
             source=builder.lookup.build_table(
                 mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
             ),
+            component=self,
         )
 
     ########################
@@ -208,7 +209,9 @@ class Disability(Component):
         yld_rate = builder.lookup.build_table(
             yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
-        self.yld_rate = builder.value.register_rate_producer("yld_rate", source=yld_rate)
+        self.yld_rate = builder.value.register_rate_producer(
+            "yld_rate", source=yld_rate, component=self
+        )
 
     ########################
     # Event-driven methods #

@@ -159,7 +159,7 @@ class EnsembleDistribution(RiskExposureDistribution):
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.randomness = builder.randomness.get_stream(self._propensity)
+        self.randomness = builder.randomness.get_stream(self._propensity, component=self)
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         # This pipeline is not needed for ensemble distributions, so just

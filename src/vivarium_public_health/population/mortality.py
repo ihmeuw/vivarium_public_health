@@ -162,8 +162,8 @@ class Mortality(Component):
     # Setup methods #
     #################
 
-    def get_randomness_stream(self, builder) -> RandomnessStream:
-        return builder.randomness.get_stream(self._randomness_stream_name)
+    def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
+        return builder.randomness.get_stream(self._randomness_stream_name, component=self)
 
     def get_cause_specific_mortality_rate(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
