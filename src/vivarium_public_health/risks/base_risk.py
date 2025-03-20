@@ -272,7 +272,7 @@ class Risk(Component):
             required_resources=required_columns
             + [
                 self.propensity,
-                f"{self.risk}.exposure_parameters",
+                self.exposure_distribution.exposure_parameters,
             ],
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
