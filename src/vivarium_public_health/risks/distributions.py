@@ -18,6 +18,7 @@ from layered_config_tree import LayeredConfigTree
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import pivot_categorical
@@ -96,12 +97,8 @@ class EnsembleDistribution(RiskExposureDistribution):
         return [self._propensity]
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": [],
-            "requires_values": [],
-            "requires_streams": [self._propensity],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return [self.randomness]
 
     #####################
     # Lifecycle methods #
@@ -159,7 +156,7 @@ class EnsembleDistribution(RiskExposureDistribution):
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.randomness = builder.randomness.get_stream(self._propensity)
+        self.randomness = builder.randomness.get_stream(self._propensity, component=self)
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         # This pipeline is not needed for ensemble distributions, so just
@@ -170,7 +167,7 @@ class EnsembleDistribution(RiskExposureDistribution):
             )
 
         return builder.value.register_value_producer(
-            self.parameters_pipeline_name, lambda *_: raise_not_implemented()
+            self.parameters_pipeline_name, lambda *_: raise_not_implemented(), component=self
         )
 
     ########################
@@ -245,7 +242,8 @@ class ContinuousDistribution(RiskExposureDistribution):
         return builder.value.register_value_producer(
             self.parameters_pipeline_name,
             source=self.lookup_tables["parameters"],
-            requires_columns=get_lookup_columns([self.lookup_tables["parameters"]]),
+            component=self,
+            required_resources=get_lookup_columns([self.lookup_tables["parameters"]]),
         )
 
     ##################
@@ -296,7 +294,8 @@ class PolytomousDistribution(RiskExposureDistribution):
         return builder.value.register_value_producer(
             self.parameters_pipeline_name,
             source=self.lookup_tables["exposure"],
-            requires_columns=get_lookup_columns([self.lookup_tables["exposure"]]),
+            component=self,
+            required_resources=get_lookup_columns([self.lookup_tables["exposure"]]),
         )
 
     ##################
@@ -385,6 +384,7 @@ class DichotomousDistribution(RiskExposureDistribution):
         self.joint_paf = builder.value.register_value_producer(
             f"{self.risk}.exposure_parameters.paf",
             source=lambda index: [self.lookup_tables["paf"](index)],
+            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
@@ -393,7 +393,8 @@ class DichotomousDistribution(RiskExposureDistribution):
         return builder.value.register_value_producer(
             f"{self.risk}.exposure_parameters",
             source=self.exposure_parameter_source,
-            requires_columns=get_lookup_columns([self.lookup_tables["exposure"]]),
+            component=self,
+            required_resources=get_lookup_columns([self.lookup_tables["exposure"]]),
         )
 
     ##############

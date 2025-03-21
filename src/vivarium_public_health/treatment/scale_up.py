@@ -145,6 +145,7 @@ class LinearScaleUp(Component):
         builder.value.register_value_modifier(
             f"{self.treatment}.exposure_parameters",
             modifier=self.coverage_effect,
+            component=self,
         )
 
     ##################################

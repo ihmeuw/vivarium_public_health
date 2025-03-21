@@ -13,6 +13,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import get_live_births_per_year
@@ -164,12 +165,8 @@ class FertilityAgeSpecificRates(Component):
         return ["sex"]
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": ["sex"],
-            "requires_values": [],
-            "requires_streams": [],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return ["sex"]
 
     #####################
     # Lifecycle methods #
@@ -188,10 +185,13 @@ class FertilityAgeSpecificRates(Component):
             age_specific_fertility_rate, parameter_columns=["age", "year"]
         )
         self.fertility_rate = builder.value.register_rate_producer(
-            "fertility rate", source=fertility_rate, requires_columns=["age"]
+            "fertility rate",
+            source=fertility_rate,
+            component=self,
+            required_resources=["age"],
         )
 
-        self.randomness = builder.randomness.get_stream("fertility")
+        self.randomness = builder.randomness.get_stream("fertility", component=self)
         self.simulant_creator = builder.population.get_simulant_creator()
 
     #################

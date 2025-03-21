@@ -1,3 +1,7 @@
+**4.0.1 - 03/21/25**
+
+ - Feature: Update required resources for all components
+
 **4.0.0 - 03/17/25**
 
  - Feature: Use birth exposure artifact key for LBWSG components

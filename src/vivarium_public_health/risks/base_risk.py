@@ -16,6 +16,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
+from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
@@ -129,12 +130,8 @@ class Risk(Component):
         return columns_to_create
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": [],
-            "requires_values": [],
-            "requires_streams": [self.randomness_stream_name],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return [self.randomness]
 
     #####################
     # Lifecycle methods #
@@ -250,7 +247,7 @@ class Risk(Component):
         return exposure_distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
-        return builder.randomness.get_stream(self.randomness_stream_name)
+        return builder.randomness.get_stream(self.randomness_stream_name, component=self)
 
     def get_propensity_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
@@ -260,7 +257,8 @@ class Risk(Component):
                 .get(index)
                 .squeeze(axis=1)
             ),
-            requires_columns=[self.propensity_column_name],
+            component=self,
+            required_resources=[self.propensity_column_name],
         )
 
     def get_exposure_pipeline(self, builder: Builder) -> Pipeline:
@@ -270,10 +268,11 @@ class Risk(Component):
         return builder.value.register_value_producer(
             self.exposure_pipeline_name,
             source=self.get_current_exposure,
-            requires_columns=required_columns,
-            requires_values=[
-                self.propensity_pipeline_name,
-                self.exposure_distribution.parameters_pipeline_name,
+            component=self,
+            required_resources=required_columns
+            + [
+                self.propensity,
+                self.exposure_distribution.exposure_parameters,
             ],
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
