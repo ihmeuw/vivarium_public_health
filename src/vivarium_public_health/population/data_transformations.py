@@ -561,22 +561,24 @@ def get_live_births_per_year(builder):
 
 
 def rescale_final_age_bin(builder, population_data):
-    exit_age = builder.configuration.population.to_dict().get("untracking_age", None)
-    if exit_age:
-        population_data = population_data.loc[population_data["age_start"] < exit_age].copy()
-        cut_bin_idx = exit_age <= population_data["age_end"]
+    untracking_age = builder.configuration.population.to_dict().get("untracking_age", None)
+    if untracking_age:
+        population_data = population_data.loc[
+            population_data["age_start"] < untracking_age
+        ].copy()
+        cut_bin_idx = untracking_age <= population_data["age_end"]
         cut_age_start = population_data.loc[cut_bin_idx, "age_start"]
         cut_age_end = population_data.loc[cut_bin_idx, "age_end"]
-        population_data.loc[cut_bin_idx, "value"] *= (exit_age - cut_age_start) / (
+        population_data.loc[cut_bin_idx, "value"] *= (untracking_age - cut_age_start) / (
             cut_age_end - cut_age_start
         )
-        population_data.loc[cut_bin_idx, "age_end"] = exit_age
+        population_data.loc[cut_bin_idx, "age_end"] = untracking_age
     return population_data
 
 
 def validate_crude_birth_rate_data(builder, data_year_max):
-    exit_age = builder.configuration.population.to_dict().get("untracking_age", None)
-    if exit_age and builder.configuration.population.age_end != exit_age:
+    untracking_age = builder.configuration.population.to_dict().get("untracking_age", None)
+    if untracking_age and builder.configuration.population.age_end != untracking_age:
         raise ValueError(
             "If you specify an exit age, the initial population age end must be the same "
             "for the crude birth rate calculation to work."
