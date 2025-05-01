@@ -1,3 +1,7 @@
+**4.0.2 - 05/01/25**
+
+  - Bugfix: Fix configuration key for untracking age in FertilityCrudeBirthRate
+
 **4.0.1 - 03/21/25**
 
  - Feature: Update required resources for all components
