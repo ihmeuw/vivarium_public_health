@@ -1,3 +1,7 @@
+**4.1.0 - 05/14/25**
+
+  - Feature: Update RateTransition to have configuration key for rate conversion type
+
 **4.0.2 - 05/01/25**
 
   - Bugfix: Fix configuration key for untracking age in FertilityCrudeBirthRate
