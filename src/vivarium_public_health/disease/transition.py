@@ -144,6 +144,7 @@ class RateTransition(Transition):
             component=self,
             required_resources=lookup_columns + ["alive", self.joint_paf],
         )
+        self.rate_conversion_type = self.configuration["rate_conversion_type"]
 
     #################
     # Setup methods #
@@ -188,7 +189,7 @@ class RateTransition(Transition):
         return pd.Series(
             rate_to_probability(
                 self.transition_rate(index),
-                rate_conversion_type=self.configuration["rate_conversion_type"],
+                rate_conversion_type=self.rate_conversion_type,
             )
         )
 

@@ -14,14 +14,16 @@ from functools import partial
 from typing import Any
 
 import pandas as pd
+from layered_config_tree import ConfigurationError
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.state_machine import Machine
 from vivarium.types import DataInput, LookupTableData
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
 from vivarium_public_health.disease.state import BaseDiseaseState, SusceptibleState
-from vivarium_public_health.disease.transition import TransitionString
+from vivarium_public_health.disease.transition import RateTransition, TransitionString
 
 
 class DiseaseModel(Machine):
@@ -117,6 +119,18 @@ class DiseaseModel(Machine):
             component=self,
             required_resources=["age", "sex"],
         )
+
+    def on_post_setup(self, event: Event) -> None:
+        conversion_types = set()
+        for state in self.states:
+            for transition in state.transition_set.transitions:
+                if isinstance(transition, RateTransition):
+                    conversion_types.add(transition.rate_conversion_type)
+        if len(conversion_types) > 1:
+            raise ConfigurationError(
+                "All transitions in a disease model must have the same rate conversion type."
+                f" Found: {conversion_types}."
+            )
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Initialize the simulants in the population.
