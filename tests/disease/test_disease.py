@@ -1,6 +1,9 @@
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
+from layered_config_tree import LayeredConfigTree
 from vivarium import Component, InteractiveContext
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.utilities import from_yearly
@@ -554,3 +557,60 @@ def test_artifact_transition_keys(mocker, disease):
     # check remission rate
     remissive_transition = with_condition.add_rate_transition(healthy)
     assert remissive_transition._rate_source == f"cause.{cause}.remission_rate"
+
+
+@pytest.mark.parametrize("rate_conversion_type", ["linear", "exponential"])
+def test_transition_rate_to_probability_configuration(
+    base_config: LayeredConfigTree,
+    base_plugins: LayeredConfigTree,
+    disease: str,
+    rate_conversion_type: str,
+):
+    """
+    Test that the transition rate to probability configuration is set correctly.
+    """
+    healthy = BaseDiseaseState("healthy")
+    sick = DiseaseState("sick")
+    key = "sequela.acute_myocardial_infarction_first_2_days.incidence_rate"
+    transition = RateTransition(
+        input_state=healthy,
+        output_state=sick,
+        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
+    )
+    healthy.transition_set.append(transition)
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
+
+    base_config.update(
+        {
+            f"{transition.name}": {
+                "rate_conversion_type": rate_conversion_type,
+            }
+        }
+    )
+
+    with patch.object(transition, "_probability") as mock_probability_implementation:
+        # Mock _probability method in RateTransition
+        def mock_probability(index: pd.Index) -> pd.Series:
+            s = pd.Series(0.5, index=index)
+            t = pd.Series(1.0, index=index)
+            if transition.configuration["rate_conversion_type"] == "linear":
+                return s
+            else:
+                return t
+
+        mock_probability_implementation.side_effect = mock_probability
+
+        # Sets the configuration
+        sim = InteractiveContext(
+            components=[TestPopulation(), model],
+            configuration=base_config,
+            plugin_configuration=base_plugins,
+            setup=True,
+        )
+
+        idx = pd.Index(range(10))
+        probability = transition._probability(idx)
+        if rate_conversion_type == "linear":
+            assert (probability == 0.5).all()
+        else:
+            assert (probability == 1.0).all()
