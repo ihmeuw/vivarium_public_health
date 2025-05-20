@@ -602,11 +602,13 @@ def test_transition_rate_to_probability_configuration(
     ) as mock_rate_to_probability:
         idx = pd.Index(list(range(10)))
         transition._probability(idx)
-        calls = mock_rate_to_probability.call_args_list
-        for call_args in calls:
-            arg1, arg2 = call_args[0][0], call_args[1]["rate_conversion_type"]
-            assert arg1.index.equals(idx)
-            assert arg2 == rate_conversion_type
+
+        mock_rate_to_probability.assert_called_once()
+        args, kwargs = mock_rate_to_probability.call_args
+        assert len(args) == 1
+        assert len(kwargs) == 1
+        assert args[0].index.equals(idx)
+        assert kwargs["rate_conversion_type"] == rate_conversion_type
 
 
 def test_disease_model_rate_conversion_config_error(
