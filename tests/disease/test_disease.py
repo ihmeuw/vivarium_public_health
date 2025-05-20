@@ -1,6 +1,9 @@
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
+from layered_config_tree import ConfigurationError, LayeredConfigTree
 from vivarium import Component, InteractiveContext
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.utilities import from_yearly
@@ -554,3 +557,101 @@ def test_artifact_transition_keys(mocker, disease):
     # check remission rate
     remissive_transition = with_condition.add_rate_transition(healthy)
     assert remissive_transition._rate_source == f"cause.{cause}.remission_rate"
+
+
+@pytest.mark.parametrize("rate_conversion_type", ["linear", "exponential"])
+def test_transition_rate_to_probability_configuration(
+    base_config: LayeredConfigTree,
+    base_plugins: LayeredConfigTree,
+    disease: str,
+    rate_conversion_type: str,
+):
+    """
+    Test that the transition rate to probability configuration is set correctly.
+    """
+    healthy = BaseDiseaseState("healthy")
+    sick = DiseaseState("sick")
+    key = "sequela.acute_myocardial_infarction_first_2_days.incidence_rate"
+    transition = RateTransition(
+        input_state=healthy,
+        output_state=sick,
+        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
+    )
+    healthy.transition_set.append(transition)
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
+
+    base_config.update(
+        {
+            f"{transition.name}": {
+                "rate_conversion_type": rate_conversion_type,
+            }
+        }
+    )
+
+    # Sets the configuration
+    sim = InteractiveContext(
+        components=[TestPopulation(), model],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=True,
+    )
+
+    assert transition.rate_conversion_type == rate_conversion_type
+    with patch(
+        "vivarium_public_health.disease.transition.rate_to_probability", return_value=1.0
+    ) as mock_rate_to_probability:
+        idx = pd.Index(list(range(10)))
+        transition._probability(idx)
+
+        mock_rate_to_probability.assert_called_once()
+        args, kwargs = mock_rate_to_probability.call_args
+        assert len(args) == 1
+        assert len(kwargs) == 1
+        assert args[0].index.equals(idx)
+        assert kwargs["rate_conversion_type"] == rate_conversion_type
+
+
+def test_disease_model_rate_conversion_config_error(
+    base_config: LayeredConfigTree,
+    base_plugins: LayeredConfigTree,
+    disease: str,
+):
+    """
+    Test that the transition rate to probability configuration is set correctly.
+    """
+    healthy = BaseDiseaseState("healthy")
+    sick = DiseaseState("sick")
+    key = "sequela.acute_myocardial_infarction_first_2_days.incidence_rate"
+    transition = RateTransition(
+        input_state=healthy,
+        output_state=sick,
+        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
+    )
+    another_transition = RateTransition(
+        input_state=sick,
+        output_state=healthy,
+        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
+    )
+    healthy.transition_set.append(transition)
+    sick.transition_set.append(another_transition)
+    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
+
+    base_config.update(
+        {
+            f"{transition.name}": {
+                "rate_conversion_type": "linear",
+            },
+            f"{another_transition.name}": {
+                "rate_conversion_type": "exponential",
+            },
+        }
+    )
+
+    # Sets the configuration
+    with pytest.raises(ConfigurationError):
+        InteractiveContext(
+            components=[TestPopulation(), model],
+            configuration=base_config,
+            plugin_configuration=base_plugins,
+            setup=True,
+        )

@@ -48,6 +48,7 @@ class RateTransition(Transition):
                 "data_sources": {
                     "transition_rate": self._rate_source,
                 },
+                "rate_conversion_type": "linear",
             },
         }
 
@@ -143,6 +144,7 @@ class RateTransition(Transition):
             component=self,
             required_resources=lookup_columns + ["alive", self.joint_paf],
         )
+        self.rate_conversion_type = self.configuration["rate_conversion_type"]
 
     #################
     # Setup methods #
@@ -184,7 +186,12 @@ class RateTransition(Transition):
     ##################
 
     def _probability(self, index: pd.Index) -> pd.Series:
-        return pd.Series(rate_to_probability(self.transition_rate(index)))
+        return pd.Series(
+            rate_to_probability(
+                self.transition_rate(index),
+                rate_conversion_type=self.rate_conversion_type,
+            )
+        )
 
 
 class ProportionTransition(Transition):
