@@ -637,7 +637,7 @@ def test_disease_model_rate_conversion_config_error(
     base_config.update(
         {
             f"{transition.name}": {
-                "rate_conversion_type": "invalid",
+                "rate_conversion_type": "linear",
             },
             f"{another_transition.name}": {
                 "rate_conversion_type": "exponential",
