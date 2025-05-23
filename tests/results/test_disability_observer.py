@@ -39,7 +39,6 @@ def test_disability_observer_setup(mocker):
     observer = DisabilityObserver_()
     builder = mocker.Mock()
     mocker.patch("vivarium.component.Component.build_all_lookup_tables")
-    mocker.patch("vivarium.component.Component.get_configuration")
     builder.results.register_adding_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
     builder.configuration.output_data.results_directory = "some/results/directory"

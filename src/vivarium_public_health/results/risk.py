@@ -59,19 +59,6 @@ class CategoricalRiskObserver(PublicHealthObserver):
     ##############
 
     @property
-    def configuration_defaults(self) -> dict[str, Any]:
-        """A dictionary containing the defaults for any configurations managed by
-        this component.
-        """
-        return {
-            "stratification": {
-                f"{self.risk}": super().configuration_defaults["stratification"][
-                    self.get_configuration_name()
-                ]
-            }
-        }
-
-    @property
     def columns_required(self) -> list[str] | None:
         """The columns required by this observer."""
         return ["alive"]
@@ -101,19 +88,8 @@ class CategoricalRiskObserver(PublicHealthObserver):
         self.step_size = builder.time.step_size()
         self.categories = builder.data.load(f"risk_factor.{self.risk}.categories")
 
-    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
-        """Get the stratification configuration for this observer.
-
-        Parameters
-        ----------
-        builder
-            The builder object for the simulation.
-
-        Returns
-        -------
-            The stratification configuration for this observer.
-        """
-        return builder.configuration.stratification[self.risk]
+    def get_configuration_name(self) -> str:
+        return self.risk
 
     def register_observations(self, builder: Builder) -> None:
         """Register a stratification and observation.
