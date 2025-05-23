@@ -67,19 +67,6 @@ class DiseaseObserver(PublicHealthObserver):
     ##############
 
     @property
-    def configuration_defaults(self) -> dict[str, Any]:
-        """A dictionary containing the defaults for any configurations managed by
-        this component.
-        """
-        return {
-            "stratification": {
-                self.disease: super().configuration_defaults["stratification"][
-                    self.get_configuration_name()
-                ]
-            }
-        }
-
-    @property
     def columns_created(self) -> list[str]:
         """Columns created by this observer."""
         return [self.previous_state_column_name]
@@ -122,19 +109,8 @@ class DiseaseObserver(PublicHealthObserver):
         self.entity = self.disease_model.cause
         self.transition_stratification_name = f"transition_{self.disease}"
 
-    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
-        """Get the stratification configuration for this observer.
-
-        Parameters
-        ----------
-        builder
-            The builder object for the simulation.
-
-        Returns
-        -------
-            The stratification configuration for this observer.
-        """
-        return builder.configuration.stratification[self.disease]
+    def get_configuration_name(self) -> str:
+        return self.disease
 
     def register_observations(self, builder: Builder) -> None:
         """Register stratifications and observations.
