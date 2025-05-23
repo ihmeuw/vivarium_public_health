@@ -42,7 +42,7 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium>=3.4.0",
+        "vivarium>=3.4.3",
         "layered_config_tree>=1.0.1",
         "loguru",
         "numpy<2.0.0",
