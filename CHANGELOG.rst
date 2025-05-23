@@ -1,3 +1,7 @@
+**4.1.1 - 05/27/25**
+
+  - Feature: Update Observer to use super class get_configuration method
+
 **4.1.0 - 05/20/25**
 
   - Feature: Update RateTransition to have configuration key for rate conversion type

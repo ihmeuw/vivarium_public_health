@@ -34,7 +34,7 @@ class DisabilityObserver(PublicHealthObserver):
     .. code-block:: yaml
 
         configuration:
-            observers:
+            stratification:
                 disability:
                     exclude:
                         - "sex"
@@ -127,20 +127,6 @@ class DisabilityObserver(PublicHealthObserver):
         self.causes_of_disability = [
             cause for cause in causes_of_disability if cause.state_id not in excluded_causes
         ]
-
-    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
-        """Get the stratification configuration for this observer.
-
-        Parameters
-        ----------
-        builder
-            The builder object for the simulation.
-
-        Returns
-        -------
-            The stratification configuration for this observer.
-        """
-        return builder.configuration.stratification.disability
 
     def register_observations(self, builder: Builder) -> None:
         """Register an observation for years lived with disability."""

@@ -136,20 +136,6 @@ class MortalityObserver(PublicHealthObserver):
             SimpleCause("other_causes", "other_causes", "cause"),
         ]
 
-    def get_configuration(self, builder: Builder) -> LayeredConfigTree:
-        """Get the stratification configuration for this observer.
-
-        Parameters
-        ----------
-        builder
-            The builder object for the simulation.
-
-        Returns
-        -------
-            The stratification configuration for this observer.
-        """
-        return builder.configuration.stratification[self.get_configuration_name()]
-
     def register_observations(self, builder: Builder) -> None:
         """Register stratifications and observations.
 
