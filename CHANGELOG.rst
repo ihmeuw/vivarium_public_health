@@ -1,3 +1,7 @@
+**5.0.0 - 06/02/25**
+
+  - Feature: Update LBWSG to use exposure data based on simulant age
+
 **4.1.1 - 05/23/25**
 
   - Feature: Update Observer to use super class get_configuration method

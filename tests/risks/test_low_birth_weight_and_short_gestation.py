@@ -57,11 +57,15 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
     # Have to match age bins and rr data to make age intervals
     rr_data = make_categorical_data(agees)
     # Exposure data used for risk component
-    exposure = make_categorical_data(agees)
+    birth_exposure = make_categorical_data(agees)
+    exposure = birth_exposure.copy()
+    exposure.loc[exposure["value"] == 0.75, "value"] = 0.65
+    exposure.loc[exposure["value"] == 0.25, "value"] = 0.35
 
     # Add data dict to add to artifact
     data = {
-        f"{risk.name}.birth_exposure": exposure,
+        f"{risk.name}.birth_exposure": birth_exposure,
+        f"{risk.name}.exposure": exposure,
         f"{risk.name}.relative_risk": rr_data,
         f"{risk.name}.population_attributable_fraction": 0,
         f"{risk.name}.categories": categories,
@@ -81,6 +85,16 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
     )
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
     pop = sim.get_population()
+    # Verify exposure is used instead of birth_exposure since age end is 1.0
+    # Check values of pipeline match birth exposure data since age_end is 0.0
+    exposure_pipeline_values = sim.get_value(
+        "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"
+    )(pop.index)
+    assert isinstance(exposure_pipeline_values, pd.DataFrame)
+    assert "cat81" in exposure_pipeline_values.columns
+    assert "cat82" in exposure_pipeline_values.columns
+    assert (exposure_pipeline_values["cat81"] == 0.65).all()
+    assert (exposure_pipeline_values["cat82"] == 0.35).all()
 
     expected_pipeline_name = (
         f"effect_of_{lbwsg_effect.risk.name}_on_{lbwsg_effect.target.name}.relative_risk"
@@ -135,7 +149,7 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
     # Have to match age bins and rr data to make age intervals
     rr_data = make_categorical_data(ages)
     # Format birth exposure data
-    exposure = pd.DataFrame(
+    birth_exposure = pd.DataFrame(
         {
             "sex": ["Male", "Female", "Male", "Female"],
             "year_start": [2021, 2021, 2021, 2021],
@@ -144,10 +158,13 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
             "value": [0.75, 0.75, 0.25, 0.25],
         }
     )
+    exposure = birth_exposure.copy()
+    exposure["value"] = [0.65, 0.65, 0.35, 0.35]
 
     # Add data dict to add to artifact
     data = {
-        f"{risk.name}.birth_exposure": exposure,
+        f"{risk.name}.birth_exposure": birth_exposure,
+        f"{risk.name}.exposure": exposure,
         f"{risk.name}.relative_risk": rr_data,
         f"{risk.name}.population_attributable_fraction": 0,
         f"{risk.name}.categories": categories,
@@ -156,7 +173,7 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
 
     # Only have neontal age groups
     age_start = 0.0
-    age_end = 1.0
+    age_end = 0.0
     base_config.update(
         {
             "population": {
@@ -167,6 +184,15 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
     )
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
     pop = sim.get_population()
+    # Check values of pipeline match birth exposure data since age_end is 0.0
+    exposure_pipeline_values = sim.get_value(
+        "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"
+    )(pop.index)
+    assert isinstance(exposure_pipeline_values, pd.DataFrame)
+    assert "cat81" in exposure_pipeline_values.columns
+    assert "cat82" in exposure_pipeline_values.columns
+    assert (exposure_pipeline_values["cat81"] == 0.75).all()
+    assert (exposure_pipeline_values["cat82"] == 0.25).all()
 
     # Assert LBWSG birth exposure columns were created
     assert "birth_weight_exposure" in pop.columns
