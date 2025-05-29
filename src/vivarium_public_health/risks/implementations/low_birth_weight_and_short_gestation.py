@@ -46,7 +46,7 @@ class LBWSGDistribution(PolytomousDistribution):
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
         super().__init__(risk, distribution_type, exposure_data)
-        self.foo = "birth_exposure"  # TODO: rename this arg
+        self.exposure_key = "birth_exposure"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -72,7 +72,7 @@ class LBWSGDistribution(PolytomousDistribution):
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.parameters_pipeline_name,
-            source=lambda index: self.lookup_tables[self.foo](index),
+            source=lambda index: self.lookup_tables[self.exposure_key](index),
             component=self,
             required_resources=get_lookup_columns([self.lookup_tables["exposure"]]),
         )
@@ -299,9 +299,9 @@ class LBWSGRisk(Risk):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         if pop_data.user_data.get("age_end", self.configuration_age_end) == 0:
-            self.exposure_distribution.foo = "birth_exposure"
+            self.exposure_distribution.exposure_key = "birth_exposure"
         else:
-            self.exposure_distribution.foo = "exposure"
+            self.exposure_distribution.exposure_key = "exposure"
 
         birth_exposures = {
             self.get_exposure_column_name(axis): self.birth_exposures[
