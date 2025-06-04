@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 import pytest
+from layered_config_tree import ConfigurationError
+from vivarium import InteractiveContext
+from vivarium.testing_utilities import TestPopulation
 
 from tests.risks.test_effect import _setup_risk_effect_simulation
 from tests.test_utilities import make_age_bins
@@ -197,6 +200,83 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
     # Assert LBWSG birth exposure columns were created
     assert "birth_weight_exposure" in pop.columns
     assert "gestational_age_exposure" in pop.columns
+
+
+@pytest.mark.parametrize("exposure_key", ["birth_exposure", "exposure", "missing"])
+def test_lbwsg_exposure_data_logging(exposure_key, base_config, mocker, caplog) -> None:
+    risk = LBWSGRisk()
+
+    # Add mock data to artifact
+    # Format birth exposure data
+    exposure_data = pd.DataFrame(
+        {
+            "sex": ["Male", "Female", "Male", "Female"],
+            "year_start": [2021, 2021, 2021, 2021],
+            "year_end": [2022, 2022, 2022, 2022],
+            "parameter": ["cat81", "cat81", "cat82", "cat82"],
+            "value": [0.75, 0.75, 0.25, 0.25],
+        }
+    )
+
+    # Only have neontal age groups
+    if exposure_key == "birth_exposure":
+        age_end = 0.0
+    else:
+        age_end = 1.0
+
+    if exposure_key != "missing":
+        no_data_dict = {
+            "birth_exposure": "exposure",
+            "exposure": "birth_exposure",
+        }
+        no_data_key = no_data_dict[exposure_key]
+        override_config = {
+            "population": {
+                "initialization_age_start": 0.0,
+                "initialization_age_max": age_end,
+            },
+            risk.name: {
+                "data_sources": {
+                    exposure_key: exposure_data,
+                }
+            },
+        }
+    else:
+        override_config = {
+            "population": {
+                "initialization_age_start": 0.0,
+                "initialization_age_max": age_end,
+            },
+        }
+
+    # Patch get_category intervals so we do not need the mock artifact
+    mocker.patch(
+        "vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation.LBWSGDistribution.get_category_intervals"
+    )
+    assert not caplog.records
+    if exposure_key != "missing":
+        missing_key_dict = {
+            "birth_exposure": "exposure",
+            "exposure": "birth_exposure",
+        }
+        missing_key = missing_key_dict[exposure_key]
+        sim = InteractiveContext(
+            base_config,
+            components=[TestPopulation(), risk],
+            configuration=override_config,
+        )
+        assert f"The data for LBWSG {missing_key} is missing from the simulation"
+    else:
+        with pytest.raises(
+            ConfigurationError,
+            match="The LBWSG distribution requires either 'birth_exposure' or 'exposure' data to be "
+            "available in the simulation.",
+        ):
+            InteractiveContext(
+                base_config,
+                components=[TestPopulation(), risk],
+                configuration=override_config,
+            )
 
 
 def make_categorical_data(data: pd.DataFrame) -> pd.DataFrame:

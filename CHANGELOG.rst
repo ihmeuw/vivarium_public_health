@@ -1,4 +1,4 @@
-**5.0.0 - 06/02/25**
+**4.2.0 - 06/04/25**
 
   - Feature: Update LBWSG to use exposure data based on simulant age
 
