@@ -137,7 +137,8 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
                 assert (actual_rr == 1.0).all()
 
 
-def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
+@pytest.mark.parametrize("age_end", [0.0, 1.0])
+def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end):
     risk = LBWSGRisk()
     lbwsg_effect = LBWSGRiskEffect("cause.test_cause.cause_specific_mortality_rate")
 
@@ -175,14 +176,13 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
     }
 
     # Only have neontal age groups
-    age_start = 0.0
     age_end = 0.0
     base_config.update(
         {
             "population": {
-                "initialization_age_start": age_start,
+                "initialization_age_start": 0.0,
                 "initialization_age_max": age_end,
-            }
+            },
         }
     )
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
@@ -194,8 +194,12 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
     assert isinstance(exposure_pipeline_values, pd.DataFrame)
     assert "cat81" in exposure_pipeline_values.columns
     assert "cat82" in exposure_pipeline_values.columns
-    assert (exposure_pipeline_values["cat81"] == 0.75).all()
-    assert (exposure_pipeline_values["cat82"] == 0.25).all()
+    exposure_values = {
+        0.0: {"cat81": 0.75, "cat82": 0.25},
+        1.0: {"cat81": 0.65, "cat82": 0.35},
+    }
+    assert (exposure_pipeline_values["cat81"] == exposure_values[age_end]["cat81"]).all()
+    assert (exposure_pipeline_values["cat82"] == exposure_values[age_end]["cat82"]).all()
 
     # Assert LBWSG birth exposure columns were created
     assert "birth_weight_exposure" in pop.columns
@@ -255,11 +259,7 @@ def test_lbwsg_exposure_data_logging(exposure_key, base_config, mocker, caplog) 
     )
     assert not caplog.records
     if exposure_key != "missing":
-        missing_key_dict = {
-            "birth_exposure": "exposure",
-            "exposure": "birth_exposure",
-        }
-        missing_key = missing_key_dict[exposure_key]
+        missing_key = "exposure" if exposure_key == "birth_exposure" else "birth_exposure"
         sim = InteractiveContext(
             base_config,
             components=[TestPopulation(), risk],

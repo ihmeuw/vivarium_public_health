@@ -38,7 +38,7 @@ GESTATIONAL_AGE = "gestational_age"
 class LBWSGDistribution(PolytomousDistribution):
     @property
     def categories(self) -> list[str]:
-        # These need to be sorted so the cumulative sum is in the ocrrect order of categories
+        # These need to be sorted so the cumulative sum is in the correct order of categories
         # and results are therefore reproducible and correct
         return sorted(self.lookup_tables[self.exposure_key].value_columns)
 
@@ -94,20 +94,16 @@ class LBWSGDistribution(PolytomousDistribution):
             )
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
-        lookup_columns = set()
+        lookup_columns = []
         if "exposure" in self.lookup_tables:
-            lookup_columns = lookup_columns | set(
-                get_lookup_columns([self.lookup_tables["exposure"]])
-            )
+            lookup_columns.extend(get_lookup_columns([self.lookup_tables["exposure"]]))
         if "birth_exposure" in self.lookup_tables:
-            lookup_columns = lookup_columns | set(
-                get_lookup_columns([self.lookup_tables["birth_exposure"]])
-            )
+            lookup_columns.extend(get_lookup_columns([self.lookup_tables["birth_exposure"]]))
         return builder.value.register_value_producer(
             self.parameters_pipeline_name,
             source=lambda index: self.lookup_tables[self.exposure_key](index),
             component=self,
-            required_resources=list(lookup_columns),
+            required_resources=list(set(lookup_columns)),
         )
 
     def get_category_intervals(self, builder: Builder) -> dict[str, dict[str, pd.Interval]]:
