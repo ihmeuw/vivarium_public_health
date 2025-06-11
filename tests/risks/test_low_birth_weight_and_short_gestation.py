@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 import pytest
+from layered_config_tree import ConfigurationError
+from vivarium import InteractiveContext
+from vivarium.testing_utilities import TestPopulation
 
 from tests.risks.test_effect import _setup_risk_effect_simulation
 from tests.test_utilities import make_age_bins
@@ -57,11 +60,15 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
     # Have to match age bins and rr data to make age intervals
     rr_data = make_categorical_data(agees)
     # Exposure data used for risk component
-    exposure = make_categorical_data(agees)
+    birth_exposure = make_categorical_data(agees)
+    exposure = birth_exposure.copy()
+    exposure.loc[exposure["value"] == 0.75, "value"] = 0.65
+    exposure.loc[exposure["value"] == 0.25, "value"] = 0.35
 
     # Add data dict to add to artifact
     data = {
-        f"{risk.name}.birth_exposure": exposure,
+        f"{risk.name}.birth_exposure": birth_exposure,
+        f"{risk.name}.exposure": exposure,
         f"{risk.name}.relative_risk": rr_data,
         f"{risk.name}.population_attributable_fraction": 0,
         f"{risk.name}.categories": categories,
@@ -81,6 +88,16 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
     )
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
     pop = sim.get_population()
+    # Verify exposure is used instead of birth_exposure since age end is 1.0
+    # Check values of pipeline match birth exposure data since age_end is 0.0
+    exposure_pipeline_values = sim.get_value(
+        "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"
+    )(pop.index)
+    assert isinstance(exposure_pipeline_values, pd.DataFrame)
+    assert "cat81" in exposure_pipeline_values.columns
+    assert "cat82" in exposure_pipeline_values.columns
+    assert (exposure_pipeline_values["cat81"] == 0.65).all()
+    assert (exposure_pipeline_values["cat82"] == 0.35).all()
 
     expected_pipeline_name = (
         f"effect_of_{lbwsg_effect.risk.name}_on_{lbwsg_effect.target.name}.relative_risk"
@@ -120,7 +137,8 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
                 assert (actual_rr == 1.0).all()
 
 
-def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
+@pytest.mark.parametrize("age_end", [0.0, 1.0])
+def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end):
     risk = LBWSGRisk()
     lbwsg_effect = LBWSGRiskEffect("cause.test_cause.cause_specific_mortality_rate")
 
@@ -135,7 +153,66 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
     # Have to match age bins and rr data to make age intervals
     rr_data = make_categorical_data(ages)
     # Format birth exposure data
-    exposure = pd.DataFrame(
+    birth_exposure = pd.DataFrame(
+        {
+            "sex": ["Male", "Female", "Male", "Female"],
+            "year_start": [2021, 2021, 2021, 2021],
+            "year_end": [2022, 2022, 2022, 2022],
+            "parameter": ["cat81", "cat81", "cat82", "cat82"],
+            "value": [0.75, 0.75, 0.25, 0.25],
+        }
+    )
+    exposure = birth_exposure.copy()
+    exposure["value"] = [0.65, 0.65, 0.35, 0.35]
+
+    # Add data dict to add to artifact
+    data = {
+        f"{risk.name}.birth_exposure": birth_exposure,
+        f"{risk.name}.exposure": exposure,
+        f"{risk.name}.relative_risk": rr_data,
+        f"{risk.name}.population_attributable_fraction": 0,
+        f"{risk.name}.categories": categories,
+        f"{risk.name}.relative_risk_interpolator": mock_rr_interpolators,
+    }
+
+    # Only have neontal age groups
+    age_end = 0.0
+    base_config.update(
+        {
+            "population": {
+                "initialization_age_start": 0.0,
+                "initialization_age_max": age_end,
+            },
+        }
+    )
+    sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
+    pop = sim.get_population()
+    # Check values of pipeline match birth exposure data since age_end is 0.0
+    exposure_pipeline_values = sim.get_value(
+        "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"
+    )(pop.index)
+    assert isinstance(exposure_pipeline_values, pd.DataFrame)
+    assert "cat81" in exposure_pipeline_values.columns
+    assert "cat82" in exposure_pipeline_values.columns
+    exposure_values = {
+        0.0: {"cat81": 0.75, "cat82": 0.25},
+        1.0: {"cat81": 0.65, "cat82": 0.35},
+    }
+    assert (exposure_pipeline_values["cat81"] == exposure_values[age_end]["cat81"]).all()
+    assert (exposure_pipeline_values["cat82"] == exposure_values[age_end]["cat82"]).all()
+
+    # Assert LBWSG birth exposure columns were created
+    assert "birth_weight_exposure" in pop.columns
+    assert "gestational_age_exposure" in pop.columns
+
+
+@pytest.mark.parametrize("exposure_key", ["birth_exposure", "exposure", "missing"])
+def test_lbwsg_exposure_data_logging(exposure_key, base_config, mocker, caplog) -> None:
+    risk = LBWSGRisk()
+
+    # Add mock data to artifact
+    # Format birth exposure data
+    exposure_data = pd.DataFrame(
         {
             "sex": ["Male", "Female", "Male", "Female"],
             "year_start": [2021, 2021, 2021, 2021],
@@ -145,32 +222,61 @@ def test_use_birth_exposure(base_config, base_plugins, mock_rr_interpolators):
         }
     )
 
-    # Add data dict to add to artifact
-    data = {
-        f"{risk.name}.birth_exposure": exposure,
-        f"{risk.name}.relative_risk": rr_data,
-        f"{risk.name}.population_attributable_fraction": 0,
-        f"{risk.name}.categories": categories,
-        f"{risk.name}.relative_risk_interpolator": mock_rr_interpolators,
-    }
-
     # Only have neontal age groups
-    age_start = 0.0
-    age_end = 1.0
-    base_config.update(
-        {
-            "population": {
-                "initialization_age_start": age_start,
-                "initialization_age_max": age_end,
-            }
-        }
-    )
-    sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
-    pop = sim.get_population()
+    if exposure_key == "birth_exposure":
+        age_end = 0.0
+    else:
+        age_end = 1.0
 
-    # Assert LBWSG birth exposure columns were created
-    assert "birth_weight_exposure" in pop.columns
-    assert "gestational_age_exposure" in pop.columns
+    if exposure_key != "missing":
+        no_data_dict = {
+            "birth_exposure": "exposure",
+            "exposure": "birth_exposure",
+        }
+        no_data_key = no_data_dict[exposure_key]
+        override_config = {
+            "population": {
+                "initialization_age_start": 0.0,
+                "initialization_age_max": age_end,
+            },
+            risk.name: {
+                "data_sources": {
+                    exposure_key: exposure_data,
+                }
+            },
+        }
+    else:
+        override_config = {
+            "population": {
+                "initialization_age_start": 0.0,
+                "initialization_age_max": age_end,
+            },
+        }
+
+    # Patch get_category intervals so we do not need the mock artifact
+    mocker.patch(
+        "vivarium_public_health.risks.implementations.low_birth_weight_and_short_gestation.LBWSGDistribution.get_category_intervals"
+    )
+    assert not caplog.records
+    if exposure_key != "missing":
+        missing_key = "exposure" if exposure_key == "birth_exposure" else "birth_exposure"
+        sim = InteractiveContext(
+            base_config,
+            components=[TestPopulation(), risk],
+            configuration=override_config,
+        )
+        assert f"The data for LBWSG {missing_key} is missing from the simulation"
+    else:
+        with pytest.raises(
+            ConfigurationError,
+            match="The LBWSG distribution requires either 'birth_exposure' or 'exposure' data to be "
+            "available in the simulation.",
+        ):
+            InteractiveContext(
+                base_config,
+                components=[TestPopulation(), risk],
+                configuration=override_config,
+            )
 
 
 def make_categorical_data(data: pd.DataFrame) -> pd.DataFrame:

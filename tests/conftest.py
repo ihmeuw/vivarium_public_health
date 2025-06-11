@@ -1,8 +1,10 @@
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from pathlib import Path
 
 import pytest
+from _pytest.logging import LogCaptureFixture
 from layered_config_tree import LayeredConfigTree
+from loguru import logger
 from vivarium.framework.configuration import build_simulation_configuration
 from vivarium_testing_utils import FuzzyChecker
 
@@ -69,3 +71,10 @@ def fuzzy_checker() -> FuzzyChecker:
     yield checker
     test_dir = Path(__file__).resolve().parent
     checker.save_diagnostic_output(test_dir)
+
+
+@pytest.fixture
+def caplog(caplog: LogCaptureFixture) -> Generator[LogCaptureFixture, None, None]:
+    handler_id = logger.add(caplog.handler, format="{message}")
+    yield caplog
+    logger.remove(handler_id)
