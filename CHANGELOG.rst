@@ -1,3 +1,7 @@
+**4.2.1 - 06/30/25**
+
+  - Bugfix: Fix bug in test for LBWSG exposure data based on simulant age
+
 **4.2.0 - 06/11/25**
 
   - Feature: Update LBWSG to use exposure data based on simulant age
