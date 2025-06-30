@@ -176,7 +176,6 @@ def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end)
     }
 
     # Only have neontal age groups
-    age_end = 0.0
     base_config.update(
         {
             "population": {
@@ -229,11 +228,6 @@ def test_lbwsg_exposure_data_logging(exposure_key, base_config, mocker, caplog) 
         age_end = 1.0
 
     if exposure_key != "missing":
-        no_data_dict = {
-            "birth_exposure": "exposure",
-            "exposure": "birth_exposure",
-        }
-        no_data_key = no_data_dict[exposure_key]
         override_config = {
             "population": {
                 "initialization_age_start": 0.0,
@@ -260,7 +254,7 @@ def test_lbwsg_exposure_data_logging(exposure_key, base_config, mocker, caplog) 
     assert not caplog.records
     if exposure_key != "missing":
         missing_key = "exposure" if exposure_key == "birth_exposure" else "birth_exposure"
-        sim = InteractiveContext(
+        _ = InteractiveContext(
             base_config,
             components=[TestPopulation(), risk],
             configuration=override_config,
