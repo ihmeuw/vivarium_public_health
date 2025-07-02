@@ -172,6 +172,10 @@ class RiskEffect(Component):
                 )
         else:
             rr_data = self.get_filtered_data(builder, rr_source)
+
+        # Get inverse of relative risks for interventions
+        if self._exposure_distribution_type == "intervention":
+            rr_data = 1 / rr_data
         return rr_data
 
     def get_filtered_data(

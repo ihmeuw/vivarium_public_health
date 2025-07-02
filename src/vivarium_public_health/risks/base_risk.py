@@ -24,6 +24,7 @@ from vivarium_public_health.risks.distributions import (
     ContinuousDistribution,
     DichotomousDistribution,
     EnsembleDistribution,
+    InterventionDistribution,
     PolytomousDistribution,
     RiskExposureDistribution,
 )
@@ -96,6 +97,7 @@ class Risk(Component):
         "normal": ContinuousDistribution,
         "lognormal": ContinuousDistribution,
         "ensemble": EnsembleDistribution,
+        "intervention": InterventionDistribution,
     }
 
     ##############

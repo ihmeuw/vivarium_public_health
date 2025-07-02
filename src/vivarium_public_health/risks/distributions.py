@@ -454,6 +454,37 @@ class DichotomousDistribution(RiskExposureDistribution):
         )
 
 
+class InterventionDistribution(DichotomousDistribution):
+
+    #################
+    # Setup methods #
+    #################
+
+    def build_all_lookup_tables(self, builder: "Builder") -> None:
+        exposure_data = self.get_exposure_data(builder)
+        exposure_value_columns = self.get_exposure_value_columns(exposure_data)
+
+        # For interventions, always use 1 - exposure and clip negative values at 0
+        if isinstance(exposure_data, pd.DataFrame):
+            exposure_data_modified = exposure_data.copy()
+            exposure_data_modified[exposure_value_columns] = (
+                1 - exposure_data_modified[exposure_value_columns]
+            )
+            # Clip any negative values at 0
+            exposure_data_modified[exposure_value_columns] = exposure_data_modified[
+                exposure_value_columns
+            ].clip(lower=0)
+        else:
+            # For scalar exposure data, use 1 - exposure and clip at 0
+            exposure_data_modified = max(0, 1 - exposure_data)
+
+        self.lookup_tables["exposure"] = self.build_lookup_table(
+            builder, exposure_data_modified, exposure_value_columns
+        )
+        # For interventions, PAF should be 1.0 instead of 0.0
+        self.lookup_tables["paf"] = self.build_lookup_table(builder, 1.0)
+
+
 def clip(q):
     """Adjust the percentile boundary cases.
 
