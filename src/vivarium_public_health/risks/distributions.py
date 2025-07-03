@@ -327,7 +327,6 @@ class DichotomousDistribution(RiskExposureDistribution):
     def build_all_lookup_tables(self, builder: "Builder") -> None:
         exposure_data = self.get_exposure_data(builder)
         exposure_value_columns = self.get_exposure_value_columns(exposure_data)
-
         self._validate_exposure_data(exposure_data, exposure_value_columns)
 
         self.lookup_tables["exposure"] = self.build_lookup_table(
