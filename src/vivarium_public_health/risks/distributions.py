@@ -328,6 +328,16 @@ class DichotomousDistribution(RiskExposureDistribution):
         exposure_data = self.get_exposure_data(builder)
         exposure_value_columns = self.get_exposure_value_columns(exposure_data)
 
+        self._validate_exposure_data(exposure_data, exposure_value_columns)
+
+        self.lookup_tables["exposure"] = self.build_lookup_table(
+            builder, exposure_data, exposure_value_columns
+        )
+        self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
+
+    def _validate_exposure_data(
+        self, exposure_data: pd.DataFrame | float, exposure_value_columns: list[str] | None
+    ) -> None:
         if isinstance(exposure_data, pd.DataFrame):
             any_negatives = (exposure_data[exposure_value_columns] < 0).any().any()
             any_over_one = (exposure_data[exposure_value_columns] > 1).any().any()
@@ -335,11 +345,6 @@ class DichotomousDistribution(RiskExposureDistribution):
                 raise ValueError(f"All exposures must be in the range [0, 1] for {self.risk}")
         elif exposure_data < 0 or exposure_data > 1:
             raise ValueError(f"Exposure must be in the range [0, 1] for {self.risk}")
-
-        self.lookup_tables["exposure"] = self.build_lookup_table(
-            builder, exposure_data, exposure_value_columns
-        )
-        self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
 
     def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
         exposure_data = super().get_exposure_data(builder)
@@ -463,6 +468,7 @@ class InterventionDistribution(DichotomousDistribution):
     def build_all_lookup_tables(self, builder: "Builder") -> None:
         exposure_data = self.get_exposure_data(builder)
         exposure_value_columns = self.get_exposure_value_columns(exposure_data)
+        self._validate_exposure_data(exposure_data, exposure_value_columns)
 
         # For interventions, always use 1 - exposure and clip negative values at 0
         if isinstance(exposure_data, pd.DataFrame):
