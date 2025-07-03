@@ -183,7 +183,7 @@ class BasePopulation(Component):
             provided_new_key = False
             for layer in ["override", "model_override"]:
                 try:
-                    new_key_value = self.config.get_from_layer(mapper[key], layer=layer)
+                    new_key_value = self.config.get(mapper[key], layer=layer)
                     provided_new_key = True
                     break
                 except ConfigurationKeyError:
