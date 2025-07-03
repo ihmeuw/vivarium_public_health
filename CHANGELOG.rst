@@ -1,3 +1,7 @@
+**4.2.2 - 07/03/25**
+
+  - Update deprecated layered config tree method from get_from_layer() to get()
+
 **4.2.1 - 06/30/25**
 
   - Bugfix: Fix bug in test for LBWSG exposure data based on simulant age
