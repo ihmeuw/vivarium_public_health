@@ -300,7 +300,7 @@ class LBWSGRisk(Risk):
         # Propensity only used on initialization; not being saved to avoid a cycle
         return None
 
-    def get_exposure_pipeline(self, builder: Builder) -> Pipeline | None:
+    def get_determinant_pipeline(self, builder: Builder) -> Pipeline | None:
         # Exposure only used on initialization; not being saved to avoid a cycle
         return None
 
@@ -357,7 +357,7 @@ class LBWSGRisk(Risk):
             axis, continuous_propensity, categorical_propensity
         )
 
-    def get_current_exposure(self, index: pd.Index) -> pd.DataFrame:
+    def get_current_determinant(self, index: pd.Index) -> pd.DataFrame:
         raise LifeCycleError(
             f"The {self.risk.name} exposure pipeline should not be called. You probably want to"
             f" refer directly one of the exposure columns. During simulant initialization the birth"
