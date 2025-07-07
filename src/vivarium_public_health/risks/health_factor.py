@@ -238,12 +238,12 @@ class HealthFactor(Component, ABC):
             self.randomness.get_draw(pop_data.index), name=self.propensity_column_name
         )
         self.population_view.update(propensity)
-        self.update_exposure_column(pop_data.index)
+        self.update_determinant_column(pop_data.index)
 
     def on_time_step_prepare(self, event: Event) -> None:
-        self.update_exposure_column(event.index)
+        self.update_determinant_column(event.index)
 
-    def update_exposure_column(self, index: pd.Index) -> None:
+    def update_determinant_column(self, index: pd.Index) -> None:
         if self.create_exposure_column:
             exposure = pd.Series(self.determinant(index), name=self.determinant_column_name)
             self.population_view.update(exposure)

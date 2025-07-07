@@ -52,7 +52,7 @@ class RiskEffect(Component):
 
     @property
     def name(self) -> str:
-        return self.get_name(self.risk, self.target)
+        return self.get_name(self.health_factor, self.target)
 
     @staticmethod
     def get_name(risk: EntityString, target: TargetString) -> str:
@@ -64,8 +64,8 @@ class RiskEffect(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": f"{self.risk}.relative_risk",
-                    "population_attributable_fraction": f"{self.risk}.population_attributable_fraction",
+                    "relative_risk": f"{self.health_factor}.relative_risk",
+                    "population_attributable_fraction": f"{self.health_factor}.population_attributable_fraction",
                 },
                 "data_source_parameters": {
                     "relative_risk": {},
@@ -81,11 +81,17 @@ class RiskEffect(Component):
             "unordered_polytomous",
         ]
 
+    @property
+    def health_determinant(self) -> str:
+        """The health determinant that effects the target. Either exposure or coverage."""
+        mapper = {"risk_factor": "exposure", "intervention_access": "coverage"}
+        return mapper[self.health_factor.type]
+
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str, target: str):
+    def __init__(self, health_factor: str, target: str):
         """
 
         Parameters
@@ -100,18 +106,20 @@ class RiskEffect(Component):
             where entity_type should be singular (e.g., cause instead of causes).
         """
         super().__init__()
-        self.risk = EntityString(risk)
+        self.health_factor = EntityString(health_factor)
         self.target = TargetString(target)
 
         self._exposure_distribution_type = None
 
-        self.exposure_pipeline_name = f"{self.risk.name}.exposure"
+        self.determinant_pipeline_name = (
+            f"{self.health_factor.name}.{self.health_determinant}"
+        )
         self.target_pipeline_name = f"{self.target.name}.{self.target.measure}"
         self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.exposure = self.get_risk_exposure(builder)
+        self.determinant = self.get_determinant_pipeline(builder)
 
         self._relative_risk_source = self.get_relative_risk_source(builder)
         self.relative_risk = self.get_relative_risk_pipeline(builder)
@@ -143,7 +151,7 @@ class RiskEffect(Component):
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
-        risk_exposure_component = self._get_risk_exposure_class(builder)
+        risk_exposure_component = self._get_health_factor_class(builder)
         if risk_exposure_component.distribution_type:
             return risk_exposure_component.distribution_type
         return risk_exposure_component.get_distribution_type(builder)
@@ -207,7 +215,7 @@ class RiskEffect(Component):
             rr_data = rr_data.reset_index("parameter")
 
         rr_value_cols = list(rr_data["parameter"].unique())
-        rr_data = pivot_categorical(builder, self.risk, rr_data, "parameter")
+        rr_data = pivot_categorical(builder, self.health_factor, rr_data, "parameter")
         return rr_data, rr_value_cols
 
     # todo currently this isn't being called. we need to properly set rrs if
@@ -224,14 +232,16 @@ class RiskEffect(Component):
         for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
         (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
         """
-        if not self.risk in builder.configuration.to_dict():
+        if not self.health_factor in builder.configuration.to_dict():
             return relative_risk_data
 
-        rebin_exposed_categories = set(builder.configuration[self.risk]["rebinned_exposed"])
+        rebin_exposed_categories = set(
+            builder.configuration[self.health_factor]["rebinned_exposed"]
+        )
 
         if rebin_exposed_categories:
             # todo make sure this works
-            exposure_data = load_exposure_data(builder, self.risk)
+            exposure_data = load_exposure_data(builder, self.health_factor)
             relative_risk_data = self._rebin_relative_risk_data(
                 relative_risk_data, exposure_data, rebin_exposed_categories
             )
@@ -259,8 +269,8 @@ class RiskEffect(Component):
         ).fillna(0)
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
-    def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        return builder.value.get_value(self.exposure_pipeline_name)
+    def get_determinant_pipeline(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        return builder.value.get_value(self.determinant_pipeline_name)
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
         relative_risk = self.relative_risk(index)
@@ -269,22 +279,22 @@ class RiskEffect(Component):
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
 
         if not self.is_exposure_categorical:
-            tmred = builder.data.load(f"{self.risk}.tmred")
+            tmred = builder.data.load(f"{self.health_factor}.tmred")
             tmrel = 0.5 * (tmred["min"] + tmred["max"])
-            scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
+            scale = builder.data.load(f"{self.health_factor}.relative_risk_scalar")
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.exposure(index)
+                exposure = self.determinant(index)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return relative_risk
 
         else:
-            index_columns = ["index", self.risk.name]
+            index_columns = ["index", self.health_factor.name]
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.exposure(index).reset_index()
+                exposure = self.determinant(index).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
 
@@ -292,17 +302,19 @@ class RiskEffect(Component):
                 relative_risk.columns = index_columns + ["value"]
                 relative_risk = relative_risk.set_index(index_columns)
 
-                effect = relative_risk.loc[exposure.index, "value"].droplevel(self.risk.name)
+                effect = relative_risk.loc[exposure.index, "value"].droplevel(
+                    self.health_factor.name
+                )
                 return effect
 
         return generate_relative_risk
 
     def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
-            f"{self.risk.name}_on_{self.target.name}.relative_risk",
+            f"{self.health_factor.name}_on_{self.target.name}.relative_risk",
             self._relative_risk_source,
             component=self,
-            required_resources=[self.exposure],
+            required_resources=[self.determinant],
         )
 
     def register_target_modifier(self, builder: Builder) -> None:
@@ -328,11 +340,11 @@ class RiskEffect(Component):
     # Helper methods #
     ##################
 
-    def _get_risk_exposure_class(self, builder: Builder) -> Risk:
-        risk_exposure_component = builder.components.get_component(self.risk)
+    def _get_health_factor_class(self, builder: Builder) -> Risk:
+        risk_exposure_component = builder.components.get_component(self.health_factor)
         if not isinstance(risk_exposure_component, Risk):
             raise ValueError(
-                f"Risk effect model {self.name} requires a Risk component named {self.risk}"
+                f"Risk effect model {self.name} requires a Risk component named {self.health_factor}"
             )
         return risk_exposure_component
 
@@ -366,15 +378,15 @@ class NonLogLinearRiskEffect(RiskEffect):
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": f"{self.risk}.relative_risk",
-                    "population_attributable_fraction": f"{self.risk}.population_attributable_fraction",
+                    "relative_risk": f"{self.health_factor}.relative_risk",
+                    "population_attributable_fraction": f"{self.health_factor}.population_attributable_fraction",
                 },
             }
         }
 
     @property
     def columns_required(self) -> list[str]:
-        return [f"{self.risk.name}_exposure"]
+        return [f"{self.health_factor.name}_exposure"]
 
     #################
     # Setup methods #
@@ -414,8 +426,8 @@ class NonLogLinearRiskEffect(RiskEffect):
             .reset_index()
         )
         rr_data = rr_data.drop("parameter", axis=1)
-        rr_data[f"{self.risk.name}_exposure_start"] = rr_data["left_exposure"]
-        rr_data[f"{self.risk.name}_exposure_end"] = rr_data["right_exposure"]
+        rr_data[f"{self.health_factor.name}_exposure_start"] = rr_data["left_exposure"]
+        rr_data[f"{self.health_factor.name}_exposure_end"] = rr_data["right_exposure"]
         # build lookup table
         rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
         self.lookup_tables["relative_risk"] = self.build_lookup_table(
@@ -438,17 +450,19 @@ class NonLogLinearRiskEffect(RiskEffect):
             configuration = self.configuration
 
         # get TMREL
-        tmred = builder.data.load(f"{self.risk}.tmred")
+        tmred = builder.data.load(f"{self.health_factor}.tmred")
         if tmred["distribution"] == "uniform":
             draw = builder.configuration.input_data.input_draw_number
             rng = np.random.default_rng(builder.randomness.get_seed(self.name + str(draw)))
             self.tmrel = rng.uniform(tmred["min"], tmred["max"])
         elif tmred["distribution"] == "draws":  # currently only for iron deficiency
             raise MissingDataError(
-                f"This data has draw-level TMRELs. You will need to contact the research team that models {self.risk.name} to get this data."
+                f"This data has draw-level TMRELs. You will need to contact the research team that models {self.health_factor.name} to get this data."
             )
         else:
-            raise MissingDataError(f"No TMRED found in gbd_mapping for risk {self.risk.name}")
+            raise MissingDataError(
+                f"No TMRED found in gbd_mapping for risk {self.health_factor.name}"
+            )
 
         # calculate RR at TMREL
         rr_source = configuration.data_sources.relative_risk
@@ -489,7 +503,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         def generate_relative_risk(index: pd.Index) -> pd.Series:
             rr_intervals = self.lookup_tables["relative_risk"](index)
-            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
+            exposure = self.population_view.get(index)[f"{self.health_factor.name}_exposure"]
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
                 rr_intervals["right_exposure"].values,
@@ -512,7 +526,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         parameter_data_is_numeric = rr_data["parameter"].dtype.kind in "biufc"
         if not parameter_data_is_numeric:
             raise ValueError(
-                f"The parameter column in your {self.risk.name} relative risk data must contain numeric data. Its dtype is {rr_data['parameter'].dtype} instead."
+                f"The parameter column in your {self.health_factor.name} relative risk data must contain numeric data. Its dtype is {rr_data['parameter'].dtype} instead."
             )
 
         # and that these RR values are monotonically increasing within each demographic group

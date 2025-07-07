@@ -99,9 +99,7 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
     assert (exposure_pipeline_values["cat81"] == 0.65).all()
     assert (exposure_pipeline_values["cat82"] == 0.35).all()
 
-    expected_pipeline_name = (
-        f"effect_of_{lbwsg_effect.risk.name}_on_{lbwsg_effect.target.name}.relative_risk"
-    )
+    expected_pipeline_name = f"effect_of_{lbwsg_effect.health_factor.name}_on_{lbwsg_effect.target.name}.relative_risk"
     assert expected_pipeline_name in sim.list_values()
 
     # Get age group names to lookup rr interpolator later

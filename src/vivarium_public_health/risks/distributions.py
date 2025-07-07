@@ -30,6 +30,10 @@ class MissingDataError(Exception):
 
 
 class RiskExposureDistribution(Component, ABC):
+    @property
+    def health_determinant(self) -> str:
+        mapper = {"risk_factor": "exposure", "intervention_access": "coverage"}
+        return mapper[self.risk.type]
 
     #####################
     # Lifecycle methods #
@@ -62,7 +66,9 @@ class RiskExposureDistribution(Component, ABC):
     def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
         if self._exposure_data is not None:
             return self._exposure_data
-        return self.get_data(builder, self.configuration["data_sources"]["exposure"])
+        return self.get_data(
+            builder, self.configuration["data_sources"][self.health_determinant]
+        )
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:

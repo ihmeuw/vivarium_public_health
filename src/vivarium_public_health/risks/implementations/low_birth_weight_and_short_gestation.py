@@ -400,13 +400,11 @@ class LBWSGRiskEffect(RiskEffect):
             LBWSGRisk.get_exposure_column_name(axis) for axis in LBWSGRisk.AXES
         ]
         self.relative_risk_pipeline_name = (
-            f"effect_of_{self.risk.name}_on_{self.target.name}.relative_risk"
+            f"effect_of_{self.health_factor.name}_on_{self.target.name}.relative_risk"
         )
 
     def relative_risk_column_name(self, age_group_id: str) -> str:
-        return (
-            f"effect_of_{self.risk.name}_on_{age_group_id}_{self.target.name}_relative_risk"
-        )
+        return f"effect_of_{self.health_factor.name}_on_{age_group_id}_{self.target.name}_relative_risk"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -426,7 +424,9 @@ class LBWSGRiskEffect(RiskEffect):
             builder, paf_data, paf_value_cols
         )
 
-    def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.DataFrame]:
+    def get_determinant_pipeline(
+        self, builder: Builder
+    ) -> Callable[[pd.Index], pd.DataFrame]:
         def exposure(index: pd.Index) -> pd.DataFrame:
             return self.population_view.subview(self.lbwsg_exposure_column_names).get(index)
 
@@ -435,7 +435,7 @@ class LBWSGRiskEffect(RiskEffect):
     def get_population_attributable_fraction_source(
         self, builder: Builder
     ) -> tuple[pd.DataFrame, list[str]]:
-        paf_key = f"{self.risk}.population_attributable_fraction"
+        paf_key = f"{self.health_factor}.population_attributable_fraction"
         paf_data = builder.data.load(paf_key)
         return paf_data, builder.data.value_columns()(paf_key)
 
@@ -449,7 +449,7 @@ class LBWSGRiskEffect(RiskEffect):
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
-        relative_risks = builder.data.load(f"{self.risk}.relative_risk")
+        relative_risks = builder.data.load(f"{self.health_factor}.relative_risk")
         exposed_age_group_starts = (
             relative_risks.groupby("age_start")["value"].any().reset_index()["age_start"]
         )
@@ -476,7 +476,7 @@ class LBWSGRiskEffect(RiskEffect):
         }
 
         # get relative risk data for target
-        interpolators = builder.data.load(f"{self.risk}.relative_risk_interpolator")
+        interpolators = builder.data.load(f"{self.health_factor}.relative_risk_interpolator")
         interpolators = (
             # isolate RRs for target and drop non-neonatal age groups since they have RR == 1.0
             interpolators[
