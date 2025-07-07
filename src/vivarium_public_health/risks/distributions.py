@@ -272,7 +272,7 @@ class PolytomousDistribution(RiskExposureDistribution):
     def categories(self) -> list[str]:
         # These need to be sorted so the cumulative sum is in the ocrrect order of categories
         # and results are therefore reproducible and correct
-        return sorted(self.lookup_tables["exposure"].value_columns)
+        return sorted(self.lookup_tables[self.health_determinant].value_columns)
 
     #################
     # Setup methods #
@@ -285,7 +285,7 @@ class PolytomousDistribution(RiskExposureDistribution):
         if isinstance(exposure_data, pd.DataFrame):
             exposure_data = pivot_categorical(builder, self.risk, exposure_data, "parameter")
 
-        self.lookup_tables["exposure"] = self.build_lookup_table(
+        self.lookup_tables[self.health_determinant] = self.build_lookup_table(
             builder, exposure_data, exposure_value_columns
         )
 
@@ -299,9 +299,11 @@ class PolytomousDistribution(RiskExposureDistribution):
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.parameters_pipeline_name,
-            source=self.lookup_tables["exposure"],
+            source=self.lookup_tables[self.health_determinant],
             component=self,
-            required_resources=get_lookup_columns([self.lookup_tables["exposure"]]),
+            required_resources=get_lookup_columns(
+                [self.lookup_tables[self.health_determinant]]
+            ),
         )
 
     ##################
@@ -342,7 +344,7 @@ class DichotomousDistribution(RiskExposureDistribution):
         elif exposure_data < 0 or exposure_data > 1:
             raise ValueError(f"Exposure must be in the range [0, 1] for {self.risk}")
 
-        self.lookup_tables["exposure"] = self.build_lookup_table(
+        self.lookup_tables[self.health_determinant] = self.build_lookup_table(
             builder, exposure_data, exposure_value_columns
         )
         self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
@@ -400,7 +402,9 @@ class DichotomousDistribution(RiskExposureDistribution):
             f"{self.risk}.exposure_parameters",
             source=self.exposure_parameter_source,
             component=self,
-            required_resources=get_lookup_columns([self.lookup_tables["exposure"]]),
+            required_resources=get_lookup_columns(
+                [self.lookup_tables[self.health_determinant]]
+            ),
         )
 
     ##############
@@ -443,7 +447,7 @@ class DichotomousDistribution(RiskExposureDistribution):
     ##################################
 
     def exposure_parameter_source(self, index: pd.Index) -> pd.Series:
-        base_exposure = self.lookup_tables["exposure"](index).values
+        base_exposure = self.lookup_tables[self.health_determinant](index).values
         joint_paf = self.joint_paf(index).values
         return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
 
