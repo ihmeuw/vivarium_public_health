@@ -635,7 +635,7 @@ def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
     pop = sim.get_population()
 
     expected_pipeline_name = (
-        f"{effect.health_factor.name}_on_{effect.target.name}.relative_risk"
+        f"{effect.entity.name}_on_{effect.target.name}.relative_risk"
     )
     assert expected_pipeline_name in sim.list_values()
 
@@ -644,7 +644,7 @@ def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
         "cat2": 1.0,
     }
     for exposure in rr_mapper:
-        exposure_pipeline = sim.get_value(f"{effect.health_factor.name}.exposure")(pop.index)
+        exposure_pipeline = sim.get_value(f"{effect.entity.name}.exposure")(pop.index)
         exposure_idx = exposure_pipeline.loc[exposure_pipeline == exposure].index
         relative_risk = sim.get_value(expected_pipeline_name)(exposure_idx)
         assert (relative_risk == rr_mapper[exposure]).all()

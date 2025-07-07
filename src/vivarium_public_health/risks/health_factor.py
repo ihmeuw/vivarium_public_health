@@ -20,7 +20,7 @@ from vivarium_public_health.risks.distributions import (
 )
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
-__ALLOWABLE_LEVEL_TYPES = ["exposure", "coverage"]
+_ALLOWABLE_LEVEL_TYPES = ["exposure", "coverage"]
 
 
 class HealthFactor(Component, ABC):
@@ -47,18 +47,18 @@ class HealthFactor(Component, ABC):
 
     @property
     def name(self) -> str:
-        return self.health_factor
+        return self.entity
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
         return {
             self.name: {
                 "data_sources": {
-                    f"{self.level_type}": f"{self.health_factor}.{self.level_type}",
-                    "ensemble_distribution_weights": f"{self.health_factor}.exposure_distribution_weights",
-                    "exposure_standard_deviation": f"{self.health_factor}.exposure_standard_deviation",
+                    f"{self.level_type}": f"{self.entity}.{self.level_type}",
+                    "ensemble_distribution_weights": f"{self.entity}.exposure_distribution_weights",
+                    "exposure_standard_deviation": f"{self.entity}.exposure_standard_deviation",
                 },
-                "distribution_type": f"{self.health_factor}.distribution",
+                "distribution_type": f"{self.entity}.distribution",
                 # rebinned_exposed only used for DichotomousDistribution
                 "rebinned_exposed": [],
                 "category_thresholds": [],
@@ -80,31 +80,31 @@ class HealthFactor(Component, ABC):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, health_factor: str, level_type: str = "exposure") -> None:
+    def __init__(self, entity: str, level_type: str = "exposure") -> None:
         """
 
         Parameters
         ----------
-        health_factor
-            the type and name of a health factor, specified as "type.name". Type is singular.
+        entity
+            the type and name of a entity, specified as "type.name". Type is singular.
         level_type
             The type of level for the health factor, e.g., "exposure" or "coverage".
         """
         super().__init__()
-        self.health_factor = EntityString(health_factor)
+        self.entity = EntityString(entity)
         self.distribution_type = None
         self.level_type = level_type
-        if self.level_type not in __ALLOWABLE_LEVEL_TYPES:
+        if self.level_type not in _ALLOWABLE_LEVEL_TYPES:
             raise ValueError(
                 f"Invalid level type '{self.level_type}' for {self.name}. "
-                f"Allowed types are: {__ALLOWABLE_LEVEL_TYPES}."
+                f"Allowed types are: {_ALLOWABLE_LEVEL_TYPES}."
             )
 
-        self.randomness_stream_name = f"initial_{self.health_factor.name}_propensity"
-        self.propensity_column_name = f"{self.health_factor.name}_propensity"
-        self.propensity_pipeline_name = f"{self.health_factor.name}.propensity"
-        self.determinant_pipeline_name = f"{self.health_factor.name}.{self.level_type}"
-        self.determinant_column_name = f"{self.health_factor.name}_{self.level_type}"
+        self.randomness_stream_name = f"initial_{self.entity.name}_propensity"
+        self.propensity_column_name = f"{self.entity.name}_propensity"
+        self.propensity_pipeline_name = f"{self.entity.name}.propensity"
+        self.determinant_pipeline_name = f"{self.entity.name}.{self.level_type}"
+        self.determinant_column_name = f"{self.entity.name}_{self.level_type}"
 
     #################
     # Setup methods #
@@ -130,7 +130,7 @@ class HealthFactor(Component, ABC):
                 component
                 for component in builder.components.list_components()
                 if component.startswith(
-                    f"non_log_linear_risk_effect.{self.health_factor.name}_on_"
+                    f"non_log_linear_risk_effect.{self.entity.name}_on_"
                 )
             ]
         )
@@ -189,7 +189,7 @@ class HealthFactor(Component, ABC):
         """
         try:
             exposure_distribution = self.exposure_distributions[self.distribution_type](
-                self.health_factor, self.distribution_type
+                self.entity, self.distribution_type
             )
         except KeyError:
             raise NotImplementedError(

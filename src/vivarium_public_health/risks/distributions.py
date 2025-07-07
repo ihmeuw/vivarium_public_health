@@ -48,6 +48,10 @@ class RiskExposureDistribution(Component, ABC):
         super().__init__()
         self.risk = risk
         self.distribution_type = distribution_type
+        if self.distribution_type != "dichotomous" and self.risk.type == "intervention_access":
+            raise NotImplementedError(
+                f"Distribution type {self.distribution_type} is not supported for interventions."
+            )
         self._exposure_data = exposure_data
 
         self.parameters_pipeline_name = f"{self.risk}.exposure_parameters"
@@ -270,7 +274,7 @@ class ContinuousDistribution(RiskExposureDistribution):
 class PolytomousDistribution(RiskExposureDistribution):
     @property
     def categories(self) -> list[str]:
-        # These need to be sorted so the cumulative sum is in the ocrrect order of categories
+        # These need to be sorted so the cumulative sum is in the correct order of categories
         # and results are therefore reproducible and correct
         return sorted(self.lookup_tables[self.health_determinant].value_columns)
 

@@ -180,7 +180,7 @@ def test_polytomous_risk(polytomous_risk, base_config, base_plugins):
 
     _check_exposure_and_rr(
         simulation,
-        risk.risk,
+        risk.health_factor,
         exposure_data.to_dict(),
         rr_data["value"].to_dict(),
     )
@@ -189,7 +189,7 @@ def test_polytomous_risk(polytomous_risk, base_config, base_plugins):
 
     _check_exposure_and_rr(
         simulation,
-        risk.risk,
+        risk.health_factor,
         exposure_data.to_dict(),
         rr_data["value"].to_dict(),
     )
@@ -247,13 +247,13 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
     simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
 
     _check_exposure_and_rr(
-        simulation, risk.risk, category_exposures, rr_data["value"].to_dict()
+        simulation, risk.entity, category_exposures, rr_data["value"].to_dict()
     )
 
     simulation.step()
 
     _check_exposure_and_rr(
-        simulation, risk.risk, category_exposures, rr_data["value"].to_dict()
+        simulation, risk.entity, category_exposures, rr_data["value"].to_dict()
     )
 
 

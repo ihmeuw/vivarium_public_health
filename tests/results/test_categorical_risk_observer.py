@@ -46,7 +46,7 @@ def categorical_risk():
 @pytest.fixture()
 def simulation_after_one_step(base_config, base_plugins, categorical_risk):
     risk, risk_data = categorical_risk
-    observer = CategoricalRiskObserver(f"{risk.risk.name}")
+    observer = CategoricalRiskObserver(f"{risk.health_factor.name}")
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
@@ -136,11 +136,11 @@ def test_different_results_per_risk(base_config, base_plugins, categorical_risk)
     """Test that each observer saves its own results."""
 
     risk, risk_data = categorical_risk
-    risk_observer = CategoricalRiskObserver(f"{risk.risk.name}")
+    risk_observer = CategoricalRiskObserver(f"{risk.health_factor.name}")
 
     # Set up a second risk factor
     another_risk = Risk("risk_factor.another_test_risk")
-    another_risk_observer = CategoricalRiskObserver(f"{another_risk.risk.name}")
+    another_risk_observer = CategoricalRiskObserver(f"{another_risk.entity.name}")
 
     simulation = InteractiveContext(
         components=[
@@ -173,7 +173,7 @@ def test_different_results_per_risk(base_config, base_plugins, categorical_risk)
 @pytest.mark.parametrize("exclusions", [[], ["cat1"], ["cat1", "cat4"]])
 def test_category_exclusions(base_config, base_plugins, categorical_risk, exclusions):
     risk, risk_data = categorical_risk
-    observer = CategoricalRiskObserver(f"{risk.risk.name}")
+    observer = CategoricalRiskObserver(f"{risk.health_factor.name}")
     simulation = InteractiveContext(
         components=[
             TestPopulation(),
