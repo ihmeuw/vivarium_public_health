@@ -71,7 +71,7 @@ class LBWSGDistribution(PolytomousDistribution):
 
             if isinstance(birth_exposure_data, pd.DataFrame):
                 birth_exposure_data = pivot_categorical(
-                    builder, self.risk, birth_exposure_data, "parameter"
+                    builder, self.entity, birth_exposure_data, "parameter"
                 )
 
             self.lookup_tables["birth_exposure"] = self.build_lookup_table(
@@ -118,7 +118,7 @@ class LBWSGDistribution(PolytomousDistribution):
         -------
             The intervals for each category.
         """
-        categories: dict[str, str] = builder.data.load(f"{self.risk}.categories")
+        categories: dict[str, str] = builder.data.load(f"{self.entity}.categories")
         category_intervals = {
             axis: {
                 category: self._parse_description(axis, description)
@@ -300,7 +300,7 @@ class LBWSGRisk(Risk):
         # Propensity only used on initialization; not being saved to avoid a cycle
         return None
 
-    def get_determinant_pipeline(self, builder: Builder) -> Pipeline | None:
+    def get_measure_pipeline(self, builder: Builder) -> Pipeline | None:
         # Exposure only used on initialization; not being saved to avoid a cycle
         return None
 
@@ -357,7 +357,7 @@ class LBWSGRisk(Risk):
             axis, continuous_propensity, categorical_propensity
         )
 
-    def get_current_determinant(self, index: pd.Index) -> pd.DataFrame:
+    def get_current_measure(self, index: pd.Index) -> pd.DataFrame:
         raise LifeCycleError(
             f"The {self.risk.name} exposure pipeline should not be called. You probably want to"
             f" refer directly one of the exposure columns. During simulant initialization the birth"
@@ -404,7 +404,9 @@ class LBWSGRiskEffect(RiskEffect):
         )
 
     def relative_risk_column_name(self, age_group_id: str) -> str:
-        return f"effect_of_{self.entity.name}_on_{age_group_id}_{self.target.name}_relative_risk"
+        return (
+            f"effect_of_{self.entity.name}_on_{age_group_id}_{self.target.name}_relative_risk"
+        )
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -424,9 +426,7 @@ class LBWSGRiskEffect(RiskEffect):
             builder, paf_data, paf_value_cols
         )
 
-    def get_determinant_pipeline(
-        self, builder: Builder
-    ) -> Callable[[pd.Index], pd.DataFrame]:
+    def get_measure_pipeline(self, builder: Builder) -> Callable[[pd.Index], pd.DataFrame]:
         def exposure(index: pd.Index) -> pd.DataFrame:
             return self.population_view.subview(self.lbwsg_exposure_column_names).get(index)
 

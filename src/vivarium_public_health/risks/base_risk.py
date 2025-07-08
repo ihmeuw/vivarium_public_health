@@ -70,6 +70,11 @@ class Risk(HealthFactor):
 
     """
 
+    @property
+    def measure_name(self) -> str:
+        """The measure of the risk exposure."""
+        return "exposure"
+
     #####################
     # Lifecycle methods #
     #####################
@@ -82,4 +87,4 @@ class Risk(HealthFactor):
         risk
             the type and name of a risk, specified as "type.name". Type is singular.
         """
-        super().__init__(risk, level_type="exposure")
+        super().__init__(risk)

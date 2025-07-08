@@ -20,7 +20,7 @@ from vivarium_public_health.risks.distributions import (
 )
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
-_ALLOWABLE_LEVEL_TYPES = ["exposure", "coverage"]
+_ALLOWABLE_MEASURE_TYPES = ["exposure", "coverage"]
 
 
 class HealthFactor(Component, ABC):
@@ -54,7 +54,7 @@ class HealthFactor(Component, ABC):
         return {
             self.name: {
                 "data_sources": {
-                    f"{self.level_type}": f"{self.entity}.{self.level_type}",
+                    f"{self.measure_name}": f"{self.entity}.{self.measure_name}",
                     "ensemble_distribution_weights": f"{self.entity}.exposure_distribution_weights",
                     "exposure_standard_deviation": f"{self.entity}.exposure_standard_deviation",
                 },
@@ -76,11 +76,16 @@ class HealthFactor(Component, ABC):
     def initialization_requirements(self) -> list[str | Resource]:
         return [self.randomness]
 
+    @property
+    @abstractmethod
+    def measure_name(self) -> str:
+        raise NotImplementedError
+
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self, entity: str, level_type: str = "exposure") -> None:
+    def __init__(self, entity: str) -> None:
         """
 
         Parameters
@@ -93,18 +98,17 @@ class HealthFactor(Component, ABC):
         super().__init__()
         self.entity = EntityString(entity)
         self.distribution_type = None
-        self.level_type = level_type
-        if self.level_type not in _ALLOWABLE_LEVEL_TYPES:
+        if self.measure_name not in _ALLOWABLE_MEASURE_TYPES:
             raise ValueError(
-                f"Invalid level type '{self.level_type}' for {self.name}. "
-                f"Allowed types are: {_ALLOWABLE_LEVEL_TYPES}."
+                f"Invalid level type '{self.measure_name}' for {self.name}. "
+                f"Allowed types are: {_ALLOWABLE_MEASURE_TYPES}."
             )
 
         self.randomness_stream_name = f"initial_{self.entity.name}_propensity"
         self.propensity_column_name = f"{self.entity.name}_propensity"
         self.propensity_pipeline_name = f"{self.entity.name}.propensity"
-        self.determinant_pipeline_name = f"{self.entity.name}.{self.level_type}"
-        self.determinant_column_name = f"{self.entity.name}_{self.level_type}"
+        self.determinant_pipeline_name = f"{self.entity.name}.{self.measure_name}"
+        self.determinant_column_name = f"{self.entity.name}_{self.measure_name}"
 
     #################
     # Setup methods #
@@ -121,17 +125,15 @@ class HealthFactor(Component, ABC):
 
         self.randomness = self.get_randomness_stream(builder)
         self.propensity = self.get_propensity_pipeline(builder)
-        self.determinant = self.get_determinant_pipeline(builder)
+        self.measure = self.get_measure_pipeline(builder)
 
-        # We want to set this to True iff there is a non-loglinear risk effect
+        # We want to set this to True if there is a non-loglinear risk effect
         # on this risk instance
         self.create_exposure_column = bool(
             [
                 component
                 for component in builder.components.list_components()
-                if component.startswith(
-                    f"non_log_linear_risk_effect.{self.entity.name}_on_"
-                )
+                if component.startswith(f"non_log_linear_risk_effect.{self.entity.name}_on_")
             ]
         )
 
@@ -214,13 +216,13 @@ class HealthFactor(Component, ABC):
             required_resources=[self.propensity_column_name],
         )
 
-    def get_determinant_pipeline(self, builder: Builder) -> Pipeline:
+    def get_measure_pipeline(self, builder: Builder) -> Pipeline:
         required_columns = get_lookup_columns(
             self.exposure_distribution.lookup_tables.values()
         )
         return builder.value.register_value_producer(
             self.determinant_pipeline_name,
-            source=self.get_current_determinant,
+            source=self.get_current_measure,
             component=self,
             required_resources=required_columns
             + [
@@ -246,13 +248,13 @@ class HealthFactor(Component, ABC):
 
     def update_determinant_column(self, index: pd.Index) -> None:
         if self.create_exposure_column:
-            exposure = pd.Series(self.determinant(index), name=self.determinant_column_name)
+            exposure = pd.Series(self.measure_name(index), name=self.determinant_column_name)
             self.population_view.update(exposure)
 
     ##################################
     # Pipeline sources and modifiers #
     ##################################
 
-    def get_current_determinant(self, index: pd.Index) -> pd.Series:
+    def get_current_measure(self, index: pd.Index) -> pd.Series:
         propensity = self.propensity(index)
         return pd.Series(self.exposure_distribution.ppf(propensity), index=index)

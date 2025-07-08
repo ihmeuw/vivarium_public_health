@@ -8,5 +8,10 @@ class InterventionAccess(HealthFactor):
 
     """
 
-    def __init__(self, health_factor, level_type="coverage"):
-        super().__init__(health_factor, level_type)
+    @property
+    def measure_name(self) -> str:
+        """The measure of the intervention access."""
+        return "coverage"
+
+    def __init__(self, health_factor):
+        super().__init__(health_factor)

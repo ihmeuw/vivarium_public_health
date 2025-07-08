@@ -11,7 +11,6 @@ from vivarium.framework.population import SimulantData
 from vivarium.testing_utilities import TestPopulation
 
 from vivarium_public_health.disease import SI
-from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 
 #
@@ -634,9 +633,7 @@ def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
     pop = sim.get_population()
 
-    expected_pipeline_name = (
-        f"{effect.entity.name}_on_{effect.target.name}.relative_risk"
-    )
+    expected_pipeline_name = f"{effect.entity.name}_on_{effect.target.name}.relative_risk"
     assert expected_pipeline_name in sim.list_values()
 
     rr_mapper = {

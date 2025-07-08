@@ -7,6 +7,7 @@ This module contains tools for modeling the relationship between risk
 exposure models and disease models.
 
 """
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from importlib import import_module
 from typing import Any
@@ -28,19 +29,19 @@ from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
 
 
-class RiskEffect(Component):
+class HealthEffect(Component, ABC):
     """A component to model the effect of a risk factor on an affected entity's target rate.
 
     This component can source data either from builder.data or from parameters
     supplied in the configuration.
 
-    For a risk named 'risk' that affects  'affected_risk' and 'affected_cause',
+    For a health factor named 'health' that affects  'affected_health_factor' and 'affected_cause',
     the configuration would look like:
 
     .. code-block:: yaml
 
        configuration:
-            risk_effect.risk_name_on_affected_target:
+            health_effect.health_factor_name_on_affected_target:
                exposure_parameters: 2
                incidence_rate: 10
 
@@ -55,8 +56,12 @@ class RiskEffect(Component):
         return self.get_name(self.entity, self.target)
 
     @staticmethod
-    def get_name(risk: EntityString, target: TargetString) -> str:
-        return f"risk_effect.{risk.name}_on_{target}"
+    @abstractmethod
+    def get_name(self) -> Callable[[EntityString, TargetString], str]:
+        """Abstract property that must be implemented by subclasses to provide a naming function."""
+        raise NotImplementedError(
+            "Subclasses of HealthEffect must implement the 'get_name' property."
+        )
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
@@ -82,10 +87,12 @@ class RiskEffect(Component):
         ]
 
     @property
-    def exposure_measure_name(self) -> str:
-        """The health determinant that effects the target. Either exposure or coverage."""
-        mapper = {"risk_factor": "exposure", "intervention_access": "coverage"}
-        return mapper[self.entity.type]
+    @abstractmethod
+    def measure_name(self) -> str:
+        """Abstract property that must be implemented by subclasses."""
+        raise NotImplementedError(
+            "Subclasses of HealthEffect must implement the 'measure' property."
+        )
 
     #####################
     # Lifecycle methods #
@@ -111,15 +118,13 @@ class RiskEffect(Component):
 
         self._exposure_distribution_type = None
 
-        self.determinant_pipeline_name = (
-            f"{self.entity.name}.{self.exposure_measure_name}"
-        )
+        self.determinant_pipeline_name = f"{self.entity.name}.{self.measure_name}"
         self.target_pipeline_name = f"{self.target.name}.{self.target.measure}"
         self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.determinant = self.get_determinant_pipeline(builder)
+        self.measure = self.get_measure_pipeline(builder)
 
         self._relative_risk_source = self.get_relative_risk_source(builder)
         self.relative_risk = self.get_relative_risk_pipeline(builder)
@@ -235,9 +240,7 @@ class RiskEffect(Component):
         if not self.entity in builder.configuration.to_dict():
             return relative_risk_data
 
-        rebin_exposed_categories = set(
-            builder.configuration[self.entity]["rebinned_exposed"]
-        )
+        rebin_exposed_categories = set(builder.configuration[self.entity]["rebinned_exposed"])
 
         if rebin_exposed_categories:
             # todo make sure this works
@@ -269,7 +272,7 @@ class RiskEffect(Component):
         ).fillna(0)
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
-    def get_determinant_pipeline(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+    def get_measure_pipeline(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         return builder.value.get_value(self.determinant_pipeline_name)
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
@@ -285,7 +288,7 @@ class RiskEffect(Component):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.determinant(index)
+                exposure = self.measure(index)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return relative_risk
 
@@ -294,7 +297,7 @@ class RiskEffect(Component):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.determinant(index).reset_index()
+                exposure = self.measure(index).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
 
@@ -314,7 +317,7 @@ class RiskEffect(Component):
             f"{self.entity.name}_on_{self.target.name}.relative_risk",
             self._relative_risk_source,
             component=self,
-            required_resources=[self.determinant],
+            required_resources=[self.measure],
         )
 
     def register_target_modifier(self, builder: Builder) -> None:
@@ -349,7 +352,41 @@ class RiskEffect(Component):
         return risk_exposure_component
 
 
-class NonLogLinearRiskEffect(RiskEffect):
+class RiskEffect(HealthEffect):
+    """A component to model the effect of a risk factor on an affected entity's target rate.
+
+    This component can source data either from builder.data or from parameters
+    supplied in the configuration.
+
+    """
+
+    @staticmethod
+    def get_name(risk: EntityString, target: TargetString) -> str:
+        return f"risk_effect.{risk.name}_on_{target}"
+
+    @property
+    def measure_name(self) -> str:
+        return "exposure"
+
+
+class InterventionEffect(HealthEffect):
+    """A component to model the effect of an intervention on an affected entity's target rate.
+
+    This component can source data either from builder.data or from parameters
+    supplied in the configuration.
+
+    """
+
+    @staticmethod
+    def get_name(intervention: EntityString, target: TargetString) -> str:
+        return f"intervention_effect.{intervention.name}_on_{target}"
+
+    @property
+    def measure_name(self) -> str:
+        return "coverage"
+
+
+class NonLogLinearRiskEffect(HealthEffect):
     """A component to model the exposure-parametrized effect of a risk factor.
 
     More specifically, this models the effect of the risk factor on the target rate of
