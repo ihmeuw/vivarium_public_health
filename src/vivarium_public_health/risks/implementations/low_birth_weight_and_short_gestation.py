@@ -271,7 +271,7 @@ class LBWSGRisk(Risk):
         # Add birth exposure data source
         configuration_defaults[self.name]["data_sources"][
             "birth_exposure"
-        ] = f"{self.risk}.birth_exposure"
+        ] = f"{self.entity}.birth_exposure"
         configuration_defaults[self.name]["distribution_type"] = "lbwsg"
         return configuration_defaults
 

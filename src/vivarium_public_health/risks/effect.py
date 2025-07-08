@@ -425,6 +425,11 @@ class NonLogLinearRiskEffect(HealthEffect):
     def columns_required(self) -> list[str]:
         return [f"{self.entity.name}_exposure"]
 
+    @property
+    def measure_name(self) -> str:
+        """The measure of the risk factor."""
+        return "exposure"
+
     #################
     # Setup methods #
     #################
