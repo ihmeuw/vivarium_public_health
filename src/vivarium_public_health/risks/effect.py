@@ -27,7 +27,7 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
-from vivarium_public_health.risks.exposre import Exposure
+from vivarium_public_health.risks.exposure import Exposure
 from vivarium_public_health.risks.treatment.intervention import Intervention
 from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
 

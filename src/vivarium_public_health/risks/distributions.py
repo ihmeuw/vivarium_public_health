@@ -27,7 +27,7 @@ from vivarium_public_health.risks.data_transformations import pivot_categorical
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 if TYPE_CHECKING:
-    from vivarium_public_health.risks.exposre import Exposure
+    from vivarium_public_health.risks.exposure import Exposure
 
 
 class MissingDataError(Exception):

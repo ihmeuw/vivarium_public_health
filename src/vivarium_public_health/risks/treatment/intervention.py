@@ -1,4 +1,4 @@
-from vivarium_public_health.risks.exposre import Exposure
+from vivarium_public_health.risks.exposure import Exposure
 
 
 class Intervention(Exposure):
