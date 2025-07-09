@@ -8,10 +8,10 @@ exposure.
 
 """
 
-from vivarium_public_health.risks.health_factor import HealthFactor
+from vivarium_public_health.risks.health_factor import Exposure
 
 
-class Risk(HealthFactor):
+class Risk(Exposure):
     """A model for a risk factor defined by either a continuous or a categorical value.
 
     For example,
@@ -74,6 +74,16 @@ class Risk(HealthFactor):
     def measure_name(self) -> str:
         """The measure of the risk exposure."""
         return "exposure"
+
+    @property
+    def exposed_category_name(self) -> str:
+        """The name of the exposed category for this risk factor."""
+        return "exposed"
+
+    @property
+    def unexposed_category_name(self) -> str:
+        """The name of the unexposed category for this risk factor."""
+        return "unexposed"
 
     #####################
     # Lifecycle methods #

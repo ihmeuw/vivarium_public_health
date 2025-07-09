@@ -49,6 +49,32 @@ MOCKERS = {
         },
         "ensemble_weights": lambda *args, **kwargs: pd.DataFrame({"norm": 1}, index=[0]),
     },
+    "intervention": {
+        "distribution": lambda *args, **kwargs: "dichotomous",
+        "coverage": 0.4,
+        "exposure_standard_deviation": 0.15,
+        "relative_risk": build_table_with_age(
+            [1.5, "continuous", "test_cause", "incidence_rate"],
+            value_columns=["value", "parameter", "affected_entity", "affected_measure"],
+        ),
+        "population_attributable_fraction": build_table_with_age(
+            [-0.5, "test_cause_1", "incidence_rate"],
+            value_columns=["value", "cause", "affected_measure"],
+        ),
+        "tmred": lambda *args, **kwargs: {
+            "distribution": "uniform",
+            "min": 80,
+            "max": 100,
+            "inverted": False,
+        },
+        "exposure_parameters": lambda *args, **kwargs: {
+            "scale": 1,
+            "max_rr": 10,
+            "max_val": 200,
+            "min_val": 0,
+        },
+        "ensemble_weights": lambda *args, **kwargs: pd.DataFrame({"norm": 1}, index=[0]),
+    },
     "sequela": {
         "prevalence": 0,
         "cause_specific_mortality_rate": 0,

@@ -71,7 +71,10 @@ class LBWSGDistribution(PolytomousDistribution):
 
             if isinstance(birth_exposure_data, pd.DataFrame):
                 birth_exposure_data = pivot_categorical(
-                    builder, self.entity, birth_exposure_data, "parameter"
+                    builder,
+                    self.health_factor_component.entity,
+                    birth_exposure_data,
+                    "parameter",
                 )
 
             self.lookup_tables["birth_exposure"] = self.build_lookup_table(
@@ -118,7 +121,9 @@ class LBWSGDistribution(PolytomousDistribution):
         -------
             The intervals for each category.
         """
-        categories: dict[str, str] = builder.data.load(f"{self.entity}.categories")
+        categories: dict[str, str] = builder.data.load(
+            f"{self.health_factor_component.entity}.categories"
+        )
         category_intervals = {
             axis: {
                 category: self._parse_description(axis, description)

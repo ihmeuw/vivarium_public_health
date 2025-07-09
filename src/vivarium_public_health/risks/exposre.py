@@ -23,7 +23,7 @@ from vivarium_public_health.utilities import EntityString, get_lookup_columns
 _ALLOWABLE_MEASURE_TYPES = ["exposure", "coverage"]
 
 
-class HealthFactor(Component, ABC):
+class Exposure(Component, ABC):
     """A base class to store common functionality for for different health factors.
 
     This class is used to define the determinant of models health factors such as
@@ -79,6 +79,18 @@ class HealthFactor(Component, ABC):
     @property
     @abstractmethod
     def measure_name(self) -> str:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def exposed_category_name(self) -> str:
+        """The name of the exposed category for this health factor."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def unexposed_category_name(self) -> str:
+        """The name of the unexposed category for this health factor."""
         raise NotImplementedError
 
     #####################
@@ -191,7 +203,7 @@ class HealthFactor(Component, ABC):
         """
         try:
             exposure_distribution = self.exposure_distributions[self.distribution_type](
-                self.entity, self.distribution_type
+                self, self.distribution_type
             )
         except KeyError:
             raise NotImplementedError(

@@ -26,6 +26,8 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.risks.health_factor import Exposure
+from vivarium_public_health.risks.treatment.intervention import Intervention
 from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
 
 
@@ -94,6 +96,11 @@ class HealthEffect(Component, ABC):
             "Subclasses of HealthEffect must implement the 'measure' property."
         )
 
+    CATEGORY_MAPPER = {
+        "risk_factor": {"exposed": "exposed", "unexposed": "unexposed"},
+        "intervention": {"exposed": "covered", "unexposed": "uncovered"},
+    }
+
     #####################
     # Lifecycle methods #
     #####################
@@ -103,10 +110,10 @@ class HealthEffect(Component, ABC):
 
         Parameters
         ----------
-        risk
-            Type and name of risk factor, supplied in the form
-            "risk_type.risk_name" where risk_type should be singular (e.g.,
-            risk_factor instead of risk_factors).
+        entity
+            Type and name of health factor, supplied in the form
+            "entity.entity_name" where health_type should be singular (e.g.,
+            health_factor instead of health_factors).
         target
             Type, name, and target rate of entity to be affected by risk factor,
             supplied in the form "entity_type.entity_name.measure"
@@ -118,9 +125,13 @@ class HealthEffect(Component, ABC):
 
         self._exposure_distribution_type = None
 
-        self.determinant_pipeline_name = f"{self.entity.name}.{self.measure_name}"
+        self.measure_pipeline_name = f"{self.entity.name}.{self.measure_name}"
         self.target_pipeline_name = f"{self.target.name}.{self.target.measure}"
         self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
+
+    def setup_component(self, builder: Builder) -> None:
+        self.health_factor_component = self._get_health_factor_class(builder)
+        super().setup_component(builder)
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -156,10 +167,9 @@ class HealthEffect(Component, ABC):
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
-        risk_exposure_component = self._get_health_factor_class(builder)
-        if risk_exposure_component.distribution_type:
-            return risk_exposure_component.distribution_type
-        return risk_exposure_component.get_distribution_type(builder)
+        if self.health_factor_component.distribution_type:
+            return self.health_factor_component.distribution_type
+        return self.health_factor_component.get_distribution_type(builder)
 
     def load_relative_risk(
         self,
@@ -209,13 +219,13 @@ class HealthEffect(Component, ABC):
         self, builder: Builder, rr_data: str | float | pd.DataFrame
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
         if not isinstance(rr_data, pd.DataFrame):
-            cat1 = builder.data.load("population.demographic_dimensions")
-            cat1["parameter"] = "cat1"
-            cat1["value"] = rr_data
-            cat2 = cat1.copy()
-            cat2["parameter"] = "cat2"
-            cat2["value"] = 1
-            rr_data = pd.concat([cat1, cat2], ignore_index=True)
+            exposed = builder.data.load("population.demographic_dimensions")
+            exposed["parameter"] = "cat1"
+            exposed["value"] = rr_data
+            unexposed = exposed.copy()
+            unexposed["parameter"] = "cat2"
+            unexposed["value"] = 1
+            rr_data = pd.concat([exposed, unexposed], ignore_index=True)
         if "parameter" in rr_data.index.names:
             rr_data = rr_data.reset_index("parameter")
 
@@ -273,7 +283,7 @@ class HealthEffect(Component, ABC):
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
     def get_measure_pipeline(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        return builder.value.get_value(self.determinant_pipeline_name)
+        return builder.value.get_value(self.measure_pipeline_name)
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
         relative_risk = self.relative_risk(index)
@@ -343,13 +353,13 @@ class HealthEffect(Component, ABC):
     # Helper methods #
     ##################
 
-    def _get_health_factor_class(self, builder: Builder) -> Risk:
-        risk_exposure_component = builder.components.get_component(self.entity)
-        if not isinstance(risk_exposure_component, Risk):
+    def _get_health_factor_class(self, builder: Builder) -> Exposure:
+        health_factor_component = builder.components.get_component(self.entity)
+        if not isinstance(health_factor_component, Exposure):
             raise ValueError(
-                f"Risk effect model {self.name} requires a Risk component named {self.entity}"
+                f"Health effect model {self.name} requires a Health component named {self.entity}"
             )
-        return risk_exposure_component
+        return health_factor_component
 
 
 class RiskEffect(HealthEffect):
