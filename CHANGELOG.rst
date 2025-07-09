@@ -1,3 +1,11 @@
+**4.3.0 - TBD/TBD/25**
+
+  - Refactor to create two new super classes, Exposure and ExposureEffect
+  - Allow ExposureEffect class to have access to Exposure component
+  - Add Intervention and InterventionEffect classes
+  - Refactor to pass Exposure component to RiskExposureDistribution classes
+  - Update exposure category names for DichotomousRiskExposureDistribution
+
 **4.2.2 - 07/03/25**
 
   - Update deprecated layered config tree method from get_from_layer() to get()
