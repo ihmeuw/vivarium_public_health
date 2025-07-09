@@ -1,4 +1,4 @@
-from vivarium_public_health.risks.health_factor import Exposure
+from vivarium_public_health.risks.exposre import Exposure
 
 
 class Intervention(Exposure):
@@ -24,5 +24,5 @@ class Intervention(Exposure):
         """The name of the unexposed category for this intervention."""
         return "uncovered"
 
-    def __init__(self, health_factor):
-        super().__init__(health_factor)
+    def __init__(self, intervention: str) -> None:
+        super().__init__(intervention)

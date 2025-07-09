@@ -26,24 +26,24 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
-from vivarium_public_health.risks.health_factor import Exposure
+from vivarium_public_health.risks.exposre import Exposure
 from vivarium_public_health.risks.treatment.intervention import Intervention
 from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
 
 
-class HealthEffect(Component, ABC):
+class ExposureEffect(Component, ABC):
     """A component to model the effect of a risk factor on an affected entity's target rate.
 
     This component can source data either from builder.data or from parameters
     supplied in the configuration.
 
-    For a health factor named 'health' that affects  'affected_health_factor' and 'affected_cause',
+    For a exposure named 'exposure_name' that affects  'affected_entity' and 'affected_cause',
     the configuration would look like:
 
     .. code-block:: yaml
 
        configuration:
-            health_effect.health_factor_name_on_affected_target:
+            exposure_effect.exposure_name_on_affected_target:
                exposure_parameters: 2
                incidence_rate: 10
 
@@ -96,11 +96,6 @@ class HealthEffect(Component, ABC):
             "Subclasses of HealthEffect must implement the 'measure' property."
         )
 
-    CATEGORY_MAPPER = {
-        "risk_factor": {"exposed": "exposed", "unexposed": "unexposed"},
-        "intervention": {"exposed": "covered", "unexposed": "uncovered"},
-    }
-
     #####################
     # Lifecycle methods #
     #####################
@@ -111,9 +106,9 @@ class HealthEffect(Component, ABC):
         Parameters
         ----------
         entity
-            Type and name of health factor, supplied in the form
-            "entity.entity_name" where health_type should be singular (e.g.,
-            health_factor instead of health_factors).
+            Type and name of exposure, supplied in the form
+            "entity.entity_name" where exposure_type should be singular (e.g.,
+            exposure instead of exposures).
         target
             Type, name, and target rate of entity to be affected by risk factor,
             supplied in the form "entity_type.entity_name.measure"
@@ -130,7 +125,7 @@ class HealthEffect(Component, ABC):
         self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
 
     def setup_component(self, builder: Builder) -> None:
-        self.health_factor_component = self._get_health_factor_class(builder)
+        self.exposure_component = self._get_exposure_class(builder)
         super().setup_component(builder)
 
     # noinspection PyAttributeOutsideInit
@@ -167,9 +162,9 @@ class HealthEffect(Component, ABC):
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
-        if self.health_factor_component.distribution_type:
-            return self.health_factor_component.distribution_type
-        return self.health_factor_component.get_distribution_type(builder)
+        if self.exposure_component.distribution_type:
+            return self.exposure_component.distribution_type
+        return self.exposure_component.get_distribution_type(builder)
 
     def load_relative_risk(
         self,
@@ -220,10 +215,10 @@ class HealthEffect(Component, ABC):
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
         if not isinstance(rr_data, pd.DataFrame):
             exposed = builder.data.load("population.demographic_dimensions")
-            exposed["parameter"] = "cat1"
+            exposed["parameter"] = self.exposure_component.exposed_category_name
             exposed["value"] = rr_data
             unexposed = exposed.copy()
-            unexposed["parameter"] = "cat2"
+            unexposed["parameter"] = self.exposure_component.unexposed_category_name
             unexposed["value"] = 1
             rr_data = pd.concat([exposed, unexposed], ignore_index=True)
         if "parameter" in rr_data.index.names:
@@ -312,6 +307,7 @@ class HealthEffect(Component, ABC):
                 exposure = exposure.set_index(index_columns)
 
                 relative_risk = rr.stack().reset_index()
+                breakpoint()
                 relative_risk.columns = index_columns + ["value"]
                 relative_risk = relative_risk.set_index(index_columns)
 
@@ -353,7 +349,7 @@ class HealthEffect(Component, ABC):
     # Helper methods #
     ##################
 
-    def _get_health_factor_class(self, builder: Builder) -> Exposure:
+    def _get_exposure_class(self, builder: Builder) -> Exposure:
         health_factor_component = builder.components.get_component(self.entity)
         if not isinstance(health_factor_component, Exposure):
             raise ValueError(
@@ -362,7 +358,7 @@ class HealthEffect(Component, ABC):
         return health_factor_component
 
 
-class RiskEffect(HealthEffect):
+class RiskEffect(ExposureEffect):
     """A component to model the effect of a risk factor on an affected entity's target rate.
 
     This component can source data either from builder.data or from parameters
@@ -379,7 +375,7 @@ class RiskEffect(HealthEffect):
         return "exposure"
 
 
-class InterventionEffect(HealthEffect):
+class InterventionEffect(ExposureEffect):
     """A component to model the effect of an intervention on an affected entity's target rate.
 
     This component can source data either from builder.data or from parameters
@@ -396,7 +392,7 @@ class InterventionEffect(HealthEffect):
         return "coverage"
 
 
-class NonLogLinearRiskEffect(HealthEffect):
+class NonLogLinearRiskEffect(ExposureEffect):
     """A component to model the exposure-parametrized effect of a risk factor.
 
     More specifically, this models the effect of the risk factor on the target rate of

@@ -8,7 +8,7 @@ exposure.
 
 """
 
-from vivarium_public_health.risks.health_factor import Exposure
+from vivarium_public_health.risks.exposre import Exposure
 
 
 class Risk(Exposure):

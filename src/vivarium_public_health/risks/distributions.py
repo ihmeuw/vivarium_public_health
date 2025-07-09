@@ -22,7 +22,7 @@ from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import pivot_categorical
-from vivarium_public_health.risks.health_factor import Exposure
+from vivarium_public_health.risks.exposre import Exposure
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 
@@ -35,7 +35,7 @@ class RiskExposureDistribution(Component, ABC):
     # TODO: this will go away
     def measure_name(self) -> str:
         mapper = {"risk_factor": "exposure", "intervention": "coverage"}
-        return mapper[self.health_factor_component.type]
+        return mapper[self.exposure_component.type]
 
     #####################
     # Lifecycle methods #
@@ -43,16 +43,16 @@ class RiskExposureDistribution(Component, ABC):
 
     def __init__(
         self,
-        health_factor_component: Exposure,
+        exposure_component: Exposure,
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
         super().__init__()
-        self.health_factor_component = health_factor_component
+        self.exposure_component = exposure_component
         self.distribution_type = distribution_type
         if (
             self.distribution_type != "dichotomous"
-            and self.health_factor_component.entity.type == "intervention"
+            and self.exposure_component.entity.type == "intervention"
         ):
             raise NotImplementedError(
                 f"Distribution type {self.distribution_type} is not supported for interventions."
@@ -60,7 +60,7 @@ class RiskExposureDistribution(Component, ABC):
         self._exposure_data = exposure_data
 
         self.parameters_pipeline_name = (
-            f"{self.health_factor_component.entity}.exposure_parameters"
+            f"{self.exposure_component.entity}.exposure_parameters"
         )
 
     #################
@@ -68,7 +68,7 @@ class RiskExposureDistribution(Component, ABC):
     #################
 
     def get_configuration(self, builder: "Builder") -> LayeredConfigTree | None:
-        return builder.configuration[self.health_factor_component.entity]
+        return builder.configuration[self.exposure_component.entity]
 
     @abstractmethod
     def build_all_lookup_tables(self, builder: "Builder") -> None:
@@ -121,7 +121,7 @@ class EnsembleDistribution(RiskExposureDistribution):
 
     def __init__(self, risk: EntityString, distribution_type: str = "ensemble") -> None:
         super().__init__(risk, distribution_type)
-        self._propensity = f"ensemble_propensity_{self.health_factor_component.entity}"
+        self._propensity = f"ensemble_propensity_{self.exposure_component.entity}"
 
     #################
     # Setup methods #
@@ -145,7 +145,7 @@ class EnsembleDistribution(RiskExposureDistribution):
 
         raw_weights = pivot_categorical(
             builder,
-            self.health_factor_component.entity,
+            self.exposure_component.entity,
             raw_weights,
             pivot_column="parameter",
             reset_index=False,
@@ -297,7 +297,7 @@ class PolytomousDistribution(RiskExposureDistribution):
 
         if isinstance(exposure_data, pd.DataFrame):
             exposure_data = pivot_categorical(
-                builder, self.health_factor_component.entity, exposure_data, "parameter"
+                builder, self.exposure_component.entity, exposure_data, "parameter"
             )
 
         self.lookup_tables[self.measure_name] = self.build_lookup_table(
@@ -334,7 +334,7 @@ class PolytomousDistribution(RiskExposureDistribution):
         ).sum(axis=1)
         return pd.Series(
             np.array(self.categories)[category_index],
-            name=f"{self.health_factor_component.entity}.exposure",
+            name=f"{self.exposure_component.entity}.exposure",
             index=quantiles.index,
         )
 
@@ -354,11 +354,11 @@ class DichotomousDistribution(RiskExposureDistribution):
             any_over_one = (measure_data[measure_value_columns] > 1).any().any()
             if any_negatives or any_over_one:
                 raise ValueError(
-                    f"All exposures must be in the range [0, 1] for {self.health_factor_component.entity}"
+                    f"All exposures must be in the range [0, 1] for {self.exposure_component.entity}"
                 )
         elif measure_data < 0 or measure_data > 1:
             raise ValueError(
-                f"Exposure must be in the range [0, 1] for {self.health_factor_component.entity}"
+                f"Exposure must be in the range [0, 1] for {self.exposure_component.entity}"
             )
 
         self.lookup_tables[self.measure_name] = self.build_lookup_table(
@@ -378,13 +378,13 @@ class DichotomousDistribution(RiskExposureDistribution):
         # Check if risk exposure is exposed vs cat1
         if (
             "cat1" in exposure_data["parameter"].unique()
-            and self.health_factor_component.entity.type == "risk_factor"
+            and self.exposure_component.entity.type == "risk_factor"
         ):
             # TODO: add deprecation warning for cat1, cat2
             exposure_data["parameter"] = exposure_data["parameter"].replace(
                 {
-                    "cat1": self.health_factor_component.exposed_category_name,
-                    "cat2": self.health_factor_component.unexposed_category_name,
+                    "cat1": self.exposure_component.exposed_category_name,
+                    "cat2": self.exposure_component.unexposed_category_name,
                 }
             )
         if rebin_exposed_categories:
@@ -423,7 +423,7 @@ class DichotomousDistribution(RiskExposureDistribution):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self.joint_paf = builder.value.register_value_producer(
-            f"{self.health_factor_component.entity}.exposure_parameters.paf",
+            f"{self.exposure_component.entity}.exposure_parameters.paf",
             source=lambda index: [self.lookup_tables["paf"](index)],
             component=self,
             preferred_combiner=list_combiner,
@@ -432,7 +432,7 @@ class DichotomousDistribution(RiskExposureDistribution):
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
-            f"{self.health_factor_component.entity}.exposure_parameters",
+            f"{self.exposure_component.entity}.exposure_parameters",
             source=self.exposure_parameter_source,
             component=self,
             required_resources=get_lookup_columns([self.lookup_tables[self.measure_name]]),
@@ -447,32 +447,30 @@ class DichotomousDistribution(RiskExposureDistribution):
             return
 
         rebin_exposed_categories = set(
-            builder.configuration[self.health_factor_component.entity]["rebinned_exposed"]
+            builder.configuration[self.exposure_component.entity]["rebinned_exposed"]
         )
 
         if (
             rebin_exposed_categories
-            and builder.configuration[self.health_factor_component.entity][
-                "category_thresholds"
-            ]
+            and builder.configuration[self.exposure_component.entity]["category_thresholds"]
         ):
             raise ValueError(
                 f"Rebinning and category thresholds are mutually exclusive. "
-                f"You provided both for {self.health_factor_component.entity.name}."
+                f"You provided both for {self.exposure_component.entity.name}."
             )
 
         invalid_cats = rebin_exposed_categories.difference(set(data.parameter))
         if invalid_cats:
             raise ValueError(
                 f"The following provided categories for the rebinned exposed "
-                f"category of {self.health_factor_component.entity.name} are not found in the exposure data: "
+                f"category of {self.exposure_component.entity.name} are not found in the exposure data: "
                 f"{invalid_cats}."
             )
 
         if rebin_exposed_categories == set(data.parameter):
             raise ValueError(
                 f"The provided categories for the rebinned exposed category of "
-                f"{self.health_factor_component.entity.name} comprise all categories for the exposure data. "
+                f"{self.exposure_component.entity.name} comprise all categories for the exposure data. "
                 f"At least one category must be left out of the provided categories "
                 f"to be rebinned into the unexposed category."
             )
@@ -495,11 +493,11 @@ class DichotomousDistribution(RiskExposureDistribution):
         data = pd.Series(
             exposed.replace(
                 {
-                    True: self.health_factor_component.exposed_category_name,
-                    False: self.health_factor_component.unexposed_category_name,
+                    True: self.exposure_component.exposed_category_name,
+                    False: self.exposure_component.unexposed_category_name,
                 }
             ),
-            name=f"{self.health_factor_component.entity}.{self.measure_name}",
+            name=f"{self.exposure_component.entity}.{self.measure_name}",
             index=quantiles.index,
         )
         return data
