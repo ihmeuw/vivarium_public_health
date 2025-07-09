@@ -40,6 +40,7 @@ from vivarium_public_health.results import (
     ResultsStratifier,
 )
 from vivarium_public_health.risks import (
+    Exposure,
     InterventionEffect,
     LBWSGRisk,
     LBWSGRiskEffect,
