@@ -203,7 +203,15 @@ def test_polytomous_risk(polytomous_risk, base_config, base_plugins):
 
 
 @pytest.mark.parametrize("scalar_exposure", [True, False])
-def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
+@pytest.mark.parametrize(
+    "exposure_categories",
+    [
+        ("cat1", "cat2"),
+        ("exposed", "unexposed"),
+    ],
+)
+def test_dichotomous_risk(base_config, base_plugins, scalar_exposure, exposure_categories):
+    exposed_category, unexposed_category = exposure_categories
     risk = Risk("risk_factor.test_risk")
     rr_data = pd.DataFrame(
         {
@@ -213,7 +221,7 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
             "year_end": 1991,
             "value": [1.5, 1.0],
         },
-        index=pd.Index(["cat1", "cat2"], name="parameter"),
+        index=pd.Index([exposed_category, unexposed_category], name="parameter"),
     )
 
     data = {
@@ -222,7 +230,7 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
                 "year_start": 1990,
                 "year_end": 1991,
                 "sex": ["Male"] * 2 + ["Female"] * 2,
-                "parameter": ["cat1", "cat2"] * 2,
+                "parameter": [exposed_category, unexposed_category] * 2,
                 "value": [0.25, 0.75] * 2,
             }
         ),
@@ -249,7 +257,7 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
             },
         }
     )
-    category_exposures = {"cat1": 0.25, "cat2": 0.75}
+    category_exposures = {exposed_category: 0.25, unexposed_category: 0.75}
 
     simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
 
