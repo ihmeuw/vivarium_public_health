@@ -8,6 +8,8 @@ exposure distributions.
 
 """
 
+from __future__ import annotations
+
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -42,7 +44,7 @@ class RiskExposureDistribution(Component, ABC):
 
     def __init__(
         self,
-        exposure_component: "Exposure",
+        exposure_component: Exposure,
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
@@ -390,19 +392,20 @@ class DichotomousDistribution(RiskExposureDistribution):
             )
             exposure_data["parameter"] = exposure_data["parameter"].replace(
                 {
-                    "cat1": self.exposure_component.exposed_category_name,
-                    "cat2": self.exposure_component.unexposed_category_name,
+                    "cat1": self.exposure_component.dichotomous_exposure_categy_names[0],
+                    "cat2": self.exposure_component.dichotomous_exposure_categy_names[1],
                 }
             )
         if rebin_exposed_categories:
             exposure_data = self._rebin_exposure_data(
                 exposure_data,
                 rebin_exposed_categories,
-                self.exposure_component.exposed_category_name,
+                self.exposure_component.dichotomous_exposure_categy_names[0],
             )
 
         exposure_data = exposure_data[
-            exposure_data["parameter"] == self.exposure_component.exposed_category_name
+            exposure_data["parameter"]
+            == self.exposure_component.dichotomous_exposure_categy_names[0]
         ]
         return exposure_data.drop(columns="parameter")
 
@@ -504,8 +507,8 @@ class DichotomousDistribution(RiskExposureDistribution):
         data = pd.Series(
             exposed.replace(
                 {
-                    True: self.exposure_component.exposed_category_name,
-                    False: self.exposure_component.unexposed_category_name,
+                    True: self.exposure_component.dichotomous_exposure_categy_names[0],
+                    False: self.exposure_component.dichotomous_exposure_categy_names[1],
                 }
             ),
             name=f"{self.exposure_component.entity}.{self.exposure_component.measure_name}",

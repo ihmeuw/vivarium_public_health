@@ -76,14 +76,9 @@ class Risk(Exposure):
         return "exposure"
 
     @property
-    def exposed_category_name(self) -> str:
+    def dichotomous_exposure_categy_names(self) -> tuple[str, str]:
         """The name of the exposed category for this risk factor."""
-        return "exposed"
-
-    @property
-    def unexposed_category_name(self) -> str:
-        """The name of the unexposed category for this risk factor."""
-        return "unexposed"
+        return ("exposed", "unexposed")
 
     #####################
     # Lifecycle methods #

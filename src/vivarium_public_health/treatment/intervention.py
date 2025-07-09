@@ -15,14 +15,9 @@ class Intervention(Exposure):
         return "coverage"
 
     @property
-    def exposed_category_name(self) -> str:
+    def dichotomous_exposure_categy_names(self) -> tuple[str, str]:
         """The name of the exposed category for this intervention."""
-        return "covered"
-
-    @property
-    def unexposed_category_name(self) -> str:
-        """The name of the unexposed category for this intervention."""
-        return "uncovered"
+        return ("covered", "uncovered")
 
     def __init__(self, intervention: str) -> None:
         super().__init__(intervention)

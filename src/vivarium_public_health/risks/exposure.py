@@ -83,14 +83,11 @@ class Exposure(Component, ABC):
 
     @property
     @abstractmethod
-    def exposed_category_name(self) -> str:
-        """The name of the exposed category for this health factor."""
-        raise NotImplementedError
+    def dichotomous_exposure_categy_names(self) -> tuple[str, str]:
+        """The name of the exposure categories. E.g., ('exposed', 'unexposed') with
+        the exposed category being first in the tuple.
 
-    @property
-    @abstractmethod
-    def unexposed_category_name(self) -> str:
-        """The name of the unexposed category for this health factor."""
+        """
         raise NotImplementedError
 
     #####################

@@ -28,7 +28,6 @@ from vivarium_public_health.risks.data_transformations import (
 )
 from vivarium_public_health.risks.distributions import MissingDataError
 from vivarium_public_health.risks.exposure import Exposure
-from vivarium_public_health.risks.treatment.intervention import Intervention
 from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
 
 
@@ -89,14 +88,6 @@ class ExposureEffect(Component, ABC):
             "unordered_polytomous",
         ]
 
-    @property
-    @abstractmethod
-    def measure_name(self) -> str:
-        """Abstract property that must be implemented by subclasses."""
-        raise NotImplementedError(
-            "Subclasses of HealthEffect must implement the 'measure' property."
-        )
-
     #####################
     # Lifecycle methods #
     #####################
@@ -120,13 +111,14 @@ class ExposureEffect(Component, ABC):
         self.target = TargetString(target)
 
         self._exposure_distribution_type = None
-
-        self.measure_pipeline_name = f"{self.entity.name}.{self.measure_name}"
         self.target_pipeline_name = f"{self.target.name}.{self.target.measure}"
         self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
 
     def setup_component(self, builder: Builder) -> None:
         self.exposure_component = self._get_exposure_class(builder)
+        self.measure_pipeline_name = (
+            f"{self.entity.name}.{self.exposure_component.measure_name}"
+        )
         super().setup_component(builder)
 
     # noinspection PyAttributeOutsideInit
@@ -216,10 +208,14 @@ class ExposureEffect(Component, ABC):
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
         if not isinstance(rr_data, pd.DataFrame):
             exposed = builder.data.load("population.demographic_dimensions")
-            exposed["parameter"] = self.exposure_component.exposed_category_name
+            exposed["parameter"] = self.exposure_component.dichotomous_exposure_categy_names[
+                0
+            ]
             exposed["value"] = rr_data
             unexposed = exposed.copy()
-            unexposed["parameter"] = self.exposure_component.unexposed_category_name
+            unexposed[
+                "parameter"
+            ] = self.exposure_component.dichotomous_exposure_categy_names[1]
             unexposed["value"] = 1
             rr_data = pd.concat([exposed, unexposed], ignore_index=True)
         if "parameter" in rr_data.index.names:
@@ -321,8 +317,12 @@ class ExposureEffect(Component, ABC):
                     )
                     relative_risk[self.entity.name] = relative_risk[self.entity.name].replace(
                         {
-                            "cat1": self.exposure_component.exposed_category_name,
-                            "cat2": self.exposure_component.unexposed_category_name,
+                            "cat1": self.exposure_component.dichotomous_exposure_categy_names[
+                                0
+                            ],
+                            "cat2": self.exposure_component.dichotomous_exposure_categy_names[
+                                1
+                            ],
                         }
                     )
                 relative_risk = relative_risk.set_index(index_columns)
@@ -386,10 +386,6 @@ class RiskEffect(ExposureEffect):
     def get_name(risk: EntityString, target: TargetString) -> str:
         return f"risk_effect.{risk.name}_on_{target}"
 
-    @property
-    def measure_name(self) -> str:
-        return "exposure"
-
 
 class InterventionEffect(ExposureEffect):
     """A component to model the effect of an intervention on an affected entity's target rate.
@@ -402,10 +398,6 @@ class InterventionEffect(ExposureEffect):
     @staticmethod
     def get_name(intervention: EntityString, target: TargetString) -> str:
         return f"intervention_effect.{intervention.name}_on_{target}"
-
-    @property
-    def measure_name(self) -> str:
-        return "coverage"
 
 
 class NonLogLinearRiskEffect(RiskEffect):

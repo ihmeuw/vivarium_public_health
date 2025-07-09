@@ -5,4 +5,3 @@ from .implementations.low_birth_weight_and_short_gestation import (
     LBWSGRisk,
     LBWSGRiskEffect,
 )
-from .treatment.intervention import Intervention
