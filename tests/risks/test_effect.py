@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from layered_config_tree import LayeredConfigTree
-from vivarium import Component, InteractiveContext
+from vivarium import InteractiveContext
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -511,7 +511,7 @@ def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plu
 custom_exposure_values = [0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 5.5, 10]
 
 
-class CustomExposureRisk(Component):
+class CustomExposureRisk(Risk):
     """Risk where we define the exposure manually."""
 
     @property
@@ -523,7 +523,7 @@ class CustomExposureRisk(Component):
         return [self.exposure_column_name]
 
     def __init__(self, risk: str):
-        super().__init__()
+        super().__init__(risk)
         self.risk = EntityString(risk)
         self.exposure_column_name = f"{self.risk.name}_exposure"
 
@@ -540,6 +540,9 @@ class CustomExposureRisk(Component):
         builder.value.register_value_producer(
             f"{self.risk.name}.exposure",
             source=self.get_exposure,
+        )
+        self.randomness = builder.randomness.get_stream(
+            self.randomness_stream_name, component=self
         )
 
     def get_exposure(self, index: pd.Index) -> pd.Series:
@@ -559,7 +562,6 @@ class CustomExposureRisk(Component):
 def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, base_plugins):
     risk = CustomExposureRisk("risk_factor.test_risk")
     effect = NonLogLinearRiskEffect(risk.name, "cause.test_cause.incidence_rate")
-
     risk_effect_rrs = [2.0, 2.4, 4.0]
     rr_data = pd.DataFrame(
         {

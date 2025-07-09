@@ -8,8 +8,10 @@ exposure distributions.
 
 """
 
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -22,8 +24,10 @@ from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import pivot_categorical
-from vivarium_public_health.risks.exposre import Exposure
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
+
+if TYPE_CHECKING:
+    from vivarium_public_health.risks.exposre import Exposure
 
 
 class MissingDataError(Exception):
@@ -31,11 +35,6 @@ class MissingDataError(Exception):
 
 
 class RiskExposureDistribution(Component, ABC):
-    @property
-    # TODO: this will go away
-    def measure_name(self) -> str:
-        mapper = {"risk_factor": "exposure", "intervention": "coverage"}
-        return mapper[self.exposure_component.type]
 
     #####################
     # Lifecycle methods #
@@ -43,7 +42,7 @@ class RiskExposureDistribution(Component, ABC):
 
     def __init__(
         self,
-        exposure_component: Exposure,
+        exposure_component: "Exposure",
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
@@ -77,7 +76,9 @@ class RiskExposureDistribution(Component, ABC):
     def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
         if self._exposure_data is not None:
             return self._exposure_data
-        return self.get_data(builder, self.configuration["data_sources"][self.measure_name])
+        return self.get_data(
+            builder, self.configuration["data_sources"][self.exposure_component.measure_name]
+        )
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -285,7 +286,7 @@ class PolytomousDistribution(RiskExposureDistribution):
     def categories(self) -> list[str]:
         # These need to be sorted so the cumulative sum is in the correct order of categories
         # and results are therefore reproducible and correct
-        return sorted(self.lookup_tables[self.measure_name].value_columns)
+        return sorted(self.lookup_tables[self.exposure_component.measure_name].value_columns)
 
     #################
     # Setup methods #
@@ -300,7 +301,7 @@ class PolytomousDistribution(RiskExposureDistribution):
                 builder, self.exposure_component.entity, exposure_data, "parameter"
             )
 
-        self.lookup_tables[self.measure_name] = self.build_lookup_table(
+        self.lookup_tables[self.exposure_component.measure_name] = self.build_lookup_table(
             builder, exposure_data, exposure_value_columns
         )
 
@@ -314,9 +315,11 @@ class PolytomousDistribution(RiskExposureDistribution):
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
             self.parameters_pipeline_name,
-            source=self.lookup_tables[self.measure_name],
+            source=self.lookup_tables[self.exposure_component.measure_name],
             component=self,
-            required_resources=get_lookup_columns([self.lookup_tables[self.measure_name]]),
+            required_resources=get_lookup_columns(
+                [self.lookup_tables[self.exposure_component.measure_name]]
+            ),
         )
 
     ##################
@@ -361,7 +364,7 @@ class DichotomousDistribution(RiskExposureDistribution):
                 f"Exposure must be in the range [0, 1] for {self.exposure_component.entity}"
             )
 
-        self.lookup_tables[self.measure_name] = self.build_lookup_table(
+        self.lookup_tables[self.exposure_component.measure_name] = self.build_lookup_table(
             builder, measure_data, measure_value_columns
         )
         self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
@@ -380,7 +383,11 @@ class DichotomousDistribution(RiskExposureDistribution):
             "cat1" in exposure_data["parameter"].unique()
             and self.exposure_component.entity.type == "risk_factor"
         ):
-            # TODO: add deprecation warning for cat1, cat2
+            warnings.warn(
+                "Using 'cat1' and 'cat2' for dichotomous exposure is deprecated and will be removed in a future release. Use 'exposed' and 'unexposed' instead.",
+                FutureWarning,
+                stacklevel=2,
+            )
             exposure_data["parameter"] = exposure_data["parameter"].replace(
                 {
                     "cat1": self.exposure_component.exposed_category_name,
@@ -389,11 +396,13 @@ class DichotomousDistribution(RiskExposureDistribution):
             )
         if rebin_exposed_categories:
             exposure_data = self._rebin_exposure_data(
-                exposure_data, rebin_exposed_categories, self.exposed_category_name
+                exposure_data,
+                rebin_exposed_categories,
+                self.exposure_component.exposed_category_name,
             )
 
         exposure_data = exposure_data[
-            exposure_data["parameter"] == self.exposed_category_name
+            exposure_data["parameter"] == self.exposure_component.exposed_category_name
         ]
         return exposure_data.drop(columns="parameter")
 
@@ -435,7 +444,9 @@ class DichotomousDistribution(RiskExposureDistribution):
             f"{self.exposure_component.entity}.exposure_parameters",
             source=self.exposure_parameter_source,
             component=self,
-            required_resources=get_lookup_columns([self.lookup_tables[self.measure_name]]),
+            required_resources=get_lookup_columns(
+                [self.lookup_tables[self.exposure_component.measure_name]]
+            ),
         )
 
     ##############
@@ -480,7 +491,7 @@ class DichotomousDistribution(RiskExposureDistribution):
     ##################################
 
     def exposure_parameter_source(self, index: pd.Index) -> pd.Series:
-        base_exposure = self.lookup_tables[self.measure_name](index).values
+        base_exposure = self.lookup_tables[self.exposure_component.measure_name](index).values
         joint_paf = self.joint_paf(index).values
         return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
 
@@ -497,7 +508,7 @@ class DichotomousDistribution(RiskExposureDistribution):
                     False: self.exposure_component.unexposed_category_name,
                 }
             ),
-            name=f"{self.exposure_component.entity}.{self.measure_name}",
+            name=f"{self.exposure_component.entity}.{self.exposure_component.measure_name}",
             index=quantiles.index,
         )
         return data

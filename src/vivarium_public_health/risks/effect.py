@@ -7,6 +7,7 @@ This module contains tools for modeling the relationship between risk
 exposure models and disease models.
 
 """
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from importlib import import_module
@@ -307,8 +308,23 @@ class ExposureEffect(Component, ABC):
                 exposure = exposure.set_index(index_columns)
 
                 relative_risk = rr.stack().reset_index()
-                breakpoint()
                 relative_risk.columns = index_columns + ["value"]
+                # Check if we need to remap cat1 and cat2 to exposed and unexposed categories
+                if (
+                    "cat1" in relative_risk[self.entity.name].unique()
+                    and self._exposure_distribution_type == "dichotomous"
+                ):
+                    warnings.warn(
+                        "Using 'cat1' and 'cat2' for dichotomous exposure is deprecated and will be removed in a future release. Use 'exposed' and 'unexposed' instead.",
+                        FutureWarning,
+                        stacklevel=2,
+                    )
+                    relative_risk[self.entity.name] = relative_risk[self.entity.name].replace(
+                        {
+                            "cat1": self.exposure_component.exposed_category_name,
+                            "cat2": self.exposure_component.unexposed_category_name,
+                        }
+                    )
                 relative_risk = relative_risk.set_index(index_columns)
 
                 effect = relative_risk.loc[exposure.index, "value"].droplevel(
@@ -350,12 +366,12 @@ class ExposureEffect(Component, ABC):
     ##################
 
     def _get_exposure_class(self, builder: Builder) -> Exposure:
-        health_factor_component = builder.components.get_component(self.entity)
-        if not isinstance(health_factor_component, Exposure):
+        exposure_component = builder.components.get_component(self.entity)
+        if not isinstance(exposure_component, Exposure):
             raise ValueError(
-                f"Health effect model {self.name} requires a Health component named {self.entity}"
+                f"Exposure model {self.name} requires a exposure component named {self.entity}"
             )
-        return health_factor_component
+        return exposure_component
 
 
 class RiskEffect(ExposureEffect):
@@ -392,7 +408,7 @@ class InterventionEffect(ExposureEffect):
         return "coverage"
 
 
-class NonLogLinearRiskEffect(ExposureEffect):
+class NonLogLinearRiskEffect(RiskEffect):
     """A component to model the exposure-parametrized effect of a risk factor.
 
     More specifically, this models the effect of the risk factor on the target rate of
@@ -430,11 +446,6 @@ class NonLogLinearRiskEffect(ExposureEffect):
     @property
     def columns_required(self) -> list[str]:
         return [f"{self.entity.name}_exposure"]
-
-    @property
-    def measure_name(self) -> str:
-        """The measure of the risk factor."""
-        return "exposure"
 
     #################
     # Setup methods #

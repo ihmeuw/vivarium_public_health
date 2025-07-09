@@ -24,11 +24,13 @@ def test__rebin_exposure_data(rebin_categories, rebinned_values):
             "value": [0.5] * 4 + [0.2] * 4 + [0.3] * 4,
         }
     )
-    rebinned_df = DichotomousDistribution._rebin_exposure_data(df, rebin_categories, "cat1")
+    rebinned_df = DichotomousDistribution._rebin_exposure_data(
+        df, rebin_categories, "exposed"
+    )
 
     assert rebinned_df.shape == (4, 4)
     assert (rebinned_df.value == rebinned_values[0]).all()
-    assert (rebinned_df["parameter"] == "cat1").all()
+    assert (rebinned_df["parameter"] == "exposed").all()
 
 
 @pytest.mark.parametrize(

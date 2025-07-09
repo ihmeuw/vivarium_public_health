@@ -151,10 +151,17 @@ def _check_exposure_and_rr(
     risk: EntityString,
     expected_exposures: dict[str, float],
     expected_rrs: dict[str, float],
+    dichotomous_risk: bool = False,
 ) -> None:
     population = simulation.get_population()
     exposure = simulation.get_value(f"{risk.name}.exposure")(population.index)
     incidence_rate = simulation.get_value("some_disease.incidence_rate")(population.index)
+    # Map exposure categories for dichotomous risks
+    if dichotomous_risk:
+        mapping = {"cat1": "exposed", "cat2": "unexposed"}
+        if "cat1" in expected_exposures.keys():
+            expected_exposures = {mapping[k]: v for k, v in expected_exposures.items()}
+            expected_rrs = {mapping[k]: v for k, v in expected_rrs.items()}
     unexposed_category = sorted(expected_exposures.keys())[-1]
     unexposed_incidence = incidence_rate[exposure == unexposed_category].iat[0]
 
@@ -247,13 +254,13 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
     simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
 
     _check_exposure_and_rr(
-        simulation, risk.entity, category_exposures, rr_data["value"].to_dict()
+        simulation, risk.entity, category_exposures, rr_data["value"].to_dict(), True
     )
 
     simulation.step()
 
     _check_exposure_and_rr(
-        simulation, risk.entity, category_exposures, rr_data["value"].to_dict()
+        simulation, risk.entity, category_exposures, rr_data["value"].to_dict(), True
     )
 
 
