@@ -7,6 +7,8 @@ This module contains tools for modeling the relationship between risk
 exposure models and disease models.
 
 """
+import warnings
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from importlib import import_module
 from typing import Any
@@ -25,22 +27,23 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.risks.exposure import Exposure
 from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
 
 
-class RiskEffect(Component):
+class ExposureEffect(Component, ABC):
     """A component to model the effect of a risk factor on an affected entity's target rate.
 
     This component can source data either from builder.data or from parameters
     supplied in the configuration.
 
-    For a risk named 'risk' that affects  'affected_risk' and 'affected_cause',
+    For a exposure named 'exposure_name' that affects  'affected_entity' and 'affected_cause',
     the configuration would look like:
 
     .. code-block:: yaml
 
        configuration:
-            risk_effect.risk_name_on_affected_target:
+            exposure_effect.exposure_name_on_affected_target:
                exposure_parameters: 2
                incidence_rate: 10
 
@@ -52,11 +55,15 @@ class RiskEffect(Component):
 
     @property
     def name(self) -> str:
-        return self.get_name(self.risk, self.target)
+        return self.get_name(self.entity, self.target)
 
     @staticmethod
-    def get_name(risk: EntityString, target: TargetString) -> str:
-        return f"risk_effect.{risk.name}_on_{target}"
+    @abstractmethod
+    def get_name(self) -> Callable[[EntityString, TargetString], str]:
+        """Abstract property that must be implemented by subclasses to provide a naming function."""
+        raise NotImplementedError(
+            "Subclasses of HealthEffect must implement the 'get_name' property."
+        )
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
@@ -64,8 +71,8 @@ class RiskEffect(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": f"{self.risk}.relative_risk",
-                    "population_attributable_fraction": f"{self.risk}.population_attributable_fraction",
+                    "relative_risk": f"{self.entity}.relative_risk",
+                    "population_attributable_fraction": f"{self.entity}.population_attributable_fraction",
                 },
                 "data_source_parameters": {
                     "relative_risk": {},
@@ -85,33 +92,38 @@ class RiskEffect(Component):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str, target: str):
+    def __init__(self, entity: str, target: str):
         """
 
         Parameters
         ----------
-        risk
-            Type and name of risk factor, supplied in the form
-            "risk_type.risk_name" where risk_type should be singular (e.g.,
-            risk_factor instead of risk_factors).
+        entity
+            Type and name of exposure, supplied in the form
+            "entity.entity_name" where exposure_type should be singular (e.g.,
+            exposure instead of exposures).
         target
             Type, name, and target rate of entity to be affected by risk factor,
             supplied in the form "entity_type.entity_name.measure"
             where entity_type should be singular (e.g., cause instead of causes).
         """
         super().__init__()
-        self.risk = EntityString(risk)
+        self.entity = EntityString(entity)
         self.target = TargetString(target)
 
         self._exposure_distribution_type = None
-
-        self.exposure_pipeline_name = f"{self.risk.name}.exposure"
         self.target_pipeline_name = f"{self.target.name}.{self.target.measure}"
         self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
 
+    def setup_component(self, builder: Builder) -> None:
+        self.exposure_component = self._get_exposure_class(builder)
+        self.measure_pipeline_name = (
+            f"{self.entity.name}.{self.exposure_component.measure_name}"
+        )
+        super().setup_component(builder)
+
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.exposure = self.get_risk_exposure(builder)
+        self.measure = self.get_measure_pipeline(builder)
 
         self._relative_risk_source = self.get_relative_risk_source(builder)
         self.relative_risk = self.get_relative_risk_pipeline(builder)
@@ -143,10 +155,9 @@ class RiskEffect(Component):
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
-        risk_exposure_component = self._get_risk_exposure_class(builder)
-        if risk_exposure_component.distribution_type:
-            return risk_exposure_component.distribution_type
-        return risk_exposure_component.get_distribution_type(builder)
+        if self.exposure_component.distribution_type:
+            return self.exposure_component.distribution_type
+        return self.exposure_component.get_distribution_type(builder)
 
     def load_relative_risk(
         self,
@@ -196,18 +207,22 @@ class RiskEffect(Component):
         self, builder: Builder, rr_data: str | float | pd.DataFrame
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
         if not isinstance(rr_data, pd.DataFrame):
-            cat1 = builder.data.load("population.demographic_dimensions")
-            cat1["parameter"] = "cat1"
-            cat1["value"] = rr_data
-            cat2 = cat1.copy()
-            cat2["parameter"] = "cat2"
-            cat2["value"] = 1
-            rr_data = pd.concat([cat1, cat2], ignore_index=True)
+            exposed = builder.data.load("population.demographic_dimensions")
+            exposed["parameter"] = self.exposure_component.dichotomous_exposure_categy_names[
+                0
+            ]
+            exposed["value"] = rr_data
+            unexposed = exposed.copy()
+            unexposed[
+                "parameter"
+            ] = self.exposure_component.dichotomous_exposure_categy_names[1]
+            unexposed["value"] = 1
+            rr_data = pd.concat([exposed, unexposed], ignore_index=True)
         if "parameter" in rr_data.index.names:
             rr_data = rr_data.reset_index("parameter")
 
         rr_value_cols = list(rr_data["parameter"].unique())
-        rr_data = pivot_categorical(builder, self.risk, rr_data, "parameter")
+        rr_data = pivot_categorical(builder, self.entity, rr_data, "parameter")
         return rr_data, rr_value_cols
 
     # todo currently this isn't being called. we need to properly set rrs if
@@ -224,14 +239,14 @@ class RiskEffect(Component):
         for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
         (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
         """
-        if not self.risk in builder.configuration.to_dict():
+        if not self.entity in builder.configuration.to_dict():
             return relative_risk_data
 
-        rebin_exposed_categories = set(builder.configuration[self.risk]["rebinned_exposed"])
+        rebin_exposed_categories = set(builder.configuration[self.entity]["rebinned_exposed"])
 
         if rebin_exposed_categories:
             # todo make sure this works
-            exposure_data = load_exposure_data(builder, self.risk)
+            exposure_data = load_exposure_data(builder, self.entity)
             relative_risk_data = self._rebin_relative_risk_data(
                 relative_risk_data, exposure_data, rebin_exposed_categories
             )
@@ -259,8 +274,8 @@ class RiskEffect(Component):
         ).fillna(0)
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
-    def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        return builder.value.get_value(self.exposure_pipeline_name)
+    def get_measure_pipeline(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        return builder.value.get_value(self.measure_pipeline_name)
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
         relative_risk = self.relative_risk(index)
@@ -269,40 +284,62 @@ class RiskEffect(Component):
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
 
         if not self.is_exposure_categorical:
-            tmred = builder.data.load(f"{self.risk}.tmred")
+            tmred = builder.data.load(f"{self.entity}.tmred")
             tmrel = 0.5 * (tmred["min"] + tmred["max"])
-            scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
+            scale = builder.data.load(f"{self.entity}.relative_risk_scalar")
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.exposure(index)
+                exposure = self.measure(index)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return relative_risk
 
         else:
-            index_columns = ["index", self.risk.name]
+            index_columns = ["index", self.entity.name]
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.exposure(index).reset_index()
+                exposure = self.measure(index).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
 
                 relative_risk = rr.stack().reset_index()
                 relative_risk.columns = index_columns + ["value"]
+                # Check if we need to remap cat1 and cat2 to exposed and unexposed categories
+                if (
+                    "cat1" in relative_risk[self.entity.name].unique()
+                    and self._exposure_distribution_type == "dichotomous"
+                ):
+                    warnings.warn(
+                        "Using 'cat1' and 'cat2' for dichotomous exposure is deprecated and will be removed in a future release. Use 'exposed' and 'unexposed' instead.",
+                        FutureWarning,
+                        stacklevel=2,
+                    )
+                    relative_risk[self.entity.name] = relative_risk[self.entity.name].replace(
+                        {
+                            "cat1": self.exposure_component.dichotomous_exposure_categy_names[
+                                0
+                            ],
+                            "cat2": self.exposure_component.dichotomous_exposure_categy_names[
+                                1
+                            ],
+                        }
+                    )
                 relative_risk = relative_risk.set_index(index_columns)
 
-                effect = relative_risk.loc[exposure.index, "value"].droplevel(self.risk.name)
+                effect = relative_risk.loc[exposure.index, "value"].droplevel(
+                    self.entity.name
+                )
                 return effect
 
         return generate_relative_risk
 
     def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
         return builder.value.register_value_producer(
-            f"{self.risk.name}_on_{self.target.name}.relative_risk",
+            f"{self.entity.name}_on_{self.target.name}.relative_risk",
             self._relative_risk_source,
             component=self,
-            required_resources=[self.exposure],
+            required_resources=[self.measure],
         )
 
     def register_target_modifier(self, builder: Builder) -> None:
@@ -328,13 +365,39 @@ class RiskEffect(Component):
     # Helper methods #
     ##################
 
-    def _get_risk_exposure_class(self, builder: Builder) -> Risk:
-        risk_exposure_component = builder.components.get_component(self.risk)
-        if not isinstance(risk_exposure_component, Risk):
+    def _get_exposure_class(self, builder: Builder) -> Exposure:
+        exposure_component = builder.components.get_component(self.entity)
+        if not isinstance(exposure_component, Exposure):
             raise ValueError(
-                f"Risk effect model {self.name} requires a Risk component named {self.risk}"
+                f"Exposure model {self.name} requires a exposure component named {self.entity}"
             )
-        return risk_exposure_component
+        return exposure_component
+
+
+class RiskEffect(ExposureEffect):
+    """A component to model the effect of a risk factor on an affected entity's target rate.
+
+    This component can source data either from builder.data or from parameters
+    supplied in the configuration.
+
+    """
+
+    @staticmethod
+    def get_name(risk: EntityString, target: TargetString) -> str:
+        return f"risk_effect.{risk.name}_on_{target}"
+
+
+class InterventionEffect(ExposureEffect):
+    """A component to model the effect of an intervention on an affected entity's target rate.
+
+    This component can source data either from builder.data or from parameters
+    supplied in the configuration.
+
+    """
+
+    @staticmethod
+    def get_name(intervention: EntityString, target: TargetString) -> str:
+        return f"intervention_effect.{intervention.name}_on_{target}"
 
 
 class NonLogLinearRiskEffect(RiskEffect):
@@ -366,15 +429,15 @@ class NonLogLinearRiskEffect(RiskEffect):
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": f"{self.risk}.relative_risk",
-                    "population_attributable_fraction": f"{self.risk}.population_attributable_fraction",
+                    "relative_risk": f"{self.entity}.relative_risk",
+                    "population_attributable_fraction": f"{self.entity}.population_attributable_fraction",
                 },
             }
         }
 
     @property
     def columns_required(self) -> list[str]:
-        return [f"{self.risk.name}_exposure"]
+        return [f"{self.entity.name}_exposure"]
 
     #################
     # Setup methods #
@@ -414,8 +477,8 @@ class NonLogLinearRiskEffect(RiskEffect):
             .reset_index()
         )
         rr_data = rr_data.drop("parameter", axis=1)
-        rr_data[f"{self.risk.name}_exposure_start"] = rr_data["left_exposure"]
-        rr_data[f"{self.risk.name}_exposure_end"] = rr_data["right_exposure"]
+        rr_data[f"{self.entity.name}_exposure_start"] = rr_data["left_exposure"]
+        rr_data[f"{self.entity.name}_exposure_end"] = rr_data["right_exposure"]
         # build lookup table
         rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
         self.lookup_tables["relative_risk"] = self.build_lookup_table(
@@ -438,17 +501,19 @@ class NonLogLinearRiskEffect(RiskEffect):
             configuration = self.configuration
 
         # get TMREL
-        tmred = builder.data.load(f"{self.risk}.tmred")
+        tmred = builder.data.load(f"{self.entity}.tmred")
         if tmred["distribution"] == "uniform":
             draw = builder.configuration.input_data.input_draw_number
             rng = np.random.default_rng(builder.randomness.get_seed(self.name + str(draw)))
             self.tmrel = rng.uniform(tmred["min"], tmred["max"])
         elif tmred["distribution"] == "draws":  # currently only for iron deficiency
             raise MissingDataError(
-                f"This data has draw-level TMRELs. You will need to contact the research team that models {self.risk.name} to get this data."
+                f"This data has draw-level TMRELs. You will need to contact the research team that models {self.entity.name} to get this data."
             )
         else:
-            raise MissingDataError(f"No TMRED found in gbd_mapping for risk {self.risk.name}")
+            raise MissingDataError(
+                f"No TMRED found in gbd_mapping for risk {self.entity.name}"
+            )
 
         # calculate RR at TMREL
         rr_source = configuration.data_sources.relative_risk
@@ -489,7 +554,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         def generate_relative_risk(index: pd.Index) -> pd.Series:
             rr_intervals = self.lookup_tables["relative_risk"](index)
-            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
+            exposure = self.population_view.get(index)[f"{self.entity.name}_exposure"]
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
                 rr_intervals["right_exposure"].values,
@@ -512,7 +577,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         parameter_data_is_numeric = rr_data["parameter"].dtype.kind in "biufc"
         if not parameter_data_is_numeric:
             raise ValueError(
-                f"The parameter column in your {self.risk.name} relative risk data must contain numeric data. Its dtype is {rr_data['parameter'].dtype} instead."
+                f"The parameter column in your {self.entity.name} relative risk data must contain numeric data. Its dtype is {rr_data['parameter'].dtype} instead."
             )
 
         # and that these RR values are monotonically increasing within each demographic group
