@@ -1,3 +1,7 @@
+**4.2.3 - 07/10/25**
+
+  - Bugfix: Update FertilityCrudeBirthRate to properly check deprecated age_end configuration key
+
 **4.2.2 - 07/03/25**
 
   - Update deprecated layered config tree method from get_from_layer() to get()
