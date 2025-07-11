@@ -1,4 +1,4 @@
-**4.2.3 - 07/10/25**
+**4.2.3 - 07/11/25**
 
   - Bugfix: Update FertilityCrudeBirthRate to properly check deprecated age_end configuration key
 
