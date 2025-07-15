@@ -15,8 +15,8 @@ from vivarium_public_health.risks.distributions import (
     ContinuousDistribution,
     DichotomousDistribution,
     EnsembleDistribution,
+    ExposureDistribution,
     PolytomousDistribution,
-    RiskExposureDistribution,
 )
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
@@ -135,16 +135,9 @@ class Exposure(Component, ABC):
         self.randomness = self.get_randomness_stream(builder)
         self.propensity = self.get_propensity_pipeline(builder)
         self.measure = self.get_measure_pipeline(builder)
-
-        # We want to set this to True if there is a non-loglinear risk effect
-        # on this risk instance
-        self.create_exposure_column = bool(
-            [
-                component
-                for component in builder.components.list_components()
-                if component.startswith(f"non_log_linear_risk_effect.{self.entity.name}_on_")
-            ]
-        )
+        # This will be overwritten in the Risk class if there is a non-loglinear risk effect
+        # on that risk instance
+        self.create_exposure_column = False
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration.
@@ -180,7 +173,7 @@ class Exposure(Component, ABC):
             distribution_type = "dichotomous"
         return distribution_type
 
-    def get_exposure_distribution(self, builder: Builder) -> RiskExposureDistribution:
+    def get_exposure_distribution(self, builder: Builder) -> ExposureDistribution:
         """Creates and sets up the exposure distribution component for the Risk
         based on its distribution type.
 

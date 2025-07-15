@@ -77,14 +77,14 @@ class CategoricalInterventionObserver(PublicHealthObserver):
             requires_values=[self.coverage_pipeline_name],
             additional_stratifications=self.configuration.include + [self.intervention],
             excluded_stratifications=self.configuration.exclude,
-            aggregator=self.aggregate_risk_category_person_time,
+            aggregator=self.aggregate_intervention_category_person_time,
         )
 
     ###############
     # Aggregators #
     ###############
 
-    def aggregate_risk_category_person_time(self, x: pd.DataFrame) -> float:
+    def aggregate_intervention_category_person_time(self, x: pd.DataFrame) -> float:
         """Aggregate the person time for this time step."""
         return len(x) * to_years(self.step_size())
 

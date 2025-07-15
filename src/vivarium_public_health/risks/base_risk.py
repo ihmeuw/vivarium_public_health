@@ -7,6 +7,7 @@ This module contains tools for modeling categorical and continuous risk
 exposure.
 
 """
+from vivarium.framework.engine import Builder
 
 from vivarium_public_health.risks.exposure import Exposure
 
@@ -93,3 +94,15 @@ class Risk(Exposure):
             the type and name of a risk, specified as "type.name". Type is singular.
         """
         super().__init__(risk)
+
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        # We want to set this to True if there is a non-loglinear risk effect
+        # on this risk instance
+        self.create_exposure_column = bool(
+            [
+                component
+                for component in builder.components.list_components()
+                if component.startswith(f"non_log_linear_risk_effect.{self.entity.name}_on_")
+            ]
+        )

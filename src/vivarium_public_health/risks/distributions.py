@@ -36,7 +36,7 @@ class MissingDataError(Exception):
     pass
 
 
-class RiskExposureDistribution(Component, ABC):
+class ExposureDistribution(Component, ABC):
 
     #####################
     # Lifecycle methods #
@@ -105,7 +105,7 @@ class RiskExposureDistribution(Component, ABC):
         raise NotImplementedError
 
 
-class EnsembleDistribution(RiskExposureDistribution):
+class EnsembleDistribution(ExposureDistribution):
     ##############
     # Properties #
     ##############
@@ -223,7 +223,7 @@ class EnsembleDistribution(RiskExposureDistribution):
         return x
 
 
-class ContinuousDistribution(RiskExposureDistribution):
+class ContinuousDistribution(ExposureDistribution):
     #####################
     # Lifecycle methods #
     #####################
@@ -283,7 +283,7 @@ class ContinuousDistribution(RiskExposureDistribution):
         return x
 
 
-class PolytomousDistribution(RiskExposureDistribution):
+class PolytomousDistribution(ExposureDistribution):
     @property
     def categories(self) -> list[str]:
         # These need to be sorted so the cumulative sum is in the correct order of categories
@@ -344,7 +344,7 @@ class PolytomousDistribution(RiskExposureDistribution):
         )
 
 
-class DichotomousDistribution(RiskExposureDistribution):
+class DichotomousDistribution(ExposureDistribution):
 
     #################
     # Setup methods #
