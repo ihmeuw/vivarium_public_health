@@ -22,6 +22,11 @@ class CategoricalInterventionObserver(PublicHealthObserver):
 
     """
 
+    @property
+    def columns_required(self) -> list[str] | None:
+        """The columns required by this observer."""
+        return ["alive"]
+
     #####################
     # Lifecycle methods #
     #####################
