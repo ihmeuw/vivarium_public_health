@@ -1,4 +1,8 @@
-from vivarium_public_health.risks.exposure import Exposure
+from typing import NamedTuple
+
+from vivarium_public_health.exposure.effect import ExposureEffect
+from vivarium_public_health.exposure import Exposure
+from vivarium_public_health.utilities import EntityString, TargetString
 
 
 class Intervention(Exposure):
@@ -15,9 +19,19 @@ class Intervention(Exposure):
         return "coverage"
 
     @property
-    def dichotomous_exposure_categy_names(self) -> tuple[str, str]:
+    def dichotomous_exposure_category_names(self) -> tuple[str, str]:
         """The name of the exposed category for this intervention."""
         return ("covered", "uncovered")
 
-    def __init__(self, intervention: str) -> None:
-        super().__init__(intervention)
+
+class InterventionEffect(ExposureEffect):
+    """A component to model the effect of an intervention on an affected entity's target rate.
+
+    This component can source data either from builder.data or from parameters
+    supplied in the configuration.
+
+    """
+
+    @staticmethod
+    def get_name(intervention: EntityString, target: TargetString) -> str:
+        return f"intervention_effect.{intervention.name}_on_{target}"

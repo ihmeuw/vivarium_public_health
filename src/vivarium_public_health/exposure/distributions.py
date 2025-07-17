@@ -1,6 +1,6 @@
 """
 =================================
-Risk Exposure Distribution Models
+Exposure Distribution Models
 =================================
 
 This module contains tools for modeling several different risk
@@ -29,7 +29,7 @@ from vivarium_public_health.risks.data_transformations import pivot_categorical
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 if TYPE_CHECKING:
-    from vivarium_public_health.risks.exposure import Exposure
+    from vivarium_public_health.exposure import Exposure
 
 
 class MissingDataError(Exception):
@@ -392,20 +392,20 @@ class DichotomousDistribution(ExposureDistribution):
             )
             exposure_data["parameter"] = exposure_data["parameter"].replace(
                 {
-                    "cat1": self.exposure_component.dichotomous_exposure_categy_names[0],
-                    "cat2": self.exposure_component.dichotomous_exposure_categy_names[1],
+                    "cat1": self.exposure_component.dichotomous_exposure_category_names.exposed,
+                    "cat2": self.exposure_component.dichotomous_exposure_category_names.unexposed,
                 }
             )
         if rebin_exposed_categories:
             exposure_data = self._rebin_exposure_data(
                 exposure_data,
                 rebin_exposed_categories,
-                self.exposure_component.dichotomous_exposure_categy_names[0],
+                self.exposure_component.dichotomous_exposure_category_names[0],
             )
 
         exposure_data = exposure_data[
             exposure_data["parameter"]
-            == self.exposure_component.dichotomous_exposure_categy_names[0]
+            == self.exposure_component.dichotomous_exposure_category_names[0]
         ]
         return exposure_data.drop(columns="parameter")
 
@@ -504,17 +504,16 @@ class DichotomousDistribution(ExposureDistribution):
 
     def ppf(self, quantiles: pd.Series) -> pd.Series:
         exposed = quantiles < self.exposure_parameters(quantiles.index)
-        data = pd.Series(
+        return pd.Series(
             exposed.replace(
                 {
-                    True: self.exposure_component.dichotomous_exposure_categy_names[0],
-                    False: self.exposure_component.dichotomous_exposure_categy_names[1],
+                    True: self.exposure_component.dichotomous_exposure_category_names[0],
+                    False: self.exposure_component.dichotomous_exposure_category_names[1],
                 }
             ),
             name=f"{self.exposure_component.entity}.{self.exposure_component.measure_name}",
             index=quantiles.index,
         )
-        return data
 
 
 def clip(q):

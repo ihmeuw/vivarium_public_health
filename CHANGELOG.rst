@@ -1,12 +1,15 @@
 **4.3.0 - TBD/TBD/25**
 
-  - Refactor to create two new super classes, Exposure and ExposureEffect
-  - Allow ExposureEffect class to have access to Exposure component
+  - Refactor to create two new abstract classes, Exposure and ExposureEffect
   - Add Intervention and InterventionEffect classes
   - Refactor to pass Exposure component to RiskExposureDistribution classes
   - Update exposure category names for DichotomousRiskExposureDistribution
 
-**4.2.3 - 07/10/25**
+**4.2.4 - 07/16/25**
+
+  - Support pinning of vivarium_build_utils; pin vivarium_build_utils>=1.1.0,<2.0.0
+
+**4.2.3 - 07/11/25**
 
   - Bugfix: Update FertilityCrudeBirthRate to properly check deprecated age_end configuration key
 

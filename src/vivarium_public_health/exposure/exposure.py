@@ -11,7 +11,7 @@ from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
-from vivarium_public_health.risks.distributions import (
+from vivarium_public_health.exposure.distributions import (
     ContinuousDistribution,
     DichotomousDistribution,
     EnsembleDistribution,
@@ -83,7 +83,7 @@ class Exposure(Component, ABC):
 
     @property
     @abstractmethod
-    def dichotomous_exposure_categy_names(self) -> tuple[str, str]:
+    def dichotomous_exposure_category_names(self) -> tuple[str, str]:
         """The name of the exposure categories. E.g., ('exposed', 'unexposed') with
         the exposed category being first in the tuple.
 

@@ -112,16 +112,16 @@ def test_dichotomous_intervention(base_config, base_plugins):
             },
         }
     )
-    category_exposures = {"uncovered": 0.25, "covered": 0.75}
+    coverage_categories = {"uncovered": 0.25, "covered": 0.75}
 
     simulation = _setup_intervention_simulation(base_config, base_plugins, intervention, data)
 
     _check_coverage_and_rr(
-        simulation, intervention.entity, category_exposures, rr_data["value"].to_dict()
+        simulation, intervention.entity, coverage_categories, rr_data["value"].to_dict()
     )
 
     simulation.step()
 
     _check_coverage_and_rr(
-        simulation, intervention.entity, category_exposures, rr_data["value"].to_dict()
+        simulation, intervention.entity, coverage_categories, rr_data["value"].to_dict()
     )

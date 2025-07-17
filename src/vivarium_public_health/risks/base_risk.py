@@ -9,7 +9,7 @@ exposure.
 """
 from vivarium.framework.engine import Builder
 
-from vivarium_public_health.risks.exposure import Exposure
+from vivarium_public_health.exposure import Exposure
 
 
 class Risk(Exposure):
@@ -77,23 +77,13 @@ class Risk(Exposure):
         return "exposure"
 
     @property
-    def dichotomous_exposure_categy_names(self) -> tuple[str, str]:
+    def dichotomous_exposure_category_names(self) -> tuple[str, str]:
         """The name of the exposed category for this risk factor."""
         return ("exposed", "unexposed")
 
     #####################
     # Lifecycle methods #
     #####################
-
-    def __init__(self, risk: str):
-        """
-
-        Parameters
-        ----------
-        risk
-            the type and name of a risk, specified as "type.name". Type is singular.
-        """
-        super().__init__(risk)
 
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
