@@ -5,6 +5,7 @@
   - Add Intervention and InterventionEffect classes
   - Refactor to pass Exposure component to RiskExposureDistribution classes
   - Update exposure category names for DichotomousRiskExposureDistribution
+  - Hush FutureWarnings: add include_groups=False to apply call in StratifiedObservation
 
 **4.2.3 - 07/10/25**
 
