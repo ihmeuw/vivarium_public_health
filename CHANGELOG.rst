@@ -1,3 +1,7 @@
+**4.2.5 - 07/18/25**
+
+  - Hush FutureWarnings: add include_groups=False to apply call in StratifiedObservation
+
 **4.2.4 - 07/16/25**
 
   - Support pinning of vivarium_build_utils; pin vivarium_build_utils>=1.1.0,<2.0.0
