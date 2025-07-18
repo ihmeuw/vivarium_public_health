@@ -1,6 +1,6 @@
-======================
+=======================
 Exposure Modeling Tools
-======================
+=======================
 
 .. automodule:: vivarium_public_health.exposure
 
@@ -9,4 +9,3 @@ Exposure Modeling Tools
    :glob:
 
    *
-   */index
