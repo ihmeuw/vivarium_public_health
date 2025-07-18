@@ -1,3 +1,7 @@
+**4.2.6 - TBD**
+
+  - Use vivarium_build_utils centralized dependencies
+
 **4.2.5 - 07/18/25**
 
   - Hush FutureWarnings: add include_groups=False to apply call in StratifiedObservation
