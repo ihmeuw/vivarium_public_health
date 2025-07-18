@@ -22,12 +22,12 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
 
+from vivarium_public_health.exposure.distributions import PolytomousDistribution
 from vivarium_public_health.risks import Risk, RiskEffect
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
     pivot_categorical,
 )
-from vivarium_public_health.risks.distributions import PolytomousDistribution
 from vivarium_public_health.utilities import EntityString, get_lookup_columns, to_snake_case
 
 CATEGORICAL = "categorical"

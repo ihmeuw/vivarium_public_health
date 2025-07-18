@@ -21,14 +21,13 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.values import Pipeline
 
-from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import (
     load_exposure_data,
     pivot_categorical,
 )
-from vivarium_public_health.risks.distributions import MissingDataError
-from .exposure import Exposure
 from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
+
+from .exposure import Exposure
 
 
 class ExposureEffect(Component, ABC):
@@ -206,14 +205,14 @@ class ExposureEffect(Component, ABC):
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
         if not isinstance(rr_data, pd.DataFrame):
             exposed = builder.data.load("population.demographic_dimensions")
-            exposed["parameter"] = self.exposure_component.dichotomous_exposure_category_names[
-                0
-            ]
+            exposed[
+                "parameter"
+            ] = self.exposure_component.dichotomous_exposure_category_names.exposed
             exposed["value"] = rr_data
             unexposed = exposed.copy()
             unexposed[
                 "parameter"
-            ] = self.exposure_component.dichotomous_exposure_category_names[1]
+            ] = self.exposure_component.dichotomous_exposure_category_names.unexposed
             unexposed["value"] = 1
             rr_data = pd.concat([exposed, unexposed], ignore_index=True)
         if "parameter" in rr_data.index.names:
@@ -315,12 +314,8 @@ class ExposureEffect(Component, ABC):
                     )
                     relative_risk[self.entity.name] = relative_risk[self.entity.name].replace(
                         {
-                            "cat1": self.exposure_component.dichotomous_exposure_category_names[
-                                0
-                            ],
-                            "cat2": self.exposure_component.dichotomous_exposure_category_names[
-                                1
-                            ],
+                            "cat1": self.exposure_component.dichotomous_exposure_category_names.exposed,
+                            "cat2": self.exposure_component.dichotomous_exposure_category_names.unexposed,
                         }
                     )
                 relative_risk = relative_risk.set_index(index_columns)

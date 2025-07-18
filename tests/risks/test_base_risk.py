@@ -10,12 +10,12 @@ from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import SIS
-from vivarium_public_health.risks import RiskEffect
-from vivarium_public_health.risks.base_risk import Risk
-from vivarium_public_health.risks.distributions import (
+from vivarium_public_health.exposure.distributions import (
     EnsembleDistribution,
     PolytomousDistribution,
 )
+from vivarium_public_health.risks import RiskEffect
+from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.utilities import EntityString
 
 
@@ -359,3 +359,23 @@ def test_ensemble_risk(base_config, base_plugins):
 
     # todo: use fuzzy checker to confirm that we are getting the expected results
     print("We didn't runtime error - success!")
+
+
+def test_deprecate_dichotomous_categories():
+    import datetime
+
+    risk = Risk("risk_factor.test_risk")
+    if datetime.date.today() > datetime.date(2025, 10, 1):
+        try:
+            risk.dichotomous_exposure_category_names
+            method_exists = True
+        except Exception:
+            method_exists = False
+        if method_exists:
+            assert (
+                False
+            ), "Using cat1 and cat2 should be removed so we can remove the property dichotomous_exposure_category_names"
+        else:
+            assert (
+                False
+            ), "'dichotomous_exposure_category_names' has been deprecated and removed - delete this test"

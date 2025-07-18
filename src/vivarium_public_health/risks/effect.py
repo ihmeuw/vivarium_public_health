@@ -5,13 +5,18 @@ Risk Effect Models
 
 """
 
+from collections.abc import Callable
 from typing import Any
+
+import numpy as np
 import pandas as pd
 import scipy
 from vivarium.framework.engine import Builder
+
 from vivarium_public_health.exposure import ExposureEffect
-from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.exposure.distributions import MissingDataError
 from vivarium_public_health.utilities import EntityString, TargetString
+
 
 class RiskEffect(ExposureEffect):
     """A component to model the effect of a risk factor on an affected entity's target rate.

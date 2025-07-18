@@ -400,12 +400,12 @@ class DichotomousDistribution(ExposureDistribution):
             exposure_data = self._rebin_exposure_data(
                 exposure_data,
                 rebin_exposed_categories,
-                self.exposure_component.dichotomous_exposure_category_names[0],
+                self.exposure_component.dichotomous_exposure_category_names.exposed,
             )
 
         exposure_data = exposure_data[
             exposure_data["parameter"]
-            == self.exposure_component.dichotomous_exposure_category_names[0]
+            == self.exposure_component.dichotomous_exposure_category_names.exposed
         ]
         return exposure_data.drop(columns="parameter")
 
@@ -507,8 +507,8 @@ class DichotomousDistribution(ExposureDistribution):
         return pd.Series(
             exposed.replace(
                 {
-                    True: self.exposure_component.dichotomous_exposure_category_names[0],
-                    False: self.exposure_component.dichotomous_exposure_category_names[1],
+                    True: self.exposure_component.dichotomous_exposure_category_names.exposed,
+                    False: self.exposure_component.dichotomous_exposure_category_names.unexposed,
                 }
             ),
             name=f"{self.exposure_component.entity}.{self.exposure_component.measure_name}",

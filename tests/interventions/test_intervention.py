@@ -7,8 +7,7 @@ from vivarium import InteractiveContext
 from vivarium.testing_utilities import TestPopulation
 
 from vivarium_public_health.disease import SIS
-from vivarium_public_health.risks.effect import InterventionEffect
-from vivarium_public_health.treatment.intervention import Intervention
+from vivarium_public_health.treatment.intervention import Intervention, InterventionEffect
 from vivarium_public_health.utilities import EntityString
 
 

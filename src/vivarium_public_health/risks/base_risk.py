@@ -7,6 +7,8 @@ This module contains tools for modeling categorical and continuous risk
 exposure.
 
 """
+from typing import NamedTuple
+
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.exposure import Exposure
@@ -77,9 +79,15 @@ class Risk(Exposure):
         return "exposure"
 
     @property
-    def dichotomous_exposure_category_names(self) -> tuple[str, str]:
-        """The name of the exposed category for this risk factor."""
-        return ("exposed", "unexposed")
+    def dichotomous_exposure_category_names(self) -> NamedTuple:
+        """The name of the exposed category for this intervention."""
+
+        class __Categories(NamedTuple):
+            exposed: str = "exposed"
+            unexposed: str = "unexposed"
+
+        categories = __Categories()
+        return categories
 
     #####################
     # Lifecycle methods #

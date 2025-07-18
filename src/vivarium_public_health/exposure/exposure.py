@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, NamedTuple
 
 import pandas as pd
 from vivarium import Component
@@ -10,7 +10,6 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
 
-from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.exposure.distributions import (
     ContinuousDistribution,
     DichotomousDistribution,
@@ -18,6 +17,7 @@ from vivarium_public_health.exposure.distributions import (
     ExposureDistribution,
     PolytomousDistribution,
 )
+from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
 _ALLOWABLE_MEASURE_TYPES = ["exposure", "coverage"]
@@ -83,7 +83,7 @@ class Exposure(Component, ABC):
 
     @property
     @abstractmethod
-    def dichotomous_exposure_category_names(self) -> tuple[str, str]:
+    def dichotomous_exposure_category_names(self) -> NamedTuple:
         """The name of the exposure categories. E.g., ('exposed', 'unexposed') with
         the exposed category being first in the tuple.
 

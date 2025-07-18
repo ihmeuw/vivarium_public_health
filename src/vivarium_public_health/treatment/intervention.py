@@ -1,7 +1,7 @@
 from typing import NamedTuple
 
-from vivarium_public_health.exposure.effect import ExposureEffect
 from vivarium_public_health.exposure import Exposure
+from vivarium_public_health.exposure.effect import ExposureEffect
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
@@ -19,9 +19,15 @@ class Intervention(Exposure):
         return "coverage"
 
     @property
-    def dichotomous_exposure_category_names(self) -> tuple[str, str]:
+    def dichotomous_exposure_category_names(self) -> NamedTuple:
         """The name of the exposed category for this intervention."""
-        return ("covered", "uncovered")
+
+        class __Categories(NamedTuple):
+            exposed: str = "covered"
+            unexposed: str = "uncovered"
+
+        categories = __Categories()
+        return categories
 
 
 class InterventionEffect(ExposureEffect):

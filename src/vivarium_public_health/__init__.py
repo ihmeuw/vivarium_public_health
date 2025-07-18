@@ -40,7 +40,6 @@ from vivarium_public_health.results import (
     ResultsStratifier,
 )
 from vivarium_public_health.risks import (
-    InterventionEffect,
     LBWSGRisk,
     LBWSGRiskEffect,
     NonLogLinearRiskEffect,
@@ -50,6 +49,7 @@ from vivarium_public_health.risks import (
 from vivarium_public_health.treatment import (
     AbsoluteShift,
     Intervention,
+    InterventionEffect,
     LinearScaleUp,
     TherapeuticInertia,
 )

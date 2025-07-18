@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
+from vivarium_public_health.exposure.distributions import DichotomousDistribution
 from vivarium_public_health.risks.data_transformations import _rebin_relative_risk_data
-from vivarium_public_health.risks.distributions import DichotomousDistribution
 
 
 @pytest.mark.parametrize(
