@@ -46,7 +46,13 @@ from vivarium_public_health.risks import (
     Risk,
     RiskEffect,
 )
-from vivarium_public_health.treatment import AbsoluteShift, LinearScaleUp, TherapeuticInertia
+from vivarium_public_health.treatment import (
+    AbsoluteShift,
+    Intervention,
+    InterventionEffect,
+    LinearScaleUp,
+    TherapeuticInertia,
+)
 
 __all__ = [
     __author__,
