@@ -53,7 +53,8 @@ if __name__ == "__main__":
     setup_requires = ["setuptools_scm"]
 
     test_requirements = [
-        "vivarium_dependencies[testing,vivarium_testing_utils]",
+        "vivarium_dependencies[testing]",
+        "vivarium_testing_utils",
         "hypothesis",
         "pyyaml",
     ]
