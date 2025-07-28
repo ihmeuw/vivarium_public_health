@@ -31,20 +31,10 @@ from .exposure import Exposure
 
 
 class ExposureEffect(Component, ABC):
-    """A component to model the effect of a risk factor on an affected entity's target rate.
+    """A component to model the effect of a risk-like factor on an affected target.
 
     This component can source data either from builder.data or from parameters
     supplied in the configuration.
-
-    For an exposure named 'exposure_name' that affects  'affected_entity' and 'affected_cause',
-    the configuration would look like:
-
-    .. code-block:: yaml
-
-       configuration:
-            exposure_effect.exposure_name_on_affected_target:
-               exposure_parameters: 2
-               incidence_rate: 10
 
     """
 
@@ -55,7 +45,7 @@ class ExposureEffect(Component, ABC):
         ----------
         entity
             Type and name of exposure, supplied in the form
-            "entity.entity_name" where exposure_type should be singular (e.g.,
+            "entity_type.entity_name" where entity_type should be singular (e.g.,
             exposure instead of exposures).
         target
             Type, name, and target rate of entity to be affected by risk factor,
@@ -113,7 +103,7 @@ class ExposureEffect(Component, ABC):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.measure = self.get_measure_pipeline(builder)
+        self.measure = self.get_exposure_callable(builder)
 
         self._relative_risk_source = self.get_relative_risk_source(builder)
         self.relative_risk = self.get_relative_risk_pipeline(builder)
@@ -128,7 +118,7 @@ class ExposureEffect(Component, ABC):
     def setup_component(self, builder: Builder) -> None:
         self.exposure_component = self._get_exposure_class(builder)
         self.measure_pipeline_name = (
-            f"{self.entity.name}.{self.exposure_component.measure_name}"
+            f"{self.entity.name}.{self.exposure_component.exposure_type}"
         )
         super().setup_component(builder)
 
@@ -271,7 +261,7 @@ class ExposureEffect(Component, ABC):
         ).fillna(0)
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
-    def get_measure_pipeline(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+    def get_exposure_callable(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         return builder.value.get_value(self.measure_pipeline_name)
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
@@ -362,6 +352,6 @@ class ExposureEffect(Component, ABC):
         exposure_component = builder.components.get_component(self.entity)
         if not isinstance(exposure_component, Exposure):
             raise ValueError(
-                f"Exposure model {self.name} requires a exposure component named {self.entity}"
+                f"Exposure model {self.name} requires an Exposure component named {self.entity}"
             )
         return exposure_component

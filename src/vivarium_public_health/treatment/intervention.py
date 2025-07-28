@@ -14,7 +14,7 @@ class Intervention(Exposure):
     """
 
     @property
-    def measure_name(self) -> str:
+    def exposure_type(self) -> str:
         """The measure of the intervention access."""
         return "coverage"
 

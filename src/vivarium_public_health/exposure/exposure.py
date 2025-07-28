@@ -20,11 +20,9 @@ from vivarium_public_health.exposure.distributions import (
 from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
 
-_ALLOWABLE_MEASURE_TYPES = ["exposure", "coverage"]
-
 
 class Exposure(Component, ABC):
-    """A base class to store common functionality for for different health factors.
+    """A base class to store common functionality for for risk-like health factors.
 
     This class is used to define the determinant of models health factors such as
     risks and the exposure to these risks, or interventions and the available coverage
@@ -54,7 +52,7 @@ class Exposure(Component, ABC):
         return {
             self.name: {
                 "data_sources": {
-                    f"{self.measure_name}": f"{self.entity}.{self.measure_name}",
+                    f"{self.exposure_type}": f"{self.entity}.{self.exposure_type}",
                     "ensemble_distribution_weights": f"{self.entity}.exposure_distribution_weights",
                     "exposure_standard_deviation": f"{self.entity}.exposure_standard_deviation",
                 },
@@ -69,7 +67,7 @@ class Exposure(Component, ABC):
     def columns_created(self) -> list[str]:
         columns_to_create = [self.propensity_column_name]
         if self.create_exposure_column:
-            columns_to_create.append(self.determinant_column_name)
+            columns_to_create.append(self.exposure_column_name)
         return columns_to_create
 
     @property
@@ -78,14 +76,14 @@ class Exposure(Component, ABC):
 
     @property
     @abstractmethod
-    def measure_name(self) -> str:
+    def exposure_type(self) -> str:
         raise NotImplementedError
 
     @property
     @abstractmethod
     def dichotomous_exposure_category_names(self) -> NamedTuple:
-        """The name of the exposure categories. E.g., ('exposed', 'unexposed') with
-        the exposed category being first in the tuple.
+        """The name of the exposure categories. E.g. "exposed" and "unexposed" or
+        "covered" and "uncovered".
 
         """
         raise NotImplementedError
@@ -107,17 +105,11 @@ class Exposure(Component, ABC):
         super().__init__()
         self.entity = EntityString(entity)
         self.distribution_type = None
-        if self.measure_name not in _ALLOWABLE_MEASURE_TYPES:
-            raise ValueError(
-                f"Invalid level type '{self.measure_name}' for {self.name}. "
-                f"Allowed types are: {_ALLOWABLE_MEASURE_TYPES}."
-            )
-
         self.randomness_stream_name = f"initial_{self.entity.name}_propensity"
         self.propensity_column_name = f"{self.entity.name}_propensity"
         self.propensity_pipeline_name = f"{self.entity.name}.propensity"
-        self.determinant_pipeline_name = f"{self.entity.name}.{self.measure_name}"
-        self.determinant_column_name = f"{self.entity.name}_{self.measure_name}"
+        self.exposure_pipeline_name = f"{self.entity.name}.{self.exposure_type}"
+        self.exposure_column_name = f"{self.entity.name}_{self.exposure_type}"
 
     #################
     # Setup methods #
@@ -134,7 +126,7 @@ class Exposure(Component, ABC):
 
         self.randomness = self.get_randomness_stream(builder)
         self.propensity = self.get_propensity_pipeline(builder)
-        self.measure = self.get_measure_pipeline(builder)
+        self.exposure = self.get_exposure_callable(builder)
         # This will be overwritten in the Risk class if there is a non-loglinear risk effect
         # on that risk instance
         self.create_exposure_column = False
@@ -218,13 +210,13 @@ class Exposure(Component, ABC):
             required_resources=[self.propensity_column_name],
         )
 
-    def get_measure_pipeline(self, builder: Builder) -> Pipeline:
+    def get_exposure_callable(self, builder: Builder) -> Pipeline:
         required_columns = get_lookup_columns(
             self.exposure_distribution.lookup_tables.values()
         )
         return builder.value.register_value_producer(
-            self.determinant_pipeline_name,
-            source=self.get_current_measure,
+            self.exposure_pipeline_name,
+            source=self.get_current_exposure,
             component=self,
             required_resources=required_columns
             + [
@@ -250,13 +242,13 @@ class Exposure(Component, ABC):
 
     def update_determinant_column(self, index: pd.Index) -> None:
         if self.create_exposure_column:
-            exposure = pd.Series(self.measure_name(index), name=self.determinant_column_name)
+            exposure = pd.Series(self.exposure_type(index), name=self.exposure_column_name)
             self.population_view.update(exposure)
 
     ##################################
     # Pipeline sources and modifiers #
     ##################################
 
-    def get_current_measure(self, index: pd.Index) -> pd.Series:
+    def get_current_exposure(self, index: pd.Index) -> pd.Series:
         propensity = self.propensity(index)
         return pd.Series(self.exposure_distribution.ppf(propensity), index=index)
