@@ -42,41 +42,29 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
+        "vivarium_dependencies[numpy,scipy,tables,loguru,pyarrow]",
         "vivarium_build_utils>=2.0.1,<3.0.0",
         "vivarium>=3.4.3",
         "layered_config_tree>=3.2.0",
-        "loguru",
-        "numpy<2.0.0",
         "pandas>=2.2.0",
-        "scipy",
-        "tables",
         "risk_distributions>=2.0.11",
-        "pyarrow",
     ]
 
     setup_requires = ["setuptools_scm"]
 
     test_requirements = [
-        "vivarium_testing_utils",
-        "pytest",
-        "pytest-cov",
-        "pytest-mock",
+        "vivarium_dependencies[testing,vivarium_testing_utils]",
         "hypothesis",
         "pyyaml",
     ]
 
     doc_requirements = [
+        "vivarium_dependencies[sphinx-rtd-theme,sphinx-click,sphinx-autodoc-typehints,plotting]",
         "sphinx<7.0",
-        "sphinx-rtd-theme",
-        "sphinx-click",
-        "sphinx-autodoc-typehints",
-        "IPython",
-        "matplotlib",
     ]
 
     lint_requirements = [
-        "black==22.3.0",
-        "isort==5.13.2",
+        "vivarium_dependencies[linting]",
     ]
 
     setup(

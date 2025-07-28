@@ -1,3 +1,7 @@
+**4.3.4 - 07/31/25**
+
+  - Use vivarium_dependencies for common setup constraints
+
 **4.3.3 - 07/30/25**
 
   - Revert changes from v4.3.0-4.3.2
@@ -18,7 +22,7 @@
   - Add Intervention and InterventionEffect classes
   - Refactor to pass Exposure component to RiskExposureDistribution classes
   - Update exposure category names for DichotomousDistribution
-  
+
 **4.2.6 - 07/25/25**
 
   - Feature: Support new environment creation via 'make build-env'
