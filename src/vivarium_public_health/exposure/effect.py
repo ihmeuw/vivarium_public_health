@@ -117,7 +117,7 @@ class ExposureEffect(Component, ABC):
 
     def setup_component(self, builder: Builder) -> None:
         self.exposure_component = self._get_exposure_class(builder)
-        self.measure_pipeline_name = (
+        self.exposure_pipeline_name = (
             f"{self.entity.name}.{self.exposure_component.exposure_type}"
         )
         super().setup_component(builder)
@@ -262,7 +262,7 @@ class ExposureEffect(Component, ABC):
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
     def get_exposure_callable(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        return builder.value.get_value(self.measure_pipeline_name)
+        return builder.value.get_value(self.exposure_pipeline_name)
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
         relative_risk = self.relative_risk(index)

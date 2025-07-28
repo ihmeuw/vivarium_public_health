@@ -9,9 +9,7 @@ class Intervention(Exposure):
     """A model for an intervention defined by coverage (access to intervention).
 
     This component models access to an intervention as a dichotomous exposure where
-    simulants are either covered or uncovered by the intervention. The modeling
-    and implementation of this component is similar to that of a risk factor where
-    the risk is a lack of or not having access to the intervention.
+    simulants are either covered or uncovered by the intervention.
 
     For example,
 
@@ -20,7 +18,8 @@ class Intervention(Exposure):
     #. treatment access where simulants either have access to treatment (covered)
        or do not have access (uncovered).
 
-    This component can source data either from builder.data or from parameters
+    This component can source data either from a key in an Artifact
+    ("intervention.intervention_name.coverage") or from parameters
     supplied in the configuration. If data is derived from the configuration, it
     must be an integer or float expressing the desired coverage level or a
     covariate name that is intended to be used as a proxy. For example, for an
@@ -29,7 +28,7 @@ class Intervention(Exposure):
     .. code-block:: yaml
 
        configuration:
-           intervention:
+           intervention.intervention_name:
                coverage: 0.8
 
     Interventions should be configured with names in the format of

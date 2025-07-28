@@ -75,7 +75,7 @@ class ExposureDistribution(Component, ABC):
     def build_all_lookup_tables(self, builder: "Builder") -> None:
         raise NotImplementedError
 
-    def get_measure_data(self, builder: Builder) -> int | float | pd.DataFrame:
+    def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
         if self._exposure_data is not None:
             return self._exposure_data
         return self.get_data(
@@ -131,7 +131,7 @@ class EnsembleDistribution(ExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
-        exposure_data = self.get_measure_data(builder)
+        exposure_data = self.get_exposure_data(builder)
         standard_deviation = self.get_data(
             builder,
             self.configuration["data_sources"]["exposure_standard_deviation"],
@@ -247,7 +247,7 @@ class ContinuousDistribution(ExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        exposure_data = self.get_measure_data(builder)
+        exposure_data = self.get_exposure_data(builder)
         standard_deviation = self.get_data(
             builder, self.configuration["data_sources"]["exposure_standard_deviation"]
         )
@@ -295,7 +295,7 @@ class PolytomousDistribution(ExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        exposure_data = self.get_measure_data(builder)
+        exposure_data = self.get_exposure_data(builder)
         exposure_value_columns = self.get_exposure_value_columns(exposure_data)
 
         if isinstance(exposure_data, pd.DataFrame):
@@ -351,28 +351,28 @@ class DichotomousDistribution(ExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        measure_data = self.get_measure_data(builder)
-        measure_value_columns = self.get_exposure_value_columns(measure_data)
+        exposure_data = self.get_exposure_data(builder)
+        exposure_value_columns = self.get_exposure_value_columns(exposure_data)
 
-        if isinstance(measure_data, pd.DataFrame):
-            any_negatives = (measure_data[measure_value_columns] < 0).any().any()
-            any_over_one = (measure_data[measure_value_columns] > 1).any().any()
+        if isinstance(exposure_data, pd.DataFrame):
+            any_negatives = (exposure_data[exposure_value_columns] < 0).any().any()
+            any_over_one = (exposure_data[exposure_value_columns] > 1).any().any()
             if any_negatives or any_over_one:
                 raise ValueError(
                     f"All exposures must be in the range [0, 1] for {self.exposure_component.entity}"
                 )
-        elif measure_data < 0 or measure_data > 1:
+        elif exposure_data < 0 or exposure_data > 1:
             raise ValueError(
                 f"Exposure must be in the range [0, 1] for {self.exposure_component.entity}"
             )
 
         self.lookup_tables[self.exposure_component.exposure_type] = self.build_lookup_table(
-            builder, measure_data, measure_value_columns
+            builder, exposure_data, exposure_value_columns
         )
         self.lookup_tables["paf"] = self.build_lookup_table(builder, 0.0)
 
-    def get_measure_data(self, builder: Builder) -> int | float | pd.DataFrame:
-        exposure_data = super().get_measure_data(builder)
+    def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
+        exposure_data = super().get_exposure_data(builder)
 
         if isinstance(exposure_data, (int, float)):
             return exposure_data
