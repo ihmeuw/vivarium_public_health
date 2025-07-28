@@ -3,8 +3,12 @@
   - Refactor to create two new abstract classes, Exposure and ExposureEffect
   - Add Intervention and InterventionEffect classes
   - Refactor to pass Exposure component to RiskExposureDistribution classes
-  - Update exposure category names for DichotomousRiskExposureDistribution
+  - Update exposure category names for DichotomousDistribution
   
+**4.2.6 - 07/25/25**
+
+  - Feature: Support new environment creation via 'make build-env'
+
 **4.2.5 - 07/18/25**
 
   - Hush FutureWarnings: add include_groups=False to apply call in StratifiedObservation
