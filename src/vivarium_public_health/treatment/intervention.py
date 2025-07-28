@@ -6,9 +6,33 @@ from vivarium_public_health.utilities import EntityString, TargetString
 
 
 class Intervention(Exposure):
-    """A component for modeling access to an intervention. The modeling and implementation of
-    this component is similar to that of a risk factor where the risk is a loack or not having
-    access to the intervention. Interventions should be configured with in the format of
+    """A model for an intervention defined by coverage (access to intervention).
+
+    This component models access to an intervention as a dichotomous exposure where
+    simulants are either covered or uncovered by the intervention. The modeling
+    and implementation of this component is similar to that of a risk factor where
+    the risk is a lack of or not having access to the intervention.
+
+    For example,
+
+    #. vaccination coverage where simulants are either vaccinated (covered) or
+       unvaccinated (uncovered).
+    #. treatment access where simulants either have access to treatment (covered)
+       or do not have access (uncovered).
+
+    This component can source data either from builder.data or from parameters
+    supplied in the configuration. If data is derived from the configuration, it
+    must be an integer or float expressing the desired coverage level or a
+    covariate name that is intended to be used as a proxy. For example, for an
+    intervention named "intervention", the configuration could look like this:
+
+    .. code-block:: yaml
+
+       configuration:
+           intervention:
+               coverage: 0.8
+
+    Interventions should be configured with names in the format of
     "intervention.intervention_name".
 
     """
@@ -20,7 +44,7 @@ class Intervention(Exposure):
 
     @property
     def dichotomous_exposure_category_names(self) -> NamedTuple:
-        """The name of the exposed category for this intervention."""
+        """The name of the covered and uncovered categories for this intervention."""
 
         class __Categories(NamedTuple):
             exposed: str = "covered"
@@ -33,8 +57,28 @@ class Intervention(Exposure):
 class InterventionEffect(ExposureEffect):
     """A component to model the effect of an intervention on an affected entity's target rate.
 
+    This component models how intervention coverage affects the rate of some target
+    entity (e.g., disease incidence, mortality, disability). The effect is typically
+    protective, reducing the target rate for covered simulants compared to uncovered
+    simulants.
+
     This component can source data either from builder.data or from parameters
-    supplied in the configuration.
+    supplied in the configuration. The data should specify the relative risk or
+    rate ratio associated with intervention coverage.
+
+    For example, an intervention effect might model how vaccination coverage affects
+    disease incidence, where vaccinated individuals have a lower risk of disease
+    compared to unvaccinated individuals.
+
+    For an exposure named 'exposure_name' that affects  'affected_entity' and 'affected_cause',
+    the configuration would look like:
+
+    .. code-block:: yaml
+
+       configuration:
+            intervention_effect.exposure_name_on_affected_target:
+               exposure_parameters: 2
+               incidence_rate: 10
 
     """
 
