@@ -22,12 +22,12 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
 
+from vivarium_public_health.exposure.distributions import PolytomousDistribution
 from vivarium_public_health.risks import Risk, RiskEffect
 from vivarium_public_health.risks.data_transformations import (
     get_exposure_post_processor,
     pivot_categorical,
 )
-from vivarium_public_health.risks.distributions import PolytomousDistribution
 from vivarium_public_health.utilities import EntityString, get_lookup_columns, to_snake_case
 
 CATEGORICAL = "categorical"
@@ -71,7 +71,10 @@ class LBWSGDistribution(PolytomousDistribution):
 
             if isinstance(birth_exposure_data, pd.DataFrame):
                 birth_exposure_data = pivot_categorical(
-                    builder, self.risk, birth_exposure_data, "parameter"
+                    builder,
+                    self.exposure_component.entity,
+                    birth_exposure_data,
+                    "parameter",
                 )
 
             self.lookup_tables["birth_exposure"] = self.build_lookup_table(
@@ -118,7 +121,9 @@ class LBWSGDistribution(PolytomousDistribution):
         -------
             The intervals for each category.
         """
-        categories: dict[str, str] = builder.data.load(f"{self.risk}.categories")
+        categories: dict[str, str] = builder.data.load(
+            f"{self.exposure_component.entity}.categories"
+        )
         category_intervals = {
             axis: {
                 category: self._parse_description(axis, description)
@@ -271,7 +276,7 @@ class LBWSGRisk(Risk):
         # Add birth exposure data source
         configuration_defaults[self.name]["data_sources"][
             "birth_exposure"
-        ] = f"{self.risk}.birth_exposure"
+        ] = f"{self.entity}.birth_exposure"
         configuration_defaults[self.name]["distribution_type"] = "lbwsg"
         return configuration_defaults
 
@@ -300,7 +305,7 @@ class LBWSGRisk(Risk):
         # Propensity only used on initialization; not being saved to avoid a cycle
         return None
 
-    def get_exposure_pipeline(self, builder: Builder) -> Pipeline | None:
+    def get_exposure_callable(self, builder: Builder) -> Pipeline | None:
         # Exposure only used on initialization; not being saved to avoid a cycle
         return None
 
@@ -400,12 +405,12 @@ class LBWSGRiskEffect(RiskEffect):
             LBWSGRisk.get_exposure_column_name(axis) for axis in LBWSGRisk.AXES
         ]
         self.relative_risk_pipeline_name = (
-            f"effect_of_{self.risk.name}_on_{self.target.name}.relative_risk"
+            f"effect_of_{self.entity.name}_on_{self.target.name}.relative_risk"
         )
 
     def relative_risk_column_name(self, age_group_id: str) -> str:
         return (
-            f"effect_of_{self.risk.name}_on_{age_group_id}_{self.target.name}_relative_risk"
+            f"effect_of_{self.entity.name}_on_{age_group_id}_{self.target.name}_relative_risk"
         )
 
     # noinspection PyAttributeOutsideInit
@@ -426,7 +431,7 @@ class LBWSGRiskEffect(RiskEffect):
             builder, paf_data, paf_value_cols
         )
 
-    def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.DataFrame]:
+    def get_exposure_callable(self, builder: Builder) -> Callable[[pd.Index], pd.DataFrame]:
         def exposure(index: pd.Index) -> pd.DataFrame:
             return self.population_view.subview(self.lbwsg_exposure_column_names).get(index)
 
@@ -435,7 +440,7 @@ class LBWSGRiskEffect(RiskEffect):
     def get_population_attributable_fraction_source(
         self, builder: Builder
     ) -> tuple[pd.DataFrame, list[str]]:
-        paf_key = f"{self.risk}.population_attributable_fraction"
+        paf_key = f"{self.entity}.population_attributable_fraction"
         paf_data = builder.data.load(paf_key)
         return paf_data, builder.data.value_columns()(paf_key)
 
@@ -449,7 +454,7 @@ class LBWSGRiskEffect(RiskEffect):
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
-        relative_risks = builder.data.load(f"{self.risk}.relative_risk")
+        relative_risks = builder.data.load(f"{self.entity}.relative_risk")
         exposed_age_group_starts = (
             relative_risks.groupby("age_start")["value"].any().reset_index()["age_start"]
         )
@@ -476,7 +481,7 @@ class LBWSGRiskEffect(RiskEffect):
         }
 
         # get relative risk data for target
-        interpolators = builder.data.load(f"{self.risk}.relative_risk_interpolator")
+        interpolators = builder.data.load(f"{self.entity}.relative_risk_interpolator")
         interpolators = (
             # isolate RRs for target and drop non-neonatal age groups since they have RR == 1.0
             interpolators[
