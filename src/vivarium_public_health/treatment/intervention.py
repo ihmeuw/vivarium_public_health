@@ -81,6 +81,5 @@ class InterventionEffect(ExposureEffect):
 
     """
 
-    @staticmethod
-    def get_name(intervention: EntityString, target: TargetString) -> str:
+    def get_name(self, intervention: EntityString, target: TargetString) -> str:
         return f"intervention_effect.{intervention.name}_on_{target}"

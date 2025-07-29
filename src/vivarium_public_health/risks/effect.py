@@ -26,8 +26,7 @@ class RiskEffect(ExposureEffect):
 
     """
 
-    @staticmethod
-    def get_name(risk: EntityString, target: TargetString) -> str:
+    def get_name(self, risk: EntityString, target: TargetString) -> str:
         return f"risk_effect.{risk.name}_on_{target}"
 
 

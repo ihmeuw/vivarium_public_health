@@ -68,7 +68,6 @@ class ExposureEffect(Component, ABC):
     def name(self) -> str:
         return self.get_name(self.entity, self.target)
 
-    @staticmethod
     @abstractmethod
     def get_name(self) -> Callable[[EntityString, TargetString], str]:
         """Abstract property that must be implemented by subclasses to provide a naming function."""
