@@ -7,6 +7,7 @@ This module contains tools for modeling categorical and continuous risk
 exposure.
 
 """
+import warnings
 from typing import NamedTuple
 
 from vivarium.framework.engine import Builder
@@ -72,6 +73,24 @@ class Risk(Exposure):
                category_thresholds: [7, 8, 9]
 
     """
+
+    @property
+    def risk(self) -> str:
+        warnings.warn(
+            "The 'risk' attribute is deprecated. Use 'entity' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.entity
+
+    @risk.setter
+    def risk(self, value: str) -> None:
+        warnings.warn(
+            "The 'risk' attribute is deprecated. Use 'entity' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.entity = value
 
     @property
     def exposure_type(self) -> str:
