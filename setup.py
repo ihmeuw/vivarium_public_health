@@ -60,8 +60,7 @@ if __name__ == "__main__":
     ]
 
     doc_requirements = [
-        "vivarium_dependencies[sphinx-rtd-theme,sphinx-click,sphinx-autodoc-typehints,interactive]",
-        "sphinx<7.0",
+        "vivarium_dependencies[sphinx,sphinx-click,ipython,matplotlib]",
     ]
 
     interactive_requirements = [
@@ -69,7 +68,7 @@ if __name__ == "__main__":
     ]
 
     lint_requirements = [
-        "vivarium_dependencies[format]",
+        "vivarium_dependencies[lint]",
     ]
 
     setup(
