@@ -5,7 +5,6 @@ Risk Effect Models
 
 """
 
-import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -26,24 +25,6 @@ class RiskEffect(ExposureEffect):
     supplied in the configuration.
 
     """
-
-    @property
-    def risk(self) -> str:
-        warnings.warn(
-            "The 'risk' attribute is deprecated. Use 'entity' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.entity
-
-    @risk.setter
-    def risk(self, value: str) -> None:
-        warnings.warn(
-            "The 'risk' attribute is deprecated. Use 'entity' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.entity = value
 
     def get_name(self, risk: EntityString, target: TargetString) -> str:
         return f"risk_effect.{risk.name}_on_{target}"

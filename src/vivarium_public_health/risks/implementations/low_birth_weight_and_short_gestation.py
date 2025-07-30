@@ -364,7 +364,7 @@ class LBWSGRisk(Risk):
 
     def get_current_exposure(self, index: pd.Index) -> pd.DataFrame:
         raise LifeCycleError(
-            f"The {self.entity.name} exposure pipeline should not be called. You probably want to"
+            f"The {self.risk.name} exposure pipeline should not be called. You probably want to"
             f" refer directly one of the exposure columns. During simulant initialization the birth"
             f" exposure pipelines should be used instead."
         )
