@@ -1,3 +1,24 @@
+**4.3.3 - 07/30/25**
+
+  - Revert changes from v4.3.0
+
+**4.3.2 - 07/30/25** (withdrawn)
+
+  - Support RiskEffect backwards compatibility with v4.2.x
+
+**4.3.1 - 07/30/25** (withdrawn)
+
+  - Bugfix: reference correct entity name in LBWSG get_current_exposure method
+  - Support backwards compatibility with v4.2.x
+
+**4.3.0 - 07/29/25** (withdrawn)
+
+  - This release was withdrawn from PyPI.
+  - Refactor to create two new abstract classes, Exposure and ExposureEffect
+  - Add Intervention and InterventionEffect classes
+  - Refactor to pass Exposure component to RiskExposureDistribution classes
+  - Update exposure category names for DichotomousDistribution
+  
 **4.2.6 - 07/25/25**
 
   - Feature: Support new environment creation via 'make build-env'
