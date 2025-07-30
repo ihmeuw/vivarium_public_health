@@ -1,5 +1,11 @@
-**4.3.0 - 07/30/25**
+**4.3.1 - 08/01/25**
 
+  - Bugfix: reference correct entity name in LBWSG get_current_exposure method
+  - Support backwards compatibility with v4.2.x
+
+**4.3.0 - 07/29/25** (withdrawn)
+
+  - This release was withdrawn from PyPI.
   - Refactor to create two new abstract classes, Exposure and ExposureEffect
   - Add Intervention and InterventionEffect classes
   - Refactor to pass Exposure component to RiskExposureDistribution classes
