@@ -1,4 +1,4 @@
-**4.3.0 - 07/29/25**
+**4.3.0 - 07/30/25**
 
   - Refactor to create two new abstract classes, Exposure and ExposureEffect
   - Add Intervention and InterventionEffect classes
