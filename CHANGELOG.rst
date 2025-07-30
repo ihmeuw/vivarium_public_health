@@ -1,9 +1,3 @@
-**4.3.0 - 07/30/25**
-  - Refactor to create two new abstract classes, Exposure and ExposureEffect
-  - Add Intervention and InterventionEffect classes
-  - Refactor to pass Exposure component to RiskExposureDistribution classes
-  - Update exposure category names for DichotomousDistribution
-  
 **4.2.6 - 07/25/25**
 
   - Feature: Support new environment creation via 'make build-env'

@@ -584,8 +584,8 @@ def rescale_final_age_bin(builder, population_data):
 
 def validate_crude_birth_rate_data(builder, data_year_max):
     population_config = builder.configuration.population.to_dict()
-    untracking_age = population_config.get("untracking_age")
-    age_end = population_config.get("age_end")
+    untracking_age = population_config.get("untracking_age", None)
+    age_end = population_config.get("age_end", None)
     if untracking_age and age_end and age_end != untracking_age:
         raise ValueError(
             "If you specify an exit age, the initial population age end must be the same "

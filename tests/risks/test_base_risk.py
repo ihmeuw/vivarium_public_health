@@ -10,12 +10,12 @@ from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import SIS
-from vivarium_public_health.exposure.distributions import (
+from vivarium_public_health.risks import RiskEffect
+from vivarium_public_health.risks.base_risk import Risk
+from vivarium_public_health.risks.distributions import (
     EnsembleDistribution,
     PolytomousDistribution,
 )
-from vivarium_public_health.risks import RiskEffect
-from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.utilities import EntityString
 
 
@@ -151,17 +151,10 @@ def _check_exposure_and_rr(
     risk: EntityString,
     expected_exposures: dict[str, float],
     expected_rrs: dict[str, float],
-    dichotomous_risk: bool = False,
 ) -> None:
     population = simulation.get_population()
     exposure = simulation.get_value(f"{risk.name}.exposure")(population.index)
     incidence_rate = simulation.get_value("some_disease.incidence_rate")(population.index)
-    # Map exposure categories for dichotomous risks
-    if dichotomous_risk:
-        mapping = {"cat1": "exposed", "cat2": "unexposed"}
-        if "cat1" in expected_exposures.keys():
-            expected_exposures = {mapping[k]: v for k, v in expected_exposures.items()}
-            expected_rrs = {mapping[k]: v for k, v in expected_rrs.items()}
     unexposed_category = sorted(expected_exposures.keys())[-1]
     unexposed_incidence = incidence_rate[exposure == unexposed_category].iat[0]
 
@@ -187,7 +180,7 @@ def test_polytomous_risk(polytomous_risk, base_config, base_plugins):
 
     _check_exposure_and_rr(
         simulation,
-        risk.entity,
+        risk.risk,
         exposure_data.to_dict(),
         rr_data["value"].to_dict(),
     )
@@ -196,22 +189,14 @@ def test_polytomous_risk(polytomous_risk, base_config, base_plugins):
 
     _check_exposure_and_rr(
         simulation,
-        risk.entity,
+        risk.risk,
         exposure_data.to_dict(),
         rr_data["value"].to_dict(),
     )
 
 
 @pytest.mark.parametrize("scalar_exposure", [True, False])
-@pytest.mark.parametrize(
-    "exposure_categories",
-    [
-        ("cat1", "cat2"),
-        ("exposed", "unexposed"),
-    ],
-)
-def test_dichotomous_risk(base_config, base_plugins, scalar_exposure, exposure_categories):
-    exposed_category, unexposed_category = exposure_categories
+def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
     risk = Risk("risk_factor.test_risk")
     rr_data = pd.DataFrame(
         {
@@ -221,7 +206,7 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure, exposure_c
             "year_end": 1991,
             "value": [1.5, 1.0],
         },
-        index=pd.Index([exposed_category, unexposed_category], name="parameter"),
+        index=pd.Index(["cat1", "cat2"], name="parameter"),
     )
 
     data = {
@@ -230,7 +215,7 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure, exposure_c
                 "year_start": 1990,
                 "year_end": 1991,
                 "sex": ["Male"] * 2 + ["Female"] * 2,
-                "parameter": [exposed_category, unexposed_category] * 2,
+                "parameter": ["cat1", "cat2"] * 2,
                 "value": [0.25, 0.75] * 2,
             }
         ),
@@ -257,18 +242,18 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure, exposure_c
             },
         }
     )
-    category_exposures = {exposed_category: 0.25, unexposed_category: 0.75}
+    category_exposures = {"cat1": 0.25, "cat2": 0.75}
 
     simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
 
     _check_exposure_and_rr(
-        simulation, risk.entity, category_exposures, rr_data["value"].to_dict(), True
+        simulation, risk.risk, category_exposures, rr_data["value"].to_dict()
     )
 
     simulation.step()
 
     _check_exposure_and_rr(
-        simulation, risk.entity, category_exposures, rr_data["value"].to_dict(), True
+        simulation, risk.risk, category_exposures, rr_data["value"].to_dict()
     )
 
 
@@ -359,23 +344,3 @@ def test_ensemble_risk(base_config, base_plugins):
 
     # todo: use fuzzy checker to confirm that we are getting the expected results
     print("We didn't runtime error - success!")
-
-
-def test_deprecate_dichotomous_categories():
-    import datetime
-
-    risk = Risk("risk_factor.test_risk")
-    if datetime.date.today() > datetime.date(2025, 10, 1):
-        try:
-            risk.dichotomous_exposure_category_names
-            method_exists = True
-        except Exception:
-            method_exists = False
-        if method_exists:
-            assert (
-                False
-            ), "Using cat1 and cat2 should be removed so we can remove the property dichotomous_exposure_category_names"
-        else:
-            assert (
-                False
-            ), "'dichotomous_exposure_category_names' has been deprecated and removed - delete this test"
