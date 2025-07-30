@@ -1,4 +1,3 @@
-from vivarium_public_health.treatment.intervention import Intervention, InterventionEffect
 from vivarium_public_health.treatment.magic_wand import AbsoluteShift
 from vivarium_public_health.treatment.scale_up import LinearScaleUp
 from vivarium_public_health.treatment.therapeutic_inertia import TherapeuticInertia

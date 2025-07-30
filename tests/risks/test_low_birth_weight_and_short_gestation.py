@@ -100,7 +100,7 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
     assert (exposure_pipeline_values["cat82"] == 0.35).all()
 
     expected_pipeline_name = (
-        f"effect_of_{lbwsg_effect.entity.name}_on_{lbwsg_effect.target.name}.relative_risk"
+        f"effect_of_{lbwsg_effect.risk.name}_on_{lbwsg_effect.target.name}.relative_risk"
     )
     assert expected_pipeline_name in sim.list_values()
 

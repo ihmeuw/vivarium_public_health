@@ -1,8 +1,12 @@
-**4.3.2 - 07/30/25**
+**4.3.3 - 07/30/25**
+
+  - Revert changes from v4.3.0-4.3.2
+
+**4.3.2 - 07/30/25** (withdrawn)
 
   - Support RiskEffect backwards compatibility with v4.2.x
 
-**4.3.1 - 07/30/25**
+**4.3.1 - 07/30/25** (withdrawn)
 
   - Bugfix: reference correct entity name in LBWSG get_current_exposure method
   - Support backwards compatibility with v4.2.x
