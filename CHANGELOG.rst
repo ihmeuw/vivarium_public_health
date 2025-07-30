@@ -1,5 +1,4 @@
 **4.3.0 - 07/29/25**
-
   - Refactor to create two new abstract classes, Exposure and ExposureEffect
   - Add Intervention and InterventionEffect classes
   - Refactor to pass Exposure component to RiskExposureDistribution classes
