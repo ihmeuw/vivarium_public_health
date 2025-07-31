@@ -1,4 +1,4 @@
-**4.3.5 - 07/31/25**
+**4.3.5 - 08/01/25**
 
   - Use vivarium_dependencies for common setup constraints
 

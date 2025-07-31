@@ -42,7 +42,7 @@ if __name__ == "__main__":
         long_description = f.read()
 
     install_requirements = [
-        "vivarium_dependencies[pandas,numpy,scipy,tables,loguru,pyarrow]",
+        "vivarium_dependencies[pandas,numpy_lt_2,scipy,tables,loguru,pyarrow]",
         "vivarium_build_utils>=2.0.1,<3.0.0",
         "vivarium>=3.4.3",
         "layered_config_tree",
@@ -58,17 +58,11 @@ if __name__ == "__main__":
         "pyyaml",
     ]
 
-    doc_requirements = [
-        "vivarium_dependencies[sphinx,sphinx-click,ipython,matplotlib]",
-    ]
+    doc_requirements = ["vivarium_dependencies[sphinx,sphinx-click,ipython,matplotlib]"]
 
-    interactive_requirements = [
-        "vivarium_dependencies[interactive]",
-    ]
+    interactive_requirements = ["vivarium_dependencies[interactive]"]
 
-    lint_requirements = [
-        "vivarium_dependencies[lint]",
-    ]
+    lint_requirements = ["vivarium_dependencies[lint]"]
 
     setup(
         name=about["__title__"],
