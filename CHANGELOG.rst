@@ -1,3 +1,7 @@
+**4.3.4 - 07/31/25**
+
+  - Modify futurewarning fix from v4.2.6 to not require pandas>=2.2.0
+
 **4.3.3 - 07/30/25**
 
   - Revert changes from v4.3.0-4.3.2
