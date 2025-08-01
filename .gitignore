@@ -115,3 +115,7 @@ tests/proportion_test_diagnostics.csv
 
 # macOS
 *.DS_Store
+
+# Visual Studio Code project settings
+.vscode/
+

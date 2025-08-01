@@ -1,3 +1,7 @@
+**4.3.5 - 08/01/25**
+
+  - Use vivarium_dependencies for common setup constraints
+
 **4.3.4 - 07/31/25**
 
   - Modify futurewarning fix from v4.2.6 to not require pandas>=2.2.0
@@ -22,7 +26,7 @@
   - Add Intervention and InterventionEffect classes
   - Refactor to pass Exposure component to RiskExposureDistribution classes
   - Update exposure category names for DichotomousDistribution
-  
+
 **4.2.6 - 07/25/25**
 
   - Feature: Support new environment creation via 'make build-env'
