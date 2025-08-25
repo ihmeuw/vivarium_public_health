@@ -235,15 +235,50 @@ class ScaledPopulation(BasePopulation):
             raise ValueError(
                 f"Scaling factor must be a pandas DataFrame. Provided value: {scaling_factor}"
             )
-        scaling_factor = scaling_factor.set_index(
-            [col for col in scaling_factor.columns if col != "value"]
+        formatted_pop_structure, formatted_scaling_factor = self._format_data_inputs(
+            population_structure, scaling_factor
         )
-        population_structure = population_structure.set_index(
-            [col for col in population_structure.columns if col != "value"]
-        )
-        scaled_population_structure = (population_structure * scaling_factor).reset_index()
+
+        scaled_population_structure = (
+            formatted_pop_structure * formatted_scaling_factor
+        ).reset_index()
 
         return scaled_population_structure
+
+    def _format_data_inputs(
+        self, pop_structure: pd.DataFrame, scalar_data: pd.DataFrame
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Data cleaning function to check whether scalar_data and population structure are compatible for scaling
+        the population structure of a simulation. This method will do any necessary transformations to
+        deal with two use cases where either population structure has multiple years of data, or both data
+        inputs have multiple years of data."""
+
+        scaling_factor = scalar_data.set_index(
+            [col for col in scalar_data.columns if col != "value"],
+            drop=True,
+        )
+        population_structure = pop_structure.set_index(
+            [col for col in pop_structure.columns if col != "value"],
+            drop=True,
+        )
+        if "year_start" not in scaling_factor.index.names:
+            return population_structure, scaling_factor
+
+        pop_years = set(population_structure.index.get_level_values("year_start"))
+        scale_years = set(scaling_factor.index.get_level_values("year_start"))
+        if len(pop_years) > 1:
+            if len(scale_years) > 1:
+                if not pop_years == scale_years:
+                    raise ValueError(
+                        f"Population years {pop_years} and scaling years {scale_years} must match if both "
+                        "multiple years of data."
+                    )
+            if len(scale_years) == 1:
+                scaling_factor.index = scaling_factor.index.droplevel(
+                    ["year_start", "year_end"]
+                )
+
+        return population_structure, scaling_factor
 
 
 class AgeOutSimulants(Component):
