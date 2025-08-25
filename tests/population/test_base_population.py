@@ -1,8 +1,11 @@
 import math
+from itertools import product
 
 import numpy as np
 import pandas as pd
 import pytest
+from pytest_mock import MockFixture
+from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import get_randomness
 from vivarium_testing_utils import FuzzyChecker
@@ -301,7 +304,7 @@ def test_scaled_population(
 
     # Simple pop data
     pop_structure = simple_pop_structure()
-    # Simple scalar data to pass to ScaledPopulation
+    # Simple scalar data to pass to pulation
     scalar_data = simple_pop_structure().drop(columns=["location"])
     scalar_values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
     scalar_data["value"] = scalar_values
@@ -346,6 +349,156 @@ def test_scaled_population(
             observed_denominator=len(pop),
             target_proportion=target_proportion,
             name=f"scaled_pop_proportion_check_{sex}_{age_start}",
+        )
+
+
+@pytest.mark.parametrize("test_case", [
+    "pop_structure",
+    "both"
+])
+def test_scaled_population_multiyear_data(
+        test_case: str, config: LayeredConfigTree, base_plugins, mocker: MockFixture, fuzzy_checker: FuzzyChecker
+) -> None:
+    """Test ScaledPopulation with multi-year data in population structure and/or scaling factor.
+    
+    Cases:
+    1. pop_structure: Population structure has multiple years, scaling factor does not
+    2. both: Both population structure and scaling factor have multiple years
+    """
+    config.update(
+        {
+            "population": {
+                "population_size": 1_000_000,
+                "include_sex": "Both",
+            },
+            "time": {"step_size": 1, "start": {"year": 2023}},
+        },
+        layer="override",
+    )
+
+    # Create multi-year population structure (2021-2024)
+    age_idx = pd.MultiIndex.from_tuples(
+        [
+            (0.0, 25.0, "Young People"),
+            (25.0, 50.0, "Old People"),
+            (50.0, 75.0, "Ancient People"),
+            (75.0, 100.0, "People Who Beat the Odds"),
+        ],
+        names=["age_start", "age_end", "age_group_name"],
+    )
+    age_df = pd.DataFrame(index=age_idx).reset_index()
+    age_bins = [(group.age_start, group.age_end) for group in age_df.itertuples()]
+    sexes = ("Male", "Female")
+    location = ["Kenya"]
+    years = [(2021, 2022), (2022, 2023), (2023, 2024)]  # Multiple years
+
+    age_bins, sexes, years, location = zip(*product(age_bins, sexes, years, location))
+    mins, maxes = zip(*age_bins)
+    year_starts, year_ends = zip(*years)
+
+    pop_structure = pd.DataFrame(
+        {
+            "age_start": mins,
+            "age_end": maxes,
+            "sex": sexes,
+            "year_start": year_starts,
+            "year_end": year_ends,
+            "location": location,
+            # Base values for each demographic group
+            "value": [1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0] * 3,  # Repeated for 3 years
+        }
+    )
+
+    # Create scaling factor data based on test case
+    if test_case == "pop_structure":
+        # Scaling factor without year columns - should work with any year from pop structure
+        scalar_data = pd.DataFrame(
+            {
+                "age_start": [0.0, 0.0, 25.0, 25.0, 50.0, 50.0, 75.0, 75.0],
+                "age_end": [25.0, 25.0, 50.0, 50.0, 75.0, 75.0, 100.0, 100.0],
+                "sex": ["Male", "Female", "Male", "Female", "Male", "Female", "Male", "Female"],
+                "value": [1.5, 1.2, 2.1, 1.8, 0.9, 1.1, 1.3, 1.4],
+            }
+        )
+    elif test_case == "both":
+        # Both have multiple years - should be able to multiply together directly
+        scalar_data = pd.DataFrame(
+            {
+                "age_start": [0.0, 0.0, 25.0, 25.0, 50.0, 50.0, 75.0, 75.0] * 3,
+                "age_end": [25.0, 25.0, 50.0, 50.0, 75.0, 75.0, 100.0, 100.0] * 3,
+                "sex": ["Male", "Female", "Male", "Female", "Male", "Female", "Male", "Female"] * 3,
+                "year_start": [2021, 2021, 2021, 2021, 2021, 2021, 2021, 2021,
+                              2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022,
+                              2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023],
+                "year_end": [2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022,
+                            2023, 2023, 2023, 2023, 2023, 2023, 2023, 2023,
+                            2024, 2024, 2024, 2024, 2024, 2024, 2024, 2024],
+                "value": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,  # 2021-2022 (neutral scaling)
+                         1.5, 1.2, 2.1, 1.8, 0.9, 1.1, 1.3, 1.4,  # 2022-2023 
+                         1.8, 1.4, 2.3, 2.0, 1.2, 1.6, 1.7, 1.9],  # 2023-2024
+            }
+        )
+
+    # Add data to artifact and mock return for plugin
+    mock_art = MockArtifact()
+    mock_art.write("population.structure", pop_structure)
+    mock_art.write("population.scalar", scalar_data)
+    mocker.patch(
+        "tests.mock_artifact.MockArtifactManager._load_artifact",
+    ).return_value = mock_art
+
+    scaling_factor = "population.scalar"
+    scaled_pop = bp.ScaledPopulation(scaling_factor)
+    sim = InteractiveContext(
+        components=[scaled_pop], configuration=config, plugin_configuration=base_plugins
+    )
+    pop = sim.get_population()
+
+    # The component should automatically select the appropriate year data (2023 from simulation start)
+    # and handle the multiplication correctly between pop structure and scaling factor
+    if test_case == "pop_structure":
+        # Set index to merge properly (excluding year columns from scalar_data)
+        pop_idx_cols = ["location", "sex", "age_start", "age_end", "year_start", "year_end"]
+        scalar_idx_cols = ["sex", "age_start", "age_end"]
+        pop_indexed = pop_structure.set_index(pop_idx_cols)[["value"]]
+        # Drops year from scalar data
+        scalar_indexed = scalar_data.set_index(scalar_idx_cols)[["value"]]
+        scaled_result = pop_indexed * scalar_indexed
+        scaled_result = scaled_result.reset_index()
+        
+    elif test_case == "both":        
+        # Set indices for multiplication
+        index_cols = ["age_start", "age_end", "sex", "year_start", "year_end", "location"]
+        pop_indexed = pop_structure.set_index(index_cols)[["value"]]
+        scalar_indexed = scalar_data.set_index([col for col in index_cols if col != "location"])[["value"]]
+        scaled_result = (pop_indexed * scalar_indexed).reset_index()
+
+    # Verify no null values in the result
+    assert not scaled_result.isnull().any().any(), "Scaled population structure should not contain null values"
+    
+    # Calculate expected proportions
+    total_scaled_value = scaled_result["value"].sum()
+    
+    # Verify that the population proportions match the expected scaled proportions
+    for _, row in scaled_result.iterrows():
+        age_start = row["age_start"]
+        age_end = row["age_end"]
+        sex = row["sex"]
+        expected_proportion = row["value"] / total_scaled_value
+        
+        number_of_sims = len(
+            pop.loc[
+                (pop["age"] >= age_start)
+                & (pop["age"] < age_end)
+                & (pop["sex"] == sex)
+            ]
+        )
+        
+        fuzzy_checker.fuzzy_assert_proportion(
+            observed_numerator=number_of_sims,
+            observed_denominator=len(pop),
+            target_proportion=expected_proportion,
+            name=f"scaled_pop_multiyear_{test_case}_proportion_check_{sex}_{age_start}",
         )
 
 
