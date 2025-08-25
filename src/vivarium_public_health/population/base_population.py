@@ -277,6 +277,11 @@ class ScaledPopulation(BasePopulation):
                 scaling_factor.index = scaling_factor.index.droplevel(
                     ["year_start", "year_end"]
                 )
+        if len(pop_years) == 1 and len(scale_years) > 1:
+            raise ValueError(
+                f"Population years {pop_years} must be the same as scaling years {scale_years} or scaling years "
+                "must be a subset of population years."
+            )
 
         return population_structure, scaling_factor
 
