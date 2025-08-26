@@ -303,7 +303,7 @@ def test_scaled_population(
 
     # Simple pop data
     pop_structure = simple_pop_structure()
-    # Simple scalar data to pass to pulation
+    # Simple scalar data to pass to ScaledPopulation
     scalar_data = simple_pop_structure().drop(columns=["location"])
     scalar_values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
     scalar_data["value"] = scalar_values

@@ -235,31 +235,29 @@ class ScaledPopulation(BasePopulation):
             raise ValueError(
                 f"Scaling factor must be a pandas DataFrame. Provided value: {scaling_factor}"
             )
-        formatted_pop_structure, formatted_scaling_factor = self._format_data_inputs(
+        population_structure, scaling_factor = self._format_data_inputs(
             population_structure, scaling_factor
         )
 
-        scaled_population_structure = (
-            formatted_pop_structure * formatted_scaling_factor
-        ).reset_index()
-
-        return scaled_population_structure
+        return (population_structure * scaling_factor).reset_index()
 
     def _format_data_inputs(
         self, pop_structure: pd.DataFrame, scalar_data: pd.DataFrame
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Data cleaning function to check whether scalar_data and population structure are compatible for scaling
         the population structure of a simulation. This method will do any necessary transformations to
-        deal with two use cases where either population structure has multiple years of data, or both data
-        inputs have multiple years of data."""
+        deal with any of the following use cases:
+        1. Population structure and scaling factor each have one year of data.
+        2. Population structure has multiple years of data, and scaling factor has one year of data.
+        3. Both population structure and scaling factor have multiple years of data.
+        4. Population structure has one year of data, and scaling factor has multiple years of data in which
+        case a ValueError will be raised."""
 
         scaling_factor = scalar_data.set_index(
-            [col for col in scalar_data.columns if col != "value"],
-            drop=True,
+            [col for col in scalar_data.columns if col != "value"]
         )
         population_structure = pop_structure.set_index(
-            [col for col in pop_structure.columns if col != "value"],
-            drop=True,
+            [col for col in pop_structure.columns if col != "value"]
         )
         if "year_start" not in scaling_factor.index.names:
             return population_structure, scaling_factor
