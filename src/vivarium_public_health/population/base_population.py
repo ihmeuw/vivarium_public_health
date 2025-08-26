@@ -235,23 +235,18 @@ class ScaledPopulation(BasePopulation):
             raise ValueError(
                 f"Scaling factor must be a pandas DataFrame. Provided value: {scaling_factor}"
             )
+        start_year = builder.configuration.time.start.year
         population_structure, scaling_factor = self._format_data_inputs(
-            population_structure, scaling_factor
+            population_structure, scaling_factor, start_year
         )
 
         return (population_structure * scaling_factor).reset_index()
 
     def _format_data_inputs(
-        self, pop_structure: pd.DataFrame, scalar_data: pd.DataFrame
+        self, pop_structure: pd.DataFrame, scalar_data: pd.DataFrame, year: int
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Data cleaning function to check whether scalar_data and population structure are compatible for scaling
-        the population structure of a simulation. This method will do any necessary transformations to
-        deal with any of the following use cases:
-        1. Population structure and scaling factor each have one year of data.
-        2. Population structure has multiple years of data, and scaling factor has one year of data.
-        3. Both population structure and scaling factor have multiple years of data.
-        4. Population structure has one year of data, and scaling factor has multiple years of data in which
-        case a ValueError will be raised."""
+        the population structure of a simulation."""
 
         scaling_factor = scalar_data.set_index(
             [col for col in scalar_data.columns if col != "value"]
@@ -262,24 +257,24 @@ class ScaledPopulation(BasePopulation):
         if "year_start" not in scaling_factor.index.names:
             return population_structure, scaling_factor
 
-        pop_years = set(population_structure.index.get_level_values("year_start"))
-        scale_years = set(scaling_factor.index.get_level_values("year_start"))
-        if len(pop_years) > 1:
-            if len(scale_years) > 1:
-                if not pop_years == scale_years:
-                    raise ValueError(
-                        f"Population years {pop_years} and scaling years {scale_years} must match if both "
-                        "multiple years of data."
-                    )
-            if len(scale_years) == 1:
-                scaling_factor.index = scaling_factor.index.droplevel(
-                    ["year_start", "year_end"]
-                )
-        if len(pop_years) == 1 and len(scale_years) > 1:
-            raise ValueError(
-                f"Population years {pop_years} must be the same as scaling years {scale_years} or scaling years "
-                "must be a subset of population years."
-            )
+        # Subset to start year of simulation or closest year
+        pop_reference_years = sorted(
+            set(population_structure.index.get_level_values("year_start"))
+        )
+        pop_year_index = np.digitize(year, pop_reference_years).item() - 1
+        scale_reference_years = sorted(
+            set(scaling_factor.index.get_level_values("year_start"))
+        )
+        scale_year_index = np.digitize(year, scale_reference_years).item() - 1
+        # Subset to start year of simulation or closest year
+        population_structure = population_structure.loc[
+            population_structure.index.get_level_values("year_start")
+            == pop_reference_years[pop_year_index]
+        ]
+        scaling_factor = scaling_factor.loc[
+            scaling_factor.index.get_level_values("year_start")
+            == scale_reference_years[scale_year_index]
+        ]
 
         return population_structure, scaling_factor
 

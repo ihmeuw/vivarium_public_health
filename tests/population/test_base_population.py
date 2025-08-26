@@ -352,8 +352,10 @@ def test_scaled_population(
 
 
 @pytest.mark.parametrize("test_case", ["pop_structure", "both"])
+@pytest.mark.parametrize("year", [2021, 2025])
 def test_scaled_population__format_data_inputs(
     test_case: str,
+    year: int,
 ) -> None:
     """Test ScaledPopulation with multi-year data in population structure and/or scaling factor.
 
@@ -449,17 +451,23 @@ def test_scaled_population__format_data_inputs(
                 ],
             }
         )
-        formatted_scalar_data = scalar_data.set_index(
+
+        # Subset to 2021 or subset to 2023 since that is latest year start to verify
+        # we are subsetting to correct year in _format_data_inputs
+        query_year = 2021 if year == 2021 else 2023
+        formatted_pop_structure = pop_structure.loc[pop_structure["year_start"] == query_year]
+        formatted_scalar_data = scalar_data.loc[scalar_data["year_start"] == query_year]
+        formatted_scalar_data = formatted_scalar_data.set_index(
             ["sex", "age_start", "age_end", "year_start", "year_end"], drop=True
         )
-    formatted_pop_structure = pop_structure.set_index(
-        ["location", "sex", "age_start", "age_end", "year_start", "year_end"]
-    )
-    scaled_pop = bp.ScaledPopulation("placeholder")
-    formatted = scaled_pop._format_data_inputs(pop_structure, scalar_data)
-    expected = (formatted[0] * formatted[1]).reset_index()
-    data = (formatted_pop_structure * formatted_scalar_data).reset_index()
-    pd.testing.assert_frame_equal(data, expected)
+        formatted_pop_structure = formatted_pop_structure.set_index(
+            ["location", "sex", "age_start", "age_end", "year_start", "year_end"]
+        )
+        scaled_pop = bp.ScaledPopulation("placeholder")
+        formatted = scaled_pop._format_data_inputs(pop_structure, scalar_data, year)
+        expected = (formatted[0] * formatted[1]).reset_index()
+        data = (formatted_pop_structure * formatted_scalar_data).reset_index()
+        pd.testing.assert_frame_equal(data, expected)
 
 
 def _check_population(simulants, initial_age, step_size, include_sex):
