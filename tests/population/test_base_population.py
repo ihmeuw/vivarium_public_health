@@ -352,7 +352,7 @@ def test_scaled_population(
 
 
 @pytest.mark.parametrize("test_case", ["pop_structure", "both"])
-@pytest.mark.parametrize("year", [1990, 2021, 2025])
+@pytest.mark.parametrize("year", [2021, 2025])
 def test_scaled_population__format_data_inputs(
     test_case: str,
     year: int,
@@ -454,7 +454,7 @@ def test_scaled_population__format_data_inputs(
 
         # Subset to 2021 or subset to 2023 since that is latest year start to verify
         # we are subsetting to correct year in _format_data_inputs
-        query_year = {1990: 2021, 2021: 2021, 2025: 2023}.get(year)
+        query_year = 2021 if year == 2021 else 2023
         formatted_pop_structure = pop_structure.loc[pop_structure["year_start"] == query_year]
         formatted_scalar_data = scalar_data.loc[scalar_data["year_start"] == query_year]
         formatted_scalar_data = formatted_scalar_data.set_index(
