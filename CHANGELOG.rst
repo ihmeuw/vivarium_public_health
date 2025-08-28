@@ -1,4 +1,4 @@
-**4.3.6 - 08/26/25**
+**4.3.6 - 08/28/25**
 
   - Feature: ScaledPopulation can handle multiple year data inputs.
 
