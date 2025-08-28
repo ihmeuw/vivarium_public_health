@@ -235,15 +235,50 @@ class ScaledPopulation(BasePopulation):
             raise ValueError(
                 f"Scaling factor must be a pandas DataFrame. Provided value: {scaling_factor}"
             )
-        scaling_factor = scaling_factor.set_index(
-            [col for col in scaling_factor.columns if col != "value"]
+        start_year = builder.configuration.time.start.year
+        population_structure, scaling_factor = self._format_data_inputs(
+            population_structure, scaling_factor, start_year
         )
-        population_structure = population_structure.set_index(
-            [col for col in population_structure.columns if col != "value"]
-        )
-        scaled_population_structure = (population_structure * scaling_factor).reset_index()
 
-        return scaled_population_structure
+        return (population_structure * scaling_factor).reset_index()
+
+    def _format_data_inputs(
+        self, pop_structure: pd.DataFrame, scalar_data: pd.DataFrame, year: int
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Data cleaning function to check whether scalar_data and population structure are compatible for scaling
+        the population structure of a simulation."""
+
+        scaling_factor = scalar_data.set_index(
+            [col for col in scalar_data.columns if col != "value"]
+        )
+        population_structure = pop_structure.set_index(
+            [col for col in pop_structure.columns if col != "value"]
+        )
+        if "year_start" not in scaling_factor.index.names:
+            return population_structure, scaling_factor
+
+        # Subset to start year of simulation or closest year
+        pop_reference_years = sorted(
+            set(population_structure.index.get_level_values("year_start"))
+        )
+        pop_year_index = np.digitize(year, pop_reference_years).item() - 1
+        scale_reference_years = sorted(
+            set(scaling_factor.index.get_level_values("year_start"))
+        )
+        scale_year_index = np.digitize(year, scale_reference_years).item() - 1
+        # Subset to start year of simulation or earliest year. E.g. if start year = 2021 and pop
+        # structure has 2021, we will subset to 2021. If pop structure minimum year is 2025, we
+        # will subset to 2025.
+        population_structure = population_structure.loc[
+            population_structure.index.get_level_values("year_start")
+            == pop_reference_years[pop_year_index]
+        ]
+        scaling_factor = scaling_factor.loc[
+            scaling_factor.index.get_level_values("year_start")
+            == scale_reference_years[scale_year_index]
+        ]
+
+        return population_structure, scaling_factor
 
 
 class AgeOutSimulants(Component):

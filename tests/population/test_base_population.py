@@ -1,8 +1,10 @@
 import math
+from itertools import product
 
 import numpy as np
 import pandas as pd
 import pytest
+from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import get_randomness
 from vivarium_testing_utils import FuzzyChecker
@@ -347,6 +349,125 @@ def test_scaled_population(
             target_proportion=target_proportion,
             name=f"scaled_pop_proportion_check_{sex}_{age_start}",
         )
+
+
+@pytest.mark.parametrize("test_case", ["pop_structure", "both"])
+@pytest.mark.parametrize("year", [2021, 2025])
+def test_scaled_population__format_data_inputs(
+    test_case: str,
+    year: int,
+) -> None:
+    """Test ScaledPopulation with multi-year data in population structure and/or scaling factor.
+
+    Cases:
+    1. pop_structure: Population structure has multiple years, scaling factor does not
+    2. both: Both population structure and scaling factor have multiple years
+    """
+
+    # Create multi-year population structure (2021-2024)
+    age_idx = pd.MultiIndex.from_tuples(
+        [
+            (0.0, 25.0, "Young People"),
+            (25.0, 50.0, "Old People"),
+            (50.0, 75.0, "Ancient People"),
+            (75.0, 100.0, "People Who Beat the Odds"),
+        ],
+        names=["age_start", "age_end", "age_group_name"],
+    )
+    age_df = pd.DataFrame(index=age_idx).reset_index()
+    age_bins = [(group.age_start, group.age_end) for group in age_df.itertuples()]
+    sexes = ("Male", "Female")
+    location = ["Kenya"]
+    years = [(2021, 2022), (2022, 2023), (2023, 2024)]  # Multiple years
+
+    age_bins, sexes, years, location = zip(*product(age_bins, sexes, years, location))
+    mins, maxes = zip(*age_bins)
+    year_starts, year_ends = zip(*years)
+
+    pop_structure = pd.DataFrame(
+        {
+            "location": location,
+            "sex": sexes,
+            "age_start": mins,
+            "age_end": maxes,
+            "year_start": year_starts,
+            "year_end": year_ends,
+            # Base values for each demographic group
+            "value": [1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0] * 3,  # Repeated for 3 years
+        }
+    )
+
+    # Create scaling factor data based on test case
+    if test_case == "pop_structure":
+        # Scaling factor single year
+        scalar_data = pd.DataFrame(
+            {
+                "sex": ["Male", "Female"] * 4,
+                "age_start": [0.0, 0.0, 25.0, 25.0, 50.0, 50.0, 75.0, 75.0],
+                "age_end": [25.0, 25.0, 50.0, 50.0, 75.0, 75.0, 100.0, 100.0],
+                "year_start": [2021] * 8,
+                "year_end": [2022] * 8,
+                "value": [1.5, 1.2, 2.1, 1.8, 0.9, 1.1, 1.3, 1.4],
+            }
+        )
+        # Remove year_start and year end since scalar data only has one year
+        formatted_scalar_data = scalar_data.set_index(
+            ["sex", "age_start", "age_end"], drop=True
+        )[["value"]]
+    elif test_case == "both":
+        # Both have multiple years - should be able to multiply together directly
+        scalar_data = pd.DataFrame(
+            {
+                "age_start": [0.0, 0.0, 25.0, 25.0, 50.0, 50.0, 75.0, 75.0] * 3,
+                "age_end": [25.0, 25.0, 50.0, 50.0, 75.0, 75.0, 100.0, 100.0] * 3,
+                "sex": ["Male", "Female"] * 12,
+                "year_start": [2021] * 8 + [2022] * 8 + [2023] * 8,
+                "year_end": [2022] * 8 + [2023] * 8 + [2024] * 8,
+                "value": [
+                    1.0,
+                    1.0,
+                    1.0,
+                    1.0,
+                    1.0,
+                    1.0,
+                    1.0,
+                    1.0,
+                    1.5,
+                    1.2,
+                    2.1,
+                    1.8,
+                    0.9,
+                    1.1,
+                    1.3,
+                    1.4,
+                    1.8,
+                    1.4,
+                    2.3,
+                    2.0,
+                    1.2,
+                    1.6,
+                    1.7,
+                    1.9,
+                ],
+            }
+        )
+
+        # Subset to 2021 or subset to 2023 since that is latest year start to verify
+        # we are subsetting to correct year in _format_data_inputs
+        query_year = 2021 if year == 2021 else 2023
+        formatted_pop_structure = pop_structure.loc[pop_structure["year_start"] == query_year]
+        formatted_scalar_data = scalar_data.loc[scalar_data["year_start"] == query_year]
+        formatted_scalar_data = formatted_scalar_data.set_index(
+            ["sex", "age_start", "age_end", "year_start", "year_end"], drop=True
+        )
+        formatted_pop_structure = formatted_pop_structure.set_index(
+            ["location", "sex", "age_start", "age_end", "year_start", "year_end"]
+        )
+        scaled_pop = bp.ScaledPopulation("placeholder")
+        formatted = scaled_pop._format_data_inputs(pop_structure, scalar_data, year)
+        expected = (formatted[0] * formatted[1]).reset_index()
+        data = (formatted_pop_structure * formatted_scalar_data).reset_index()
+        pd.testing.assert_frame_equal(data, expected)
 
 
 def _check_population(simulants, initial_age, step_size, include_sex):

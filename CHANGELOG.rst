@@ -1,3 +1,7 @@
+**4.3.6 - 08/28/25**
+
+  - Feature: ScaledPopulation can handle multiple year data inputs.
+
 **4.3.5 - 08/01/25**
 
   - Use vivarium_dependencies for common setup constraints
