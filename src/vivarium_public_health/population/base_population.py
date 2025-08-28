@@ -266,7 +266,9 @@ class ScaledPopulation(BasePopulation):
             set(scaling_factor.index.get_level_values("year_start"))
         )
         scale_year_index = np.digitize(year, scale_reference_years).item() - 1
-        # Subset to start year of simulation or closest year
+        # Subset to start year of simulation or earliest year. E.g. if start year = 2021 and pop
+        # structure has 2021, we will subset to 2021. If pop structure minimum year is 2025, we
+        # will subset to 2025.
         population_structure = population_structure.loc[
             population_structure.index.get_level_values("year_start")
             == pop_reference_years[pop_year_index]
