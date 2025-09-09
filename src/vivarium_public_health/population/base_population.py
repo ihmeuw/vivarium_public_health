@@ -166,7 +166,7 @@ class BasePopulation(Component):
         demographic_proportions, year: int
     ) -> pd.DataFrame:
         reference_years = sorted(set(demographic_proportions.year_start))
-        ref_year_index = np.digitize(year, reference_years).item() - 1
+        ref_year_index = _find_bin_start_index(year, reference_years)
         return demographic_proportions[
             demographic_proportions.year_start == reference_years[ref_year_index]
         ]
@@ -261,11 +261,11 @@ class ScaledPopulation(BasePopulation):
         pop_reference_years = sorted(
             set(population_structure.index.get_level_values("year_start"))
         )
-        pop_year_index = np.digitize(year, pop_reference_years).item() - 1
+        pop_year_index = _find_bin_start_index(year, pop_reference_years)
         scale_reference_years = sorted(
             set(scaling_factor.index.get_level_values("year_start"))
         )
-        scale_year_index = np.digitize(year, scale_reference_years).item() - 1
+        scale_year_index = _find_bin_start_index(year, scale_reference_years)
         # Subset to start year of simulation or earliest year. E.g. if start year = 2021 and pop
         # structure has 2021, we will subset to 2021. If pop structure minimum year is 2025, we
         # will subset to 2025.
@@ -527,3 +527,31 @@ def _assign_demography_with_age_bounds(
     )
     register_simulants(simulants[list(key_columns)])
     return simulants
+
+
+def _find_bin_start_index(value: int, sorted_reference_values: list[int]) -> int:
+    """Finds the index of the closest reference value less than or equal to the provided value.
+
+    Parameters
+    ----------
+    value
+        The value for which to find the closest reference value.
+    sorted_reference_values
+        A sorted list of reference values.
+
+    Returns
+    -------
+        The index of the closest reference value less than or equal to the provided value.
+
+    Raises
+    ------
+        ValueError
+            If the provided value is less than the minimum reference value.
+    """
+    ref_value_index = np.digitize(value, sorted_reference_values).item() - 1
+    if ref_value_index < 0:
+        raise ValueError(
+            f"The provided value {value} is less than the minimum reference value "
+            f"{min(sorted_reference_values)}."
+        )
+    return ref_value_index

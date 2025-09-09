@@ -296,7 +296,11 @@ def test_scaled_population(
                 "population_size": 1_000_000,
                 "include_sex": "Both",
             },
-            "time": {"step_size": 1},
+            "time": {
+                "step_size": 1,
+                # Update the start year to fall within the population structure data.
+                "start": {"year": 2021},
+            },
         },
         layer="override",
     )
