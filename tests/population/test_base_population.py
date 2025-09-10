@@ -4,7 +4,6 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import pytest
-from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
 from vivarium.testing_utilities import get_randomness
 from vivarium_testing_utils import FuzzyChecker
@@ -296,7 +295,11 @@ def test_scaled_population(
                 "population_size": 1_000_000,
                 "include_sex": "Both",
             },
-            "time": {"step_size": 1},
+            "time": {
+                "step_size": 1,
+                # Update the start year to fall within the population structure data.
+                "start": {"year": 2021},
+            },
         },
         layer="override",
     )
@@ -468,6 +471,22 @@ def test_scaled_population__format_data_inputs(
         expected = (formatted[0] * formatted[1]).reset_index()
         data = (formatted_pop_structure * formatted_scalar_data).reset_index()
         pd.testing.assert_frame_equal(data, expected)
+
+
+def test__find_bin_start_index():
+    sorted_values = [10, 20, 30]
+    assert bp._find_bin_start_index(10, sorted_values) == 0
+    assert bp._find_bin_start_index(19, sorted_values) == 0
+    assert bp._find_bin_start_index(20, sorted_values) == 1
+    assert bp._find_bin_start_index(29, sorted_values) == 1
+    assert bp._find_bin_start_index(30, sorted_values) == 2
+    assert bp._find_bin_start_index(99999, sorted_values) == 2
+
+    # Edge case
+    with pytest.raises(
+        ValueError, match="The provided value 9 is less than the minimum reference value 10."
+    ):
+        bp._find_bin_start_index(9, sorted_values)
 
 
 def _check_population(simulants, initial_age, step_size, include_sex):

@@ -1,3 +1,7 @@
+**4.3.7 - 09/10/25**
+
+  - Bugfix: raise an error if simulation start year is earlier than population data.
+
 **4.3.6 - 08/28/25**
 
   - Feature: ScaledPopulation can handle multiple year data inputs.
