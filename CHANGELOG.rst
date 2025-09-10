@@ -1,4 +1,4 @@
-**4.3.7 - 09/09/25**
+**4.3.7 - 09/10/25**
 
   - Bugfix: raise an error if simulation start year is earlier than population data.
 
