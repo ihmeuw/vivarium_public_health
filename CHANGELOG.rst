@@ -1,3 +1,7 @@
+**4.3.8 - 09/10/25**
+
+  - Pin vivarium<4.0.0
+
 **4.3.7 - 09/10/25**
 
   - Bugfix: raise an error if simulation start year is earlier than population data.
