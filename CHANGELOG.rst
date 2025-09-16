@@ -1,3 +1,7 @@
+**4.3.9 - 09/15/25**
+
+  - Bugfix: require alive column in register_transition_count_observation()
+
 **4.3.8 - 09/10/25**
 
   - Pin vivarium<4.0.0
