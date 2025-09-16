@@ -198,6 +198,7 @@ class DiseaseObserver(PublicHealthObserver):
             name=f"transition_count_{self.disease}",
             pop_filter=pop_filter,
             requires_columns=[
+                "alive",
                 self.previous_state_column_name,
                 self.disease,
             ],
