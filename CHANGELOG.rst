@@ -1,4 +1,4 @@
-**4.3.9 - 09/15/25**
+**4.3.9 - 09/16/25**
 
   - Bugfix: require alive column in register_transition_count_observation()
 
