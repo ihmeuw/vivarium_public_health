@@ -251,8 +251,8 @@ class Disease(Component):
     def setup(self, builder: Builder) -> None:
         bau_incidence_value = "{}.incidence".format(self.disease)
         int_incidence_value = "{}_intervention.incidence".format(self.disease)
-        self.bau_incidence = builder.value.get_value(bau_incidence_value)
-        self.int_incidence = builder.value.get_value(int_incidence_value)
+        self.bau_incidence = builder.value.get_attribute(bau_incidence_value)
+        self.int_incidence = builder.value.get_attribute(int_incidence_value)
 
         self.tables = []
         self.table_cols = [

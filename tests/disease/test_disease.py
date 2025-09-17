@@ -268,7 +268,7 @@ def test_mortality_rate(base_config, base_plugins, disease):
         plugin_configuration=base_plugins,
     )
 
-    mortality_rate = simulation._values.get_value("mortality_rate")
+    mortality_rate = simulation._values.get_attribute("mortality_rate")
 
     simulation.step()
     # Folks instantly transition to sick so now our mortality rate should be much higher
@@ -302,7 +302,7 @@ def test_incidence(base_config, base_plugins, disease):
     simulation._data.write(key, 0.7)
     simulation.setup()
 
-    incidence_rate = simulation._values.get_value("sick.incidence_rate")
+    incidence_rate = simulation._values.get_attribute("sick.incidence_rate")
 
     simulation.step()
 
@@ -335,7 +335,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
 
     class PafModifier(Component):
         def setup(self, builder):
-            builder.value.register_value_modifier(
+            builder.value.register_attribute_modifier(
                 "sick.incidence_rate.paf",
                 modifier=simulation._tables.build_table(
                     build_table_with_age(
@@ -346,6 +346,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
                     parameter_columns=["age", "year"],
                     value_columns=(),
                 ),
+                component=self,
             )
 
     simulation = InteractiveContext(
@@ -357,7 +358,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
     simulation._data.write(key, base_rate)
     simulation.setup()
 
-    incidence_rate = simulation._values.get_value("sick.incidence_rate")
+    incidence_rate = simulation._values.get_attribute("sick.incidence_rate")
 
     simulation.step()
 

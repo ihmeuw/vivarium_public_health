@@ -192,7 +192,7 @@ class DelayedRisk(Component):
         # We apply separate mortality rates to the different exposure bins.
         # This requires having access to the life table mortality rate, and
         # also the relative risks associated with each bin.
-        self.acm_rate = builder.value.get_value("mortality_rate")
+        self.acm_rate = builder.value.get_attribute("mortality_rate")
         mort_rr_data = pivot_load(builder, f"risk_factor.{self.risk}.mortality_relative_risk")
         self.mortality_rr = builder.lookup.build_table(
             mort_rr_data, key_columns=["sex"], parameter_columns=["age", "year"]
@@ -314,7 +314,7 @@ class DelayedRisk(Component):
         for template in rate_templates:
             rate_name = template.format(disease)
             modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
-            builder.value.register_value_modifier(rate_name, modifier, component=self)
+            builder.value.register_attribute_modifier(rate_name, modifier, component=self)
 
     ########################
     # Event-driven methods #

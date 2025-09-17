@@ -90,7 +90,7 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
     pop = sim.get_population()
     # Verify exposure is used instead of birth_exposure since age end is 1.0
     # Check values of pipeline match birth exposure data since age_end is 0.0
-    exposure_pipeline_values = sim.get_value(
+    exposure_pipeline_values = sim._values.get_attribute(
         "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"
     )(pop.index)
     assert isinstance(exposure_pipeline_values, pd.DataFrame)
@@ -124,7 +124,7 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
                 (sim_data["sex"] == sex) & (sim_data["age_group_name"] == age_group_name)
             ]
             sub_pop = sim_data.loc[demo_idx]
-            actual_rr = sim.get_value(expected_pipeline_name)(demo_idx)
+            actual_rr = sim._values.get_attribute(expected_pipeline_name)(demo_idx)
             sub_pop["expected_rr"] = np.exp(
                 interpolator(
                     sub_pop["gestational_age_exposure"],
@@ -187,7 +187,7 @@ def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end)
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
     pop = sim.get_population()
     # Check values of pipeline match birth exposure data since age_end is 0.0
-    exposure_pipeline_values = sim.get_value(
+    exposure_pipeline_values = sim._values.get_attribute(
         "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"
     )(pop.index)
     assert isinstance(exposure_pipeline_values, pd.DataFrame)

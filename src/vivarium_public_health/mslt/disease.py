@@ -79,10 +79,10 @@ class AcuteDisease(Component):
         self.int_disability_rate = builder.value.register_rate_producer(
             f"{self.disease}_intervention.yld_rate", source=yld_rate, component=self
         )
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "mortality_rate", self.mortality_adjustment, component=self
         )
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "yld_rate", self.disability_adjustment, component=self
         )
 
@@ -228,10 +228,10 @@ class Disease(Component):
             prev_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
 
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "mortality_rate", self.mortality_adjustment, component=self
         )
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "yld_rate", self.disability_adjustment, component=self
         )
 

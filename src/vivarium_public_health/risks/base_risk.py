@@ -250,7 +250,7 @@ class Risk(Component):
         return builder.randomness.get_stream(self.randomness_stream_name, component=self)
 
     def get_propensity_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.propensity_pipeline_name,
             source=lambda index: (
                 self.population_view.subview([self.propensity_column_name])
@@ -265,7 +265,7 @@ class Risk(Component):
         required_columns = get_lookup_columns(
             self.exposure_distribution.lookup_tables.values()
         )
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.exposure_pipeline_name,
             source=self.get_current_exposure,
             component=self,
