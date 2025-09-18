@@ -66,7 +66,7 @@ class AbsoluteShift(Component):
 
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration[f"intervention_on_{self.target.name}"]
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             f"{self.target.name}.{self.target.measure}",
             modifier=self.intervention_effect,
             component=self,

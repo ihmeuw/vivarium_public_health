@@ -163,9 +163,11 @@ def test_disability_accumulation(
     }
 
     # Get pipelines
-    disability_weight_all_causes = simulation.get_value("all_causes.disability_weight")
-    disability_weight_0 = simulation.get_value("sick_cause_0.disability_weight")
-    disability_weight_1 = simulation.get_value("sick_cause_1.disability_weight")
+    disability_weight_all_causes = simulation._values.get_attribute(
+        "all_causes.disability_weight"
+    )
+    disability_weight_0 = simulation._values.get_attribute("sick_cause_0.disability_weight")
+    disability_weight_1 = simulation._values.get_attribute("sick_cause_1.disability_weight")
 
     # Check that disability weights are computed as expected
     for sub_pop_key in ["healthy", "sick_0", "sick_1", "sick_0_1"]:
