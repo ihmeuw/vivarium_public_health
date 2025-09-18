@@ -168,7 +168,7 @@ class LinearScaleUp(Component):
         return {}
 
     def register_intervention_modifiers(self, builder: Builder):
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             f"{self.treatment}.exposure_parameters",
             modifier=self.coverage_effect,
             component=self,

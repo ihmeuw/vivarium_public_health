@@ -158,7 +158,7 @@ class DisabilityObserver(PublicHealthObserver):
         -------
             The pipeline that produces disability weights.
         """
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.disability_weight_pipeline_name,
             source=lambda index: [pd.Series(0.0, index=index)],
             component=self,

@@ -310,7 +310,7 @@ class RiskEffect(Component):
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        return builder.value.get_value(self.exposure_pipeline_name)
+        return builder.value.get_attribute(self.exposure_pipeline_name)
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
         relative_risk = self.relative_risk(index)
@@ -348,7 +348,7 @@ class RiskEffect(Component):
         return generate_relative_risk
 
     def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             f"{self.risk.name}_on_{self.target.name}.relative_risk",
             self._relative_risk_source,
             component=self,
@@ -356,7 +356,7 @@ class RiskEffect(Component):
         )
 
     def register_target_modifier(self, builder: Builder) -> None:
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             self.target_pipeline_name,
             modifier=self.adjust_target,
             component=self,
@@ -367,7 +367,7 @@ class RiskEffect(Component):
         required_columns = get_lookup_columns(
             [self.lookup_tables["population_attributable_fraction"]]
         )
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             self.target_paf_pipeline_name,
             modifier=self.lookup_tables["population_attributable_fraction"],
             component=self,

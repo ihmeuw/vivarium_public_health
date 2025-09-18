@@ -153,8 +153,10 @@ def _check_exposure_and_rr(
     expected_rrs: dict[str, float],
 ) -> None:
     population = simulation.get_population()
-    exposure = simulation.get_value(f"{risk.name}.exposure")(population.index)
-    incidence_rate = simulation.get_value("some_disease.incidence_rate")(population.index)
+    exposure = simulation._values.get_attribute(f"{risk.name}.exposure")(population.index)
+    incidence_rate = simulation._values.get_attribute("some_disease.incidence_rate")(
+        population.index
+    )
     unexposed_category = sorted(expected_exposures.keys())[-1]
     unexposed_incidence = incidence_rate[exposure == unexposed_category].iat[0]
 

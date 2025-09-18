@@ -520,7 +520,7 @@ class DiseaseState(BaseDiseaseState):
         self.dwell_time = self.get_dwell_time_pipeline(builder)
         self.disability_weight = self.get_disability_weight_pipeline(builder)
 
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "all_causes.disability_weight",
             modifier=self.disability_weight,
             component=self,
@@ -532,7 +532,7 @@ class DiseaseState(BaseDiseaseState):
         self.joint_paf = self.get_joint_paf(builder)
         self.excess_mortality_rate = self.get_excess_mortality_rate_pipeline(builder)
 
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
             component=self,
@@ -587,7 +587,7 @@ class DiseaseState(BaseDiseaseState):
 
     def get_dwell_time_pipeline(self, builder: Builder) -> Pipeline:
         required_columns = get_lookup_columns([self.lookup_tables["dwell_time"]])
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             f"{self.state_id}.dwell_time",
             source=self.lookup_tables["dwell_time"],
             component=self,
@@ -613,7 +613,7 @@ class DiseaseState(BaseDiseaseState):
 
     def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
         lookup_columns = get_lookup_columns([self.lookup_tables["disability_weight"]])
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             f"{self.state_id}.disability_weight",
             source=self.compute_disability_weight,
             component=self,
@@ -650,7 +650,7 @@ class DiseaseState(BaseDiseaseState):
 
     def get_joint_paf(self, builder: Builder) -> Pipeline:
         paf = builder.lookup.build_table(0)
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.excess_mortality_rate_paf_pipeline_name,
             source=lambda idx: [paf(idx)],
             component=self,

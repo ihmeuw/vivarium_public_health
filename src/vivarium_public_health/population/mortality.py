@@ -193,7 +193,7 @@ class Mortality(Component):
         return builder.randomness.get_stream(self._randomness_stream_name, component=self)
 
     def get_cause_specific_mortality_rate(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.cause_specific_mortality_rate_pipeline_name,
             source=builder.lookup.build_table(0),
             component=self,
@@ -228,7 +228,7 @@ class Mortality(Component):
         required_columns = get_lookup_columns(
             [self.lookup_tables["unmodeled_cause_specific_mortality_rate"]]
         )
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.unmodeled_csmr_pipeline_name,
             source=self.get_unmodeled_csmr_source,
             component=self,
@@ -237,7 +237,7 @@ class Mortality(Component):
 
     def get_unmodeled_csmr_paf(self, builder: Builder) -> Pipeline:
         unmodeled_csmr_paf = builder.lookup.build_table(0)
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.unmodeled_csmr_paf_pipeline_name,
             source=lambda index: [unmodeled_csmr_paf(index)],
             component=self,
