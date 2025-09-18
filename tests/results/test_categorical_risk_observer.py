@@ -99,7 +99,9 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
     exposure_categories = risk_data["categories"].keys()
 
     pop = simulation_after_one_step.get_population()
-    exposure = simulation_after_one_step.get_value("test_risk.exposure")(pop.index)
+    exposure = simulation_after_one_step._values.get_attribute("test_risk.exposure")(
+        pop.index
+    )
 
     results = simulation_after_one_step.get_results()
     assert set(results) == set(["person_time_test_risk"])

@@ -125,7 +125,7 @@ class DiseaseModel(Machine):
         self.configuration_age_start = builder.configuration.population.initialization_age_min
         self.configuration_age_end = builder.configuration.population.initialization_age_max
 
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
             component=self,

@@ -146,7 +146,7 @@ class RateTransition(Transition):
     def setup(self, builder: Builder) -> None:
         lookup_columns = get_lookup_columns([self.lookup_tables["transition_rate"]])
         paf = builder.lookup.build_table(0)
-        self.joint_paf = builder.value.register_value_producer(
+        self.joint_paf = builder.value.register_attribute_producer(
             f"{self.transition_rate_pipeline_name}.paf",
             source=lambda index: [paf(index)],
             component=self,
