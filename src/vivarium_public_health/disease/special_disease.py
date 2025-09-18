@@ -165,7 +165,7 @@ class RiskAttributableDisease(Component):
         self.adjust_state_and_transitions()
         self.clock = builder.time.clock()
 
-        self.disability_weight = builder.value.register_value_producer(
+        self.disability_weight = builder.value.register_attribute_producer(
             f"{self.cause.name}.disability_weight",
             source=self.compute_disability_weight,
             component=self,
@@ -173,12 +173,12 @@ class RiskAttributableDisease(Component):
                 [self.lookup_tables["raw_disability_weight"]]
             ),
         )
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "all_causes.disability_weight",
             modifier=self.disability_weight,
             component=self,
         )
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
             component=self,
@@ -188,7 +188,7 @@ class RiskAttributableDisease(Component):
         )
         self.has_excess_mortality = is_non_zero(self.lookup_tables["excess_mortality_rate"])
 
-        self.excess_mortality_rate = builder.value.register_value_producer(
+        self.excess_mortality_rate = builder.value.register_attribute_producer(
             self.excess_mortality_rate_pipeline_name,
             source=self.compute_excess_mortality_rate,
             component=self,
@@ -197,14 +197,14 @@ class RiskAttributableDisease(Component):
             )
             + [self.joint_paf],
         )
-        self.joint_paf = builder.value.register_value_producer(
+        self.joint_paf = builder.value.register_attribute_producer(
             self.excess_mortality_rate_paf_pipeline_name,
             source=lambda idx: [self.lookup_tables["population_attributable_fraction"](idx)],
             component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
             component=self,
@@ -212,7 +212,7 @@ class RiskAttributableDisease(Component):
         )
 
         distribution = builder.data.load(f"{self.risk}.distribution")
-        self.exposure_pipeline = builder.value.get_value(f"{self.risk.name}.exposure")
+        self.exposure_pipeline = builder.value.get_attribute(f"{self.risk.name}.exposure")
         threshold = builder.configuration[self.name].threshold
 
         self.filter_by_exposure = self.get_exposure_filter(

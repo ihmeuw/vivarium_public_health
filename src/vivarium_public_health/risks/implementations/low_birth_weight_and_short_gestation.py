@@ -99,7 +99,7 @@ class LBWSGDistribution(PolytomousDistribution):
             lookup_columns.extend(get_lookup_columns([self.lookup_tables["exposure"]]))
         if "birth_exposure" in self.lookup_tables:
             lookup_columns.extend(get_lookup_columns([self.lookup_tables["birth_exposure"]]))
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.parameters_pipeline_name,
             source=lambda index: self.lookup_tables[self.exposure_key](index),
             component=self,
@@ -310,7 +310,7 @@ class LBWSGRisk(Risk):
         )
 
         def get_pipeline(axis_: str) -> Pipeline:
-            return builder.value.register_value_producer(
+            return builder.value.register_attribute_producer(
                 self.birth_exposure_pipeline_name(axis_),
                 source=lambda index: self.get_birth_exposure(axis_, index),
                 component=self,
@@ -440,7 +440,7 @@ class LBWSGRiskEffect(RiskEffect):
         return paf_data, builder.data.value_columns()(paf_key)
 
     def register_target_modifier(self, builder: Builder) -> None:
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             self.target_pipeline_name,
             modifier=self.adjust_target,
             component=self,
@@ -462,7 +462,7 @@ class LBWSGRiskEffect(RiskEffect):
         }
 
     def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.relative_risk_pipeline_name,
             source=self._relative_risk_source,
             component=self,
