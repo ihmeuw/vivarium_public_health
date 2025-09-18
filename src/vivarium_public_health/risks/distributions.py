@@ -192,7 +192,7 @@ class EnsembleDistribution(RiskExposureDistribution):
                 "EnsembleDistribution does not use exposure parameters."
             )
 
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.parameters_pipeline_name, lambda *_: raise_not_implemented(), component=self
         )
 
@@ -287,7 +287,7 @@ class ContinuousDistribution(RiskExposureDistribution):
         )
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.parameters_pipeline_name,
             source=self.lookup_tables["parameters"],
             component=self,
@@ -364,7 +364,7 @@ class PolytomousDistribution(RiskExposureDistribution):
         return None
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             self.parameters_pipeline_name,
             source=self.lookup_tables["exposure"],
             component=self,
@@ -483,7 +483,7 @@ class DichotomousDistribution(RiskExposureDistribution):
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.joint_paf = builder.value.register_value_producer(
+        self.joint_paf = builder.value.register_attribute_producer(
             f"{self.risk}.exposure_parameters.paf",
             source=lambda index: [self.lookup_tables["paf"](index)],
             component=self,
@@ -492,7 +492,7 @@ class DichotomousDistribution(RiskExposureDistribution):
         )
 
     def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
+        return builder.value.register_attribute_producer(
             f"{self.risk}.exposure_parameters",
             source=self.exposure_parameter_source,
             component=self,

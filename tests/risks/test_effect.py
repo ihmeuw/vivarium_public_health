@@ -499,7 +499,7 @@ def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plu
     simulation = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
 
     pop = simulation.get_population()
-    rate = simulation.get_value("test_cause.incidence_rate")(
+    rate = simulation._values.get_attribute("test_cause.incidence_rate")(
         pop.index, skip_post_processor=True
     )
     assert set(rate.unique()) == {rr_value}
@@ -538,9 +538,10 @@ class CustomExposureRisk(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
-        builder.value.register_value_producer(
+        builder.value.register_attribute_producer(
             f"{self.risk.name}.exposure",
             source=self.get_exposure,
+            component=self,
         )
 
     def get_exposure(self, index: pd.Index) -> pd.Series:
@@ -596,7 +597,7 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
         )
 
     pop = simulation.get_population()
-    rate = simulation.get_value("test_cause.incidence_rate")(
+    rate = simulation._values.get_attribute("test_cause.incidence_rate")(
         pop.index, skip_post_processor=True
     )
     expected_values = np.interp(
@@ -642,7 +643,9 @@ def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
         "cat2": 1.0,
     }
     for exposure in rr_mapper:
-        exposure_pipeline = sim.get_value(f"{effect.risk.name}.exposure")(pop.index)
+        exposure_pipeline = sim._values.get_attribute(f"{effect.risk.name}.exposure")(
+            pop.index
+        )
         exposure_idx = exposure_pipeline.loc[exposure_pipeline == exposure].index
-        relative_risk = sim.get_value(expected_pipeline_name)(exposure_idx)
+        relative_risk = sim._values.get_attribute(expected_pipeline_name)(exposure_idx)
         assert (relative_risk == rr_mapper[exposure]).all()
