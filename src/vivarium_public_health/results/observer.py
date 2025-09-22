@@ -134,7 +134,7 @@ class PublicHealthObserver(Observer):
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         """Format results.
 
-        This method should be overwritten in subclasses to provide custom formatting
+        This method can be overwritten in subclasses to provide custom formatting
         for the results.
 
         Parameters
@@ -148,12 +148,12 @@ class PublicHealthObserver(Observer):
         -------
             The formatted results.
         """
-        return results
+        return results.reset_index()
 
     def get_measure_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         """Get the 'measure' column.
 
-        This method should be overwritten in subclasses to provide the 'measure' column.
+        This method can be overwritten in subclasses to provide the 'measure' column.
 
         Parameters
         ----------
@@ -171,7 +171,7 @@ class PublicHealthObserver(Observer):
     def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         """Get the 'entity_type' column.
 
-        This method should be overwritten in subclasses to provide the 'entity_type' column.
+        This method can be overwritten in subclasses to provide the 'entity_type' column.
 
         Parameters
         ----------
@@ -189,7 +189,7 @@ class PublicHealthObserver(Observer):
     def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         """Get the 'entity' column.
 
-        This method should be overwritten in subclasses to provide the 'entity' column.
+        This method can be overwritten in subclasses to provide the 'entity' column.
 
         Parameters
         ----------
