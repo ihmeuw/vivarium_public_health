@@ -12,6 +12,7 @@ from collections.abc import Callable
 
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.results import Observer
 
 from vivarium_public_health.results.columns import COLUMNS
@@ -38,6 +39,7 @@ class PublicHealthObserver(Observer):
         excluded_stratifications: list[str] = [],
         aggregator_sources: list[str] | None = None,
         aggregator: Callable[[pd.DataFrame], float | pd.Series] = len,
+        to_observe: Callable[[Event], bool] = lambda event: True,
     ) -> None:
         """Registers an adding observation to the results system.
 
@@ -73,6 +75,9 @@ class PublicHealthObserver(Observer):
             List of population view columns to be used in the `aggregator`.
         aggregator
             Function that computes the quantity for this observation.
+        to_observe
+            Function that takes an event and returns a boolean indicating whether
+            the observation should be performed for that event.
         """
         builder.results.register_adding_observation(
             name=name,
@@ -85,6 +90,7 @@ class PublicHealthObserver(Observer):
             excluded_stratifications=excluded_stratifications,
             aggregator_sources=aggregator_sources,
             aggregator=aggregator,
+            to_observe=to_observe,
         )
 
     def format_results(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
@@ -207,7 +213,7 @@ class PublicHealthObserver(Observer):
     def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         """Get the 'sub_entity' column.
 
-        This method should be overwritten in subclasses to provide the 'sub_entity' column.
+        This method can be overwritten in subclasses to provide the 'sub_entity' column.
 
         Parameters
         ----------

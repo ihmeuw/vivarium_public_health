@@ -1,3 +1,7 @@
+**4.3.10 - 09/23/25**
+
+  - Bugfix: Fix bug in PublicHealthObserver to retain stratification columns in results
+
 **4.3.9 - 09/16/25**
 
   - Bugfix: require alive column in register_transition_count_observation()

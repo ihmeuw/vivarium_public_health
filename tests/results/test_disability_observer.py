@@ -72,6 +72,7 @@ def test_disability_observer_setup(mocker):
         excluded_stratifications=observer.configuration.exclude,
         aggregator_sources=cause_pipelines,
         aggregator=observer.disability_weight_aggregator,
+        to_observe=mocker.ANY,
     )
 
     assert set(observer.disability_classes) == set([DiseaseState, RiskAttributableDisease])
