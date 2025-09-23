@@ -31,7 +31,7 @@ class PublicHealthObserver(Observer):
         self,
         builder: Builder,
         name: str,
-        pop_filter: str,
+        pop_filter: str = "tracked==True",
         when: str = "collect_metrics",
         requires_columns: list[str] = [],
         requires_values: list[str] = [],
