@@ -7,6 +7,7 @@ Low birth weight and short gestation (LBWSG) is a non-standard risk
 implementation that has been used in several public health models.
 
 """
+
 import re
 import pickle
 from collections.abc import Callable
@@ -223,7 +224,7 @@ class LBWSGDistribution(PolytomousDistribution):
     ##################
 
     @staticmethod
-    def _parse_description(description: str) -> pd.Interval:
+    def _parse_description(description: str) -> tuple[pd.Interval, pd.Interval]:
         """Parses a string corresponding to a low birth weight and short gestation
         category to an Interval.
 
@@ -235,6 +236,10 @@ class LBWSGDistribution(PolytomousDistribution):
         'Neonatal preterm and LBWSG (estimation years) - [36, 37) wks, [4000, 9999] g'
         """
         lbwsg_values = [float(val) for val in re.findall(r"(\d+)", description)]
+        if not len(list(lbwsg_values)) == 4:
+            raise ValueError(
+                f"Could not parse LBWSG description '{description}'. Expected 4 numeric values."
+            )
         return (
             pd.Interval(*lbwsg_values[:2], closed="left"),  # Gestational Age
             pd.Interval(*lbwsg_values[2:], closed="left"),  # Birth Weight
