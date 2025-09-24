@@ -8,8 +8,8 @@ implementation that has been used in several public health models.
 
 """
 
-import re
 import pickle
+import re
 from collections.abc import Callable
 from typing import Any
 
