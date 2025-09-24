@@ -36,8 +36,7 @@ from vivarium_public_health.utilities import to_snake_case
     ],
 )
 def test_parsing_lbwsg_descriptions(description, expected_weight_values, expected_age_values):
-    weight_interval = LBWSGDistribution._parse_description("birth_weight", description)
-    age_interval = LBWSGDistribution._parse_description("gestational_age", description)
+    age_interval, weight_interval = LBWSGDistribution._parse_description(description)
     assert weight_interval.left == expected_weight_values[0]
     assert weight_interval.right == expected_weight_values[1]
     assert age_interval.left == expected_age_values[0]

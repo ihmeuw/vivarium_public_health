@@ -7,7 +7,7 @@ Low birth weight and short gestation (LBWSG) is a non-standard risk
 implementation that has been used in several public health models.
 
 """
-
+import re
 import pickle
 from collections.abc import Callable
 from typing import Any
@@ -119,13 +119,12 @@ class LBWSGDistribution(PolytomousDistribution):
             The intervals for each category.
         """
         categories: dict[str, str] = builder.data.load(f"{self.risk}.categories")
-        category_intervals = {
-            axis: {
-                category: self._parse_description(axis, description)
-                for category, description in categories.items()
-            }
-            for axis in [BIRTH_WEIGHT, GESTATIONAL_AGE]
-        }
+        category_intervals = {GESTATIONAL_AGE: {}, BIRTH_WEIGHT: {}}
+
+        for category, description in categories.items():
+            gestation_interval, birth_weight_interval = self._parse_description(description)
+            category_intervals[GESTATIONAL_AGE][category] = gestation_interval
+            category_intervals[BIRTH_WEIGHT][category] = birth_weight_interval
         return category_intervals
 
     ##################
@@ -224,7 +223,7 @@ class LBWSGDistribution(PolytomousDistribution):
     ##################
 
     @staticmethod
-    def _parse_description(axis: str, description: str) -> pd.Interval:
+    def _parse_description(description: str) -> pd.Interval:
         """Parses a string corresponding to a low birth weight and short gestation
         category to an Interval.
 
@@ -235,17 +234,11 @@ class LBWSGDistribution(PolytomousDistribution):
         An example of an edge case of birth weight:
         'Neonatal preterm and LBWSG (estimation years) - [36, 37) wks, [4000, 9999] g'
         """
-        endpoints = {
-            BIRTH_WEIGHT: [
-                float(val)
-                for val in description.split(", [")[1].split(")")[0].split("]")[0].split(", ")
-            ],
-            GESTATIONAL_AGE: [
-                float(val)
-                for val in description.split("- [")[1].split(")")[0].split("+")[0].split(", ")
-            ],
-        }[axis]
-        return pd.Interval(*endpoints, closed="left")  # noqa
+        lbwsg_values = [float(val) for val in re.findall(r"(\d+)", description)]
+        return (
+            pd.Interval(*lbwsg_values[:2], closed="left"),  # Gestational Age
+            pd.Interval(*lbwsg_values[2:], closed="left"),  # Birth Weight
+        )
 
 
 class LBWSGRisk(Risk):
