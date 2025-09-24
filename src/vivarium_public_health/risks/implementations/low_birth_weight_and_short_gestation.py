@@ -236,7 +236,7 @@ class LBWSGDistribution(PolytomousDistribution):
         'Neonatal preterm and LBWSG (estimation years) - [36, 37) wks, [4000, 9999] g'
         """
         lbwsg_values = [float(val) for val in re.findall(r"(\d+)", description)]
-        if not len(list(lbwsg_values)) == 4:
+        if len(list(lbwsg_values)) != 4:
             raise ValueError(
                 f"Could not parse LBWSG description '{description}'. Expected 4 numeric values."
             )
