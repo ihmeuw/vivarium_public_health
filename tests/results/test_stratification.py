@@ -104,13 +104,14 @@ def test_results_stratifier_register_stratifications(mocker):
         is_vectorized=True,
         requires_columns=["current_time"],
     )
-    # builder.results.register_stratification.assert_any_call(
-    #     "event_year",
-    #     years_list,
-    #     mapper=rs.map_year,
-    #     is_vectorized=True,
-    #     requires_columns=["event_time"],
-    # )
+    builder.results.register_stratification.assert_any_call(
+        "event_year",
+        years_list + [str(int(years_list[-1]) + 1)],
+        excluded_categories=[str(int(years_list[-1]) + 1)],
+        mapper=rs.map_year,
+        is_vectorized=True,
+        requires_columns=["event_time"],
+    )
     # builder.results.register_stratification.assert_any_call(
     #     "entrance_year",
     #     years_list,
@@ -129,7 +130,7 @@ def test_results_stratifier_register_stratifications(mocker):
     builder.results.register_stratification.assert_any_call(
         "sex", ["Female", "Male"], requires_columns=["sex"]
     )
-    assert builder.results.register_stratification.call_count == 3
+    assert builder.results.register_stratification.call_count == 4
 
 
 def test_results_stratifier_map_age_groups():

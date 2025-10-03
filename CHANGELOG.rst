@@ -1,3 +1,7 @@
+**4.3.12 - 10/03/25**
+
+  - Register event_year as a stratification in the ResultsStratifier
+
 **4.3.11 - 09/24/25**
 
   - Refactor: Simplify LBWSG parsing logic
