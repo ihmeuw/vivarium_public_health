@@ -1,4 +1,4 @@
-**4.3.12 - 10/03/25**
+**4.3.12 - 10/06/25**
 
   - Register event_year as a stratification in the ResultsStratifier
 
