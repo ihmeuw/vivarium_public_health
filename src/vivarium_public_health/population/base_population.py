@@ -47,7 +47,7 @@ class BasePopulation(Component):
 
     @property
     def columns_created(self) -> list[str]:
-        return ["age", "sex", "alive", "location", "entrance_time", "exit_time"]
+        return ["age", "sex", "alive", "location", "entrance_time"]
 
     @property
     def time_step_priority(self) -> int:
@@ -61,7 +61,6 @@ class BasePopulation(Component):
         super().__init__()
         self._sub_components.append(AgeOutSimulants())
 
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
         self.key_columns = builder.configuration.randomness.key_columns
@@ -117,15 +116,15 @@ class BasePopulation(Component):
         arrive here first and are assigned the demographic qualities 'age', 'sex',
         and 'location' in a way that is consistent with the demographic distributions
         represented by the population-level data.  Additionally, the simulants are assigned
-        the simulation properties 'alive', 'entrance_time', and 'exit_time'.
+        the simulation properties 'alive' and 'entrance_time'.
 
         The 'alive' parameter is alive or dead.
         In general, most simulation components (except for those computing summary statistics)
-        ignore simulants if they are not in the 'alive' category. The 'entrance_time' and
-        'exit_time' categories simply mark when the simulant enters or leaves the simulation,
-        respectively.  Here we are agnostic to the methods of entrance and exit (e.g., birth,
-        migration, death, etc.) as these characteristics can be inferred from this column and
-        other information about the simulant and the simulation parameters.
+        ignore simulants if they are not in the 'alive' category. The 'entrance_time'
+        category simply marks when the simulant enters the simulation.  Here we are
+        agnostic to the method of entrance (e.g., birth, migration, etc.) as this
+        characteristic can be inferred from this column and other information about
+        the simulant and the simulation parameters.
         """
 
         age_params = {
@@ -153,9 +152,11 @@ class BasePopulation(Component):
 
     def on_time_step(self, event: Event) -> None:
         """Ages simulants each time step."""
-        population = self.population_view.get(event.index, query="alive == 'alive'")
-        population["age"] += utilities.to_years(event.step_size)
-        self.population_view.update(population)
+        age = self.population_view.get_private_columns(
+            event.index, ["age"], query_columns=["alive"], query="alive == 'alive'"
+        )
+        age += utilities.to_years(event.step_size)
+        self.population_view.update(age)
 
     ##################
     # Helper methods #
@@ -289,34 +290,41 @@ class AgeOutSimulants(Component):
     ##############
 
     @property
-    def columns_required(self) -> list[str]:
-        """A list of the columns this component requires that it did not create."""
-        return self._columns_required
+    def columns_created(self) -> list[str]:
+        return ["is_aged_out", "age_out_time"]
 
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self):
-        super().__init__()
-        self._columns_required = None
-
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
-        if self.config.untracking_age is not None:
-            self._columns_required = ["age", "exit_time", "tracked"]
+
+    def on_initialize_simulants(self, pop_data):
+        self.population_view.update(
+            pd.DataFrame(
+                {
+                    "is_aged_out": False,
+                    "age_out_time": pd.NaT,
+                },
+                index=pop_data.index,
+            )
+        )
 
     def on_time_step_cleanup(self, event: Event) -> None:
         if self.config.untracking_age is None:
             return
 
-        population = self.population_view.get(event.index)
         max_age = float(self.config.untracking_age)
-        pop = population[(population["age"] >= max_age) & population["tracked"]].copy()
+        pop = self.population_view.get_private_columns(
+            event.index,
+            private_columns="all",
+            query_columns=["age", "is_aged_out"],
+            query=f"age >= {max_age} and is_aged_out == False",
+        )
         if len(pop) > 0:
-            pop["tracked"] = pd.Series(False, index=pop.index)
-            pop["exit_time"] = event.time
+            pop["is_aged_out"] = pd.Series(True, index=pop.index)
+            pop["age_out_time"] = event.time
             self.population_view.update(pop)
 
 
@@ -363,9 +371,6 @@ def generate_population(
             'entrance_time'
                 The `pandas.Timestamp` describing when the simulant entered
                 the simulation. Set to `creation_time` for all simulants.
-            'exit_time'
-                The `pandas.Timestamp` describing when the simulant exited
-                the simulation. Set initially to `pandas.NaT`.
             'alive'
                 One of 'alive' or 'dead' indicating how the simulation
                 interacts with the simulant.
@@ -379,7 +384,6 @@ def generate_population(
     simulants = pd.DataFrame(
         {
             "entrance_time": pd.Series(creation_time, index=simulant_ids),
-            "exit_time": pd.Series(pd.NaT, index=simulant_ids),
             "alive": pd.Series("alive", index=simulant_ids),
         },
         index=simulant_ids,
