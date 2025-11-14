@@ -36,9 +36,7 @@ def test_BasePopulation(
     time_step = 100  # Days
     start_population_size = len(full_simulants)
 
-    generate_population_mock.return_value = full_simulants.drop(
-        columns=["is_aged_out", "age_out_time"]
-    )
+    generate_population_mock.return_value = full_simulants.drop(columns=["is_aged_out"])
 
     base_pop = bp.BasePopulation()
 
@@ -117,8 +115,8 @@ def test_age_out_simulants(config, base_plugins):
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population()
     assert len(pop) == len(pop[pop["is_aged_out"]])
-    exit_after_300_days = pop["age_out_time"] >= time_start + pd.Timedelta(300, unit="D")
-    exit_before_400_days = pop["age_out_time"] <= time_start + pd.Timedelta(400, unit="D")
+    exit_after_300_days = pop["exit_time"] >= time_start + pd.Timedelta(300, unit="D")
+    exit_before_400_days = pop["exit_time"] <= time_start + pd.Timedelta(400, unit="D")
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])
 
 

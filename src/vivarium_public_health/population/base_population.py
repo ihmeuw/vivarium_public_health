@@ -47,11 +47,15 @@ class BasePopulation(Component):
 
     @property
     def columns_created(self) -> list[str]:
-        return ["age", "sex", "alive", "location", "entrance_time"]
+        return ["age", "sex", "alive", "location", "entrance_time", "exit_time"]
 
     @property
     def time_step_priority(self) -> int:
         return 8
+
+    @property
+    def time_step_cleanup_priority(self) -> int:
+        return 9
 
     #####################
     # Lifecycle methods #
@@ -111,20 +115,29 @@ class BasePopulation(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Creates a population with fundamental demographic and simulation properties.
 
+        Notes
+        -----
         When the simulation framework creates new simulants (essentially producing a new
         set of simulant ids) and this component is being used, the newly created simulants
         arrive here first and are assigned the demographic qualities 'age', 'sex',
         and 'location' in a way that is consistent with the demographic distributions
-        represented by the population-level data.  Additionally, the simulants are assigned
-        the simulation properties 'alive' and 'entrance_time'.
+        represented by the population-level data. Additionally, the simulants are assigned
+        the simulation properties 'alive', 'entrance_time' and 'exit_time'.
 
-        The 'alive' parameter is alive or dead.
-        In general, most simulation components (except for those computing summary statistics)
-        ignore simulants if they are not in the 'alive' category. The 'entrance_time'
-        category simply marks when the simulant enters the simulation.  Here we are
-        agnostic to the method of entrance (e.g., birth, migration, etc.) as this
-        characteristic can be inferred from this column and other information about
-        the simulant and the simulation parameters.
+        The 'alive' parameter is alive or dead. In general, most simulation components
+        (except for those computing summary statistics) ignore simulants if they are not
+        in the 'alive' category.
+
+        The 'entrance_time' and 'exit_time' categories simply mark when the simulant enters
+        or leaves the simulation,respectively. Here we are agnostic to the methods of entrance
+        or exit (e.g., birth, migration, aging out, etc.) as this characteristic can be inferred
+        from this column and other information about the simulant and the simulation parameters.
+
+        The 'entrance_time' and 'exit_time' attributes are unique in that they are created by
+        this BasePopulation component but we expect other components to be able to modify them
+        as needed (e.g., a Mortality component might change the 'exit_time' when a simulant dies).
+        We do this by having the components register attribute modifiers as necessary and then
+        have the BasePopulation component update the underlying private column data accordingly.
         """
 
         age_params = {
@@ -157,6 +170,11 @@ class BasePopulation(Component):
         )
         age += utilities.to_years(event.step_size)
         self.population_view.update(age)
+
+    def on_time_step_cleanup(self, event: Event) -> None:
+        """Update the 'exit_time' private column with any modifications made by other components."""
+        exit_times = self.population_view.get_attributes(event.index, ["exit_time"])
+        self.population_view.update(exit_times)
 
     ##################
     # Helper methods #
@@ -291,7 +309,7 @@ class AgeOutSimulants(Component):
 
     @property
     def columns_created(self) -> list[str]:
-        return ["is_aged_out", "age_out_time"]
+        return ["is_aged_out"]
 
     #####################
     # Lifecycle methods #
@@ -299,16 +317,26 @@ class AgeOutSimulants(Component):
 
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
+        builder.value.register_attribute_modifier(
+            "exit_time",
+            self.update_exit_times,
+            self,
+        )
+        self.clock = builder.time.clock()
+        self.step_size = builder.time.step_size()
+
+    def update_exit_times(self, index: pd.Index, target: pd.Series) -> pd.Series:
+        """Update exit times for simulants who have aged out of the simulation."""
+        aged_out_idx = self.population_view.get_attributes(
+            index, "is_aged_out", "is_aged_out == True"
+        ).index
+        newly_aged_out_idx = aged_out_idx.intersection(target[target.isna()].index)
+        target.loc[newly_aged_out_idx] = self.clock() + self.step_size()
+        return target
 
     def on_initialize_simulants(self, pop_data):
         self.population_view.update(
-            pd.DataFrame(
-                {
-                    "is_aged_out": False,
-                    "age_out_time": pd.NaT,
-                },
-                index=pop_data.index,
-            )
+            pd.Series(False, index=pop_data.index, name="is_aged_out")
         )
 
     def on_time_step_cleanup(self, event: Event) -> None:
@@ -324,7 +352,6 @@ class AgeOutSimulants(Component):
         )
         if len(pop) > 0:
             pop["is_aged_out"] = pd.Series(True, index=pop.index)
-            pop["age_out_time"] = event.time
             self.population_view.update(pop)
 
 
@@ -371,6 +398,9 @@ def generate_population(
             'entrance_time'
                 The `pandas.Timestamp` describing when the simulant entered
                 the simulation. Set to `creation_time` for all simulants.
+            'exit_time'
+                The `pandas.Timestamp` describing when the simulant exited
+                the simulation. Set initially to `pandas.NaT`.
             'alive'
                 One of 'alive' or 'dead' indicating how the simulation
                 interacts with the simulant.
@@ -379,12 +409,13 @@ def generate_population(
             'location'
                 The location indicating where the simulant resides.
             'sex'
-                Either 'Male' or 'Female'.  The sex of the simulant.
+                The sex of the simulant ('Male' or 'Female').
     """
     simulants = pd.DataFrame(
         {
-            "entrance_time": pd.Series(creation_time, index=simulant_ids),
-            "alive": pd.Series("alive", index=simulant_ids),
+            "entrance_time": creation_time,
+            "exit_time": pd.NaT,
+            "alive": "alive",
         },
         index=simulant_ids,
     )
