@@ -124,18 +124,18 @@ class BasePopulation(Component):
         represented by the population-level data. Additionally, the simulants are assigned
         the simulation properties 'alive', 'entrance_time' and 'exit_time'.
 
-        The 'alive' parameter is alive or dead. In general, most simulation components
+        The 'alive' attribute is alive or dead. In general, most simulation components
         (except for those computing summary statistics) ignore simulants if they are not
         in the 'alive' category.
 
-        The 'entrance_time' and 'exit_time' categories simply mark when the simulant enters
-        or leaves the simulation,respectively. Here we are agnostic to the methods of entrance
-        or exit (e.g., birth, migration, aging out, etc.) as this characteristic can be inferred
-        from this column and other information about the simulant and the simulation parameters.
+        The 'exit_time' attribute simply marks when the simulant exits the simulation.
+        Here we are agnostic to the methods of exit (e.g., aging out, dying, etc.) as 
+        this characteristic can be inferred from this column and other information about 
+        the simulant and the simulation parameters.
 
-        The 'entrance_time' and 'exit_time' attributes are unique in that they are created by
-        this BasePopulation component but we expect other components to be able to modify them
-        as needed (e.g., a Mortality component might change the 'exit_time' when a simulant dies).
+        The 'exit_time' attribute is unique in that it is created by this BasePopulation 
+        component but we expect other components to be able to modify it as needed 
+        (e.g., a Mortality component might change the 'exit_time' when a simulant dies).
         We do this by having the components register attribute modifiers as necessary and then
         have the BasePopulation component update the underlying private column data accordingly.
         """
