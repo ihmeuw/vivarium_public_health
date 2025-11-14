@@ -166,14 +166,14 @@ class BasePopulation(Component):
     def on_time_step(self, event: Event) -> None:
         """Ages simulants each time step."""
         age = self.population_view.get_private_columns(
-            event.index, ["age"], query_columns=["alive"], query="alive == 'alive'"
+            event.index, "age", query_columns=["alive"], query="alive == 'alive'"
         )
         age += utilities.to_years(event.step_size)
         self.population_view.update(age)
 
     def on_time_step_cleanup(self, event: Event) -> None:
         """Update the 'exit_time' private column with any modifications made by other components."""
-        exit_times = self.population_view.get_attributes(event.index, ["exit_time"])
+        exit_times = self.population_view.get_attributes(event.index, "exit_time")
         self.population_view.update(exit_times)
 
     ##################
