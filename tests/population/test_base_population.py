@@ -36,7 +36,7 @@ def test_BasePopulation(
     time_step = 100  # Days
     start_population_size = len(full_simulants)
 
-    generate_population_mock.return_value = full_simulants.drop(columns=["tracked"])
+    generate_population_mock.return_value = full_simulants.drop(columns=["is_aged_out"])
 
     base_pop = bp.BasePopulation()
 
@@ -77,7 +77,7 @@ def test_BasePopulation(
     assert mock_args["demographic_proportions"].equals(sub_pop)
     assert mock_args["randomness_streams"] == base_pop.randomness
     pop = simulation.get_population()
-    for column in pop:
+    for column in [col for col in pop.columns if col != "simulant_step_size"]:
         assert pop[column].equals(full_simulants[column])
 
     final_ages = pop.age + num_days / utilities.DAYS_PER_YEAR
@@ -114,9 +114,9 @@ def test_age_out_simulants(config, base_plugins):
     assert len(simulation.get_population()) == len(simulation.get_population().age.unique())
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population()
-    assert len(pop) == len(pop[~pop.tracked])
-    exit_after_300_days = pop.exit_time >= time_start + pd.Timedelta(300, unit="D")
-    exit_before_400_days = pop.exit_time <= time_start + pd.Timedelta(400, unit="D")
+    assert len(pop) == len(pop[pop["is_aged_out"]])
+    exit_after_300_days = pop["exit_time"] >= time_start + pd.Timedelta(300, unit="D")
+    exit_before_400_days = pop["exit_time"] <= time_start + pd.Timedelta(400, unit="D")
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])
 
 

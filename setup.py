@@ -46,7 +46,7 @@ if __name__ == "__main__":
         "vivarium_build_utils>=2.0.1,<3.0.0",
         # FIXME: Uncomment once Vivarium 4.0.0 is released
         # "vivarium>=4.0.0",
-        "vivarium",
+        "vivarium @ git+github.com/ihmeuw/vivarium.git@epic/mic-4656/population-redesign",
         "layered_config_tree",
         "risk_distributions>=2.0.11",
     ]
