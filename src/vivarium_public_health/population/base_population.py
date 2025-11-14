@@ -346,7 +346,6 @@ class AgeOutSimulants(Component):
         max_age = float(self.config.untracking_age)
         pop = self.population_view.get_private_columns(
             event.index,
-            private_columns="all",
             query_columns=["age", "is_aged_out"],
             query=f"age >= {max_age} and is_aged_out == False",
         )
