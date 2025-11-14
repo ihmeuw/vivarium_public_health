@@ -52,9 +52,9 @@ def base_simulants():
     creation_time = pd.Timestamp(1990, 7, 2)
     return pd.DataFrame(
         {
-            "entrance_time": pd.Series(pd.Timestamp(creation_time), index=simulant_ids),
-            "exit_time": pd.Series(pd.NaT, index=simulant_ids),
-            "alive": pd.Series("alive", index=simulant_ids),
+            "entrance_time": creation_time,
+            "exit_time": pd.NaT,
+            "alive": "alive",
         },
         index=simulant_ids,
     )
@@ -67,5 +67,5 @@ def full_simulants(base_simulants):
         pd.api.types.CategoricalDtype(categories=["Male", "Female"], ordered=False)
     )
     base_simulants["age"] = np.random.uniform(0, 100, len(base_simulants))
-    base_simulants["tracked"] = pd.Series(True, index=base_simulants.index)
+    base_simulants["is_aged_out"] = pd.Series(False, index=base_simulants.index)
     return base_simulants
