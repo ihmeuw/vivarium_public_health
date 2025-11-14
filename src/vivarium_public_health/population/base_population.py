@@ -129,12 +129,12 @@ class BasePopulation(Component):
         in the 'alive' category.
 
         The 'exit_time' attribute simply marks when the simulant exits the simulation.
-        Here we are agnostic to the methods of exit (e.g., aging out, dying, etc.) as 
-        this characteristic can be inferred from this column and other information about 
+        Here we are agnostic to the methods of exit (e.g., aging out, dying, etc.) as
+        this characteristic can be inferred from this column and other information about
         the simulant and the simulation parameters.
 
-        The 'exit_time' attribute is unique in that it is created by this BasePopulation 
-        component but we expect other components to be able to modify it as needed 
+        The 'exit_time' attribute is unique in that it is created by this BasePopulation
+        component but we expect other components to be able to modify it as needed
         (e.g., a Mortality component might change the 'exit_time' when a simulant dies).
         We do this by having the components register attribute modifiers as necessary and then
         have the BasePopulation component update the underlying private column data accordingly.
