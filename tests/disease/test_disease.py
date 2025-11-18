@@ -18,7 +18,7 @@ from vivarium_public_health.disease import (
 )
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.disease.transition import TransitionString
-from vivarium_public_health.population import BasePopulation, Mortality
+from vivarium_public_health.population import BasePopulation
 
 
 @pytest.fixture
