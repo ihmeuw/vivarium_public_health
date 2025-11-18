@@ -161,10 +161,6 @@ class FertilityAgeSpecificRates(Component):
         return ["last_birth_time", "parent_id"]
 
     @property
-    def columns_required(self) -> list[str] | None:
-        return ["sex"]
-
-    @property
     def initialization_requirements(self) -> list[str | Resource]:
         return ["sex"]
 
@@ -212,8 +208,9 @@ class FertilityAgeSpecificRates(Component):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Adds 'last_birth_time' and 'parent' columns to the state table."""
-        pop = self.population_view.subview(["sex"]).get(pop_data.index)
-        women = pop.loc[pop.sex == "Female"].index
+        women = self.population_view.get_attributes(
+            pop_data.index, "sex", "sex == 'Female'"
+        ).index
 
         if pop_data.user_data["sim_state"] == "setup":
             parent_id = -1
@@ -242,10 +239,13 @@ class FertilityAgeSpecificRates(Component):
         """
         # Get a view on all living women who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
-        population = self.population_view.get(
-            event.index, query='alive == "alive" and sex =="Female"'
+        population = self.population_view.get_private_columns(
+            event.index,
+            "last_birth_time",
+            query_columns=["alive", "sex"],
+            query="alive == 'alive' and sex == 'Female'",
         )
-        can_have_children = population.last_birth_time < nine_months_ago
+        can_have_children = population["last_birth_time"] < nine_months_ago
         eligible_women = population[can_have_children]
 
         rate_series = self.fertility_rate(eligible_women.index)
