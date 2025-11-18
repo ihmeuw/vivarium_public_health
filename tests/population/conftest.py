@@ -54,7 +54,6 @@ def base_simulants():
         {
             "entrance_time": creation_time,
             "exit_time": pd.NaT,
-            "alive": "alive",
         },
         index=simulant_ids,
     )
@@ -62,10 +61,9 @@ def base_simulants():
 
 @pytest.fixture
 def full_simulants(base_simulants):
-    base_simulants["location"] = pd.Series(1, index=base_simulants.index)
+    base_simulants["location"] = 1
     base_simulants["sex"] = pd.Series("Male", index=base_simulants.index).astype(
         pd.api.types.CategoricalDtype(categories=["Male", "Female"], ordered=False)
     )
     base_simulants["age"] = np.random.uniform(0, 100, len(base_simulants))
-    base_simulants["is_aged_out"] = pd.Series(False, index=base_simulants.index)
     return base_simulants
