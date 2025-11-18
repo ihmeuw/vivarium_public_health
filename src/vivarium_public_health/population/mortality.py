@@ -155,11 +155,7 @@ class Mortality(Component):
         self.unmodeled_csmr_paf = self.get_unmodeled_csmr_paf(builder)
         self.mortality_rate = self.get_mortality_rate(builder)
 
-        builder.value.register_attribute_modifier(
-            "exit_time",
-            self.update_exit_times,
-            self,
-        )
+        builder.value.register_attribute_modifier("exit_time", self.update_exit_times, self)
 
     #################
     # Setup methods #
@@ -221,14 +217,16 @@ class Mortality(Component):
             preferred_post_processor=union_post_processor,
         )
 
-    def update_exit_times(self, index: pd.Index, target: pd.Series) -> pd.Series:
+    def update_exit_times(self, index: pd.Index, previous_exit_time: pd.Series) -> pd.Series:
         """Update exit times for simulants who have died."""
         dead_idx = self.population_view.get_attributes(
             index, "alive", "alive == 'dead'"
         ).index
-        newly_dead_idx = dead_idx.intersection(target[target.isna()].index)
-        target.loc[newly_dead_idx] = self.clock() + self.step_size()
-        return target
+        newly_dead_idx = dead_idx.intersection(
+            previous_exit_time[previous_exit_time.isna()].index
+        )
+        previous_exit_time.loc[newly_dead_idx] = self.clock() + self.step_size()
+        return previous_exit_time
 
     ########################
     # Event-driven methods #

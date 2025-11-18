@@ -52,23 +52,21 @@ def test_mortality_default_lookup_configuration(setup_sim_with_pop_and_mortality
 def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
     pop = sim.get_population()
-    expected_columns_created = set(mortality.columns_created)
-    expected_attributes_created = {
+    expected_columns_created = list(mortality.columns_created)
+    expected_attributes_created = [
+        mortality.mortality_rate_pipeline_name,
         mortality.cause_specific_mortality_rate_pipeline_name,
         mortality.unmodeled_csmr_pipeline_name,
         mortality.unmodeled_csmr_paf_pipeline_name,
-    }
-    # BasePopulation and AgedOutSimulants create columns themselves
-    other_columns_created = set(bp.columns_created + ["is_aged_out"])
-    mortality_created_columns = set(pop.columns.get_level_values(0)).difference(
-        other_columns_created
-    )
+    ]
+    # the time manager, BasePopulation, and AgedOutSimulants create attributes themselves
+    other_columns_created = list(bp.columns_created) + ["is_aged_out", "simulant_step_size"]
+    mortality_created_columns = [
+        col for col in pop.columns.get_level_values(0) if col not in other_columns_created
+    ]
     # sets do not guarantee order so we assert te difference is empty
-    assert (
-        expected_columns_created.union(expected_attributes_created).difference(
-            mortality_created_columns
-        )
-        == set()
+    assert set(expected_columns_created + expected_attributes_created) == set(
+        mortality_created_columns
     )
 
 
@@ -92,15 +90,15 @@ def test_mortality_rate(setup_sim_with_pop_and_mortality):
 
 def test_mortality_updates_population_columns(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
-    columns_to_update = ["cause_of_death", "exit_time", "years_of_life_lost"]
-    pop0 = sim.get_population(columns_to_update + ["alive"])
+    update_columns = ["cause_of_death", "exit_time", "years_of_life_lost"]
+    pop0 = sim.get_population(update_columns + ["alive"])
     sim.step()
-    pop1 = sim.get_population(columns_to_update + ["alive"])
+    pop1 = sim.get_population(update_columns + ["alive"])
 
     # Check mortality component updates columns correctly
     # Note alive will be tested by finding the simulants that died
     dead_idx = pop1.index[pop1["alive"] == "dead"]
-    for col in columns_to_update:
+    for col in update_columns:
         assert (pop1.loc[dead_idx, col] != pop0.loc[dead_idx, col]).all()
     assert (pop1.loc[dead_idx, "cause_of_death"] == "other_causes").all()
     # Only 1 time step taken

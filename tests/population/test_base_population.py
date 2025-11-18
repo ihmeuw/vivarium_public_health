@@ -77,25 +77,13 @@ def test_BasePopulation(
     assert mock_args["age_params"] == age_params
     assert mock_args["demographic_proportions"].equals(sub_pop)
     assert mock_args["randomness_streams"] == base_pop.randomness
+
     pop = simulation.get_population()
-    outer_pop_cols = pop.columns.get_level_values(0)
-    mortality_cols = [col for col in outer_pop_cols if "mortality" in col] + [
-        "alive",
-        "cause_of_death",
-        "years_of_life_lost",
-    ]
-    base_cols = [
-        col
-        for col in outer_pop_cols
-        if col not in mortality_cols + ["simulant_step_size", "is_aged_out"]
-    ]
-    for column in [col for col in base_cols]:
-        assert pop[column].equals(full_simulants[column])
+    assert set(base_pop.columns_created) == set(full_simulants.columns)
+    assert pop.droplevel(1, axis=1)[full_simulants.columns].equals(full_simulants)
 
     final_ages = pop.age + num_days / utilities.DAYS_PER_YEAR
-
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-
     pop = simulation.get_population("age")
     assert np.allclose(
         pop["age"], final_ages, atol=0.5 / utilities.DAYS_PER_YEAR
