@@ -8,7 +8,7 @@ from vivarium_testing_utils import FuzzyChecker
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import BaseDiseaseState, DiseaseModel, DiseaseState
-from vivarium_public_health.population import BasePopulation, Mortality
+from vivarium_public_health.population import BasePopulation
 
 
 @pytest.fixture
@@ -19,13 +19,9 @@ def setup_sim_with_pop_and_mortality(
     # Initializes an Interactive context with BasePopulation and Mortality components
     start_population_size = len(full_simulants)
 
-    generate_population_mock.return_value = full_simulants.drop(columns=["tracked"])
+    generate_population_mock.return_value = full_simulants
     bp = BasePopulation()
-    mortality = Mortality()
-
-    sim = InteractiveContext(
-        components=[bp, mortality], plugin_configuration=base_plugins, setup=False
-    )
+    sim = InteractiveContext(components=[bp], plugin_configuration=base_plugins, setup=False)
     override_config = {
         "population": {
             "population_size": start_population_size,
@@ -35,7 +31,7 @@ def setup_sim_with_pop_and_mortality(
     }
     sim.configuration.update(override_config)
     sim.setup()
-    return sim, bp, mortality
+    return sim, bp, sim.list_components()["mortality"]
 
 
 def test_mortality_default_lookup_configuration(setup_sim_with_pop_and_mortality):
@@ -53,27 +49,40 @@ def test_mortality_default_lookup_configuration(setup_sim_with_pop_and_mortality
     assert (lookup_tables["life_expectancy"].data["value"] == 98.0).all()
 
 
-def test_mortality_creates_columns(setup_sim_with_pop_and_mortality):
+def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
     pop = sim.get_population()
     expected_columns_created = set(mortality.columns_created)
-    mortality_created_columns = set(pop.columns).difference(
-        set(bp.columns_created + ["tracked"])
+    expected_attributes_created = {
+        mortality.cause_specific_mortality_rate_pipeline_name,
+        mortality.unmodeled_csmr_pipeline_name,
+        mortality.unmodeled_csmr_paf_pipeline_name,
+    }
+    # BasePopulation and AgedOutSimulants create columns themselves
+    other_columns_created = set(bp.columns_created + ["is_aged_out"])
+    mortality_created_columns = set(pop.columns.get_level_values(0)).difference(
+        other_columns_created
     )
-    assert expected_columns_created == mortality_created_columns
+    # sets do not guarantee order so we assert te difference is empty
+    assert (
+        expected_columns_created.union(expected_attributes_created).difference(
+            mortality_created_columns
+        )
+        == set()
+    )
 
 
 def test_mortality_rate(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
     sim.step()
-    pop1 = sim.get_population()
-    mortality_rates = mortality.mortality_rate(pop1.index)["other_causes"]
+    mortality_rates = sim.get_population("mortality_rate")["mortality_rate", "other_causes"]
     # Calculate mortality rate like component to cmpare
+    pop_idx = mortality_rates.index
     lookup_tables = mortality.lookup_tables
-    acmr = lookup_tables["all_cause_mortality_rate"](pop1.index)
-    modeled_csmr = mortality.cause_specific_mortality_rate(pop1.index)
-    unmodeled_csmr_raw = lookup_tables["unmodeled_cause_specific_mortality_rate"](pop1.index)
-    unmodeled_csmr = mortality.unmodeled_csmr(pop1.index)
+    acmr = lookup_tables["all_cause_mortality_rate"](pop_idx)
+    modeled_csmr = mortality.cause_specific_mortality_rate(pop_idx)
+    unmodeled_csmr_raw = lookup_tables["unmodeled_cause_specific_mortality_rate"](pop_idx)
+    unmodeled_csmr = mortality.unmodeled_csmr(pop_idx)
     expected_mortality_rates = (acmr - modeled_csmr - unmodeled_csmr_raw + unmodeled_csmr) * (
         sim._clock.step_size.days / 365
     )
@@ -83,13 +92,13 @@ def test_mortality_rate(setup_sim_with_pop_and_mortality):
 
 def test_mortality_updates_population_columns(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
-    pop0 = sim.get_population()
-    sim.step()
-    pop1 = sim.get_population()
-
-    # Check mortalit7y component updates columns correctly
-    # Note alive will be tested by finding the simulants that died
     columns_to_update = ["cause_of_death", "exit_time", "years_of_life_lost"]
+    pop0 = sim.get_population(columns_to_update + ["alive"])
+    sim.step()
+    pop1 = sim.get_population(columns_to_update + ["alive"])
+
+    # Check mortality component updates columns correctly
+    # Note alive will be tested by finding the simulants that died
     dead_idx = pop1.index[pop1["alive"] == "dead"]
     for col in columns_to_update:
         assert (pop1.loc[dead_idx, col] != pop0.loc[dead_idx, col]).all()
@@ -108,9 +117,8 @@ def test_mortality_cause_of_death(
 ):
 
     start_population_size = len(full_simulants)
-    generate_population_mock.return_value = full_simulants.drop(columns=["tracked"])
+    generate_population_mock.return_value = full_simulants
     bp = BasePopulation()
-    mortality = Mortality()
     # Set up Disease model
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
@@ -131,7 +139,7 @@ def test_mortality_cause_of_death(
 
     model = DiseaseModel("test", initial_state=healthy, states=[healthy, mortality_state])
     sim = InteractiveContext(
-        components=[bp, mortality, model], plugin_configuration=base_plugins, setup=False
+        components=[bp, model], plugin_configuration=base_plugins, setup=False
     )
     override_config = {
         "population": {
@@ -142,10 +150,10 @@ def test_mortality_cause_of_death(
     }
     sim.configuration.update(override_config)
     sim.setup()
-    mortality_rates = mortality.mortality_rate(sim.get_population().index)
+    mortality_rates = sim.get_population("mortality_rate")["mortality_rate"]
     sim.step()
     # Only other causes and sick for cause of death
-    pop1 = sim.get_population()
+    pop1 = sim.get_population("cause_of_death")
     for cause_of_death in ["other_causes", "sick"]:
         dead = pop1.loc[pop1["cause_of_death"] == cause_of_death]
         # Disease model seems to set mortality rate for that disease back to 0
@@ -169,7 +177,7 @@ def test_mortality_cause_of_death(
 def test_mortality_ylls(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
     sim.step()
-    pop1 = sim.get_population()
+    pop1 = sim.get_population(["alive", "years_of_life_lost"])
 
     dead_idx = pop1.index[pop1["alive"] == "dead"]
     ylls = pop1.loc[dead_idx, "years_of_life_lost"]
@@ -190,13 +198,10 @@ def test_no_unmodeled_causes(setup_sim_with_pop_and_mortality):
 
 def test_unmodeled_causes(full_simulants, base_plugins, generate_population_mock):
     start_population_size = len(full_simulants)
-    generate_population_mock.return_value = full_simulants.drop(columns=["tracked"])
+    generate_population_mock.return_value = full_simulants
     bp = BasePopulation()
-    mortality = Mortality()
 
-    sim = InteractiveContext(
-        components=[bp, mortality], plugin_configuration=base_plugins, setup=False
-    )
+    sim = InteractiveContext(components=[bp], plugin_configuration=base_plugins, setup=False)
     override_config = {
         "population": {
             "population_size": start_population_size,
@@ -209,10 +214,8 @@ def test_unmodeled_causes(full_simulants, base_plugins, generate_population_mock
     sim.configuration.update(override_config)
     sim.setup()
     sim.step()
-    pop1 = sim.get_population()
-
-    # Mock artifact is 0.5 for cause.csmr so 0.5 * 3
-    mortality.lookup_tables["unmodeled_cause_specific_mortality_rate"].data = 1.5
-    assert np.isclose(
-        mortality.mortality_rate(pop1.index)["other_causes"].unique()[0] * 365, 0.5
-    )
+    other_causes_mortality_rate = sim.get_population("mortality_rate")[
+        "mortality_rate", "other_causes"
+    ]
+    assert len(other_causes_mortality_rate.unique()) == 1
+    assert other_causes_mortality_rate.unique()[0] * 365 == 0.5

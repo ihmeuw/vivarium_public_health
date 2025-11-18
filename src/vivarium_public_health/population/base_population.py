@@ -27,6 +27,7 @@ from vivarium_public_health.population.data_transformations import (
     rescale_binned_proportions,
     smooth_ages,
 )
+from vivarium_public_health.population.mortality import Mortality
 
 
 class BasePopulation(Component):
@@ -47,7 +48,7 @@ class BasePopulation(Component):
 
     @property
     def columns_created(self) -> list[str]:
-        return ["age", "sex", "alive", "location", "entrance_time", "exit_time"]
+        return ["age", "sex", "location", "entrance_time", "exit_time"]
 
     @property
     def time_step_priority(self) -> int:
@@ -63,7 +64,7 @@ class BasePopulation(Component):
 
     def __init__(self):
         super().__init__()
-        self._sub_components.append(AgeOutSimulants())
+        self._sub_components += [AgeOutSimulants(), Mortality()]
 
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
@@ -122,11 +123,7 @@ class BasePopulation(Component):
         arrive here first and are assigned the demographic qualities 'age', 'sex',
         and 'location' in a way that is consistent with the demographic distributions
         represented by the population-level data. Additionally, the simulants are assigned
-        the simulation properties 'alive', 'entrance_time' and 'exit_time'.
-
-        The 'alive' attribute is alive or dead. In general, most simulation components
-        (except for those computing summary statistics) ignore simulants if they are not
-        in the 'alive' category.
+        the simulation properties 'entrance_time' and 'exit_time'.
 
         The 'exit_time' attribute simply marks when the simulant exits the simulation.
         Here we are agnostic to the methods of exit (e.g., aging out, dying, etc.) as
@@ -400,9 +397,6 @@ def generate_population(
             'exit_time'
                 The `pandas.Timestamp` describing when the simulant exited
                 the simulation. Set initially to `pandas.NaT`.
-            'alive'
-                One of 'alive' or 'dead' indicating how the simulation
-                interacts with the simulant.
             'age'
                 The age of the simulant at the current time step.
             'location'
@@ -414,7 +408,6 @@ def generate_population(
         {
             "entrance_time": creation_time,
             "exit_time": pd.NaT,
-            "alive": "alive",
         },
         index=simulant_ids,
     )

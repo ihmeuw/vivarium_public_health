@@ -36,11 +36,10 @@ def test_BasePopulation(
     time_step = 100  # Days
     start_population_size = len(full_simulants)
 
-    generate_population_mock.return_value = full_simulants.drop(columns=["is_aged_out"])
+    generate_population_mock.return_value = full_simulants
 
     base_pop = bp.BasePopulation()
 
-    components = [base_pop]
     config.update(
         {
             "population": {
@@ -48,11 +47,13 @@ def test_BasePopulation(
                 "include_sex": include_sex,
             },
             "time": {"step_size": time_step},
+            # Turn off mortality to ensure everyone ages out rather than dies
+            "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
         },
         layer="override",
     )
     simulation = InteractiveContext(
-        components=components, configuration=config, plugin_configuration=base_plugins
+        components=[base_pop], configuration=config, plugin_configuration=base_plugins
     )
     time_start = simulation._clock.time
 
@@ -77,16 +78,27 @@ def test_BasePopulation(
     assert mock_args["demographic_proportions"].equals(sub_pop)
     assert mock_args["randomness_streams"] == base_pop.randomness
     pop = simulation.get_population()
-    for column in [col for col in pop.columns if col != "simulant_step_size"]:
+    outer_pop_cols = pop.columns.get_level_values(0)
+    mortality_cols = [col for col in outer_pop_cols if "mortality" in col] + [
+        "alive",
+        "cause_of_death",
+        "years_of_life_lost",
+    ]
+    base_cols = [
+        col
+        for col in outer_pop_cols
+        if col not in mortality_cols + ["simulant_step_size", "is_aged_out"]
+    ]
+    for column in [col for col in base_cols]:
         assert pop[column].equals(full_simulants[column])
 
     final_ages = pop.age + num_days / utilities.DAYS_PER_YEAR
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
 
-    pop = simulation.get_population()
+    pop = simulation.get_population("age")
     assert np.allclose(
-        pop.age, final_ages, atol=0.5 / utilities.DAYS_PER_YEAR
+        pop["age"], final_ages, atol=0.5 / utilities.DAYS_PER_YEAR
     )  # Within a half of a day.
 
 
@@ -103,6 +115,8 @@ def test_age_out_simulants(config, base_plugins):
                 "untracking_age": 5,
             },
             "time": {"step_size": time_step},
+            # Turn off mortality to ensure everyone ages out rather than dies
+            "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
         },
         layer="override",
     )
@@ -111,9 +125,11 @@ def test_age_out_simulants(config, base_plugins):
         components=components, configuration=config, plugin_configuration=base_plugins
     )
     time_start = simulation._clock.time
-    assert len(simulation.get_population()) == len(simulation.get_population().age.unique())
+    assert len(simulation.get_population_index()) == len(
+        simulation.get_population("age")["age"].unique()
+    )
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.get_population()
+    pop = simulation.get_population(["is_aged_out", "exit_time"])
     assert len(pop) == len(pop[pop["is_aged_out"]])
     exit_after_300_days = pop["exit_time"] >= time_start + pd.Timedelta(300, unit="D")
     exit_before_400_days = pop["exit_time"] <= time_start + pd.Timedelta(400, unit="D")
@@ -327,7 +343,7 @@ def test_scaled_population(
     sim = InteractiveContext(
         components=[scaled_pop], configuration=config, plugin_configuration=base_plugins
     )
-    pop = sim.get_population()
+    pop = sim.get_population(["age", "sex"])
     # Use FuzzyChecker to compare population structure to demographic proportion by
     # iterating through each age_group/sex combination
     scaled_structure = pop_structure.copy()

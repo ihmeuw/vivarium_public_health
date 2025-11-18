@@ -88,10 +88,10 @@ class Mortality(Component):
 
     .. code-block:: yaml
 
-       configuration:
-           mortality:
-               all_cause_mortality_rate:
-                   value: 0.01
+        configuration:
+            mortality:
+                data_sources:
+                    all_cause_mortality_rate: 0.01
 
     """
 
@@ -121,11 +121,7 @@ class Mortality(Component):
 
     @property
     def columns_created(self) -> list[str]:
-        return [self.cause_of_death_column_name, self.years_of_life_lost_column_name]
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return ["alive", "exit_time", "age", "sex"]
+        return ["alive", self.cause_of_death_column_name, self.years_of_life_lost_column_name]
 
     @property
     def time_step_priority(self) -> int:
@@ -151,12 +147,19 @@ class Mortality(Component):
     def setup(self, builder: Builder) -> None:
         self.random = self.get_randomness_stream(builder)
         self.clock = builder.time.clock()
+        self.step_size = builder.time.step_size()
 
         self.cause_specific_mortality_rate = self.get_cause_specific_mortality_rate(builder)
 
         self.unmodeled_csmr = self.get_unmodeled_csmr(builder)
         self.unmodeled_csmr_paf = self.get_unmodeled_csmr_paf(builder)
         self.mortality_rate = self.get_mortality_rate(builder)
+
+        builder.value.register_attribute_modifier(
+            "exit_time",
+            self.update_exit_times,
+            self,
+        )
 
     #################
     # Setup methods #
@@ -218,6 +221,15 @@ class Mortality(Component):
             preferred_post_processor=union_post_processor,
         )
 
+    def update_exit_times(self, index: pd.Index, target: pd.Series) -> pd.Series:
+        """Update exit times for simulants who have died."""
+        dead_idx = self.population_view.get_attributes(
+            index, "alive", "alive == 'dead'"
+        ).index
+        newly_dead_idx = dead_idx.intersection(target[target.isna()].index)
+        target.loc[newly_dead_idx] = self.clock() + self.step_size()
+        return target
+
     ########################
     # Event-driven methods #
     ########################
@@ -225,6 +237,7 @@ class Mortality(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
+                "alive": "alive",
                 self.cause_of_death_column_name: "not_dead",
                 self.years_of_life_lost_column_name: 0.0,
             },
@@ -233,7 +246,9 @@ class Mortality(Component):
         self.population_view.update(pop_update)
 
     def on_time_step(self, event: Event) -> None:
-        pop = self.population_view.get(event.index, query="alive =='alive'")
+        pop = self.population_view.get_private_columns(
+            event.index, query_columns="alive", query="alive =='alive'"
+        )
         mortality_rates = self.mortality_rate(pop.index)
         mortality_hazard = mortality_rates.sum(axis=1)
         deaths = self.random.filter_for_rate(
@@ -250,11 +265,10 @@ class Mortality(Component):
                 additional_key="cause_of_death",
             )
             pop.loc[deaths, "alive"] = "dead"
-            pop.loc[deaths, "exit_time"] = event.time
-            pop.loc[deaths, "years_of_life_lost"] = self.lookup_tables["life_expectancy"](
-                deaths
-            )
-            pop.loc[deaths, "cause_of_death"] = cause_of_death
+            pop.loc[deaths, self.years_of_life_lost_column_name] = self.lookup_tables[
+                "life_expectancy"
+            ](deaths)
+            pop.loc[deaths, self.cause_of_death_column_name] = cause_of_death
             self.population_view.update(pop)
 
     ##################################
