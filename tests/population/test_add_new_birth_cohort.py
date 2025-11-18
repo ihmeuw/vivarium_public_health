@@ -60,13 +60,13 @@ def test_FertilityDeterministic(config):
     start_time = simulation.current_time
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     end_time = simulation.current_time
-    pop = simulation.get_population()
+    pop = simulation.get_population(["age", "alive"])
 
     assert (end_time - start_time) / pd.Timedelta(days=1) == num_days
-    assert np.all(pop.alive == "alive")
+    assert np.all(pop["alive"] == "alive")
     assert (
         int(num_days * annual_new_simulants / utilities.DAYS_PER_YEAR)
-        == len(pop.age) - pop_size
+        == len(pop["age"]) - pop_size
     )
 
 
@@ -84,10 +84,10 @@ def test_FertilityCrudeBirthRate(config, base_plugins):
 
     simulation.setup()
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.get_population()
+    pop = simulation.get_population(["age", "alive"])
 
-    assert np.all(pop.alive == "alive")
-    assert len(pop.age) > pop_size
+    assert np.all(pop["alive"] == "alive")
+    assert len(pop["age"]) > pop_size
 
 
 def test_FertilityCrudeBirthRate_extrapolate_fail(config, base_plugins):
@@ -148,9 +148,9 @@ def test_FertilityCrudeBirthRate_extrapolate(base_config, base_plugins):
 
     birth_rate = []
     for i in range(10):
-        pop_start = len(simulation.get_population())
+        pop_start = len(simulation.get_population_index())
         simulation.step()
-        pop_end = len(simulation.get_population())
+        pop_end = len(simulation.get_population_index())
         birth_rate.append((pop_end - pop_start) / pop_size)
 
     given_birth_rate = 2 * live_births_by_sex / true_pop_size
@@ -227,16 +227,16 @@ def test_fertility_module(base_config, base_plugins):
     ), "expect Fertility module to update state table."
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.get_population()
+    pop = simulation.get_population(["age", "alive", "parent_id", "last_birth_time"])
 
     # No death in this model.
-    assert np.all(pop.alive == "alive"), "expect all simulants to be alive"
+    assert np.all(pop["alive"] == "alive"), "expect all simulants to be alive"
 
     # TODO: Write a more rigorous test.
-    assert len(pop.age) > start_population_size, "expect new simulants"
+    assert len(pop["age"]) > start_population_size, "expect new simulants"
 
     for i in range(start_population_size, len(pop)):
-        assert pop.loc[pop.iloc[i].parent_id].last_birth_time >= time_start, (
+        assert pop.loc[pop.iloc[i]["parent_id"], "last_birth_time"] >= time_start, (
             "expect all children to have mothers who"
             " gave birth after the simulation starts."
         )

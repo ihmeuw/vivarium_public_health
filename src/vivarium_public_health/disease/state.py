@@ -138,7 +138,7 @@ class BaseDiseaseState(State):
         event_time
             The time at which this transition occurs.
         """
-        pop = self.population_view.get(index)
+        pop = self.population_view.get_private_columns(index)
         pop[self.event_time_column] = event_time
         pop[self.event_count_column] += 1
         self.population_view.update(pop)
@@ -774,8 +774,10 @@ class DiseaseState(BaseDiseaseState):
     def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
         pop_update = super().get_initial_event_times(pop_data)
 
-        simulants_with_condition = self.population_view.subview([self.model]).get(
-            pop_data.index, query=f'{self.model}=="{self.state_id}"'
+        simulants_with_condition = self.population_view.get_attributes(
+            pop_data.index,
+            self.model,
+            query=f'{self.model}=="{self.state_id}"',
         )
         if not simulants_with_condition.empty:
             infected_at = self._assign_event_time_for_prevalent_cases(
@@ -789,7 +791,7 @@ class DiseaseState(BaseDiseaseState):
         return pop_update
 
     def with_condition(self, index: pd.Index) -> pd.Index:
-        pop = self.population_view.subview(["alive", self.model]).get(index)
+        pop = self.population_view.get_attributes(index, ["alive", self.model])
         with_condition = pop.loc[
             (pop[self.model] == self.state_id) & (pop["alive"] == "alive")
         ].index
@@ -818,7 +820,9 @@ class DiseaseState(BaseDiseaseState):
         -------
             A filtered index of the simulants.
         """
-        population = self.population_view.get(index, query='alive == "alive"')
+        population = self.population_view.get_private_columns(
+            index, self.event_time_column, query_columns="alive", query='alive == "alive"'
+        )
         if np.any(self.dwell_time(index)) > 0:
             state_exit_time = population[self.event_time_column] + pd.to_timedelta(
                 self.dwell_time(index), unit="D"
