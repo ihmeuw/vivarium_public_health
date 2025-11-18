@@ -7,7 +7,7 @@ from layered_config_tree import ConfigurationError, LayeredConfigTree
 from vivarium import Component, InteractiveContext
 from vivarium.framework.state_machine import Transition
 from vivarium.framework.utilities import from_yearly
-from vivarium.testing_utilities import TestPopulation, metadata
+from vivarium.testing_utilities import metadata
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import (
@@ -18,7 +18,7 @@ from vivarium_public_health.disease import (
 )
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.disease.transition import TransitionString
-from vivarium_public_health.population import Mortality
+from vivarium_public_health.population import BasePopulation, Mortality
 
 
 @pytest.fixture
@@ -42,8 +42,9 @@ def get_test_prevalence(simulation, key):
     Helper function to calculate the prevalence for the given state(key)
     """
     try:
-        simulants_status_counts = simulation.get_population().test.value_counts().to_dict()
-        result = float(simulants_status_counts[key] / simulation.get_population().test.size)
+        test = simulation.get_population("test").squeeze()
+        simulants_status_counts = test.value_counts().to_dict()
+        result = float(simulants_status_counts[key] / test.size)
     except KeyError:
         result = 0
     return result
@@ -71,7 +72,7 @@ def test_dwell_time(base_config, base_plugins, disease, base_data):
     )
 
     simulation = InteractiveContext(
-        components=[TestPopulation(), model],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
@@ -79,18 +80,19 @@ def test_dwell_time(base_config, base_plugins, disease, base_data):
     # Move everyone into the event state
     simulation.step()
     event_time = simulation._clock.time
-    assert np.all(simulation.get_population()[disease] == "event")
+    assert np.all(simulation.get_population(disease) == "event")
 
     simulation.step()
     simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    assert np.all(simulation.get_population()[disease] == "event")
+    assert np.all(simulation.get_population(disease) == "event")
 
     simulation.step()
     # Now enough time has passed so people should transition away
-    assert np.all(simulation.get_population()[disease] == "sick")
-    assert np.all(simulation.get_population().event_event_time == pd.to_datetime(event_time))
-    assert np.all(simulation.get_population().event_event_count == 1)
+    pop = simulation.get_population([disease, "event_event_time", "event_event_count"])
+    assert np.all(pop[disease] == "sick")
+    assert np.all(pop["event_event_time"] == pd.to_datetime(event_time))
+    assert np.all(pop["event_event_count"] == 1)
 
 
 def test_dwell_time_with_mortality(base_config, base_plugins, disease):
@@ -125,33 +127,32 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
         initial_state=healthy_state,
         states=[healthy_state, mortality_state, done_state],
     )
-    mortality = Mortality()
     simulation = InteractiveContext(
-        components=[TestPopulation(), model, mortality],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
 
     # Move everyone into the event state
     simulation.step()
-    assert np.all(simulation.get_population()[disease] == "event")
+    assert np.all(simulation.get_population(disease) == "event")
 
     simulation.step()
     # Not enough time has passed for people to move out of the event state, so they should all still be there
-    assert np.all(simulation.get_population()[disease] == "event")
+    assert np.all(simulation.get_population(disease) == "event")
 
     simulation.step()
 
     # Make sure some people have died and remained in event state
-    assert (simulation.get_population()["alive"] == "alive").sum() < pop_size
+    assert (simulation.get_population("alive").squeeze() == "alive").sum() < pop_size
 
-    assert (simulation.get_population()["alive"] == "dead").sum() == (
-        simulation.get_population()[disease] == "event"
+    assert (simulation.get_population("alive").squeeze() == "dead").sum() == (
+        simulation.get_population(disease).squeeze() == "event"
     ).sum()
 
     # enough time has passed so living people should transition away to sick
-    assert (simulation.get_population()["alive"] == "alive").sum() == (
-        simulation.get_population()[disease] == "sick"
+    assert (simulation.get_population("alive").squeeze() == "alive").sum() == (
+        simulation.get_population(disease).squeeze() == "sick"
     ).sum()
 
 
@@ -173,12 +174,12 @@ def test_prevalence_single_state_with_migration(
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
     base_config.update({"population": {"population_size": 50000}}, **metadata(__file__))
     simulation = InteractiveContext(
-        components=[TestPopulation(), model],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
 
-    disease_status = simulation.get_population()[disease]
+    disease_status = simulation.get_population(disease).squeeze()
     fuzzy_checker.fuzzy_assert_proportion(
         (disease_status == "sick").sum(), disease_status.size, test_prevalence_level
     )
@@ -189,7 +190,7 @@ def test_prevalence_single_state_with_migration(
             50000,
             population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
         )
-        disease_status = simulation.get_population()[disease]
+        disease_status = simulation.get_population(disease).squeeze()
         fuzzy_checker.fuzzy_assert_proportion(
             (disease_status == "sick").sum(), disease_status.size, test_prevalence_level
         )
@@ -202,8 +203,6 @@ def test_prevalence_single_state_with_migration(
 def test_prevalence_multiple_sequelae(
     base_config, base_plugins, disease, base_data, test_prevalence_level
 ):
-    year_start = base_config.time.start.year
-    year_end = base_config.time.end.year
 
     healthy = BaseDiseaseState("healthy")
 
@@ -218,7 +217,7 @@ def test_prevalence_multiple_sequelae(
     )
     base_config.update({"population": {"population_size": 100000}}, **metadata(__file__))
     simulation = InteractiveContext(
-        components=[TestPopulation(), model],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
@@ -263,17 +262,16 @@ def test_mortality_rate(base_config, base_plugins, disease):
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, mortality_state])
 
     simulation = InteractiveContext(
-        components=[TestPopulation(), model, Mortality()],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
 
-    mortality_rate = simulation._values.get_attribute("mortality_rate")
-
     simulation.step()
     # Folks instantly transition to sick so now our mortality rate should be much higher
     assert np.allclose(
-        from_yearly(0.7, time_step), mortality_rate(simulation.get_population().index)["sick"]
+        from_yearly(0.7, time_step),
+        simulation.get_population("mortality_rate")["mortality_rate", "sick"],
     )
 
 
@@ -294,21 +292,17 @@ def test_incidence(base_config, base_plugins, disease):
     model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
 
     simulation = InteractiveContext(
-        components=[TestPopulation(), model],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
         setup=False,
     )
     simulation._data.write(key, 0.7)
     simulation.setup()
-
-    incidence_rate = simulation._values.get_attribute("sick.incidence_rate")
-
     simulation.step()
-
     assert np.allclose(
         from_yearly(0.7, time_step),
-        incidence_rate(simulation.get_population().index),
+        simulation.get_population("sick.incidence_rate").squeeze(),
         atol=0.00001,
     )
 
@@ -350,22 +344,18 @@ def test_risk_deletion(base_config, base_plugins, disease):
             )
 
     simulation = InteractiveContext(
-        components=[TestPopulation(), model, PafModifier()],
+        components=[BasePopulation(), model, PafModifier()],
         configuration=base_config,
         plugin_configuration=base_plugins,
         setup=False,
     )
     simulation._data.write(key, base_rate)
     simulation.setup()
-
-    incidence_rate = simulation._values.get_attribute("sick.incidence_rate")
-
     simulation.step()
-
     expected_rate = base_rate * (1 - paf)
     assert np.allclose(
         from_yearly(expected_rate, time_step),
-        incidence_rate(simulation.get_population().index),
+        simulation.get_population("sick.incidence_rate").squeeze(),
         atol=0.00001,
     )
 
@@ -408,7 +398,7 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugin
         **metadata(__file__),
     )
     simulation = InteractiveContext(
-        components=[TestPopulation(), model],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
@@ -453,13 +443,13 @@ def test_no_birth_prevalence_initial_assignment(
         **metadata(__file__),
     )
     simulation = InteractiveContext(
-        components=[TestPopulation(), model],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
 
     # prevalence should be used for assigning initial status at sim start
-    disease_status = simulation.get_population()[disease]
+    disease_status = simulation.get_population(disease).squeeze()
     fuzzy_checker.fuzzy_assert_proportion(
         (disease_status == "with_condition").sum(), disease_status.size, 1
     )
@@ -471,7 +461,7 @@ def test_no_birth_prevalence_initial_assignment(
         population_configuration={"age_start": 0, "age_end": 0, "sim_state": "time_step"},
     )
 
-    disease_status = simulation.get_population()[disease]
+    disease_status = simulation.get_population(disease).squeeze()
     fuzzy_checker.fuzzy_assert_proportion(
         (disease_status == "with_condition").sum(), disease_status.size, 0.5
     )
@@ -483,7 +473,7 @@ def test_no_birth_prevalence_initial_assignment(
         population_configuration={"age_start": 0, "age_end": 5, "sim_state": "time_step"},
     )
 
-    disease_status = simulation.get_population()[disease]
+    disease_status = simulation.get_population(disease).squeeze()
     fuzzy_checker.fuzzy_assert_proportion(
         (disease_status == "with_condition").sum(), disease_status.size, 2.0 / 3.0
     )
@@ -515,13 +505,13 @@ def test_birth_prevalence_initial_assignment(
         **metadata(__file__),
     )
     simulation = InteractiveContext(
-        components=[TestPopulation(), model],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
     )
 
     # birth prevalence should be used for assigning initial status at sim start
-    disease_status = simulation.get_population()[disease]
+    disease_status = simulation.get_population(disease).squeeze()
     fuzzy_checker.fuzzy_assert_proportion(
         (disease_status == "with_condition").sum(), disease_status.size, 0.5
     )
@@ -591,7 +581,7 @@ def test_transition_rate_to_probability_configuration(
 
     # Sets the configuration
     sim = InteractiveContext(
-        components=[TestPopulation(), model],
+        components=[BasePopulation(), model],
         configuration=base_config,
         plugin_configuration=base_plugins,
         setup=True,
@@ -651,7 +641,7 @@ def test_disease_model_rate_conversion_config_error(
     # Sets the configuration
     with pytest.raises(ConfigurationError):
         InteractiveContext(
-            components=[TestPopulation(), model],
+            components=[BasePopulation(), model],
             configuration=base_config,
             plugin_configuration=base_plugins,
             setup=True,
