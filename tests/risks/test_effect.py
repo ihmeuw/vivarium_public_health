@@ -499,6 +499,7 @@ def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plu
     simulation = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
 
     pop_idx = simulation.get_population_index()
+    # We skip post processor here so cannot just use `simulation.get_population`
     rate = simulation._values.get_attribute("test_cause.incidence_rate")(
         pop_idx, skip_post_processor=True
     )
@@ -597,6 +598,7 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
         )
 
     pop_idx = simulation.get_population_index()
+    # We skip post processor here so cannot just use `simulation.get_population`
     rate = simulation._values.get_attribute("test_cause.incidence_rate")(
         pop_idx, skip_post_processor=True
     )
