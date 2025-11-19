@@ -59,10 +59,6 @@ class DiseaseModel(Machine):
         return [self.state_column]
 
     @property
-    def columns_required(self) -> list[str] | None:
-        return ["age", "sex"]
-
-    @property
     def initialization_requirements(self) -> dict[str, list[str]]:
         return {
             "requires_columns": ["age", "sex"],

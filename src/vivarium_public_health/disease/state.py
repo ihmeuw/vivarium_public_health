@@ -73,10 +73,6 @@ class BaseDiseaseState(State):
         return [self.event_time_column, self.event_count_column]
 
     @property
-    def columns_required(self) -> list[str] | None:
-        return [self.model, "alive"]
-
-    @property
     def initialization_requirements(self) -> list[str | Resource]:
         return [self.model]
 
