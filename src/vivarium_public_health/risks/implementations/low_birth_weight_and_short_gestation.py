@@ -376,10 +376,6 @@ class LBWSGRiskEffect(RiskEffect):
         return self.rr_column_names
 
     @property
-    def columns_required(self) -> list[str] | None:
-        return ["age", "sex"] + self.lbwsg_exposure_column_names
-
-    @property
     def initialization_requirements(self) -> list[str | Resource]:
         return ["sex"] + self.lbwsg_exposure_column_names
 
@@ -426,7 +422,9 @@ class LBWSGRiskEffect(RiskEffect):
 
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.DataFrame]:
         def exposure(index: pd.Index) -> pd.DataFrame:
-            return self.population_view.subview(self.lbwsg_exposure_column_names).get(index)
+            return self.population_view.get_attributes(
+                index, self.lbwsg_exposure_column_names
+            )
 
         return exposure
 
@@ -498,8 +496,8 @@ class LBWSGRiskEffect(RiskEffect):
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        pop = self.population_view.subview(["sex"] + self.lbwsg_exposure_column_names).get(
-            pop_data.index
+        pop = self.population_view.get_attributes(
+            pop_data.index, self.lbwsg_exposure_column_names + ["sex"]
         )
         birth_weight = pop[LBWSGRisk.get_exposure_column_name(BIRTH_WEIGHT)]
         gestational_age = pop[LBWSGRisk.get_exposure_column_name(GESTATIONAL_AGE)]
@@ -538,7 +536,9 @@ class LBWSGRiskEffect(RiskEffect):
     ##################################
 
     def _get_relative_risk(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get(index)
+        pop = self.population_view.get_private_columns(index).join(
+            self.population_view.get_attributes(index, "age")
+        )
         relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_pipeline_name)
 
         for age_group, interval in self.age_intervals.items():

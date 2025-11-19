@@ -8,15 +8,15 @@ from vivarium import Component, InteractiveContext
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.testing_utilities import TestPopulation
 
 from vivarium_public_health.disease import SI
+from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 
 #
 # from vivarium.framework.utilities import from_yearly
-# from vivarium.testing_utilities import build_table, TestPopulation
+# from vivarium.testing_utilities import build_table, BasePopulation
 # from vivarium.interface.interactive import initialize_simulation
 #
 # from vivarium_public_health.disease import RateTransition
@@ -47,7 +47,7 @@ from vivarium_public_health.utilities import EntityString
 #
 #     effect = RiskEffect(f'risk_factor.{r}', f'cause.{d}.incidence_rate', effect_data_functions)
 #
-#     simulation = initialize_simulation([TestPopulation(), effect], input_config=base_config, plugin_config=base_plugins)
+#     simulation = initialize_simulation([BasePopulation(), effect], input_config=base_config, plugin_config=base_plugins)
 #
 #     simulation.data.write("risk_factor.test_risk.distribution", "dichotomous")
 #     simulation.values.register_value_producer("test_risk.exposure", mocker.Mock())
@@ -107,7 +107,7 @@ from vivarium_public_health.utilities import EntityString
 #     transition = RateTransition(mocker.MagicMock(state_id='susceptible'),
 #                                 mocker.MagicMock(state_id='infected'), rate_data_functions)
 #
-#     base_simulation = initialize_simulation([TestPopulation(), transition],
+#     base_simulation = initialize_simulation([BasePopulation(), transition],
 #                                             input_config=base_config, plugin_config=base_plugins)
 #     base_simulation.setup()
 #
@@ -122,7 +122,7 @@ from vivarium_public_health.utilities import EntityString
 #                                 mocker.MagicMock(state_id='infected'), rate_data_functions)
 #     effect = RiskEffect(f'risk_factor.bad_risk', f'cause.infected.incidence_rate', effect_data_functions)
 #
-#     rf_simulation = initialize_simulation([TestPopulation(), transition, effect],
+#     rf_simulation = initialize_simulation([BasePopulation(), transition, effect],
 #                                           input_config=base_config, plugin_config=base_plugins)
 #
 #     rf_simulation.data.write("risk_factor.bad_risk.distribution", "dichotomuous")
@@ -153,7 +153,7 @@ from vivarium_public_health.utilities import EntityString
 #
 #     exposure_function = exposure_function_wrapper()
 #
-#     components = [TestPopulation(), exposure_function]
+#     components = [BasePopulation(), exposure_function]
 #     simulation = initialize_simulation(components, input_config=base_config, plugin_config=base_plugins)
 #     for key, value in risk_data.items():
 #         simulation.data.write(f'risk_factor.test_risk.{key}', value)
@@ -190,7 +190,7 @@ from vivarium_public_health.utilities import EntityString
 #             return self.exposure_function(*args, **kwargs)
 #
 #     exposure_function = exposure_function_wrapper()
-#     components = [TestPopulation(), exposure_function]
+#     components = [BasePopulation(), exposure_function]
 #
 #     simulation = initialize_simulation(components, input_config=base_config, plugin_config=base_plugins)
 #
@@ -222,7 +222,7 @@ from vivarium_public_health.utilities import EntityString
 #
 #     base_config.update({'population': {'population_size': 100000}}, layer='override')
 #
-#     simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
+#     simulation = initialize_simulation([BasePopulation(), risk] + risk_effects,
 #                                        input_config=base_config, plugin_config=base_plugins)
 #     for key, value in risk_data.items():
 #         simulation.data.write(f'risk_factor.test_risk.{key}', value)
@@ -256,7 +256,7 @@ from vivarium_public_health.utilities import EntityString
 #     risk_effects = [RiskEffect(f'risk_factor.{risk._risk}', f'cause.{ac}.incidence_rate') for ac in affected_causes]
 #
 #     base_config.update({'population': {'population_size': 100000}}, layer='override')
-#     simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
+#     simulation = initialize_simulation([BasePopulation(), risk] + risk_effects,
 #                                        input_config=base_config, plugin_config=base_plugins)
 #
 #     for key, value in risk_data.items():
@@ -291,7 +291,7 @@ from vivarium_public_health.utilities import EntityString
 #     risk_effects = [RiskEffect(f'risk_factor.{risk._risk}', f'cause.{ac}.incidence_rate') for ac in risk_data['affected_causes']]
 #
 #     base_config.update({'population': {'population_size': 100000}}, layer='override')
-#     simulation = initialize_simulation([TestPopulation(), risk] + risk_effects,
+#     simulation = initialize_simulation([BasePopulation(), risk] + risk_effects,
 #                                        input_config=base_config, plugin_config=base_plugins)
 #     for key, value in risk_data.items():
 #         simulation.data.write(f'risk_factor.test_risk.{key}', value)
@@ -322,7 +322,7 @@ from vivarium_public_health.utilities import EntityString
 #     affected_risk = Risk('risk_factor.test_risk')
 #
 #     # start with the only risk factor without indirect effect from coverage_gap
-#     simulation = initialize_simulation([TestPopulation(), affected_risk],
+#     simulation = initialize_simulation([BasePopulation(), affected_risk],
 #                                        input_config=base_config, plugin_config=base_plugins)
 #
 #     for key, value in risk_data.items():
@@ -338,7 +338,7 @@ from vivarium_public_health.utilities import EntityString
 #     risk_effects = [RiskEffect(f'coverage_gap.{coverage_gap._risk}',
 #                                f'risk_factor.{rf}.exposure_parameters') for rf in cg_data['affected_risk_factors']]
 #
-#     simulation = initialize_simulation([TestPopulation(), affected_risk, coverage_gap] + risk_effects,
+#     simulation = initialize_simulation([BasePopulation(), affected_risk, coverage_gap] + risk_effects,
 #                                        input_config=base_config, plugin_config=base_plugins)
 #
 #     for key, value in risk_data.items():
@@ -377,7 +377,7 @@ from vivarium_public_health.utilities import EntityString
 #
 #     base_config.update({'test_risk': {'exposure': 1}}, layer='override')
 #     base_config.update({'effect_of_test_risk_on_test_cause': {'incidence_rate': 50}})
-#     simulation = initialize_simulation([TestPopulation(), dummy_risk, dummy_effect],
+#     simulation = initialize_simulation([BasePopulation(), dummy_risk, dummy_effect],
 #                                        input_config=base_config, plugin_config=base_plugins)
 #
 #     simulation.setup()
@@ -406,7 +406,7 @@ from vivarium_public_health.utilities import EntityString
 #     base_config.update({'test_risk': {'exposure': 1}}, layer='override')
 #     base_config.update({'effect_of_test_risk_on_test_cause': {'excess_mortality_rate': 50}})
 #
-#     simulation = initialize_simulation([TestPopulation(), dummy_risk, dummy_effect],
+#     simulation = initialize_simulation([BasePopulation(), dummy_risk, dummy_effect],
 #                                        input_config=base_config, plugin_config=base_plugins)
 #     simulation.setup()
 #
@@ -422,7 +422,7 @@ def _setup_risk_effect_simulation(
     data: dict[str, Any],
 ) -> InteractiveContext:
     components = [
-        TestPopulation(),
+        BasePopulation(),
         risk,
         SI("test_cause"),
         risk_effect,
@@ -498,9 +498,9 @@ def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plu
     base_config.update({"risk_factor.test_risk": {"distribution_type": "dichotomous"}})
     simulation = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
 
-    pop = simulation.get_population()
+    pop_idx = simulation.get_population_index()
     rate = simulation._values.get_attribute("test_cause.incidence_rate")(
-        pop.index, skip_post_processor=True
+        pop_idx, skip_post_processor=True
     )
     assert set(rate.unique()) == {rr_value}
 
@@ -596,9 +596,9 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
             base_config, base_plugins, risk, effect, data
         )
 
-    pop = simulation.get_population()
+    pop_idx = simulation.get_population_index()
     rate = simulation._values.get_attribute("test_cause.incidence_rate")(
-        pop.index, skip_post_processor=True
+        pop_idx, skip_post_processor=True
     )
     expected_values = np.interp(
         custom_exposure_values,
@@ -633,19 +633,17 @@ def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
 
     base_config.update({"risk_factor.test_risk": {"distribution_type": "dichotomous"}})
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
-    pop = sim.get_population()
+    pop_idx = sim.get_population_index()
 
     expected_pipeline_name = f"{effect.risk.name}_on_{effect.target.name}.relative_risk"
-    assert expected_pipeline_name in sim.list_values()
+    assert expected_pipeline_name in sim.list_attributes()
 
     rr_mapper = {
         "cat1": 1.4,
         "cat2": 1.0,
     }
     for exposure in rr_mapper:
-        exposure_pipeline = sim._values.get_attribute(f"{effect.risk.name}.exposure")(
-            pop.index
-        )
-        exposure_idx = exposure_pipeline.loc[exposure_pipeline == exposure].index
-        relative_risk = sim._values.get_attribute(expected_pipeline_name)(exposure_idx)
+        exposures = sim.get_population(f"{effect.risk.name}.exposure").squeeze()
+        exposure_idx = exposures.loc[exposures == exposure].index
+        relative_risk = sim.get_population(expected_pipeline_name).squeeze().loc[exposure_idx]
         assert (relative_risk == rr_mapper[exposure]).all()

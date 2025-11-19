@@ -372,10 +372,6 @@ class NonLogLinearRiskEffect(RiskEffect):
             }
         }
 
-    @property
-    def columns_required(self) -> list[str]:
-        return [f"{self.risk.name}_exposure"]
-
     #################
     # Setup methods #
     #################
@@ -489,7 +485,9 @@ class NonLogLinearRiskEffect(RiskEffect):
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         def generate_relative_risk(index: pd.Index) -> pd.Series:
             rr_intervals = self.lookup_tables["relative_risk"](index)
-            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
+            exposure = self.population_view.get_attributes(
+                index, f"{self.risk.name}_exposure"
+            ).squeeze()
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
                 rr_intervals["right_exposure"].values,

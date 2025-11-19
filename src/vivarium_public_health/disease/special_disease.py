@@ -366,9 +366,8 @@ class RiskAttributableDisease(Component):
     ##################
 
     def with_condition(self, index):
-        return self.population_view.get_private_columns(
+        return self.population_view.get_population_index(
             index,
-            self.cause.name,
             query_columns=["alive", self.cause.name],
             query=f'alive == "alive" and {self.cause.name} == "{self.cause.name}"',
-        ).index
+        )

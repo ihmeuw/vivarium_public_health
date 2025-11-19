@@ -191,7 +191,9 @@ class EnsembleDistribution(RiskExposureDistribution):
             parameters = {
                 name: param(quantiles.index) for name, param in self.parameters.items()
             }
-            ensemble_propensity = self.population_view.get(quantiles.index).iloc[:, 0]
+            ensemble_propensity = self.population_view.get_private_columns(
+                quantiles.index
+            ).iloc[:, 0]
             x = rd.EnsembleDistribution(weights, parameters).ppf(
                 quantiles, ensemble_propensity
             )
