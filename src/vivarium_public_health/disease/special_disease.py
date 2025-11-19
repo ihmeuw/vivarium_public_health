@@ -153,10 +153,6 @@ class RiskAttributableDisease(Component):
         ]
 
     @property
-    def columns_required(self) -> list[str] | None:
-        return ["alive"]
-
-    @property
     def initialization_requirements(self) -> list[str | Resource]:
         return [self.exposure_pipeline]
 
@@ -340,7 +336,9 @@ class RiskAttributableDisease(Component):
         self.population_view.update(new_pop)
 
     def on_time_step(self, event: Event) -> None:
-        pop = self.population_view.get(event.index, query='alive == "alive"')
+        pop = self.population_view.get_private_columns(
+            event.index, self.columns_created, query_columns="alive", query='alive == "alive"'
+        )
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
         if self.recoverable:
@@ -401,8 +399,9 @@ class RiskAttributableDisease(Component):
     ##################
 
     def with_condition(self, index):
-        pop = self.population_view.subview(["alive", self.cause.name]).get(index)
-        with_condition = pop.loc[
-            (pop[self.cause.name] == self.cause.name) & (pop["alive"] == "alive")
-        ].index
-        return with_condition
+        return self.population_view.get_private_columns(
+            index,
+            self.cause.name,
+            query_columns=["alive", self.cause.name],
+            query=f'alive == "alive" and {self.cause.name} == "{self.cause.name}"',
+        ).index
