@@ -55,7 +55,7 @@ class DiseaseModel(Machine):
         return {
             "requires_columns": ["age", "sex"],
             "requires_values": [],
-            "requires_streams": [f"{self.state_column}_initial_states"],
+            "requires_streams": [],
         }
 
     @property
