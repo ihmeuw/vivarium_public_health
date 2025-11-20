@@ -1,3 +1,7 @@
+**4.3.13 - 11/20/25**
+
+  - Make name optional and handle bar args to 'make build-env'
+
 **4.3.12 - 10/06/25**
 
   - Register event_year as a stratification in the ResultsStratifier
