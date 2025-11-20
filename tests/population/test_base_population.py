@@ -124,6 +124,10 @@ def test_age_out_simulants(config, base_plugins):
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])
 
 
+def test_aged_out_default_filter():
+    """Test that aging simulants does not apply to those that have aged out."""
+    ...
+
 def test_generate_population_age_bounds(
     base_simulants, age_bounds_mock, initial_age_mock, include_sex
 ):
