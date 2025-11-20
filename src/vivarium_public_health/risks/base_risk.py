@@ -150,8 +150,7 @@ class Risk(Component):
         self.distribution_type = None
 
         self.randomness_stream_name = f"initial_{self.risk.name}_propensity"
-        self.propensity_column_name = f"{self.risk.name}_propensity"
-        self.propensity_pipeline_name = f"{self.risk.name}.propensity"
+        self.propensity_column_name = f"{self.risk.name}.propensity"
         self.exposure_pipeline_name = f"{self.risk.name}.exposure"
         self.exposure_column_name = f"{self.risk.name}_exposure"
 
@@ -169,7 +168,6 @@ class Risk(Component):
         self.exposure_distribution = self.get_exposure_distribution(builder)
 
         self.randomness = self.get_randomness_stream(builder)
-        self.propensity = self.get_propensity_pipeline(builder)
         self.exposure = self.get_exposure_pipeline(builder)
 
         # We want to set this to True iff there is a non-loglinear risk effect
@@ -249,14 +247,6 @@ class Risk(Component):
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
         return builder.randomness.get_stream(self.randomness_stream_name, component=self)
 
-    def get_propensity_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_attribute_producer(
-            self.propensity_pipeline_name,
-            source=[self.propensity_column_name],
-            component=self,
-            required_resources=[self.propensity_column_name],
-        )
-
     def get_exposure_pipeline(self, builder: Builder) -> Pipeline:
         required_columns = get_lookup_columns(
             self.exposure_distribution.lookup_tables.values()
@@ -267,8 +257,8 @@ class Risk(Component):
             component=self,
             required_resources=required_columns
             + [
-                self.propensity,
-                self.exposure_distribution.exposure_parameters,
+                self.propensity_column_name,
+                self.exposure_distribution.exposure_parameters_name,
             ],
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
@@ -289,7 +279,7 @@ class Risk(Component):
 
     def update_exposure_column(self, index: pd.Index) -> None:
         if self.create_exposure_column:
-            exposure = pd.Series(self.exposure(index), name=self.exposure_column_name)
+            exposure = self.population_view.get_attributes(index, self.exposure_pipeline_name)
             self.population_view.update(exposure)
 
     ##################################
@@ -297,5 +287,7 @@ class Risk(Component):
     ##################################
 
     def get_current_exposure(self, index: pd.Index) -> pd.Series:
-        propensity = self.propensity(index)
+        propensity = self.population_view.get_attributes(
+            index, self.propensity_column_name
+        ).squeeze(axis=1)
         return pd.Series(self.exposure_distribution.ppf(propensity), index=index)

@@ -487,7 +487,7 @@ class NonLogLinearRiskEffect(RiskEffect):
             rr_intervals = self.lookup_tables["relative_risk"](index)
             exposure = self.population_view.get_attributes(
                 index, f"{self.risk.name}_exposure"
-            ).squeeze()
+            ).squeeze(axis=1)
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
                 rr_intervals["right_exposure"].values,

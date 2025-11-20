@@ -94,14 +94,14 @@ class LBWSGDistribution(PolytomousDistribution):
                 "available in the simulation."
             )
 
-    def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
+    def register_exposure_parameter_pipeline(self, builder: Builder) -> None:
         lookup_columns = []
         if "exposure" in self.lookup_tables:
             lookup_columns.extend(get_lookup_columns([self.lookup_tables["exposure"]]))
         if "birth_exposure" in self.lookup_tables:
             lookup_columns.extend(get_lookup_columns([self.lookup_tables["birth_exposure"]]))
-        return builder.value.register_attribute_producer(
-            self.parameters_pipeline_name,
+        builder.value.register_attribute_producer(
+            self.exposure_parameters_name,
             source=lambda index: self.lookup_tables[self.exposure_key](index),
             component=self,
             required_resources=list(set(lookup_columns)),
@@ -293,10 +293,6 @@ class LBWSGRisk(Risk):
     #################
     # Setup methods #
     #################
-
-    def get_propensity_pipeline(self, builder: Builder) -> Pipeline | None:
-        # Propensity only used on initialization; not being saved to avoid a cycle
-        return None
 
     def get_exposure_pipeline(self, builder: Builder) -> Pipeline | None:
         # Exposure only used on initialization; not being saved to avoid a cycle
@@ -536,9 +532,7 @@ class LBWSGRiskEffect(RiskEffect):
     ##################################
 
     def _get_relative_risk(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get_private_columns(index).join(
-            self.population_view.get_attributes(index, "age")
-        )
+        pop = self.population_view.get_attributes(index, self.rr_column_names + ["age"])
         relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_pipeline_name)
 
         for age_group, interval in self.age_intervals.items():
