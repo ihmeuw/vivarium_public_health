@@ -1,6 +1,6 @@
 **4.3.13 - 11/20/25**
 
-  - Make name optional and handle bar args to 'make build-env'
+  - Improve 'make build-env': better handle args and make the env name optional
 
 **4.3.12 - 10/06/25**
 
