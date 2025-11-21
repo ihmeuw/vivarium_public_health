@@ -87,7 +87,7 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
     )
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
     expected_pipeline_name = (
-        f"effect_of_{lbwsg_effect.risk.name}_on_{lbwsg_effect.target.name}.relative_risk"
+        f"{lbwsg_effect.risk.name}_on_{lbwsg_effect.target.name}.relative_risk"
     )
     assert expected_pipeline_name in sim.list_attributes()
 
@@ -95,8 +95,8 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
         [
             "age",
             "sex",
-            "birth_weight_exposure",
-            "gestational_age_exposure",
+            "birth_weight.exposure",
+            "gestational_age.exposure",
             "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters",
             expected_pipeline_name,
         ]
@@ -121,7 +121,7 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
 
     mapped_age_groups = pop["age"].apply(map_age_groups)
     mapped_age_groups = mapped_age_groups.apply(to_snake_case)
-    sim_data = pop[["sex", "birth_weight_exposure", "gestational_age_exposure"]].copy()
+    sim_data = pop[["sex", "birth_weight.exposure", "gestational_age.exposure"]].copy()
     sim_data["age_group_name"] = mapped_age_groups
 
     # Test the 4 different demographic groups
@@ -135,8 +135,8 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
             actual_rr = pop.loc[demo_idx, expected_pipeline_name]
             sub_pop["expected_rr"] = np.exp(
                 interpolator(
-                    sub_pop["gestational_age_exposure"],
-                    sub_pop["birth_weight_exposure"],
+                    sub_pop["gestational_age.exposure"],
+                    sub_pop["birth_weight.exposure"],
                     grid=False,
                 )
             )
@@ -208,7 +208,7 @@ def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end)
     assert (exposure_pipeline_values["cat82"] == exposure_values[age_end]["cat82"]).all()
 
     # Assert LBWSG birth exposure columns were created
-    sim.get_population(["birth_weight_exposure", "gestational_age_exposure"])
+    sim.get_population(["birth_weight.exposure", "gestational_age.exposure"])
 
 
 @pytest.mark.parametrize("exposure_key", ["birth_exposure", "exposure", "missing"])

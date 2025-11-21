@@ -23,7 +23,6 @@ from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.effect import NonLogLinearRiskEffect, RiskEffect
 from vivarium_public_health.utilities import EntityString
 
-
 #
 #
 # def test_incidence_rate_risk_effect(base_config, base_plugins, mocker):
@@ -414,6 +413,8 @@ from vivarium_public_health.utilities import EntityString
 #                                                   source=lambda index: pd.Series(0.1, index=index))
 #
 #     assert np.allclose(from_yearly(0.1, time_step)*50, em(simulation.get_population().index))
+
+
 def _setup_risk_effect_simulation(
     config: LayeredConfigTree,
     plugins: LayeredConfigTree,

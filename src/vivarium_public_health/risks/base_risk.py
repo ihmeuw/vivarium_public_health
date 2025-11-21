@@ -13,11 +13,9 @@ from typing import Any
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.resource import Resource
-from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.risks.distributions import (
@@ -124,10 +122,7 @@ class Risk(Component):
 
     @property
     def columns_created(self) -> list[str]:
-        columns_to_create = [self.propensity_column_name]
-        if self.create_exposure_column:
-            columns_to_create.append(self.exposure_column_name)
-        return columns_to_create
+        return [self.propensity_name]
 
     @property
     def initialization_requirements(self) -> list[str | Resource]:
@@ -150,9 +145,8 @@ class Risk(Component):
         self.distribution_type = None
 
         self.randomness_stream_name = f"initial_{self.risk.name}_propensity"
-        self.propensity_column_name = f"{self.risk.name}.propensity"
-        self.exposure_pipeline_name = f"{self.risk.name}.exposure"
-        self.exposure_column_name = f"{self.risk.name}_exposure"
+        self.propensity_name = f"{self.risk.name}.propensity"
+        self.exposure_name = f"{self.risk.name}.exposure"
 
     #################
     # Setup methods #
@@ -168,17 +162,7 @@ class Risk(Component):
         self.exposure_distribution = self.get_exposure_distribution(builder)
 
         self.randomness = self.get_randomness_stream(builder)
-        self.exposure = self.get_exposure_pipeline(builder)
-
-        # We want to set this to True iff there is a non-loglinear risk effect
-        # on this risk instance
-        self.create_exposure_column = bool(
-            [
-                component
-                for component in builder.components.list_components()
-                if component.startswith(f"non_log_linear_risk_effect.{self.risk.name}_on_")
-            ]
-        )
+        self.register_exposure_pipeline(builder)
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration.
@@ -247,17 +231,17 @@ class Risk(Component):
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
         return builder.randomness.get_stream(self.randomness_stream_name, component=self)
 
-    def get_exposure_pipeline(self, builder: Builder) -> Pipeline:
+    def register_exposure_pipeline(self, builder: Builder) -> None:
         required_columns = get_lookup_columns(
             self.exposure_distribution.lookup_tables.values()
         )
-        return builder.value.register_attribute_producer(
-            self.exposure_pipeline_name,
+        builder.value.register_attribute_producer(
+            self.exposure_name,
             source=self.get_current_exposure,
             component=self,
             required_resources=required_columns
             + [
-                self.propensity_column_name,
+                self.propensity_name,
                 self.exposure_distribution.exposure_parameters_name,
             ],
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
@@ -269,25 +253,16 @@ class Risk(Component):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         propensity = pd.Series(
-            self.randomness.get_draw(pop_data.index), name=self.propensity_column_name
+            self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
         self.population_view.update(propensity)
-        self.update_exposure_column(pop_data.index)
-
-    def on_time_step_prepare(self, event: Event) -> None:
-        self.update_exposure_column(event.index)
-
-    def update_exposure_column(self, index: pd.Index) -> None:
-        if self.create_exposure_column:
-            exposure = self.population_view.get_attributes(index, self.exposure_pipeline_name)
-            self.population_view.update(exposure)
 
     ##################################
     # Pipeline sources and modifiers #
     ##################################
 
     def get_current_exposure(self, index: pd.Index) -> pd.Series:
-        propensity = self.population_view.get_attributes(
-            index, self.propensity_column_name
-        ).squeeze(axis=1)
+        propensity = self.population_view.get_attributes(index, self.propensity_name).squeeze(
+            axis=1
+        )
         return pd.Series(self.exposure_distribution.ppf(propensity), index=index)

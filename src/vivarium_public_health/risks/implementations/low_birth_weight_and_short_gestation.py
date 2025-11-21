@@ -252,12 +252,12 @@ class LBWSGRisk(Risk):
     exposure_distributions = {"lbwsg": LBWSGDistribution}
 
     @staticmethod
-    def birth_exposure_pipeline_name(axis: str) -> str:
+    def get_birth_exposure_name(axis: str) -> str:
         return f"{axis}.birth_exposure"
 
     @staticmethod
-    def get_exposure_column_name(axis: str) -> str:
-        return f"{axis}_exposure"
+    def get_exposure_name(axis: str) -> str:
+        return f"{axis}.exposure"
 
     ##############
     # Properties #
@@ -275,7 +275,7 @@ class LBWSGRisk(Risk):
 
     @property
     def columns_created(self) -> list[str]:
-        return [self.get_exposure_column_name(axis) for axis in self.AXES]
+        return [self.get_exposure_name(axis) for axis in self.AXES]
 
     #####################
     # Lifecycle methods #
@@ -287,34 +287,30 @@ class LBWSGRisk(Risk):
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.birth_exposures = self.get_birth_exposure_pipelines(builder)
+        self.register_birth_exposure_pipelines(builder)
         self.configuration_age_end = builder.configuration.population.initialization_age_max
 
     #################
     # Setup methods #
     #################
 
-    def get_exposure_pipeline(self, builder: Builder) -> Pipeline | None:
+    def register_exposure_pipeline(self, builder: Builder) -> Pipeline | None:
         # Exposure only used on initialization; not being saved to avoid a cycle
         return None
 
-    def get_birth_exposure_pipelines(self, builder: Builder) -> dict[str, Pipeline]:
+    def register_birth_exposure_pipelines(self, builder: Builder) -> None:
         required_columns = get_lookup_columns(
             self.exposure_distribution.lookup_tables.values()
         )
 
-        def get_pipeline(axis_: str) -> Pipeline:
-            return builder.value.register_attribute_producer(
-                self.birth_exposure_pipeline_name(axis_),
-                source=lambda index: self.get_birth_exposure(axis_, index),
+        for axis in self.AXES:
+            builder.value.register_attribute_producer(
+                self.get_birth_exposure_name(axis),
+                source=lambda index: self.get_birth_exposure(axis, index),
                 component=self,
                 required_resources=required_columns + [self.randomness],
                 preferred_post_processor=get_exposure_post_processor(builder, self.name),
             )
-
-        return {
-            self.birth_exposure_pipeline_name(axis): get_pipeline(axis) for axis in self.AXES
-        }
 
     ########################
     # Event-driven methods #
@@ -326,19 +322,16 @@ class LBWSGRisk(Risk):
         else:
             self.exposure_distribution.exposure_key = "exposure"
 
-        try:
-            birth_exposures = {
-                self.get_exposure_column_name(axis): self.birth_exposures[
-                    self.birth_exposure_pipeline_name(axis)
-                ](pop_data.index)
-                for axis in self.AXES
-            }
-        except KeyError:
-            raise ConfigurationError(
-                f"{self.exposure_distribution.exposure_key} data for {self.name} is missing from the "
-                "simulation. Simulants cannot be initialized."
-            )
-        self.population_view.update(pd.DataFrame(birth_exposures))
+        birth_exposures = self.population_view.get_attributes(
+            pop_data.index, [self.get_birth_exposure_name(axis) for axis in self.AXES]
+        )
+        # Rename the columns
+        col_mapping = {
+            self.get_birth_exposure_name(axis): self.get_exposure_name(axis)
+            for axis in self.AXES
+        }
+        birth_exposures.rename(columns=col_mapping, inplace=True)
+        self.population_view.update(birth_exposures)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -373,11 +366,13 @@ class LBWSGRiskEffect(RiskEffect):
 
     @property
     def initialization_requirements(self) -> list[str | Resource]:
-        return ["sex"] + self.lbwsg_exposure_column_names
+        return ["sex"] + self.lbwsg_exposure_names
 
     @property
     def rr_column_names(self) -> list[str]:
-        return [self.relative_risk_column_name(age_group) for age_group in self.age_intervals]
+        return [
+            self.get_relative_risk_column_name(age_group) for age_group in self.age_intervals
+        ]
 
     #####################
     # Lifecycle methods #
@@ -386,14 +381,11 @@ class LBWSGRiskEffect(RiskEffect):
     def __init__(self, target: str):
         super().__init__("risk_factor.low_birth_weight_and_short_gestation", target)
 
-        self.lbwsg_exposure_column_names = [
-            LBWSGRisk.get_exposure_column_name(axis) for axis in LBWSGRisk.AXES
+        self.lbwsg_exposure_names = [
+            LBWSGRisk.get_exposure_name(axis) for axis in LBWSGRisk.AXES
         ]
-        self.relative_risk_pipeline_name = (
-            f"effect_of_{self.risk.name}_on_{self.target.name}.relative_risk"
-        )
 
-    def relative_risk_column_name(self, age_group_id: str) -> str:
+    def get_relative_risk_column_name(self, age_group_id: str) -> str:
         return (
             f"effect_of_{self.risk.name}_on_{age_group_id}_{self.target.name}_relative_risk"
         )
@@ -418,9 +410,7 @@ class LBWSGRiskEffect(RiskEffect):
 
     def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.DataFrame]:
         def exposure(index: pd.Index) -> pd.DataFrame:
-            return self.population_view.get_attributes(
-                index, self.lbwsg_exposure_column_names
-            )
+            return self.population_view.get_attributes(index, self.lbwsg_exposure_names)
 
         return exposure
 
@@ -433,10 +423,10 @@ class LBWSGRiskEffect(RiskEffect):
 
     def register_target_modifier(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(
-            self.target_pipeline_name,
+            self.target_name,
             modifier=self.adjust_target,
             component=self,
-            required_resources=[self.relative_risk],
+            required_resources=[self.relative_risk_name],
         )
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
@@ -453,9 +443,9 @@ class LBWSGRiskEffect(RiskEffect):
             for age_start in exposed_age_group_starts
         }
 
-    def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_attribute_producer(
-            self.relative_risk_pipeline_name,
+    def register_relative_risk_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.relative_risk_name,
             source=self._relative_risk_source,
             component=self,
             required_resources=["age"] + self.rr_column_names,
@@ -493,10 +483,10 @@ class LBWSGRiskEffect(RiskEffect):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         pop = self.population_view.get_attributes(
-            pop_data.index, self.lbwsg_exposure_column_names + ["sex"]
+            pop_data.index, self.lbwsg_exposure_names + ["sex"]
         )
-        birth_weight = pop[LBWSGRisk.get_exposure_column_name(BIRTH_WEIGHT)]
-        gestational_age = pop[LBWSGRisk.get_exposure_column_name(GESTATIONAL_AGE)]
+        birth_weight = pop[LBWSGRisk.get_exposure_name(BIRTH_WEIGHT)]
+        gestational_age = pop[LBWSGRisk.get_exposure_name(GESTATIONAL_AGE)]
 
         is_male = pop["sex"] == "Male"
         is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
@@ -504,7 +494,7 @@ class LBWSGRiskEffect(RiskEffect):
         )
 
         def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
-            column_name = self.relative_risk_column_name(age_group)
+            column_name = self.get_relative_risk_column_name(age_group)
             log_relative_risk = pd.Series(0.0, index=pop_data.index, name=column_name)
 
             male_interpolator = self.interpolator["Male", age_group]
@@ -533,12 +523,12 @@ class LBWSGRiskEffect(RiskEffect):
 
     def _get_relative_risk(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get_attributes(index, self.rr_column_names + ["age"])
-        relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_pipeline_name)
+        relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_name)
 
         for age_group, interval in self.age_intervals.items():
             age_group_mask = (interval.left <= pop["age"]) & (pop["age"] < interval.right)
             relative_risk[age_group_mask] = pop.loc[
-                age_group_mask, self.relative_risk_column_name(age_group)
+                age_group_mask, self.get_relative_risk_column_name(age_group)
             ]
         return relative_risk
 
