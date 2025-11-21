@@ -186,9 +186,9 @@ class RateTransition(Transition):
 
     def compute_transition_rate(self, index: pd.Index) -> pd.Series:
         transition_rate = pd.Series(0.0, index=index)
-        living = self.population_view.get_private_columns(
+        living = self.population_view.get_filtered_index(
             index, query_columns=["alive"], query='alive == "alive"'
-        ).index
+        )
         base_rates = self.lookup_tables["transition_rate"](living)
         joint_paf = self.joint_paf(living)
         transition_rate.loc[living] = base_rates * (1 - joint_paf)
