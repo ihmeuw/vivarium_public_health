@@ -6,10 +6,10 @@ import pytest
 from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
 from vivarium.framework.lookup.table import InterpolatedTable
-from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import SIS
+from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.distributions import (
@@ -71,7 +71,7 @@ def _setup_risk_simulation(
 ) -> InteractiveContext:
     if isinstance(risk, str):
         risk = Risk(risk)
-    components = [TestPopulation(), risk]
+    components = [BasePopulation(), risk]
     if has_risk_effect:
         components.append(SIS("some_disease"))
         components.append(RiskEffect(risk.name, "cause.some_disease.incidence_rate"))
@@ -96,7 +96,7 @@ def _setup_risk_simulation(
 #
 #     rf, risk_data = continuous_risk
 #     base_config.update({'population': {'population_size': population_size}}, **metadata(__file__))
-#     sim = initialize_simulation([TestPopulation(), rf], input_config=base_config, plugin_config=base_plugins)
+#     sim = initialize_simulation([BasePopulation(), rf], input_config=base_config, plugin_config=base_plugins)
 #     for key, value in risk_data.items():
 #         sim.data.write(f'risk_factor.test_risk.{key}', value)
 #
@@ -115,7 +115,7 @@ def _setup_risk_simulation(
 #     dummy_risk = Risk("risk_factor.test_risk")
 #     base_config.update({'test_risk': {'exposure': exposure_level}}, layer='override')
 #
-#     simulation = initialize_simulation([TestPopulation(), dummy_risk],
+#     simulation = initialize_simulation([BasePopulation(), dummy_risk],
 #                                        input_config=base_config, plugin_config=base_plugins)
 #     simulation.setup()
 #
@@ -152,11 +152,11 @@ def _check_exposure_and_rr(
     expected_exposures: dict[str, float],
     expected_rrs: dict[str, float],
 ) -> None:
-    population = simulation.get_population()
-    exposure = simulation._values.get_attribute(f"{risk.name}.exposure")(population.index)
-    incidence_rate = simulation._values.get_attribute("some_disease.incidence_rate")(
-        population.index
+    population = simulation.get_population(
+        [f"{risk.name}.exposure", "some_disease.incidence_rate"]
     )
+    exposure = population[f"{risk.name}.exposure"]
+    incidence_rate = population["some_disease.incidence_rate"]
     unexposed_category = sorted(expected_exposures.keys())[-1]
     unexposed_incidence = incidence_rate[exposure == unexposed_category].iat[0]
 
