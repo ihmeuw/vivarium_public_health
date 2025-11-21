@@ -19,7 +19,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
-from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import pivot_categorical
 from vivarium_public_health.utilities import EntityString, get_lookup_columns
@@ -46,7 +46,8 @@ class RiskExposureDistribution(Component, ABC):
         self.distribution_type = distribution_type
         self._exposure_data = exposure_data
 
-        self.parameters_pipeline_name = f"{self.risk}.exposure_parameters"
+        self.exposure_parameters_name = f"{self.risk}.exposure_parameters"
+        self.exposure_parameters_paf_name = f"{self.exposure_parameters_name}.paf"
 
     #################
     # Setup methods #
@@ -66,17 +67,10 @@ class RiskExposureDistribution(Component, ABC):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.exposure_parameters = self.get_exposure_parameter_pipeline(builder)
-        if self.exposure_parameters.name != self.parameters_pipeline_name:
-            raise ValueError(
-                "Expected exposure parameters pipeline to be named "
-                f"{self.parameters_pipeline_name}, "
-                f"but found {self.exposure_parameters.name}."
-            )
+        self.register_exposure_parameter_pipeline(builder)
 
-    @abstractmethod
-    def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
-        raise NotImplementedError
+    def register_exposure_parameter_pipeline(self, builder: Builder) -> None:
+        pass
 
     ##################
     # Public methods #
@@ -107,6 +101,8 @@ class EnsembleDistribution(RiskExposureDistribution):
     def __init__(self, risk: EntityString, distribution_type: str = "ensemble") -> None:
         super().__init__(risk, distribution_type)
         self._propensity = f"ensemble_propensity_{self.risk}"
+        # EnsembleDistribution does not register an exposure parameters pipeline
+        self.exposure_parameters_name = None
 
     #################
     # Setup methods #
@@ -158,18 +154,6 @@ class EnsembleDistribution(RiskExposureDistribution):
         super().setup(builder)
         self.randomness = builder.randomness.get_stream(self._propensity, component=self)
 
-    def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
-        # This pipeline is not needed for ensemble distributions, so just
-        # register a dummy pipeline
-        def raise_not_implemented():
-            raise NotImplementedError(
-                "EnsembleDistribution does not use exposure parameters."
-            )
-
-        return builder.value.register_attribute_producer(
-            self.parameters_pipeline_name, lambda *_: raise_not_implemented(), component=self
-        )
-
     ########################
     # Event-driven methods #
     ########################
@@ -191,9 +175,9 @@ class EnsembleDistribution(RiskExposureDistribution):
             parameters = {
                 name: param(quantiles.index) for name, param in self.parameters.items()
             }
-            ensemble_propensity = self.population_view.get_private_columns(
-                quantiles.index
-            ).iloc[:, 0]
+            ensemble_propensity = self.population_view.get_attributes(
+                quantiles.index, self._propensity
+            ).squeeze(axis=1)
             x = rd.EnsembleDistribution(weights, parameters).ppf(
                 quantiles, ensemble_propensity
             )
@@ -240,9 +224,9 @@ class ContinuousDistribution(RiskExposureDistribution):
             builder, parameters.reset_index(), list(parameters.columns)
         )
 
-    def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_attribute_producer(
-            self.parameters_pipeline_name,
+    def register_exposure_parameter_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.exposure_parameters_name,
             source=self.lookup_tables["parameters"],
             component=self,
             required_resources=get_lookup_columns([self.lookup_tables["parameters"]]),
@@ -255,7 +239,10 @@ class ContinuousDistribution(RiskExposureDistribution):
     def ppf(self, quantiles: pd.Series) -> pd.Series:
         if not quantiles.empty:
             quantiles = clip(quantiles)
-            parameters = self.exposure_parameters(quantiles.index)
+            parameters = self.population_view.get_attributes(
+                quantiles.index, self.exposure_parameters_name
+            ).squeeze(axis=1)
+            breakpoint()
             x = self._distribution(parameters=parameters).ppf(quantiles)
             x[x.isnull()] = 0
         else:
@@ -292,9 +279,9 @@ class PolytomousDistribution(RiskExposureDistribution):
             return list(exposure_data["parameter"].unique())
         return None
 
-    def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_attribute_producer(
-            self.parameters_pipeline_name,
+    def register_exposure_parameter_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.exposure_parameters_name,
             source=self.lookup_tables["exposure"],
             component=self,
             required_resources=get_lookup_columns([self.lookup_tables["exposure"]]),
@@ -305,7 +292,9 @@ class PolytomousDistribution(RiskExposureDistribution):
     ##################
 
     def ppf(self, quantiles: pd.Series) -> pd.Series:
-        exposure = self.exposure_parameters(quantiles.index)
+        exposure = self.population_view.get_attributes(
+            quantiles.index, self.exposure_parameters_name
+        )[self.exposure_parameters_name]
         sorted_exposures = exposure[self.categories]
         if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
             raise MissingDataError("All exposure data returned as 0.")
@@ -380,20 +369,19 @@ class DichotomousDistribution(RiskExposureDistribution):
             return self.get_value_columns(exposure_data)
         return None
 
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.joint_paf = builder.value.register_attribute_producer(
-            f"{self.risk}.exposure_parameters.paf",
+        builder.value.register_attribute_producer(
+            self.exposure_parameters_paf_name,
             source=lambda index: [self.lookup_tables["paf"](index)],
             component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
 
-    def get_exposure_parameter_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_attribute_producer(
-            f"{self.risk}.exposure_parameters",
+    def register_exposure_parameter_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.exposure_parameters_name,
             source=self.exposure_parameter_source,
             component=self,
             required_resources=get_lookup_columns([self.lookup_tables["exposure"]]),
@@ -440,7 +428,11 @@ class DichotomousDistribution(RiskExposureDistribution):
 
     def exposure_parameter_source(self, index: pd.Index) -> pd.Series:
         base_exposure = self.lookup_tables["exposure"](index).values
-        joint_paf = self.joint_paf(index).values
+        joint_paf = (
+            self.population_view.get_attributes(index, self.exposure_parameters_paf_name)
+            .squeeze(axis=1)
+            .values
+        )
         return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
 
     ##################
@@ -448,7 +440,9 @@ class DichotomousDistribution(RiskExposureDistribution):
     ##################
 
     def ppf(self, quantiles: pd.Series) -> pd.Series:
-        exposed = quantiles < self.exposure_parameters(quantiles.index)
+        exposed = quantiles < self.population_view.get_attributes(
+            quantiles.index, self.exposure_parameters_name
+        ).squeeze(axis=1)
         return pd.Series(
             exposed.replace({True: "cat1", False: "cat2"}),
             name=self.risk + ".exposure",
