@@ -64,7 +64,6 @@ def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
     mortality_created_columns = [
         col for col in pop.columns.get_level_values(0) if col not in other_columns_created
     ]
-    # sets do not guarantee order so we assert te difference is empty
     assert set(expected_columns_created + expected_attributes_created) == set(
         mortality_created_columns
     )
