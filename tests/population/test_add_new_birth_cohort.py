@@ -219,12 +219,8 @@ def test_fertility_module(base_config, base_plugins):
 
     time_start = simulation._clock.time
 
-    assert (
-        "last_birth_time" in simulation.get_population().columns
-    ), "expect Fertility module to update state table."
-    assert (
-        "parent_id" in simulation.get_population().columns
-    ), "expect Fertility module to update state table."
+    # Make sure Fertility module updates the state table
+    simulation.get_population(["last_birth_time", "parent_id"])
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population(["age", "alive", "parent_id", "last_birth_time"])
