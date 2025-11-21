@@ -234,16 +234,18 @@ class Risk(Component):
     def register_exposure_pipeline(self, builder: Builder) -> None:
         required_columns = get_lookup_columns(
             self.exposure_distribution.lookup_tables.values()
+        ) + [self.propensity_name]
+        # Some distributions require the exposure parameters as a resource
+        required_columns = (
+            required_columns + [self.exposure_distribution.exposure_parameters_name]
+            if self.exposure_distribution.exposure_parameters_name
+            else required_columns
         )
         builder.value.register_attribute_producer(
             self.exposure_name,
             source=self.get_current_exposure,
             component=self,
-            required_resources=required_columns
-            + [
-                self.propensity_name,
-                self.exposure_distribution.exposure_parameters_name,
-            ],
+            required_resources=required_columns,
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
 

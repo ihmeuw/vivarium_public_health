@@ -101,6 +101,8 @@ class EnsembleDistribution(RiskExposureDistribution):
     def __init__(self, risk: EntityString, distribution_type: str = "ensemble") -> None:
         super().__init__(risk, distribution_type)
         self._propensity = f"ensemble_propensity_{self.risk}"
+        # EnsembleDistribution does not register an exposure parameters pipeline
+        self.exposure_parameters_name = None
 
     #################
     # Setup methods #
