@@ -77,16 +77,15 @@ def test_BasePopulation(
     assert mock_args["age_params"] == age_params
     assert mock_args["demographic_proportions"].equals(sub_pop)
     assert mock_args["randomness_streams"] == base_pop.randomness
-
-    pop = simulation.get_population()
+    pop = simulation.get_population(full_simulants.columns)
     assert set(base_pop.columns_created) == set(full_simulants.columns)
-    assert pop.droplevel(1, axis=1)[full_simulants.columns].equals(full_simulants)
+    assert pop.equals(full_simulants)
 
-    final_ages = pop.age + num_days / utilities.DAYS_PER_YEAR
+    final_ages = pop["age"] + num_days / utilities.DAYS_PER_YEAR
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.get_population("age")
+    new_ages = simulation.get_population("age").squeeze()
     assert np.allclose(
-        pop["age"], final_ages, atol=0.5 / utilities.DAYS_PER_YEAR
+        new_ages, final_ages, atol=0.5 / utilities.DAYS_PER_YEAR
     )  # Within a half of a day.
 
 
