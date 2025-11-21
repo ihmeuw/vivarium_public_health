@@ -129,16 +129,15 @@ class RiskEffect(Component):
 
         self._exposure_distribution_type = None
 
-        self.exposure_pipeline_name = f"{self.risk.name}.exposure"
-        self.target_pipeline_name = f"{self.target.name}.{self.target.measure}"
-        self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
+        self.exposure_name = f"{self.risk.name}.exposure"
+        self.target_name = f"{self.target.name}.{self.target.measure}"
+        self.target_paf_name = f"{self.target_name}.paf"
+        self.relative_risk_name = f"{self.risk.name}_on_{self.target.name}.relative_risk"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.exposure = self.get_risk_exposure(builder)
-
         self._relative_risk_source = self.get_relative_risk_source(builder)
-        self.relative_risk = self.get_relative_risk_pipeline(builder)
+        self.register_relative_risk_pipeline(builder)
 
         self.register_target_modifier(builder)
         self.register_paf_modifier(builder)
@@ -309,11 +308,10 @@ class RiskEffect(Component):
         ).fillna(0)
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
-    def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        return builder.value.get_attribute(self.exposure_pipeline_name)
-
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
-        relative_risk = self.relative_risk(index)
+        relative_risk = self.population_view.get_attributes(
+            index, self.relative_risk_name
+        ).squeeze(axis=1)
         return target * relative_risk
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
@@ -325,7 +323,9 @@ class RiskEffect(Component):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.exposure(index)
+                exposure = self.population_view.get_attributes(
+                    index, self.exposure_name
+                ).squeeze(axis=1)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return relative_risk
 
@@ -334,7 +334,11 @@ class RiskEffect(Component):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.exposure(index).reset_index()
+                exposure = (
+                    self.population_view.get_attributes(index, self.exposure_name)
+                    .squeeze(axis=1)
+                    .reset_index()
+                )
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
 
@@ -347,20 +351,20 @@ class RiskEffect(Component):
 
         return generate_relative_risk
 
-    def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_attribute_producer(
-            f"{self.risk.name}_on_{self.target.name}.relative_risk",
+    def register_relative_risk_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.relative_risk_name,
             self._relative_risk_source,
             component=self,
-            required_resources=[self.exposure],
+            required_resources=[self.exposure_name],
         )
 
     def register_target_modifier(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(
-            self.target_pipeline_name,
+            self.target_name,
             modifier=self.adjust_target,
             component=self,
-            required_resources=[self.relative_risk],
+            required_resources=[self.relative_risk_name],
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
@@ -368,7 +372,7 @@ class RiskEffect(Component):
             [self.lookup_tables["population_attributable_fraction"]]
         )
         builder.value.register_attribute_modifier(
-            self.target_paf_pipeline_name,
+            self.target_paf_name,
             modifier=self.lookup_tables["population_attributable_fraction"],
             component=self,
             required_resources=required_columns,
@@ -438,10 +442,6 @@ class NonLogLinearRiskEffect(RiskEffect):
                 },
             }
         }
-
-    @property
-    def columns_required(self) -> list[str]:
-        return [f"{self.risk.name}_exposure"]
 
     #################
     # Setup methods #
@@ -521,8 +521,8 @@ class NonLogLinearRiskEffect(RiskEffect):
             .reset_index()
         )
         rr_data = rr_data.drop("parameter", axis=1)
-        rr_data[f"{self.risk.name}_exposure_start"] = rr_data["left_exposure"]
-        rr_data[f"{self.risk.name}_exposure_end"] = rr_data["right_exposure"]
+        rr_data[f"{self.risk.name}.exposure_start"] = rr_data["left_exposure"]
+        rr_data[f"{self.risk.name}.exposure_end"] = rr_data["right_exposure"]
         # build lookup table
         rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
         self.lookup_tables["relative_risk"] = self.build_lookup_table(
@@ -596,7 +596,9 @@ class NonLogLinearRiskEffect(RiskEffect):
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         def generate_relative_risk(index: pd.Index) -> pd.Series:
             rr_intervals = self.lookup_tables["relative_risk"](index)
-            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
+            exposure = self.population_view.get_attributes(
+                index, f"{self.risk.name}.exposure"
+            ).squeeze(axis=1)
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
                 rr_intervals["right_exposure"].values,
