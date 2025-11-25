@@ -180,8 +180,8 @@ class FertilityAgeSpecificRates(Component):
         fertility_rate = builder.lookup.build_table(
             age_specific_fertility_rate, parameter_columns=["age", "year"]
         )
-        self.fertility_rate = builder.value.register_rate_producer(
-            "fertility rate",
+        builder.value.register_rate_producer(
+            "fertility_rate",
             source=fertility_rate,
             component=self,
             required_resources=["age"],
@@ -239,16 +239,18 @@ class FertilityAgeSpecificRates(Component):
         """
         # Get a view on all living women who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
-        population = self.population_view.get_private_columns(
+        last_birth_time = self.population_view.get_private_columns(
             event.index,
             "last_birth_time",
             query_columns=["alive", "sex"],
             query="alive == 'alive' and sex == 'Female'",
         )
-        can_have_children = population < nine_months_ago
-        eligible_women = population[can_have_children]
+        can_have_children = last_birth_time < nine_months_ago
+        eligible_women = last_birth_time[can_have_children]
 
-        rate_series = self.fertility_rate(eligible_women.index)
+        rate_series = self.population_view.get_attributes(
+            eligible_women.index, "fertility_rate"
+        )
         had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
 
         had_children.loc[:] = event.time
