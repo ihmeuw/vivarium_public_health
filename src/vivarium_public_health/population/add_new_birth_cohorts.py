@@ -186,8 +186,8 @@ class FertilityAgeSpecificRates(Component):
         fertility_rate = builder.lookup.build_table(
             age_specific_fertility_rate, parameter_columns=["age", "year"]
         )
-        self.fertility_rate = builder.value.register_rate_producer(
-            "fertility rate",
+        builder.value.register_rate_producer(
+            "fertility_rate",
             source=fertility_rate,
             component=self,
             required_resources=["age"],
@@ -214,9 +214,9 @@ class FertilityAgeSpecificRates(Component):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Adds 'last_birth_time' and 'parent' columns to the state table."""
-        women = self.population_view.get_attributes(
+        females = self.population_view.get_filtered_index(
             pop_data.index, "sex", "sex == 'Female'"
-        ).index
+        )
 
         if pop_data.user_data["sim_state"] == "setup":
             parent_id = -1
@@ -227,9 +227,9 @@ class FertilityAgeSpecificRates(Component):
         )
         # FIXME: This is a misuse of the column and makes it invalid for
         #    tracking metrics.
-        # Do the naive thing, set so all women can have children
+        # Do the naive thing, set so all females can have children
         # and none of them have had a child in the last year.
-        pop_update.loc[women, "last_birth_time"] = pop_data.creation_time - pd.Timedelta(
+        pop_update.loc[females, "last_birth_time"] = pop_data.creation_time - pd.Timedelta(
             days=utilities.DAYS_PER_YEAR
         )
 
@@ -243,26 +243,29 @@ class FertilityAgeSpecificRates(Component):
         event
             The event that triggered the function call.
         """
-        # Get a view on all living women who haven't had a child in at least nine months.
+        # Get a view on all living females who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
-        population = self.population_view.get_private_columns(
+        last_birth_time = self.population_view.get_private_columns(
             event.index,
             "last_birth_time",
             query_columns=["alive", "sex"],
             query="alive == 'alive' and sex == 'Female'",
         )
-        can_have_children = population["last_birth_time"] < nine_months_ago
-        eligible_women = population[can_have_children]
-
-        rate_series = self.fertility_rate(eligible_women.index)
-        had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
-
-        had_children.loc[:, "last_birth_time"] = event.time
-        self.population_view.update(had_children["last_birth_time"])
+        eligible_females_idx = last_birth_time[last_birth_time < nine_months_ago].index
+        fertility_rate = self.population_view.get_attributes(
+            eligible_females_idx, "fertility_rate"
+        )
+        had_children_idx = self.randomness.filter_for_rate(
+            fertility_rate.index, fertility_rate
+        )
+        updated_birth_time = pd.Series(
+            event.time, index=had_children_idx, name="last_birth_time"
+        )
+        self.population_view.update(updated_birth_time)
 
         # If children were born, add them to the state table and record
         # who their mother was.
-        num_babies = len(had_children)
+        num_babies = len(had_children_idx)
         if num_babies:
             self.simulant_creator(
                 num_babies,
@@ -270,6 +273,6 @@ class FertilityAgeSpecificRates(Component):
                     "age_start": 0,
                     "age_end": 0,
                     "sim_state": "time_step",
-                    "parent_ids": had_children.index,
+                    "parent_ids": had_children_idx,
                 },
             )
