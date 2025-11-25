@@ -309,9 +309,7 @@ class RiskEffect(Component):
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
-        relative_risk = self.population_view.get_attributes(
-            index, self.relative_risk_name
-        ).squeeze(axis=1)
+        relative_risk = self.population_view.get_attributes(index, self.relative_risk_name)
         return target * relative_risk
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
@@ -323,9 +321,7 @@ class RiskEffect(Component):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.population_view.get_attributes(
-                    index, self.exposure_name
-                ).squeeze(axis=1)
+                exposure = self.population_view.get_attributes(index, self.exposure_name)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return relative_risk
 
@@ -334,11 +330,9 @@ class RiskEffect(Component):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.lookup_tables["relative_risk"](index)
-                exposure = (
-                    self.population_view.get_attributes(index, self.exposure_name)
-                    .squeeze(axis=1)
-                    .reset_index()
-                )
+                exposure = self.population_view.get_attributes(
+                    index, self.exposure_name
+                ).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
 
@@ -598,7 +592,7 @@ class NonLogLinearRiskEffect(RiskEffect):
             rr_intervals = self.lookup_tables["relative_risk"](index)
             exposure = self.population_view.get_attributes(
                 index, f"{self.risk.name}.exposure"
-            ).squeeze(axis=1)
+            )
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
                 rr_intervals["right_exposure"].values,
