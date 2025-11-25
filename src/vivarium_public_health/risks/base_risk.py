@@ -297,7 +297,5 @@ class Risk(Component):
     ##################################
 
     def get_current_exposure(self, index: pd.Index) -> pd.Series:
-        propensity = self.population_view.get_attributes(index, self.propensity_name).squeeze(
-            axis=1
-        )
+        propensity = self.population_view.get_attributes(index, self.propensity_name)
         return pd.Series(self.exposure_distribution.ppf(propensity), index=index)

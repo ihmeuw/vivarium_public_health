@@ -203,7 +203,7 @@ class EnsembleDistribution(RiskExposureDistribution):
             }
             ensemble_propensity = self.population_view.get_attributes(
                 quantiles.index, self._propensity
-            ).squeeze(axis=1)
+            )
             x = rd.EnsembleDistribution(weights, parameters).ppf(
                 quantiles, ensemble_propensity
             )
@@ -289,8 +289,7 @@ class ContinuousDistribution(RiskExposureDistribution):
             quantiles = clip(quantiles)
             parameters = self.population_view.get_attributes(
                 quantiles.index, self.exposure_parameters_name
-            ).squeeze(axis=1)
-            breakpoint()
+            )
             x = self._distribution(parameters=parameters).ppf(quantiles)
             x[x.isnull()] = 0
         else:
@@ -367,7 +366,7 @@ class PolytomousDistribution(RiskExposureDistribution):
     def ppf(self, quantiles: pd.Series) -> pd.Series:
         exposure = self.population_view.get_attributes(
             quantiles.index, self.exposure_parameters_name
-        )[self.exposure_parameters_name]
+        )
         sorted_exposures = exposure[self.categories]
         if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
             raise MissingDataError("All exposure data returned as 0.")
@@ -530,11 +529,9 @@ class DichotomousDistribution(RiskExposureDistribution):
 
     def exposure_parameter_source(self, index: pd.Index) -> pd.Series:
         base_exposure = self.lookup_tables["exposure"](index).values
-        joint_paf = (
-            self.population_view.get_attributes(index, self.exposure_parameters_paf_name)
-            .squeeze(axis=1)
-            .values
-        )
+        joint_paf = self.population_view.get_attributes(
+            index, self.exposure_parameters_paf_name
+        ).values
         return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
 
     ##################
@@ -544,7 +541,7 @@ class DichotomousDistribution(RiskExposureDistribution):
     def ppf(self, quantiles: pd.Series) -> pd.Series:
         exposed = quantiles < self.population_view.get_attributes(
             quantiles.index, self.exposure_parameters_name
-        ).squeeze(axis=1)
+        )
         return pd.Series(
             exposed.replace({True: "cat1", False: "cat2"}),
             name=self.risk + ".exposure",

@@ -113,7 +113,7 @@ def test_age_out_simulants(config, base_plugins):
     )
     time_start = simulation._clock.time
     assert len(simulation.get_population_index()) == len(
-        simulation.get_population("age")["age"].unique()
+        simulation.get_population("age").unique()
     )
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population(["is_aged_out", "exit_time"])
