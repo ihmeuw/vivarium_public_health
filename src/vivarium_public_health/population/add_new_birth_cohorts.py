@@ -208,7 +208,7 @@ class FertilityAgeSpecificRates(Component):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Adds 'last_birth_time' and 'parent' columns to the state table."""
-        women = self.population_view.get_filtered_index(
+        females = self.population_view.get_filtered_index(
             pop_data.index, "sex", "sex == 'Female'"
         )
 
@@ -221,9 +221,9 @@ class FertilityAgeSpecificRates(Component):
         )
         # FIXME: This is a misuse of the column and makes it invalid for
         #    tracking metrics.
-        # Do the naive thing, set so all women can have children
+        # Do the naive thing, set so all females can have children
         # and none of them have had a child in the last year.
-        pop_update.loc[women, "last_birth_time"] = pop_data.creation_time - pd.Timedelta(
+        pop_update.loc[females, "last_birth_time"] = pop_data.creation_time - pd.Timedelta(
             days=utilities.DAYS_PER_YEAR
         )
 
@@ -237,7 +237,7 @@ class FertilityAgeSpecificRates(Component):
         event
             The event that triggered the function call.
         """
-        # Get a view on all living women who haven't had a child in at least nine months.
+        # Get a view on all living females who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
         last_birth_time = self.population_view.get_private_columns(
             event.index,
@@ -245,9 +245,9 @@ class FertilityAgeSpecificRates(Component):
             query_columns=["alive", "sex"],
             query="alive == 'alive' and sex == 'Female'",
         )
-        eligible_women_idx = last_birth_time[last_birth_time < nine_months_ago].index
+        eligible_females_idx = last_birth_time[last_birth_time < nine_months_ago].index
         fertility_rate = self.population_view.get_attributes(
-            eligible_women_idx, "fertility_rate"
+            eligible_females_idx, "fertility_rate"
         )
         had_children_idx = self.randomness.filter_for_rate(
             fertility_rate.index, fertility_rate
