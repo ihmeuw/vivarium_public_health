@@ -72,7 +72,7 @@ def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
 def test_mortality_rate(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
     sim.step()
-    mortality_rates = sim.get_population("mortality_rate")["mortality_rate", "other_causes"]
+    mortality_rates = sim.get_population("mortality_rate")
     # Calculate mortality rate like component to cmpare
     pop_idx = mortality_rates.index
     lookup_tables = mortality.lookup_tables
@@ -147,26 +147,26 @@ def test_mortality_cause_of_death(
     }
     sim.configuration.update(override_config)
     sim.setup()
-    mortality_rates = sim.get_population("mortality_rate")["mortality_rate"]
+    mortality_rates = sim.get_population("mortality_rate")
     sim.step()
-    # Only other causes and sick for cause of death
-    pop1 = sim.get_population("cause_of_death")
-    for cause_of_death in ["other_causes", "sick"]:
-        dead = pop1.loc[pop1["cause_of_death"] == cause_of_death]
+    # Only 'other_causes' and 'sick' for cause of death
+    cause_of_death = sim.get_population("cause_of_death")
+    for cause in ["other_causes", "sick"]:
+        dead = cause_of_death.loc[cause_of_death == cause]
         # Disease model seems to set mortality rate for that disease back to 0
         # if a simulant dies from it
-        rates = mortality_rates[cause_of_death].unique()
+        rates = mortality_rates[cause].unique()
         for mortality_rate in rates:
             if mortality_rate == 0:
                 continue
             else:
                 mortality_rate = mortality_rate
-            if cause_of_death == "sick":
+            if cause == "sick":
                 mortality_rate *= 0.5  # prevalence
             fuzzy_checker.fuzzy_assert_proportion(
-                name=f"test_mortality_rate_{cause_of_death}",
+                name=f"test_mortality_rate_{cause}",
                 observed_numerator=len(dead),
-                observed_denominator=len(pop1),
+                observed_denominator=len(cause_of_death),
                 target_proportion=mortality_rate,
             )
 
@@ -211,8 +211,6 @@ def test_unmodeled_causes(full_simulants, base_plugins, generate_population_mock
     sim.configuration.update(override_config)
     sim.setup()
     sim.step()
-    other_causes_mortality_rate = sim.get_population("mortality_rate")[
-        "mortality_rate", "other_causes"
-    ]
+    other_causes_mortality_rate = sim.get_population("mortality_rate")
     assert len(other_causes_mortality_rate.unique()) == 1
     assert other_causes_mortality_rate.unique()[0] * 365 == 0.5

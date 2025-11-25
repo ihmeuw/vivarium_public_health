@@ -271,7 +271,7 @@ def test_mortality_rate(base_config, base_plugins, disease):
     # Folks instantly transition to sick so now our mortality rate should be much higher
     assert np.allclose(
         from_yearly(0.7, time_step),
-        simulation.get_population("mortality_rate")["mortality_rate", "sick"],
+        simulation.get_population("mortality_rate")["sick"],
     )
 
 

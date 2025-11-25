@@ -196,7 +196,7 @@ def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end)
     # Check values of pipeline match birth exposure data since age_end is 0.0
     exposure_pipeline_values = sim.get_population(
         "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"
-    )["risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"]
+    )
     assert isinstance(exposure_pipeline_values, pd.DataFrame)
     assert "cat81" in exposure_pipeline_values.columns
     assert "cat82" in exposure_pipeline_values.columns

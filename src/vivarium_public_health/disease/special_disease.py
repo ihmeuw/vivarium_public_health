@@ -399,7 +399,7 @@ class RiskAttributableDisease(Component):
     ##################
 
     def with_condition(self, index):
-        return self.population_view.get_population_index(
+        return self.population_view.get_filtered_index(
             index,
             query_columns=["alive", self.cause.name],
             query=f'alive == "alive" and {self.cause.name} == "{self.cause.name}"',
