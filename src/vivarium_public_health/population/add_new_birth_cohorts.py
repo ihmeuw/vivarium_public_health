@@ -245,20 +245,21 @@ class FertilityAgeSpecificRates(Component):
             query_columns=["alive", "sex"],
             query="alive == 'alive' and sex == 'Female'",
         )
-        can_have_children = last_birth_time < nine_months_ago
-        eligible_women = last_birth_time[can_have_children]
-
-        rate_series = self.population_view.get_attributes(
-            eligible_women.index, "fertility_rate"
+        eligible_women_idx = last_birth_time[last_birth_time < nine_months_ago].index
+        fertility_rate = self.population_view.get_attributes(
+            eligible_women_idx, "fertility_rate"
         )
-        had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
-
-        had_children.loc[:] = event.time
-        self.population_view.update(had_children)
+        had_children_idx = self.randomness.filter_for_rate(
+            fertility_rate.index, fertility_rate
+        )
+        updated_birth_time = pd.Series(
+            event.time, index=had_children_idx, name="last_birth_time"
+        )
+        self.population_view.update(updated_birth_time)
 
         # If children were born, add them to the state table and record
         # who their mother was.
-        num_babies = len(had_children)
+        num_babies = len(had_children_idx)
         if num_babies:
             self.simulant_creator(
                 num_babies,
@@ -266,6 +267,6 @@ class FertilityAgeSpecificRates(Component):
                     "age_start": 0,
                     "age_end": 0,
                     "sim_state": "time_step",
-                    "parent_ids": had_children.index,
+                    "parent_ids": had_children_idx,
                 },
             )
