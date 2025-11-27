@@ -367,6 +367,5 @@ class RiskAttributableDisease(Component):
 
     def with_condition(self, index):
         return self.population_view.get_filtered_index(
-            index,
-            f'alive == "alive" and {self.cause.name} == "{self.cause.name}"',
+            index, f'alive == "alive" and {self.cause.name} == "{self.cause.name}"'
         )
