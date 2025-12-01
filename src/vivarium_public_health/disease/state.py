@@ -788,9 +788,7 @@ class DiseaseState(BaseDiseaseState):
 
     def with_condition(self, index: pd.Index) -> pd.Index:
         return self.population_view.get_filtered_index(
-            index,
-            query_columns=["alive", self.model],
-            query=f'{self.model}=="{self.state_id}" and alive=="alive"',
+            index, f'{self.model}=="{self.state_id}" and alive=="alive"'
         )
 
     @staticmethod
@@ -817,7 +815,7 @@ class DiseaseState(BaseDiseaseState):
             A filtered index of the simulants.
         """
         event_times = self.population_view.get_private_columns(
-            index, self.event_time_column, query_columns="alive", query='alive == "alive"'
+            index, self.event_time_column, 'alive == "alive"'
         )
         if np.any(self.dwell_time(index)) > 0:
             state_exit_time = event_times + pd.to_timedelta(self.dwell_time(index), unit="D")
