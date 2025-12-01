@@ -214,9 +214,7 @@ class FertilityAgeSpecificRates(Component):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Adds 'last_birth_time' and 'parent' columns to the state table."""
-        females = self.population_view.get_filtered_index(
-            pop_data.index, "sex", "sex == 'Female'"
-        )
+        females = self.population_view.get_filtered_index(pop_data.index, "sex == 'Female'")
 
         if pop_data.user_data["sim_state"] == "setup":
             parent_id = -1
@@ -248,7 +246,6 @@ class FertilityAgeSpecificRates(Component):
         last_birth_time = self.population_view.get_private_columns(
             event.index,
             "last_birth_time",
-            query_columns=["alive", "sex"],
             query="alive == 'alive' and sex == 'Female'",
         )
         eligible_females_idx = last_birth_time[last_birth_time < nine_months_ago].index
