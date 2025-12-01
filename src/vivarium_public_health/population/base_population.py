@@ -162,9 +162,7 @@ class BasePopulation(Component):
 
     def on_time_step(self, event: Event) -> None:
         """Ages simulants each time step."""
-        age = self.population_view.get_private_columns(
-            event.index, "age", query_columns=["alive"], query="alive == 'alive'"
-        )
+        age = self.population_view.get_private_columns(event.index, "age", "alive == 'alive'")
         age += utilities.to_years(event.step_size)
         self.population_view.update(age)
 
@@ -324,9 +322,7 @@ class AgeOutSimulants(Component):
 
     def update_exit_times(self, index: pd.Index, target: pd.Series) -> pd.Series:
         """Update exit times for simulants who have aged out of the simulation."""
-        aged_out_idx = self.population_view.get_filtered_index(
-            index, "is_aged_out", "is_aged_out == True"
-        )
+        aged_out_idx = self.population_view.get_filtered_index(index, "is_aged_out == True")
         newly_aged_out_idx = aged_out_idx.intersection(target[target.isna()].index)
         target.loc[newly_aged_out_idx] = self.clock() + self.step_size()
         return target
@@ -343,9 +339,8 @@ class AgeOutSimulants(Component):
         max_age = float(self.config.untracking_age)
         aged_out = self.population_view.get_private_columns(
             event.index,
-            private_columns="is_aged_out",
-            query_columns=["age", "is_aged_out"],
-            query=f"age >= {max_age} and is_aged_out == False",
+            "is_aged_out",
+            f"age >= {max_age} and is_aged_out == False",
         )
         if len(aged_out) > 0:
             aged_out[:] = True
