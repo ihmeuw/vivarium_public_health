@@ -97,28 +97,30 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
 
     simulation.setup()
     state_cols = [observer.previous_state_column_name, observer.disease]
-    pop = simulation.get_population(state_cols)
+    pop0 = simulation.get_population(state_cols)
 
-    # Assert that the previous_state column equals the current state column
-    assert (pop[observer.previous_state_column_name] == pop[observer.disease]).all()
+    # Assert that the previous_state column is empty at initialization
+    assert pop0[observer.previous_state_column_name].isna().all()
+    assert pop0[observer.disease].notna().all()
 
     simulation.step()
-    post_step_pop = simulation.get_population(state_cols)
+    pop = simulation.get_population(state_cols)
 
+    assert pop[observer.previous_state_column_name].equals(pop0[observer.disease])
     # All simulants are currently but not necessarily previously "with_condition"
     assert (
-        post_step_pop[observer.previous_state_column_name].isin(
+        pop[observer.previous_state_column_name].isin(
             ["susceptible_to_with_condition", "with_condition"]
         )
     ).all()
-    assert (post_step_pop[observer.disease] == "with_condition").all()
+    assert (pop[observer.disease] == "with_condition").all()
 
     simulation.step()
-    post_step_pop = simulation.get_population(state_cols)
+    pop = simulation.get_population(state_cols)
 
     # All simulants are currently and were previously "with_condition"
-    assert (post_step_pop[observer.previous_state_column_name] == "with_condition").all()
-    assert (post_step_pop[observer.disease] == "with_condition").all()
+    assert (pop[observer.previous_state_column_name] == "with_condition").all()
+    assert (pop[observer.disease] == "with_condition").all()
 
 
 def test_observation_registration(base_config, base_plugins, disease, model):

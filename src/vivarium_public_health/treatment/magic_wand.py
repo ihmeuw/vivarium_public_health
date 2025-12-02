@@ -59,9 +59,7 @@ class AbsoluteShift(Component):
     def intervention_effect(self, index, value):
         if self.config["target_value"] != "baseline":
             affected_group_idx = self.population_view.get_population_index(
-                index,
-                query_columns="age",
-                query=f"{self.config['age_start']} <= age <= {self.config['age_end']}",
+                index, query=f"{self.config['age_start']} <= age <= {self.config['age_end']}"
             )
             value.loc[affected_group_idx] = float(self.config["target_value"])
         return value
