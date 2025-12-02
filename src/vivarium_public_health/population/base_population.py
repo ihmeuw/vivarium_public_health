@@ -163,14 +163,16 @@ class BasePopulation(Component):
     def on_time_step(self, event: Event) -> None:
         """Ages simulants each time step."""
         age = self.population_view.get_private_columns(
-            event.index, "age", query_columns=["alive"], query="alive == 'alive'"
+            event.index, "age", query="alive == 'alive'"
         )
         age += utilities.to_years(event.step_size)
         self.population_view.update(age)
 
     def on_time_step_cleanup(self, event: Event) -> None:
         """Update the 'exit_time' private column with any modifications made by other components."""
-        exit_times = self.population_view.get_attributes(event.index, "exit_time")
+        exit_times = self.population_view.get_attributes(
+            event.index, "exit_time", exclude_untracked=False
+        )
         self.population_view.update(exit_times)
 
     ##################
@@ -321,11 +323,14 @@ class AgeOutSimulants(Component):
         )
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
+        builder.population.register_tracked_query("is_aged_out == False")
 
     def update_exit_times(self, index: pd.Index, target: pd.Series) -> pd.Series:
         """Update exit times for simulants who have aged out of the simulation."""
         aged_out_idx = self.population_view.get_filtered_index(
-            index, "is_aged_out", "is_aged_out == True"
+            index,
+            query="is_aged_out == True",
+            exclude_untracked=False,
         )
         newly_aged_out_idx = aged_out_idx.intersection(target[target.isna()].index)
         target.loc[newly_aged_out_idx] = self.clock() + self.step_size()
@@ -344,7 +349,6 @@ class AgeOutSimulants(Component):
         aged_out = self.population_view.get_private_columns(
             event.index,
             private_columns="is_aged_out",
-            query_columns=["age", "is_aged_out"],
             query=f"age >= {max_age} and is_aged_out == False",
         )
         if len(aged_out) > 0:

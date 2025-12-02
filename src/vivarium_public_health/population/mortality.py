@@ -219,7 +219,7 @@ class Mortality(Component):
 
     def update_exit_times(self, index: pd.Index, previous_exit_time: pd.Series) -> pd.Series:
         """Update exit times for simulants who have died."""
-        dead_idx = self.population_view.get_filtered_index(index, "alive", "alive == 'dead'")
+        dead_idx = self.population_view.get_filtered_index(index, query="alive == 'dead'")
         newly_dead_idx = dead_idx.intersection(
             previous_exit_time[previous_exit_time.isna()].index
         )
@@ -242,9 +242,7 @@ class Mortality(Component):
         self.population_view.update(pop_update)
 
     def on_time_step(self, event: Event) -> None:
-        pop = self.population_view.get_private_columns(
-            event.index, query_columns="alive", query="alive =='alive'"
-        )
+        pop = self.population_view.get_private_columns(event.index, query="alive =='alive'")
         mortality_rates = self.mortality_rate(pop.index)
         mortality_hazard = mortality_rates.sum(axis=1)
         deaths = self.random.filter_for_rate(

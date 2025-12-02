@@ -117,10 +117,67 @@ def test_age_out_simulants(config, base_plugins):
     )
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     pop = simulation.get_population(["is_aged_out", "exit_time"])
-    assert len(pop) == len(pop[pop["is_aged_out"]])
+    assert all(pop["is_aged_out"])
     exit_after_300_days = pop["exit_time"] >= time_start + pd.Timedelta(300, unit="D")
     exit_before_400_days = pop["exit_time"] <= time_start + pd.Timedelta(400, unit="D")
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])
+
+
+def test_aged_out_simulant_untracking(
+    config, base_plugins, fuzzy_checker: FuzzyChecker
+) -> None:
+    start_population_size = 10000
+    initialization_age_min = 4
+    initialization_age_max = initialization_age_min + 1
+    time_step = utilities.DAYS_PER_YEAR / 2  # Days, ~0.5 years
+    config.update(
+        {
+            "population": {
+                "population_size": start_population_size,
+                "initialization_age_min": initialization_age_min,
+                "initialization_age_max": initialization_age_max,
+                "untracking_age": initialization_age_max,
+            },
+            "time": {
+                "step_size": time_step,
+                # Change the year so we don't go outside of data
+                "start": {"year": 1991},
+            },
+            # Turn off mortality to ensure everyone ages out rather than dies
+            "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
+        },
+        layer="override",
+    )
+    components = [bp.BasePopulation()]
+    sim = InteractiveContext(
+        components=components, configuration=config, plugin_configuration=base_plugins
+    )
+    pop0 = sim.get_population(["age", "is_aged_out"])
+    assert not pop0["is_aged_out"].any()
+    sim.step()
+    pop1 = sim.get_population(["age", "is_aged_out"])
+    fuzzy_checker.fuzzy_assert_proportion(
+        observed_numerator=pop1["is_aged_out"].sum(),
+        observed_denominator=len(pop1),
+        target_proportion=0.5,
+    )
+    # make sure everyone aged
+    assert all(pop1["age"] - pop0["age"] == utilities.to_years(pd.Timedelta(time_step, "D")))
+    sim.step()
+    pop2 = sim.get_population(["age", "is_aged_out"])
+    fuzzy_checker.fuzzy_assert_proportion(
+        observed_numerator=pop2["is_aged_out"].sum(),
+        observed_denominator=len(pop2),
+        target_proportion=1.0,
+    )
+    # make sure no one previously aged out had their age increase
+    aged_out_mask = pop1["is_aged_out"]
+    assert all(pop2.loc[aged_out_mask, "age"] == pop1.loc[aged_out_mask, "age"])
+    # but everyone else should have
+    assert all(
+        pop2.loc[~aged_out_mask, "age"] - pop1.loc[~aged_out_mask, "age"]
+        == utilities.to_years(pd.Timedelta(time_step, "D"))
+    )
 
 
 def test_generate_population_age_bounds(
