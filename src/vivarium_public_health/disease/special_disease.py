@@ -337,7 +337,7 @@ class RiskAttributableDisease(Component):
 
     def on_time_step(self, event: Event) -> None:
         pop = self.population_view.get_private_columns(
-            event.index, self.columns_created, 'alive == "alive"'
+            event.index, self.columns_created, query='alive == "alive"'
         )
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
@@ -400,5 +400,6 @@ class RiskAttributableDisease(Component):
 
     def with_condition(self, index):
         return self.population_view.get_filtered_index(
-            index, f'alive == "alive" and {self.cause.name} == "{self.cause.name}"'
+            index,
+            query=f'alive == "alive" and {self.cause.name} == "{self.cause.name}"',
         )
