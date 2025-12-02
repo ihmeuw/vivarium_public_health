@@ -9,7 +9,6 @@ in the simulation.
 """
 
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
 from loguru import logger
 from pandas.api.types import CategoricalDtype
 from vivarium.framework.engine import Builder
@@ -77,7 +76,13 @@ class DisabilityObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         """Set up the observer."""
         self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
-        self.disability_weight = self.get_disability_weight_pipeline(builder)
+        builder.value.register_attribute_producer(
+            self.disability_weight_pipeline_name,
+            source=lambda index: [pd.Series(0.0, index=index)],
+            component=self,
+            preferred_combiner=list_combiner,
+            preferred_post_processor=union_post_processor,
+        )
         self.set_causes_of_disability(builder)
 
     def set_causes_of_disability(self, builder: Builder) -> None:
@@ -144,26 +149,6 @@ class DisabilityObserver(PublicHealthObserver):
             excluded_stratifications=self.configuration.exclude,
             aggregator_sources=cause_pipelines,
             aggregator=self.disability_weight_aggregator,
-        )
-
-    def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
-        """Register (and return) the pipeline that produces disability weights.
-
-        Parameters
-        ----------
-        builder
-            The builder object for the simulation.
-
-        Returns
-        -------
-            The pipeline that produces disability weights.
-        """
-        return builder.value.register_attribute_producer(
-            self.disability_weight_pipeline_name,
-            source=lambda index: [pd.Series(0.0, index=index)],
-            component=self,
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
         )
 
     ###############

@@ -3,10 +3,10 @@
 # import numpy as np
 # import pandas as pd
 #
-# from vivarium.testing_utilities import build_table, TestPopulation
+# from vivarium.testing_utilities import build_table
 # from vivarium.interface.interactive import setup_simulation
 #
-# from vivarium_public_health.population import Mortality
+# from vivarium_public_health.population import BasePopulation
 # from vivarium_public_health.disease import ExcessMortalityState, DiseaseModel, DiseaseState
 # from vivarium_public_health.metrics import Disability
 #
@@ -40,7 +40,7 @@
 #                                               get_data_functions={
 #                                                   'csmr': lambda _, __: build_table(0, year_start-1, year_end)})
 #     disability = Disability()
-#     components = [TestPopulation(), asymptomatic_disease_model, disability]
+#     components = [BasePopulation(), asymptomatic_disease_model, disability]
 #
 #     if flu:
 #         flu_data_funcs = {'prevalence': lambda _, __: build_table(1.0, year_start-1, year_end,
@@ -80,7 +80,6 @@
 #                                         'csmr': lambda _, __: build_table(0.0005, year_start-1, year_end)
 #                                     })
 #         components.append(deadly_model)
-#         components.append(Mortality())
 #
 #     base_config.update({'population': {'population_size': n_simulants}})
 #     simulation = setup_simulation(components, base_config)

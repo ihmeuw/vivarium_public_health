@@ -7,10 +7,7 @@ This module contains tools for observing risk exposure during the simulation.
 
 """
 
-from typing import Any
-
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.results.columns import COLUMNS
@@ -53,15 +50,6 @@ class CategoricalRiskObserver(PublicHealthObserver):
         The categories of the risk factor.
 
     """
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        """The columns required by this observer."""
-        return ["alive"]
 
     #####################
     # Lifecycle methods #

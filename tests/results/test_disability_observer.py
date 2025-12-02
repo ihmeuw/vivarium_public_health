@@ -6,11 +6,11 @@ import pandas as pd
 import pytest
 from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState, RiskAttributableDisease
 from vivarium_public_health.disease.state import SusceptibleState
+from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.disability import (
     DisabilityObserver as DisabilityObserver_,
@@ -140,7 +140,7 @@ def test_disability_accumulation(
     # Add the results dir since we didn't go through cli.py
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             model_0,
             model_1,
             ResultsStratifier(),
@@ -154,7 +154,7 @@ def test_disability_accumulation(
     simulation.step()
     simulation.step()
 
-    pop = simulation.get_population()
+    pop = simulation.get_population(["model_0", "model_1", "sex"])
     sub_pop_mask = {
         "healthy": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "healthy_1"),
         "sick_0": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "healthy_1"),
@@ -343,7 +343,7 @@ def test_category_exclusions(
     )
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             model_0,
             model_1,
             ResultsStratifier(),

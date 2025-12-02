@@ -11,7 +11,6 @@ excess mortality in the simulation, including "other causes".
 from typing import Any
 
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
 from pandas.api.types import CategoricalDtype
 from vivarium.framework.engine import Builder
 
@@ -88,16 +87,6 @@ class MortalityObserver(PublicHealthObserver):
         config_defaults = super().configuration_defaults
         config_defaults["stratification"][self.get_configuration_name()]["aggregate"] = False
         return config_defaults
-
-    @property
-    def columns_required(self) -> list[str]:
-        """Columns required by this observer."""
-        return [
-            "alive",
-            "years_of_life_lost",
-            "cause_of_death",
-            "exit_time",
-        ]
 
     #################
     # Setup methods #
