@@ -246,7 +246,7 @@ class Mortality(Component):
 
     def update_exit_times(self, index: pd.Index, previous_exit_time: pd.Series) -> pd.Series:
         """Update exit times for simulants who have died."""
-        dead_idx = self.population_view.get_filtered_index(index, "alive == 'dead'")
+        dead_idx = self.population_view.get_filtered_index(index, query="alive == 'dead'")
         newly_dead_idx = dead_idx.intersection(
             previous_exit_time[previous_exit_time.isna()].index
         )
