@@ -733,8 +733,7 @@ class DiseaseState(BaseDiseaseState):
 
     def with_condition(self, index: pd.Index) -> pd.Index:
         return self.population_view.get_filtered_index(
-            index,
-            query=f'{self.model}=="{self.state_id}" and alive=="alive"',
+            index, query=f'{self.model}=="{self.state_id}" and alive=="alive"'
         )
 
     @staticmethod
