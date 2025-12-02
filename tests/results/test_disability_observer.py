@@ -63,7 +63,7 @@ def test_disability_observer_setup(mocker):
     ]
     builder.results.register_adding_observation.assert_any_call(
         name="ylds",
-        pop_filter='tracked == True and alive == "alive"',
+        pop_filter='alive == "alive"',
         when="time_step__prepare",
         requires_columns=["alive"],
         requires_values=cause_pipelines,

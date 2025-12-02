@@ -100,7 +100,7 @@ class CategoricalRiskObserver(PublicHealthObserver):
         self.register_adding_observation(
             builder=builder,
             name=f"person_time_{self.risk}",
-            pop_filter=f'alive == "alive" and tracked==True',
+            pop_filter=f'alive == "alive"',
             when="time_step__prepare",
             requires_columns=["alive"],
             requires_values=[self.exposure_pipeline_name],
