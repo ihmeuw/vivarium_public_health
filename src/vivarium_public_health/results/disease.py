@@ -8,10 +8,7 @@ in the simulation.
 
 """
 
-from typing import Any
-
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
@@ -72,11 +69,6 @@ class DiseaseObserver(PublicHealthObserver):
         return [self.previous_state_column_name]
 
     @property
-    def columns_required(self) -> list[str]:
-        """Columns required by this observer."""
-        return [self.disease]
-
-    @property
     def initialization_requirements(self) -> list[str | Resource]:
         """Requirements for observer initialization."""
         return [self.disease]
@@ -131,7 +123,7 @@ class DiseaseObserver(PublicHealthObserver):
         self.register_disease_state_stratification(builder)
         self.register_transition_stratification(builder)
 
-        pop_filter = 'alive == "alive" and tracked==True'
+        pop_filter = 'alive == "alive"'
         self.register_person_time_observation(builder, pop_filter)
         self.register_transition_count_observation(builder, pop_filter)
 
@@ -235,18 +227,18 @@ class DiseaseObserver(PublicHealthObserver):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Initialize the previous state column to the current state"""
-        pop = self.population_view.subview([self.disease]).get(pop_data.index)
-        pop[self.previous_state_column_name] = pop[self.disease]
-        self.population_view.update(pop)
+        self.population_view.update(
+            pd.Series(pd.NA, index=pop_data.index, name=self.previous_state_column_name)
+        )
 
     def on_time_step_prepare(self, event: Event) -> None:
         """Update the previous state column to the current state.
 
         This enables tracking of transitions between states.
         """
-        prior_state_pop = self.population_view.get(event.index)
-        prior_state_pop[self.previous_state_column_name] = prior_state_pop[self.disease]
-        self.population_view.update(prior_state_pop)
+        previous_states = self.population_view.get_attributes(event.index, self.disease)
+        previous_states.name = self.previous_state_column_name
+        self.population_view.update(previous_states)
 
     ###############
     # Aggregators #

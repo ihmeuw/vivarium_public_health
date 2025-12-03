@@ -4,12 +4,11 @@ from collections import Counter
 import numpy as np
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.population import Mortality
+from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.results import MortalityObserver
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.stratification import ResultsStratifier
@@ -50,8 +49,7 @@ def simulation_after_one_step(base_config, base_plugins):
 
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
-            Mortality(),
+            BasePopulation(),
             flu,
             mumps,
             ResultsStratifier(),
@@ -90,7 +88,9 @@ def _get_expected_results(simulation, expected_values=Counter()):
     deaths are provided, return the counts of deaths in the Counter plus the counts
     for this time step.
     """
-    pop = simulation.get_population()
+    pop = simulation.get_population(
+        ["cause_of_death", "sex", "exit_time", "years_of_life_lost"]
+    )
 
     for cause in ["other_causes", "flu", "mumps"]:
         for sex in ["Male", "Female"]:
@@ -162,8 +162,7 @@ def test_aggregation_configuration(base_config, base_plugins):
 
     aggregate_sim = InteractiveContext(
         components=[
-            TestPopulation(),
-            Mortality(),
+            BasePopulation(),
             flu,
             mumps,
             ResultsStratifier(),
@@ -213,8 +212,7 @@ def test_category_exclusions(base_config, base_plugins, exclusions):
 
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
-            Mortality(),
+            BasePopulation(),
             flu,
             mumps,
             ResultsStratifier(),
