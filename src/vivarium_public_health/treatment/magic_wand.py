@@ -35,10 +35,6 @@ class AbsoluteShift(Component):
             f"intervention_on_{self.target.name}": self.CONFIGURATION_DEFAULTS["intervention"]
         }
 
-    @property
-    def columns_required(self) -> list[str] | None:
-        return ["age"]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -62,9 +58,8 @@ class AbsoluteShift(Component):
 
     def intervention_effect(self, index, value):
         if self.config["target_value"] != "baseline":
-            pop = self.population_view.get(index)
-            affected_group = pop[
-                pop.age.between(self.config["age_start"], self.config["age_end"])
-            ]
-            value.loc[affected_group.index] = float(self.config["target_value"])
+            affected_group_idx = self.population_view.get_population_index(
+                index, query=f"{self.config['age_start']} <= age <= {self.config['age_end']}"
+            )
+            value.loc[affected_group_idx] = float(self.config["target_value"])
         return value

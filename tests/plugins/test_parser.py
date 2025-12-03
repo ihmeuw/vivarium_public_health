@@ -382,7 +382,7 @@ def resource_filename_mock(tmp_path, mocker):
 
 ALL_COMPONENTS_CONFIG_DICT = {
     "causes": {**SIR_MODEL_CONFIG, **COMPLEX_MODEL_CONFIG},
-    "vivarium": {"testing_utilities": "TestPopulation()"},
+    "vivarium_public_health": {"population": "BasePopulation()"},
 }
 
 
@@ -408,7 +408,7 @@ def _test_parsing_of_config_file(
     expected_component_names: tuple[str] = (
         f"disease_model.{SIR_MODEL}",
         f"complex_model.{COMPLEX_MODEL}",
-        "test_population",
+        "base_population",
     ),
 ):
     parsed_components = CausesConfigurationParser().parse_component_config(component_config)
@@ -431,7 +431,7 @@ def test_parsing_config_single_external_causes_config_file(tmp_path, resource_fi
     component_config = create_simulation_config_tree(
         {
             "external_configuration": {"some_repo": ["causes_config.yaml"]},
-            "vivarium": {"testing_utilities": "TestPopulation()"},
+            "vivarium_public_health": {"population": "BasePopulation()"},
         }
     )
     _test_parsing_of_config_file(component_config)
@@ -449,7 +449,7 @@ def test_parsing_config_multiple_external_causes_config_file(
     component_config = create_simulation_config_tree(
         {
             "external_configuration": {"some_repo": ["sir.yaml", "complex.yaml"]},
-            "vivarium": {"testing_utilities": "TestPopulation()"},
+            "vivarium_public_health": {"population": "BasePopulation()"},
         }
     )
     _test_parsing_of_config_file(component_config)
@@ -465,7 +465,7 @@ def test_parsing_config_external_and_local_causes_config_file(
         {
             "external_configuration": {"some_repo": ["sir.yaml"]},
             "causes": COMPLEX_MODEL_CONFIG,
-            "vivarium": {"testing_utilities": "TestPopulation()"},
+            "vivarium_public_health": {"population": "BasePopulation()"},
         }
     )
 
@@ -474,10 +474,10 @@ def test_parsing_config_external_and_local_causes_config_file(
 
 def test_parsing_no_causes_config_file(tmp_path, resource_filename_mock):
     component_config = create_simulation_config_tree(
-        {"vivarium": {"testing_utilities": "TestPopulation()"}}
+        {"vivarium_public_health": {"population": "BasePopulation()"}}
     )
     _test_parsing_of_config_file(
-        component_config, expected_component_names=("test_population",)
+        component_config, expected_component_names=("base_population",)
     )
 
 
@@ -494,7 +494,7 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
     component_config = create_simulation_config_tree(
         {
             "external_configuration": config_dict,
-            "vivarium": {"testing_utilities": "TestPopulation()"},
+            "vivarium_public_health": {"population": "BasePopulation()"},
         }
     )
     with pytest.raises(ParsingError, match=expected_error_message):
