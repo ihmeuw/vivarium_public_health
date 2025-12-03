@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
+from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.disease import DiseaseObserver
 from vivarium_public_health.results.stratification import ResultsStratifier
@@ -76,7 +76,7 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
     observer = DiseaseObserver(disease)
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             model,
             ResultsStratifier(),
             observer,
@@ -96,29 +96,31 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
     )
 
     simulation.setup()
+    state_cols = [observer.previous_state_column_name, observer.disease]
+    pop0 = simulation.get_population(state_cols)
 
-    pop = simulation.get_population()
-
-    # Assert that the previous_state column equals the current state column
-    assert (pop[observer.previous_state_column_name] == pop[observer.disease]).all()
+    # Assert that the previous_state column is empty at initialization
+    assert pop0[observer.previous_state_column_name].isna().all()
+    assert pop0[observer.disease].notna().all()
 
     simulation.step()
-    post_step_pop = simulation.get_population()
+    pop = simulation.get_population(state_cols)
 
+    assert pop[observer.previous_state_column_name].equals(pop0[observer.disease])
     # All simulants are currently but not necessarily previously "with_condition"
     assert (
-        post_step_pop[observer.previous_state_column_name].isin(
+        pop[observer.previous_state_column_name].isin(
             ["susceptible_to_with_condition", "with_condition"]
         )
     ).all()
-    assert (post_step_pop[observer.disease] == "with_condition").all()
+    assert (pop[observer.disease] == "with_condition").all()
 
     simulation.step()
-    post_step_pop = simulation.get_population()
+    pop = simulation.get_population(state_cols)
 
     # All simulants are currently and were previously "with_condition"
-    assert (post_step_pop[observer.previous_state_column_name] == "with_condition").all()
-    assert (post_step_pop[observer.disease] == "with_condition").all()
+    assert (pop[observer.previous_state_column_name] == "with_condition").all()
+    assert (pop[observer.disease] == "with_condition").all()
 
 
 def test_observation_registration(base_config, base_plugins, disease, model):
@@ -126,7 +128,7 @@ def test_observation_registration(base_config, base_plugins, disease, model):
     observer = DiseaseObserver(disease)
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             model,
             ResultsStratifier(),
             observer,
@@ -171,7 +173,7 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
     observer = DiseaseObserver(disease)
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             model,
             ResultsStratifier(),
             observer,
@@ -191,14 +193,14 @@ def test_observation_correctness(base_config, base_plugins, disease, model):
     )
 
     simulation.setup()
-    pop = simulation.get_population()
+    disease_states = simulation.get_population(disease)
 
     # All simulants should transition to "with_condition"
-    susceptible_at_start = len(pop[pop[disease] == "susceptible_to_with_condition"])
+    susceptible_at_start = sum(disease_states == "susceptible_to_with_condition")
     expected_susceptible_person_time = susceptible_at_start * to_years(time_step)
-    expected_with_condition_person_time = (len(pop) - susceptible_at_start) * to_years(
-        time_step
-    )
+    expected_with_condition_person_time = (
+        len(disease_states) - susceptible_at_start
+    ) * to_years(time_step)
 
     simulation.step()
     results = simulation.get_results()
@@ -249,7 +251,7 @@ def test_different_results_per_disease(
 
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             vampiris,
             human_cortico_deficiency,
             ResultsStratifier(),
@@ -301,7 +303,7 @@ def test_category_exclusions(
     )
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             vampiris,
             ResultsStratifier(),
             vampiris_observer,
