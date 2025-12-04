@@ -95,15 +95,14 @@ class CategoricalRiskObserver(PublicHealthObserver):
         builder.results.register_stratification(
             f"{self.risk}",
             list(self.categories.keys()),
-            requires_values=[self.exposure_pipeline_name],
+            requires_attributes=[self.exposure_pipeline_name],
         )
         self.register_adding_observation(
             builder=builder,
             name=f"person_time_{self.risk}",
             pop_filter=f'alive == "alive"',
             when="time_step__prepare",
-            requires_columns=["alive"],
-            requires_values=[self.exposure_pipeline_name],
+            requires_attributes=["alive", self.exposure_pipeline_name],
             additional_stratifications=self.configuration.include + [self.risk],
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_risk_category_person_time,

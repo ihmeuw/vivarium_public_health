@@ -64,9 +64,9 @@ def test_disability_observer_setup(mocker):
     builder.results.register_adding_observation.assert_any_call(
         name="ylds",
         pop_filter='alive == "alive"',
+        exclude_untracked=True,
         when="time_step__prepare",
-        requires_columns=["alive"],
-        requires_values=cause_pipelines,
+        requires_attributes=["alive"] + cause_pipelines,
         results_formatter=observer.format_results,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,

@@ -154,14 +154,14 @@ class MortalityObserver(PublicHealthObserver):
                 "cause_of_death",
                 [cause.state_id for cause in self.causes_of_death],
                 excluded_categories=excluded_categories,
-                requires_columns=["cause_of_death"],
+                requires_attributes=["cause_of_death"],
             )
             additional_stratifications += ["cause_of_death"]
         self.register_adding_observation(
             builder=builder,
             name="deaths",
             pop_filter=pop_filter,
-            requires_columns=self.required_death_columns,
+            requires_attributes=self.required_death_columns,
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.count_deaths,
@@ -170,7 +170,7 @@ class MortalityObserver(PublicHealthObserver):
             builder=builder,
             name="ylls",
             pop_filter=pop_filter,
-            requires_columns=self.required_yll_columns,
+            requires_attributes=self.required_yll_columns,
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.calculate_ylls,

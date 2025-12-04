@@ -132,7 +132,7 @@ class DiseaseObserver(PublicHealthObserver):
         builder.results.register_stratification(
             self.disease,
             [state.state_id for state in self.disease_model.states],
-            requires_columns=[self.disease],
+            requires_attributes=[self.disease],
         )
 
     def register_transition_stratification(self, builder: Builder) -> None:
@@ -164,7 +164,7 @@ class DiseaseObserver(PublicHealthObserver):
             categories=transitions,
             excluded_categories=excluded_categories,
             mapper=self.map_transitions,
-            requires_columns=[self.disease, self.previous_state_column_name],
+            requires_attributes=[self.disease, self.previous_state_column_name],
             is_vectorized=True,
         )
 
@@ -175,7 +175,7 @@ class DiseaseObserver(PublicHealthObserver):
             name=f"person_time_{self.disease}",
             pop_filter=pop_filter,
             when="time_step__prepare",
-            requires_columns=["alive", self.disease],
+            requires_attributes=["alive", self.disease],
             additional_stratifications=self.configuration.include + [self.disease],
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_state_person_time,
@@ -189,7 +189,7 @@ class DiseaseObserver(PublicHealthObserver):
             builder=builder,
             name=f"transition_count_{self.disease}",
             pop_filter=pop_filter,
-            requires_columns=[
+            requires_attributes=[
                 "alive",
                 self.previous_state_column_name,
                 self.disease,
