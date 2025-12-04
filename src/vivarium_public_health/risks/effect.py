@@ -124,6 +124,32 @@ class RiskEffect(Component):
     #################
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
+        """Build lookup tables for relative risk and population attributable fraction.
+
+        This method overrides the default lookup table building to handle the
+        special processing required for relative risk data, including:
+
+        - Loading relative risk from artifact, scalar, or scipy.stats distribution
+        - Pivoting categorical relative risk data from long to wide format
+        - Filtering data by affected entity and measure
+
+        Lookup Tables Created
+        ---------------------
+        relative_risk
+            Relative risk values. For categorical exposures, value columns are
+            the category names (e.g., 'cat1', 'cat2'). For continuous exposures,
+            a single value column is used.
+        population_attributable_fraction
+            PAF values used to modify the target pipeline's PAF.
+
+        Data Sources Used
+        -----------------
+        - ``relative_risk``: From ``data_sources.relative_risk``. Can be an
+          artifact key, scalar, or scipy.stats distribution name (with params
+          in ``data_source_parameters.relative_risk``).
+        - ``population_attributable_fraction``: From
+          ``data_sources.population_attributable_fraction``.
+        """
         self._exposure_distribution_type = self.get_distribution_type(builder)
 
         rr_data = self.load_relative_risk(builder)
@@ -385,6 +411,46 @@ class NonLogLinearRiskEffect(RiskEffect):
         return f"non_log_linear_risk_effect.{risk.name}_on_{target}"
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
+        """Build lookup tables for non-log-linear relative risk interpolation.
+
+        This method builds lookup tables that enable piecewise linear
+        interpolation of relative risk based on continuous exposure values.
+        It creates exposure bins from the relative risk data and stores the
+        left and right boundaries of each bin for runtime interpolation.
+
+        Lookup Tables Created
+        ---------------------
+        relative_risk
+            Contains interval data for piecewise linear interpolation:
+
+            - ``left_exposure``: Left boundary of exposure bin
+            - ``left_rr``: Relative risk at left boundary
+            - ``right_exposure``: Right boundary of exposure bin
+            - ``right_rr``: Relative risk at right boundary
+
+            The table uses ``{risk}_exposure_start`` and ``{risk}_exposure_end``
+            as parameter columns, enabling lookup by simulant exposure level.
+
+        population_attributable_fraction
+            PAF values used to modify the target pipeline's PAF.
+
+        Data Sources Used
+        -----------------
+        - ``relative_risk``: Must be a DataFrame with numeric 'parameter'
+          column (exposure thresholds) and 'value' column (relative risks).
+          Values are normalized by the RR at TMREL.
+        - ``population_attributable_fraction``: Standard PAF data.
+
+        Notes
+        -----
+        The relative risk values are normalized by dividing by the RR at TMREL
+        (theoretical minimum risk exposure level), then clipped to be >= 1.0.
+        This ensures the baseline (TMREL) has RR = 1.0.
+
+        At runtime, ``get_relative_risk_source`` performs linear interpolation
+        within each simulant's exposure bin using: RR = m * exposure + b
+        where m and b are computed from the bin boundaries.
+        """
         rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
 
