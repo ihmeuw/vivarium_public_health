@@ -88,10 +88,6 @@ class LinearScaleUp(Component):
         The scale-up linearly interpolates between start and end values
         over the specified date range. Outside this range, values are
         clamped to the nearest endpoint value.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {self.configuration_key: self.CONFIGURATION_DEFAULTS["treatment"]}
 

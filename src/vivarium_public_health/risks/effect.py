@@ -7,6 +7,7 @@ This module contains tools for modeling the relationship between risk
 exposure models and disease models.
 
 """
+
 from collections.abc import Callable
 from importlib import import_module
 from typing import Any
@@ -83,10 +84,6 @@ class RiskEffect(Component):
                         a distribution name as the ``relative_risk`` source.
                         For example, ``{"loc": 1.0, "scale": 0.5}`` for a
                         uniform distribution.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             self.name: {
@@ -432,10 +429,6 @@ class NonLogLinearRiskEffect(RiskEffect):
                         ``{risk}.population_attributable_fraction``. Used to
                         adjust the target rate to account for the portion
                         attributable to this risk.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             self.name: {

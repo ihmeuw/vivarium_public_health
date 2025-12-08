@@ -127,10 +127,6 @@ class Mortality(Component):
                     may be affected by modeled risks. Their CSMRs are
                     combined into a single pipeline that can be modified.
                     Default is an empty list.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "mortality": {

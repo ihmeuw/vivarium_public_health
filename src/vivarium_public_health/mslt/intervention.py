@@ -33,10 +33,6 @@ class ModifyAllCauseMortality(Component):
                         Multiplicative factor applied to all-cause mortality
                         rate. Values < 1 reduce mortality, values > 1
                         increase mortality. Default is 1.0 (no effect).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "intervention": {
@@ -90,10 +86,6 @@ class ModifyDiseaseRate(Component):
                         Multiplicative factor applied to the specified
                         disease rate. Values < 1 reduce the rate, values > 1
                         increase it. Default is 1.0 (no effect).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "intervention": {
@@ -188,10 +180,6 @@ class ModifyAcuteDiseaseIncidence(Component):
                         and mortality rates for the acute disease. Values < 1
                         reduce incidence, values > 1 increase it.
                         Default is 1.0 (no effect).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "intervention": {
@@ -246,10 +234,6 @@ class ModifyAcuteDiseaseMorbidity(Component):
                         Multiplicative factor applied to the disability
                         (YLD) rate. Values < 1 reduce disability, values > 1
                         increase it. Default is 1.0 (no effect).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "intervention": {
@@ -304,10 +288,6 @@ class ModifyAcuteDiseaseMortality(Component):
                         Multiplicative factor applied to the acute disease
                         mortality rate. Values < 1 reduce mortality,
                         values > 1 increase it. Default is 1.0 (no effect).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "intervention": {
@@ -359,10 +339,6 @@ class TobaccoFreeGeneration(Component):
                     Year when tobacco initiation stops completely.
                     Starting from this year, no new tobacco uptake occurs
                     (incidence rate becomes zero). Default is 2020.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "tobacco_free_generation": {
@@ -415,10 +391,6 @@ class TobaccoEradication(Component):
                     this year, incidence becomes zero (no new uptake) and
                     remission becomes 100% (all users quit).
                     Default is 2020.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "tobacco_eradication": {

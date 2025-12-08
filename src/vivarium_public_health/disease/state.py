@@ -50,10 +50,6 @@ class BaseDiseaseState(State):
         birth_prevalence
             Source for birth prevalence data used to initialize newborn
             simulants. Default is the value set on the instance (typically 0.0).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         configuration_defaults = super().configuration_defaults
         additional_defaults = {
@@ -377,10 +373,6 @@ class DiseaseState(BaseDiseaseState):
             ``excess_mortality_rate`` constructor argument, or if not
             provided, loads from artifact at
             ``cause.{state_id}.excess_mortality_rate``.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         configuration_defaults = super().configuration_defaults
         additional_defaults = {

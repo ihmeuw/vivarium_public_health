@@ -158,10 +158,6 @@ class Disease(Component):
                     If True, uses simplified differential equations for
                     diseases with no remission. This can improve
                     computational efficiency. Default is False.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             self.disease: {

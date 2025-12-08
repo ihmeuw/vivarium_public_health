@@ -140,10 +140,6 @@ class Risk(Component):
                     Thresholds for converting continuous distributions to
                     categorical. Mutually exclusive with ``rebinned_exposed``.
                     Default is empty list (no categorization).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             self.name: {

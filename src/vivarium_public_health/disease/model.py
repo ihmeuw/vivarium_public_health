@@ -45,10 +45,6 @@ class DiseaseModel(Machine):
                         Default uses the ``load_cause_specific_mortality_rate``
                         method which loads from artifact at
                         ``cause.{cause_name}.cause_specific_mortality_rate``.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             f"{self.name}": {

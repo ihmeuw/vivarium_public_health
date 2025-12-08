@@ -288,10 +288,6 @@ class LBWSGRisk(Risk):
                 distribution_type: str
                     Fixed to ``"lbwsg"`` for this component, using the
                     specialized LBWSGDistribution.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         configuration_defaults = super().configuration_defaults
         # Add birth exposure data source

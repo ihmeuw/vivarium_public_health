@@ -6,6 +6,7 @@ Disease Transitions
 This module contains tools to model transitions between disease states.
 
 """
+
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -56,10 +57,6 @@ class RateTransition(Transition):
                     Method for converting rates to probabilities. Options
                     are ``"linear"`` (default) or ``"exponential"``. Linear
                     uses ``rate * dt``, exponential uses ``1 - exp(-rate * dt)``.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             f"{self.name}": {
@@ -231,10 +228,6 @@ class ProportionTransition(Transition):
                         at each time step. The default uses the
                         ``load_proportion`` method which resolves data from
                         the ``proportion`` constructor argument.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             f"{self.name}": {

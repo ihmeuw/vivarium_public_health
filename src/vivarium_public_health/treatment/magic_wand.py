@@ -47,10 +47,6 @@ class AbsoluteShift(Component):
                 age_end: float
                     Maximum age (in years) for the intervention to apply.
                     Simulants above this age are unaffected. Default is 125.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             f"intervention_on_{self.target.name}": self.CONFIGURATION_DEFAULTS["intervention"]

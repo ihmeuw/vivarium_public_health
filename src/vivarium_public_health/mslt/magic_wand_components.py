@@ -91,10 +91,6 @@ class ModifyAcuteDiseaseYLD(Component):
                         with disability (YLD) rate. Values < 1 reduce
                         disability, values > 1 increase it. Must be >= 0.
                         Default is 1.0 (no effect).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "intervention": {
@@ -147,10 +143,6 @@ class ModifyAcuteDiseaseMortality(Component):
                         Multiplicative factor applied to the excess mortality
                         rate. Values < 1 reduce mortality, values > 1
                         increase it. Must be >= 0. Default is 1.0 (no effect).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             "intervention": {

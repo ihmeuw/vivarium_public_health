@@ -101,10 +101,6 @@ class MortalityObserver(PublicHealthObserver):
                         If True, aggregates all deaths and YLLs into a
                         single observation without cause-specific breakdown.
                         Default is False (cause-specific results).
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         config_defaults = super().configuration_defaults
         config_defaults["stratification"][self.get_configuration_name()]["aggregate"] = False

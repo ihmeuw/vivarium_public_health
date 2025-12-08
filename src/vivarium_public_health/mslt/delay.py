@@ -110,10 +110,6 @@ class DelayedRisk(Component):
                 delay: int
                     Number of years of delay before health effects manifest
                     after exposure changes. Default is 20 years.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             self.risk: {

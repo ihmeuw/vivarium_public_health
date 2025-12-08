@@ -129,10 +129,6 @@ class RiskAttributableDisease(Component):
                     Whether simulants can recover from this disease when
                     their exposure falls outside the threshold. Default
                     is True.
-
-        Returns
-        -------
-        Nested dictionary of configuration defaults.
         """
         return {
             self.name: {
