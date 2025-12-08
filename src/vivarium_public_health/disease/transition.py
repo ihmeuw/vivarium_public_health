@@ -50,7 +50,7 @@ class RateTransition(Transition):
             {transition_name}:
                 data_sources:
                     transition_rate:
-                        Source for transition rate data. The default value is 
+                        Source for transition rate data. The default value is
                         determined by the ``transition_rate`` constructor argument.
                 rate_conversion_type: str
                     Method for converting rates to probabilities. Options
