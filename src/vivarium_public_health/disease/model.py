@@ -34,6 +34,25 @@ class DiseaseModel(Machine):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this disease model.
+
+        Configuration structure::
+
+            {disease_name}:
+                data_sources:
+                    cause_specific_mortality_rate: str, float, or callable
+                        Source for cause-specific mortality rate (CSMR) data.
+                        Default uses the ``load_cause_specific_mortality_rate``
+                        method which loads from artifact at
+                        ``cause.{cause_name}.cause_specific_mortality_rate``.
+                        The CSMR represents mortality directly attributable to
+                        this disease and is used to adjust the overall mortality
+                        rate in the simulation.
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {
             f"{self.name}": {
                 "data_sources": {

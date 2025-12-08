@@ -108,6 +108,44 @@ class Risk(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this risk component.
+
+        Configuration structure::
+
+            {risk_name}:
+                data_sources:
+                    exposure: str, float, or callable
+                        Source for exposure data. Default is the artifact key
+                        ``{risk}.exposure``. Can also be a scalar value or a
+                        callable that takes a builder and returns data.
+                    ensemble_distribution_weights: str, float, or callable
+                        Source for ensemble distribution weights (only used
+                        for ensemble distributions). Default is the artifact
+                        key ``{risk}.exposure_distribution_weights``.
+                    exposure_standard_deviation: str, float, or callable
+                        Source for exposure standard deviation data (only used
+                        for continuous distributions). Default is the artifact
+                        key ``{risk}.exposure_standard_deviation``.
+                distribution_type: str
+                    Type of exposure distribution. Can be one of:
+                    ``"dichotomous"``, ``"ordered_polytomous"``,
+                    ``"unordered_polytomous"``, ``"normal"``, ``"lognormal"``,
+                    or ``"ensemble"``. Default loads from artifact at
+                    ``{risk}.distribution``.
+                rebinned_exposed: list[str]
+                    Categories to combine into a single "exposed" category
+                    when rebinning a polytomous risk to dichotomous. Only
+                    used with polytomous distributions. Default is empty
+                    list (no rebinning).
+                category_thresholds: list[float]
+                    Thresholds for converting continuous distributions to
+                    categorical. Mutually exclusive with ``rebinned_exposed``.
+                    Default is empty list (no categorization).
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {
             self.name: {
                 "data_sources": {

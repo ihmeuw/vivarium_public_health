@@ -101,6 +101,37 @@ class Mortality(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this component.
+
+        Configuration structure::
+
+            mortality:
+                data_sources:
+                    all_cause_mortality_rate: str, float, or callable
+                        Source for all-cause mortality rate data. Default is
+                        the artifact key
+                        ``cause.all_causes.cause_specific_mortality_rate``.
+                        This represents the background mortality rate from
+                        all causes combined.
+                    unmodeled_cause_specific_mortality_rate: str, float, or callable
+                        Source for unmodeled CSMR data. Default uses the
+                        ``load_unmodeled_csmr`` method which sums CSMRs for
+                        all causes listed in ``unmodeled_causes``.
+                    life_expectancy: str, float, or callable
+                        Source for life expectancy data. Default is the
+                        artifact key
+                        ``population.theoretical_minimum_risk_life_expectancy``.
+                        Used to calculate years of life lost (YLLs).
+                unmodeled_causes: list[str]
+                    List of cause names that are not explicitly modeled but
+                    may be affected by modeled risks. Their CSMRs are
+                    combined into a single pipeline that can be modified.
+                    Default is an empty list.
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {
             "mortality": {
                 "data_sources": {

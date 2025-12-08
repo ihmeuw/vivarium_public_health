@@ -149,6 +149,20 @@ class Disease(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this disease model.
+
+        Configuration structure::
+
+            {disease_name}:
+                simplified_no_remission_equations: bool
+                    If True, uses simplified differential equations for
+                    diseases with no remission. This can improve
+                    computational efficiency. Default is False.
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {
             self.disease: {
                 "simplified_no_remission_equations": False,

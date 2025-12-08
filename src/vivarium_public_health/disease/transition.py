@@ -43,6 +43,27 @@ class RateTransition(Transition):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this transition.
+
+        Configuration structure::
+
+            {transition_name}:
+                data_sources:
+                    transition_rate: str, float, or callable
+                        Source for transition rate data. Can be an artifact
+                        key (e.g., ``cause.{cause_name}.incidence_rate``),
+                        a scalar value, or a callable that takes a builder
+                        and returns data. The default value is determined
+                        by the ``transition_rate`` constructor argument.
+                rate_conversion_type: str
+                    Method for converting rates to probabilities. Options
+                    are ``"linear"`` (default) or ``"exponential"``. Linear
+                    uses ``rate * dt``, exponential uses ``1 - exp(-rate * dt)``.
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {
             f"{self.name}": {
                 "data_sources": {
@@ -202,6 +223,24 @@ class ProportionTransition(Transition):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this transition.
+
+        Configuration structure::
+
+            {transition_name}:
+                data_sources:
+                    proportion: str, float, or callable
+                        Source for the proportion of simulants transitioning
+                        at each time step. Can be an artifact key, a scalar
+                        value between 0 and 1, or a callable that takes a
+                        builder and returns data. The default uses the
+                the ``load_proportion`` method which resolves data from
+                the ``proportion`` constructor argument.
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {
             f"{self.name}": {
                 "data_sources": {

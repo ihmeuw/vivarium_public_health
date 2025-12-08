@@ -63,6 +63,36 @@ class LinearScaleUp(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this component.
+
+        Configuration structure::
+
+            {treatment_name}_scale_up:
+                date:
+                    start: str
+                        Start date for the scale-up period in ISO format
+                        (``"YYYY-MM-DD"``). Default is ``"2020-01-01"``.
+                    end: str
+                        End date for the scale-up period in ISO format.
+                        Default is ``"2020-12-31"``.
+                value:
+                    start: str or float
+                        Value at the start of scale-up. Can be ``"data"``
+                        to load from artifact, or a numeric value.
+                        Default is ``"data"``.
+                    end: str or float
+                        Value at the end of scale-up. Can be ``"data"``
+                        to load from artifact, or a numeric value.
+                        Default is ``"data"``.
+
+        The scale-up linearly interpolates between start and end values
+        over the specified date range. Outside this range, values are
+        clamped to the nearest endpoint value.
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {self.configuration_key: self.CONFIGURATION_DEFAULTS["treatment"]}
 
     @property

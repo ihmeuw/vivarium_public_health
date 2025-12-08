@@ -97,6 +97,43 @@ class RiskAttributableDisease(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this component.
+
+        Configuration structure::
+
+            {component_name}:
+                data_sources:
+                    raw_disability_weight: str or float
+                        Source for disability weight data. Default is the
+                        artifact key ``{cause}.disability_weight``.
+                    cause_specific_mortality_rate: str, float, or callable
+                        Source for cause-specific mortality rate data. Default
+                        uses ``load_cause_specific_mortality_rate_data`` method
+                        which loads from artifact if ``mortality`` is True.
+                    excess_mortality_rate: str, float, or callable
+                        Source for excess mortality rate data. Default uses
+                        ``load_excess_mortality_rate_data`` method which loads
+                        from artifact if ``mortality`` is True.
+                    population_attributable_fraction: str, float, or callable
+                        Source for PAF data. Default is 0, indicating no
+                        mediated effects from other risks.
+                threshold: str or list
+                    Exposure threshold defining disease state. For continuous
+                    risks, provide a string like ``">7"`` or ``"<5"``.
+                    For categorical risks, provide a list of categories
+                    (e.g., ``['cat1', 'cat2']``).
+                mortality: bool
+                    Whether this disease has associated mortality. Default
+                    is True.
+                recoverable: bool
+                    Whether simulants can recover from this disease when
+                    their exposure falls outside the threshold. Default
+                    is True.
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {
             self.name: {
                 "data_sources": {
@@ -300,9 +337,9 @@ class RiskAttributableDisease(Component):
         )
         sick = self.filter_by_exposure(pop_data.index)
         new_pop.loc[sick, self.cause.name] = self.cause.name
-        new_pop.loc[
-            sick, self.diseased_event_time_column
-        ] = self.clock()  # match VPH disease, only set w/ condition
+        new_pop.loc[sick, self.diseased_event_time_column] = (
+            self.clock()
+        )  # match VPH disease, only set w/ condition
 
         self.population_view.update(new_pop)
 
@@ -315,9 +352,9 @@ class RiskAttributableDisease(Component):
                 pop[self.cause.name] != f"susceptible_to_{self.cause.name}"
             )
             pop.loc[change_to_susceptible, self.susceptible_event_time_column] = event.time
-            pop.loc[
-                change_to_susceptible, self.cause.name
-            ] = f"susceptible_to_{self.cause.name}"
+            pop.loc[change_to_susceptible, self.cause.name] = (
+                f"susceptible_to_{self.cause.name}"
+            )
         change_to_diseased = sick & (pop[self.cause.name] != self.cause.name)
         pop.loc[change_to_diseased, self.diseased_event_time_column] = event.time
         pop.loc[change_to_diseased, self.cause.name] = self.cause.name

@@ -60,7 +60,34 @@ class RiskEffect(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Default values for any configurations managed by this component."""
+        """Provides default configuration values for this component.
+
+        Configuration structure::
+
+            {risk_effect_name}:
+                data_sources:
+                    relative_risk: str, float, or scipy distribution name
+                        Source for relative risk data. Default is the artifact
+                        key ``{risk}.relative_risk``. Can also be:
+                        - A scalar value (e.g., ``1.5``)
+                        - A scipy.stats distribution name (e.g., ``"uniform"``)
+                          with parameters in ``data_source_parameters``
+                    population_attributable_fraction: str, float, or callable
+                        Source for PAF data. Default is the artifact key
+                        ``{risk}.population_attributable_fraction``. Used to
+                        adjust the target rate to account for the portion
+                        attributable to this risk.
+                data_source_parameters:
+                    relative_risk: dict
+                        Parameters for scipy.stats distributions when using
+                        a distribution name as the ``relative_risk`` source.
+                        For example, ``{"loc": 1.0, "scale": 0.5}`` for a
+                        uniform distribution.
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {
             self.name: {
                 "data_sources": {
@@ -388,7 +415,36 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Default values for any configurations managed by this component."""
+        """Provides default configuration values for this component.
+
+        Configuration structure::
+
+            {risk_effect_name}:
+                data_sources:
+                    relative_risk: str, float, or callable
+                        Source for relative risk data. Default is the artifact
+                        key ``{risk}.relative_risk``. The data must be a
+                        DataFrame with a numeric ``parameter`` column containing
+                        exposure thresholds and a ``value`` column with the
+                        corresponding relative risks.
+                    population_attributable_fraction: str, float, or callable
+                        Source for PAF data. Default is the artifact key
+                        ``{risk}.population_attributable_fraction``. Used to
+                        adjust the target rate to account for the portion
+                        attributable to this risk.
+
+        Notes
+        -----
+        Unlike standard RiskEffect, this component performs piecewise linear
+        interpolation between exposure thresholds rather than using categorical
+        or log-linear exposure-response relationships. The relative risk values
+        are normalized by the RR at TMREL (theoretical minimum risk exposure
+        level) and clipped to be >= 1.0.
+
+        Returns
+        -------
+        Nested dictionary of configuration defaults.
+        """
         return {
             self.name: {
                 "data_sources": {
