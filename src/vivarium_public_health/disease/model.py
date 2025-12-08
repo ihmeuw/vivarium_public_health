@@ -45,9 +45,6 @@ class DiseaseModel(Machine):
                         Default uses the ``load_cause_specific_mortality_rate``
                         method which loads from artifact at
                         ``cause.{cause_name}.cause_specific_mortality_rate``.
-                        The CSMR represents mortality directly attributable to
-                        this disease and is used to adjust the overall mortality
-                        rate in the simulation.
 
         Returns
         -------

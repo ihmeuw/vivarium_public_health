@@ -50,11 +50,8 @@ class RateTransition(Transition):
             {transition_name}:
                 data_sources:
                     transition_rate:
-                        Source for transition rate data. Can be an artifact
-                        key (e.g., ``cause.{cause_name}.incidence_rate``),
-                        a scalar value, or a callable that takes a builder
-                        and returns data. The default value is determined
-                        by the ``transition_rate`` constructor argument.
+                        Source for transition rate data. The default value is 
+                        determined by the ``transition_rate`` constructor argument.
                 rate_conversion_type: str
                     Method for converting rates to probabilities. Options
                     are ``"linear"`` (default) or ``"exponential"``. Linear
@@ -231,9 +228,7 @@ class ProportionTransition(Transition):
                 data_sources:
                     proportion:
                         Source for the proportion of simulants transitioning
-                        at each time step. Can be an artifact key, a scalar
-                        value between 0 and 1, or a callable that takes a
-                        builder and returns data. The default uses the
+                        at each time step. The default uses the
                         ``load_proportion`` method which resolves data from
                         the ``proportion`` constructor argument.
 

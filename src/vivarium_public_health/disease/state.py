@@ -47,13 +47,9 @@ class BaseDiseaseState(State):
         prevalence
             Source for prevalence data used to initialize simulants into
             this state. Default is the value set on the instance (typically 0.0).
-            Can be an artifact key, a scalar value, or a callable that takes
-            a builder and returns data.
         birth_prevalence
             Source for birth prevalence data used to initialize newborn
             simulants. Default is the value set on the instance (typically 0.0).
-            Can be an artifact key, a scalar value, or a callable that takes
-            a builder and returns data.
 
         Returns
         -------

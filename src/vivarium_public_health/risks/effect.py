@@ -433,14 +433,6 @@ class NonLogLinearRiskEffect(RiskEffect):
                         adjust the target rate to account for the portion
                         attributable to this risk.
 
-        Notes
-        -----
-        Unlike standard RiskEffect, this component performs piecewise linear
-        interpolation between exposure thresholds rather than using categorical
-        or log-linear exposure-response relationships. The relative risk values
-        are normalized by the RR at TMREL (theoretical minimum risk exposure
-        level) and clipped to be >= 1.0.
-
         Returns
         -------
         Nested dictionary of configuration defaults.
