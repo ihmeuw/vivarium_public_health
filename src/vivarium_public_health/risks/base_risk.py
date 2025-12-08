@@ -114,15 +114,15 @@ class Risk(Component):
 
             {risk_name}:
                 data_sources:
-                    exposure: str, float, or callable
+                    exposure:
                         Source for exposure data. Default is the artifact key
                         ``{risk}.exposure``. Can also be a scalar value or a
                         callable that takes a builder and returns data.
-                    ensemble_distribution_weights: str, float, or callable
+                    ensemble_distribution_weights:
                         Source for ensemble distribution weights (only used
                         for ensemble distributions). Default is the artifact
                         key ``{risk}.exposure_distribution_weights``.
-                    exposure_standard_deviation: str, float, or callable
+                    exposure_standard_deviation:
                         Source for exposure standard deviation data (only used
                         for continuous distributions). Default is the artifact
                         key ``{risk}.exposure_standard_deviation``.

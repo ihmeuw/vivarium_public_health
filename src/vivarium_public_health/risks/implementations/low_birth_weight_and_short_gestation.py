@@ -273,13 +273,13 @@ class LBWSGRisk(Risk):
 
             {risk_name}:
                 data_sources:
-                    exposure: str, float, or callable
+                    exposure:
                         Source for exposure data. Inherited from Risk.
-                    ensemble_distribution_weights: str, float, or callable
+                    ensemble_distribution_weights:
                         Source for ensemble weights. Inherited from Risk.
-                    exposure_standard_deviation: str, float, or callable
+                    exposure_standard_deviation:
                         Source for exposure SD. Inherited from Risk.
-                    birth_exposure: str, float, or callable
+                    birth_exposure:
                         Source for birth exposure data specific to LBWSG.
                         Default is the artifact key
                         ``{risk}.birth_exposure``. This provides the

@@ -66,13 +66,13 @@ class RiskEffect(Component):
 
             {risk_effect_name}:
                 data_sources:
-                    relative_risk: str, float, or scipy distribution name
+                    relative_risk:
                         Source for relative risk data. Default is the artifact
                         key ``{risk}.relative_risk``. Can also be:
                         - A scalar value (e.g., ``1.5``)
                         - A scipy.stats distribution name (e.g., ``"uniform"``)
                           with parameters in ``data_source_parameters``
-                    population_attributable_fraction: str, float, or callable
+                    population_attributable_fraction:
                         Source for PAF data. Default is the artifact key
                         ``{risk}.population_attributable_fraction``. Used to
                         adjust the target rate to account for the portion
@@ -421,13 +421,13 @@ class NonLogLinearRiskEffect(RiskEffect):
 
             {risk_effect_name}:
                 data_sources:
-                    relative_risk: str, float, or callable
+                    relative_risk:
                         Source for relative risk data. Default is the artifact
                         key ``{risk}.relative_risk``. The data must be a
                         DataFrame with a numeric ``parameter`` column containing
                         exposure thresholds and a ``value`` column with the
                         corresponding relative risks.
-                    population_attributable_fraction: str, float, or callable
+                    population_attributable_fraction:
                         Source for PAF data. Default is the artifact key
                         ``{risk}.population_attributable_fraction``. Used to
                         adjust the target rate to account for the portion

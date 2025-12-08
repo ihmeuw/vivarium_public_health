@@ -44,12 +44,12 @@ class BaseDiseaseState(State):
 
         Data Sources
         ------------
-        prevalence : str, float, or callable
+        prevalence
             Source for prevalence data used to initialize simulants into
             this state. Default is the value set on the instance (typically 0.0).
             Can be an artifact key, a scalar value, or a callable that takes
             a builder and returns data.
-        birth_prevalence : str, float, or callable
+        birth_prevalence
             Source for birth prevalence data used to initialize newborn
             simulants. Default is the value set on the instance (typically 0.0).
             Can be an artifact key, a scalar value, or a callable that takes
@@ -359,24 +359,24 @@ class DiseaseState(BaseDiseaseState):
 
         Data Sources
         ------------
-        prevalence : str, float, or callable
+        prevalence
             Source for prevalence data. Defaults to the ``prevalence``
             constructor argument, or if not provided, loads from artifact
             at ``cause.{state_id}.prevalence``.
-        birth_prevalence : str, float, or callable
+        birth_prevalence
             Source for birth prevalence data. Defaults to the
             ``birth_prevalence`` constructor argument, or if not provided,
             loads from artifact at ``cause.{state_id}.birth_prevalence``.
-        dwell_time : str, float, pd.Timedelta, or callable
+        dwell_time
             Source for dwell time data (minimum time in state before
             transition). Defaults to the ``dwell_time`` constructor argument,
             or if not provided, defaults to 0 (no minimum dwell time).
-        disability_weight : str, float, or callable
+        disability_weight
             Source for disability weight data used to calculate years lived
             with disability (YLDs). Defaults to the ``disability_weight``
             constructor argument, or if not provided, loads from artifact
             at ``cause.{state_id}.disability_weight``.
-        excess_mortality_rate : str, float, or callable
+        excess_mortality_rate
             Source for excess mortality rate data. Defaults to the
             ``excess_mortality_rate`` constructor argument, or if not
             provided, loads from artifact at

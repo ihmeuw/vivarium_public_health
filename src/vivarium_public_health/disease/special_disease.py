@@ -103,18 +103,18 @@ class RiskAttributableDisease(Component):
 
             {component_name}:
                 data_sources:
-                    raw_disability_weight: str or float
+                    raw_disability_weight:
                         Source for disability weight data. Default is the
                         artifact key ``{cause}.disability_weight``.
-                    cause_specific_mortality_rate: str, float, or callable
+                    cause_specific_mortality_rate:
                         Source for cause-specific mortality rate data. Default
                         uses ``load_cause_specific_mortality_rate_data`` method
                         which loads from artifact if ``mortality`` is True.
-                    excess_mortality_rate: str, float, or callable
+                    excess_mortality_rate:
                         Source for excess mortality rate data. Default uses
                         ``load_excess_mortality_rate_data`` method which loads
                         from artifact if ``mortality`` is True.
-                    population_attributable_fraction: str, float, or callable
+                    population_attributable_fraction:
                         Source for PAF data. Default is 0, indicating no
                         mediated effects from other risks.
                 threshold: str or list

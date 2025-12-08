@@ -40,7 +40,7 @@ class DiseaseModel(Machine):
 
             {disease_name}:
                 data_sources:
-                    cause_specific_mortality_rate: str, float, or callable
+                    cause_specific_mortality_rate:
                         Source for cause-specific mortality rate (CSMR) data.
                         Default uses the ``load_cause_specific_mortality_rate``
                         method which loads from artifact at
