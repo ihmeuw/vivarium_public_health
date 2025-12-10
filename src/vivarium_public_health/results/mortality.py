@@ -49,26 +49,12 @@ class MortalityObserver(PublicHealthObserver):
 
     Attributes
     ----------
-    required_death_columns
-        Columns required by the deaths observation.
-    required_yll_columns
-        Columns required by the ylls observation.
     clock
         The simulation clock.
     causes_of_death
         Causes of death to be observed.
 
     """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.required_death_columns = ["alive", "exit_time", "cause_of_death"]
-        self.required_yll_columns = [
-            "alive",
-            "cause_of_death",
-            "exit_time",
-            "years_of_life_lost",
-        ]
 
     ##############
     # Properties #
@@ -171,14 +157,14 @@ class MortalityObserver(PublicHealthObserver):
                 "cause_of_death",
                 [cause.state_id for cause in self.causes_of_death],
                 excluded_categories=excluded_categories,
-                requires_columns=["cause_of_death"],
+                requires_attributes=["cause_of_death"],
             )
             additional_stratifications += ["cause_of_death"]
         self.register_adding_observation(
             builder=builder,
             name="deaths",
             pop_filter=pop_filter,
-            requires_columns=self.required_death_columns,
+            requires_attributes=["exit_time"],
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.count_deaths,
@@ -187,7 +173,7 @@ class MortalityObserver(PublicHealthObserver):
             builder=builder,
             name="ylls",
             pop_filter=pop_filter,
-            requires_columns=self.required_yll_columns,
+            requires_attributes=["exit_time", "years_of_life_lost"],
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.calculate_ylls,
