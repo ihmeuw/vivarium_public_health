@@ -53,14 +53,14 @@ class ResultsStratifier(Component):
             self.age_bins["age_group_name"].to_list(),
             mapper=self.map_age_groups,
             is_vectorized=True,
-            requires_columns=["age"],
+            requires_attributes=["age"],
         )
         builder.results.register_stratification(
             "current_year",
             [str(year) for year in range(self.start_year, self.end_year + 1)],
             mapper=self.map_year,
             is_vectorized=True,
-            requires_columns=["current_time"],
+            requires_attributes=["current_time"],
         )
         builder.results.register_stratification(
             "event_year",
@@ -68,7 +68,7 @@ class ResultsStratifier(Component):
             excluded_categories=[str(self.end_year + 1)],
             mapper=self.map_year,
             is_vectorized=True,
-            requires_columns=["event_time"],
+            requires_attributes=["event_time"],
         )
         # TODO [MIC-3892]: simulants occasionally have entrance year of start_year-1 if the start time minus step size
         #  lands in the previous year. possible solution detailed in ticket
@@ -77,7 +77,7 @@ class ResultsStratifier(Component):
         #     [str(year) for year in range(self.start_year, self.end_year + 1)],
         #     self.map_year,
         #     is_vectorized=True,
-        #     requires_columns=["entrance_time"],
+        #     requires_attributes=["entrance_time"],
         # )
         # TODO [MIC-4083]: Known bug with this registration
         # builder.results.register_stratification(
@@ -85,10 +85,10 @@ class ResultsStratifier(Component):
         #     [str(year) for year in range(self.start_year, self.end_year + 1)] + ["nan"],
         #     mapper=self.map_year,
         #     is_vectorized=True,
-        #     requires_columns=["exit_time"],
+        #     requires_attributes=["exit_time"],
         # )
         builder.results.register_stratification(
-            "sex", ["Female", "Male"], requires_columns=["sex"]
+            "sex", ["Female", "Male"], requires_attributes=["sex"]
         )
 
     ###########
