@@ -62,13 +62,8 @@ class MortalityObserver(PublicHealthObserver):
 
     def __init__(self) -> None:
         super().__init__()
-        self.required_death_columns = ["alive", "exit_time", "cause_of_death"]
-        self.required_yll_columns = [
-            "alive",
-            "cause_of_death",
-            "exit_time",
-            "years_of_life_lost",
-        ]
+        self.required_death_columns = ["exit_time"]
+        self.required_yll_columns = ["exit_time", "years_of_life_lost"]
 
     ##############
     # Properties #

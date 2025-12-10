@@ -66,7 +66,7 @@ def test_disability_observer_setup(mocker):
         pop_filter='alive == "alive"',
         exclude_untracked=True,
         when="time_step__prepare",
-        requires_attributes=["alive"] + cause_pipelines,
+        requires_attributes=cause_pipelines,
         results_formatter=observer.format_results,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,

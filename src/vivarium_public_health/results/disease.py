@@ -175,7 +175,6 @@ class DiseaseObserver(PublicHealthObserver):
             name=f"person_time_{self.disease}",
             pop_filter=pop_filter,
             when="time_step__prepare",
-            requires_attributes=["alive", self.disease],
             additional_stratifications=self.configuration.include + [self.disease],
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_state_person_time,
@@ -189,11 +188,6 @@ class DiseaseObserver(PublicHealthObserver):
             builder=builder,
             name=f"transition_count_{self.disease}",
             pop_filter=pop_filter,
-            requires_attributes=[
-                "alive",
-                self.previous_state_column_name,
-                self.disease,
-            ],
             additional_stratifications=self.configuration.include
             + [self.transition_stratification_name],
             excluded_stratifications=self.configuration.exclude,

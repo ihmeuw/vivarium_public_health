@@ -102,7 +102,6 @@ class CategoricalRiskObserver(PublicHealthObserver):
             name=f"person_time_{self.risk}",
             pop_filter=f'alive == "alive"',
             when="time_step__prepare",
-            requires_attributes=["alive", self.exposure_pipeline_name],
             additional_stratifications=self.configuration.include + [self.risk],
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_risk_category_person_time,

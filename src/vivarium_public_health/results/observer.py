@@ -37,7 +37,6 @@ class PublicHealthObserver(Observer):
         requires_attributes: list[str] = [],
         additional_stratifications: list[str] = [],
         excluded_stratifications: list[str] = [],
-        aggregator_sources: list[str] | None = None,
         aggregator: Callable[[pd.DataFrame], float | pd.Series] = len,
         to_observe: Callable[[Event], bool] = lambda event: True,
     ) -> None:
@@ -69,8 +68,6 @@ class PublicHealthObserver(Observer):
             observation by.
         excluded_stratifications
             List of default stratification names to remove from this observation.
-        aggregator_sources
-            List of population view columns to be used in the `aggregator`.
         aggregator
             Function that computes the quantity for this observation.
         to_observe
@@ -86,7 +83,8 @@ class PublicHealthObserver(Observer):
             results_formatter=self.format_results,
             additional_stratifications=additional_stratifications,
             excluded_stratifications=excluded_stratifications,
-            aggregator_sources=aggregator_sources,
+            # TODO: Remove aggregator_sources from vivarium
+            aggregator_sources=requires_attributes,
             aggregator=aggregator,
             to_observe=to_observe,
         )

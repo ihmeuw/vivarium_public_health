@@ -143,10 +143,9 @@ class DisabilityObserver(PublicHealthObserver):
             name="ylds",
             pop_filter='alive == "alive"',
             when="time_step__prepare",
-            requires_attributes=["alive"] + cause_pipelines,
+            requires_attributes=cause_pipelines,
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
-            aggregator_sources=cause_pipelines,
             aggregator=self.disability_weight_aggregator,
         )
 
