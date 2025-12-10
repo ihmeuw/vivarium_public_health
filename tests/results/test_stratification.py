@@ -95,14 +95,14 @@ def test_results_stratifier_register_stratifications(mocker):
         age_group_names_list,
         mapper=rs.map_age_groups,
         is_vectorized=True,
-        requires_columns=["age"],
+        requires_attributes=["age"],
     )
     builder.results.register_stratification.assert_any_call(
         "current_year",
         years_list,
         mapper=rs.map_year,
         is_vectorized=True,
-        requires_columns=["current_time"],
+        requires_attributes=["current_time"],
     )
     builder.results.register_stratification.assert_any_call(
         "event_year",
@@ -110,14 +110,14 @@ def test_results_stratifier_register_stratifications(mocker):
         excluded_categories=[str(int(years_list[-1]) + 1)],
         mapper=rs.map_year,
         is_vectorized=True,
-        requires_columns=["event_time"],
+        requires_attributes=["event_time"],
     )
     # builder.results.register_stratification.assert_any_call(
     #     "entrance_year",
     #     years_list,
     #     mapper=rs.map_year,
     #     is_vectorized=True,
-    #     requires_columns=["entrance_time"],
+    #     requires_attributes=["entrance_time"],
     # )
     # TODO [MIC-4803]: Known bug with this registration
     # builder.results.register_stratification.assert_any_call(
@@ -125,10 +125,10 @@ def test_results_stratifier_register_stratifications(mocker):
     #     years_list + ["nan"],
     #     mapper=rs.map_year,
     #     is_vectorized=True,
-    #     requires_columns=["exit_time"],
+    #     requires_attributes=["exit_time"],
     # )
     builder.results.register_stratification.assert_any_call(
-        "sex", ["Female", "Male"], requires_columns=["sex"]
+        "sex", ["Female", "Male"], requires_attributes=["sex"]
     )
     assert builder.results.register_stratification.call_count == 4
 
