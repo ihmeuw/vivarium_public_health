@@ -424,8 +424,8 @@ class DichotomousDistribution(RiskExposureDistribution):
         automatically rebinned: specified categories are combined into 'cat1'
         (exposed) and remaining categories become 'cat2' (unexposed).
 
-        The PAF lookup table enables joint PAF calculations when multiple
-        risk effects modify the same target.
+        The PAF lookup table backs the joint PAF pipeline, which itself is registered
+        to allow the exposure parameters pipeline to be the target of a risk effect.
         """
         exposure_data = self.get_exposure_data(builder)
         exposure_value_columns = self.get_exposure_value_columns(exposure_data)
