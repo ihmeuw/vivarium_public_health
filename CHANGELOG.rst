@@ -1,3 +1,7 @@
+**4.3.15 - 12/11/25**
+
+  - Add documentation for configuration defaults and build_all_lookup_table overrides
+
 **4.3.14 - 11/20/25**
 
   - Improve 'make build-env': better handle args and make the env name optional
