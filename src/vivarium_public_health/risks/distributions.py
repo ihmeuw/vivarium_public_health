@@ -364,7 +364,7 @@ class PolytomousDistribution(RiskExposureDistribution):
     ##################
 
     def ppf(self, quantiles: pd.Series) -> pd.Series:
-        exposure = self.population_view.get_attributes(
+        exposure = self.population_view.get_attribute_frame(
             quantiles.index, self.exposure_parameters_name
         )
         sorted_exposures = exposure[self.categories]
