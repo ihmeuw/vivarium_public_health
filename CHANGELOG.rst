@@ -1,6 +1,10 @@
-**4.3.15 - 12/11/25**
+**4.3.16 - 12/15/25**
 
   - Add documentation for configuration defaults and build_all_lookup_table overrides
+  
+**4.3.15 - 12/12/25**
+
+  - Update PublicHealthObserver to use empty string as default value for required columns
 
 **4.3.14 - 11/20/25**
 

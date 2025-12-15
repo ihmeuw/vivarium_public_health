@@ -190,7 +190,7 @@ class PublicHealthObserver(Observer):
         -------
             The 'entity_type' column values.
         """
-        return pd.Series(None, index=results.index)
+        return pd.Series("", index=results.index)
 
     def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         """Get the 'entity' column.
@@ -208,7 +208,7 @@ class PublicHealthObserver(Observer):
         -------
             The 'entity' column values.
         """
-        return pd.Series(None, index=results.index)
+        return pd.Series("", index=results.index)
 
     def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         """Get the 'sub_entity' column.
@@ -226,4 +226,4 @@ class PublicHealthObserver(Observer):
         -------
             The 'sub_entity' column values.
         """
-        return pd.Series(None, index=results.index)
+        return pd.Series("", index=results.index)
