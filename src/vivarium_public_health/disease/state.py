@@ -6,6 +6,7 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
+
 import warnings
 from collections.abc import Callable
 from typing import Any
@@ -37,6 +38,24 @@ class BaseDiseaseState(State):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this state.
+
+        Extends the parent State's configuration with disease-specific
+        data sources for prevalence.
+
+        Configuration structure::
+
+            {component_name}:
+                data_sources:
+                    prevalence:
+                        Source for prevalence data used to initialize simulants
+                        into this state. Default is the value set on the instance
+                        (typically 0.0).
+                    birth_prevalence:
+                        Source for birth prevalence data used to initialize
+                        newborn simulants. Default is the value set on the
+                        instance (typically 0.0).
+        """
         configuration_defaults = super().configuration_defaults
         additional_defaults = {
             "prevalence": self.prevalence,
@@ -330,6 +349,42 @@ class DiseaseState(BaseDiseaseState):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this disease state.
+
+        Extends BaseDiseaseState's configuration with additional data sources
+        for disease burden metrics.
+
+        Configuration structure::
+
+            {component_name}:
+                data_sources:
+                    prevalence:
+                        Source for prevalence data. Defaults to the
+                        ``prevalence`` constructor argument, or if not
+                        provided, loads from artifact at
+                        ``cause.{state_id}.prevalence``.
+                    birth_prevalence:
+                        Source for birth prevalence data. Defaults to the
+                        ``birth_prevalence`` constructor argument, or if not
+                        provided, loads from artifact at
+                        ``cause.{state_id}.birth_prevalence``.
+                    dwell_time:
+                        Source for dwell time data (minimum time in state
+                        before transition). Defaults to the ``dwell_time``
+                        constructor argument, or if not provided, defaults
+                        to 0 (no minimum dwell time).
+                    disability_weight:
+                        Source for disability weight data used to calculate
+                        years lived with disability (YLDs). Defaults to the
+                        ``disability_weight`` constructor argument, or if not
+                        provided, loads from artifact at
+                        ``cause.{state_id}.disability_weight``.
+                    excess_mortality_rate:
+                        Source for excess mortality rate data. Defaults to the
+                        ``excess_mortality_rate`` constructor argument, or if
+                        not provided, loads from artifact at
+                        ``cause.{state_id}.excess_mortality_rate``.
+        """
         configuration_defaults = super().configuration_defaults
         additional_defaults = {
             "prevalence": self._prevalence_source,

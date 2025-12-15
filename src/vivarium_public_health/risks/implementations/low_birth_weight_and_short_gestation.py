@@ -265,6 +265,30 @@ class LBWSGRisk(Risk):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this component.
+
+        Extends the base Risk configuration with LBWSG-specific settings.
+
+        Configuration structure::
+
+            {risk_name}:
+                data_sources:
+                    exposure:
+                        Source for exposure data. Inherited from Risk.
+                    ensemble_distribution_weights:
+                        Source for ensemble weights. Inherited from Risk.
+                    exposure_standard_deviation:
+                        Source for exposure SD. Inherited from Risk.
+                    birth_exposure:
+                        Source for birth exposure data specific to LBWSG.
+                        Default is the artifact key
+                        ``{risk}.birth_exposure``. This provides the
+                        joint distribution of birth weight and gestational
+                        age categories at birth.
+                distribution_type: str
+                    Fixed to ``"lbwsg"`` for this component, using the
+                    specialized LBWSGDistribution.
+        """
         configuration_defaults = super().configuration_defaults
         # Add birth exposure data source
         configuration_defaults[self.name]["data_sources"][

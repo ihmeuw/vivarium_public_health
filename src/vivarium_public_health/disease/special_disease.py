@@ -97,6 +97,39 @@ class RiskAttributableDisease(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this component.
+
+        Configuration structure::
+
+            {component_name}:
+                data_sources:
+                    raw_disability_weight:
+                        Source for disability weight data. Default is the
+                        artifact key ``{cause}.disability_weight``.
+                    cause_specific_mortality_rate:
+                        Source for cause-specific mortality rate data. Default
+                        uses ``load_cause_specific_mortality_rate_data`` method
+                        which loads from artifact if ``mortality`` is True.
+                    excess_mortality_rate:
+                        Source for excess mortality rate data. Default uses
+                        ``load_excess_mortality_rate_data`` method which loads
+                        from artifact if ``mortality`` is True.
+                    population_attributable_fraction:
+                        Source for PAF data. Default is 0, indicating no
+                        mediated effects from other risks.
+                threshold: str or list
+                    Exposure threshold defining disease state. For continuous
+                    risks, provide a string like ``">7"`` or ``"<5"``.
+                    For categorical risks, provide a list of categories
+                    (e.g., ``['cat1', 'cat2']``).
+                mortality: bool
+                    Whether this disease has associated mortality. Default
+                    is True.
+                recoverable: bool
+                    Whether simulants can recover from this disease when
+                    their exposure falls outside the threshold. Default
+                    is True.
+        """
         return {
             self.name: {
                 "data_sources": {

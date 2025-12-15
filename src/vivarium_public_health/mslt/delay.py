@@ -95,6 +95,22 @@ class DelayedRisk(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this component.
+
+        Configuration structure::
+
+            {risk_name}:
+                constant_prevalence: bool
+                    If True, smoking prevalence remains constant over time
+                    (no remission). If False, prevalence can change as
+                    simulants quit smoking. Default is False.
+                tobacco_tax: bool
+                    If True, applies tobacco tax intervention effects.
+                    Default is False.
+                delay: int
+                    Number of years of delay before health effects manifest
+                    after exposure changes. Default is 20 years.
+        """
         return {
             self.risk: {
                 "constant_prevalence": False,

@@ -23,6 +23,17 @@ class ModifyAllCauseMortality(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this intervention.
+
+        Configuration structure::
+
+            intervention:
+                {intervention_name}:
+                    scale: float
+                        Multiplicative factor applied to all-cause mortality
+                        rate. Values < 1 reduce mortality, values > 1
+                        increase mortality. Default is 1.0 (no effect).
+        """
         return {
             "intervention": {
                 self.intervention: {
@@ -65,6 +76,17 @@ class ModifyDiseaseRate(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this intervention.
+
+        Configuration structure::
+
+            intervention:
+                {intervention_name}:
+                    {disease}_{rate}_scale: float
+                        Multiplicative factor applied to the specified
+                        disease rate. Values < 1 reduce the rate, values > 1
+                        increase it. Default is 1.0 (no effect).
+        """
         return {
             "intervention": {
                 self.intervention: {
@@ -147,6 +169,18 @@ class ModifyAcuteDiseaseIncidence(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this intervention.
+
+        Configuration structure::
+
+            intervention:
+                {intervention_name}:
+                    incidence_scale: float
+                        Multiplicative factor applied to both disability
+                        and mortality rates for the acute disease. Values < 1
+                        reduce incidence, values > 1 increase it.
+                        Default is 1.0 (no effect).
+        """
         return {
             "intervention": {
                 self.intervention: {
@@ -190,6 +224,17 @@ class ModifyAcuteDiseaseMorbidity(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this intervention.
+
+        Configuration structure::
+
+            intervention:
+                {intervention_name}:
+                    yld_scale: float
+                        Multiplicative factor applied to the disability
+                        (YLD) rate. Values < 1 reduce disability, values > 1
+                        increase it. Default is 1.0 (no effect).
+        """
         return {
             "intervention": {
                 self.intervention: {
@@ -233,6 +278,17 @@ class ModifyAcuteDiseaseMortality(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this intervention.
+
+        Configuration structure::
+
+            intervention:
+                {intervention_name}:
+                    mortality_scale: float
+                        Multiplicative factor applied to the acute disease
+                        mortality rate. Values < 1 reduce mortality,
+                        values > 1 increase it. Default is 1.0 (no effect).
+        """
         return {
             "intervention": {
                 self.intervention: {
@@ -274,6 +330,16 @@ class TobaccoFreeGeneration(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this intervention.
+
+        Configuration structure::
+
+            tobacco_free_generation:
+                year: int
+                    Year when tobacco initiation stops completely.
+                    Starting from this year, no new tobacco uptake occurs
+                    (incidence rate becomes zero). Default is 2020.
+        """
         return {
             "tobacco_free_generation": {
                 "year": 2020,
@@ -315,6 +381,17 @@ class TobaccoEradication(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this intervention.
+
+        Configuration structure::
+
+            tobacco_eradication:
+                year: int
+                    Year when all tobacco use is eradicated. Starting from
+                    this year, incidence becomes zero (no new uptake) and
+                    remission becomes 100% (all users quit).
+                    Default is 2020.
+        """
         return {
             "tobacco_eradication": {
                 "year": 2020,

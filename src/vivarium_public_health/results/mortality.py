@@ -82,8 +82,25 @@ class MortalityObserver(PublicHealthObserver):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """A dictionary containing the defaults for any configurations managed by
-        this component.
+        """Provides default configuration values for this observer.
+
+        Extends the base PublicHealthObserver configuration with
+        mortality-specific settings.
+
+        Configuration structure::
+
+            stratification:
+                {observer_name}:
+                    exclude: list[str]
+                        Stratification groups to exclude from results.
+                        Inherited from base observer.
+                    include: list[str]
+                        Additional stratification groups to include.
+                        Inherited from base observer.
+                    aggregate: bool
+                        If True, aggregates all deaths and YLLs into a
+                        single observation without cause-specific breakdown.
+                        Default is False (cause-specific results).
         """
         config_defaults = super().configuration_defaults
         config_defaults["stratification"][self.get_configuration_name()]["aggregate"] = False

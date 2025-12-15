@@ -31,6 +31,23 @@ class AbsoluteShift(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this intervention.
+
+        Configuration structure::
+
+            intervention_on_{target_name}:
+                target_value: str or float
+                    Value to set for the target measure. Use ``"baseline"``
+                    to apply no intervention effect, or a numeric value to
+                    set an absolute value for the measure. Default is
+                    ``"baseline"`` (no effect).
+                age_start: float
+                    Minimum age (in years) for the intervention to apply.
+                    Simulants below this age are unaffected. Default is 0.
+                age_end: float
+                    Maximum age (in years) for the intervention to apply.
+                    Simulants above this age are unaffected. Default is 125.
+        """
         return {
             f"intervention_on_{self.target.name}": self.CONFIGURATION_DEFAULTS["intervention"]
         }

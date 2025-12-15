@@ -6,6 +6,7 @@ Disease Transitions
 This module contains tools to model transitions between disease states.
 
 """
+
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -43,6 +44,20 @@ class RateTransition(Transition):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this transition.
+
+        Configuration structure::
+
+            {transition_name}:
+                data_sources:
+                    transition_rate:
+                        Source for transition rate data. The default value is
+                        determined by the ``transition_rate`` constructor argument.
+                rate_conversion_type: str
+                    Method for converting rates to probabilities. Options
+                    are ``"linear"`` (default) or ``"exponential"``. Linear
+                    uses ``rate * dt``, exponential uses ``1 - exp(-rate * dt)``.
+        """
         return {
             f"{self.name}": {
                 "data_sources": {
@@ -202,6 +217,18 @@ class ProportionTransition(Transition):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
+        """Provides default configuration values for this transition.
+
+        Configuration structure::
+
+            {transition_name}:
+                data_sources:
+                    proportion:
+                        Source for the proportion of simulants transitioning
+                        at each time step. The default uses the
+                        ``load_proportion`` method which resolves data from
+                        the ``proportion`` constructor argument.
+        """
         return {
             f"{self.name}": {
                 "data_sources": {

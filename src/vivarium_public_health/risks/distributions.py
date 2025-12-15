@@ -113,6 +113,32 @@ class EnsembleDistribution(RiskExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: Builder) -> None:
+        """Build lookup tables for ensemble distribution parameters.
+
+        This method combines multiple distribution types (e.g., normal, lognormal,
+        gamma) weighted by GBD-provided weights into a single lookup table for the entire ensemble.
+        We build additional lookup tables outside of ``self.lookup_tables`` because
+        the ensemble requires separate parameter tables for each component distribution.
+
+        Lookup Tables Created
+        ---------------------
+        ensemble_distribution_weights
+            Weights for each component distribution in the ensemble.
+            Value columns are the distribution names (e.g., 'norm', 'lognorm').
+
+        Additionally, ``self.parameters`` dict is populated with lookup tables
+        for each distribution's parameters (built directly via builder.lookup).
+
+        Data Sources Used
+        -----------------
+        - ``exposure``: Mean exposure values
+        - ``exposure_standard_deviation``: Standard deviation of exposure
+        - ``ensemble_distribution_weights``: Weights for each distribution type
+
+        Notes
+        -----
+        The 'glnorm' (generalized log-normal) distribution is not supported, and therefore excluded.
+        """
         exposure_data = self.get_exposure_data(builder)
         standard_deviation = self.get_data(
             builder,
@@ -225,6 +251,28 @@ class ContinuousDistribution(RiskExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
+        """Build lookup tables for continuous distribution parameters.
+
+        This method builds a single lookup table containing the distribution
+        parameters (e.g., mu and sigma for normal/lognormal) computed from
+        the mean exposure and standard deviation data.
+
+        Lookup Tables Created
+        ---------------------
+        parameters
+            Distribution parameters computed by the risk_distributions package.
+
+        Data Sources Used
+        -----------------
+        - ``exposure``: Mean exposure values
+        - ``exposure_standard_deviation``: Standard deviation of exposure
+
+        Notes
+        -----
+        The parameter transformation is handled by the ``risk_distributions``
+        package's ``get_parameters`` method, which converts mean/sd to the
+        appropriate distribution parameters.
+        """
         exposure_data = self.get_exposure_data(builder)
         standard_deviation = self.get_data(
             builder, self.configuration["data_sources"]["exposure_standard_deviation"]
@@ -273,6 +321,31 @@ class PolytomousDistribution(RiskExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
+        """Build lookup tables for polytomous (categorical) exposure.
+
+        This method builds a lookup table containing exposure probabilities
+        for each category of the polytomous risk. The data is pivoted from
+        long format (one row per category) to wide format (one column per
+        category).
+
+        Lookup Tables Created
+        ---------------------
+        exposure
+            Exposure probabilities for each category. Value columns are the
+            category names (e.g., 'cat1', 'cat2', 'cat3', 'cat4'). Values
+            should sum to 1.0 across categories for each demographic group.
+
+        Data Sources Used
+        -----------------
+        - ``exposure``: Exposure probabilities by category. Expected to have
+          a 'parameter' column containing category names and a 'value' column
+          containing the probability for each category.
+
+        Notes
+        -----
+        The ``pivot_categorical`` function is used to transform the data from
+        long to wide format, with category names becoming column names.
+        """
         exposure_data = self.get_exposure_data(builder)
         exposure_value_columns = self.get_exposure_value_columns(exposure_data)
 
@@ -325,6 +398,35 @@ class DichotomousDistribution(RiskExposureDistribution):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
+        """Build lookup tables for a binary risk exposure.
+
+        Lookup Tables Created
+        ---------------------
+        exposure
+            Probability of being in the exposed category (cat1). Values must
+            be in the range [0, 1].
+        paf
+            Population attributable fraction, initialized to 0.0. This can be
+            modified by risk effects to account for joint PAF calculations.
+
+        Data Sources Used
+        -----------------
+        - ``exposure``: Exposure probability for cat1. Can be:
+
+          - A scalar value (float) representing constant exposure probability
+          - A DataFrame with exposure probabilities by demographic group
+          - A DataFrame with polytomous categories that will be rebinned
+            (see ``rebinned_exposed`` configuration)
+
+        Notes
+        -----
+        If ``rebinned_exposed`` is configured, polytomous exposure data is
+        automatically rebinned: specified categories are combined into 'cat1'
+        (exposed) and remaining categories become 'cat2' (unexposed).
+
+        The PAF lookup table backs the joint PAF pipeline, which itself is registered
+        to allow the exposure parameters pipeline to be the target of a risk effect.
+        """
         exposure_data = self.get_exposure_data(builder)
         exposure_value_columns = self.get_exposure_value_columns(exposure_data)
 
