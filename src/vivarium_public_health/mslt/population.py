@@ -141,13 +141,15 @@ class Mortality(Component):
     def setup(self, builder: Builder) -> None:
         """Load the all-cause mortality rate."""
         mortality_data = builder.data.load("cause.all_causes.mortality")
-        self.mortality_rate = builder.value.register_rate_producer(
+        builder.value.register_rate_producer(
             "mortality_rate",
             source=builder.lookup.build_table(
                 mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
             ),
             component=self,
         )
+        # We need the source later so expose the pipelines
+        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
 
     ########################
     # Event-driven methods #
@@ -160,11 +162,11 @@ class Mortality(Component):
         pop = self.population_view.get(event.index)
         if pop.empty:
             return
-        pop.acmr = self.mortality_rate(event.index)
+        pop.acmr = self.population_view.get_attributes(event.index, "mortality_rate")
         probability_of_death = 1 - np.exp(-pop.acmr)
         deaths = pop.population * probability_of_death
         pop.population *= 1 - probability_of_death
-        pop.bau_acmr = self.mortality_rate.source(event.index)
+        pop.bau_acmr = self._get_attribute_pipelines()["mortality_rate"].source(event.index)
         bau_probability_of_death = 1 - np.exp(-pop.bau_acmr)
         bau_deaths = pop.bau_population * bau_probability_of_death
         pop.bau_population *= 1 - bau_probability_of_death
@@ -209,9 +211,9 @@ class Disability(Component):
         yld_rate = builder.lookup.build_table(
             yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
-        self.yld_rate = builder.value.register_rate_producer(
-            "yld_rate", source=yld_rate, component=self
-        )
+        builder.value.register_rate_producer("yld_rate", source=yld_rate, component=self)
+        # We need the source later so expose the pipelines
+        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
 
     ########################
     # Event-driven methods #
@@ -224,8 +226,8 @@ class Disability(Component):
         pop = self.population_view.get(event.index)
         if pop.empty:
             return
-        pop.yld_rate = self.yld_rate(event.index)
-        pop.bau_yld_rate = self.yld_rate.source(event.index)
+        pop.yld_rate = self.population_view.get_attributes(event.index, "yld_rate")
+        pop.bau_yld_rate = self._get_attribute_pipelines()["yld_rate"].source(event.index)
         pop.HALY = pop.person_years * (1 - pop.yld_rate)
         pop.bau_HALY = pop.bau_person_years * (1 - pop.bau_yld_rate)
         self.population_view.update(pop)

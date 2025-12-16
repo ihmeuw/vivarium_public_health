@@ -129,6 +129,11 @@ class DelayedRisk(Component):
         super().__init__()
         self.risk = risk
         self._bin_names = []
+        self.incidence_pipeline_name = f"{self.risk}.incidence"
+        self.intervention_incidence_pipeline_name = f"{self.risk}_intervention.incidence"
+        self.remission_pipeline_name = f"{self.risk}.remission"
+        self.intervention_remission_pipeline_name = f"{self.risk}_intervention.remission"
+        self.tobacco_acmr_pipeline_name = "tobacco_acmr"
 
     def setup(self, builder: Builder) -> None:
         """Configure the delayed risk component.
@@ -163,13 +168,11 @@ class DelayedRisk(Component):
             key_columns=["sex"],
             parameter_columns=["age", "year"],
         )
-        inc_name = "{}.incidence".format(self.risk)
-        inc_int_name = "{}_intervention.incidence".format(self.risk)
-        self.incidence = builder.value.register_rate_producer(
-            inc_name, source=inc_data, component=self
+        builder.value.register_rate_producer(
+            self.incidence_pipeline_name, source=inc_data, component=self
         )
-        self.int_incidence = builder.value.register_rate_producer(
-            inc_int_name, source=inc_data, component=self
+        builder.value.register_rate_producer(
+            self.intervention_incidence_pipeline_name, source=inc_data, component=self
         )
 
         # Load the remission rates for the BAU and intervention scenarios.
@@ -180,13 +183,11 @@ class DelayedRisk(Component):
         rem_data = builder.lookup.build_table(
             rem_df, key_columns=["sex"], parameter_columns=["age", "year"]
         )
-        rem_name = "{}.remission".format(self.risk)
-        rem_int_name = "{}_intervention.remission".format(self.risk)
-        self.remission = builder.value.register_rate_producer(
-            rem_name, source=rem_data, component=self
+        builder.value.register_rate_producer(
+            self.remission_pipeline_name, source=rem_data, component=self
         )
-        self.int_remission = builder.value.register_rate_producer(
-            rem_int_name, source=rem_data, component=self
+        builder.value.register_rate_producer(
+            self.intervention_remission_pipeline_name, source=rem_data, component=self
         )
 
         # We apply separate mortality rates to the different exposure bins.
@@ -200,7 +201,7 @@ class DelayedRisk(Component):
 
         # Register a modifier for each disease affected by this delayed risk.
         diseases = self.config[self.risk].affects.keys()
-        for ix, disease in enumerate(diseases):
+        for disease in diseases:
             self.register_modifier(builder, disease)
 
         # Load the disease-specific relative risks for each exposure bin.
@@ -251,13 +252,15 @@ class DelayedRisk(Component):
         )
 
         mortality_data = pivot_load(builder, "cause.all_causes.mortality")
-        self.tobacco_acmr = builder.value.register_rate_producer(
-            "tobacco_acmr",
+        builder.value.register_rate_producer(
+            self.tobacco_acmr_pipeline_name,
             source=builder.lookup.build_table(
                 mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
             ),
             component=self,
         )
+        # We need the tobacco acmr source later, so expose pipelines here
+        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
 
     #################
     # Setup methods #
@@ -338,7 +341,9 @@ class DelayedRisk(Component):
         # prevalence by the population size for each cohort.
         # NOTE: the number of current smokers is defined at the middle of each
         # year; i.e., it corresponds to the person_years.
-        bau_acmr = self.tobacco_acmr.source(pop_data.index)
+        bau_acmr = self._get_attribute_pipelines()[self.tobacco_acmr_pipeline_name].source(
+            pop_data.index
+        )
         bau_probability_of_death = 1 - np.exp(-bau_acmr)
         pop.population *= 1 - 0.5 * bau_probability_of_death
 
@@ -373,10 +378,14 @@ class DelayedRisk(Component):
             return
         idx = pop.index
         bau_acmr = self.acm_rate.source(idx)
-        inc_rate = self.incidence(idx)
-        rem_rate = self.remission(idx)
-        int_inc_rate = self.int_incidence(idx)
-        int_rem_rate = self.int_remission(idx)
+        inc_rate = self.population_view.get_attributes(idx, self.incidence_pipeline_name)
+        rem_rate = self.population_view.get_attributes(idx, self.remission_pipeline_name)
+        int_inc_rate = self.population_view.get_attributes(
+            idx, self.intervention_incidence_pipeline_name
+        )
+        int_rem_rate = self.population_view.get_attributes(
+            idx, self.intervention_remission_pipeline_name
+        )
 
         # Identify the relevant columns for the BAU and intervention.
         bin_cols = self.get_bin_names()

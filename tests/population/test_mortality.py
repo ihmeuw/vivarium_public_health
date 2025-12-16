@@ -77,9 +77,9 @@ def test_mortality_rate(setup_sim_with_pop_and_mortality):
     pop_idx = mortality_rates.index
     lookup_tables = mortality.lookup_tables
     acmr = lookup_tables["all_cause_mortality_rate"](pop_idx)
-    modeled_csmr = mortality.cause_specific_mortality_rate(pop_idx)
+    modeled_csmr = sim.get_population("cause_specific_mortality_rate")
     unmodeled_csmr_raw = lookup_tables["unmodeled_cause_specific_mortality_rate"](pop_idx)
-    unmodeled_csmr = mortality.unmodeled_csmr(pop_idx)
+    unmodeled_csmr = sim.get_population("affected_unmodeled.cause_specific_mortality_rate")
     expected_mortality_rates = (acmr - modeled_csmr - unmodeled_csmr_raw + unmodeled_csmr) * (
         sim._clock.step_size.days / 365
     )
