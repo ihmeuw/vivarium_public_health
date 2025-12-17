@@ -112,7 +112,7 @@ def test_mortality_rate_pandas_dataframe(disease_mock):
         current_disease_status, name=disease.cause.name, index=test_index
     ).map({disease.cause.name: 0.05, f"susceptible_to_{disease.cause.name}": 0})
     disease._get_attribute_pipelines.return_value = {
-        disease.excess_mortality_rate_pipeline_name: lambda idx, skip_post_processor: expected_mortality_values
+        disease.excess_mortality_rate_pipeline: lambda idx, skip_post_processor: expected_mortality_values
     }
     rates_df = pd.DataFrame(
         {"other_causes": 0, "another_test_cause": 0.001}, index=test_index

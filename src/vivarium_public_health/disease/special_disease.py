@@ -150,10 +150,8 @@ class RiskAttributableDisease(Component):
             TransitionString(f"susceptible_to_{self.cause.name}_TO_{self.cause.name}")
         ]
 
-        self.excess_mortality_rate_pipeline_name = f"{self.cause.name}.excess_mortality_rate"
-        self.excess_mortality_rate_paf_pipeline_name = (
-            f"{self.excess_mortality_rate_pipeline_name}.paf"
-        )
+        self.excess_mortality_rate_pipeline = f"{self.cause.name}.excess_mortality_rate"
+        self.excess_mortality_rate_paf_pipeline = f"{self.excess_mortality_rate_pipeline}.paf"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder):
@@ -187,7 +185,7 @@ class RiskAttributableDisease(Component):
         self.has_excess_mortality = is_non_zero(self.lookup_tables["excess_mortality_rate"])
 
         builder.value.register_attribute_producer(
-            self.excess_mortality_rate_pipeline_name,
+            self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
             component=self,
             required_resources=get_lookup_columns(
@@ -198,7 +196,7 @@ class RiskAttributableDisease(Component):
         # We need the emr pipeline later
         self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
         self.joint_paf = builder.value.register_attribute_producer(
-            self.excess_mortality_rate_paf_pipeline_name,
+            self.excess_mortality_rate_paf_pipeline,
             source=lambda idx: [self.lookup_tables["population_attributable_fraction"](idx)],
             component=self,
             preferred_combiner=list_combiner,
@@ -209,7 +207,7 @@ class RiskAttributableDisease(Component):
             modifier=self.adjust_mortality_rate,
             component=self,
             required_resources=[
-                self.excess_mortality_rate_pipeline_name,
+                self.excess_mortality_rate_pipeline,
             ],
         )
 
@@ -363,7 +361,7 @@ class RiskAttributableDisease(Component):
         rates_df
 
         """
-        rate = self._get_attribute_pipelines()[self.excess_mortality_rate_pipeline_name](
+        rate = self._get_attribute_pipelines()[self.excess_mortality_rate_pipeline](
             index, skip_post_processor=True
         )
         rates_df[self.cause.name] = rate

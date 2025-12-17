@@ -53,7 +53,7 @@ class RateTransition(Transition):
         }
 
     @property
-    def transition_rate_pipeline_name(self) -> str:
+    def transition_rate_pipeline(self) -> str:
         if self._get_data_functions:
             if "incidence_rate" in self._get_data_functions:
                 pipeline_name = f"{self.output_state.state_id}.incidence_rate"
@@ -109,7 +109,7 @@ class RateTransition(Transition):
         self._rate_source = self._get_rate_source(transition_rate)
         self.rate_type = rate_type
 
-        self.paf_pipeline_name = f"{self.transition_rate_pipeline_name}.paf"
+        self.paf_pipeline = f"{self.transition_rate_pipeline}.paf"
 
         if get_data_functions is not None:
             warnings.warn(
@@ -130,17 +130,17 @@ class RateTransition(Transition):
         lookup_columns = get_lookup_columns([self.lookup_tables["transition_rate"]])
         paf = builder.lookup.build_table(0)
         builder.value.register_attribute_producer(
-            self.paf_pipeline_name,
+            self.paf_pipeline,
             source=lambda index: [paf(index)],
             component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
         builder.value.register_rate_producer(
-            self.transition_rate_pipeline_name,
+            self.transition_rate_pipeline,
             source=self.compute_transition_rate,
             component=self,
-            required_resources=lookup_columns + ["alive", self.paf_pipeline_name],
+            required_resources=lookup_columns + ["alive", self.paf_pipeline],
         )
         self.rate_conversion_type = self.configuration["rate_conversion_type"]
 
@@ -175,7 +175,7 @@ class RateTransition(Transition):
         transition_rate = pd.Series(0.0, index=index)
         living = self.population_view.get_filtered_index(index, query='alive == "alive"')
         base_rates = self.lookup_tables["transition_rate"](living)
-        joint_paf = self.population_view.get_attributes(living, self.paf_pipeline_name)
+        joint_paf = self.population_view.get_attributes(living, self.paf_pipeline)
         transition_rate.loc[living] = base_rates * (1 - joint_paf)
         return transition_rate
 
@@ -186,9 +186,7 @@ class RateTransition(Transition):
     def _probability(self, index: pd.Index) -> pd.Series:
         return pd.Series(
             rate_to_probability(
-                self.population_view.get_attributes(
-                    index, self.transition_rate_pipeline_name
-                ),
+                self.population_view.get_attributes(index, self.transition_rate_pipeline),
                 rate_conversion_type=self.rate_conversion_type,
             )
         )

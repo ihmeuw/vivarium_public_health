@@ -56,14 +56,12 @@ class AcuteDisease(Component):
     def __init__(self, disease: str):
         super().__init__()
         self.disease = disease
-        self.excess_mortality_pipeline_name = f"{self.disease}.excess_mortality"
-        self.intervention_excess_mortality_pipeline_name = (
+        self.excess_mortality_pipeline = f"{self.disease}.excess_mortality"
+        self.intervention_excess_mortality_pipeline = (
             f"{self.disease}_intervention.excess_mortality"
         )
-        self.disability_rate_pipeline_name = f"{self.disease}.yld_rate"
-        self.intervention_disability_rate_pipeline_name = (
-            f"{self.disease}_intervention.yld_rate"
-        )
+        self.disability_rate_pipeline = f"{self.disease}.yld_rate"
+        self.intervention_disability_rate_pipeline = f"{self.disease}_intervention.yld_rate"
 
     def setup(self, builder: Builder) -> None:
         """Load the morbidity and mortality data."""
@@ -76,16 +74,16 @@ class AcuteDisease(Component):
             yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         builder.value.register_rate_producer(
-            self.excess_mortality_pipeline_name, source=mty_rate, component=self
+            self.excess_mortality_pipeline, source=mty_rate, component=self
         )
         builder.value.register_rate_producer(
-            self.intervention_excess_mortality_pipeline_name, source=mty_rate, component=self
+            self.intervention_excess_mortality_pipeline, source=mty_rate, component=self
         )
         builder.value.register_rate_producer(
-            self.disability_rate_pipeline_name, source=yld_rate, component=self
+            self.disability_rate_pipeline, source=yld_rate, component=self
         )
         builder.value.register_rate_producer(
-            self.intervention_disability_rate_pipeline_name, source=yld_rate, component=self
+            self.intervention_disability_rate_pipeline, source=yld_rate, component=self
         )
         builder.value.register_attribute_modifier(
             "mortality_rate", self.mortality_adjustment, component=self
@@ -105,13 +103,13 @@ class AcuteDisease(Component):
         excess_mortality = self.population_view.get_attributes(
             index,
             [
-                self.intervention_excess_mortality_pipeline_name,
-                self.excess_mortality_pipeline_name,
+                self.intervention_excess_mortality_pipeline,
+                self.excess_mortality_pipeline,
             ],
         )
         delta = (
-            excess_mortality[self.intervention_excess_mortality_pipeline_name]
-            - excess_mortality[self.excess_mortality_pipeline_name]
+            excess_mortality[self.intervention_excess_mortality_pipeline]
+            - excess_mortality[self.excess_mortality_pipeline]
         )
         return mortality_rate + delta
 
@@ -123,13 +121,13 @@ class AcuteDisease(Component):
         disability_rates = self.population_view.get_attributes(
             index,
             [
-                self.intervention_disability_rate_pipeline_name,
-                self.disability_rate_pipeline_name,
+                self.intervention_disability_rate_pipeline,
+                self.disability_rate_pipeline,
             ],
         )
         delta = (
-            disability_rates[self.intervention_disability_rate_pipeline_name]
-            - disability_rates[self.disability_rate_pipeline_name]
+            disability_rates[self.intervention_disability_rate_pipeline]
+            - disability_rates[self.disability_rate_pipeline]
         )
         return yld_rate + delta
 
@@ -206,11 +204,11 @@ class Disease(Component):
 
         bau_prefix = self.disease + "."
         int_prefix = self.disease + "_intervention."
-        self.incidence_pipeline_name = bau_prefix + "incidence"
-        self.intervention_incidence_pipeline_name = int_prefix + "incidence"
-        self.remission_pipeline_name = bau_prefix + "remission"
-        self.excess_mortality_pipeline_name = bau_prefix + "excess_mortality"
-        self.disability_rate_pipeline_name = bau_prefix + "yld_rate"
+        self.incidence_pipeline = bau_prefix + "incidence"
+        self.intervention_incidence_pipeline = int_prefix + "incidence"
+        self.remission_pipeline = bau_prefix + "remission"
+        self.excess_mortality_pipeline = bau_prefix + "excess_mortality"
+        self.disability_rate_pipeline = bau_prefix + "yld_rate"
 
     def setup(self, builder: Builder) -> None:
         """Load the disease prevalence and rates data."""
@@ -227,10 +225,10 @@ class Disease(Component):
             inc_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         builder.value.register_rate_producer(
-            self.incidence_pipeline_name, source=inc_table, component=self
+            self.incidence_pipeline, source=inc_table, component=self
         )
         builder.value.register_rate_producer(
-            self.intervention_incidence_pipeline_name, source=inc_table, component=self
+            self.intervention_incidence_pipeline, source=inc_table, component=self
         )
 
         rem_data = builder.data.load(data_prefix + "remission")
@@ -238,7 +236,7 @@ class Disease(Component):
             rem_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         builder.value.register_rate_producer(
-            self.remission_pipeline_name, source=r, component=self
+            self.remission_pipeline, source=r, component=self
         )
 
         mty_data = builder.data.load(data_prefix + "mortality")
@@ -246,7 +244,7 @@ class Disease(Component):
             mty_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         builder.value.register_rate_producer(
-            self.excess_mortality_pipeline_name, source=f, component=self
+            self.excess_mortality_pipeline, source=f, component=self
         )
 
         yld_data = builder.data.load(data_prefix + "morbidity")
@@ -254,7 +252,7 @@ class Disease(Component):
             yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         builder.value.register_rate_producer(
-            self.disability_rate_pipeline_name, source=yld_rate, component=self
+            self.disability_rate_pipeline, source=yld_rate, component=self
         )
 
         prev_data = builder.data.load(data_prefix + "prevalence")
@@ -309,12 +307,10 @@ class Disease(Component):
         C_int = pop[f"{self.disease}_C_intervention"]
 
         # Extract all of the required rates *once only*.
-        i_bau = self.population_view.get_attributes(idx, self.incidence_pipeline_name)
-        i_int = self.population_view.get_attributes(
-            idx, self.intervention_incidence_pipeline_name
-        )
-        r = self.population_view.get_attributes(idx, self.remission_pipeline_name)
-        f = self.population_view.get_attributes(idx, self.excess_mortality_pipeline_name)
+        i_bau = self.population_view.get_attributes(idx, self.incidence_pipeline)
+        i_int = self.population_view.get_attributes(idx, self.intervention_incidence_pipeline)
+        r = self.population_view.get_attributes(idx, self.remission_pipeline)
+        f = self.population_view.get_attributes(idx, self.excess_mortality_pipeline)
 
         # NOTE: if the remission rate is always zero, which is the case for a
         # number of chronic diseases, we can make some simplifications.
@@ -477,6 +473,6 @@ class Disease(Component):
         delta = prevalence_rate_int - prevalence_rate
         return (
             yld_rate
-            + self.population_view.get_attributes(index, self.disability_rate_pipeline_name)
+            + self.population_view.get_attributes(index, self.disability_rate_pipeline)
             * delta
         )

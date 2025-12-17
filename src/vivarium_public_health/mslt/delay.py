@@ -129,11 +129,11 @@ class DelayedRisk(Component):
         super().__init__()
         self.risk = risk
         self._bin_names = []
-        self.incidence_pipeline_name = f"{self.risk}.incidence"
-        self.intervention_incidence_pipeline_name = f"{self.risk}_intervention.incidence"
-        self.remission_pipeline_name = f"{self.risk}.remission"
-        self.intervention_remission_pipeline_name = f"{self.risk}_intervention.remission"
-        self.tobacco_acmr_pipeline_name = "tobacco_acmr"
+        self.incidence_pipeline = f"{self.risk}.incidence"
+        self.intervention_incidence_pipeline = f"{self.risk}_intervention.incidence"
+        self.remission_pipeline = f"{self.risk}.remission"
+        self.intervention_remission_pipeline = f"{self.risk}_intervention.remission"
+        self.tobacco_acmr_pipeline = "tobacco_acmr"
 
     def setup(self, builder: Builder) -> None:
         """Configure the delayed risk component.
@@ -169,10 +169,10 @@ class DelayedRisk(Component):
             parameter_columns=["age", "year"],
         )
         builder.value.register_rate_producer(
-            self.incidence_pipeline_name, source=inc_data, component=self
+            self.incidence_pipeline, source=inc_data, component=self
         )
         builder.value.register_rate_producer(
-            self.intervention_incidence_pipeline_name, source=inc_data, component=self
+            self.intervention_incidence_pipeline, source=inc_data, component=self
         )
 
         # Load the remission rates for the BAU and intervention scenarios.
@@ -184,10 +184,10 @@ class DelayedRisk(Component):
             rem_df, key_columns=["sex"], parameter_columns=["age", "year"]
         )
         builder.value.register_rate_producer(
-            self.remission_pipeline_name, source=rem_data, component=self
+            self.remission_pipeline, source=rem_data, component=self
         )
         builder.value.register_rate_producer(
-            self.intervention_remission_pipeline_name, source=rem_data, component=self
+            self.intervention_remission_pipeline, source=rem_data, component=self
         )
 
         # We apply separate mortality rates to the different exposure bins.
@@ -253,7 +253,7 @@ class DelayedRisk(Component):
 
         mortality_data = pivot_load(builder, "cause.all_causes.mortality")
         builder.value.register_rate_producer(
-            self.tobacco_acmr_pipeline_name,
+            self.tobacco_acmr_pipeline,
             source=builder.lookup.build_table(
                 mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
             ),
@@ -341,7 +341,7 @@ class DelayedRisk(Component):
         # prevalence by the population size for each cohort.
         # NOTE: the number of current smokers is defined at the middle of each
         # year; i.e., it corresponds to the person_years.
-        bau_acmr = self._get_attribute_pipelines()[self.tobacco_acmr_pipeline_name].source(
+        bau_acmr = self._get_attribute_pipelines()[self.tobacco_acmr_pipeline].source(
             pop_data.index
         )
         bau_probability_of_death = 1 - np.exp(-bau_acmr)
@@ -378,13 +378,13 @@ class DelayedRisk(Component):
             return
         idx = pop.index
         bau_acmr = self.acm_rate.source(idx)
-        inc_rate = self.population_view.get_attributes(idx, self.incidence_pipeline_name)
-        rem_rate = self.population_view.get_attributes(idx, self.remission_pipeline_name)
+        inc_rate = self.population_view.get_attributes(idx, self.incidence_pipeline)
+        rem_rate = self.population_view.get_attributes(idx, self.remission_pipeline)
         int_inc_rate = self.population_view.get_attributes(
-            idx, self.intervention_incidence_pipeline_name
+            idx, self.intervention_incidence_pipeline
         )
         int_rem_rate = self.population_view.get_attributes(
-            idx, self.intervention_remission_pipeline_name
+            idx, self.intervention_remission_pipeline
         )
 
         # Identify the relevant columns for the BAU and intervention.
