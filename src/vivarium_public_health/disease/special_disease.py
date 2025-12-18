@@ -392,8 +392,8 @@ class RiskAttributableDisease(Component):
         rates_df
 
         """
-        rate = self._get_attribute_pipelines()[self.excess_mortality_rate_pipeline](
-            index, skip_post_processor=True
+        rate = self.population_view.get_attributes(
+            index, self.excess_mortality_rate_pipeline, skip_post_processor=True
         )
         rates_df[self.cause.name] = rate
         return rates_df

@@ -14,7 +14,6 @@ def disease_mock(mocker):
         test_disease = RiskAttributableDisease("cause.test_cause", "risk_factor.test_risk")
         test_disease.distribution = distribution
         test_disease._population_view = mocker.Mock()
-        test_disease._get_attribute_pipelines = mocker.Mock()
         return test_disease
 
     return disease_with_distribution
@@ -111,9 +110,7 @@ def test_mortality_rate_pandas_dataframe(disease_mock):
     expected_mortality_values = pd.Series(
         current_disease_status, name=disease.cause.name, index=test_index
     ).map({disease.cause.name: 0.05, f"susceptible_to_{disease.cause.name}": 0})
-    disease._get_attribute_pipelines.return_value = {
-        disease.excess_mortality_rate_pipeline: lambda idx, skip_post_processor: expected_mortality_values
-    }
+    disease.population_view.get_attributes.return_value = expected_mortality_values
     rates_df = pd.DataFrame(
         {"other_causes": 0, "another_test_cause": 0.001}, index=test_index
     )
