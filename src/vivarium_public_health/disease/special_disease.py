@@ -93,13 +93,6 @@ class RiskAttributableDisease(Component):
 
     @property
     def name(self):
-        """The name of this component.
-
-        Returns
-        -------
-        str
-            The component name in the format 'risk_attributable_disease.{cause_name}'.
-        """
         return f"risk_attributable_disease.{self.cause.name}"
 
     @property

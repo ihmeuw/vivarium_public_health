@@ -104,13 +104,6 @@ class Risk(Component):
 
     @property
     def name(self) -> str:
-        """The name of this component.
-
-        Returns
-        -------
-        str
-            The risk name.
-        """
         return self.risk
 
     @property
@@ -200,15 +193,6 @@ class Risk(Component):
     #################
 
     def build_all_lookup_tables(self, builder: "Builder") -> None:
-        """Build all lookup tables for this risk.
-
-        All lookup tables are built in the exposure distribution.
-
-        Parameters
-        ----------
-        builder
-            The builder object for the simulation.
-        """
         # All lookup tables are built in the exposure distribution
         pass
 
