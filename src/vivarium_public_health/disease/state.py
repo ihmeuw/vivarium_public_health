@@ -475,8 +475,6 @@ class DiseaseState(BaseDiseaseState):
         )
         self.register_joint_paf_pipeline(builder)
         self.register_excess_mortality_rate_pipeline(builder)
-        # We need the pipeline itself later
-        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
 
         builder.value.register_attribute_modifier(
             "mortality_rate",
@@ -712,8 +710,9 @@ class DiseaseState(BaseDiseaseState):
         -------
             The modified DataFrame of mortality rates.
         """
-        emr_pipeline = self._get_attribute_pipelines()[self.excess_mortality_rate_pipeline]
-        rate = emr_pipeline(index, skip_post_processor=True)
+        rate = self.population_view.get_attributes(
+            index, self.excess_mortality_rate_pipeline, skip_post_processor=True
+        )
         rates_df[self.state_id] = rate
         return rates_df
 
