@@ -243,13 +243,9 @@ class Mortality(Component):
 
     def on_time_step(self, event: Event) -> None:
         pop = self.population_view.get_private_columns(event.index, query="alive =='alive'")
-        # Force mortality_rates to a dataframe so that we can sum across rows
-        # consistently even if there is only one cause. Note that we cannot use
-        # population_view.get_attribute_frame here because the mortality_rate_pipeline
-        # could potentially return a series of only "other_causes".
-        mortality_rates = self.population_view.get_attributes(
-            pop.index, [self.mortality_rate_pipeline]
-        )[self.mortality_rate_pipeline]
+        mortality_rates = self.population_view.get_attribute_frame(
+            pop.index, self.mortality_rate_pipeline
+        )
         mortality_hazard = mortality_rates.sum(axis=1)
         deaths = self.random.filter_for_rate(
             pop.index, mortality_hazard, additional_key="death"
