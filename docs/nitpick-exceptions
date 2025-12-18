@@ -23,3 +23,8 @@ py:class Builder
 py:class SimulantData
 py:class Event
 py:class LookupTable
+
+# Inherited from vivarium.Component - unresolvable references in autodoc
+py:meth __init__
+py:class Component
+py:attr lookup_tables

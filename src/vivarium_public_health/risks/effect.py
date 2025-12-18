@@ -53,6 +53,13 @@ class RiskEffect(Component):
 
     @property
     def name(self) -> str:
+        """The name of this component.
+
+        Returns
+        -------
+        str
+            The component name in the format 'risk_effect.{risk_name}_on_{target}'.
+        """
         return self.get_name(self.risk, self.target)
 
     @staticmethod
