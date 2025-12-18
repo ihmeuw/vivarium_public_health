@@ -206,9 +206,7 @@ class RiskAttributableDisease(Component):
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
             component=self,
-            required_resources=[
-                self.excess_mortality_rate_pipeline,
-            ],
+            required_resources=[self.excess_mortality_rate_pipeline],
         )
 
         distribution = builder.data.load(f"{self.risk}.distribution")
