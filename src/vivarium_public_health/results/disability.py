@@ -41,7 +41,7 @@ class DisabilityObserver(PublicHealthObserver):
                         - "sample_stratification"
     Attributes
     ----------
-    disability_weight_pipeline_name
+    disability_weight_pipeline
         The name of the pipeline that produces disability weights.
     step_size
         The time step size of the simulation.
@@ -67,7 +67,7 @@ class DisabilityObserver(PublicHealthObserver):
 
     def __init__(self) -> None:
         super().__init__()
-        self.disability_weight_pipeline_name = "all_causes.disability_weight"
+        self.disability_weight_pipeline = "all_causes.disability_weight"
 
     #################
     # Setup methods #
@@ -77,7 +77,7 @@ class DisabilityObserver(PublicHealthObserver):
         """Set up the observer."""
         self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
         builder.value.register_attribute_producer(
-            self.disability_weight_pipeline_name,
+            self.disability_weight_pipeline,
             source=lambda index: [pd.Series(0.0, index=index)],
             component=self,
             preferred_combiner=list_combiner,

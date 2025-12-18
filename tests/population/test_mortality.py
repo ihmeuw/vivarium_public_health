@@ -54,10 +54,10 @@ def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
     pop = sim.get_population()
     expected_columns_created = list(mortality.columns_created)
     expected_attributes_created = [
-        mortality.mortality_rate_pipeline_name,
-        mortality.cause_specific_mortality_rate_pipeline_name,
-        mortality.unmodeled_csmr_pipeline_name,
-        mortality.unmodeled_csmr_paf_pipeline_name,
+        mortality.mortality_rate_pipeline,
+        mortality.cause_specific_mortality_rate_pipeline,
+        mortality.unmodeled_csmr_pipeline,
+        mortality.unmodeled_csmr_paf_pipeline,
     ]
     # the time manager, BasePopulation, and AgedOutSimulants create attributes themselves
     other_columns_created = list(bp.columns_created) + ["is_aged_out", "simulant_step_size"]
@@ -77,9 +77,9 @@ def test_mortality_rate(setup_sim_with_pop_and_mortality):
     pop_idx = mortality_rates.index
     lookup_tables = mortality.lookup_tables
     acmr = lookup_tables["all_cause_mortality_rate"](pop_idx)
-    modeled_csmr = mortality.cause_specific_mortality_rate(pop_idx)
+    modeled_csmr = sim.get_population("cause_specific_mortality_rate")
     unmodeled_csmr_raw = lookup_tables["unmodeled_cause_specific_mortality_rate"](pop_idx)
-    unmodeled_csmr = mortality.unmodeled_csmr(pop_idx)
+    unmodeled_csmr = sim.get_population("affected_unmodeled.cause_specific_mortality_rate")
     expected_mortality_rates = (acmr - modeled_csmr - unmodeled_csmr_raw + unmodeled_csmr) * (
         sim._clock.step_size.days / 365
     )

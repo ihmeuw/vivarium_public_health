@@ -42,7 +42,7 @@ class CategoricalRiskObserver(PublicHealthObserver):
     ----------
     risk
         The name of the risk factor.
-    exposure_pipeline_name
+    exposure_pipeline
         The name of the pipeline that produces the risk factor exposure.
     step_size
         The time step size of the simulation.
@@ -65,7 +65,7 @@ class CategoricalRiskObserver(PublicHealthObserver):
         """
         super().__init__()
         self.risk = risk
-        self.exposure_pipeline_name = f"{self.risk}.exposure"
+        self.exposure_pipeline = f"{self.risk}.exposure"
 
     #################
     # Setup methods #
@@ -95,7 +95,7 @@ class CategoricalRiskObserver(PublicHealthObserver):
         builder.results.register_stratification(
             f"{self.risk}",
             list(self.categories.keys()),
-            requires_attributes=[self.exposure_pipeline_name],
+            requires_attributes=[self.exposure_pipeline],
         )
         self.register_adding_observation(
             builder=builder,

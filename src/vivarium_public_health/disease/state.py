@@ -18,7 +18,7 @@ from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.resource import Resource
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
-from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium.types import DataInput, LookupTableData
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
@@ -463,10 +463,8 @@ class DiseaseState(BaseDiseaseState):
             cause_type=cause_type,
         )
 
-        self.excess_mortality_rate_pipeline_name = f"{self.state_id}.excess_mortality_rate"
-        self.excess_mortality_rate_paf_pipeline_name = (
-            f"{self.excess_mortality_rate_pipeline_name}.paf"
-        )
+        self.excess_mortality_rate_pipeline = f"{self.state_id}.excess_mortality_rate"
+        self.excess_mortality_rate_paf_pipeline = f"{self.excess_mortality_rate_pipeline}.paf"
 
         self._get_data_functions = (
             get_data_functions if get_data_functions is not None else {}
@@ -501,6 +499,9 @@ class DiseaseState(BaseDiseaseState):
             excess_mortality_rate
         )
 
+        self.dwell_time_pipeline = f"{self.state_id}.dwell_time"
+        self.dw_pipeline = f"{self.state_id}.disability_weight"
+
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         """Performs this component's simulation setup.
@@ -513,26 +514,30 @@ class DiseaseState(BaseDiseaseState):
         super().setup(builder)
         self.clock = builder.time.clock()
 
-        self.dwell_time = self.get_dwell_time_pipeline(builder)
-        self.disability_weight = self.get_disability_weight_pipeline(builder)
+        self.register_dwell_time_pipeline(builder)
+        self.register_disability_weight_pipeline(builder)
 
         builder.value.register_attribute_modifier(
             "all_causes.disability_weight",
-            modifier=self.disability_weight,
+            modifier=lambda index: self.population_view.get_attributes(
+                index=index, attributes=self.dw_pipeline
+            ),
             component=self,
         )
 
         self.has_excess_mortality = is_non_zero(
             self.lookup_tables["excess_mortality_rate"].data
         )
-        self.joint_paf = self.get_joint_paf(builder)
-        self.excess_mortality_rate = self.get_excess_mortality_rate_pipeline(builder)
+        self.register_joint_paf_pipeline(builder)
+        self.register_excess_mortality_rate_pipeline(builder)
+        # We need the pipeline itself later
+        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
 
         builder.value.register_attribute_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
             component=self,
-            required_resources=[self.excess_mortality_rate],
+            required_resources=[self.excess_mortality_rate_pipeline],
         )
 
         self.randomness_prevalence = self.get_randomness_prevalence(builder)
@@ -581,10 +586,10 @@ class DiseaseState(BaseDiseaseState):
 
         return dwell_time_source
 
-    def get_dwell_time_pipeline(self, builder: Builder) -> Pipeline:
+    def register_dwell_time_pipeline(self, builder: Builder) -> None:
         required_columns = get_lookup_columns([self.lookup_tables["dwell_time"]])
-        return builder.value.register_attribute_producer(
-            f"{self.state_id}.dwell_time",
+        builder.value.register_attribute_producer(
+            self.dwell_time_pipeline,
             source=self.lookup_tables["dwell_time"],
             component=self,
             required_resources=required_columns,
@@ -607,9 +612,9 @@ class DiseaseState(BaseDiseaseState):
 
         return disability_weight_source
 
-    def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
+    def register_disability_weight_pipeline(self, builder: Builder) -> None:
         lookup_columns = get_lookup_columns([self.lookup_tables["disability_weight"]])
-        return builder.value.register_attribute_producer(
+        builder.value.register_attribute_producer(
             f"{self.state_id}.disability_weight",
             source=self.compute_disability_weight,
             component=self,
@@ -635,19 +640,20 @@ class DiseaseState(BaseDiseaseState):
 
         return excess_mortality_rate_source
 
-    def get_excess_mortality_rate_pipeline(self, builder: Builder) -> Pipeline:
+    def register_excess_mortality_rate_pipeline(self, builder: Builder) -> None:
         lookup_columns = get_lookup_columns([self.lookup_tables["excess_mortality_rate"]])
-        return builder.value.register_rate_producer(
-            self.excess_mortality_rate_pipeline_name,
+        builder.value.register_rate_producer(
+            self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
             component=self,
-            required_resources=lookup_columns + ["alive", self.model, self.joint_paf],
+            required_resources=lookup_columns
+            + ["alive", self.model, self.excess_mortality_rate_paf_pipeline],
         )
 
-    def get_joint_paf(self, builder: Builder) -> Pipeline:
+    def register_joint_paf_pipeline(self, builder: Builder) -> None:
         paf = builder.lookup.build_table(0)
-        return builder.value.register_attribute_producer(
-            self.excess_mortality_rate_paf_pipeline_name,
+        builder.value.register_attribute_producer(
+            self.excess_mortality_rate_paf_pipeline,
             source=lambda idx: [paf(idx)],
             component=self,
             preferred_combiner=list_combiner,
@@ -739,7 +745,9 @@ class DiseaseState(BaseDiseaseState):
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         base_excess_mort = self.lookup_tables["excess_mortality_rate"](with_condition)
-        joint_mediated_paf = self.joint_paf(with_condition)
+        joint_mediated_paf = self.population_view.get_attributes(
+            with_condition, self.excess_mortality_rate_paf_pipeline
+        )
         excess_mortality_rate.loc[with_condition] = base_excess_mort * (
             1 - joint_mediated_paf.values
         )
@@ -759,7 +767,8 @@ class DiseaseState(BaseDiseaseState):
         -------
             The modified DataFrame of mortality rates.
         """
-        rate = self.excess_mortality_rate(index, skip_post_processor=True)
+        emr_pipeline = self._get_attribute_pipelines()[self.excess_mortality_rate_pipeline]
+        rate = emr_pipeline(index, skip_post_processor=True)
         rates_df[self.state_id] = rate
         return rates_df
 
@@ -780,7 +789,9 @@ class DiseaseState(BaseDiseaseState):
                 simulants_with_condition,
                 self.clock(),
                 self.randomness_prevalence.get_draw,
-                self.dwell_time,
+                self.population_view.get_attributes(
+                    simulants_with_condition.index, self.dwell_time_pipeline
+                ),
             )
             pop_update.loc[infected_at.index, self.event_time_column] = infected_at
 
@@ -793,9 +804,8 @@ class DiseaseState(BaseDiseaseState):
 
     @staticmethod
     def _assign_event_time_for_prevalent_cases(
-        infected, current_time, randomness_func, dwell_time_func
+        infected, current_time, randomness_func, dwell_time
     ):
-        dwell_time = dwell_time_func(infected.index)
         infected_at = dwell_time * randomness_func(infected.index)
         infected_at = current_time - pd.to_timedelta(infected_at, unit="D")
         return infected_at
@@ -817,8 +827,9 @@ class DiseaseState(BaseDiseaseState):
         event_times = self.population_view.get_private_columns(
             index, self.event_time_column, query='alive == "alive"'
         )
-        if np.any(self.dwell_time(index)) > 0:
-            state_exit_time = event_times + pd.to_timedelta(self.dwell_time(index), unit="D")
+        dwell_time = self.population_view.get_attributes(index, self.dwell_time_pipeline)
+        if np.any(dwell_time) > 0:
+            state_exit_time = event_times + pd.to_timedelta(dwell_time, unit="D")
             return event_times.loc[state_exit_time <= event_time].index
         else:
             return index
