@@ -365,11 +365,11 @@ def test__assign_event_time_for_prevalent_cases():
     random_func = lambda index: pd.Series(0.4, index=index)
     current_time = pd.Timestamp(2017, 1, 10, 12)
 
-    dwell_time_func = lambda index: pd.Series(10, index=index)
     # 10* 0.4 = 4 ; 4 days before the current time
     expected = pd.Series(pd.Timestamp(2017, 1, 6, 12), index=pop_data.index)
+    dwell_time = pd.Series(10, index=expected.index)
     actual = DiseaseState._assign_event_time_for_prevalent_cases(
-        pop_data, current_time, random_func, dwell_time_func
+        pop_data, current_time, random_func, dwell_time
     )
     assert (expected == actual).all()
 
