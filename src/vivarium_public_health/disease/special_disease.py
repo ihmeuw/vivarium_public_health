@@ -193,6 +193,8 @@ class RiskAttributableDisease(Component):
             )
             + [self.joint_paf],
         )
+        # We need the emr pipeline later
+        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
         self.joint_paf = builder.value.register_attribute_producer(
             self.excess_mortality_rate_paf_pipeline,
             source=lambda idx: [self.lookup_tables["population_attributable_fraction"](idx)],
@@ -204,9 +206,7 @@ class RiskAttributableDisease(Component):
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
             component=self,
-            required_resources=[
-                self.excess_mortality_rate_pipeline,
-            ],
+            required_resources=[self.excess_mortality_rate_pipeline],
         )
 
         distribution = builder.data.load(f"{self.risk}.distribution")
