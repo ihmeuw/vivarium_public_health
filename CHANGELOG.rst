@@ -1,3 +1,7 @@
+**4.3.17 - 12/18/25**
+
+  - Bugfix: Fix failing doc builds
+
 **4.3.16 - 12/15/25**
 
   - Add documentation for configuration defaults and build_all_lookup_table overrides
