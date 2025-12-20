@@ -232,20 +232,10 @@ class Risk(Component):
         return builder.randomness.get_stream(self.randomness_stream_name, component=self)
 
     def register_exposure_pipeline(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns(
-            self.exposure_distribution.lookup_tables.values()
-        ) + [self.propensity_name]
-        # Some distributions require the exposure parameters as a resource
-        required_columns = (
-            required_columns + [self.exposure_distribution.exposure_parameters_name]
-            if self.exposure_distribution.exposure_parameters_name
-            else required_columns
-        )
         builder.value.register_attribute_producer(
             self.exposure_name,
-            source=self.get_current_exposure,
+            source=[self.exposure_distribution.ppf_name],
             component=self,
-            required_resources=required_columns,
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
 
@@ -258,11 +248,3 @@ class Risk(Component):
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
         self.population_view.update(propensity)
-
-    ##################################
-    # Pipeline sources and modifiers #
-    ##################################
-
-    def get_current_exposure(self, index: pd.Index) -> pd.Series:
-        propensity = self.population_view.get_attributes(index, self.propensity_name)
-        return pd.Series(self.exposure_distribution.ppf(propensity), index=index)
