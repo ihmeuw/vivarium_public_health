@@ -47,7 +47,7 @@ class RiskExposureDistribution(Component, ABC):
         self._exposure_data = exposure_data
 
         self.risk_propensity = f"{self.risk.name}.propensity"
-        self.ppf_pipeline = f"{self.risk.name}.exposure_distribution.ppf"
+        self.exposure_ppf_pipeline = f"{self.risk.name}.exposure_distribution.ppf"
 
     #################
     # Setup methods #
@@ -147,7 +147,7 @@ class EnsembleDistribution(RiskExposureDistribution):
         lookup_columns = get_lookup_columns(lookup_tables)
 
         builder.value.register_attribute_producer(
-            self.ppf_pipeline,
+            self.exposure_ppf_pipeline,
             source=self.ppf,
             component=self,
             required_resources=lookup_columns
@@ -239,7 +239,7 @@ class ContinuousDistribution(RiskExposureDistribution):
 
     def register_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.ppf_pipeline,
+            self.exposure_ppf_pipeline,
             source=self.ppf,
             component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
@@ -320,7 +320,7 @@ class PolytomousDistribution(RiskExposureDistribution):
 
     def register_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.ppf_pipeline,
+            self.exposure_ppf_pipeline,
             source=self.ppf,
             component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
@@ -449,7 +449,7 @@ class DichotomousDistribution(RiskExposureDistribution):
 
     def register_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.ppf_pipeline,
+            self.exposure_ppf_pipeline,
             source=self.ppf,
             component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],

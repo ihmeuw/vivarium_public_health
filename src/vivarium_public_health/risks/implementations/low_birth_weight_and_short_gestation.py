@@ -102,7 +102,7 @@ class LBWSGDistribution(PolytomousDistribution):
             LBWSGRisk.get_continuous_propensity_name(axis) for axis in AXES
         ]
         builder.value.register_attribute_producer(
-            self.ppf_pipeline,
+            self.exposure_ppf_pipeline,
             source=self.ppf,
             component=self,
             required_resources=required_resources,
@@ -330,7 +330,7 @@ class LBWSGRisk(Risk):
     def register_birth_exposure_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
             self.birth_exposure_pipeline,
-            source=[self.exposure_distribution.ppf_pipeline],
+            source=[self.exposure_distribution.exposure_ppf_pipeline],
             component=self,
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
