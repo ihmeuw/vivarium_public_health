@@ -97,13 +97,13 @@ class LBWSGDistribution(PolytomousDistribution):
                 "available in the simulation."
             )
 
-    def register_ppf_pipeline(self, builder):
+    def register_exposure_ppf_pipeline(self, builder):
         required_resources = [self.exposure_params_name, self.risk_propensity] + [
             LBWSGRisk.get_continuous_propensity_name(axis) for axis in AXES
         ]
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
-            source=self.ppf,
+            source=self.exposure_ppf,
             component=self,
             required_resources=required_resources,
         )
@@ -142,11 +142,11 @@ class LBWSGDistribution(PolytomousDistribution):
             category_intervals[BIRTH_WEIGHT][category] = birth_weight_interval
         return category_intervals
 
-    ##################
-    # Public methods #
-    ##################
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
-    def ppf(self, index: pd.Index) -> pd.DataFrame:
+    def exposure_ppf(self, index: pd.Index) -> pd.DataFrame:
         """Calculate continuous exposures from propensities.
 
         Parameters
@@ -166,9 +166,9 @@ class LBWSGDistribution(PolytomousDistribution):
             [LBWSGRisk.get_continuous_propensity_name(axis) for axis in AXES],
         )
 
-        categorical_exposure = super().ppf(index=propensities.index)
+        categorical_exposure = super().exposure_ppf(index=propensities.index)
         continuous_exposures = {
-            axis: self.single_axis_ppf(
+            axis: self._single_axis_ppf(
                 axis,
                 propensities[LBWSGRisk.get_continuous_propensity_name(axis)],
                 categorical_exposure=categorical_exposure,
@@ -177,7 +177,11 @@ class LBWSGDistribution(PolytomousDistribution):
         }
         return pd.DataFrame(continuous_exposures)
 
-    def single_axis_ppf(
+    ##################
+    # Helper methods #
+    ##################
+
+    def _single_axis_ppf(
         self,
         axis: str,
         propensity: pd.Series,
@@ -225,7 +229,7 @@ class LBWSGDistribution(PolytomousDistribution):
             )
 
         if categorical_exposure is None:
-            categorical_exposure = super().ppf(categorical_propensity)
+            categorical_exposure = super().exposure_ppf(categorical_propensity)
 
         exposure_intervals = categorical_exposure.apply(
             lambda category: self.category_intervals[axis][category]
@@ -235,10 +239,6 @@ class LBWSGDistribution(PolytomousDistribution):
         exposure_right = exposure_intervals.apply(lambda interval: interval.right)
         continuous_exposure = propensity * (exposure_right - exposure_left) + exposure_left
         return continuous_exposure
-
-    ##################
-    # Helper methods #
-    ##################
 
     @staticmethod
     def _parse_description(description: str) -> tuple[pd.Interval, pd.Interval]:

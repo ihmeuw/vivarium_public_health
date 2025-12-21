@@ -66,10 +66,10 @@ class RiskExposureDistribution(Component, ABC):
         return self.get_data(builder, self.configuration["data_sources"]["exposure"])
 
     def setup(self, builder: Builder) -> None:
-        self.register_ppf_pipeline(builder)
+        self.register_exposure_ppf_pipeline(builder)
 
     @abstractmethod
-    def register_ppf_pipeline(self, builder: Builder) -> None:
+    def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
         pass
 
 
@@ -140,7 +140,7 @@ class EnsembleDistribution(RiskExposureDistribution):
             for parameter, data in parameters.items()
         }
 
-    def register_ppf_pipeline(self, builder: Builder) -> None:
+    def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
         lookup_tables = [self.lookup_tables["ensemble_distribution_weights"]] + list(
             self.parameters.values()
         )
@@ -148,7 +148,7 @@ class EnsembleDistribution(RiskExposureDistribution):
 
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
-            source=self.ppf,
+            source=self.exposure_ppf,
             component=self,
             required_resources=lookup_columns
             + [self.risk_propensity, self.ensemble_propensity],
@@ -174,7 +174,7 @@ class EnsembleDistribution(RiskExposureDistribution):
     # Pipeline sources and modifiers #
     ##################################
 
-    def ppf(self, index: pd.Index) -> pd.Series:
+    def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get_attributes(
             index, [self.risk.propensity_name, self.ensemble_propensity]
         )
@@ -237,10 +237,10 @@ class ContinuousDistribution(RiskExposureDistribution):
             builder, parameters.reset_index(), list(parameters.columns)
         )
 
-    def register_ppf_pipeline(self, builder: Builder) -> None:
+    def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
-            source=self.ppf,
+            source=self.exposure_ppf,
             component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
         )
@@ -257,7 +257,7 @@ class ContinuousDistribution(RiskExposureDistribution):
     # Pipeline sources and modifiers #
     ##################################
 
-    def ppf(self, index: pd.Index) -> pd.Series:
+    def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get_attributes(
             index, [self.risk_propensity, self.exposure_params_name]
         )
@@ -318,10 +318,10 @@ class PolytomousDistribution(RiskExposureDistribution):
             return list(exposure_data["parameter"].unique())
         return None
 
-    def register_ppf_pipeline(self, builder: Builder) -> None:
+    def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
-            source=self.ppf,
+            source=self.exposure_ppf,
             component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
         )
@@ -338,7 +338,7 @@ class PolytomousDistribution(RiskExposureDistribution):
     # Pipeline sources and modifiers #
     ##################################
 
-    def ppf(self, index: pd.Index) -> pd.Series:
+    def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get_attributes(
             index, [self.risk_propensity, self.exposure_params_name]
         )
@@ -447,10 +447,10 @@ class DichotomousDistribution(RiskExposureDistribution):
             preferred_post_processor=union_post_processor,
         )
 
-    def register_ppf_pipeline(self, builder: Builder) -> None:
+    def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
-            source=self.ppf,
+            source=self.exposure_ppf,
             component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
         )
@@ -509,7 +509,7 @@ class DichotomousDistribution(RiskExposureDistribution):
         ).values
         return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
 
-    def ppf(self, index: pd.Index) -> pd.Series:
+    def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get_attributes(
             index, [self.risk_propensity, self.exposure_params_name]
         )
