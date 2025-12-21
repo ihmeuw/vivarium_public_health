@@ -234,7 +234,7 @@ class Risk(Component):
     def register_exposure_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
             self.exposure_name,
-            source=[self.exposure_distribution.ppf_name],
+            source=[self.exposure_distribution.ppf_pipeline],
             component=self,
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )

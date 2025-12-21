@@ -47,9 +47,7 @@ class RiskExposureDistribution(Component, ABC):
         self._exposure_data = exposure_data
 
         self.risk_propensity = f"{self.risk.name}.propensity"
-        self.ppf_name = f"{self.risk.name}.exposure_distribution.ppf"
-        self.exposure_params_name = f"{self.risk}.exposure_parameters"
-        self.exposure_parameters_paf_name = f"{self.exposure_params_name}.paf"
+        self.ppf_pipeline = f"{self.risk.name}.exposure_distribution.ppf"
 
     #################
     # Setup methods #
@@ -149,7 +147,7 @@ class EnsembleDistribution(RiskExposureDistribution):
         lookup_columns = get_lookup_columns(lookup_tables)
 
         builder.value.register_attribute_producer(
-            self.ppf_name,
+            self.ppf_pipeline,
             source=self.ppf,
             component=self,
             required_resources=lookup_columns
@@ -204,6 +202,7 @@ class ContinuousDistribution(RiskExposureDistribution):
 
     def __init__(self, risk: EntityString, distribution_type: str) -> None:
         super().__init__(risk, distribution_type)
+        self.exposure_params_name = f"{self.risk}.exposure_parameters"
         self.standard_deviation = None
         try:
             self._distribution = {
@@ -240,7 +239,7 @@ class ContinuousDistribution(RiskExposureDistribution):
 
     def register_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.ppf_name,
+            self.ppf_pipeline,
             source=self.ppf,
             component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
@@ -280,6 +279,19 @@ class PolytomousDistribution(RiskExposureDistribution):
         # and results are therefore reproducible and correct
         return sorted(self.lookup_tables["exposure"].value_columns)
 
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(
+        self,
+        risk: EntityString,
+        distribution_type: str,
+        exposure_data: int | float | pd.DataFrame | None = None,
+    ) -> None:
+        super().__init__(risk, distribution_type, exposure_data)
+        self.exposure_params_name = f"{self.risk}.exposure_parameters"
+
     #################
     # Setup methods #
     #################
@@ -308,7 +320,7 @@ class PolytomousDistribution(RiskExposureDistribution):
 
     def register_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.ppf_name,
+            self.ppf_pipeline,
             source=self.ppf,
             component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
@@ -347,6 +359,20 @@ class PolytomousDistribution(RiskExposureDistribution):
 
 
 class DichotomousDistribution(RiskExposureDistribution):
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(
+        self,
+        risk: EntityString,
+        distribution_type: str,
+        exposure_data: int | float | pd.DataFrame | None = None,
+    ) -> None:
+        super().__init__(risk, distribution_type, exposure_data)
+        self.exposure_params_name = f"{self.risk}.exposure_parameters"
+        self.exposure_parameters_paf_name = f"{self.exposure_params_name}.paf"
 
     #################
     # Setup methods #
@@ -423,7 +449,7 @@ class DichotomousDistribution(RiskExposureDistribution):
 
     def register_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.ppf_name,
+            self.ppf_pipeline,
             source=self.ppf,
             component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
