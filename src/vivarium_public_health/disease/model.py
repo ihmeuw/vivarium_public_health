@@ -141,14 +141,12 @@ class DiseaseModel(Machine):
         pop_data
             The population data object.
         """
-        if pop_data.user_data.get("age_end", self.configuration_age_end) == 0:
-            initialization_table_name = "birth_prevalence"
-        else:
-            initialization_table_name = "prevalence"
 
         for state in self.states:
-            state.initialization_weights_table = getattr(
-                state, f"{initialization_table_name}_table"
+            state.initialization_weights_table = (
+                state.birth_prevalence_table
+                if pop_data.user_data.get("age_end", self.configuration_age_end) == 0
+                else state.prevalence_table
             )
 
         super().on_initialize_simulants(pop_data)
