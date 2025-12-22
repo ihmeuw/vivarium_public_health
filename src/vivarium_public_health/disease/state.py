@@ -519,9 +519,7 @@ class DiseaseState(BaseDiseaseState):
 
         builder.value.register_attribute_modifier(
             "all_causes.disability_weight",
-            modifier=lambda index: self.population_view.get_attributes(
-                index=index, attributes=self.dw_pipeline
-            ),
+            modifier=self.dw_pipeline,
             component=self,
         )
 
