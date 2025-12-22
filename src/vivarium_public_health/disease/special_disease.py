@@ -183,6 +183,7 @@ class RiskAttributableDisease(Component):
             TransitionString(f"susceptible_to_{self.cause.name}_TO_{self.cause.name}")
         ]
 
+        self.disability_weight_pipeline = f"{self.cause.name}.disability_weight"
         self.excess_mortality_rate_pipeline = f"{self.cause.name}.excess_mortality_rate"
         self.excess_mortality_rate_paf_pipeline = f"{self.excess_mortality_rate_pipeline}.paf"
 
@@ -193,7 +194,7 @@ class RiskAttributableDisease(Component):
         self.clock = builder.time.clock()
 
         builder.value.register_attribute_producer(
-            f"{self.cause.name}.disability_weight",
+            self.disability_weight_pipeline,
             source=self.compute_disability_weight,
             component=self,
             required_resources=get_lookup_columns(
@@ -202,9 +203,7 @@ class RiskAttributableDisease(Component):
         )
         builder.value.register_attribute_modifier(
             "all_causes.disability_weight",
-            modifier=lambda index: self.population_view.get_attributes(
-                index=index, attributes=f"{self.cause.name}.disability_weight"
-            ),
+            modifier=self.disability_weight_pipeline,
             component=self,
         )
         builder.value.register_attribute_modifier(
