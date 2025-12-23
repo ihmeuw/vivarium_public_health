@@ -7,6 +7,7 @@ Low birth weight and short gestation (LBWSG) is a non-standard risk
 implementation that has been used in several public health models.
 
 """
+from __future__ import annotations
 
 import pickle
 import re
@@ -34,6 +35,7 @@ from vivarium_public_health.utilities import EntityString, get_lookup_columns, t
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
 GESTATIONAL_AGE = "gestational_age"
+AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 
 
 class LBWSGDistribution(PolytomousDistribution):
@@ -55,6 +57,7 @@ class LBWSGDistribution(PolytomousDistribution):
     ) -> None:
         super().__init__(risk, distribution_type, exposure_data)
         self.exposure_key = "birth_exposure"
+        self.risk_propensity = f"{self.risk.name}.categorical_propensity"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
@@ -94,6 +97,17 @@ class LBWSGDistribution(PolytomousDistribution):
                 "available in the simulation."
             )
 
+    def register_exposure_ppf_pipeline(self, builder):
+        required_resources = [self.exposure_params_name, self.risk_propensity] + [
+            LBWSGRisk.get_continuous_propensity_name(axis) for axis in AXES
+        ]
+        builder.value.register_attribute_producer(
+            self.exposure_ppf_pipeline,
+            source=self.exposure_ppf,
+            component=self,
+            required_resources=required_resources,
+        )
+
     def register_exposure_parameter_pipeline(self, builder: Builder) -> None:
         lookup_columns = []
         if "exposure" in self.lookup_tables:
@@ -101,7 +115,7 @@ class LBWSGDistribution(PolytomousDistribution):
         if "birth_exposure" in self.lookup_tables:
             lookup_columns.extend(get_lookup_columns([self.lookup_tables["birth_exposure"]]))
         builder.value.register_attribute_producer(
-            self.exposure_parameters_name,
+            self.exposure_params_name,
             source=lambda index: self.lookup_tables[self.exposure_key](index),
             component=self,
             required_resources=list(set(lookup_columns)),
@@ -128,11 +142,11 @@ class LBWSGDistribution(PolytomousDistribution):
             category_intervals[BIRTH_WEIGHT][category] = birth_weight_interval
         return category_intervals
 
-    ##################
-    # Public methods #
-    ##################
+    ##################################
+    # Pipeline sources and modifiers #
+    ##################################
 
-    def ppf(self, propensities: pd.DataFrame) -> pd.DataFrame:
+    def exposure_ppf(self, index: pd.Index) -> pd.DataFrame:
         """Calculate continuous exposures from propensities.
 
         Parameters
@@ -147,19 +161,27 @@ class LBWSGDistribution(PolytomousDistribution):
             A DataFrame with two columns for birth-weight and gestational age
             exposures.
         """
+        propensities = self.population_view.get_attributes(
+            index,
+            [LBWSGRisk.get_continuous_propensity_name(axis) for axis in AXES],
+        )
 
-        categorical_exposure = super().ppf(propensities[f"{CATEGORICAL}_propensity"])
-        continuous_exposures = [
-            self.single_axis_ppf(
+        categorical_exposure = super().exposure_ppf(index=propensities.index)
+        continuous_exposures = {
+            axis: self._single_axis_ppf(
                 axis,
-                propensities[f"{axis}.propensity"],
+                propensities[LBWSGRisk.get_continuous_propensity_name(axis)],
                 categorical_exposure=categorical_exposure,
             )
-            for axis in self.category_intervals
-        ]
-        return pd.concat(continuous_exposures, axis=1)
+            for axis in AXES
+        }
+        return pd.DataFrame(continuous_exposures)
 
-    def single_axis_ppf(
+    ##################
+    # Helper methods #
+    ##################
+
+    def _single_axis_ppf(
         self,
         axis: str,
         propensity: pd.Series,
@@ -207,7 +229,7 @@ class LBWSGDistribution(PolytomousDistribution):
             )
 
         if categorical_exposure is None:
-            categorical_exposure = super().ppf(categorical_propensity)
+            categorical_exposure = super().exposure_ppf(categorical_propensity)
 
         exposure_intervals = categorical_exposure.apply(
             lambda category: self.category_intervals[axis][category]
@@ -216,12 +238,7 @@ class LBWSGDistribution(PolytomousDistribution):
         exposure_left = exposure_intervals.apply(lambda interval: interval.left)
         exposure_right = exposure_intervals.apply(lambda interval: interval.right)
         continuous_exposure = propensity * (exposure_right - exposure_left) + exposure_left
-        continuous_exposure = continuous_exposure.rename(f"{axis}.exposure")
         return continuous_exposure
-
-    ##################
-    # Helper methods #
-    ##################
 
     @staticmethod
     def _parse_description(description: str) -> tuple[pd.Interval, pd.Interval]:
@@ -247,13 +264,11 @@ class LBWSGDistribution(PolytomousDistribution):
 
 
 class LBWSGRisk(Risk):
-    AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
-
     exposure_distributions = {"lbwsg": LBWSGDistribution}
 
     @staticmethod
-    def get_birth_exposure_name(axis: str) -> str:
-        return f"{axis}.birth_exposure"
+    def get_continuous_propensity_name(axis: str) -> str:
+        return f"{axis}.continuous_propensity"
 
     @staticmethod
     def get_exposure_name(axis: str) -> str:
@@ -275,7 +290,15 @@ class LBWSGRisk(Risk):
 
     @property
     def columns_created(self) -> list[str]:
-        return [self.get_exposure_name(axis) for axis in self.AXES]
+        columns = [self.categorical_propensity_name]
+        for axis in AXES:
+            columns.append(self.get_exposure_name(axis))
+            columns.append(self.get_continuous_propensity_name(axis))
+        return columns
+
+    @property
+    def initialization_requirements(self) -> list[str | Resource]:
+        return [self.randomness, self.birth_exposure_pipeline]
 
     #####################
     # Lifecycle methods #
@@ -283,73 +306,78 @@ class LBWSGRisk(Risk):
 
     def __init__(self):
         super().__init__("risk_factor.low_birth_weight_and_short_gestation")
+        self.categorical_propensity_name = f"{self.risk.name}.categorical_propensity"
+        self.birth_exposure_pipeline = f"{self.risk.name}.birth_exposure"
 
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
-        self.register_birth_exposure_pipelines(builder)
+        self.register_birth_exposure_pipeline(builder)
         self.configuration_age_end = builder.configuration.population.initialization_age_max
 
     #################
     # Setup methods #
     #################
 
-    def register_exposure_pipeline(self, builder: Builder) -> Pipeline | None:
-        # Exposure only used on initialization; not being saved to avoid a cycle
-        return None
-
-    def register_birth_exposure_pipelines(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns(
-            self.exposure_distribution.lookup_tables.values()
+    def register_exposure_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.exposure_name,
+            source=self._get_exposure_source,
+            component=self,
+            # TODO - MIC-6703: once this is done, we won't needs to specify the required resources here
+            required_resources=[self.get_exposure_name(axis) for axis in AXES],
         )
 
-        for axis in self.AXES:
-            builder.value.register_attribute_producer(
-                self.get_birth_exposure_name(axis),
-                source=lambda index: self.get_birth_exposure(axis, index),
-                component=self,
-                required_resources=required_columns + [self.randomness],
-                preferred_post_processor=get_exposure_post_processor(builder, self.name),
-            )
+    def register_birth_exposure_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.birth_exposure_pipeline,
+            source=[self.exposure_distribution.exposure_ppf_pipeline],
+            component=self,
+            preferred_post_processor=get_exposure_post_processor(builder, self.name),
+        )
 
     ########################
     # Event-driven methods #
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+        self.initialize_propensities(pop_data)
+
         if pop_data.user_data.get("age_end", self.configuration_age_end) == 0:
             self.exposure_distribution.exposure_key = "birth_exposure"
         else:
             self.exposure_distribution.exposure_key = "exposure"
 
-        birth_exposures = self.population_view.get_attributes(
-            pop_data.index, [self.get_birth_exposure_name(axis) for axis in self.AXES]
+        birth_exposures = self.population_view.get_attribute_frame(
+            pop_data.index, self.birth_exposure_pipeline
         )
         # Rename the columns
-        col_mapping = {
-            self.get_birth_exposure_name(axis): self.get_exposure_name(axis)
-            for axis in self.AXES
-        }
+        col_mapping = {axis: self.get_exposure_name(axis) for axis in AXES}
         birth_exposures.rename(columns=col_mapping, inplace=True)
         self.population_view.update(birth_exposures)
+
+    def initialize_propensities(self, pop_data: SimulantData) -> None:
+        propensities = {}
+        propensities[self.categorical_propensity_name] = self.randomness.get_draw(
+            pop_data.index, additional_key=CATEGORICAL
+        )
+        for axis in AXES:
+            propensities[
+                self.get_continuous_propensity_name(axis)
+            ] = self.randomness.get_draw(pop_data.index, additional_key=axis)
+
+        propensities_df = pd.DataFrame(propensities)
+        self.population_view.update(propensities_df)
 
     ##################################
     # Pipeline sources and modifiers #
     ##################################
 
-    def get_birth_exposure(self, axis: str, index: pd.Index) -> pd.DataFrame:
-        categorical_propensity = self.randomness.get_draw(index, additional_key=CATEGORICAL)
-        continuous_propensity = self.randomness.get_draw(index, additional_key=axis)
-        return self.exposure_distribution.single_axis_ppf(
-            axis, continuous_propensity, categorical_propensity
+    def _get_exposure_source(self, index: pd.Index[int]) -> pd.DataFrame:
+        exposure_df = self.population_view.get_attributes(
+            index, [self.get_exposure_name(axis) for axis in AXES]
         )
-
-    def get_current_exposure(self, index: pd.Index) -> pd.DataFrame:
-        raise LifeCycleError(
-            f"The {self.risk.name} exposure pipeline should not be called. You probably want to"
-            f" refer directly one of the exposure columns. During simulant initialization the birth"
-            f" exposure pipelines should be used instead."
-        )
+        col_mapping = {self.get_exposure_name(axis): axis for axis in AXES}
+        return exposure_df.rename(columns=col_mapping)
 
 
 class LBWSGRiskEffect(RiskEffect):
@@ -366,7 +394,7 @@ class LBWSGRiskEffect(RiskEffect):
 
     @property
     def initialization_requirements(self) -> list[str | Resource]:
-        return ["sex"] + self.lbwsg_exposure_names
+        return ["sex", self.exposure_name]
 
     @property
     def rr_column_names(self) -> list[str]:
@@ -380,10 +408,6 @@ class LBWSGRiskEffect(RiskEffect):
 
     def __init__(self, target: str):
         super().__init__("risk_factor.low_birth_weight_and_short_gestation", target)
-
-        self.lbwsg_exposure_names = [
-            LBWSGRisk.get_exposure_name(axis) for axis in LBWSGRisk.AXES
-        ]
 
     def get_relative_risk_column_name(self, age_group_id: str) -> str:
         return (
@@ -407,12 +431,6 @@ class LBWSGRiskEffect(RiskEffect):
         self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
             builder, paf_data, paf_value_cols
         )
-
-    def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.DataFrame]:
-        def exposure(index: pd.Index) -> pd.DataFrame:
-            return self.population_view.get_attributes(index, self.lbwsg_exposure_names)
-
-        return exposure
 
     def get_population_attributable_fraction_source(
         self, builder: Builder
@@ -482,11 +500,9 @@ class LBWSGRiskEffect(RiskEffect):
     ########################
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        pop = self.population_view.get_attributes(
-            pop_data.index, self.lbwsg_exposure_names + ["sex"]
-        )
-        birth_weight = pop[LBWSGRisk.get_exposure_name(BIRTH_WEIGHT)]
-        gestational_age = pop[LBWSGRisk.get_exposure_name(GESTATIONAL_AGE)]
+        pop = self.population_view.get_attributes(pop_data.index, ["sex", self.exposure_name])
+        birth_weight = pop[self.exposure_name][BIRTH_WEIGHT]
+        gestational_age = pop[self.exposure_name][GESTATIONAL_AGE]
 
         is_male = pop["sex"] == "Male"
         is_tmrel = (self.TMREL_GESTATIONAL_AGE_INTERVAL.left <= gestational_age) & (
