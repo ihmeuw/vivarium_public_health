@@ -288,6 +288,19 @@ class PolytomousDistribution(RiskExposureDistribution):
         super().__init__(risk, distribution_type, exposure_data)
         self.exposure_params_pipeline = f"{self.risk}.exposure_parameters"
 
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(
+        self,
+        risk: EntityString,
+        distribution_type: str,
+        exposure_data: int | float | pd.DataFrame | None = None,
+    ) -> None:
+        super().__init__(risk, distribution_type, exposure_data)
+        self.exposure_params_name = f"{self.risk}.exposure_parameters"
+
     #################
     # Setup methods #
     #################
