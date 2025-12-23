@@ -299,7 +299,7 @@ class PolytomousDistribution(RiskExposureDistribution):
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
         super().__init__(risk, distribution_type, exposure_data)
-        self.exposure_params_name = f"{self.risk}.exposure_parameters"
+        self.exposure_params_pipeline = f"{self.risk}.exposure_parameters"
 
     #################
     # Setup methods #
