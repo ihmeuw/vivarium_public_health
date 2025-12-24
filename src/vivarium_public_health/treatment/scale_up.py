@@ -132,7 +132,9 @@ class LinearScaleUp(Component):
             if scale_up_config[endpoint_type] == "data":
                 endpoint = self.get_endpoint_value_from_data(builder, endpoint_type)
             else:
-                endpoint = builder.lookup.build_table(scale_up_config[endpoint_type])
+                endpoint = self.build_lookup_table(
+                    builder, "endpoint", scale_up_config[endpoint_type]
+                )
             return endpoint
 
         return get_endpoint_value("start"), get_endpoint_value("end")
@@ -195,7 +197,7 @@ class LinearScaleUp(Component):
             raise ValueError(
                 f'Invalid endpoint type {endpoint_type}. Allowed types are "start" and "end".'
             )
-        return builder.lookup.build_table(endpoint_data)
+        return self.build_lookup_table(builder, "endpoint", endpoint_data)
 
     def apply_scale_up(
         self, idx: pd.Index, target: pd.Series, scale_up_progress: float
