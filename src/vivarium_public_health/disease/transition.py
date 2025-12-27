@@ -142,7 +142,15 @@ class RateTransition(Transition):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        lookup_columns = get_lookup_columns([self.lookup_tables["transition_rate"]])
+        self.transition_rate_table = self.build_lookup_table(builder, "transition_rate")
+        lookup_columns = get_lookup_columns([self.transition_rate_table])
+        builder.value.register_rate_producer(
+            self.transition_rate_pipeline,
+            source=self.compute_transition_rate,
+            component=self,
+            required_resources=lookup_columns + ["alive", self.paf_pipeline],
+        )
+
         paf = builder.lookup.build_table(0)
         builder.value.register_attribute_producer(
             self.paf_pipeline,
@@ -151,12 +159,7 @@ class RateTransition(Transition):
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
-        builder.value.register_rate_producer(
-            self.transition_rate_pipeline,
-            source=self.compute_transition_rate,
-            component=self,
-            required_resources=lookup_columns + ["alive", self.paf_pipeline],
-        )
+
         self.rate_conversion_type = self.configuration["rate_conversion_type"]
 
     #################
@@ -189,7 +192,7 @@ class RateTransition(Transition):
     def compute_transition_rate(self, index: pd.Index) -> pd.Series:
         transition_rate = pd.Series(0.0, index=index)
         living = self.population_view.get_filtered_index(index, query='alive == "alive"')
-        base_rates = self.lookup_tables["transition_rate"](living)
+        base_rates = self.transition_rate_table(living)
         joint_paf = self.population_view.get_attributes(living, self.paf_pipeline)
         transition_rate.loc[living] = base_rates * (1 - joint_paf)
         return transition_rate
@@ -268,6 +271,9 @@ class ProportionTransition(Transition):
                     " stand-alone argument and as part of get_data_functions."
                 )
 
+    def setup(self, builder: Builder) -> None:
+        self.proportion_table = self.build_lookup_table(builder, "proportion")
+
     #################
     # Setup methods #
     #################
@@ -280,4 +286,4 @@ class ProportionTransition(Transition):
         return self._get_data_functions["proportion"](builder, self.output_state.state_id)
 
     def _probability(self, index):
-        return self.lookup_tables["proportion"](index)
+        return self.proportion_table(index)

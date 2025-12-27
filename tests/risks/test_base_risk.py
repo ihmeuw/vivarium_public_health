@@ -138,12 +138,8 @@ def test_polytomous_risk_lookup_configuration(polytomous_risk, base_config, base
     # instantiated by the sub_component of the risk class
 
     assert isinstance(risk.exposure_distribution, PolytomousDistribution)
-
-    lookup_tables = risk.exposure_distribution.lookup_tables
-
     # This risk is a PolytomousDistribution so there will only be an exposure lookup table
-    assert {"exposure"} == set(lookup_tables.keys())
-    assert isinstance(lookup_tables["exposure"], InterpolatedTable)
+    assert isinstance(risk.exposure_distribution.exposure_params_table, InterpolatedTable)
 
 
 def _check_exposure_and_rr(
@@ -339,7 +335,6 @@ def test_ensemble_risk(base_config, base_plugins):
     assert isinstance(distribution, EnsembleDistribution)
 
     expected_distributions = set(distribution_weights.keys()) - {"glnorm"}
-    assert {"ensemble_distribution_weights"} == set(distribution.lookup_tables.keys())
     assert expected_distributions == set(distribution.parameters.keys())
 
     simulation.step()

@@ -11,6 +11,7 @@ risk data and performing any necessary data transformations.
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
+from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN
 
 from vivarium_public_health.utilities import EntityString, TargetString
 
@@ -20,19 +21,17 @@ from vivarium_public_health.utilities import EntityString, TargetString
 
 
 def pivot_categorical(
-    builder: Builder,
-    risk: EntityString,
-    data: pd.DataFrame,
-    pivot_column: str = "parameter",
-    reset_index: bool = True,
+    data: pd.DataFrame, pivot_column: str = "parameter", reset_index: bool = True
 ) -> pd.DataFrame:
     """Pivots data that is long on categories to be wide."""
-    # todo remove dependency on artifact manager having exactly one value column
-    value_column = builder.data.value_columns()(f"{risk}.exposure")[0]
     index_cols = [
-        column for column in data.columns if column not in [value_column, pivot_column]
+        column
+        for column in data.columns
+        if column not in [DEFAULT_VALUE_COLUMN, pivot_column]
     ]
-    data = data.pivot_table(index=index_cols, columns=pivot_column, values=value_column)
+    data = data.pivot_table(
+        index=index_cols, columns=pivot_column, values=DEFAULT_VALUE_COLUMN
+    )
     if reset_index:
         data = data.reset_index()
     data.columns.name = None

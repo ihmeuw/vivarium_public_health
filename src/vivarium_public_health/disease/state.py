@@ -97,6 +97,11 @@ class BaseDiseaseState(State):
         self.prevalence = 0.0
         self.birth_prevalence = 0.0
 
+    def setup(self, builder: Builder) -> None:
+        super().setup(builder)
+        self.prevalence_table = self.build_lookup_table(builder, "prevalence")
+        self.birth_prevalence_table = self.build_lookup_table(builder, "birth_prevalence")
+
     ########################
     # Event-driven methods #
     ########################
@@ -514,6 +519,12 @@ class DiseaseState(BaseDiseaseState):
         super().setup(builder)
         self.clock = builder.time.clock()
 
+        self.dwell_time_table = self.build_lookup_table(builder, "dwell_time")
+        self.disability_weight_table = self.build_lookup_table(builder, "disability_weight")
+        self.excess_mortality_rate_table = self.build_lookup_table(
+            builder, "excess_mortality_rate"
+        )
+
         self.register_dwell_time_pipeline(builder)
         self.register_disability_weight_pipeline(builder)
 
@@ -523,9 +534,7 @@ class DiseaseState(BaseDiseaseState):
             component=self,
         )
 
-        self.has_excess_mortality = is_non_zero(
-            self.lookup_tables["excess_mortality_rate"].data
-        )
+        self.has_excess_mortality = is_non_zero(self.excess_mortality_rate_table.data)
         self.register_joint_paf_pipeline(builder)
         self.register_excess_mortality_rate_pipeline(builder)
 
@@ -583,10 +592,10 @@ class DiseaseState(BaseDiseaseState):
         return dwell_time_source
 
     def register_dwell_time_pipeline(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns([self.lookup_tables["dwell_time"]])
+        required_columns = get_lookup_columns([self.dwell_time_table])
         builder.value.register_attribute_producer(
             self.dwell_time_pipeline,
-            source=self.lookup_tables["dwell_time"],
+            source=self.dwell_time_table,
             component=self,
             required_resources=required_columns,
         )
@@ -609,7 +618,7 @@ class DiseaseState(BaseDiseaseState):
         return disability_weight_source
 
     def register_disability_weight_pipeline(self, builder: Builder) -> None:
-        lookup_columns = get_lookup_columns([self.lookup_tables["disability_weight"]])
+        lookup_columns = get_lookup_columns([self.disability_weight_table])
         builder.value.register_attribute_producer(
             f"{self.state_id}.disability_weight",
             source=self.compute_disability_weight,
@@ -637,7 +646,7 @@ class DiseaseState(BaseDiseaseState):
         return excess_mortality_rate_source
 
     def register_excess_mortality_rate_pipeline(self, builder: Builder) -> None:
-        lookup_columns = get_lookup_columns([self.lookup_tables["excess_mortality_rate"]])
+        lookup_columns = get_lookup_columns([self.excess_mortality_rate_table])
         builder.value.register_rate_producer(
             self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
@@ -732,15 +741,13 @@ class DiseaseState(BaseDiseaseState):
         """
         disability_weight = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
-        disability_weight.loc[with_condition] = self.lookup_tables["disability_weight"](
-            with_condition
-        )
+        disability_weight.loc[with_condition] = self.disability_weight_table(with_condition)
         return disability_weight
 
     def compute_excess_mortality_rate(self, index: pd.Index) -> pd.Series:
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
-        base_excess_mort = self.lookup_tables["excess_mortality_rate"](with_condition)
+        base_excess_mort = self.excess_mortality_rate_table(with_condition)
         joint_mediated_paf = self.population_view.get_attributes(
             with_condition, self.excess_mortality_rate_paf_pipeline
         )

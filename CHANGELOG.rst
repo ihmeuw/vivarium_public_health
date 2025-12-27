@@ -1,3 +1,7 @@
+**5.0.0 - TBD**
+
+  - TBD
+
 **4.3.22 - 02/24/26**
 
   - Bugfix: Remove duplicated pytest options
