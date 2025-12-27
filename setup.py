@@ -44,7 +44,9 @@ if __name__ == "__main__":
     install_requirements = [
         "vivarium_dependencies[pandas,numpy_lt_2,scipy,tables,loguru,pyarrow]",
         "vivarium_build_utils>=2.0.1,<3.0.0",
-        "vivarium>=4.0.0,<5.0.0",
+        # FIXME: Uncomment once Vivarium 4.1.0 is released
+        # "vivarium>=4.1.0",
+        "vivarium @ git+https://github.com/ihmeuw/vivarium.git@release_candidate/v4.1.0",
         "layered_config_tree",
         "risk_distributions>=2.0.11",
     ]
