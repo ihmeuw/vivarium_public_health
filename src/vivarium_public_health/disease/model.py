@@ -121,6 +121,8 @@ class DiseaseModel(Machine):
         self.configuration_age_start = builder.configuration.population.initialization_age_min
         self.configuration_age_end = builder.configuration.population.initialization_age_max
 
+        self.csmr_table = self.build_lookup_table(builder, "cause_specific_mortality_rate")
+
         builder.value.register_attribute_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
@@ -151,15 +153,13 @@ class DiseaseModel(Machine):
         pop_data
             The population data object.
         """
-        if pop_data.user_data.get("age_end", self.configuration_age_end) == 0:
-            initialization_table_name = "birth_prevalence"
-        else:
-            initialization_table_name = "prevalence"
 
         for state in self.states:
-            state.lookup_tables["initialization_weights"] = state.lookup_tables[
-                initialization_table_name
-            ]
+            state.initialization_weights_table = (
+                state.birth_prevalence_table
+                if pop_data.user_data.get("age_end", self.configuration_age_end) == 0
+                else state.prevalence_table
+            )
 
         super().on_initialize_simulants(pop_data)
 
@@ -192,7 +192,7 @@ class DiseaseModel(Machine):
     ##################################
 
     def adjust_cause_specific_mortality_rate(self, index, rate):
-        return rate + self.lookup_tables["cause_specific_mortality_rate"](index)
+        return rate + self.csmr_table(index)
 
     ####################
     # Helper functions #

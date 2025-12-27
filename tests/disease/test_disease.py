@@ -329,17 +329,12 @@ def test_risk_deletion(base_config, base_plugins, disease):
 
     class PafModifier(Component):
         def setup(self, builder):
+            data = build_table_with_age(
+                paf, parameter_columns={"year": (year_start, year_end)}
+            )
             builder.value.register_attribute_modifier(
                 "sick.incidence_rate.paf",
-                modifier=simulation._tables.build_table(
-                    build_table_with_age(
-                        paf,
-                        parameter_columns={"year": (year_start, year_end)},
-                    ),
-                    key_columns=("sex",),
-                    parameter_columns=["age", "year"],
-                    value_columns=(),
-                ),
+                modifier=builder.lookup.build_table(data),
                 component=self,
             )
 
