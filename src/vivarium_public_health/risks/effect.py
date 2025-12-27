@@ -17,7 +17,7 @@ import scipy
 from layered_config_tree import ConfigurationError
 from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.values import Pipeline
+from vivarium.framework.lookup import LookupTable
 
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import (
@@ -112,6 +112,9 @@ class RiskEffect(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        self.relative_risk_table = self.build_rr_lookup_table(builder)
+        self.paf_table = self.build_paf_lookup_table(builder)
+
         self._relative_risk_source = self.get_relative_risk_source(builder)
         self.register_relative_risk_pipeline(builder)
 
@@ -122,23 +125,20 @@ class RiskEffect(Component):
     # Setup methods #
     #################
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
+    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
         self._exposure_distribution_type = self.get_distribution_type(builder)
 
         rr_data = self.load_relative_risk(builder)
         rr_value_cols = None
         if self.is_exposure_categorical:
             rr_data, rr_value_cols = self.process_categorical_data(builder, rr_data)
-        self.lookup_tables["relative_risk"] = self.build_lookup_table(
-            builder, rr_data, rr_value_cols
-        )
+        return builder.lookup.build_table(data=rr_data, value_columns=rr_value_cols)
 
+    def build_paf_lookup_table(self, builder: Builder) -> LookupTable:
         paf_data = self.get_filtered_data(
             builder, self.configuration.data_sources.population_attributable_fraction
         )
-        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-            builder, paf_data
-        )
+        return builder.lookup.build_table(data=paf_data)
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
@@ -206,7 +206,7 @@ class RiskEffect(Component):
             rr_data = rr_data.reset_index("parameter")
 
         rr_value_cols = list(rr_data["parameter"].unique())
-        rr_data = pivot_categorical(builder, self.risk, rr_data, "parameter")
+        rr_data = pivot_categorical(rr_data, "parameter")
         return rr_data, rr_value_cols
 
     # todo currently this isn't being called. we need to properly set rrs if
@@ -270,7 +270,7 @@ class RiskEffect(Component):
             scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
-                rr = self.lookup_tables["relative_risk"](index)
+                rr = self.relative_risk_table(index)
                 exposure = self.population_view.get_attributes(index, self.exposure_name)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return relative_risk
@@ -279,7 +279,7 @@ class RiskEffect(Component):
             index_columns = ["index", self.risk.name]
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
-                rr = self.lookup_tables["relative_risk"](index)
+                rr = self.relative_risk_table(index)
                 exposure = self.population_view.get_attributes(
                     index, self.exposure_name
                 ).reset_index()
@@ -312,12 +312,10 @@ class RiskEffect(Component):
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns(
-            [self.lookup_tables["population_attributable_fraction"]]
-        )
+        required_columns = get_lookup_columns([self.paf_table])
         builder.value.register_attribute_modifier(
             self.target_paf_name,
-            modifier=self.lookup_tables["population_attributable_fraction"],
+            modifier=self.paf_table,
             component=self,
             required_resources=required_columns,
         )
@@ -378,7 +376,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     def get_name(risk: EntityString, target: TargetString) -> str:
         return f"non_log_linear_risk_effect.{risk.name}_on_{target}"
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
+    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
         rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
 
@@ -412,16 +410,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         rr_data[f"{self.risk.name}.exposure_end"] = rr_data["right_exposure"]
         # build lookup table
         rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
-        self.lookup_tables["relative_risk"] = self.build_lookup_table(
-            builder, rr_data, rr_value_cols
-        )
-
-        paf_data = self.get_filtered_data(
-            builder, self.configuration.data_sources.population_attributable_fraction
-        )
-        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-            builder, paf_data
-        )
+        return builder.lookup.build_table(data=rr_data, value_columns=rr_value_cols)
 
     def load_relative_risk(
         self,
@@ -482,7 +471,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         def generate_relative_risk(index: pd.Index) -> pd.Series:
-            rr_intervals = self.lookup_tables["relative_risk"](index)
+            rr_intervals = self.relative_risk_table(index)
             exposure = self.population_view.get_attributes(
                 index, f"{self.risk.name}.exposure"
             )

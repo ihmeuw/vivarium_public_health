@@ -20,6 +20,7 @@ from layered_config_tree import ConfigurationError
 from loguru import logger
 from vivarium.framework.engine import Builder
 from vivarium.framework.lifecycle import LifeCycleError
+from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
 from vivarium.framework.values import Pipeline
@@ -43,7 +44,12 @@ class LBWSGDistribution(PolytomousDistribution):
     def categories(self) -> list[str]:
         # These need to be sorted so the cumulative sum is in the correct order of categories
         # and results are therefore reproducible and correct
-        return sorted(self.lookup_tables[self.exposure_key].value_columns)
+        lookup_table = (
+            self.exposure_params_table
+            if self.exposure_data_type == "exposure"
+            else self.birth_exposure_params_table
+        )
+        return sorted(lookup_table.value_columns)
 
     #################
     # Setup methods #
@@ -56,49 +62,24 @@ class LBWSGDistribution(PolytomousDistribution):
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
         super().__init__(risk, distribution_type, exposure_data)
-        self.exposure_key = "birth_exposure"
+        self.exposure_data_type = "birth_exposure"
+        self.birth_exposure_ppf_pipeline = f"{self.risk}.birth_exposure_ppf"
+        self.birth_exposure_params_pipeline = f"{self.risk}.birth_exposure_parameters"
         self.risk_propensity = f"{self.risk.name}.categorical_propensity"
 
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        self.birth_exposure_params_table = self.build_birth_exposure_params_table(builder)
         super().setup(builder)
         self.category_intervals = self.get_category_intervals(builder)
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        try:
-            birth_exposure_data = self.get_data(
-                builder, self.configuration["data_sources"]["birth_exposure"]
-            )
-            birth_exposure_value_columns = self.get_exposure_value_columns(
-                birth_exposure_data
-            )
-
-            if isinstance(birth_exposure_data, pd.DataFrame):
-                birth_exposure_data = pivot_categorical(
-                    builder, self.risk, birth_exposure_data, "parameter"
-                )
-
-            self.lookup_tables["birth_exposure"] = self.build_lookup_table(
-                builder, birth_exposure_data, birth_exposure_value_columns
-            )
-        except ConfigurationError:
-            logger.warning("Birth exposure data for LBWSG is missing from the simulation")
-        try:
-            super().build_all_lookup_tables(builder)
-        except ConfigurationError:
-            logger.warning("The data for LBWSG exposure is missing from the simulation.")
-
-        if (
-            "birth_exposure" not in self.lookup_tables
-            and "exposure" not in self.lookup_tables
-        ):
+        if self.birth_exposure_params_table is None and self.exposure_params_table is None:
             raise ConfigurationError(
-                "The LBWSG distribution requires either 'birth_exposure' or 'exposure' data to be "
-                "available in the simulation."
+                "The LBWSG distribution requires either 'birth_exposure' or 'exposure' data"
+                " to be available in the simulation."
             )
 
     def register_exposure_ppf_pipeline(self, builder):
-        required_resources = [self.exposure_params_name, self.risk_propensity] + [
+        required_resources = [self.exposure_params_pipeline, self.risk_propensity] + [
             LBWSGRisk.get_continuous_propensity_name(axis) for axis in AXES
         ]
         builder.value.register_attribute_producer(
@@ -108,18 +89,46 @@ class LBWSGDistribution(PolytomousDistribution):
             required_resources=required_resources,
         )
 
-    def register_exposure_parameter_pipeline(self, builder: Builder) -> None:
-        lookup_columns = []
-        if "exposure" in self.lookup_tables:
-            lookup_columns.extend(get_lookup_columns([self.lookup_tables["exposure"]]))
-        if "birth_exposure" in self.lookup_tables:
-            lookup_columns.extend(get_lookup_columns([self.lookup_tables["birth_exposure"]]))
-        builder.value.register_attribute_producer(
-            self.exposure_params_name,
-            source=lambda index: self.lookup_tables[self.exposure_key](index),
-            component=self,
-            required_resources=list(set(lookup_columns)),
+    def register_exposure_params_pipeline(self, builder: Builder) -> None:
+        lookup_columns = get_lookup_columns(
+            [
+                table
+                for table in [self.exposure_params_table, self.birth_exposure_params_table]
+                if table is not None
+            ]
         )
+
+        builder.value.register_attribute_producer(
+            self.exposure_params_pipeline,
+            source=self.get_exposure_parameters,
+            component=self,
+            required_resources=lookup_columns,
+        )
+
+    def build_exposure_params_table(self, builder: Builder) -> LookupTable | None:
+        try:
+            return super().build_exposure_params_table(builder)
+        except ConfigurationError:
+            logger.warning(
+                "The data for LBWSG exposure is missing from the simulation. LBWSG will not"
+                " be able to initialize neonatal simulants."
+            )
+
+    def build_birth_exposure_params_table(self, builder: Builder) -> LookupTable | None:
+        try:
+            data = self.get_data(
+                builder, self.configuration["data_sources"]["birth_exposure"]
+            )
+            value_columns = self.get_exposure_value_columns(data)
+            if isinstance(data, pd.DataFrame):
+                data = pivot_categorical(data, "parameter")
+
+            return builder.lookup.build_table(data=data, value_columns=value_columns)
+        except ConfigurationError:
+            logger.warning(
+                "Birth exposure data for LBWSG is missing from the simulation. LBWSG will"
+                " not be able to initialize newborn simulants."
+            )
 
     def get_category_intervals(self, builder: Builder) -> dict[str, dict[str, pd.Interval]]:
         """Gets the intervals for each category.
@@ -176,6 +185,22 @@ class LBWSGDistribution(PolytomousDistribution):
             for axis in AXES
         }
         return pd.DataFrame(continuous_exposures)
+
+    def get_exposure_parameters(self, index: pd.Index) -> pd.DataFrame:
+        if self.exposure_data_type == "exposure":
+            if self.exposure_params_table is None:
+                raise ConfigurationError(
+                    "LBWSG exposure data is missing from the simulation. Cannot initialize"
+                    " neonatal simulants."
+                )
+            return self.exposure_params_table(index)
+        else:
+            if self.birth_exposure_params_table is None:
+                raise ConfigurationError(
+                    "LBWSG birth exposure data is missing from the simulation. Cannot"
+                    " initialize newborn simulants."
+                )
+            return self.birth_exposure_params_table(index)
 
     ##################
     # Helper methods #
@@ -343,9 +368,9 @@ class LBWSGRisk(Risk):
         self.initialize_propensities(pop_data)
 
         if pop_data.user_data.get("age_end", self.configuration_age_end) == 0:
-            self.exposure_distribution.exposure_key = "birth_exposure"
+            self.exposure_distribution.exposure_data_type = "birth_exposure"
         else:
-            self.exposure_distribution.exposure_key = "exposure"
+            self.exposure_distribution.exposure_data_type = "exposure"
 
         birth_exposures = self.population_view.get_attribute_frame(
             pop_data.index, self.birth_exposure_pipeline
@@ -414,10 +439,8 @@ class LBWSGRiskEffect(RiskEffect):
             f"effect_of_{self.risk.name}_on_{age_group_id}_{self.target.name}_relative_risk"
         )
 
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.age_intervals = self.get_age_intervals(builder)
-
         super().setup(builder)
         self.interpolator = self.get_interpolator(builder)
 
@@ -425,19 +448,12 @@ class LBWSGRiskEffect(RiskEffect):
     # Setup methods #
     #################
 
-    # noinspection PyAttributeOutsideInit
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        paf_data, paf_value_cols = self.get_population_attributable_fraction_source(builder)
-        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-            builder, paf_data, paf_value_cols
-        )
+    def build_rr_lookup_table(self, builder: Builder) -> None:
+        # We don't need a LookupTable for RR since we are using interpolators
+        pass
 
-    def get_population_attributable_fraction_source(
-        self, builder: Builder
-    ) -> tuple[pd.DataFrame, list[str]]:
-        paf_key = f"{self.risk}.population_attributable_fraction"
-        paf_data = builder.data.load(paf_key)
-        return paf_data, builder.data.value_columns()(paf_key)
+    def build_paf_lookup_table(self, builder):
+        return self.build_lookup_table(builder, "population_attributable_fraction")
 
     def register_target_modifier(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(

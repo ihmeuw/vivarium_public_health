@@ -53,7 +53,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
+from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.utilities import get_lookup_columns
 
@@ -149,6 +149,12 @@ class Mortality(Component):
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
 
+        self.acmr_table = self.build_lookup_table(builder, "all_cause_mortality_rate")
+        self.unmodeled_csmr_table = self.build_lookup_table(
+            builder, "unmodeled_cause_specific_mortality_rate"
+        )
+        self.life_expectancy_table = self.build_lookup_table(builder, "life_expectancy")
+
         self.register_cause_specific_mortality_rate(builder)
 
         self.register_unmodeled_csmr(builder)
@@ -172,12 +178,7 @@ class Mortality(Component):
         )
 
     def register_mortality_rate(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns(
-            [
-                self.lookup_tables["all_cause_mortality_rate"],
-                self.lookup_tables["unmodeled_cause_specific_mortality_rate"],
-            ],
-        )
+        required_columns = get_lookup_columns([self.acmr_table, self.unmodeled_csmr_table])
         builder.value.register_rate_producer(
             self.mortality_rate_pipeline,
             source=self.calculate_mortality_rate,
@@ -197,9 +198,7 @@ class Mortality(Component):
         return raw_csmr
 
     def register_unmodeled_csmr(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns(
-            [self.lookup_tables["unmodeled_cause_specific_mortality_rate"]]
-        )
+        required_columns = get_lookup_columns([self.unmodeled_csmr_table])
         builder.value.register_attribute_producer(
             self.unmodeled_csmr_pipeline,
             source=self.get_unmodeled_csmr_source,
@@ -261,9 +260,9 @@ class Mortality(Component):
                 additional_key="cause_of_death",
             )
             pop.loc[deaths, "alive"] = "dead"
-            pop.loc[deaths, self.years_of_life_lost_column_name] = self.lookup_tables[
-                "life_expectancy"
-            ](deaths)
+            pop.loc[deaths, self.years_of_life_lost_column_name] = self.life_expectancy_table(
+                deaths
+            )
             pop.loc[deaths, self.cause_of_death_column_name] = cause_of_death
             self.population_view.update(pop)
 
@@ -272,13 +271,11 @@ class Mortality(Component):
     ##################################
 
     def calculate_mortality_rate(self, index: pd.Index) -> pd.DataFrame:
-        acmr = self.lookup_tables["all_cause_mortality_rate"](index)
+        acmr = self.acmr_table(index)
         modeled_csmr = self.population_view.get_attributes(
             index, self.cause_specific_mortality_rate_pipeline
         )
-        unmodeled_csmr_raw = self.lookup_tables["unmodeled_cause_specific_mortality_rate"](
-            index
-        )
+        unmodeled_csmr_raw = self.unmodeled_csmr_table(index)
         unmodeled_csmr = self.population_view.get_attributes(
             index, self.unmodeled_csmr_pipeline
         )
@@ -288,6 +285,6 @@ class Mortality(Component):
         return pd.DataFrame({"other_causes": cause_deleted_mortality_rate})
 
     def get_unmodeled_csmr_source(self, index: pd.Index) -> pd.Series:
-        raw_csmr = self.lookup_tables["unmodeled_cause_specific_mortality_rate"](index)
+        raw_csmr = self.unmodeled_csmr_table(index)
         paf = self.population_view.get_attributes(index, self.unmodeled_csmr_paf_pipeline)
         return raw_csmr * (1 - paf)

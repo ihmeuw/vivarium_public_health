@@ -152,10 +152,6 @@ class Risk(Component):
     # Setup methods #
     #################
 
-    def build_all_lookup_tables(self, builder: "Builder") -> None:
-        # All lookup tables are built in the exposure distribution
-        pass
-
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.distribution_type = self.get_distribution_type(builder)
