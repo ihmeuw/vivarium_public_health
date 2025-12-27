@@ -1,3 +1,7 @@
+**5.0.0 - TBD**
+
+  - TBD
+
 **4.3.21 - 02/02/26**
 
   - Use importlib_resources instead of pkg_resources to remove deprecation warning
