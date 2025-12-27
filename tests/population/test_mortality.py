@@ -35,18 +35,11 @@ def setup_sim_with_pop_and_mortality(
 
 
 def test_mortality_default_lookup_configuration(setup_sim_with_pop_and_mortality):
-    sim, bp, mortality = setup_sim_with_pop_and_mortality
-    lookup_tables = mortality.lookup_tables
-    expected_lookup_table_keys = [
-        "all_cause_mortality_rate",
-        "life_expectancy",
-        "unmodeled_cause_specific_mortality_rate",
-    ]
+    _, __, mortality = setup_sim_with_pop_and_mortality
 
-    assert set(expected_lookup_table_keys) == set(lookup_tables.keys())
-    assert (lookup_tables["all_cause_mortality_rate"].data["value"] == 0.5).all()
-    assert lookup_tables["unmodeled_cause_specific_mortality_rate"].data == 0.0
-    assert (lookup_tables["life_expectancy"].data["value"] == 98.0).all()
+    assert (mortality.acmr_table.data["value"] == 0.5).all()
+    assert mortality.unmodeled_csmr_table.data == 0.0
+    assert (mortality.life_expectancy_table.data["value"] == 98.0).all()
 
 
 def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
@@ -70,15 +63,14 @@ def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
 
 
 def test_mortality_rate(setup_sim_with_pop_and_mortality):
-    sim, bp, mortality = setup_sim_with_pop_and_mortality
+    sim, _, mortality = setup_sim_with_pop_and_mortality
     sim.step()
     mortality_rates = sim.get_population("mortality_rate")
     # Calculate mortality rate like component to cmpare
     pop_idx = mortality_rates.index
-    lookup_tables = mortality.lookup_tables
-    acmr = lookup_tables["all_cause_mortality_rate"](pop_idx)
+    acmr = mortality.acmr_table(pop_idx)
     modeled_csmr = sim.get_population("cause_specific_mortality_rate")
-    unmodeled_csmr_raw = lookup_tables["unmodeled_cause_specific_mortality_rate"](pop_idx)
+    unmodeled_csmr_raw = mortality.unmodeled_csmr_table(pop_idx)
     unmodeled_csmr = sim.get_population("affected_unmodeled.cause_specific_mortality_rate")
     expected_mortality_rates = (acmr - modeled_csmr - unmodeled_csmr_raw + unmodeled_csmr) * (
         sim._clock.step_size.days / 365
@@ -178,19 +170,17 @@ def test_mortality_ylls(setup_sim_with_pop_and_mortality):
 
     dead_idx = pop1.index[pop1["alive"] == "dead"]
     ylls = pop1.loc[dead_idx, "years_of_life_lost"]
-    assert (ylls == mortality.lookup_tables["life_expectancy"](dead_idx)).all()
+    assert (ylls == mortality.life_expectancy_table(dead_idx)).all()
     alive_idx = pop1.index[pop1["alive"] == "alive"]
     no_ylls = pop1.loc[alive_idx, "years_of_life_lost"]
     assert (no_ylls == 0).all()
 
 
 def test_no_unmodeled_causes(setup_sim_with_pop_and_mortality):
-    sim, bp, mortality = setup_sim_with_pop_and_mortality
+    _, __, mortality = setup_sim_with_pop_and_mortality
     # No unmodeled causes by default
-    assert isinstance(
-        mortality.lookup_tables["unmodeled_cause_specific_mortality_rate"], ScalarTable
-    )
-    assert mortality.lookup_tables["unmodeled_cause_specific_mortality_rate"].data == 0.0
+    assert isinstance(mortality.unmodeled_csmr_table, ScalarTable)
+    assert mortality.unmodeled_csmr_table.data == 0.0
 
 
 def test_unmodeled_causes(full_simulants, base_plugins, generate_population_mock):
