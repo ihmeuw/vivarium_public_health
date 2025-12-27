@@ -183,9 +183,7 @@ class FertilityAgeSpecificRates(Component):
             Framework coordination object.
         """
         age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
-        fertility_rate = builder.lookup.build_table(
-            age_specific_fertility_rate, parameter_columns=["age", "year"]
-        )
+        fertility_rate = builder.lookup.build_table(age_specific_fertility_rate)
         builder.value.register_rate_producer(
             "fertility_rate",
             source=fertility_rate,
