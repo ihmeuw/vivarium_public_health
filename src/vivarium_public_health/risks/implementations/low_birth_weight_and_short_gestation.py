@@ -31,7 +31,7 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import PolytomousDistribution
-from vivarium_public_health.utilities import EntityString, get_lookup_columns, to_snake_case
+from vivarium_public_health.utilities import EntityString, to_snake_case
 
 CATEGORICAL = "categorical"
 BIRTH_WEIGHT = "birth_weight"
@@ -90,19 +90,17 @@ class LBWSGDistribution(PolytomousDistribution):
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
-        lookup_columns = get_lookup_columns(
-            [
-                table
-                for table in [self.exposure_params_table, self.birth_exposure_params_table]
-                if table is not None
-            ]
-        )
+        lookup_tables = [
+            table
+            for table in [self.exposure_params_table, self.birth_exposure_params_table]
+            if table is not None
+        ]
 
         builder.value.register_attribute_producer(
             self.exposure_params_pipeline,
             source=self.get_exposure_parameters,
             component=self,
-            required_resources=lookup_columns,
+            required_resources=lookup_tables,
         )
 
     def build_exposure_params_table(self, builder: Builder) -> LookupTable | None:
@@ -123,7 +121,9 @@ class LBWSGDistribution(PolytomousDistribution):
             if isinstance(data, pd.DataFrame):
                 data = pivot_categorical(data, "parameter")
 
-            return builder.lookup.build_table(data=data, value_columns=value_columns)
+            return self.build_lookup_table(
+                builder, "birth_exposure", data_source=data, value_columns=value_columns
+            )
         except ConfigurationError:
             logger.warning(
                 "Birth exposure data for LBWSG is missing from the simulation. LBWSG will"
