@@ -25,7 +25,7 @@ from vivarium_public_health.risks.distributions import (
     PolytomousDistribution,
     RiskExposureDistribution,
 )
-from vivarium_public_health.utilities import EntityString, get_lookup_columns
+from vivarium_public_health.utilities import EntityString
 
 
 class Risk(Component):

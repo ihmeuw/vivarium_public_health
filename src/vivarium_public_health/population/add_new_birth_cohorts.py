@@ -157,6 +157,16 @@ class FertilityAgeSpecificRates(Component):
     ##############
 
     @property
+    def configuration_defaults(self) -> dict[str, dict]:
+        return {
+            self.name: {
+                "data_sources": {
+                    "age_specific_fertility_rate": self.load_age_specific_fertility_rate_data
+                }
+            },
+        }
+
+    @property
     def columns_created(self) -> list[str]:
         return ["last_birth_time", "parent_id"]
 
@@ -176,13 +186,9 @@ class FertilityAgeSpecificRates(Component):
         builder
             Framework coordination object.
         """
-        age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
-        fertility_rate = builder.lookup.build_table(age_specific_fertility_rate)
+        fertility_rate = self.build_lookup_table(builder, "age_specific_fertility_rate")
         builder.value.register_rate_producer(
-            "fertility_rate",
-            source=fertility_rate,
-            component=self,
-            required_resources=["age"],
+            "fertility_rate", source=fertility_rate, component=self
         )
 
         self.randomness = builder.randomness.get_stream("fertility", component=self)
