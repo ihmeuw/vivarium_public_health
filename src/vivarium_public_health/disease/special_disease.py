@@ -20,7 +20,7 @@ from vivarium.framework.resource import Resource
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.transition import TransitionString
-from vivarium_public_health.utilities import EntityString, get_lookup_columns, is_non_zero
+from vivarium_public_health.utilities import EntityString, is_non_zero
 
 
 class RiskAttributableDisease(Component):
@@ -210,7 +210,7 @@ class RiskAttributableDisease(Component):
             self.disability_weight_pipeline,
             source=self.compute_disability_weight,
             component=self,
-            required_resources=get_lookup_columns([self.raw_disability_weight_table]),
+            required_resources=self.raw_disability_weight_table,
         )
         builder.value.register_attribute_modifier(
             "all_causes.disability_weight",
@@ -221,15 +221,14 @@ class RiskAttributableDisease(Component):
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
             component=self,
-            required_resources=get_lookup_columns([self.cause_specific_mortality_rate_table]),
+            required_resources=self.cause_specific_mortality_rate_table,
         )
         self.has_excess_mortality = is_non_zero(self.excess_mortality_rate_table)
         builder.value.register_attribute_producer(
             self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
             component=self,
-            required_resources=get_lookup_columns([self.excess_mortality_rate_table])
-            + [self.joint_paf],
+            required_resources=[self.excess_mortality_rate_table] + [self.joint_paf],
         )
         # We need the emr pipeline later
         self._get_attribute_pipelines = builder.value.get_attribute_pipelines()

@@ -55,8 +55,6 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import list_combiner, union_post_processor
 
-from vivarium_public_health.utilities import get_lookup_columns
-
 
 class Mortality(Component):
     """This is the mortality component which models of mortality in a population.
@@ -200,17 +198,16 @@ class Mortality(Component):
     def register_cause_specific_mortality_rate(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
             self.cause_specific_mortality_rate_pipeline,
-            source=builder.lookup.build_table(0),
+            source=self.build_lookup_table(builder, "csmr", 0),
             component=self,
         )
 
     def register_mortality_rate(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns([self.acmr_table, self.unmodeled_csmr_table])
         builder.value.register_rate_producer(
             self.mortality_rate_pipeline,
             source=self.calculate_mortality_rate,
             component=self,
-            required_resources=required_columns,
+            required_resources=[self.acmr_table, self.unmodeled_csmr_table],
         )
 
     def load_unmodeled_csmr(self, builder: Builder) -> float | pd.DataFrame:
@@ -225,16 +222,15 @@ class Mortality(Component):
         return raw_csmr
 
     def register_unmodeled_csmr(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns([self.unmodeled_csmr_table])
         builder.value.register_attribute_producer(
             self.unmodeled_csmr_pipeline,
             source=self.get_unmodeled_csmr_source,
             component=self,
-            required_resources=required_columns,
+            required_resources=[self.unmodeled_csmr_table],
         )
 
     def register_unmodeled_csmr_paf(self, builder: Builder) -> None:
-        unmodeled_csmr_paf = builder.lookup.build_table(0)
+        unmodeled_csmr_paf = self.build_lookup_table(builder, "unmodeled_csmr_paf", 0)
         builder.value.register_attribute_producer(
             self.unmodeled_csmr_paf_pipeline,
             source=lambda index: [unmodeled_csmr_paf(index)],
