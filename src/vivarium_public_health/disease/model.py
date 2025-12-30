@@ -18,6 +18,7 @@ from layered_config_tree import ConfigurationError
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.framework.resource import Resource
 from vivarium.framework.state_machine import Machine
 from vivarium.types import DataInput, LookupTableData
 
@@ -59,12 +60,12 @@ class DiseaseModel(Machine):
         return [self.state_column]
 
     @property
-    def initialization_requirements(self) -> dict[str, list[str]]:
-        return {
-            "requires_columns": ["age", "sex"],
-            "requires_values": [],
-            "requires_streams": [],
-        }
+    def initialization_requirements(self) -> list[str | Resource]:
+        return [
+            self.randomness,
+            *[state.prevalence_pipeline for state in self.states],
+            *[state.birth_prevalence_pipeline for state in self.states],
+        ]
 
     @property
     def state_names(self) -> list[str]:
@@ -154,12 +155,12 @@ class DiseaseModel(Machine):
             The population data object.
         """
 
-        for state in self.states:
-            state.initialization_weights_table = (
-                state.birth_prevalence_table
-                if pop_data.user_data.get("age_end", self.configuration_age_end) == 0
-                else state.prevalence_table
-            )
+        self.initialization_weights_pipelines = [
+            state.birth_prevalence_pipeline
+            if pop_data.user_data.get("age_end", self.configuration_age_end) == 0
+            else state.prevalence_pipeline
+            for state in self.states
+        ]
 
         super().on_initialize_simulants(pop_data)
 

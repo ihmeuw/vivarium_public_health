@@ -26,7 +26,7 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
-from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
+from vivarium_public_health.utilities import EntityString, TargetString
 
 
 class RiskEffect(Component):
@@ -156,13 +156,15 @@ class RiskEffect(Component):
         rr_value_cols = None
         if self.is_exposure_categorical:
             rr_data, rr_value_cols = self.process_categorical_data(builder, rr_data)
-        return builder.lookup.build_table(data=rr_data, value_columns=rr_value_cols)
+        return self.build_lookup_table(
+            builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
+        )
 
     def build_paf_lookup_table(self, builder: Builder) -> LookupTable:
         paf_data = self.get_filtered_data(
             builder, self.configuration.data_sources.population_attributable_fraction
         )
-        return builder.lookup.build_table(data=paf_data)
+        return self.build_lookup_table(builder, "paf", data_source=paf_data)
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
@@ -336,12 +338,8 @@ class RiskEffect(Component):
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns([self.paf_table])
         builder.value.register_attribute_modifier(
-            self.target_paf_name,
-            modifier=self.paf_table,
-            component=self,
-            required_resources=required_columns,
+            self.target_paf_name, modifier=self.paf_table, component=self
         )
 
     ##################
@@ -451,7 +449,9 @@ class NonLogLinearRiskEffect(RiskEffect):
         rr_data[f"{self.risk.name}.exposure_end"] = rr_data["right_exposure"]
         # build lookup table
         rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
-        return builder.lookup.build_table(data=rr_data, value_columns=rr_value_cols)
+        return self.build_lookup_table(
+            builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
+        )
 
     def load_relative_risk(
         self,

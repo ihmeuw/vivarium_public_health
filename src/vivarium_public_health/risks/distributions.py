@@ -24,7 +24,7 @@ from vivarium.framework.resource import Resource
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import pivot_categorical
-from vivarium_public_health.utilities import EntityString, get_lookup_columns
+from vivarium_public_health.utilities import EntityString
 
 
 class MissingDataError(Exception):
@@ -98,12 +98,17 @@ class EnsembleDistribution(RiskExposureDistribution):
 
     def setup(self, builder: Builder) -> None:
         distributions, weights, parameters = self.get_distribution_definitions(builder)
-        self.distribution_weights_table = builder.lookup.build_table(
-            data=weights.reset_index(), value_columns=distributions
+        self.distribution_weights_table = self.build_lookup_table(
+            builder,
+            "exposure_distribution_weights",
+            data_source=weights,
+            value_columns=distributions,
         )
 
         self.parameters = {
-            parameter: builder.lookup.build_table(data.reset_index())
+            parameter: self.build_lookup_table(
+                builder, parameter, data_source=data.reset_index()
+            )
             for parameter, data in parameters.items()
         }
 
@@ -139,18 +144,16 @@ class EnsembleDistribution(RiskExposureDistribution):
             mean=get_risk_distribution_parameter(exposure_data),
             sd=get_risk_distribution_parameter(standard_deviation),
         )
-        return distributions, weights, parameters
+        return distributions, weights.reset_index(), parameters
 
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
-        lookup_tables = [self.distribution_weights_table] + list(self.parameters.values())
-        lookup_columns = get_lookup_columns(lookup_tables)
+        tables = [self.distribution_weights_table, *self.parameters.values()]
 
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
             component=self,
-            required_resources=lookup_columns
-            + [self.risk_propensity, self.ensemble_propensity],
+            required_resources=[*tables, self.risk_propensity, self.ensemble_propensity],
         )
 
     ########################
@@ -218,8 +221,11 @@ class ContinuousDistribution(RiskExposureDistribution):
 
     def setup(self, builder):
         parameters = self.get_distribution_parameters(builder)
-        self.parameters_table = builder.lookup.build_table(
-            data=parameters.reset_index(), value_columns=list(parameters.columns)
+        self.parameters_table = self.build_lookup_table(
+            builder,
+            "exposure_parameters",
+            data_source=parameters.reset_index(),
+            value_columns=list(parameters.columns),
         )
         super().setup(builder)
 
@@ -243,10 +249,7 @@ class ContinuousDistribution(RiskExposureDistribution):
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.exposure_params_name,
-            source=self.parameters_table,
-            component=self,
-            required_resources=get_lookup_columns([self.parameters_table]),
+            self.exposure_params_name, source=self.parameters_table, component=self
         )
 
     ##################################
@@ -327,10 +330,7 @@ class PolytomousDistribution(RiskExposureDistribution):
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.exposure_params_pipeline,
-            source=self.exposure_params_table,
-            component=self,
-            required_resources=get_lookup_columns([self.exposure_params_table]),
+            self.exposure_params_pipeline, source=self.exposure_params_table, component=self
         )
 
     def build_exposure_params_table(self, builder: "Builder"):
@@ -340,7 +340,9 @@ class PolytomousDistribution(RiskExposureDistribution):
         if isinstance(data, pd.DataFrame):
             data = pivot_categorical(data, "parameter")
 
-        return builder.lookup.build_table(data=data, value_columns=value_columns)
+        return self.build_lookup_table(
+            builder, "exposure_parameters", data_source=data, value_columns=value_columns
+        )
 
     ##################################
     # Pipeline sources and modifiers #
@@ -389,7 +391,7 @@ class DichotomousDistribution(RiskExposureDistribution):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self.exposure_table = self.build_exposure_table(builder)
-        self.paf_table = builder.lookup.build_table(0.0)
+        self.paf_table = self.build_lookup_table(builder, "exposure_paf", 0.0)
         self.register_exposure_params_pipeline(builder)
         builder.value.register_attribute_producer(
             self.exposure_params_paf_name,
@@ -412,7 +414,7 @@ class DichotomousDistribution(RiskExposureDistribution):
             self.exposure_params_name,
             source=self.exposure_parameter_source,
             component=self,
-            required_resources=get_lookup_columns([self.exposure_table]),
+            required_resources=[self.exposure_table],
         )
 
     def build_exposure_table(self, builder: Builder) -> LookupTable[pd.Series]:
@@ -426,7 +428,7 @@ class DichotomousDistribution(RiskExposureDistribution):
         elif data < 0 or data > 1:
             raise ValueError(f"Exposure must be in the range [0, 1] for {self.risk}")
 
-        return builder.lookup.build_table(data=data)
+        return self.build_lookup_table(builder, "exposure", data)
 
     def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
         exposure_data = super().get_exposure_data(builder)
