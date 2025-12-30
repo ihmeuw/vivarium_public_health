@@ -334,7 +334,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
             )
             builder.value.register_attribute_modifier(
                 "sick.incidence_rate.paf",
-                modifier=builder.lookup.build_table(data),
+                modifier=self.build_lookup_table(builder, "exposure_paf", data),
                 component=self,
             )
 

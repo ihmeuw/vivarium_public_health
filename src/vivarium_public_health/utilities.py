@@ -98,16 +98,3 @@ def is_non_zero(data: Iterable[ScalarValue] | ScalarValue | pd.DataFrame) -> boo
         attribute_sum = data
 
     return attribute_sum != 0.0
-
-
-def get_lookup_columns(
-    lookup_tables: Iterable[LookupTable], necessary_columns: Iterable = ()
-) -> list[str]:
-    necessary_columns = set(necessary_columns)
-    for lookup_table in lookup_tables:
-        necessary_columns.update(set(lookup_table.key_columns))
-        necessary_columns.update(set(lookup_table.parameter_columns))
-    if "year" in necessary_columns:
-        necessary_columns.remove("year")
-
-    return list(necessary_columns)
