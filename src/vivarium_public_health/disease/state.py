@@ -27,7 +27,7 @@ from vivarium_public_health.disease.transition import (
     RateTransition,
     TransitionString,
 )
-from vivarium_public_health.utilities import get_lookup_columns, is_non_zero
+from vivarium_public_health.utilities import is_non_zero
 
 
 class BaseDiseaseState(State):
@@ -72,10 +72,6 @@ class BaseDiseaseState(State):
     def columns_created(self):
         return [self.event_time_column, self.event_count_column]
 
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.model]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -94,13 +90,24 @@ class BaseDiseaseState(State):
 
         self.event_time_column = self.state_id + "_event_time"
         self.event_count_column = self.state_id + "_event_count"
+        self.prevalence_pipeline = f"{self.state_id}.prevalence"
+        self.birth_prevalence_pipeline = f"{self.state_id}.birth_prevalence"
         self.prevalence = 0.0
         self.birth_prevalence = 0.0
 
     def setup(self, builder: Builder) -> None:
-        super().setup(builder)
         self.prevalence_table = self.build_lookup_table(builder, "prevalence")
+        builder.value.register_attribute_producer(
+            self.prevalence_pipeline,
+            source=self.prevalence_table,
+            component=self,
+        )
         self.birth_prevalence_table = self.build_lookup_table(builder, "birth_prevalence")
+        builder.value.register_attribute_producer(
+            self.birth_prevalence_pipeline,
+            source=self.birth_prevalence_table,
+            component=self,
+        )
 
     ########################
     # Event-driven methods #
@@ -401,6 +408,10 @@ class DiseaseState(BaseDiseaseState):
         configuration_defaults[self.name]["data_sources"] = data_sources
         return configuration_defaults
 
+    @property
+    def initialization_requirements(self) -> list[str | Resource]:
+        return [self.model, self.randomness_prevalence]
+
     #####################
     # Lifecycle methods #
     #####################
@@ -592,12 +603,10 @@ class DiseaseState(BaseDiseaseState):
         return dwell_time_source
 
     def register_dwell_time_pipeline(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns([self.dwell_time_table])
         builder.value.register_attribute_producer(
             self.dwell_time_pipeline,
             source=self.dwell_time_table,
             component=self,
-            required_resources=required_columns,
         )
 
     def get_disability_weight_source(self, disability_weight: DataInput | None) -> DataInput:
@@ -618,12 +627,11 @@ class DiseaseState(BaseDiseaseState):
         return disability_weight_source
 
     def register_disability_weight_pipeline(self, builder: Builder) -> None:
-        lookup_columns = get_lookup_columns([self.disability_weight_table])
         builder.value.register_attribute_producer(
             f"{self.state_id}.disability_weight",
             source=self.compute_disability_weight,
             component=self,
-            required_resources=lookup_columns + ["alive", self.model],
+            required_resources=["alive", self.model, self.disability_weight_table],
         )
 
     def get_excess_mortality_rate_source(
@@ -646,17 +654,20 @@ class DiseaseState(BaseDiseaseState):
         return excess_mortality_rate_source
 
     def register_excess_mortality_rate_pipeline(self, builder: Builder) -> None:
-        lookup_columns = get_lookup_columns([self.excess_mortality_rate_table])
         builder.value.register_rate_producer(
             self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
             component=self,
-            required_resources=lookup_columns
-            + ["alive", self.model, self.excess_mortality_rate_paf_pipeline],
+            required_resources=[
+                "alive",
+                self.model,
+                self.excess_mortality_rate_table,
+                self.excess_mortality_rate_paf_pipeline,
+            ],
         )
 
     def register_joint_paf_pipeline(self, builder: Builder) -> None:
-        paf = builder.lookup.build_table(0)
+        paf = self.build_lookup_table(builder, "joint_paf", 0)
         builder.value.register_attribute_producer(
             self.excess_mortality_rate_paf_pipeline,
             source=lambda idx: [paf(idx)],

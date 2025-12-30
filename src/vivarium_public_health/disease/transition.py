@@ -19,7 +19,6 @@ from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium.types import DataInput
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
-from vivarium_public_health.utilities import get_lookup_columns
 
 if TYPE_CHECKING:
     from vivarium_public_health.disease import BaseDiseaseState
@@ -140,18 +139,16 @@ class RateTransition(Transition):
                     " get_data_functions."
                 )
 
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.transition_rate_table = self.build_lookup_table(builder, "transition_rate")
-        lookup_columns = get_lookup_columns([self.transition_rate_table])
         builder.value.register_rate_producer(
             self.transition_rate_pipeline,
             source=self.compute_transition_rate,
             component=self,
-            required_resources=lookup_columns + ["alive", self.paf_pipeline],
+            required_resources=["alive", self.transition_rate_table, self.paf_pipeline],
         )
 
-        paf = builder.lookup.build_table(0)
+        paf = self.build_lookup_table(builder, "joint_paf", 0)
         builder.value.register_attribute_producer(
             self.paf_pipeline,
             source=lambda index: [paf(index)],
