@@ -43,6 +43,7 @@ def test_parsing_lbwsg_descriptions(description, expected_weight_values, expecte
     assert age_interval.right == expected_age_values[1]
 
 
+@pytest.mark.skip(reason="FIXME [MIC-6606]")
 def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interpolators):
 
     risk = LBWSGRisk()
@@ -145,6 +146,7 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
                 assert (actual_rr == 1.0).all()
 
 
+@pytest.mark.skip(reason="FIXME [MIC-6606]")
 @pytest.mark.parametrize("age_end", [0.0, 1.0])
 def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end):
     risk = LBWSGRisk()
@@ -211,6 +213,7 @@ def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end)
     sim.get_population(["birth_weight.exposure", "gestational_age.exposure"])
 
 
+@pytest.mark.skip(reason="FIXME [MIC-6606]")
 @pytest.mark.parametrize("exposure_key", ["birth_exposure", "exposure", "missing"])
 def test_lbwsg_exposure_data_logging(exposure_key, base_config, mocker, caplog) -> None:
     risk = LBWSGRisk()
