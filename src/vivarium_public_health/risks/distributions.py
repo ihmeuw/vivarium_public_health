@@ -107,7 +107,10 @@ class EnsembleDistribution(RiskExposureDistribution):
 
         self.parameters = {
             parameter: self.build_lookup_table(
-                builder, parameter, data_source=data.reset_index()
+                builder,
+                parameter,
+                data_source=data.reset_index(),
+                value_columns=rd.EnsembleDistribution.get_expected_parameters(parameter),
             )
             for parameter, data in parameters.items()
         }
