@@ -301,7 +301,6 @@ class RiskEffect(Component):
         builder.value.register_attribute_producer(
             self.relative_risk_name,
             self._relative_risk_source,
-            component=self,
             required_resources=[self.exposure_name],
         )
 
@@ -309,13 +308,12 @@ class RiskEffect(Component):
         builder.value.register_attribute_modifier(
             self.target_name,
             modifier=self.adjust_target,
-            component=self,
             required_resources=[self.relative_risk_name],
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(
-            self.target_paf_name, modifier=self.paf_table, component=self
+            self.target_paf_name, modifier=self.paf_table
         )
 
     ##################
