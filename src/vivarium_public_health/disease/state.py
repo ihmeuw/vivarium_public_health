@@ -15,10 +15,9 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.resource import Resource
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
 from vivarium.framework.values import list_combiner, union_post_processor
-from vivarium.types import DataInput, LookupTableData
+from vivarium.types import ColumnsCreated, DataInput, LookupTableData
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
 from vivarium_public_health.disease.transition import (
@@ -50,8 +49,8 @@ class BaseDiseaseState(State):
         return configuration_defaults
 
     @property
-    def columns_created(self):
-        return [self.event_time_column, self.event_count_column]
+    def columns_created(self) -> ColumnsCreated:
+        return {(self.event_time_column, self.event_count_column): []}
 
     #####################
     # Lifecycle methods #
@@ -333,10 +332,6 @@ class DiseaseState(BaseDiseaseState):
     ##############
 
     @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return super().initialization_requirements + [self.randomness_prevalence]
-
-    @property
     def configuration_defaults(self) -> dict[str, Any]:
         configuration_defaults = super().configuration_defaults
         additional_defaults = {
@@ -354,8 +349,15 @@ class DiseaseState(BaseDiseaseState):
         return configuration_defaults
 
     @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.model, self.randomness_prevalence]
+    def columns_created(self) -> ColumnsCreated:
+        return {
+            self.event_time_column: [
+                self.model,
+                self.randomness_prevalence,
+                self.dwell_time_pipeline,
+            ],
+            self.event_count_column: [],
+        }
 
     #####################
     # Lifecycle methods #

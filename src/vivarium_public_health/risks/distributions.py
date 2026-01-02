@@ -71,18 +71,17 @@ class RiskExposureDistribution(Component, ABC):
         pass
 
 
+from vivarium.types import ColumnsCreated
+
+
 class EnsembleDistribution(RiskExposureDistribution):
     ##############
     # Properties #
     ##############
 
     @property
-    def columns_created(self) -> list[str]:
-        return [self.ensemble_propensity]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.randomness]
+    def columns_created(self) -> ColumnsCreated:
+        return {self.ensemble_propensity: self.randomness}
 
     #####################
     # Lifecycle methods #

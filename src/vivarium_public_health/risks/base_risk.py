@@ -15,7 +15,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.resource import Resource
+from vivarium.types import ColumnsCreated
 
 from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.risks.distributions import (
@@ -121,12 +121,8 @@ class Risk(Component):
         }
 
     @property
-    def columns_created(self) -> list[str]:
-        return [self.propensity_name]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.randomness]
+    def columns_created(self) -> ColumnsCreated:
+        return {self.propensity_name: self.randomness}
 
     #####################
     # Lifecycle methods #

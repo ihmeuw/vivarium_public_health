@@ -17,6 +17,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
+from vivarium.types import ColumnsCreated
 
 
 class DelayedRisk(Component):
@@ -104,15 +105,11 @@ class DelayedRisk(Component):
         }
 
     @property
-    def columns_created(self) -> list[str]:
-        return self._bin_names
+    def columns_created(self) -> ColumnsCreated:
+        return {tuple(self._bin_names): ["age", "sex", "population"]}
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["age", "sex", "population"]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
         return ["age", "sex", "population"]
 
     #####################

@@ -14,6 +14,7 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
+from vivarium.types import ColumnsCreated
 
 
 class BasePopulation(Component):
@@ -48,25 +49,27 @@ class BasePopulation(Component):
     ##############
 
     @property
-    def columns_created(self) -> list[str]:
-        return [
-            "age",
-            "sex",
-            "population",
-            "bau_population",
-            "acmr",
-            "bau_acmr",
-            "pr_death",
-            "bau_pr_death",
-            "deaths",
-            "bau_deaths",
-            "yld_rate",
-            "bau_yld_rate",
-            "person_years",
-            "bau_person_years",
-            "HALY",
-            "bau_HALY",
-        ]
+    def columns_created(self) -> ColumnsCreated:
+        return {
+            (
+                "age",
+                "sex",
+                "population",
+                "bau_population",
+                "acmr",
+                "bau_acmr",
+                "pr_death",
+                "bau_pr_death",
+                "deaths",
+                "bau_deaths",
+                "yld_rate",
+                "bau_yld_rate",
+                "person_years",
+                "bau_person_years",
+                "HALY",
+                "bau_HALY",
+            ): []
+        }
 
     @property
     def columns_required(self) -> list[str] | None:
@@ -81,7 +84,7 @@ class BasePopulation(Component):
         self.pop_data = load_population_data(builder)
 
         # Create additional columns with placeholder (zero) values.
-        for column in self.columns_created:
+        for column in self.columns_created_list:
             if column in self.pop_data.columns:
                 continue
             self.pop_data.loc[:, column] = 0.0

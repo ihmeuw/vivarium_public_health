@@ -19,11 +19,10 @@ import pandas as pd
 from layered_config_tree import ConfigurationError
 from loguru import logger
 from vivarium.framework.engine import Builder
-from vivarium.framework.lifecycle import LifeCycleError
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
-from vivarium.framework.values import Pipeline
+from vivarium.types import ColumnsCreated
 
 from vivarium_public_health.risks import Risk, RiskEffect
 from vivarium_public_health.risks.data_transformations import (
@@ -314,16 +313,17 @@ class LBWSGRisk(Risk):
         return configuration_defaults
 
     @property
-    def columns_created(self) -> list[str]:
-        columns = [self.categorical_propensity_name]
-        for axis in AXES:
-            columns.append(self.get_exposure_name(axis))
-            columns.append(self.get_continuous_propensity_name(axis))
-        return columns
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.randomness, self.birth_exposure_pipeline]
+    def columns_created(self) -> ColumnsCreated:
+        continuous_propensity_columns = tuple(
+            self.get_continuous_propensity_name(axis) for axis in AXES
+        )
+        exposure_columns = tuple(self.get_exposure_name(axis) for axis in AXES)
+        return {
+            (self.categorical_propensity_name, *continuous_propensity_columns): [
+                self.randomness
+            ],
+            exposure_columns: [self.birth_exposure_pipeline],
+        }
 
     #####################
     # Lifecycle methods #
@@ -414,12 +414,8 @@ class LBWSGRiskEffect(RiskEffect):
     ##############
 
     @property
-    def columns_created(self) -> list[str]:
-        return self.rr_column_names
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return ["sex", self.exposure_name]
+    def columns_created(self) -> ColumnsCreated:
+        return {tuple(self.rr_column_names): ["sex", self.exposure_name]}
 
     @property
     def rr_column_names(self) -> list[str]:

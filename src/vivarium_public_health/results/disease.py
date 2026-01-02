@@ -13,6 +13,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
+from vivarium.types import ColumnsCreated
 
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.observer import PublicHealthObserver
@@ -64,14 +65,9 @@ class DiseaseObserver(PublicHealthObserver):
     ##############
 
     @property
-    def columns_created(self) -> list[str]:
+    def columns_created(self) -> ColumnsCreated:
         """Columns created by this observer."""
-        return [self.previous_state_column_name]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        """Requirements for observer initialization."""
-        return [self.disease]
+        return {self.previous_state_column_name: self.disease}
 
     #####################
     # Lifecycle methods #

@@ -18,9 +18,8 @@ from layered_config_tree import ConfigurationError
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 from vivarium.framework.state_machine import Machine
-from vivarium.types import DataInput, LookupTableData
+from vivarium.types import ColumnsCreated, DataInput, LookupTableData
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
 from vivarium_public_health.disease.state import BaseDiseaseState, SusceptibleState
@@ -44,16 +43,14 @@ class DiseaseModel(Machine):
         }
 
     @property
-    def columns_created(self) -> list[str]:
-        return [self.state_column]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [
-            self.randomness,
-            *[state.prevalence_pipeline for state in self.states],
-            *[state.birth_prevalence_pipeline for state in self.states],
-        ]
+    def columns_created(self) -> ColumnsCreated:
+        return {
+            self.state_column: [
+                self.randomness,
+                *[state.prevalence_pipeline for state in self.states],
+                *[state.birth_prevalence_pipeline for state in self.states],
+            ]
+        }
 
     @property
     def state_names(self) -> list[str]:

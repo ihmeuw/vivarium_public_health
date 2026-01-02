@@ -17,6 +17,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.resource import Resource
+from vivarium.types import ColumnsCreated
 
 
 class AcuteDisease(Component):
@@ -182,20 +183,16 @@ class Disease(Component):
         }
 
     @property
-    def columns_created(self) -> list[str]:
-        columns = []
+    def columns_created(self) -> ColumnsCreated:
+        columns = ()
         for scenario in ["", "_intervention"]:
             for rate in ["_S", "_C"]:
                 for when in ["", "_previous"]:
                     columns.append(self.disease + rate + scenario + when)
-        return columns
+        return {columns: ["age", "sex"]}
 
     @property
     def columns_required(self) -> list[str] | None:
-        return ["age", "sex"]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
         return ["age", "sex"]
 
     def __init__(self, disease: str):
