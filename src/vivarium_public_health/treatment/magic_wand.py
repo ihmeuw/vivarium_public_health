@@ -65,7 +65,6 @@ class AbsoluteShift(Component):
         builder.value.register_attribute_modifier(
             f"{self.target.name}.{self.target.measure}",
             modifier=self.intervention_effect,
-            component=self,
             required_resources=["age"],
         )
 

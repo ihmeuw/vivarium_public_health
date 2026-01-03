@@ -91,7 +91,7 @@ class ModifyDiseaseRate(Component):
         if self.scale < 0:
             raise ValueError("Invalid scale: {}".format(self.scale))
         rate_name = "{}_intervention.{}".format(self.disease, self.rate)
-        builder.value.register_attribute_modifier(rate_name, self.adjust_rate, component=self)
+        builder.value.register_attribute_modifier(rate_name, self.adjust_rate)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -298,7 +298,7 @@ class TobaccoFreeGeneration(Component):
         self.year = builder.configuration["tobacco_free_generation"].year
         self.clock = builder.time.clock()
         rate_name = "{}_intervention.incidence".format(self.exposure)
-        builder.value.register_attribute_modifier(rate_name, self.adjust_rate, component=self)
+        builder.value.register_attribute_modifier(rate_name, self.adjust_rate)
 
     ##################################
     # Pipeline sources and modifiers #
