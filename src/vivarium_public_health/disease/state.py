@@ -79,15 +79,11 @@ class BaseDiseaseState(State):
     def setup(self, builder: Builder) -> None:
         self.prevalence_table = self.build_lookup_table(builder, "prevalence")
         builder.value.register_attribute_producer(
-            self.prevalence_pipeline,
-            source=self.prevalence_table,
-            component=self,
+            self.prevalence_pipeline, source=self.prevalence_table
         )
         self.birth_prevalence_table = self.build_lookup_table(builder, "birth_prevalence")
         builder.value.register_attribute_producer(
-            self.birth_prevalence_pipeline,
-            source=self.birth_prevalence_table,
-            component=self,
+            self.birth_prevalence_pipeline, source=self.birth_prevalence_table
         )
 
     ########################
@@ -485,9 +481,7 @@ class DiseaseState(BaseDiseaseState):
         self.register_disability_weight_pipeline(builder)
 
         builder.value.register_attribute_modifier(
-            "all_causes.disability_weight",
-            modifier=self.dw_pipeline,
-            component=self,
+            "all_causes.disability_weight", modifier=self.dw_pipeline
         )
 
         self.has_excess_mortality = is_non_zero(self.excess_mortality_rate_table.data)
@@ -497,7 +491,6 @@ class DiseaseState(BaseDiseaseState):
         builder.value.register_attribute_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
-            component=self,
             required_resources=[self.excess_mortality_rate_pipeline],
         )
 
@@ -549,9 +542,7 @@ class DiseaseState(BaseDiseaseState):
 
     def register_dwell_time_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.dwell_time_pipeline,
-            source=self.dwell_time_table,
-            component=self,
+            self.dwell_time_pipeline, source=self.dwell_time_table
         )
 
     def get_disability_weight_source(self, disability_weight: DataInput | None) -> DataInput:
@@ -575,7 +566,6 @@ class DiseaseState(BaseDiseaseState):
         builder.value.register_attribute_producer(
             f"{self.state_id}.disability_weight",
             source=self.compute_disability_weight,
-            component=self,
             required_resources=["alive", self.model, self.disability_weight_table],
         )
 
@@ -602,7 +592,6 @@ class DiseaseState(BaseDiseaseState):
         builder.value.register_rate_producer(
             self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
-            component=self,
             required_resources=[
                 "alive",
                 self.model,
@@ -616,15 +605,12 @@ class DiseaseState(BaseDiseaseState):
         builder.value.register_attribute_producer(
             self.excess_mortality_rate_paf_pipeline,
             source=lambda idx: [paf(idx)],
-            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
 
     def get_randomness_prevalence(self, builder: Builder) -> RandomnessStream:
-        return builder.randomness.get_stream(
-            f"{self.state_id}_prevalent_cases", component=self
-        )
+        return builder.randomness.get_stream(f"{self.state_id}_prevalent_cases")
 
     ##################
     # Public methods #

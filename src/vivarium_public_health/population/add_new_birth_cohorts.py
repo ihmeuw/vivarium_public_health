@@ -187,11 +187,9 @@ class FertilityAgeSpecificRates(Component):
             Framework coordination object.
         """
         fertility_rate = self.build_lookup_table(builder, "age_specific_fertility_rate")
-        builder.value.register_rate_producer(
-            "fertility_rate", source=fertility_rate, component=self
-        )
+        builder.value.register_rate_producer("fertility_rate", source=fertility_rate)
 
-        self.randomness = builder.randomness.get_stream("fertility", component=self)
+        self.randomness = builder.randomness.get_stream("fertility")
         self.simulant_creator = builder.population.get_simulant_creator()
 
     #################

@@ -225,13 +225,12 @@ class Risk(Component):
         return exposure_distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
-        return builder.randomness.get_stream(self.randomness_stream_name, component=self)
+        return builder.randomness.get_stream(self.randomness_stream_name)
 
     def register_exposure_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
             self.exposure_name,
             source=[self.exposure_distribution.exposure_ppf_pipeline],
-            component=self,
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
 
