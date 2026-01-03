@@ -79,7 +79,6 @@ class DisabilityObserver(PublicHealthObserver):
         builder.value.register_attribute_producer(
             self.disability_weight_pipeline,
             source=lambda index: [pd.Series(0.0, index=index)],
-            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )

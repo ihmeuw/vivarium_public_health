@@ -127,7 +127,6 @@ class DiseaseModel(Machine):
         builder.value.register_attribute_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
-            component=self,
             required_resources=["age", "sex"],
         )
 

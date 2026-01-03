@@ -85,7 +85,6 @@ class LBWSGDistribution(PolytomousDistribution):
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            component=self,
             required_resources=required_resources,
         )
 
@@ -99,7 +98,6 @@ class LBWSGDistribution(PolytomousDistribution):
         builder.value.register_attribute_producer(
             self.exposure_params_pipeline,
             source=self.get_exposure_parameters,
-            component=self,
             required_resources=lookup_tables,
         )
 
@@ -371,7 +369,6 @@ class LBWSGRisk(Risk):
         builder.value.register_attribute_producer(
             self.exposure_name,
             source=self._get_exposure_source,
-            component=self,
             # TODO - MIC-6703: once this is done, we won't needs to specify the required resources here
             required_resources=[self.get_exposure_name(axis) for axis in AXES],
         )
@@ -380,7 +377,6 @@ class LBWSGRisk(Risk):
         builder.value.register_attribute_producer(
             self.birth_exposure_pipeline,
             source=[self.exposure_distribution.exposure_ppf_pipeline],
-            component=self,
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
 
@@ -483,7 +479,6 @@ class LBWSGRiskEffect(RiskEffect):
         builder.value.register_attribute_modifier(
             self.target_name,
             modifier=self.adjust_target,
-            component=self,
             required_resources=[self.relative_risk_name],
         )
 
@@ -505,7 +500,6 @@ class LBWSGRiskEffect(RiskEffect):
         builder.value.register_attribute_producer(
             self.relative_risk_name,
             source=self._relative_risk_source,
-            component=self,
             required_resources=["age"] + self.rr_column_names,
         )
 
