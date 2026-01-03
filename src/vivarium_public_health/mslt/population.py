@@ -211,7 +211,7 @@ class Disability(Component):
         yld_rate = builder.lookup.build_table(
             yld_data, key_columns=["sex"], parameter_columns=["age", "year"]
         )
-        builder.value.register_rate_producer("yld_rate", source=yld_rate, component=self)
+        builder.value.register_rate_producer("yld_rate", source=yld_rate)
         # We need the source later so expose the pipelines
         self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
 

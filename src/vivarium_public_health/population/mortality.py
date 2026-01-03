@@ -186,27 +186,25 @@ class Mortality(Component):
         self.register_unmodeled_csmr_paf(builder)
         self.register_mortality_rate(builder)
 
-        builder.value.register_attribute_modifier("exit_time", self.update_exit_times, self)
+        builder.value.register_attribute_modifier("exit_time", self.update_exit_times)
 
     #################
     # Setup methods #
     #################
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
-        return builder.randomness.get_stream(self._randomness_stream_name, component=self)
+        return builder.randomness.get_stream(self._randomness_stream_name)
 
     def register_cause_specific_mortality_rate(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
             self.cause_specific_mortality_rate_pipeline,
             source=self.build_lookup_table(builder, "csmr", 0),
-            component=self,
         )
 
     def register_mortality_rate(self, builder: Builder) -> None:
         builder.value.register_rate_producer(
             self.mortality_rate_pipeline,
             source=self.calculate_mortality_rate,
-            component=self,
             required_resources=[self.acmr_table, self.unmodeled_csmr_table],
         )
 
@@ -225,7 +223,6 @@ class Mortality(Component):
         builder.value.register_attribute_producer(
             self.unmodeled_csmr_pipeline,
             source=self.get_unmodeled_csmr_source,
-            component=self,
             required_resources=[self.unmodeled_csmr_table],
         )
 
@@ -234,7 +231,6 @@ class Mortality(Component):
         builder.value.register_attribute_producer(
             self.unmodeled_csmr_paf_pipeline,
             source=lambda index: [unmodeled_csmr_paf(index)],
-            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )

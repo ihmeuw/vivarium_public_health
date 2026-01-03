@@ -60,9 +60,7 @@ class IncidenceShift(Component):
 
     def setup(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(
-            f"{self.disease}_intervention.incidence",
-            self.incidence_adjustment,
-            component=self,
+            f"{self.disease}_intervention.incidence", self.incidence_adjustment
         )
 
     ##################################
@@ -103,7 +101,6 @@ class ModifyAcuteDiseaseYLD(Component):
         builder.value.register_attribute_modifier(
             f"{self.disease}_intervention.yld_rate",
             self.disability_adjustment,
-            component=self,
         )
 
     ##################################
@@ -144,7 +141,6 @@ class ModifyAcuteDiseaseMortality(Component):
         builder.value.register_attribute_modifier(
             f"{self.disease}_intervention.excess_mortality",
             self.mortality_adjustment,
-            component=self,
         )
 
     ##################################
