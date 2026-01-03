@@ -541,9 +541,7 @@ class CustomExposureRisk(Component):
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
         builder.value.register_attribute_producer(
-            f"{self.risk.name}.exposure",
-            source=self.get_exposure,
-            component=self,
+            f"{self.risk.name}.exposure", source=self.get_exposure
         )
 
     def get_exposure(self, index: pd.Index) -> pd.Series:

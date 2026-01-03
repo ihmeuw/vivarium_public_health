@@ -209,25 +209,20 @@ class RiskAttributableDisease(Component):
         builder.value.register_attribute_producer(
             self.disability_weight_pipeline,
             source=self.compute_disability_weight,
-            component=self,
             required_resources=self.raw_disability_weight_table,
         )
         builder.value.register_attribute_modifier(
-            "all_causes.disability_weight",
-            modifier=self.disability_weight_pipeline,
-            component=self,
+            "all_causes.disability_weight", modifier=self.disability_weight_pipeline
         )
         builder.value.register_attribute_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
-            component=self,
             required_resources=self.cause_specific_mortality_rate_table,
         )
         self.has_excess_mortality = is_non_zero(self.excess_mortality_rate_table)
         builder.value.register_attribute_producer(
             self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
-            component=self,
             required_resources=[self.excess_mortality_rate_table] + [self.joint_paf],
         )
         # We need the emr pipeline later
@@ -235,14 +230,12 @@ class RiskAttributableDisease(Component):
         self.joint_paf = builder.value.register_attribute_producer(
             self.excess_mortality_rate_paf_pipeline,
             source=lambda idx: [self.population_attributable_fraction_table(idx)],
-            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
         builder.value.register_attribute_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
-            component=self,
             required_resources=[self.excess_mortality_rate_pipeline],
         )
 
