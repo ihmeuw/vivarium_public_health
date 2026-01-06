@@ -1,3 +1,7 @@
+**4.3.18 - 01/06/26**
+
+  - Fail deployment if changelog date does not match current date
+
 **4.3.17 - 12/18/25**
 
   - Bugfix: Fix failing doc builds
