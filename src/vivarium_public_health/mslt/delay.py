@@ -254,7 +254,6 @@ class DelayedRisk(Component):
             source=builder.lookup.build_table(
                 mortality_data, key_columns=["sex"], parameter_columns=["age", "year"]
             ),
-            component=self,
         )
         # We need the tobacco acmr source later, so expose pipelines here
         self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
@@ -314,7 +313,7 @@ class DelayedRisk(Component):
         for template in rate_templates:
             rate_name = template.format(disease)
             modifier = lambda ix, rate: self.incidence_adjustment(disease, ix, rate)
-            builder.value.register_attribute_modifier(rate_name, modifier, component=self)
+            builder.value.register_attribute_modifier(rate_name, modifier)
 
     ########################
     # Event-driven methods #

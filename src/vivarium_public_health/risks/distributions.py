@@ -115,9 +115,7 @@ class EnsembleDistribution(RiskExposureDistribution):
         }
 
         super().setup(builder)
-        self.randomness = builder.randomness.get_stream(
-            self.ensemble_propensity, component=self
-        )
+        self.randomness = builder.randomness.get_stream(self.ensemble_propensity)
 
     def get_distribution_definitions(
         self, builder: Builder
@@ -154,7 +152,6 @@ class EnsembleDistribution(RiskExposureDistribution):
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            component=self,
             required_resources=[*tables, self.risk_propensity, self.ensemble_propensity],
         )
 
@@ -245,13 +242,12 @@ class ContinuousDistribution(RiskExposureDistribution):
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.exposure_params_name, source=self.parameters_table, component=self
+            self.exposure_params_name, source=self.parameters_table
         )
 
     ##################################
@@ -326,13 +322,12 @@ class PolytomousDistribution(RiskExposureDistribution):
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            component=self,
             required_resources=[self.exposure_params_pipeline, self.risk_propensity],
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
-            self.exposure_params_pipeline, source=self.exposure_params_table, component=self
+            self.exposure_params_pipeline, source=self.exposure_params_table
         )
 
     def build_exposure_params_table(self, builder: "Builder"):
@@ -398,7 +393,6 @@ class DichotomousDistribution(RiskExposureDistribution):
         builder.value.register_attribute_producer(
             self.exposure_params_paf_name,
             source=lambda index: [self.paf_table(index)],
-            component=self,
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
@@ -407,7 +401,6 @@ class DichotomousDistribution(RiskExposureDistribution):
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            component=self,
             required_resources=[self.exposure_params_name, self.risk_propensity],
         )
 
@@ -415,7 +408,6 @@ class DichotomousDistribution(RiskExposureDistribution):
         builder.value.register_attribute_producer(
             self.exposure_params_name,
             source=self.exposure_parameter_source,
-            component=self,
             required_resources=[self.exposure_table],
         )
 

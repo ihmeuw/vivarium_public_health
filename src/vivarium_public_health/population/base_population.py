@@ -95,17 +95,15 @@ class BasePopulation(Component):
 
     def get_randomness_streams(self, builder: Builder) -> dict[str, RandomnessStream]:
         return {
-            "general_purpose": builder.randomness.get_stream(
-                "population_generation", component=self
-            ),
+            "general_purpose": builder.randomness.get_stream("population_generation"),
             "bin_selection": builder.randomness.get_stream(
-                "bin_selection", component=self, initializes_crn_attributes=True
+                "bin_selection", initializes_crn_attributes=True
             ),
             "age_smoothing": builder.randomness.get_stream(
-                "age_smoothing", component=self, initializes_crn_attributes=True
+                "age_smoothing", initializes_crn_attributes=True
             ),
             "age_smoothing_age_bounds": builder.randomness.get_stream(
-                "age_smoothing_age_bounds", component=self, initializes_crn_attributes=True
+                "age_smoothing_age_bounds", initializes_crn_attributes=True
             ),
         }
 
@@ -317,11 +315,7 @@ class AgeOutSimulants(Component):
 
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
-        builder.value.register_attribute_modifier(
-            "exit_time",
-            self.update_exit_times,
-            self,
-        )
+        builder.value.register_attribute_modifier("exit_time", self.update_exit_times)
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
         builder.population.register_tracked_query("is_aged_out == False")
