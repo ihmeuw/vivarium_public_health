@@ -566,31 +566,25 @@ def get_live_births_per_year(builder):
 
 
 def rescale_final_age_bin(builder, population_data):
-    untracking_age = builder.configuration.population.to_dict().get("untracking_age", None)
-    if untracking_age:
+    initialization_age_max = builder.configuration.population.to_dict().get(
+        "initialization_age_max", None
+    )
+
+    if initialization_age_max:
         population_data = population_data.loc[
-            population_data["age_start"] < untracking_age
+            population_data["age_start"] < initialization_age_max
         ].copy()
-        cut_bin_idx = untracking_age <= population_data["age_end"]
+        cut_bin_idx = initialization_age_max <= population_data["age_end"]
         cut_age_start = population_data.loc[cut_bin_idx, "age_start"]
         cut_age_end = population_data.loc[cut_bin_idx, "age_end"]
-        population_data.loc[cut_bin_idx, "value"] *= (untracking_age - cut_age_start) / (
-            cut_age_end - cut_age_start
-        )
-        population_data.loc[cut_bin_idx, "age_end"] = untracking_age
+        population_data.loc[cut_bin_idx, "value"] *= (
+            initialization_age_max - cut_age_start
+        ) / (cut_age_end - cut_age_start)
+        population_data.loc[cut_bin_idx, "age_end"] = initialization_age_max
     return population_data
 
 
 def validate_crude_birth_rate_data(builder, data_year_max):
-    population_config = builder.configuration.population.to_dict()
-    untracking_age = population_config.get("untracking_age", None)
-    age_end = population_config.get("age_end", None)
-    if untracking_age and age_end and age_end != untracking_age:
-        raise ValueError(
-            "If you specify an exit age, the initial population age end must be the same "
-            "for the crude birth rate calculation to work."
-        )
-
     exceeds_data = builder.configuration.time.end.year > data_year_max
     if exceeds_data and not builder.configuration.interpolation.extrapolate:
         raise ValueError("Trying to extrapolate beyond the end of available birth data.")

@@ -1,3 +1,7 @@
+**4.3.18 - 01/06/26**
+
+  - Bugfix: Fix population scaling in FertilityCrudeBirthRate
+
 **4.3.17 - 12/18/25**
 
   - Bugfix: Fix failing doc builds
