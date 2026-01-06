@@ -111,6 +111,12 @@ class FertilityCrudeBirthRate(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
+        config = builder.configuration.population
+        if config.initialization_age_min != 0:
+            raise ValueError(
+                "Configuration key 'initialization_age_min' must be 0 if using FertilityCrudeBirthRate. "
+                f"Provided value: {config.initialization_age_min}"
+            )
         self.birth_rate = get_live_births_per_year(builder)
 
         self.clock = builder.time.clock()

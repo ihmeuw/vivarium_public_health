@@ -1,6 +1,10 @@
+**4.3.19 - 01/06/26**
+
+  - Fail deployment if CHANGELOG does not match current date
+
 **4.3.18 - 01/06/26**
 
-  - Fail deployment if changelog date does not match current date
+  - Bugfix: Fix population scaling in FertilityCrudeBirthRate
 
 **4.3.17 - 12/18/25**
 

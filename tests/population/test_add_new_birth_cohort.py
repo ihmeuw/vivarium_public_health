@@ -52,7 +52,7 @@ def test_FertilityDeterministic(config):
 
     config.update(
         {"fertility": {"number_of_new_simulants_each_year": annual_new_simulants}},
-        **metadata(__file__)
+        **metadata(__file__),
     )
 
     components = [TestPopulation(), FertilityDeterministic()]
@@ -131,7 +131,7 @@ def test_FertilityCrudeBirthRate_extrapolate(base_config, base_plugins):
         }
     )
     pop_size = base_config.population.population_size
-    true_pop_size = 25000  # What's available in the mock artifact
+    true_pop_size = 20_000  # What's available in the mock artifact
     live_births_by_sex = 500
     components = [TestPopulation(), FertilityCrudeBirthRate()]
 
@@ -155,6 +155,31 @@ def test_FertilityCrudeBirthRate_extrapolate(base_config, base_plugins):
 
     given_birth_rate = 2 * live_births_by_sex / true_pop_size
     np.testing.assert_allclose(birth_rate, given_birth_rate, atol=0.01)
+
+
+@pytest.mark.parametrize("initialization_age_min", [0.05, 1, 10])
+def test_FertilityCrudeBirthRate_with_non_zero_initialization_age_min_error(
+    base_config, base_plugins, initialization_age_min
+):
+    components = [TestPopulation(), FertilityCrudeBirthRate()]
+    base_config.update(
+        {
+            "population": {
+                "initialization_age_min": initialization_age_min,
+            },
+        },
+        layer="override",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=f"'initialization_age_min' must be 0 if using FertilityCrudeBirthRate. Provided value: {initialization_age_min}",
+    ):
+        simulation = InteractiveContext(
+            components=components,
+            configuration=base_config,
+            plugin_configuration=base_plugins,
+        )
 
 
 def test_fertility_module(base_config, base_plugins):
