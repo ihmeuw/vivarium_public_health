@@ -330,7 +330,9 @@ class ExcessMortalityState(Component, ABC):
 
     def has_excess_mortality(self, builder: Builder) -> bool:
         if self._has_excess_mortality is None:
-            emr_source = builder.configuration.get([self.name, "data_sources", "excess_mortality_rate"])
+            emr_source = builder.configuration.get(
+                [self.name, "data_sources", "excess_mortality_rate"]
+            )
             emr_data = self.get_data(builder, emr_source)
             self._has_excess_mortality = is_non_zero(emr_data)
         return self._has_excess_mortality
