@@ -15,6 +15,7 @@ from pandas.api.types import CategoricalDtype
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
+from vivarium_public_health.disease.state import ExcessMortalityState
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.observer import PublicHealthObserver
 from vivarium_public_health.results.simple_cause import SimpleCause
@@ -61,11 +62,6 @@ class MortalityObserver(PublicHealthObserver):
     ##############
 
     @property
-    def mortality_classes(self) -> list[type]:
-        """The classes to be considered as causes of death."""
-        return [DiseaseState, RiskAttributableDisease]
-
-    @property
     def configuration_defaults(self) -> dict[str, Any]:
         """A dictionary containing the defaults for any configurations managed by
         this component.
@@ -95,17 +91,15 @@ class MortalityObserver(PublicHealthObserver):
 
         Also note that we add 'not_dead' and 'other_causes' categories here.
         """
-        causes_of_death = [
-            cause
-            for cause in builder.components.get_components_by_type(
-                tuple(self.mortality_classes)
-            )
-            if cause.has_excess_mortality
+        excess_mortality_states: list[ExcessMortalityState] = [
+            cause for cause in builder.components.get_components_by_type(ExcessMortalityState)
         ]
 
         # Convert to SimpleCauses and add on other_causes and not_dead
         self.causes_of_death = [
-            SimpleCause.create_from_specific_cause(cause) for cause in causes_of_death
+            SimpleCause.create_from_specific_cause(cause)
+            for cause in excess_mortality_states
+            if cause.has_excess_mortality(builder)
         ] + [
             SimpleCause("not_dead", "not_dead", "cause"),
             SimpleCause("other_causes", "other_causes", "cause"),
