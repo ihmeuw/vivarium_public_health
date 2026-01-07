@@ -78,7 +78,7 @@ def test_BasePopulation(
     assert mock_args["demographic_proportions"].equals(sub_pop)
     assert mock_args["randomness_streams"] == base_pop.randomness
     pop = simulation.get_population(full_simulants.columns)
-    assert set(base_pop.columns_created_list) == set(full_simulants.columns)
+    assert set(base_pop.private_columns) == set(full_simulants.columns)
     assert pop.equals(full_simulants)
 
     final_ages = pop["age"] + num_days / utilities.DAYS_PER_YEAR

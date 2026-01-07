@@ -513,8 +513,6 @@ def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plu
 
 custom_exposure_values = [0.5, 1, 1.5, 1.75, 2, 3, 4, 5, 5.5, 10]
 
-from vivarium.types import ColumnsCreated
-
 
 class CustomExposureRisk(Component):
     """Risk where we define the exposure manually."""
@@ -522,10 +520,6 @@ class CustomExposureRisk(Component):
     @property
     def name(self) -> str:
         return self.risk
-
-    @property
-    def columns_created(self) -> ColumnsCreated:
-        return {self.exposure_column_name: []}
 
     def __init__(self, risk: str):
         super().__init__()
@@ -544,6 +538,9 @@ class CustomExposureRisk(Component):
     def setup(self, builder: Builder):
         builder.value.register_attribute_producer(
             f"{self.risk.name}.exposure", source=self.get_exposure
+        )
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants, columns=self.exposure_column_name
         )
 
     def get_exposure(self, index: pd.Index) -> pd.Series:

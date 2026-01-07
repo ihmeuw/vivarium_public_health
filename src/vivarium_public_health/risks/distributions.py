@@ -20,7 +20,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN, LookupTable
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import pivot_categorical
@@ -71,17 +70,7 @@ class RiskExposureDistribution(Component, ABC):
         pass
 
 
-from vivarium.types import ColumnsCreated
-
-
 class EnsembleDistribution(RiskExposureDistribution):
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_created(self) -> ColumnsCreated:
-        return {self.ensemble_propensity: self.randomness}
 
     #####################
     # Lifecycle methods #
@@ -89,7 +78,7 @@ class EnsembleDistribution(RiskExposureDistribution):
 
     def __init__(self, risk: EntityString, distribution_type: str = "ensemble") -> None:
         super().__init__(risk, distribution_type)
-        self.ensemble_propensity = f"ensemble_propensity_{self.risk}"
+        self.ensemble_propensity = f"ensemble_propensity.{self.risk}"
 
     #################
     # Setup methods #
@@ -116,6 +105,11 @@ class EnsembleDistribution(RiskExposureDistribution):
 
         super().setup(builder)
         self.randomness = builder.randomness.get_stream(self.ensemble_propensity)
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=self.ensemble_propensity,
+            dependencies=[self.randomness],
+        )
 
     def get_distribution_definitions(
         self, builder: Builder

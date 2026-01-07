@@ -17,7 +17,7 @@ from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
 from vivarium.framework.values import list_combiner, union_post_processor
-from vivarium.types import ColumnsCreated, DataInput, LookupTableData
+from vivarium.types import DataInput, LookupTableData
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
 from vivarium_public_health.disease.transition import (
@@ -47,10 +47,6 @@ class BaseDiseaseState(State):
         }
         configuration_defaults[self.name]["data_sources"] = data_sources
         return configuration_defaults
-
-    @property
-    def columns_created(self) -> ColumnsCreated:
-        return {(self.event_time_column, self.event_count_column): []}
 
     #####################
     # Lifecycle methods #
@@ -83,6 +79,10 @@ class BaseDiseaseState(State):
         self.birth_prevalence_table = self.build_lookup_table(builder, "birth_prevalence")
         builder.value.register_attribute_producer(
             self.birth_prevalence_pipeline, source=self.birth_prevalence_table
+        )
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=[self.event_time_column, self.event_count_column],
         )
 
     ########################
@@ -344,17 +344,6 @@ class DiseaseState(BaseDiseaseState):
         configuration_defaults[self.name]["data_sources"] = data_sources
         return configuration_defaults
 
-    @property
-    def columns_created(self) -> ColumnsCreated:
-        return {
-            self.event_time_column: [
-                self.model,
-                self.randomness_prevalence,
-                self.dwell_time_pipeline,
-            ],
-            self.event_count_column: [],
-        }
-
     #####################
     # Lifecycle methods #
     #####################
@@ -470,7 +459,14 @@ class DiseaseState(BaseDiseaseState):
         builder
             Interface to several simulation tools.
         """
-        super().setup(builder)
+        self.prevalence_table = self.build_lookup_table(builder, "prevalence")
+        builder.value.register_attribute_producer(
+            self.prevalence_pipeline, source=self.prevalence_table
+        )
+        self.birth_prevalence_table = self.build_lookup_table(builder, "birth_prevalence")
+        builder.value.register_attribute_producer(
+            self.birth_prevalence_pipeline, source=self.birth_prevalence_table
+        )
         self.clock = builder.time.clock()
 
         self.dwell_time_table = self.build_lookup_table(builder, "dwell_time")
@@ -497,6 +493,16 @@ class DiseaseState(BaseDiseaseState):
         )
 
         self.randomness_prevalence = self.get_randomness_prevalence(builder)
+
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=[self.event_time_column, self.event_count_column],
+            dependencies=[
+                self.model,
+                self.randomness_prevalence,
+                self.dwell_time_pipeline,
+            ],
+        )
 
     #################
     # Setup methods #

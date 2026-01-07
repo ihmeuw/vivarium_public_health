@@ -16,8 +16,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
-from vivarium.types import ColumnsCreated
 
 
 class DelayedRisk(Component):
@@ -103,14 +101,6 @@ class DelayedRisk(Component):
                 "delay": 20,
             },
         }
-
-    @property
-    def columns_created(self) -> ColumnsCreated:
-        return {tuple(self._bin_names): ["age", "sex", "population"]}
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return ["age", "sex", "population"]
 
     #####################
     # Lifecycle methods #
@@ -257,6 +247,12 @@ class DelayedRisk(Component):
         )
         # We need the tobacco acmr source later, so expose pipelines here
         self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
+
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=self._bin_names,
+            dependencies=["age", "sex", "population"],
+        )
 
     #################
     # Setup methods #

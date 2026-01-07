@@ -54,7 +54,6 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.values import list_combiner, union_post_processor
-from vivarium.types import ColumnsCreated
 
 
 class Mortality(Component):
@@ -119,16 +118,6 @@ class Mortality(Component):
         ]
 
     @property
-    def columns_created(self) -> ColumnsCreated:
-        return {
-            (
-                "alive",
-                self.cause_of_death_column_name,
-                self.years_of_life_lost_column_name,
-            ): []
-        }
-
-    @property
     def time_step_priority(self) -> int:
         return 0
 
@@ -167,6 +156,15 @@ class Mortality(Component):
         self.register_mortality_rate(builder)
 
         builder.value.register_attribute_modifier("exit_time", self.update_exit_times)
+
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=[
+                "alive",
+                self.cause_of_death_column_name,
+                self.years_of_life_lost_column_name,
+            ],
+        )
 
     #################
     # Setup methods #

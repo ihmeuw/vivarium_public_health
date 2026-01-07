@@ -19,7 +19,6 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.types import ColumnsCreated
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import (
@@ -46,10 +45,6 @@ class BasePopulation(Component):
     ##############
     # Properties #
     ##############
-
-    @property
-    def columns_created(self) -> ColumnsCreated:
-        return {("age", "sex", "location", "entrance_time", "exit_time"): []}
 
     @property
     def time_step_priority(self) -> int:
@@ -88,6 +83,11 @@ class BasePopulation(Component):
         )
         self.randomness = self.get_randomness_streams(builder)
         self.register_simulants = builder.randomness.register_simulants
+
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=["age", "sex", "location", "entrance_time", "exit_time"],
+        )
 
     #################
     # Setup methods #
@@ -301,14 +301,6 @@ class ScaledPopulation(BasePopulation):
 class AgeOutSimulants(Component):
     """Component for handling aged-out simulants"""
 
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_created(self) -> ColumnsCreated:
-        return {"is_aged_out": []}
-
     #####################
     # Lifecycle methods #
     #####################
@@ -319,6 +311,9 @@ class AgeOutSimulants(Component):
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
         builder.population.register_tracked_query("is_aged_out == False")
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants, columns="is_aged_out"
+        )
 
     def update_exit_times(self, index: pd.Index, target: pd.Series) -> pd.Series:
         """Update exit times for simulants who have aged out of the simulation."""

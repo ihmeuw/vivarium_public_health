@@ -16,9 +16,7 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 from vivarium.framework.values import list_combiner, union_post_processor
-from vivarium.types import ColumnsCreated
 
 from vivarium_public_health.disease.transition import TransitionString
 from vivarium_public_health.utilities import EntityString, is_non_zero
@@ -113,16 +111,6 @@ class RiskAttributableDisease(Component):
         }
 
     @property
-    def columns_created(self) -> ColumnsCreated:
-        return {
-            (
-                self.cause.name,
-                self.diseased_event_time_column,
-                self.susceptible_event_time_column,
-            ): [self.exposure_pipeline]
-        }
-
-    @property
     def state_names(self):
         return self._state_names
 
@@ -211,6 +199,16 @@ class RiskAttributableDisease(Component):
 
         self.filter_by_exposure = self.get_exposure_filter(
             distribution, self.exposure_pipeline, threshold
+        )
+
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=[
+                self.cause.name,
+                self.diseased_event_time_column,
+                self.susceptible_event_time_column,
+            ],
+            dependencies=[self.exposure_pipeline],
         )
 
     #################
@@ -302,7 +300,7 @@ class RiskAttributableDisease(Component):
 
     def on_time_step(self, event: Event) -> None:
         pop = self.population_view.get_private_columns(
-            event.index, self.columns_created_list, query='alive == "alive"'
+            event.index, self.private_columns, query='alive == "alive"'
         )
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.

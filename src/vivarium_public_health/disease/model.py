@@ -19,7 +19,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.state_machine import Machine
-from vivarium.types import ColumnsCreated, DataInput, LookupTableData
+from vivarium.types import DataInput, LookupTableData
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
 from vivarium_public_health.disease.state import BaseDiseaseState, SusceptibleState
@@ -40,16 +40,6 @@ class DiseaseModel(Machine):
                     "cause_specific_mortality_rate": self.load_cause_specific_mortality_rate,
                 },
             },
-        }
-
-    @property
-    def columns_created(self) -> ColumnsCreated:
-        return {
-            self.state_column: [
-                self.randomness,
-                *[state.prevalence_pipeline for state in self.states],
-                *[state.birth_prevalence_pipeline for state in self.states],
-            ]
         }
 
     @property
@@ -102,8 +92,7 @@ class DiseaseModel(Machine):
 
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
-        super().setup(builder)
-
+        self.randomness = builder.randomness.get_stream(self.name)
         self.configuration_age_start = builder.configuration.population.initialization_age_min
         self.configuration_age_end = builder.configuration.population.initialization_age_max
 
@@ -113,6 +102,16 @@ class DiseaseModel(Machine):
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
             required_resources=["age", "sex"],
+        )
+
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=self.state_column,
+            dependencies=[
+                self.randomness,
+                *[state.prevalence_pipeline for state in self.states],
+                *[state.birth_prevalence_pipeline for state in self.states],
+            ],
         )
 
     def on_post_setup(self, event: Event) -> None:

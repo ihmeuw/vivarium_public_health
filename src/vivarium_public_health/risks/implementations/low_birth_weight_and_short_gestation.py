@@ -21,8 +21,6 @@ from loguru import logger
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
-from vivarium.types import ColumnsCreated
 
 from vivarium_public_health.risks import Risk, RiskEffect
 from vivarium_public_health.risks.data_transformations import (
@@ -310,19 +308,6 @@ class LBWSGRisk(Risk):
         configuration_defaults[self.name]["distribution_type"] = "lbwsg"
         return configuration_defaults
 
-    @property
-    def columns_created(self) -> ColumnsCreated:
-        continuous_propensity_columns = tuple(
-            self.get_continuous_propensity_name(axis) for axis in AXES
-        )
-        exposure_columns = tuple(self.get_exposure_name(axis) for axis in AXES)
-        return {
-            (self.categorical_propensity_name, *continuous_propensity_columns): [
-                self.randomness
-            ],
-            exposure_columns: [self.birth_exposure_pipeline],
-        }
-
     #####################
     # Lifecycle methods #
     #####################
@@ -336,6 +321,21 @@ class LBWSGRisk(Risk):
         super().setup(builder)
         self.register_birth_exposure_pipeline(builder)
         self.configuration_age_end = builder.configuration.population.initialization_age_max
+
+        continuous_propensity_columns = [
+            self.get_continuous_propensity_name(axis) for axis in AXES
+        ]
+        builder.population.register_initializer(
+            initializer=self.initialize_propensities,
+            columns=[self.categorical_propensity_name, *continuous_propensity_columns],
+            dependencies=[self.randomness],
+        )
+
+        builder.population.register_initializer(
+            initializer=self.initialize_exposures,
+            columns=[self.get_exposure_name(axis) for axis in AXES],
+            dependencies=[self.birth_exposure_pipeline],
+        )
 
     #################
     # Setup methods #
@@ -360,8 +360,7 @@ class LBWSGRisk(Risk):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
-        self.initialize_propensities(pop_data)
+    def initialize_exposures(self, pop_data: SimulantData) -> None:
 
         if pop_data.user_data.get("age_end", self.configuration_age_end) == 0:
             self.exposure_distribution.exposure_data_type = "birth_exposure"
@@ -410,10 +409,6 @@ class LBWSGRiskEffect(RiskEffect):
     ##############
 
     @property
-    def columns_created(self) -> ColumnsCreated:
-        return {tuple(self.rr_column_names): ["sex", self.exposure_name]}
-
-    @property
     def rr_column_names(self) -> list[str]:
         return [
             self.get_relative_risk_column_name(age_group) for age_group in self.age_intervals
@@ -435,6 +430,11 @@ class LBWSGRiskEffect(RiskEffect):
         self.age_intervals = self.get_age_intervals(builder)
         super().setup(builder)
         self.interpolator = self.get_interpolator(builder)
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=self.rr_column_names,
+            dependencies=[self.exposure_name, "sex"],
+        )
 
     #################
     # Setup methods #
