@@ -503,7 +503,7 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
 
 
 @pytest.mark.parametrize(
-    "model_name, expected_model_type, expected_csmr, expected_initial_state, "
+    "model_name, expected_model_type, expected_csmr, expected_residual_state, "
     "expected_state_names",
     [
         (
@@ -536,12 +536,12 @@ def test_disease_model(
     model_name: str,
     expected_csmr: float,
     expected_model_type: type[DiseaseModel],
-    expected_initial_state: str,
+    expected_residual_state: str,
     expected_state_names: list[str],
 ):
     model = sim_components[model_name]
     assert isinstance(model, expected_model_type)
-    assert model.residual_state.state_id == expected_initial_state
+    assert model.residual_state.state_id == expected_residual_state
 
     assert model.csmr_table.data == expected_csmr
 
@@ -649,10 +649,6 @@ INVALID_CONFIG_PARAMS = {
     "empty states": ({"states": {}}, "must define at least one state"),
     "states not dict": ({"states": ["s1", "s2"]}, "must be a dictionary"),
     "state_1 not dict": ({"states": {"s1": ["not", "a", "dict"]}}, "must be a dictionary"),
-    "initial state not in states": (
-        {"initial_state": "not_here", "states": {"s1": {}}},
-        "must be present in the states",
-    ),
     "invalid state key": ({"states": {"s1": {"bad_key": ""}}}, "state 's1' may only contain"),
     "susceptible state with data sources": (
         {"states": {"susceptible": {"data_sources": ""}}},

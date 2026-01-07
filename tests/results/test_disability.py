@@ -36,7 +36,7 @@
 #     asymptomatic_disease_state = ExcessMortalityState('asymptomatic', get_data_functions=asymp_data_funcs)
 #     asymptomatic_disease_model = DiseaseModel('asymptomatic',
 #                                               states=[asymptomatic_disease_state],
-#                                               initial_state=asymptomatic_disease_state,
+#                                               residual_state=asymptomatic_disease_state,
 #                                               get_data_functions={
 #                                                   'csmr': lambda _, __: build_table(0, year_start-1, year_end)})
 #     disability = Disability()
@@ -50,7 +50,7 @@
 #                           'excess_mortality_rate': lambda _, __: build_table(0, year_start-1, year_end)}
 #         flu = ExcessMortalityState('flu', get_data_functions=flu_data_funcs)
 #         flu_model = DiseaseModel('flu', states=[flu],
-#                                  initial_state=flu,
+#                                  residual_state=flu,
 #                                  get_data_functions={'csmr': lambda _, __: build_table(0, year_start-1, year_end)})
 #         components.append(flu_model)
 #
@@ -62,7 +62,7 @@
 #                             'excess_mortality_rate': lambda _, __: build_table(0, year_start-1, year_end)}
 #         mumps = ExcessMortalityState('mumps', get_data_functions=mumps_data_funcs)
 #         mumps_model = DiseaseModel('mumps', states=[mumps],
-#                                    initial_state=mumps,
+#                                    residual_state=mumps,
 #                                    get_data_functions={'csmr': lambda _, __: build_table(0, year_start-1, year_end)})
 #         components.append(mumps_model)
 #
@@ -74,7 +74,7 @@
 #                              'excess_mortality_rate': lambda _, __: build_table(0.005, year_start-1, year_end)}
 #         deadly = ExcessMortalityState('deadly', get_data_functions=deadly_data_funcs)
 #         healthy = DiseaseState('healthy', get_data_functions=deadly_data_funcs)
-#         deadly_model = DiseaseModel('deadly', initial_state=healthy,
+#         deadly_model = DiseaseModel('deadly', residual_state=healthy,
 #                                     states=[deadly, healthy],
 #                                     get_data_functions={
 #                                         'csmr': lambda _, __: build_table(0.0005, year_start-1, year_end)
