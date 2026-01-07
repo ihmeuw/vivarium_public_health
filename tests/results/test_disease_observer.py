@@ -41,7 +41,7 @@ def model(base_config, disease: str) -> DiseaseModel:
     }
     with_condition = DiseaseState("with_condition", get_data_functions=disease_get_data_funcs)
     healthy.add_rate_transition(with_condition, transition_get_data_funcs)
-    return DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+    return DiseaseModel(disease, residual_state=healthy, states=[healthy, with_condition])
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def vampiris():
     vampiris_turning_state.add_rate_transition(vampiris_infected_state)
     return DiseaseModel(
         "vampiris",
-        initial_state=vampiris_healthy_state,
+        residual_state=vampiris_healthy_state,
         states=[vampiris_healthy_state, vampiris_turning_state, vampiris_infected_state],
     )
 
@@ -65,7 +65,7 @@ def human_cortico_deficiency():
     hcd_healthy_state.add_rate_transition(hcd_infected_state)
     return DiseaseModel(
         "human_cortico_deficiency",
-        initial_state=hcd_healthy_state,
+        residual_state=hcd_healthy_state,
         states=[hcd_healthy_state, hcd_infected_state],
     )
 

@@ -130,10 +130,10 @@ def test_disability_accumulation(
     )
     # TODO: Add test against using a RiskAttributableDisease in addition to a DiseaseModel
     model_0 = DiseaseModel(
-        "model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0]
+        "model_0", residual_state=healthy_0, states=[healthy_0, disability_state_0]
     )
     model_1 = DiseaseModel(
-        "model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1]
+        "model_1", residual_state=healthy_1, states=[healthy_1, disability_state_1]
     )
 
     # Add the results dir since we didn't go through cli.py
@@ -322,10 +322,10 @@ def test_category_exclusions(
         "sick_cause_1", get_data_functions=disability_get_data_funcs_1
     )
     model_0 = DiseaseModel(
-        "model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0]
+        "model_0", residual_state=healthy_0, states=[healthy_0, disability_state_0]
     )
     model_1 = DiseaseModel(
-        "model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1]
+        "model_1", residual_state=healthy_1, states=[healthy_1, disability_state_1]
     )
 
     # Add exclusions to model spec
