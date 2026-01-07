@@ -68,7 +68,7 @@ def test_dwell_time(base_config, base_plugins, disease, base_data):
     event_state.add_dwell_time_transition(done_state)
 
     model = DiseaseModel(
-        disease, initial_state=healthy_state, states=[healthy_state, event_state, done_state]
+        disease, residual_state=healthy_state, states=[healthy_state, event_state, done_state]
     )
 
     simulation = InteractiveContext(
@@ -124,7 +124,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
 
     model = DiseaseModel(
         disease,
-        initial_state=healthy_state,
+        residual_state=healthy_state,
         states=[healthy_state, mortality_state, done_state],
     )
     simulation = InteractiveContext(
@@ -171,7 +171,7 @@ def test_prevalence_single_state_with_migration(
     data_funcs = base_data(test_prevalence_level)
     data_funcs.update({"disability_weight": lambda *_: 0.0})
     sick = DiseaseState("sick", get_data_functions=data_funcs)
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, sick])
     base_config.update({"population": {"population_size": 50000}}, **metadata(__file__))
     simulation = InteractiveContext(
         components=[BasePopulation(), model],
@@ -213,7 +213,7 @@ def test_prevalence_multiple_sequelae(
         sequela[i] = DiseaseState("sequela" + str(i), get_data_functions=data_funcs)
 
     model = DiseaseModel(
-        disease, initial_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]]
+        disease, residual_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]]
     )
     base_config.update({"population": {"population_size": 100000}}, **metadata(__file__))
     simulation = InteractiveContext(
@@ -259,7 +259,7 @@ def test_mortality_rate(base_config, base_plugins, disease):
 
     healthy.add_transition(Transition(healthy, mortality_state))
 
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, mortality_state])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, mortality_state])
 
     simulation = InteractiveContext(
         components=[BasePopulation(), model],
@@ -289,7 +289,7 @@ def test_incidence(base_config, base_plugins, disease):
     )
     healthy.transition_set.append(transition)
 
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, sick])
 
     simulation = InteractiveContext(
         components=[BasePopulation(), model],
@@ -325,7 +325,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
     )
     healthy.transition_set.append(transition)
 
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, sick])
 
     class PafModifier(Component):
         def setup(self, builder):
@@ -378,7 +378,7 @@ def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugin
     }
     with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
 
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, with_condition])
 
     pop_size = 2000
     base_config.update(
@@ -425,7 +425,7 @@ def test_no_birth_prevalence_initial_assignment(
     data_funcs = {"prevalence": lambda *_: 1, "disability_weight": lambda _, __: 0}
     with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
 
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, with_condition])
     base_config.update(
         {
             "population": {
@@ -485,7 +485,7 @@ def test_birth_prevalence_initial_assignment(
     }
     with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
 
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, with_condition])
 
     pop_size = 2000
     base_config.update(
@@ -516,7 +516,7 @@ def test_state_transition_names(disease):
     healthy = SusceptibleState("diarrheal_diseases")
     healthy.add_rate_transition(with_condition)
     with_condition.add_rate_transition(healthy)
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, with_condition])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, with_condition])
     assert set(model.state_names) == {
         "diarrheal_diseases",
         "susceptible_to_diarrheal_diseases",
@@ -563,7 +563,7 @@ def test_transition_rate_to_probability_configuration(
         get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
     )
     healthy.transition_set.append(transition)
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, sick])
 
     base_config.update(
         {
@@ -619,7 +619,7 @@ def test_disease_model_rate_conversion_config_error(
     )
     healthy.transition_set.append(transition)
     sick.transition_set.append(another_transition)
-    model = DiseaseModel(disease, initial_state=healthy, states=[healthy, sick])
+    model = DiseaseModel(disease, residual_state=healthy, states=[healthy, sick])
 
     base_config.update(
         {

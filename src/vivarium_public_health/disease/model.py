@@ -72,7 +72,6 @@ class DiseaseModel(Machine):
     def __init__(
         self,
         cause: str,
-        initial_state: BaseDiseaseState | None = None,
         get_data_functions: dict[str, Callable] | None = None,
         cause_type: str = "cause",
         states: Iterable[BaseDiseaseState] = (),
@@ -82,7 +81,7 @@ class DiseaseModel(Machine):
         super().__init__(cause, states=states)
         self.cause = cause
         self.cause_type = cause_type
-        self.residual_state = self._get_residual_state(initial_state, residual_state)
+        self.residual_state = self._get_residual_state(residual_state)
         self._csmr_source = cause_specific_mortality_rate
         self._get_data_functions = (
             get_data_functions if get_data_functions is not None else {}
@@ -186,37 +185,19 @@ class DiseaseModel(Machine):
     # Helper functions #
     ####################
 
-    def _get_residual_state(
-        self, initial_state: BaseDiseaseState, residual_state: BaseDiseaseState
-    ) -> BaseDiseaseState:
+    def _get_residual_state(self, residual_state: BaseDiseaseState) -> BaseDiseaseState:
         """Get the residual state for the DiseaseModel.
 
         This will be the residual state if it is provided, otherwise it will be
         the model's SusceptibleState. This method also calculates the residual
         state's birth_prevalence and prevalence.
         """
-        if initial_state is not None:
-            warnings.warn(
-                "In the future, the 'initial_state' argument to DiseaseModel"
-                " will be used to initialize all simulants into that state. To"
-                " retain the current behavior of defining a residual state, use"
-                " the 'residual_state' argument.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-            if residual_state:
-                raise DiseaseModelError(
-                    "A DiseaseModel cannot be initialized with both"
-                    " 'initial_state and 'residual_state'."
-                )
-
-            residual_state = initial_state
-        elif residual_state is None:
+        if residual_state is None:
             susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]
             if len(susceptible_states) != 1:
                 raise DiseaseModelError(
-                    "Disease model must have exactly one SusceptibleState."
+                    "DiseaseModel must have exactly one SusceptibleState or it must specify"
+                    " a residual state."
                 )
             residual_state = susceptible_states[0]
 
