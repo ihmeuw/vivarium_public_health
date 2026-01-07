@@ -56,7 +56,6 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
     DEFAULT_MODEL_CONFIG = {
         "model_type": f"{DiseaseModel.__module__}.{DiseaseModel.__name__}",
-        "initial_state": None,
         "residual_state": None,
     }
     """Default cause model configuration if it's not explicitly specified.
@@ -250,9 +249,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 )
 
             model_type = import_by_path(cause_config.model_type)
-            residual_state = states.get(
-                cause_config.residual_state, states.get(cause_config.initial_state, None)
-            )
+            residual_state = states.get(cause_config.residual_state, None)
             model = model_type(
                 cause_name,
                 states=list(states.values()),
@@ -408,7 +405,6 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
     _CAUSE_KEYS = {
         "model_type",
-        "initial_state",
         "states",
         "transitions",
         "data_sources",
@@ -544,25 +540,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 f"States configuration for cause '{cause_name}' must be a dictionary."
             )
         else:
-            initial_state = cause_config.get("initial_state", None)
             residual_state = cause_config.get("residual_state", None)
-            if initial_state is not None:
-                warnings.warn(
-                    "In the future, the 'initial_state' cause configuration will"
-                    " be used to initialize all simulants into that state. To"
-                    " retain the current behavior of defining a residual state,"
-                    " use the 'residual_state' cause configuration.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                if residual_state is None:
-                    residual_state = initial_state
-                else:
-                    error_messages.append(
-                        "A cause may not have both 'initial_state and"
-                        " 'residual_state' configurations."
-                    )
-
             if residual_state is not None and residual_state not in states_config:
                 error_messages.append(
                     f"Residual state '{residual_state}' for cause '{cause_name}'"
