@@ -49,11 +49,11 @@ def simulation_after_one_step(base_config, base_plugins):
 
     simulation = InteractiveContext(
         components=[
+            MortalityObserver(),
             BasePopulation(),
             flu,
             mumps,
             ResultsStratifier(),
-            MortalityObserver(),
         ],
         configuration=base_config,
         plugin_configuration=base_plugins,
