@@ -8,11 +8,13 @@ This module contains tools to manage standard disease states.
 """
 
 import warnings
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
 
 import numpy as np
 import pandas as pd
+from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
@@ -340,7 +342,22 @@ class RecoveredState(NonDiseasedState):
         )
 
 
-class DiseaseState(BaseDiseaseState):
+class ExcessMortalityState(Component, ABC):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self._has_excess_mortality = None
+
+    def has_excess_mortality(self, builder: Builder) -> bool:
+        if self._has_excess_mortality is None:
+            emr_source = builder.configuration.get(
+                [self.name, "data_sources", "excess_mortality_rate"]
+            )
+            emr_data = self.get_data(builder, emr_source)
+            self._has_excess_mortality = is_non_zero(emr_data)
+        return self._has_excess_mortality
+
+
+class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     """State representing a disease in a state machine model."""
 
     ##############
@@ -395,7 +412,7 @@ class DiseaseState(BaseDiseaseState):
             "birth_prevalence": self._birth_prevalence_source,
             "dwell_time": self._dwell_time_source,
             "disability_weight": self._disability_weight_source,
-            "excess_mortality_rate": self._excess_modality_rate_source,
+            "excess_mortality_rate": self._excess_mortality_rate_source,
         }
         data_sources = {
             **configuration_defaults[self.name]["data_sources"],
@@ -507,14 +524,13 @@ class DiseaseState(BaseDiseaseState):
         self._birth_prevalence_source = self.get_birth_prevalence_source(birth_prevalence)
         self._dwell_time_source = self.get_dwell_time_source(dwell_time)
         self._disability_weight_source = self.get_disability_weight_source(disability_weight)
-        self._excess_modality_rate_source = self.get_excess_mortality_rate_source(
+        self._excess_mortality_rate_source = self.get_excess_mortality_rate_source(
             excess_mortality_rate
         )
 
         self.dwell_time_pipeline = f"{self.state_id}.dwell_time"
         self.dw_pipeline = f"{self.state_id}.disability_weight"
 
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         """Performs this component's simulation setup.
 
@@ -531,6 +547,8 @@ class DiseaseState(BaseDiseaseState):
         self.excess_mortality_rate_table = self.build_lookup_table(
             builder, "excess_mortality_rate"
         )
+        if self._has_excess_mortality is None:
+            self._has_excess_mortality = is_non_zero(self.excess_mortality_rate_table.data)
 
         self.register_dwell_time_pipeline(builder)
         self.register_disability_weight_pipeline(builder)
@@ -539,7 +557,6 @@ class DiseaseState(BaseDiseaseState):
             "all_causes.disability_weight", modifier=self.dw_pipeline
         )
 
-        self.has_excess_mortality = is_non_zero(self.excess_mortality_rate_table.data)
         self.register_joint_paf_pipeline(builder)
         self.register_excess_mortality_rate_pipeline(builder)
 
