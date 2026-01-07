@@ -129,7 +129,7 @@ def test_mortality_cause_of_death(
     mortality_state = DiseaseState("sick", get_data_functions=mort_get_data_funcs)
     healthy.add_transition(Transition(healthy, mortality_state))
 
-    model = DiseaseModel("test", initial_state=healthy, states=[healthy, mortality_state])
+    model = DiseaseModel("test", residual_state=healthy, states=[healthy, mortality_state])
     sim = InteractiveContext(
         components=[bp, model], plugin_configuration=base_plugins, setup=False
     )

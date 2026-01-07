@@ -18,11 +18,12 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.values import list_combiner, union_post_processor
 
+from vivarium_public_health.disease.state import ExcessMortalityState
 from vivarium_public_health.disease.transition import TransitionString
 from vivarium_public_health.utilities import EntityString, is_non_zero
 
 
-class RiskAttributableDisease(Component):
+class RiskAttributableDisease(ExcessMortalityState):
     """Component to model a disease fully attributed by a risk.
 
     For some (risk, cause) pairs with population attributable fraction
@@ -156,6 +157,9 @@ class RiskAttributableDisease(Component):
         self.excess_mortality_rate_table = self.build_lookup_table(
             builder, "excess_mortality_rate"
         )
+        if self._has_excess_mortality is None:
+            self._has_excess_mortality = is_non_zero(self.excess_mortality_rate_table.data)
+
         self.population_attributable_fraction_table = self.build_lookup_table(
             builder, "population_attributable_fraction"
         )
@@ -173,7 +177,6 @@ class RiskAttributableDisease(Component):
             self.adjust_cause_specific_mortality_rate,
             required_resources=self.cause_specific_mortality_rate_table,
         )
-        self.has_excess_mortality = is_non_zero(self.excess_mortality_rate_table)
         builder.value.register_attribute_producer(
             self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
