@@ -91,7 +91,12 @@ class DiseaseModel(Machine):
 
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
-        self.randomness = builder.randomness.get_stream(self.name)
+        self.initialization_weights_pipelines = [
+            *[state.prevalence_pipeline for state in self.states],
+            *[state.birth_prevalence_pipeline for state in self.states],
+        ]
+        super().setup(builder)
+
         self.configuration_age_start = builder.configuration.population.initialization_age_min
         self.configuration_age_end = builder.configuration.population.initialization_age_max
 
@@ -101,16 +106,6 @@ class DiseaseModel(Machine):
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
             required_resources=["age", "sex"],
-        )
-
-        builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
-            columns=self.state_column,
-            dependencies=[
-                self.randomness,
-                *[state.prevalence_pipeline for state in self.states],
-                *[state.birth_prevalence_pipeline for state in self.states],
-            ],
         )
 
     def on_post_setup(self, event: Event) -> None:
