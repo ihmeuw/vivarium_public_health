@@ -47,10 +47,6 @@ class BasePopulation(Component):
     ##############
 
     @property
-    def columns_created(self) -> list[str]:
-        return ["age", "sex", "location", "entrance_time", "exit_time"]
-
-    @property
     def time_step_priority(self) -> int:
         return 8
 
@@ -87,6 +83,19 @@ class BasePopulation(Component):
         )
         self.randomness = self.get_randomness_streams(builder)
         self.register_simulants = builder.randomness.register_simulants
+
+        # HACK / FIXME [MIC-6746]: Simplify initial population creation
+        #   The current implementation of on_initialize_simulants is complicated
+        #   and should be simplified/streamlined. Of note, the dependencies for the
+        #   "sex" and "location" columns are different depending on whether or not
+        #   the simulation's initialized age_start and age_end values are the same.
+        #   To get around this, we simply register the initializer without specifying
+        #   any dependencies here. This could potentially lead to a difficult-to-diagnose
+        #   bug, but we've been doing this for a long time without known issues.
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=["age", "sex", "location", "entrance_time", "exit_time"],
+        )
 
     #################
     # Setup methods #
@@ -300,14 +309,6 @@ class ScaledPopulation(BasePopulation):
 class AgeOutSimulants(Component):
     """Component for handling aged-out simulants"""
 
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_created(self) -> list[str]:
-        return ["is_aged_out"]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -318,6 +319,9 @@ class AgeOutSimulants(Component):
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
         builder.population.register_tracked_query("is_aged_out == False")
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants, columns="is_aged_out"
+        )
 
     def update_exit_times(self, index: pd.Index, target: pd.Series) -> pd.Series:
         """Update exit times for simulants who have aged out of the simulation."""
@@ -403,7 +407,7 @@ def generate_population(
             'sex'
                 The sex of the simulant ('Male' or 'Female').
     """
-    simulants = pd.DataFrame(
+    population = pd.DataFrame(
         {
             "entrance_time": creation_time,
             "exit_time": pd.NaT,
@@ -414,7 +418,7 @@ def generate_population(
     age_end = float(age_params["age_end"])
     if age_start == age_end:
         return _assign_demography_with_initial_age(
-            simulants,
+            population,
             demographic_proportions,
             age_start,
             step_size,
@@ -423,7 +427,7 @@ def generate_population(
         )
     else:  # age_params['age_start'] is not None and age_params['age_end'] is not None
         return _assign_demography_with_age_bounds(
-            simulants,
+            population,
             demographic_proportions,
             age_start,
             age_end,
@@ -434,8 +438,8 @@ def generate_population(
 
 
 def _assign_demography_with_initial_age(
-    simulants: pd.DataFrame,
-    pop_data: pd.DataFrame,
+    population: pd.DataFrame,
+    demographic_proportions: pd.DataFrame,
     initial_age: float,
     step_size: pd.Timedelta,
     randomness_streams: dict[str, RandomnessStream],
@@ -445,9 +449,9 @@ def _assign_demography_with_initial_age(
 
     Parameters
     ----------
-    simulants
+    population
         Table that represents the new cohort of agents being added to the simulation.
-    pop_data
+    demographic_proportions
         Table with columns 'age', 'age_start', 'age_end', 'sex', 'year',
         'location', 'population', 'P(sex, location, age| year)',
         'P(sex, location | age, year)'
@@ -465,11 +469,12 @@ def _assign_demography_with_initial_age(
         Table with same columns as `simulants` and with the additional
         columns 'age', 'sex',  and 'location'.
     """
-    pop_data = pop_data[
-        (pop_data.age_start <= initial_age) & (pop_data.age_end >= initial_age)
+    demographic_proportions = demographic_proportions[
+        (demographic_proportions.age_start <= initial_age)
+        & (demographic_proportions.age_end >= initial_age)
     ]
 
-    if pop_data.empty:
+    if demographic_proportions.empty:
         raise ValueError(
             "The age {} is not represented by the population data structure".format(
                 initial_age
@@ -477,28 +482,28 @@ def _assign_demography_with_initial_age(
         )
 
     age_fuzz = randomness_streams["age_smoothing"].get_draw(
-        simulants.index
+        population.index
     ) * utilities.to_years(step_size)
-    simulants["age"] = initial_age + age_fuzz
-    register_simulants(simulants[["entrance_time", "age"]])
+    population["age"] = initial_age + age_fuzz
+    register_simulants(population[["entrance_time", "age"]])
 
     # Assign a demographically accurate location and sex distribution.
-    choices = pop_data.set_index(["sex", "location"])[
+    choices = demographic_proportions.set_index(["sex", "location"])[
         "P(sex, location | age, year)"
     ].reset_index()
     decisions = randomness_streams["general_purpose"].choice(
-        simulants.index, choices=choices.index, p=choices["P(sex, location | age, year)"]
+        population.index, choices=choices.index, p=choices["P(sex, location | age, year)"]
     )
 
-    simulants["sex"] = choices.loc[decisions, "sex"].values
-    simulants["location"] = choices.loc[decisions, "location"].values
+    population["sex"] = choices.loc[decisions, "sex"].values
+    population["location"] = choices.loc[decisions, "location"].values
 
-    return simulants
+    return population
 
 
 def _assign_demography_with_age_bounds(
-    simulants: pd.DataFrame,
-    pop_data: pd.DataFrame,
+    population: pd.DataFrame,
+    demographic_proportions: pd.DataFrame,
     age_start: float,
     age_end: float,
     randomness_streams: dict[str, RandomnessStream],
@@ -509,9 +514,9 @@ def _assign_demography_with_age_bounds(
 
     Parameters
     ----------
-    simulants
+    population
         Table that represents the new cohort of agents being added to the simulation.
-    pop_data
+    demographic_proportions
         Table with columns 'age', 'age_start', 'age_end', 'sex', 'year',
         'location', 'population', 'P(sex, location, age| year)',
         'P(sex, location | age, year)'
@@ -530,29 +535,34 @@ def _assign_demography_with_age_bounds(
         'age', 'sex',  and 'location'.
 
     """
-    pop_data = rescale_binned_proportions(pop_data, age_start, age_end)
-    if pop_data.empty:
+    demographic_proportions = rescale_binned_proportions(
+        demographic_proportions, age_start, age_end
+    )
+    if demographic_proportions.empty:
         raise ValueError(
             f"The age range ({age_start}, {age_end}) is not represented by the "
             f"population data structure."
         )
 
     # Assign a demographically accurate age, location, and sex distribution.
-    sub_pop_data = pop_data[(pop_data.age_start >= age_start) & (pop_data.age_end <= age_end)]
-    choices = sub_pop_data.set_index(["age", "sex", "location"])[
+    sub_demographic_proportions = demographic_proportions[
+        (demographic_proportions.age_start >= age_start)
+        & (demographic_proportions.age_end <= age_end)
+    ]
+    choices = sub_demographic_proportions.set_index(["age", "sex", "location"])[
         "P(sex, location, age| year)"
     ].reset_index()
     decisions = randomness_streams["bin_selection"].choice(
-        simulants.index, choices=choices.index, p=choices["P(sex, location, age| year)"]
+        population.index, choices=choices.index, p=choices["P(sex, location, age| year)"]
     )
-    simulants["age"] = choices.loc[decisions, "age"].values
-    simulants["sex"] = choices.loc[decisions, "sex"].values
-    simulants["location"] = choices.loc[decisions, "location"].values
-    simulants = smooth_ages(
-        simulants, pop_data, randomness_streams["age_smoothing_age_bounds"]
+    population["age"] = choices.loc[decisions, "age"].values
+    population["sex"] = choices.loc[decisions, "sex"].values
+    population["location"] = choices.loc[decisions, "location"].values
+    population = smooth_ages(
+        population, demographic_proportions, randomness_streams["age_smoothing_age_bounds"]
     )
-    register_simulants(simulants[list(key_columns)])
-    return simulants
+    register_simulants(population[list(key_columns)])
+    return population
 
 
 def _find_bin_start_index(value: int, sorted_reference_values: list[int]) -> int:

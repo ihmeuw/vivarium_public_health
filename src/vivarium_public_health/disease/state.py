@@ -18,7 +18,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.resource import Resource
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
 from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium.types import DataInput, LookupTableData
@@ -70,10 +69,6 @@ class BaseDiseaseState(State):
         configuration_defaults[self.name]["data_sources"] = data_sources
         return configuration_defaults
 
-    @property
-    def columns_created(self):
-        return [self.event_time_column, self.event_count_column]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -96,6 +91,7 @@ class BaseDiseaseState(State):
         self.birth_prevalence_pipeline = f"{self.state_id}.birth_prevalence"
         self.prevalence = 0.0
         self.birth_prevalence = 0.0
+        self.dependencies = []
 
     def setup(self, builder: Builder) -> None:
         self.prevalence_table = self.build_lookup_table(builder, "prevalence")
@@ -105,6 +101,11 @@ class BaseDiseaseState(State):
         self.birth_prevalence_table = self.build_lookup_table(builder, "birth_prevalence")
         builder.value.register_attribute_producer(
             self.birth_prevalence_pipeline, source=self.birth_prevalence_table
+        )
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=[self.event_time_column, self.event_count_column],
+            dependencies=self.dependencies,
         )
 
     ########################
@@ -365,10 +366,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     ##############
 
     @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return super().initialization_requirements + [self.randomness_prevalence]
-
-    @property
     def configuration_defaults(self) -> dict[str, Any]:
         """Provides default configuration values for this disease state.
 
@@ -420,10 +417,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         }
         configuration_defaults[self.name]["data_sources"] = data_sources
         return configuration_defaults
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.model, self.randomness_prevalence]
 
     #####################
     # Lifecycle methods #
@@ -539,10 +532,19 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         builder
             Interface to several simulation tools.
         """
+        self.randomness_prevalence = self.get_randomness_prevalence(builder)
+        self.dwell_time_table = self.build_lookup_table(builder, "dwell_time")
+        self.register_dwell_time_pipeline(builder)
+
+        self.dependencies = [
+            self.model,
+            self.randomness_prevalence,
+            self.dwell_time_pipeline,
+        ]
         super().setup(builder)
+
         self.clock = builder.time.clock()
 
-        self.dwell_time_table = self.build_lookup_table(builder, "dwell_time")
         self.disability_weight_table = self.build_lookup_table(builder, "disability_weight")
         self.excess_mortality_rate_table = self.build_lookup_table(
             builder, "excess_mortality_rate"
@@ -550,7 +552,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         if self._has_excess_mortality is None:
             self._has_excess_mortality = is_non_zero(self.excess_mortality_rate_table.data)
 
-        self.register_dwell_time_pipeline(builder)
         self.register_disability_weight_pipeline(builder)
 
         builder.value.register_attribute_modifier(
@@ -565,8 +566,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
             modifier=self.adjust_mortality_rate,
             required_resources=[self.excess_mortality_rate_pipeline],
         )
-
-        self.randomness_prevalence = self.get_randomness_prevalence(builder)
 
     #################
     # Setup methods #
