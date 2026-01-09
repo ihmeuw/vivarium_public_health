@@ -15,7 +15,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.resource import Resource
 
 from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.risks.distributions import (
@@ -153,14 +152,6 @@ class Risk(Component):
             }
         }
 
-    @property
-    def columns_created(self) -> list[str]:
-        return [self.propensity_name]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.randomness]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -192,6 +183,11 @@ class Risk(Component):
 
         self.randomness = self.get_randomness_stream(builder)
         self.register_exposure_pipeline(builder)
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=self.propensity_name,
+            dependencies=[self.randomness],
+        )
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration.

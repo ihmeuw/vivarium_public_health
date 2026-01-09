@@ -521,10 +521,6 @@ class CustomExposureRisk(Component):
     def name(self) -> str:
         return self.risk
 
-    @property
-    def columns_created(self) -> list[str]:
-        return [self.exposure_column_name]
-
     def __init__(self, risk: str):
         super().__init__()
         self.risk = EntityString(risk)
@@ -542,6 +538,9 @@ class CustomExposureRisk(Component):
     def setup(self, builder: Builder):
         builder.value.register_attribute_producer(
             f"{self.risk.name}.exposure", source=self.get_exposure
+        )
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants, columns=self.exposure_column_name
         )
 
     def get_exposure(self, index: pd.Index) -> pd.Series:

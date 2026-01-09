@@ -69,13 +69,20 @@ class MorbidityMortality(Component):
         The output file for the morbidity and mortality data.
     """
 
-    ##############
-    # Properties #
-    ##############
+    #####################
+    # Lifecycle methods #
+    #####################
 
-    @property
-    def columns_required(self) -> list[str] | None:
-        return [
+    def __init__(self, output_suffix: str = "mm"):
+        super().__init__()
+        self.output_suffix = output_suffix
+
+    def setup(self, builder: Builder) -> None:
+        # Record the key columns from the core multi-state life table.
+        self.clock = builder.time.clock()
+
+        self.tables = []
+        self.table_cols = [
             "age",
             "sex",
             "population",
@@ -92,22 +99,6 @@ class MorbidityMortality(Component):
             "bau_person_years",
             "HALY",
             "bau_HALY",
-        ]
-
-    #####################
-    # Lifecycle methods #
-    #####################
-
-    def __init__(self, output_suffix: str = "mm"):
-        super().__init__()
-        self.output_suffix = output_suffix
-
-    def setup(self, builder: Builder) -> None:
-        # Record the key columns from the core multi-state life table.
-        self.clock = builder.time.clock()
-
-        self.tables = []
-        self.table_cols = self.columns_required + [
             "year",
             "prev_population",
             "bau_prev_population",
@@ -217,21 +208,6 @@ class Disease(Component):
 
     """
 
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return [
-            "age",
-            "sex",
-            self.bau_S_col,
-            self.bau_C_col,
-            self.int_S_col,
-            self.int_C_col,
-        ]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -327,14 +303,6 @@ class TobaccoPrevalence(Component):
     output_file
         The output file for the tobacco prevalence data.
     """
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return ["age", "sex", "bau_population", "population"] + self._bin_names
 
     #####################
     # Lifecycle methods #
