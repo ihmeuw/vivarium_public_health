@@ -18,7 +18,6 @@ from layered_config_tree import ConfigurationError
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 from vivarium.framework.state_machine import Machine
 from vivarium.types import DataInput, LookupTableData
 
@@ -54,18 +53,6 @@ class DiseaseModel(Machine):
                 },
             },
         }
-
-    @property
-    def columns_created(self) -> list[str]:
-        return [self.state_column]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [
-            self.randomness,
-            *[state.prevalence_pipeline for state in self.states],
-            *[state.birth_prevalence_pipeline for state in self.states],
-        ]
 
     @property
     def state_names(self) -> list[str]:
@@ -116,6 +103,10 @@ class DiseaseModel(Machine):
 
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
+        self.initialization_weights_pipelines = [
+            *[state.prevalence_pipeline for state in self.states],
+            *[state.birth_prevalence_pipeline for state in self.states],
+        ]
         super().setup(builder)
 
         self.configuration_age_start = builder.configuration.population.initialization_age_min

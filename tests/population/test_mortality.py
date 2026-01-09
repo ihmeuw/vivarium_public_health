@@ -45,7 +45,7 @@ def test_mortality_default_lookup_configuration(setup_sim_with_pop_and_mortality
 def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
     pop = sim.get_population()
-    expected_columns_created = list(mortality.columns_created)
+    expected_columns_created = mortality.private_columns
     expected_attributes_created = [
         mortality.mortality_rate_pipeline,
         mortality.cause_specific_mortality_rate_pipeline,
@@ -53,7 +53,10 @@ def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
         mortality.unmodeled_csmr_paf_pipeline,
     ]
     # the time manager, BasePopulation, and AgedOutSimulants create attributes themselves
-    other_columns_created = list(bp.columns_created) + ["is_aged_out", "simulant_step_size"]
+    other_columns_created = bp.private_columns + [
+        "is_aged_out",
+        "simulant_step_size",
+    ]
     mortality_created_columns = [
         col for col in pop.columns.get_level_values(0) if col not in other_columns_created
     ]

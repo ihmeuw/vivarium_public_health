@@ -43,35 +43,6 @@ class BasePopulation(Component):
         }
     }
 
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_created(self) -> list[str]:
-        return [
-            "age",
-            "sex",
-            "population",
-            "bau_population",
-            "acmr",
-            "bau_acmr",
-            "pr_death",
-            "bau_pr_death",
-            "deaths",
-            "bau_deaths",
-            "yld_rate",
-            "bau_yld_rate",
-            "person_years",
-            "bau_person_years",
-            "HALY",
-            "bau_HALY",
-        ]
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return ["tracked"]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -81,7 +52,7 @@ class BasePopulation(Component):
         self.pop_data = load_population_data(builder)
 
         # Create additional columns with placeholder (zero) values.
-        for column in self.columns_created:
+        for column in self.private_columns:
             if column in self.pop_data.columns:
                 continue
             self.pop_data.loc[:, column] = 0.0
@@ -90,6 +61,28 @@ class BasePopulation(Component):
 
         self.start_year = builder.configuration.time.start.year
         self.clock = builder.time.clock()
+
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=[
+                "age",
+                "sex",
+                "population",
+                "bau_population",
+                "acmr",
+                "bau_acmr",
+                "pr_death",
+                "bau_pr_death",
+                "deaths",
+                "bau_deaths",
+                "yld_rate",
+                "bau_yld_rate",
+                "person_years",
+                "bau_person_years",
+                "HALY",
+                "bau_HALY",
+            ],
+        )
 
     ########################
     # Event-driven methods #
@@ -114,25 +107,6 @@ class Mortality(Component):
     according to the all-cause mortality rate.
 
     """
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return [
-            "population",
-            "bau_population",
-            "acmr",
-            "bau_acmr",
-            "pr_death",
-            "bau_pr_death",
-            "deaths",
-            "bau_deaths",
-            "person_years",
-            "bau_person_years",
-        ]
 
     #####################
     # Lifecycle methods #
@@ -185,21 +159,6 @@ class Disability(Component):
     rate.
 
     """
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return [
-            "bau_yld_rate",
-            "yld_rate",
-            "bau_person_years",
-            "person_years",
-            "bau_HALY",
-            "HALY",
-        ]
 
     #####################
     # Lifecycle methods #
