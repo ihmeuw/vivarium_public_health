@@ -12,7 +12,6 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.observer import PublicHealthObserver
@@ -59,20 +58,6 @@ class DiseaseObserver(PublicHealthObserver):
 
     """
 
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_created(self) -> list[str]:
-        """Columns created by this observer."""
-        return [self.previous_state_column_name]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        """Requirements for observer initialization."""
-        return [self.disease]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -100,6 +85,11 @@ class DiseaseObserver(PublicHealthObserver):
         self.entity_type = self.disease_model.cause_type
         self.entity = self.disease_model.cause
         self.transition_stratification_name = f"transition_{self.disease}"
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=self.previous_state_column_name,
+            dependencies=[self.disease],
+        )
 
     def get_configuration_name(self) -> str:
         return self.disease

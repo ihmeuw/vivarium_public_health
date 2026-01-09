@@ -13,7 +13,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import get_live_births_per_year
@@ -172,14 +171,6 @@ class FertilityAgeSpecificRates(Component):
             },
         }
 
-    @property
-    def columns_created(self) -> list[str]:
-        return ["last_birth_time", "parent_id"]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return ["sex"]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -197,6 +188,12 @@ class FertilityAgeSpecificRates(Component):
 
         self.randomness = builder.randomness.get_stream("fertility")
         self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=["last_birth_time", "parent_id"],
+            dependencies=["sex"],
+        )
 
     #################
     # Setup methods #
