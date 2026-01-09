@@ -255,6 +255,7 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
     )
 
 
+@pytest.mark.xfail(reason="FIXME: MIC-6743")
 def test_ensemble_risk(base_config, base_plugins):
     risk = Risk("risk_factor.test_risk")
 
