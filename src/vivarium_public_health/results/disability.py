@@ -140,7 +140,7 @@ class DisabilityObserver(PublicHealthObserver):
         self.register_adding_observation(
             builder=builder,
             name="ylds",
-            pop_filter='alive == "alive"',
+            pop_filter="is_alive == True",
             when="time_step__prepare",
             requires_attributes=cause_pipelines,
             additional_stratifications=self.configuration.include,

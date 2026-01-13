@@ -144,7 +144,7 @@ class RateTransition(Transition):
         builder.value.register_rate_producer(
             self.transition_rate_pipeline,
             source=self.compute_transition_rate,
-            required_resources=["alive", self.transition_rate_table, self.paf_pipeline],
+            required_resources=["is_alive", self.transition_rate_table, self.paf_pipeline],
         )
 
         paf = self.build_lookup_table(builder, "joint_paf", 0)
@@ -186,7 +186,7 @@ class RateTransition(Transition):
 
     def compute_transition_rate(self, index: pd.Index) -> pd.Series:
         transition_rate = pd.Series(0.0, index=index)
-        living = self.population_view.get_filtered_index(index, query='alive == "alive"')
+        living = self.population_view.get_filtered_index(index, query="is_alive == True")
         base_rates = self.transition_rate_table(living)
         joint_paf = self.population_view.get_attributes(living, self.paf_pipeline)
         transition_rate.loc[living] = base_rates * (1 - joint_paf)

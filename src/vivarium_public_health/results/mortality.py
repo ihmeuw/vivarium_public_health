@@ -138,7 +138,7 @@ class MortalityObserver(PublicHealthObserver):
         this observer and so it is registered here while we have easy access
         to the required categories.
         """
-        pop_filter = 'alive == "dead"'
+        pop_filter = "is_alive == False"
         additional_stratifications = self.configuration.include
         if not self.configuration.aggregate:
             # manually append 'not_dead' as an excluded cause

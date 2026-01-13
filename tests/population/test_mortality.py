@@ -85,13 +85,13 @@ def test_mortality_rate(setup_sim_with_pop_and_mortality):
 def test_mortality_updates_population_columns(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
     update_columns = ["cause_of_death", "exit_time", "years_of_life_lost"]
-    pop0 = sim.get_population(update_columns + ["alive"])
+    pop0 = sim.get_population(update_columns + ["is_alive"])
     sim.step()
-    pop1 = sim.get_population(update_columns + ["alive"])
+    pop1 = sim.get_population(update_columns + ["is_alive"])
 
     # Check mortality component updates columns correctly
     # Note alive will be tested by finding the simulants that died
-    dead_idx = pop1.index[pop1["alive"] == "dead"]
+    dead_idx = pop1.index[pop1["is_alive"] == False]
     for col in update_columns:
         assert (pop1.loc[dead_idx, col] != pop0.loc[dead_idx, col]).all()
     assert (pop1.loc[dead_idx, "cause_of_death"] == "other_causes").all()
@@ -169,12 +169,12 @@ def test_mortality_cause_of_death(
 def test_mortality_ylls(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
     sim.step()
-    pop1 = sim.get_population(["alive", "years_of_life_lost"])
+    pop1 = sim.get_population(["is_alive", "years_of_life_lost"])
 
-    dead_idx = pop1.index[pop1["alive"] == "dead"]
+    dead_idx = pop1.index[pop1["is_alive"] == False]
     ylls = pop1.loc[dead_idx, "years_of_life_lost"]
     assert (ylls == mortality.life_expectancy_table(dead_idx)).all()
-    alive_idx = pop1.index[pop1["alive"] == "alive"]
+    alive_idx = pop1.index[pop1["is_alive"] == True]
     no_ylls = pop1.loc[alive_idx, "years_of_life_lost"]
     assert (no_ylls == 0).all()
 

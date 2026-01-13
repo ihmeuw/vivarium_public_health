@@ -60,10 +60,10 @@ def test_FertilityDeterministic(config):
     start_time = simulation.current_time
     simulation.run_for(duration=pd.Timedelta(days=num_days))
     end_time = simulation.current_time
-    pop = simulation.get_population(["age", "alive"])
+    pop = simulation.get_population(["age", "is_alive"])
 
     assert (end_time - start_time) / pd.Timedelta(days=1) == num_days
-    assert np.all(pop["alive"] == "alive")
+    assert np.all(pop["is_alive"] == True)
     assert (
         int(num_days * annual_new_simulants / utilities.DAYS_PER_YEAR)
         == len(pop["age"]) - pop_size
@@ -84,9 +84,9 @@ def test_FertilityCrudeBirthRate(config, base_plugins):
 
     simulation.setup()
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.get_population(["age", "alive"])
+    pop = simulation.get_population(["age", "is_alive"])
 
-    assert np.all(pop["alive"] == "alive")
+    assert np.all(pop["is_alive"] == True)
     assert len(pop["age"]) > pop_size
 
 
@@ -223,10 +223,10 @@ def test_fertility_module(base_config, base_plugins):
     simulation.get_population(["last_birth_time", "parent_id"])
 
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.get_population(["age", "alive", "parent_id", "last_birth_time"])
+    pop = simulation.get_population(["age", "is_alive", "parent_id", "last_birth_time"])
 
     # No death in this model.
-    assert np.all(pop["alive"] == "alive"), "expect all simulants to be alive"
+    assert np.all(pop["is_alive"] == True), "expect all simulants to be alive"
 
     # TODO: Write a more rigorous test.
     assert len(pop["age"]) > start_population_size, "expect new simulants"
