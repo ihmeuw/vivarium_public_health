@@ -113,7 +113,7 @@ class DiseaseObserver(PublicHealthObserver):
         self.register_disease_state_stratification(builder)
         self.register_transition_stratification(builder)
 
-        pop_filter = 'alive == "alive"'
+        pop_filter = "is_alive == True"
         self.register_person_time_observation(builder, pop_filter)
         self.register_transition_count_observation(builder, pop_filter)
 

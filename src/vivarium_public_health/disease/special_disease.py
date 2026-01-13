@@ -336,7 +336,7 @@ class RiskAttributableDisease(ExcessMortalityState):
 
     def on_time_step(self, event: Event) -> None:
         pop = self.population_view.get_private_columns(
-            event.index, self.private_columns, query='alive == "alive"'
+            event.index, self.private_columns, query="is_alive == True"
         )
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
@@ -402,5 +402,5 @@ class RiskAttributableDisease(ExcessMortalityState):
     def with_condition(self, index):
         return self.population_view.get_filtered_index(
             index,
-            query=f'alive == "alive" and {self.cause.name} == "{self.cause.name}"',
+            query=f'is_alive == True and {self.cause.name} == "{self.cause.name}"',
         )
