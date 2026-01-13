@@ -126,6 +126,6 @@
 #     simulation, disability = set_up_test_parameters(base_config, deadly=True)
 #     simulation.run_for(duration=pd.Timedelta(days=365))
 #     pop = simulation.get_population()
-#     dead = pop[pop.alive == 'dead']
+#     dead = pop[pop.is_alive == False]
 #     assert len(dead) > 0
 #     assert np.all(disability.disability_weight(dead.index) == 0)
