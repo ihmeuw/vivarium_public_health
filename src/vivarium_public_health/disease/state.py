@@ -637,7 +637,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         builder.value.register_attribute_producer(
             f"{self.state_id}.disability_weight",
             source=self.compute_disability_weight,
-            required_resources=["alive", self.model, self.disability_weight_table],
+            required_resources=["is_alive", self.model, self.disability_weight_table],
         )
 
     def get_excess_mortality_rate_source(
@@ -664,7 +664,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
             self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
             required_resources=[
-                "alive",
+                "is_alive",
                 self.model,
                 self.excess_mortality_rate_table,
                 self.excess_mortality_rate_paf_pipeline,
@@ -816,7 +816,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
     def with_condition(self, index: pd.Index) -> pd.Index:
         return self.population_view.get_filtered_index(
-            index, query=f'{self.model}=="{self.state_id}" and alive=="alive"'
+            index, query=f'{self.model}=="{self.state_id}" and is_alive == True'
         )
 
     @staticmethod
@@ -842,7 +842,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
             A filtered index of the simulants.
         """
         event_times = self.population_view.get_private_columns(
-            index, self.event_time_column, query='alive == "alive"'
+            index, self.event_time_column, query="is_alive == True"
         )
         dwell_time = self.population_view.get_attributes(index, self.dwell_time_pipeline)
         if np.any(dwell_time) > 0:

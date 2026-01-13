@@ -105,7 +105,7 @@ def test_mortality_rate_pandas_dataframe(disease_mock):
         f"susceptible_to_{disease.cause.name}"
     ] * int(num_sims * 0.8)
     disease.population_view.get.side_effect = lambda index: pd.DataFrame(
-        {disease.cause.name: current_disease_status, "alive": "alive"}, index=index
+        {disease.cause.name: current_disease_status, "is_alive": True}, index=index
     )
     expected_mortality_values = pd.Series(
         current_disease_status, name=disease.cause.name, index=test_index
