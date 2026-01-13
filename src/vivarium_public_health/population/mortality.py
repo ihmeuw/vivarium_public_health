@@ -8,7 +8,7 @@ Summary
 
 The mortality component models all cause mortality and allows for disease
 models to contribute cause specific mortality. At each timestep the currently
-"alive" population is subjected to a mortality event using the mortality rate to
+alive population is subjected to a mortality event using the mortality rate to
 determine probabilities of death for each simulant. A weighted probable cause of
 death is used to choose the cause of death. The years of life lost are
 calculated by subtracting a simulant's age from the population TMRLE and the
@@ -187,7 +187,7 @@ class Mortality(Component):
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
             columns=[
-                "alive",
+                "is_alive",
                 self.cause_of_death_column_name,
                 self.years_of_life_lost_column_name,
             ],
@@ -242,7 +242,7 @@ class Mortality(Component):
 
     def update_exit_times(self, index: pd.Index, previous_exit_time: pd.Series) -> pd.Series:
         """Update exit times for simulants who have died."""
-        dead_idx = self.population_view.get_filtered_index(index, query="alive == 'dead'")
+        dead_idx = self.population_view.get_filtered_index(index, query="is_alive == False")
         newly_dead_idx = dead_idx.intersection(
             previous_exit_time[previous_exit_time.isna()].index
         )
@@ -256,7 +256,7 @@ class Mortality(Component):
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
-                "alive": "alive",
+                "is_alive": True,
                 self.cause_of_death_column_name: "not_dead",
                 self.years_of_life_lost_column_name: 0.0,
             },
@@ -265,7 +265,7 @@ class Mortality(Component):
         self.population_view.update(pop_update)
 
     def on_time_step(self, event: Event) -> None:
-        pop = self.population_view.get_private_columns(event.index, query="alive =='alive'")
+        pop = self.population_view.get_private_columns(event.index, query="is_alive == True")
         mortality_rates = self.population_view.get_attribute_frame(
             pop.index, self.mortality_rate_pipeline
         )
@@ -283,7 +283,7 @@ class Mortality(Component):
                 cause_of_death_weights,
                 additional_key="cause_of_death",
             )
-            pop.loc[deaths, "alive"] = "dead"
+            pop.loc[deaths, "is_alive"] = False
             pop.loc[deaths, self.years_of_life_lost_column_name] = self.life_expectancy_table(
                 deaths
             )

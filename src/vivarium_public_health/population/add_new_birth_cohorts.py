@@ -245,7 +245,7 @@ class FertilityAgeSpecificRates(Component):
         last_birth_time = self.population_view.get_private_columns(
             event.index,
             "last_birth_time",
-            query="alive == 'alive' and sex == 'Female'",
+            query="is_alive == True and sex == 'Female'",
         )
         eligible_females_idx = last_birth_time[last_birth_time < nine_months_ago].index
         fertility_rate = self.population_view.get_attributes(
