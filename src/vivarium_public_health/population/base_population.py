@@ -170,7 +170,7 @@ class BasePopulation(Component):
     def on_time_step(self, event: Event) -> None:
         """Ages simulants each time step."""
         age = self.population_view.get_private_columns(
-            event.index, "age", query="alive == 'alive'"
+            event.index, "age", query="is_alive == True"
         )
         age += utilities.to_years(event.step_size)
         self.population_view.update(age)

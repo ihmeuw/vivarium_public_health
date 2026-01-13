@@ -144,16 +144,17 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     simulation.step()
 
     # Make sure some people have died and remained in event state
-    assert (simulation.get_population("alive").squeeze() == "alive").sum() < pop_size
+    assert simulation.get_population("is_alive").squeeze().sum() < pop_size
 
-    assert (simulation.get_population("alive").squeeze() == "dead").sum() == (
+    assert (~simulation.get_population("is_alive").squeeze()).sum() == (
         simulation.get_population(disease).squeeze() == "event"
     ).sum()
 
     # enough time has passed so living people should transition away to sick
-    assert (simulation.get_population("alive").squeeze() == "alive").sum() == (
-        simulation.get_population(disease).squeeze() == "sick"
-    ).sum()
+    assert (
+        simulation.get_population("is_alive").squeeze().sum()
+        == (simulation.get_population(disease).squeeze() == "sick").sum()
+    )
 
 
 @pytest.mark.parametrize("test_prevalence_level", [0, 0.35, 1])
