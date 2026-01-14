@@ -231,10 +231,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         cause_models = []
 
         for cause_name, cause_config in causes_config.items():
-            data_sources = None
-            if "data_sources" in cause_config:
-                data_sources_config = cause_config.data_sources
-                data_sources = self._get_data_sources(data_sources_config)
+            data_sources = self._get_data_sources(cause_config)
 
             states: dict[str, BaseDiseaseState] = {
                 state_name: self._get_state(state_name, state_config, cause_name)
@@ -254,7 +251,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 cause_name,
                 states=list(states.values()),
                 residual_state=residual_state,
-                get_data_functions=data_sources,
+                **data_sources,
             )
             cause_models.append(model)
 
@@ -289,9 +286,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         if state_config.cleanup_function:
             # todo handle cleanup functions properly
             state_kwargs["cleanup_function"] = lambda *x: x
-        if "data_sources" in state_config:
-            data_sources_config = state_config.data_sources
-            state_kwargs["get_data_functions"] = self._get_data_sources(data_sources_config)
+        state_kwargs = {**state_kwargs, **self._get_data_sources(state_config)}
 
         if state_config.state_type is not None:
             state_type = import_by_path(state_config.state_type)
@@ -325,19 +320,13 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             A `LayeredConfigTree` defining the transition to add
         """
         triggered = Trigger[transition_config.triggered]
-        if "data_sources" in transition_config:
-            data_sources_config = transition_config.data_sources
-            data_sources = self._get_data_sources(data_sources_config)
-        else:
-            data_sources = None
+        data_sources = self._get_data_sources(transition_config)
 
         if transition_config["transition_type"] == "rate":
-            source_state.add_rate_transition(
-                sink_state, get_data_functions=data_sources, triggered=triggered
-            )
+            source_state.add_rate_transition(sink_state, **data_sources, triggered=triggered)
         elif transition_config["transition_type"] == "proportion":
             source_state.add_proportion_transition(
-                sink_state, get_data_functions=data_sources, triggered=triggered
+                sink_state, **data_sources, triggered=triggered
             )
         elif transition_config["transition_type"] == "dwell_time":
             source_state.add_dwell_time_transition(sink_state, triggered=triggered)
@@ -350,7 +339,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _get_data_sources(
         self, config: LayeredConfigTree
     ) -> dict[str, Callable[[Builder, Any], Any]]:
-        """Parses a data sources configuration and returns the data sources.
+        """Parses a configuration and returns the data sources.
 
         Parameters
         ----------
@@ -361,16 +350,24 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         -------
             A dictionary of data source getters
         """
-        return {name: self._get_data_source(name, config[name]) for name in config.keys()}
+        if "data_sources" not in config:
+            return {}
+        return {
+            name: self._get_data_source(name, config.data_sources[name])
+            for name in config.data_sources.keys()
+        }
 
     @staticmethod
-    def _get_data_source(name: str, source: str | float) -> Callable[[Builder, Any], Any]:
+    def _get_data_source(
+        name: str,
+        source: str | float,
+    ) -> str | float | pd.Timedelta | Callable[[Builder, Any], Any]:
         """Parses a data source and returns a callable that can be used to retrieve the data.
 
         Parameters
         ----------
         name
-            The name of the data getter
+            The name of the data source
         source
             The data source to parse
 
@@ -378,26 +375,21 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         -------
             A callable that can be used to retrieve the data
         """
-        if isinstance(source, float):
-            return lambda builder, *_: source
+        if isinstance(source, str):
+            try:
+                return pd.Timedelta(source)
+            except ValueError:
+                pass
+            if "::" in source:
+                module, method = source.split("::")
+                return getattr(import_module(module), method)
 
-        try:
-            timedelta = pd.Timedelta(source)
-            return lambda builder, *_: timedelta
-        except ValueError:
-            pass
+            try:
+                source = TargetString(source)
+            except ValueError:
+                raise ValueError(f"Invalid data source '{source}' for '{name}'.")
 
-        if "::" in source:
-            module, method = source.split("::")
-            return getattr(import_module(module), method)
-
-        try:
-            target_string = TargetString(source)
-            return lambda builder, *_: builder.data.load(target_string)
-        except ValueError:
-            pass
-
-        raise ValueError(f"Invalid data source '{source}' for '{name}'.")
+        return source
 
     ######################
     # Validation methods #

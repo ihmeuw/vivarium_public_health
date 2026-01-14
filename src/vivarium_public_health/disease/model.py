@@ -71,7 +71,6 @@ class DiseaseModel(Machine):
     def __init__(
         self,
         cause: str,
-        get_data_functions: dict[str, Callable] | None = None,
         cause_type: str = "cause",
         states: Iterable[BaseDiseaseState] = (),
         residual_state: BaseDiseaseState | None = None,
@@ -82,24 +81,6 @@ class DiseaseModel(Machine):
         self.cause_type = cause_type
         self.residual_state = self._get_residual_state(residual_state)
         self._csmr_source = cause_specific_mortality_rate
-        self._get_data_functions = (
-            get_data_functions if get_data_functions is not None else {}
-        )
-
-        if get_data_functions is not None:
-            warnings.warn(
-                "The argument 'get_data_functions' has been deprecated. Use"
-                " cause_specific_mortality_rate instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-            if cause_specific_mortality_rate is not None:
-                raise DiseaseModelError(
-                    "It is not allowed to pass cause_specific_mortality_rate"
-                    " both as a stand-alone argument and as part of"
-                    " get_data_functions."
-                )
 
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup."""
@@ -131,6 +112,9 @@ class DiseaseModel(Machine):
                 "All transitions in a disease model must have the same rate conversion type."
                 f" Found: {conversion_types}."
             )
+        # TODO validate that all states which have a transition of type Transition
+        #  (note: don't use an isinstance check here) have a non-zero dwell time, are transient
+        #  states, or don't allow self-transitions.
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Initialize the simulants in the population.
@@ -158,24 +142,15 @@ class DiseaseModel(Machine):
     #################
 
     def load_cause_specific_mortality_rate(self, builder: Builder) -> float | pd.DataFrame:
-        if (
-            "cause_specific_mortality_rate" not in self._get_data_functions
-            and self._csmr_source is None
-        ):
+        if self._csmr_source is None:
             only_morbid = builder.data.load(f"cause.{self.cause}.restrictions")["yld_only"]
             if only_morbid:
-                csmr_data = 0.0
+                self._csmr_source = 0.0
             else:
-                csmr_data = builder.data.load(
+                self._csmr_source = (
                     f"{self.cause_type}.{self.cause}.cause_specific_mortality_rate"
                 )
-        elif self._csmr_source is not None:
-            csmr_data = self.get_data(builder, self._csmr_source)
-        else:
-            csmr_data = self._get_data_functions["cause_specific_mortality_rate"](
-                self.cause, builder
-            )
-        return csmr_data
+        return self.get_data(builder, self._csmr_source)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -206,8 +181,7 @@ class DiseaseModel(Machine):
 
         if residual_state not in self.states:
             raise DiseaseModelError(
-                f"Residual state '{self.residual_state}' must be one of the"
-                f" states: {self.states}."
+                f"Residual state '{residual_state}' must be one of the states: {self.states}."
             )
 
         residual_state.birth_prevalence = partial(

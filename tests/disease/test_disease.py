@@ -26,17 +26,6 @@ def disease():
     return "test"
 
 
-@pytest.fixture
-def base_data():
-    def _set_prevalence(p):
-        base_function = dict()
-        base_function["dwell_time"] = lambda *_: pd.Timedelta(days=1)
-        base_function["prevalence"] = lambda *_: p
-        return base_function
-
-    return _set_prevalence
-
-
 def get_test_prevalence(simulation, key):
     """
     Helper function to calculate the prevalence for the given state(key)
@@ -50,7 +39,7 @@ def get_test_prevalence(simulation, key):
     return result
 
 
-def test_dwell_time(base_config, base_plugins, disease, base_data):
+def test_dwell_time(base_config, base_plugins, disease):
     time_step = 10
 
     base_config.update(
@@ -58,13 +47,12 @@ def test_dwell_time(base_config, base_plugins, disease, base_data):
         **metadata(__file__),
     )
     healthy_state = BaseDiseaseState("healthy")
-    data_function = base_data(0)
-    data_function["dwell_time"] = lambda *_: pd.Timedelta(days=28)
-    data_function["disability_weight"] = lambda *_: 0.0
-    event_state = DiseaseState("event", get_data_functions=data_function)
+    event_state = DiseaseState(
+        "event", prevalence=0.0, dwell_time=pd.Timedelta(days=28), disability_weight=0.0
+    )
     done_state = BaseDiseaseState("sick")
 
-    healthy_state.add_transition(Transition(healthy_state, event_state))
+    healthy_state.add_dwell_time_transition(event_state)
     event_state.add_dwell_time_transition(done_state)
 
     model = DiseaseModel(
@@ -107,19 +95,18 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     )
     healthy_state = BaseDiseaseState("healthy")
 
-    mort_get_data_funcs = {
-        "dwell_time": lambda *_: pd.Timedelta(days=14),
-        "excess_mortality_rate": lambda *_: build_table_with_age(
-            0.7,
-            parameter_columns={"year": (year_start - 1, year_end)},
+    mortality_kwargs = {
+        "dwell_time": pd.Timedelta(days=14),
+        "excess_mortality_rate": build_table_with_age(
+            0.7, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "disability_weight": lambda *_: 0.0,
+        "disability_weight": 0.0,
     }
 
-    mortality_state = DiseaseState("event", get_data_functions=mort_get_data_funcs)
+    mortality_state = DiseaseState("event", **mortality_kwargs)
     done_state = BaseDiseaseState("sick")
 
-    healthy_state.add_transition(Transition(healthy_state, mortality_state))
+    healthy_state.add_dwell_time_transition(mortality_state)
     mortality_state.add_dwell_time_transition(done_state)
 
     model = DiseaseModel(
@@ -157,9 +144,9 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
     )
 
 
-@pytest.mark.parametrize("test_prevalence_level", [0, 0.35, 1])
+@pytest.mark.parametrize("test_prevalence_level", [0.0, 0.35, 1.0])
 def test_prevalence_single_state_with_migration(
-    fuzzy_checker, base_config, base_plugins, disease, base_data, test_prevalence_level
+    fuzzy_checker, base_config, base_plugins, disease, test_prevalence_level
 ):
     """
     Test the prevalence for the single state over newly migrated population.
@@ -169,9 +156,12 @@ def test_prevalence_single_state_with_migration(
 
     """
     healthy = BaseDiseaseState("healthy")
-    data_funcs = base_data(test_prevalence_level)
-    data_funcs.update({"disability_weight": lambda *_: 0.0})
-    sick = DiseaseState("sick", get_data_functions=data_funcs)
+    sick = DiseaseState(
+        "sick",
+        prevalence=test_prevalence_level,
+        disability_weight=0.0,
+        dwell_time=pd.Timedelta(days=1),
+    )
     model = DiseaseModel(disease, residual_state=healthy, states=[healthy, sick])
     base_config.update({"population": {"population_size": 50000}}, **metadata(__file__))
     simulation = InteractiveContext(
@@ -202,20 +192,22 @@ def test_prevalence_single_state_with_migration(
     [[0.15, 0.05, 0.35], [0, 0.15, 0.5], [0.2, 0.3, 0.5], [0, 0, 1], [0, 0, 0]],
 )
 def test_prevalence_multiple_sequelae(
-    base_config, base_plugins, disease, base_data, test_prevalence_level
+    base_config, base_plugins, disease, test_prevalence_level
 ):
-
     healthy = BaseDiseaseState("healthy")
-
-    sequela = dict()
-    for i, p in enumerate(test_prevalence_level):
-        data_funcs = base_data(p)
-        data_funcs.update({"disability_weight": lambda *_: 0.0})
-        sequela[i] = DiseaseState("sequela" + str(i), get_data_functions=data_funcs)
-
+    sequela = {
+        i: DiseaseState(
+            "sequela" + str(i),
+            prevalence=p,
+            disability_weight=0.0,
+            dwell_time=pd.Timedelta(days=1),
+        )
+        for i, p in enumerate(test_prevalence_level)
+    }
     model = DiseaseModel(
         disease, residual_state=healthy, states=[healthy, sequela[0], sequela[1], sequela[2]]
     )
+
     base_config.update({"population": {"population_size": 100000}}, **metadata(__file__))
     simulation = InteractiveContext(
         components=[BasePopulation(), model],
@@ -243,22 +235,19 @@ def test_mortality_rate(base_config, base_plugins, disease):
     time_step = pd.Timedelta(days=base_config.time.step_size)
 
     healthy = BaseDiseaseState("healthy")
-    mort_get_data_funcs = {
-        "dwell_time": lambda _, __: pd.Timedelta(days=0),
-        "disability_weight": lambda _, __: 0.0,
-        "prevalence": lambda _, __: build_table_with_age(
-            0.000001,
-            parameter_columns={"year": (year_start - 1, year_end)},
+    mortality_state = DiseaseState(
+        "sick",
+        dwell_time=pd.Timedelta(days=0),
+        disability_weight=0.0,
+        prevalence=build_table_with_age(
+            0.000001, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "excess_mortality_rate": lambda _, __: build_table_with_age(
-            0.7,
-            parameter_columns={"year": (year_start - 1, year_end)},
+        excess_mortality_rate=build_table_with_age(
+            0.7, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-    }
+    )
 
-    mortality_state = DiseaseState("sick", get_data_functions=mort_get_data_funcs)
-
-    healthy.add_transition(Transition(healthy, mortality_state))
+    healthy.add_dwell_time_transition(mortality_state)
 
     model = DiseaseModel(disease, residual_state=healthy, states=[healthy, mortality_state])
 
@@ -286,7 +275,8 @@ def test_incidence(base_config, base_plugins, disease):
     transition = RateTransition(
         input_state=healthy,
         output_state=sick,
-        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
+        transition_rate=key,
+        rate_type="incidence_rate",
     )
     healthy.transition_set.append(transition)
 
@@ -322,7 +312,8 @@ def test_risk_deletion(base_config, base_plugins, disease):
     transition = RateTransition(
         input_state=healthy,
         output_state=sick,
-        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
+        transition_rate=key,
+        rate_type="incidence_rate",
     )
     healthy.transition_set.append(transition)
 
@@ -371,14 +362,9 @@ def test__assign_event_time_for_prevalent_cases():
 
 def test_prevalence_birth_prevalence_initial_assignment(base_config, base_plugins, disease):
     healthy = SusceptibleState("healthy")
-
-    data_funcs = {
-        "prevalence": lambda *_: 1,
-        "birth_prevalence": lambda *_: 0.5,
-        "disability_weight": lambda _, __: 0,
-    }
-    with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
-
+    with_condition = DiseaseState(
+        "with_condition", prevalence=1, birth_prevalence=0.5, disability_weight=0
+    )
     model = DiseaseModel(disease, residual_state=healthy, states=[healthy, with_condition])
 
     pop_size = 2000
@@ -422,11 +408,9 @@ def test_no_birth_prevalence_initial_assignment(
     fuzzy_checker, base_config, base_plugins, disease
 ):
     healthy = SusceptibleState("healthy")
-
-    data_funcs = {"prevalence": lambda *_: 1, "disability_weight": lambda _, __: 0}
-    with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
-
+    with_condition = DiseaseState("with_condition", prevalence=1, disability_weight=0)
     model = DiseaseModel(disease, residual_state=healthy, states=[healthy, with_condition])
+
     base_config.update(
         {
             "population": {
@@ -478,14 +462,9 @@ def test_birth_prevalence_initial_assignment(
     fuzzy_checker, base_config, base_plugins, disease
 ):
     healthy = SusceptibleState("healthy")
-
-    data_funcs = {
-        "prevalence": lambda *_: 1,
-        "birth_prevalence": lambda *_: 0.5,
-        "disability_weight": lambda _, __: 0,
-    }
-    with_condition = DiseaseState("with_condition", get_data_functions=data_funcs)
-
+    with_condition = DiseaseState(
+        "with_condition", prevalence=1, birth_prevalence=0.5, disability_weight=0
+    )
     model = DiseaseModel(disease, residual_state=healthy, states=[healthy, with_condition])
 
     pop_size = 2000
@@ -538,11 +517,11 @@ def test_artifact_transition_keys(mocker, disease):
 
     # check incidence rate
     incident_transition = healthy.add_rate_transition(with_condition)
-    assert incident_transition._rate_source == f"cause.{cause}.incidence_rate"
+    assert incident_transition.transition_rate == f"cause.{cause}.incidence_rate"
 
     # check remission rate
     remissive_transition = with_condition.add_rate_transition(healthy)
-    assert remissive_transition._rate_source == f"cause.{cause}.remission_rate"
+    assert remissive_transition.transition_rate == f"cause.{cause}.remission_rate"
 
 
 @pytest.mark.parametrize("rate_conversion_type", ["linear", "exponential"])
@@ -561,7 +540,8 @@ def test_transition_rate_to_probability_configuration(
     transition = RateTransition(
         input_state=healthy,
         output_state=sick,
-        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
+        transition_rate=key,
+        rate_type="incidence_rate",
     )
     healthy.transition_set.append(transition)
     model = DiseaseModel(disease, residual_state=healthy, states=[healthy, sick])
@@ -611,12 +591,14 @@ def test_disease_model_rate_conversion_config_error(
     transition = RateTransition(
         input_state=healthy,
         output_state=sick,
-        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
+        transition_rate=key,
+        rate_type="incidence_rate",
     )
     another_transition = RateTransition(
         input_state=sick,
         output_state=healthy,
-        get_data_functions={"incidence_rate": lambda builder, _: builder.data.load(key)},
+        transition_rate=key,
+        rate_type="incidence_rate",
     )
     healthy.transition_set.append(transition)
     sick.transition_set.append(another_transition)
