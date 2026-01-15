@@ -250,7 +250,7 @@ class Risk(Component):
             raise NotImplementedError(
                 f"Distribution type {self.distribution_type} is not supported."
             )
-        # HACK / FIXME [MIC-6756]: Because we need to start setting up each Risk to know 
+        # HACK / FIXME [MIC-6756]: Because we need to start setting up each Risk to know
         # its corresponding RiskExposureDistribution type, we cannot rely on sub-components.
         # Instead, we've determined the RiskExposureDistribution here and want to set it
         # up manually which requires temporarily changing the current component
