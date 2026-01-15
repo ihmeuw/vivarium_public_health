@@ -178,7 +178,6 @@ class Risk(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self._pop_mgr_current_component = builder.components.get_current_component()
         self._set_pop_mgr_current_component = builder.components.set_current_component
         self.distribution_type = self.get_distribution_type(builder)
         self.exposure_distribution = self.get_exposure_distribution(builder)
@@ -258,7 +257,7 @@ class Risk(Component):
         # in the component manager.
         self._set_pop_mgr_current_component(exposure_distribution)
         exposure_distribution.setup_component(builder)
-        self._set_pop_mgr_current_component(self._pop_mgr_current_component)
+        self._set_pop_mgr_current_component(self)
         return exposure_distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
