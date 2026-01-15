@@ -178,7 +178,7 @@ class Risk(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self._set_pop_mgr_current_component = builder.components.set_current_component
+        self._components = builder.components
         self.distribution_type = self.get_distribution_type(builder)
         self.exposure_distribution = self.get_exposure_distribution(builder)
 
@@ -255,9 +255,10 @@ class Risk(Component):
         # we've determined the RiskExposureDistribution here and want to set it
         # up manually which requires temporarily changing the current component
         # in the component manager.
-        self._set_pop_mgr_current_component(exposure_distribution)
+        # self._set_pop_mgr_current_component(exposure_distribution)
+        self._components._manager._current_component = exposure_distribution
         exposure_distribution.setup_component(builder)
-        self._set_pop_mgr_current_component(self)
+        self._components._manager._current_component = self
         return exposure_distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
