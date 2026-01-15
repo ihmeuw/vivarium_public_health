@@ -178,6 +178,7 @@ class Risk(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        self._components = builder.components
         self.distribution_type = self.get_distribution_type(builder)
         self.exposure_distribution = self.get_exposure_distribution(builder)
 
@@ -249,8 +250,14 @@ class Risk(Component):
             raise NotImplementedError(
                 f"Distribution type {self.distribution_type} is not supported."
             )
-
+        # HACK / FIXME [MIC-6756]: Because we need to start setting up each Risk to know
+        # its corresponding RiskExposureDistribution type, we cannot rely on sub-components.
+        # Instead, we've determined the RiskExposureDistribution here and want to set it
+        # up manually which requires temporarily changing the current component
+        # in the component manager.
+        self._components._manager._current_component = exposure_distribution
         exposure_distribution.setup_component(builder)
+        self._components._manager._current_component = self
         return exposure_distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
