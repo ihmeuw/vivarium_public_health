@@ -536,6 +536,30 @@ def test_scaled_population__format_data_inputs(
         pd.testing.assert_frame_equal(data, expected)
 
 
+def test_base_population_creates_disability_weight_pipeline(config, base_plugins):
+    """Test that BasePopulation creates the all-cause disability weight attribute pipeline."""
+    start_population_size = 100
+    config.update(
+        {
+            "population": {
+                "population_size": start_population_size,
+            },
+        },
+        layer="override",
+    )
+    sim = InteractiveContext(
+        components=[bp.BasePopulation()],
+        configuration=config,
+        plugin_configuration=base_plugins,
+    )
+
+    disability_weights = sim.get_population("all_causes.disability_weight").squeeze()
+
+    # Verify that disability weights are 0.0 by default (no disability)
+    assert len(disability_weights) == start_population_size
+    assert all(disability_weights == 0.0)
+
+
 def test__find_bin_start_index():
     sorted_values = [10, 20, 30]
     assert bp._find_bin_start_index(10, sorted_values) == 0
