@@ -8,8 +8,7 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
-import warnings
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from functools import partial
 from typing import Any
 
@@ -112,9 +111,6 @@ class DiseaseModel(Machine):
                 "All transitions in a disease model must have the same rate conversion type."
                 f" Found: {conversion_types}."
             )
-        # TODO validate that all states which have a transition of type Transition
-        #  (note: don't use an isinstance check here) have a non-zero dwell time, are transient
-        #  states, or don't allow self-transitions.
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Initialize the simulants in the population.

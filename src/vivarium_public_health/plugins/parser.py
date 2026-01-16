@@ -338,7 +338,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
     def _get_data_sources(
         self, config: LayeredConfigTree
-    ) -> dict[str, Callable[[Builder, Any], Any]]:
+    ) -> dict[str, str | float | pd.Timedelta | Callable[[Builder], Any]]:
         """Parses a configuration and returns the data sources.
 
         Parameters
@@ -361,7 +361,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _get_data_source(
         name: str,
         source: str | float,
-    ) -> str | float | pd.Timedelta | Callable[[Builder, Any], Any]:
+    ) -> str | float | pd.Timedelta | Callable[[Builder], Any]:
         """Parses a data source and returns a callable that can be used to retrieve the data.
 
         Parameters

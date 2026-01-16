@@ -48,7 +48,11 @@ def test_dwell_time(base_config, base_plugins, disease):
     )
     healthy_state = BaseDiseaseState("healthy")
     event_state = DiseaseState(
-        "event", prevalence=0.0, dwell_time=pd.Timedelta(days=28), disability_weight=0.0
+        "event",
+        prevalence=0.0,
+        dwell_time=pd.Timedelta(days=28),
+        disability_weight=0.0,
+        allow_self_transition=True,
     )
     done_state = BaseDiseaseState("sick")
 
@@ -103,7 +107,7 @@ def test_dwell_time_with_mortality(base_config, base_plugins, disease):
         "disability_weight": 0.0,
     }
 
-    mortality_state = DiseaseState("event", **mortality_kwargs)
+    mortality_state = DiseaseState("event", **mortality_kwargs, allow_self_transition=True)
     done_state = BaseDiseaseState("sick")
 
     healthy_state.add_dwell_time_transition(mortality_state)
@@ -161,6 +165,7 @@ def test_prevalence_single_state_with_migration(
         prevalence=test_prevalence_level,
         disability_weight=0.0,
         dwell_time=pd.Timedelta(days=1),
+        allow_self_transition=True,
     )
     model = DiseaseModel(disease, residual_state=healthy, states=[healthy, sick])
     base_config.update({"population": {"population_size": 50000}}, **metadata(__file__))
@@ -201,6 +206,7 @@ def test_prevalence_multiple_sequelae(
             prevalence=p,
             disability_weight=0.0,
             dwell_time=pd.Timedelta(days=1),
+            allow_self_transition=True,
         )
         for i, p in enumerate(test_prevalence_level)
     }
