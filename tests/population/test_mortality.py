@@ -117,18 +117,18 @@ def test_mortality_cause_of_death(
     year_end = base_config.time.end.year
 
     healthy = BaseDiseaseState("healthy")
-    mort_get_data_funcs = {
-        "dwell_time": lambda _, __: pd.Timedelta(days=0),
-        "disability_weight": lambda _, __: 0.0,
-        "prevalence": lambda _, __: build_table_with_age(
+    mortality_state = DiseaseState(
+        "sick",
+        dwell_time=pd.Timedelta(days=0),
+        disability_weight=0.0,
+        prevalence=build_table_with_age(
             0.5, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "excess_mortality_rate": lambda _, __: build_table_with_age(
+        excess_mortality_rate=build_table_with_age(
             0.7, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-    }
-    mortality_state = DiseaseState("sick", get_data_functions=mort_get_data_funcs)
-    healthy.add_transition(Transition(healthy, mortality_state))
+    )
+    healthy.add_dwell_time_transition(mortality_state)
 
     model = DiseaseModel("test", residual_state=healthy, states=[healthy, mortality_state])
     sim = InteractiveContext(

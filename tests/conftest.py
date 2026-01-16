@@ -101,34 +101,31 @@ def disability_disease_models(
     # Set up two disease models (_0 and _1) to test against multiple causes of disability
     healthy_0 = SusceptibleState("healthy_0")
     healthy_1 = SusceptibleState("healthy_1")
-    disability_get_data_funcs_0 = {
-        "disability_weight": lambda _, __: build_table_with_age(
-            disability_weight_value_0,
-            parameter_columns={"year": (year_start - 1, year_end)},
+
+    disability_state_0 = DiseaseState(
+        "sick_cause_0",
+        disability_weight=build_table_with_age(
+            disability_weight_value_0, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "prevalence": lambda _, __: build_table_with_age(
+        prevalence=build_table_with_age(
             0.45, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-    }
-    disability_get_data_funcs_1 = {
-        "disability_weight": lambda _, __: build_table_with_age(
-            disability_weight_value_1,
-            parameter_columns={"year": (year_start - 1, year_end)},
-        ),
-        "prevalence": lambda _, __: build_table_with_age(
-            0.65, parameter_columns={"year": (year_start - 1, year_end)}
-        ),
-    }
-    disability_state_0 = DiseaseState(
-        "sick_cause_0", get_data_functions=disability_get_data_funcs_0
     )
     disability_state_1 = DiseaseState(
-        "sick_cause_1", get_data_functions=disability_get_data_funcs_1
+        "sick_cause_1",
+        disability_weight=build_table_with_age(
+            disability_weight_value_1, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+        prevalence=build_table_with_age(
+            0.65, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
     )
+    # TODO: Add test against using a RiskAttributableDisease in addition to a DiseaseModel
     model_0 = DiseaseModel(
         "model_0", residual_state=healthy_0, states=[healthy_0, disability_state_0]
     )
     model_1 = DiseaseModel(
         "model_1", residual_state=healthy_1, states=[healthy_1, disability_state_1]
     )
+
     return model_0, model_1
