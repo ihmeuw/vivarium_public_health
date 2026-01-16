@@ -19,6 +19,7 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
+from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import (
@@ -60,7 +61,7 @@ class BasePopulation(Component):
 
     def __init__(self):
         super().__init__()
-        self._sub_components += [AgeOutSimulants(), Mortality()]
+        self._sub_components += [AgeOutSimulants(), Mortality(), Disability()]
 
     def setup(self, builder: Builder) -> None:
         self.config = builder.configuration.population
@@ -591,3 +592,32 @@ def _find_bin_start_index(value: int, sorted_reference_values: list[int]) -> int
             f"{min(sorted_reference_values)}."
         )
     return ref_value_index
+
+
+class Disability(Component):
+    """Component for handling disability-related attributes and values.
+
+    Currently this component only sets up the all-cause disability weight pipeline.
+
+    Attributes
+    ----------
+    disability_weight_pipeline
+        The name of the pipeline that produces disability weights.
+    """
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.disability_weight_pipeline = "all_causes.disability_weight"
+
+    def setup(self, builder: Builder) -> None:
+        """Registers the all-cause disability weight pipeline."""
+        builder.value.register_attribute_producer(
+            self.disability_weight_pipeline,
+            source=lambda index: [pd.Series(0.0, index=index)],
+            preferred_combiner=list_combiner,
+            preferred_post_processor=union_post_processor,
+        )
