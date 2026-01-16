@@ -8,6 +8,10 @@ from loguru import logger
 from vivarium.framework.configuration import build_simulation_configuration
 from vivarium_testing_utils import FuzzyChecker
 
+from tests.test_utilities import build_table_with_age
+from vivarium_public_health.disease import DiseaseModel, DiseaseState
+from vivarium_public_health.disease.state import SusceptibleState
+
 
 def pytest_addoption(parser):
     parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
@@ -78,3 +82,53 @@ def caplog(caplog: LogCaptureFixture) -> Generator[LogCaptureFixture, None, None
     handler_id = logger.add(caplog.handler, format="{message}")
     yield caplog
     logger.remove(handler_id)
+
+
+@pytest.fixture
+def disability_disease_models(
+    base_config,
+    disability_weight_value_0: float,
+    disability_weight_value_1: float,
+) -> tuple[DiseaseModel, DiseaseModel]:
+    """Fixture to create two disease models with disability states for testing.
+
+    Returns a tuple of (model_0, model_1) where each model has a healthy state
+    and a sick state with the specified disability weight.
+    """
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+
+    # Set up two disease models (_0 and _1) to test against multiple causes of disability
+    healthy_0 = SusceptibleState("healthy_0")
+    healthy_1 = SusceptibleState("healthy_1")
+    disability_get_data_funcs_0 = {
+        "disability_weight": lambda _, __: build_table_with_age(
+            disability_weight_value_0,
+            parameter_columns={"year": (year_start - 1, year_end)},
+        ),
+        "prevalence": lambda _, __: build_table_with_age(
+            0.45, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+    }
+    disability_get_data_funcs_1 = {
+        "disability_weight": lambda _, __: build_table_with_age(
+            disability_weight_value_1,
+            parameter_columns={"year": (year_start - 1, year_end)},
+        ),
+        "prevalence": lambda _, __: build_table_with_age(
+            0.65, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+    }
+    disability_state_0 = DiseaseState(
+        "sick_cause_0", get_data_functions=disability_get_data_funcs_0
+    )
+    disability_state_1 = DiseaseState(
+        "sick_cause_1", get_data_functions=disability_get_data_funcs_1
+    )
+    model_0 = DiseaseModel(
+        "model_0", residual_state=healthy_0, states=[healthy_0, disability_state_0]
+    )
+    model_1 = DiseaseModel(
+        "model_1", residual_state=healthy_1, states=[healthy_1, disability_state_1]
+    )
+    return model_0, model_1
