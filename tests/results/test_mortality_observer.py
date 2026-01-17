@@ -18,25 +18,23 @@ def disease_with_excess_mortality(base_config, disease_name, emr_value) -> Disea
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
     healthy = SusceptibleState(disease_name, allow_self_transition=True)
-    disease_get_data_funcs = {
-        "disability_weight": lambda *_: build_table_with_age(
+    with_condition = DiseaseState(
+        disease_name,
+        disability_weight=build_table_with_age(
             0.0, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "prevalence": lambda *_: build_table_with_age(
+        prevalence=build_table_with_age(
             0.5, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "excess_mortality_rate": lambda *_: build_table_with_age(
+        excess_mortality_rate=build_table_with_age(
             emr_value, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-    }
-    with_condition = DiseaseState(disease_name, get_data_functions=disease_get_data_funcs)
+    )
     healthy.add_rate_transition(
         with_condition,
-        get_data_functions={
-            "incidence_rate": lambda *_: build_table_with_age(
-                0.1, parameter_columns={"year": (year_start - 1, year_end)}
-            )
-        },
+        transition_rate=build_table_with_age(
+            0.1, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
     )
     return DiseaseModel(disease_name, states=[healthy, with_condition])
 
