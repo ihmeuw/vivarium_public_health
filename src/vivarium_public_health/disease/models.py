@@ -19,8 +19,8 @@ from vivarium_public_health.disease.state import (
 
 
 def SI(cause: str) -> DiseaseModel:
-    healthy = SusceptibleState(cause, allow_self_transition=True)
-    infected = DiseaseState(cause, allow_self_transition=True)
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause)
 
     healthy.add_rate_transition(infected)
 
@@ -28,9 +28,9 @@ def SI(cause: str) -> DiseaseModel:
 
 
 def SIR(cause: str) -> DiseaseModel:
-    healthy = SusceptibleState(cause, allow_self_transition=True)
-    infected = DiseaseState(cause, allow_self_transition=True)
-    recovered = RecoveredState(cause, allow_self_transition=True)
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause)
+    recovered = RecoveredState(cause)
 
     healthy.add_rate_transition(infected)
     infected.add_rate_transition(recovered)
@@ -39,8 +39,8 @@ def SIR(cause: str) -> DiseaseModel:
 
 
 def SIS(cause: str) -> DiseaseModel:
-    healthy = SusceptibleState(cause, allow_self_transition=True)
-    infected = DiseaseState(cause, allow_self_transition=True)
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause)
 
     healthy.add_rate_transition(infected)
     infected.add_rate_transition(healthy)
@@ -51,8 +51,8 @@ def SIS(cause: str) -> DiseaseModel:
 def SIS_fixed_duration(cause: str, duration: str) -> DiseaseModel:
     duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
 
-    healthy = SusceptibleState(cause, allow_self_transition=True)
-    infected = DiseaseState(cause, dwell_time=duration, allow_self_transition=True)
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause, dwell_time=duration)
 
     healthy.add_rate_transition(infected)
     infected.add_dwell_time_transition(healthy)
@@ -63,9 +63,9 @@ def SIS_fixed_duration(cause: str, duration: str) -> DiseaseModel:
 def SIR_fixed_duration(cause: str, duration: str) -> DiseaseModel:
     duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
 
-    healthy = SusceptibleState(cause, allow_self_transition=True)
-    infected = DiseaseState(cause, dwell_time=duration, allow_self_transition=True)
-    recovered = RecoveredState(cause, allow_self_transition=True)
+    healthy = SusceptibleState(cause)
+    infected = DiseaseState(cause, dwell_time=duration)
+    recovered = RecoveredState(cause)
 
     healthy.add_rate_transition(infected)
     infected.add_dwell_time_transition(recovered)
@@ -74,19 +74,15 @@ def SIR_fixed_duration(cause: str, duration: str) -> DiseaseModel:
 
 
 def NeonatalSWC_without_incidence(cause):
-    healthy = SusceptibleState(cause, allow_self_transition=True)
-    with_condition = DiseaseState(
-        cause, birth_prevalence=f"cause.{cause}.birth_prevalence", allow_self_transition=True
-    )
+    healthy = SusceptibleState(cause)
+    with_condition = DiseaseState(cause, birth_prevalence=f"cause.{cause}.birth_prevalence")
 
     return DiseaseModel(cause, states=[healthy, with_condition])
 
 
 def NeonatalSWC_with_incidence(cause):
-    healthy = SusceptibleState(cause, allow_self_transition=True)
-    with_condition = DiseaseState(
-        cause, birth_prevalence=f"cause.{cause}.birth_prevalence", allow_self_transition=True
-    )
+    healthy = SusceptibleState(cause)
+    with_condition = DiseaseState(cause, birth_prevalence=f"cause.{cause}.birth_prevalence")
 
     healthy.add_rate_transition(with_condition)
 

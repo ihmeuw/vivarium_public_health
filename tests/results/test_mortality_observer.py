@@ -17,7 +17,7 @@ from vivarium_public_health.results.stratification import ResultsStratifier
 def disease_with_excess_mortality(base_config, disease_name, emr_value) -> DiseaseModel:
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
-    healthy = SusceptibleState(disease_name, allow_self_transition=True)
+    healthy = SusceptibleState(disease_name)
     with_condition = DiseaseState(
         disease_name,
         disability_weight=build_table_with_age(
