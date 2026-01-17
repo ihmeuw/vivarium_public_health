@@ -165,15 +165,15 @@ class ExpectedStates(NamedTuple):
 STATES = ExpectedStates()
 
 
-def complex_model_infected_1_prevalence(_, __):
+def complex_model_infected_1_prevalence(builder):
     return STATES.COMPLEX_INFECTED_1.prevalence
 
 
-def complex_model_3_to_1_transition_rate(_, __, ___):
+def complex_model_3_to_1_transition_rate(builder):
     return STATES.COMPLEX_INFECTED_3.get_transitions()[COMPLEX_STATE_1_NAME].value
 
 
-def complex_model_3_to_2_transition_rate(_, __, ___):
+def complex_model_3_to_2_transition_rate(builder):
     return STATES.COMPLEX_INFECTED_3.get_transitions()[COMPLEX_STATE_2_NAME].value
 
 
@@ -235,7 +235,7 @@ SIR_MODEL_CONFIG = {
                 "sink": STATES.SIR_INFECTED.name,
                 "transition_type": "rate",
                 "data_sources": {
-                    "incidence_rate": STATES.SIR_SUSCEPTIBLE.get_transitions()[
+                    "transition_rate": STATES.SIR_SUSCEPTIBLE.get_transitions()[
                         STATES.SIR_INFECTED.name
                     ].value
                 },
@@ -245,7 +245,7 @@ SIR_MODEL_CONFIG = {
                 "sink": "recovered",
                 "transition_type": "rate",
                 "data_sources": {
-                    "remission_rate": STATES.SIR_INFECTED.get_transitions()[
+                    "transition_rate": STATES.SIR_INFECTED.get_transitions()[
                         f"recovered_from_{SIR_MODEL}"
                     ].value
                 },
