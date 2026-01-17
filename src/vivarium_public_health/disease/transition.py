@@ -60,7 +60,7 @@ class RateTransition(Transition):
         return {
             f"{self.name}": {
                 "data_sources": {
-                    "transition_rate": self._rate_source,
+                    "transition_rate": self.transition_rate,
                 },
                 "rate_conversion_type": "linear",
             },
@@ -68,36 +68,20 @@ class RateTransition(Transition):
 
     @property
     def transition_rate_pipeline(self) -> str:
-        if self._get_data_functions:
-            if "incidence_rate" in self._get_data_functions:
-                pipeline_name = f"{self.output_state.state_id}.incidence_rate"
-            elif "remission_rate" in self._get_data_functions:
-                pipeline_name = f"{self.input_state.state_id}.remission_rate"
-            elif "transition_rate" in self._get_data_functions:
-                pipeline_name = (
-                    f"{self.input_state.state_id}_to_{self.output_state.state_id}"
-                    ".transition_rate"
-                )
-            else:
-                raise DiseaseModelError(
-                    "Cannot determine rate_transition pipeline name: "
-                    "no valid data functions supplied."
-                )
+        if self.rate_type == "incidence_rate":
+            pipeline_name = f"{self.output_state.state_id}.incidence_rate"
+        elif self.rate_type == "remission_rate":
+            pipeline_name = f"{self.input_state.state_id}.remission_rate"
+        elif self.rate_type == "transition_rate":
+            pipeline_name = (
+                f"{self.input_state.state_id}_to_{self.output_state.state_id}"
+                ".transition_rate"
+            )
         else:
-            if self.rate_type == "incidence_rate":
-                pipeline_name = f"{self.output_state.state_id}.incidence_rate"
-            elif self.rate_type == "remission_rate":
-                pipeline_name = f"{self.input_state.state_id}.remission_rate"
-            elif self.rate_type == "transition_rate":
-                pipeline_name = (
-                    f"{self.input_state.state_id}_to_{self.output_state.state_id}"
-                    ".transition_rate"
-                )
-            else:
-                raise DiseaseModelError(
-                    "Cannot determine rate_transition pipeline name: invalid"
-                    f" rate_type '{self.rate_type} supplied."
-                )
+            raise DiseaseModelError(
+                "Cannot determine rate_transition pipeline name: invalid"
+                f" rate_type '{self.rate_type} supplied."
+            )
 
         return pipeline_name
 
@@ -109,35 +93,17 @@ class RateTransition(Transition):
         self,
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
-        get_data_functions: dict[str, Callable] = None,
+        transition_rate: DataInput,
         triggered=Trigger.NOT_TRIGGERED,
-        transition_rate: DataInput | None = None,
         rate_type: str = "transition_rate",
     ):
         super().__init__(
             input_state, output_state, probability_func=self._probability, triggered=triggered
         )
-        self._get_data_functions = (
-            get_data_functions if get_data_functions is not None else {}
-        )
-        self._rate_source = self._get_rate_source(transition_rate)
+        self.transition_rate = transition_rate
         self.rate_type = rate_type
 
         self.paf_pipeline = f"{self.transition_rate_pipeline}.paf"
-
-        if get_data_functions is not None:
-            warnings.warn(
-                "The argument 'get_data_functions' has been deprecated. Use"
-                " 'transition_rate' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if transition_rate is not None:
-                raise DiseaseModelError(
-                    "It is not allowed to pass a transition rate"
-                    " both as a stand-alone argument and as part of"
-                    " get_data_functions."
-                )
 
     def setup(self, builder: Builder) -> None:
         self.transition_rate_table = self.build_lookup_table(builder, "transition_rate")
@@ -156,29 +122,6 @@ class RateTransition(Transition):
         )
 
         self.rate_conversion_type = self.configuration["rate_conversion_type"]
-
-    #################
-    # Setup methods #
-    #################
-
-    def _get_rate_source(self, transition_rate: DataInput | None) -> DataInput:
-        if transition_rate is not None:
-            rate_data = transition_rate
-        elif "incidence_rate" in self._get_data_functions:
-            rate_data = lambda builder: self._get_data_functions["incidence_rate"](
-                builder, self.output_state.state_id
-            )
-        elif "remission_rate" in self._get_data_functions:
-            rate_data = lambda builder: self._get_data_functions["remission_rate"](
-                builder, self.input_state.state_id
-            )
-        elif "transition_rate" in self._get_data_functions:
-            rate_data = lambda builder: self._get_data_functions["transition_rate"](
-                builder, self.input_state.state_id, self.output_state.state_id
-            )
-        else:
-            raise ValueError("No valid data functions supplied.")
-        return rate_data
 
     ##################################
     # Pipeline sources and modifiers #
@@ -228,7 +171,7 @@ class ProportionTransition(Transition):
         return {
             f"{self.name}": {
                 "data_sources": {
-                    "proportion": self.load_proportion,
+                    "proportion": self.proportion,
                 },
             },
         }
@@ -241,44 +184,16 @@ class ProportionTransition(Transition):
         self,
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
-        get_data_functions: dict[str, Callable] = None,
+        proportion: DataInput,
         triggered=Trigger.NOT_TRIGGERED,
-        proportion: DataInput | None = None,
     ):
         super().__init__(
             input_state, output_state, probability_func=self._probability, triggered=triggered
         )
-        self._proportion_source = proportion
-        self._get_data_functions = (
-            get_data_functions if get_data_functions is not None else {}
-        )
-
-        if get_data_functions is not None:
-            warnings.warn(
-                "The argument 'get_data_functions' has been deprecated. Use"
-                " 'proportion' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if proportion is not None:
-                raise DiseaseModelError(
-                    "It is not allowed to pass a proportion both as a"
-                    " stand-alone argument and as part of get_data_functions."
-                )
+        self.proportion = proportion
 
     def setup(self, builder: Builder) -> None:
         self.proportion_table = self.build_lookup_table(builder, "proportion")
-
-    #################
-    # Setup methods #
-    #################
-
-    def load_proportion(self, builder: Builder) -> DataInput:
-        if self._proportion_source is not None:
-            return self._proportion_source
-        if "proportion" not in self._get_data_functions:
-            raise DiseaseModelError("Must supply a proportion function")
-        return self._get_data_functions["proportion"](builder, self.output_state.state_id)
 
     def _probability(self, index):
         return self.proportion_table(index)

@@ -61,6 +61,7 @@ class BaseDiseaseState(State):
         additional_defaults = {
             "prevalence": self.prevalence,
             "birth_prevalence": self.birth_prevalence,
+            "dwell_time": 0.0,
         }
         data_sources = {
             **configuration_defaults[self.name]["data_sources"],
@@ -68,6 +69,13 @@ class BaseDiseaseState(State):
         }
         configuration_defaults[self.name]["data_sources"] = data_sources
         return configuration_defaults
+
+    @property
+    def has_dwell_time(self) -> bool:
+        dwell_time = self.dwell_time_table.data
+        return (
+            isinstance(dwell_time, pd.DataFrame) and np.any(dwell_time.value != 0)
+        ) or dwell_time > 0
 
     #####################
     # Lifecycle methods #
@@ -89,11 +97,20 @@ class BaseDiseaseState(State):
         self.event_count_column = self.state_id + "_event_count"
         self.prevalence_pipeline = f"{self.state_id}.prevalence"
         self.birth_prevalence_pipeline = f"{self.state_id}.birth_prevalence"
+        self.dwell_time_pipeline = f"{self.state_id}.dwell_time"
         self.prevalence = 0.0
         self.birth_prevalence = 0.0
         self.dependencies = []
 
     def setup(self, builder: Builder) -> None:
+        self.dwell_time_table = self.build_lookup_table(
+            builder, "dwell_time", data_source=self.get_dwell_time(builder)
+        )
+        if self.has_dwell_time and not self.transition_set.allow_null_transition:
+            raise DiseaseModelError(
+                f"State '{self.state_id}' has a dwell time but does not allow self-transitions."
+            )
+
         self.prevalence_table = self.build_lookup_table(builder, "prevalence")
         builder.value.register_attribute_producer(
             self.prevalence_pipeline, source=self.prevalence_table
@@ -102,11 +119,26 @@ class BaseDiseaseState(State):
         builder.value.register_attribute_producer(
             self.birth_prevalence_pipeline, source=self.birth_prevalence_table
         )
+        builder.value.register_attribute_producer(
+            self.dwell_time_pipeline, source=self.dwell_time_table
+        )
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
             columns=[self.event_time_column, self.event_count_column],
             dependencies=self.dependencies,
         )
+
+    #################
+    # Setup methods #
+    #################
+
+    def get_dwell_time(self, builder: Builder) -> DataInput:
+        dwell_time = self.get_data(
+            builder, self.configuration.get(["data_sources", "dwell_time"])
+        )
+        if isinstance(dwell_time, pd.Timedelta):
+            dwell_time = dwell_time.total_seconds() / (60 * 60 * 24)
+        return dwell_time
 
     ########################
     # Event-driven methods #
@@ -168,7 +200,6 @@ class BaseDiseaseState(State):
     def add_rate_transition(
         self,
         output: "BaseDiseaseState",
-        get_data_functions: dict[str, Callable] = None,
         triggered=Trigger.NOT_TRIGGERED,
         transition_rate: DataInput | None = None,
         rate_type: str = "transition_rate",
@@ -179,8 +210,6 @@ class BaseDiseaseState(State):
         ----------
         output
             The end state after the transition.
-        get_data_functions
-            Map from transition type to the function to pull that transition's data.
         triggered
             The trigger for the transition
         transition_rate
@@ -197,7 +226,6 @@ class BaseDiseaseState(State):
         transition = RateTransition(
             input_state=self,
             output_state=output,
-            get_data_functions=get_data_functions,
             triggered=triggered,
             transition_rate=transition_rate,
             rate_type=rate_type,
@@ -208,7 +236,6 @@ class BaseDiseaseState(State):
     def add_proportion_transition(
         self,
         output: "BaseDiseaseState",
-        get_data_functions: dict[str, Callable] | None = None,
         triggered=Trigger.NOT_TRIGGERED,
         proportion: DataInput | None = None,
     ) -> ProportionTransition:
@@ -218,8 +245,6 @@ class BaseDiseaseState(State):
         ----------
         output
             The end state after the transition.
-        get_data_functions
-            Map from transition type to the function to pull that transition's data.
         triggered
             The trigger for the transition.
         proportion
@@ -230,15 +255,9 @@ class BaseDiseaseState(State):
         -------
             The created transition object.
         """
-        if (
-            get_data_functions is None or "proportion" not in get_data_functions
-        ) and proportion is None:
-            raise ValueError("You must supply a proportion function.")
-
         transition = ProportionTransition(
             input_state=self,
             output_state=output,
-            get_data_functions=get_data_functions,
             triggered=triggered,
             proportion=proportion,
         )
@@ -282,16 +301,13 @@ class NonDiseasedState(BaseDiseaseState):
     def add_rate_transition(
         self,
         output: BaseDiseaseState,
-        get_data_functions: dict[str, Callable] = None,
         triggered=Trigger.NOT_TRIGGERED,
         transition_rate: DataInput | None = None,
-        **_kwargs,
     ) -> RateTransition:
-        if get_data_functions is None and transition_rate is None:
+        if transition_rate is None:
             transition_rate = f"{self.cause_type}.{output.state_id}.incidence_rate"
         return super().add_rate_transition(
             output=output,
-            get_data_functions=get_data_functions,
             triggered=triggered,
             transition_rate=transition_rate,
             rate_type="incidence_rate",
@@ -428,11 +444,9 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         allow_self_transition: bool = False,
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
-        get_data_functions: dict[str, Callable] | None = None,
-        cleanup_function: Callable | None = None,
         prevalence: DataInput | None = None,
-        birth_prevalence: DataInput | None = None,
-        dwell_time: DataInput | None = None,
+        birth_prevalence: DataInput = 0.0,
+        dwell_time: DataInput = 0.0,
         disability_weight: DataInput | None = None,
         excess_mortality_rate: DataInput | None = None,
     ):
@@ -448,11 +462,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
             A function to be called when this state is entered.
         cause_type
             The type of cause represented by this state. Either "cause" or "sequela".
-        get_data_functions
-            A dictionary containing a mapping to functions to retrieve data for
-            various state attributes.
-        cleanup_function
-            The cleanup function.
         prevalence
             The prevalence source. This is used to initialize simulants. Can be
             the data itself, a function to retrieve the data, or the artifact
@@ -487,42 +496,15 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         self.excess_mortality_rate_pipeline = f"{self.state_id}.excess_mortality_rate"
         self.excess_mortality_rate_paf_pipeline = f"{self.excess_mortality_rate_pipeline}.paf"
-
-        self._get_data_functions = (
-            get_data_functions if get_data_functions is not None else {}
-        )
-        self._cleanup_function = cleanup_function
-
-        if get_data_functions is not None:
-            warnings.warn(
-                "The argument 'get_data_functions' has been deprecated. Use"
-                " cause_specific_mortality_rate instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-            for data_type in self._get_data_functions:
-                try:
-                    data_source = locals()[data_type]
-                except KeyError:
-                    data_source = None
-
-                if locals()[data_type] is not None:
-                    raise DiseaseModelError(
-                        f"It is not allowed to pass '{data_type}' both as a"
-                        " stand-alone argument and as part of get_data_functions."
-                    )
+        self.dw_pipeline = f"{self.state_id}.disability_weight"
 
         self._prevalence_source = self.get_prevalence_source(prevalence)
-        self._birth_prevalence_source = self.get_birth_prevalence_source(birth_prevalence)
-        self._dwell_time_source = self.get_dwell_time_source(dwell_time)
+        self._birth_prevalence_source = birth_prevalence
+        self._dwell_time_source = dwell_time
         self._disability_weight_source = self.get_disability_weight_source(disability_weight)
         self._excess_mortality_rate_source = self.get_excess_mortality_rate_source(
             excess_mortality_rate
         )
-
-        self.dwell_time_pipeline = f"{self.state_id}.dwell_time"
-        self.dw_pipeline = f"{self.state_id}.disability_weight"
 
     def setup(self, builder: Builder) -> None:
         """Performs this component's simulation setup.
@@ -533,9 +515,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
             Interface to several simulation tools.
         """
         self.randomness_prevalence = self.get_randomness_prevalence(builder)
-        self.dwell_time_table = self.build_lookup_table(builder, "dwell_time")
-        self.register_dwell_time_pipeline(builder)
-
         self.dependencies = [
             self.model,
             self.randomness_prevalence,
@@ -571,57 +550,15 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     # Setup methods #
     #################
 
-    def _get_data_functions_source(self, data_type: str) -> DataInput:
-        def data_source(builder: Builder) -> LookupTableData:
-            return self._get_data_functions[data_type](builder, self.state_id)
-
-        return data_source
-
     def get_prevalence_source(self, prevalence: DataInput | None) -> DataInput:
-        if "prevalence" in self._get_data_functions:
-            return self._get_data_functions_source("prevalence")
-        elif prevalence is not None:
-            return prevalence
-        else:
-            return f"{self.cause_type}.{self.state_id}.prevalence"
-
-    def get_birth_prevalence_source(self, birth_prevalence: DataInput | None) -> DataInput:
-        if "birth_prevalence" in self._get_data_functions:
-            return self._get_data_functions_source("birth_prevalence")
-        elif birth_prevalence is not None:
-            return birth_prevalence
-        else:
-            return 0.0
-
-    def get_dwell_time_source(self, dwell_time: DataInput | None) -> DataInput:
-        if "dwell_time" in self._get_data_functions:
-            dwell_time = self._get_data_functions_source("dwell_time")
-        elif dwell_time is None:
-            dwell_time = 0.0
-
-        def dwell_time_source(builder: Builder) -> LookupTableData:
-            dwell_time_ = self.get_data(builder, dwell_time)
-            if isinstance(dwell_time_, pd.Timedelta):
-                dwell_time_ = dwell_time_.total_seconds() / (60 * 60 * 24)
-            if (
-                isinstance(dwell_time_, pd.DataFrame) and np.any(dwell_time_.value != 0)
-            ) or dwell_time_ > 0:
-                self.transition_set.allow_null_transition = True
-            return dwell_time_
-
-        return dwell_time_source
-
-    def register_dwell_time_pipeline(self, builder: Builder) -> None:
-        builder.value.register_attribute_producer(
-            self.dwell_time_pipeline, source=self.dwell_time_table
+        return (
+            prevalence
+            if prevalence is not None
+            else f"{self.cause_type}.{self.state_id}.prevalence"
         )
 
     def get_disability_weight_source(self, disability_weight: DataInput | None) -> DataInput:
-        if "disability_weight" in self._get_data_functions:
-            disability_weight = self._get_data_functions_source("disability_weight")
-        elif disability_weight is not None:
-            disability_weight = disability_weight
-        else:
+        if disability_weight is None:
             disability_weight = f"{self.cause_type}.{self.state_id}.disability_weight"
 
         def disability_weight_source(builder: Builder) -> LookupTableData:
@@ -643,9 +580,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     def get_excess_mortality_rate_source(
         self, excess_mortality_rate: DataInput | None
     ) -> DataInput:
-        if "excess_mortality_rate" in self._get_data_functions:
-            excess_mortality_rate = self._get_data_functions_source("excess_mortality_rate")
-        elif excess_mortality_rate is None:
+        if excess_mortality_rate is None:
             excess_mortality_rate = f"{self.cause_type}.{self.state_id}.excess_mortality_rate"
 
         def excess_mortality_rate_source(builder: Builder) -> LookupTableData:
@@ -693,31 +628,19 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     def add_rate_transition(
         self,
         output: BaseDiseaseState,
-        get_data_functions: dict[str, Callable] = None,
         triggered=Trigger.NOT_TRIGGERED,
         transition_rate: DataInput | None = None,
         rate_type: str = "transition_rate",
     ) -> RateTransition:
-        if get_data_functions is None and transition_rate is None:
+        if transition_rate is None:
             transition_rate = f"{self.cause_type}.{self.state_id}.remission_rate"
             rate_type = "remission_rate"
         return super().add_rate_transition(
             output=output,
-            get_data_functions=get_data_functions,
             triggered=triggered,
             transition_rate=transition_rate,
             rate_type=rate_type,
         )
-
-    def add_dwell_time_transition(
-        self,
-        output: "BaseDiseaseState",
-        **kwargs,
-    ) -> Transition:
-        if "dwell_time" not in self._get_data_functions:
-            raise ValueError("You must supply a dwell time function.")
-
-        return super().add_dwell_time_transition(output, **kwargs)
 
     def next_state(
         self, index: pd.Index, event_time: pd.Timestamp, population_view: PopulationView
