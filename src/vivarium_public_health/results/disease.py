@@ -88,7 +88,7 @@ class DiseaseObserver(PublicHealthObserver):
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
             columns=self.previous_state_column_name,
-            dependencies=[self.disease],
+            required_resources=[self.disease],
         )
 
     def get_configuration_name(self) -> str:

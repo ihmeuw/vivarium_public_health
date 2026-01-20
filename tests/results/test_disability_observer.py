@@ -63,7 +63,7 @@ def test_disability_observer_setup(mocker):
     builder.results.register_adding_observation.assert_any_call(
         name="ylds",
         pop_filter="is_alive == True",
-        exclude_untracked=True,
+        include_untracked=False,
         when="time_step__prepare",
         requires_attributes=cause_pipelines,
         results_formatter=observer.format_results,
