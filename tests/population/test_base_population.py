@@ -536,6 +536,86 @@ def test_scaled_population__format_data_inputs(
         pd.testing.assert_frame_equal(data, expected)
 
 
+def test_base_population_creates_disability_weight_pipeline(config, base_plugins):
+    """Test that BasePopulation creates the all-cause disability weight attribute pipeline."""
+    start_population_size = 100
+    config.update(
+        {
+            "population": {
+                "population_size": start_population_size,
+            },
+        },
+        layer="override",
+    )
+    sim = InteractiveContext(
+        components=[bp.BasePopulation()],
+        configuration=config,
+        plugin_configuration=base_plugins,
+    )
+
+    disability_weights = sim.get_population("all_causes.disability_weight").squeeze()
+
+    # Verify that disability weights are 0.0 by default (no disability)
+    assert len(disability_weights) == start_population_size
+    assert all(disability_weights == 0.0)
+
+
+@pytest.mark.parametrize(
+    "disability_weight_value_0, disability_weight_value_1",
+    [(0.25, 0.5), (0.99, 0.1), (0.1, 0.1)],
+)
+def test_disability_weight_pipeline_combination(
+    config,
+    base_plugins,
+    disability_disease_models,
+):
+    """Test that BasePopulation combines disability weights from multiple sources correctly.
+
+    When multiple disease states contribute disability weights, they should be combined
+    using the multiplicative formula: 1 - ((1 - dw1) * (1 - dw2)).
+    """
+    model_0, model_1 = disability_disease_models
+
+    simulation = InteractiveContext(
+        components=[bp.BasePopulation(), model_0, model_1],
+        configuration=config,
+        plugin_configuration=base_plugins,
+    )
+
+    simulation.step()
+    simulation.step()
+
+    pop = simulation.get_population(["model_0", "model_1"])
+    sub_pop_mask = {
+        "healthy": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "healthy_1"),
+        "sick_0": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "healthy_1"),
+        "sick_1": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "sick_cause_1"),
+        "sick_0_1": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "sick_cause_1"),
+    }
+
+    # Get pipelines
+    disability_weight_all_causes = simulation._values.get_attribute(
+        "all_causes.disability_weight"
+    )
+    disability_weight_0 = simulation._values.get_attribute("sick_cause_0.disability_weight")
+    disability_weight_1 = simulation._values.get_attribute("sick_cause_1.disability_weight")
+
+    # Check that disability weights are combined correctly using the multiplicative formula
+    for sub_pop_key in ["healthy", "sick_0", "sick_1", "sick_0_1"]:
+        expected_combined_weight = 1 - (
+            (1 - disability_weight_0(pop[sub_pop_mask[sub_pop_key]].index))
+            * (1 - disability_weight_1(pop[sub_pop_mask[sub_pop_key]].index))
+        )
+        actual_combined_weight = disability_weight_all_causes(
+            pop[sub_pop_mask[sub_pop_key]].index
+        )
+        assert np.isclose(
+            actual_combined_weight,
+            expected_combined_weight,
+            rtol=0.0000001,
+        ).all()
+
+
 def test__find_bin_start_index():
     sorted_values = [10, 20, 30]
     assert bp._find_bin_start_index(10, sorted_values) == 0

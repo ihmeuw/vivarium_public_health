@@ -93,42 +93,11 @@ def test__disability_weight_aggregator():
 def test_disability_accumulation(
     base_config,
     base_plugins,
-    disability_weight_value_0,
-    disability_weight_value_1,
+    disability_disease_models,
 ):
-    """Integration test for the disability observer and the Results Management system."""
-    year_start = base_config.time.start.year
-    year_end = base_config.time.end.year
+    """Integration test for YLD accumulation in the DisabilityObserver and Results Management system."""
     time_step = pd.Timedelta(days=base_config.time.step_size)
-
-    # Set up two disease models (_0 and _1), to test against multiple causes of disability
-    healthy_0 = SusceptibleState("healthy_0")
-    healthy_1 = SusceptibleState("healthy_1")
-    disability_state_0 = DiseaseState(
-        "sick_cause_0",
-        disability_weight=build_table_with_age(
-            disability_weight_value_0, parameter_columns={"year": (year_start - 1, year_end)}
-        ),
-        prevalence=build_table_with_age(
-            0.45, parameter_columns={"year": (year_start - 1, year_end)}
-        ),
-    )
-    disability_state_1 = DiseaseState(
-        "sick_cause_1",
-        disability_weight=build_table_with_age(
-            disability_weight_value_1, parameter_columns={"year": (year_start - 1, year_end)}
-        ),
-        prevalence=build_table_with_age(
-            0.65, parameter_columns={"year": (year_start - 1, year_end)}
-        ),
-    )
-    # TODO: Add test against using a RiskAttributableDisease in addition to a DiseaseModel
-    model_0 = DiseaseModel(
-        "model_0", residual_state=healthy_0, states=[healthy_0, disability_state_0]
-    )
-    model_1 = DiseaseModel(
-        "model_1", residual_state=healthy_1, states=[healthy_1, disability_state_1]
-    )
+    model_0, model_1 = disability_disease_models
 
     # Add the results dir since we didn't go through cli.py
     simulation = InteractiveContext(
@@ -148,33 +117,13 @@ def test_disability_accumulation(
     simulation.step()
 
     pop = simulation.get_population(["model_0", "model_1", "sex"])
-    sub_pop_mask = {
-        "healthy": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "healthy_1"),
-        "sick_0": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "healthy_1"),
-        "sick_1": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "sick_cause_1"),
-        "sick_0_1": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "sick_cause_1"),
-    }
 
-    # Get pipelines
+    # Get disability weight pipelines for YLD calculation
     disability_weight_all_causes = simulation._values.get_attribute(
         "all_causes.disability_weight"
     )
     disability_weight_0 = simulation._values.get_attribute("sick_cause_0.disability_weight")
     disability_weight_1 = simulation._values.get_attribute("sick_cause_1.disability_weight")
-
-    # Check that disability weights are computed as expected
-    for sub_pop_key in ["healthy", "sick_0", "sick_1", "sick_0_1"]:
-        assert np.isclose(
-            disability_weight_all_causes(pop[sub_pop_mask[sub_pop_key]].index),
-            (
-                1
-                - (
-                    (1 - disability_weight_0(pop[sub_pop_mask[sub_pop_key]].index))
-                    * (1 - disability_weight_1(pop[sub_pop_mask[sub_pop_key]].index))
-                )
-            ),
-            rtol=0.0000001,
-        ).all()
 
     # Test that metrics are correct
     results = simulation.get_results()["ylds"]
