@@ -12,7 +12,6 @@ import pandas as pd
 from loguru import logger
 from pandas.api.types import CategoricalDtype
 from vivarium.framework.engine import Builder
-from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.results.columns import COLUMNS
@@ -41,8 +40,6 @@ class DisabilityObserver(PublicHealthObserver):
                         - "sample_stratification"
     Attributes
     ----------
-    disability_weight_pipeline
-        The name of the pipeline that produces disability weights.
     step_size
         The time step size of the simulation.
     disability_weight
@@ -61,14 +58,6 @@ class DisabilityObserver(PublicHealthObserver):
         """The classes to be considered as causes of disability."""
         return [DiseaseState, RiskAttributableDisease]
 
-    #####################
-    # Lifecycle methods #
-    #####################
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.disability_weight_pipeline = "all_causes.disability_weight"
-
     #################
     # Setup methods #
     #################
@@ -76,12 +65,6 @@ class DisabilityObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         """Set up the observer."""
         self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
-        builder.value.register_attribute_producer(
-            self.disability_weight_pipeline,
-            source=lambda index: [pd.Series(0.0, index=index)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
-        )
         self.set_causes_of_disability(builder)
 
     def set_causes_of_disability(self, builder: Builder) -> None:
