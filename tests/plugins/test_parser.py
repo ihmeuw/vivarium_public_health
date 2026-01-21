@@ -580,7 +580,7 @@ def test_disease_state(
     assert state.state_id == expected_state_data.name
     assert state.cause_type == expected_state_data.cause_type
     assert (
-        state.transition_set.allow_null_transition
+        state.transition_set.allow_self_transition
         == expected_state_data.allow_self_transition
     )
 
@@ -589,7 +589,7 @@ def test_disease_state(
 
     if isinstance(state, DiseaseState):
         assert (
-            state.transition_set.allow_null_transition
+            state.transition_set.allow_self_transition
             == expected_state_data.allow_self_transition
         )
 

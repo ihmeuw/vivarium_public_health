@@ -25,7 +25,7 @@ def model(base_config, disease: str) -> DiseaseModel:
     """A dummy SI model where everyone should be `with_condition` by the third timestep."""
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
-    healthy = SusceptibleState("with_condition")
+    healthy = SusceptibleState("with_condition", allow_self_transition=False)
     with_condition = DiseaseState(
         "with_condition",
         disability_weight=build_table_with_age(
