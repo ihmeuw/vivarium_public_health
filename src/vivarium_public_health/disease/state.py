@@ -84,7 +84,7 @@ class BaseDiseaseState(State):
     def __init__(
         self,
         state_id: str,
-        allow_self_transition: bool = False,
+        allow_self_transition: bool = True,
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
     ):
@@ -106,7 +106,7 @@ class BaseDiseaseState(State):
         self.dwell_time_table = self.build_lookup_table(
             builder, "dwell_time", data_source=self.get_dwell_time(builder)
         )
-        if self.has_dwell_time and not self.transition_set.allow_null_transition:
+        if self.has_dwell_time and not self.transition_set.allow_self_transition:
             raise DiseaseModelError(
                 f"State '{self.state_id}' has a dwell time but does not allow self-transitions."
             )
@@ -280,7 +280,7 @@ class NonDiseasedState(BaseDiseaseState):
     def __init__(
         self,
         state_id: str,
-        allow_self_transition: bool = False,
+        allow_self_transition: bool = True,
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
         name_prefix: str = "",
@@ -322,7 +322,7 @@ class SusceptibleState(NonDiseasedState):
     def __init__(
         self,
         state_id: str,
-        allow_self_transition: bool = False,
+        allow_self_transition: bool = True,
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
     ):
@@ -346,7 +346,7 @@ class RecoveredState(NonDiseasedState):
     def __init__(
         self,
         state_id: str,
-        allow_self_transition: bool = False,
+        allow_self_transition: bool = True,
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
     ):
@@ -441,7 +441,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     def __init__(
         self,
         state_id: str,
-        allow_self_transition: bool = False,
+        allow_self_transition: bool = True,
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
         prevalence: DataInput | None = None,
