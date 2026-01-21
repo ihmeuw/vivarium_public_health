@@ -87,11 +87,11 @@ class BasePopulation(Component):
 
         # HACK / FIXME [MIC-6746]: Simplify initial population creation
         #   The current implementation of on_initialize_simulants is complicated
-        #   and should be simplified/streamlined. Of note, the dependencies for the
+        #   and should be simplified/streamlined. Of note, the required_resources for the
         #   "sex" and "location" columns are different depending on whether or not
         #   the simulation's initialized age_start and age_end values are the same.
         #   To get around this, we simply register the initializer without specifying
-        #   any dependencies here. This could potentially lead to a difficult-to-diagnose
+        #   any required_resources here. This could potentially lead to a difficult-to-diagnose
         #   bug, but we've been doing this for a long time without known issues.
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
@@ -179,7 +179,7 @@ class BasePopulation(Component):
     def on_time_step_cleanup(self, event: Event) -> None:
         """Update the 'exit_time' private column with any modifications made by other components."""
         exit_times = self.population_view.get_attributes(
-            event.index, "exit_time", exclude_untracked=False
+            event.index, "exit_time", include_untracked=True
         )
         self.population_view.update(exit_times)
 
@@ -329,7 +329,7 @@ class AgeOutSimulants(Component):
         aged_out_idx = self.population_view.get_filtered_index(
             index,
             query="is_aged_out == True",
-            exclude_untracked=False,
+            include_untracked=True,
         )
         newly_aged_out_idx = aged_out_idx.intersection(target[target.isna()].index)
         target.loc[newly_aged_out_idx] = self.clock() + self.step_size()

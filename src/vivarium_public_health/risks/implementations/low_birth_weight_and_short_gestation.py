@@ -352,13 +352,13 @@ class LBWSGRisk(Risk):
         builder.population.register_initializer(
             initializer=self.initialize_propensities,
             columns=[self.categorical_propensity_name, *continuous_propensity_columns],
-            dependencies=[self.randomness],
+            required_resources=[self.randomness],
         )
 
         builder.population.register_initializer(
             initializer=self.initialize_exposures,
             columns=[self.get_exposure_name(axis) for axis in AXES],
-            dependencies=[self.birth_exposure_pipeline],
+            required_resources=[self.birth_exposure_pipeline],
         )
 
     #################
@@ -457,7 +457,7 @@ class LBWSGRiskEffect(RiskEffect):
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
             columns=self.rr_column_names,
-            dependencies=[self.exposure_name, "sex"],
+            required_resources=[self.exposure_name, "sex"],
         )
 
     #################
