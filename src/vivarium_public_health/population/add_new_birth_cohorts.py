@@ -192,7 +192,7 @@ class FertilityAgeSpecificRates(Component):
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
             columns=["last_birth_time", "parent_id"],
-            dependencies=["sex"],
+            required_resources=["sex"],
         )
 
     #################

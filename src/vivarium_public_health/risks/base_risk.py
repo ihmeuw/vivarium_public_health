@@ -187,7 +187,7 @@ class Risk(Component):
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
             columns=self.propensity_name,
-            dependencies=[self.randomness],
+            required_resources=[self.randomness],
         )
 
     def get_distribution_type(self, builder: Builder) -> str:

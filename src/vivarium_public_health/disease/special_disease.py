@@ -244,7 +244,7 @@ class RiskAttributableDisease(ExcessMortalityState):
                 self.diseased_event_time_column,
                 self.susceptible_event_time_column,
             ],
-            dependencies=[self.exposure_pipeline],
+            required_resources=[self.exposure_pipeline],
         )
 
     #################

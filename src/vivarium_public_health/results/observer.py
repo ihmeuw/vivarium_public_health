@@ -32,7 +32,7 @@ class PublicHealthObserver(Observer):
         builder: Builder,
         name: str,
         pop_filter: str = "",
-        exclude_untracked: bool = True,
+        include_untracked: bool = False,
         when: str = "collect_metrics",
         requires_attributes: list[str] = [],
         additional_stratifications: list[str] = [],
@@ -56,8 +56,8 @@ class PublicHealthObserver(Observer):
         pop_filter
             A Pandas query filter string to filter the population down to the
             simulants who should be considered for the observation.
-        exclude_untracked
-            Whether to exclude untracked simulants from the observation.
+        include_untracked
+            Whether to include untracked simulants from the observation.
         when
             Name of the lifecycle phase the observation should happen. Valid values are:
             "time_step__prepare", "time_step", "time_step__cleanup", or "collect_metrics".
@@ -77,7 +77,7 @@ class PublicHealthObserver(Observer):
         builder.results.register_adding_observation(
             name=name,
             pop_filter=pop_filter,
-            exclude_untracked=exclude_untracked,
+            include_untracked=include_untracked,
             when=when,
             requires_attributes=requires_attributes,
             results_formatter=self.format_results,

@@ -100,7 +100,7 @@ class BaseDiseaseState(State):
         self.dwell_time_pipeline = f"{self.state_id}.dwell_time"
         self.prevalence = 0.0
         self.birth_prevalence = 0.0
-        self.dependencies = []
+        self.required_resources = []
 
     def setup(self, builder: Builder) -> None:
         self.dwell_time_table = self.build_lookup_table(
@@ -125,7 +125,7 @@ class BaseDiseaseState(State):
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
             columns=[self.event_time_column, self.event_count_column],
-            dependencies=self.dependencies,
+            required_resources=self.required_resources,
         )
 
     #################
@@ -515,7 +515,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
             Interface to several simulation tools.
         """
         self.randomness_prevalence = self.get_randomness_prevalence(builder)
-        self.dependencies = [
+        self.required_resources = [
             self.model,
             self.randomness_prevalence,
             self.dwell_time_pipeline,
