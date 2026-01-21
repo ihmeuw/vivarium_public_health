@@ -108,7 +108,7 @@ class EnsembleDistribution(RiskExposureDistribution):
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
             columns=self.ensemble_propensity,
-            dependencies=[self.randomness],
+            required_resources=[self.randomness],
         )
 
     def get_distribution_definitions(
