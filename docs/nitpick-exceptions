@@ -22,6 +22,7 @@ py:class LayeredConfigTree
 py:class Builder
 py:class SimulantData
 py:class Event
+py:class vivarium.framework.event.manager.Event
 py:class LookupTable
 
 py:meth __init__
