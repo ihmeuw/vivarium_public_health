@@ -1,3 +1,7 @@
+**5.0.0 - TBD**
+
+  - TBD
+
 **4.3.19 - 01/06/26**
 
   - Fail deployment if CHANGELOG does not match current date

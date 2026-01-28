@@ -11,11 +11,11 @@ excess mortality in the simulation, including "other causes".
 from typing import Any
 
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
 from pandas.api.types import CategoricalDtype
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
+from vivarium_public_health.disease.state import ExcessMortalityState
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.observer import PublicHealthObserver
 from vivarium_public_health.results.simple_cause import SimpleCause
@@ -50,10 +50,6 @@ class MortalityObserver(PublicHealthObserver):
 
     Attributes
     ----------
-    required_death_columns
-        Columns required by the deaths observation.
-    required_yll_columns
-        Columns required by the ylls observation.
     clock
         The simulation clock.
     causes_of_death
@@ -61,24 +57,9 @@ class MortalityObserver(PublicHealthObserver):
 
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.required_death_columns = ["alive", "exit_time", "cause_of_death"]
-        self.required_yll_columns = [
-            "alive",
-            "cause_of_death",
-            "exit_time",
-            "years_of_life_lost",
-        ]
-
     ##############
     # Properties #
     ##############
-
-    @property
-    def mortality_classes(self) -> list[type]:
-        """The classes to be considered as causes of death."""
-        return [DiseaseState, RiskAttributableDisease]
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
@@ -106,16 +87,6 @@ class MortalityObserver(PublicHealthObserver):
         config_defaults["stratification"][self.get_configuration_name()]["aggregate"] = False
         return config_defaults
 
-    @property
-    def columns_required(self) -> list[str]:
-        """Columns required by this observer."""
-        return [
-            "alive",
-            "years_of_life_lost",
-            "cause_of_death",
-            "exit_time",
-        ]
-
     #################
     # Setup methods #
     #################
@@ -137,17 +108,15 @@ class MortalityObserver(PublicHealthObserver):
 
         Also note that we add 'not_dead' and 'other_causes' categories here.
         """
-        causes_of_death = [
-            cause
-            for cause in builder.components.get_components_by_type(
-                tuple(self.mortality_classes)
-            )
-            if cause.has_excess_mortality
+        excess_mortality_states: list[ExcessMortalityState] = [
+            cause for cause in builder.components.get_components_by_type(ExcessMortalityState)
         ]
 
         # Convert to SimpleCauses and add on other_causes and not_dead
         self.causes_of_death = [
-            SimpleCause.create_from_specific_cause(cause) for cause in causes_of_death
+            SimpleCause.create_from_specific_cause(cause)
+            for cause in excess_mortality_states
+            if cause.has_excess_mortality(builder)
         ] + [
             SimpleCause("not_dead", "not_dead", "cause"),
             SimpleCause("other_causes", "other_causes", "cause"),
@@ -169,7 +138,7 @@ class MortalityObserver(PublicHealthObserver):
         this observer and so it is registered here while we have easy access
         to the required categories.
         """
-        pop_filter = 'alive == "dead" and tracked == True'
+        pop_filter = "is_alive == False"
         additional_stratifications = self.configuration.include
         if not self.configuration.aggregate:
             # manually append 'not_dead' as an excluded cause
@@ -182,14 +151,14 @@ class MortalityObserver(PublicHealthObserver):
                 "cause_of_death",
                 [cause.state_id for cause in self.causes_of_death],
                 excluded_categories=excluded_categories,
-                requires_columns=["cause_of_death"],
+                requires_attributes=["cause_of_death"],
             )
             additional_stratifications += ["cause_of_death"]
         self.register_adding_observation(
             builder=builder,
             name="deaths",
             pop_filter=pop_filter,
-            requires_columns=self.required_death_columns,
+            requires_attributes=["exit_time"],
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.count_deaths,
@@ -198,7 +167,7 @@ class MortalityObserver(PublicHealthObserver):
             builder=builder,
             name="ylls",
             pop_filter=pop_filter,
-            requires_columns=self.required_yll_columns,
+            requires_attributes=["exit_time", "years_of_life_lost"],
             additional_stratifications=additional_stratifications,
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.calculate_ylls,

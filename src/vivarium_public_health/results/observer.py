@@ -31,13 +31,12 @@ class PublicHealthObserver(Observer):
         self,
         builder: Builder,
         name: str,
-        pop_filter: str = "tracked==True",
+        pop_filter: str = "",
+        include_untracked: bool = False,
         when: str = "collect_metrics",
-        requires_columns: list[str] = [],
-        requires_values: list[str] = [],
+        requires_attributes: list[str] = [],
         additional_stratifications: list[str] = [],
         excluded_stratifications: list[str] = [],
-        aggregator_sources: list[str] | None = None,
         aggregator: Callable[[pd.DataFrame], float | pd.Series] = len,
         to_observe: Callable[[Event], bool] = lambda event: True,
     ) -> None:
@@ -57,22 +56,18 @@ class PublicHealthObserver(Observer):
         pop_filter
             A Pandas query filter string to filter the population down to the
             simulants who should be considered for the observation.
+        include_untracked
+            Whether to include untracked simulants from the observation.
         when
             Name of the lifecycle phase the observation should happen. Valid values are:
             "time_step__prepare", "time_step", "time_step__cleanup", or "collect_metrics".
-        requires_columns
-            List of the state table columns that are required by either the `pop_filter`
-            or the `aggregator`.
-        requires_values
-            List of the value pipelines that are required by either the `pop_filter`
-            or the `aggregator`.
+        requires_attributes
+            The population attributes that are required by the `aggregator`.
         additional_stratifications
             List of additional stratification names by which to stratify this
             observation by.
         excluded_stratifications
             List of default stratification names to remove from this observation.
-        aggregator_sources
-            List of population view columns to be used in the `aggregator`.
         aggregator
             Function that computes the quantity for this observation.
         to_observe
@@ -82,13 +77,14 @@ class PublicHealthObserver(Observer):
         builder.results.register_adding_observation(
             name=name,
             pop_filter=pop_filter,
+            include_untracked=include_untracked,
             when=when,
-            requires_columns=requires_columns,
-            requires_values=requires_values,
+            requires_attributes=requires_attributes,
             results_formatter=self.format_results,
             additional_stratifications=additional_stratifications,
             excluded_stratifications=excluded_stratifications,
-            aggregator_sources=aggregator_sources,
+            # TODO: Remove aggregator_sources from vivarium
+            aggregator_sources=requires_attributes,
             aggregator=aggregator,
             to_observe=to_observe,
         )

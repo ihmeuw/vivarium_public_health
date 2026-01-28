@@ -56,7 +56,6 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
     DEFAULT_MODEL_CONFIG = {
         "model_type": f"{DiseaseModel.__module__}.{DiseaseModel.__name__}",
-        "initial_state": None,
         "residual_state": None,
     }
     """Default cause model configuration if it's not explicitly specified.
@@ -232,10 +231,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         cause_models = []
 
         for cause_name, cause_config in causes_config.items():
-            data_sources = None
-            if "data_sources" in cause_config:
-                data_sources_config = cause_config.data_sources
-                data_sources = self._get_data_sources(data_sources_config)
+            data_sources = self._get_data_sources(cause_config)
 
             states: dict[str, BaseDiseaseState] = {
                 state_name: self._get_state(state_name, state_config, cause_name)
@@ -250,14 +246,12 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 )
 
             model_type = import_by_path(cause_config.model_type)
-            residual_state = states.get(
-                cause_config.residual_state, states.get(cause_config.initial_state, None)
-            )
+            residual_state = states.get(cause_config.residual_state, None)
             model = model_type(
                 cause_name,
                 states=list(states.values()),
                 residual_state=residual_state,
-                get_data_functions=data_sources,
+                **data_sources,
             )
             cause_models.append(model)
 
@@ -292,9 +286,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         if state_config.cleanup_function:
             # todo handle cleanup functions properly
             state_kwargs["cleanup_function"] = lambda *x: x
-        if "data_sources" in state_config:
-            data_sources_config = state_config.data_sources
-            state_kwargs["get_data_functions"] = self._get_data_sources(data_sources_config)
+        state_kwargs = {**state_kwargs, **self._get_data_sources(state_config)}
 
         if state_config.state_type is not None:
             state_type = import_by_path(state_config.state_type)
@@ -328,19 +320,13 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             A `LayeredConfigTree` defining the transition to add
         """
         triggered = Trigger[transition_config.triggered]
-        if "data_sources" in transition_config:
-            data_sources_config = transition_config.data_sources
-            data_sources = self._get_data_sources(data_sources_config)
-        else:
-            data_sources = None
+        data_sources = self._get_data_sources(transition_config)
 
         if transition_config["transition_type"] == "rate":
-            source_state.add_rate_transition(
-                sink_state, get_data_functions=data_sources, triggered=triggered
-            )
+            source_state.add_rate_transition(sink_state, **data_sources, triggered=triggered)
         elif transition_config["transition_type"] == "proportion":
             source_state.add_proportion_transition(
-                sink_state, get_data_functions=data_sources, triggered=triggered
+                sink_state, **data_sources, triggered=triggered
             )
         elif transition_config["transition_type"] == "dwell_time":
             source_state.add_dwell_time_transition(sink_state, triggered=triggered)
@@ -352,8 +338,8 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
     def _get_data_sources(
         self, config: LayeredConfigTree
-    ) -> dict[str, Callable[[Builder, Any], Any]]:
-        """Parses a data sources configuration and returns the data sources.
+    ) -> dict[str, str | float | pd.Timedelta | Callable[[Builder], Any]]:
+        """Parses a configuration and returns the data sources.
 
         Parameters
         ----------
@@ -364,16 +350,24 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         -------
             A dictionary of data source getters
         """
-        return {name: self._get_data_source(name, config[name]) for name in config.keys()}
+        if "data_sources" not in config:
+            return {}
+        return {
+            name: self._get_data_source(name, config.data_sources[name])
+            for name in config.data_sources.keys()
+        }
 
     @staticmethod
-    def _get_data_source(name: str, source: str | float) -> Callable[[Builder, Any], Any]:
+    def _get_data_source(
+        name: str,
+        source: str | float,
+    ) -> str | float | pd.Timedelta | Callable[[Builder], Any]:
         """Parses a data source and returns a callable that can be used to retrieve the data.
 
         Parameters
         ----------
         name
-            The name of the data getter
+            The name of the data source
         source
             The data source to parse
 
@@ -381,26 +375,21 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         -------
             A callable that can be used to retrieve the data
         """
-        if isinstance(source, float):
-            return lambda builder, *_: source
+        if isinstance(source, str):
+            try:
+                return pd.Timedelta(source)
+            except ValueError:
+                pass
+            if "::" in source:
+                module, method = source.split("::")
+                return getattr(import_module(module), method)
 
-        try:
-            timedelta = pd.Timedelta(source)
-            return lambda builder, *_: timedelta
-        except ValueError:
-            pass
+            try:
+                source = TargetString(source)
+            except ValueError:
+                raise ValueError(f"Invalid data source '{source}' for '{name}'.")
 
-        if "::" in source:
-            module, method = source.split("::")
-            return getattr(import_module(module), method)
-
-        try:
-            target_string = TargetString(source)
-            return lambda builder, *_: builder.data.load(target_string)
-        except ValueError:
-            pass
-
-        raise ValueError(f"Invalid data source '{source}' for '{name}'.")
+        return source
 
     ######################
     # Validation methods #
@@ -408,7 +397,6 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
     _CAUSE_KEYS = {
         "model_type",
-        "initial_state",
         "states",
         "transitions",
         "data_sources",
@@ -544,25 +532,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 f"States configuration for cause '{cause_name}' must be a dictionary."
             )
         else:
-            initial_state = cause_config.get("initial_state", None)
             residual_state = cause_config.get("residual_state", None)
-            if initial_state is not None:
-                warnings.warn(
-                    "In the future, the 'initial_state' cause configuration will"
-                    " be used to initialize all simulants into that state. To"
-                    " retain the current behavior of defining a residual state,"
-                    " use the 'residual_state' cause configuration.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                if residual_state is None:
-                    residual_state = initial_state
-                else:
-                    error_messages.append(
-                        "A cause may not have both 'initial_state and"
-                        " 'residual_state' configurations."
-                    )
-
             if residual_state is not None and residual_state not in states_config:
                 error_messages.append(
                     f"Residual state '{residual_state}' for cause '{cause_name}'"
