@@ -28,3 +28,6 @@ py:class LookupTable
 py:meth __init__
 py:class Component
 py:attr lookup_tables
+
+# typing module - needed for Python 3.10 compatibility
+py:data typing.Union
