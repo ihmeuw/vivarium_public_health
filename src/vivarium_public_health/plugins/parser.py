@@ -153,6 +153,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
                 for config_file in config_files.get_value():
                     source = f"{package}::{config_file}"
                     config_path = str(files(package).joinpath(config_file))
+
                     external_config = LayeredConfigTree(config_path)
                     component_config.update(
                         external_config, layer="model_override", source=source
