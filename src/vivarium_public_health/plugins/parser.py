@@ -12,11 +12,11 @@ Health package.
 import warnings
 from collections.abc import Callable
 from importlib import import_module
+from importlib.resources import files
 from typing import Any
 
 import pandas as pd
 from layered_config_tree import LayeredConfigTree
-from pkg_resources import resource_filename
 from vivarium import Component
 from vivarium.framework.components import ComponentConfigurationParser
 from vivarium.framework.components.parser import ParsingError
@@ -152,9 +152,8 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             for package, config_files in component_config["external_configuration"].items():
                 for config_file in config_files.get_value():
                     source = f"{package}::{config_file}"
-                    config_file = resource_filename(package, config_file)
-
-                    external_config = LayeredConfigTree(config_file)
+                    config_path = files(package).joinpath(config_file)
+                    external_config = LayeredConfigTree(config_path)
                     component_config.update(
                         external_config, layer="model_override", source=source
                     )
