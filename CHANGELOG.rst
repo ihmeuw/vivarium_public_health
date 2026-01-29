@@ -1,3 +1,7 @@
+**4.3.20 - 01/29/26**
+
+  - Update groupby calls in NonLogLinearRiskEffect to remove FutureWarning
+
 **4.3.19 - 01/06/26**
 
   - Fail deployment if CHANGELOG does not match current date

@@ -632,7 +632,7 @@ class NonLogLinearRiskEffect(RiskEffect):
             return np.all(df["parameter"].values[1:] >= df["parameter"].values[:-1])
 
         group_is_increasing = rr_data.groupby(demographic_cols).apply(
-            values_are_monotonically_increasing
+            values_are_monotonically_increasing, include_groups=False
         )
         if not group_is_increasing.all():
             raise ValueError(
