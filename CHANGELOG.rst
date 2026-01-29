@@ -1,6 +1,6 @@
 **4.3.20 - 01/29/26**
 
-  - Bugfix: Update groupby calls in NonLogLinearRiskEffect to remove FutureWarning
+  - Update groupby calls in NonLogLinearRiskEffect to remove FutureWarning
 
 **4.3.19 - 01/06/26**
 
