@@ -1,0 +1,66 @@
+name: deploy-manual
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to deploy (e.g., v3.3.15)'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - name: Validate Release Date
+        run: |
+          CHANGELOG_DATE=$(head -n 1 CHANGELOG.rst | grep -oP '\d{2}/\d{2}/\d{2}')          
+          TODAY=$(date +%m/%d/%y)          
+          if [ "$CHANGELOG_DATE" != "$TODAY" ]; then
+            echo "CHANGELOG date: $CHANGELOG_DATE"
+            echo "Today's date: $TODAY"
+            echo "Please update the CHANGELOG.rst with today's date before releasing."
+            exit 1
+          fi
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python --version
+          python -m pip install --upgrade pip
+          pip install setuptools wheel build
+      - name: Test
+        run: |
+          pip install .[test]
+          pytest --runslow ./tests
+      - name: Build
+        run: python -m build
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Send mail
+        # Notify when cron job fails
+        if: failure()
+        uses: dawidd6/action-send-mail@v2
+        with:
+          # mail server settings
+          server_address: smtp.gmail.com
+          server_port: 465
+          # user credentials
+          username: ${{ secrets.NOTIFY_EMAIL }}
+          password: ${{ secrets.NOTIFY_PASSWORD }}
+          # email subject
+          subject: ${{ github.job }} job of ${{ github.repository }} has ${{ job.status }}
+          # email body as text
+          body: ${{ github.job }} job in worflow ${{ github.workflow }} of ${{ github.repository }} has ${{ job.status }}
+          # comma-separated string, send email to
+          to: uw_ihme_simulationscience@uw.edu
+          # from email name
+          from: Vivarium Notifications
