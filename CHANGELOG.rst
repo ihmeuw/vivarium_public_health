@@ -1,3 +1,9 @@
+**4.3.21 - 02/02/26**
+
+  - Use importlib_resources instead of pkg_resources to remove deprecation warning
+
+**cherry picks above here**
+
 **3.2.2 - 2/21/25**
 
  - Bugfix: Use relative risk data to get age intervals for LBWSGRiskEffect
