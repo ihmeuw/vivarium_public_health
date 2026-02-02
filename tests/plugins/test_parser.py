@@ -372,12 +372,17 @@ def causes_config_parser_plugins() -> LayeredConfigTree:
 
 
 @pytest.fixture
-def resource_filename_mock(tmp_path, mocker):
-    resource_filename_mock = mocker.patch(
-        "vivarium_public_health.plugins.parser.resource_filename"
-    )
-    resource_filename_mock.side_effect = lambda _, filename: str(tmp_path / filename)
-    return resource_filename_mock
+def files_mock(tmp_path, mocker):
+    files_mock = mocker.patch("vivarium_public_health.plugins.parser.files")
+
+    # Create a mock that returns a path-like object with joinpath method
+    def mock_files(package):
+        mock_path = mocker.Mock()
+        mock_path.joinpath = lambda filename: tmp_path / filename
+        return mock_path
+
+    files_mock.side_effect = mock_files
+    return files_mock
 
 
 ALL_COMPONENTS_CONFIG_DICT = {
@@ -423,7 +428,7 @@ def test_parser_returns_list_of_components():
     _test_parsing_of_config_file(config)
 
 
-def test_parsing_config_single_external_causes_config_file(tmp_path, resource_filename_mock):
+def test_parsing_config_single_external_causes_config_file(tmp_path, files_mock):
     causes_config = {"causes": {**SIR_MODEL_CONFIG, **COMPLEX_MODEL_CONFIG}}
     with open(tmp_path / "causes_config.yaml", "w") as file:
         yaml.dump(causes_config, file)
@@ -437,9 +442,7 @@ def test_parsing_config_single_external_causes_config_file(tmp_path, resource_fi
     _test_parsing_of_config_file(component_config)
 
 
-def test_parsing_config_multiple_external_causes_config_file(
-    tmp_path, resource_filename_mock
-):
+def test_parsing_config_multiple_external_causes_config_file(tmp_path, files_mock):
     with open(tmp_path / "sir.yaml", "w") as file:
         yaml.dump({"causes": SIR_MODEL_CONFIG}, file)
 
@@ -455,9 +458,7 @@ def test_parsing_config_multiple_external_causes_config_file(
     _test_parsing_of_config_file(component_config)
 
 
-def test_parsing_config_external_and_local_causes_config_file(
-    tmp_path, resource_filename_mock
-):
+def test_parsing_config_external_and_local_causes_config_file(tmp_path, files_mock):
     with open(tmp_path / "sir.yaml", "w") as file:
         yaml.dump({"causes": SIR_MODEL_CONFIG}, file)
 
@@ -472,7 +473,7 @@ def test_parsing_config_external_and_local_causes_config_file(
     _test_parsing_of_config_file(component_config)
 
 
-def test_parsing_no_causes_config_file(tmp_path, resource_filename_mock):
+def test_parsing_no_causes_config_file(tmp_path, files_mock):
     component_config = create_simulation_config_tree(
         {"vivarium": {"testing_utilities": "TestPopulation()"}}
     )

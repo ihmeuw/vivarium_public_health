@@ -1,4 +1,8 @@
-**4.3.20 - 01/30/26**
+**4.3.21 - 02/02/26**
+
+  - Use importlib_resources instead of pkg_resources to remove deprecation warning
+
+**4.3.20 - 01/29/26**
 
   - Update groupby calls in NonLogLinearRiskEffect to remove FutureWarning
 
