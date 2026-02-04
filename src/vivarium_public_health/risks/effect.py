@@ -443,10 +443,10 @@ class NonLogLinearRiskEffect(RiskEffect):
             .reset_index()
         )
         rr_data = rr_data.drop("parameter", axis=1)
-        rr_data[f"{self.risk.name}_exposure_for_nonloglinear_riskeffect_start"] = rr_data[
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_start"] = rr_data[
             "left_exposure"
         ]
-        rr_data[f"{self.risk.name}_exposure_for_nonloglinear_riskeffect_end"] = rr_data[
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_end"] = rr_data[
             "right_exposure"
         ]
         # build lookup table
@@ -518,7 +518,7 @@ class NonLogLinearRiskEffect(RiskEffect):
             # NOTE: We are calling the cached exposure pipeline here for performance
             # purposes (as opposed to the f{self.risk.name}.expousure pipeline).
             exposure = self.population_view.get_attributes(
-                index, f"{self.risk.name}_exposure_for_nonloglinear_riskeffect"
+                index, f"{self.risk.name}_exposure_for_non_loglinear_riskeffect"
             )
             x1, x2 = (
                 rr_intervals["left_exposure"].values,

@@ -187,6 +187,11 @@ class Risk(Component):
         self.randomness = self.get_randomness_stream(builder)
         self.register_exposure_pipeline(builder)
 
+        builder.population.register_initializer(
+            initializer=self.on_initialize_simulants,
+            columns=self.propensity_name,
+            required_resources=[self.randomness],
+        )
         self.includes_non_loglinear_risk_effect = bool(
             [
                 component
@@ -194,14 +199,12 @@ class Risk(Component):
                 if component.startswith(f"non_log_linear_risk_effect.{self.risk.name}_on_")
             ]
         )
-        columns_to_create = [self.propensity_name]
         if self.includes_non_loglinear_risk_effect:
-            columns_to_create.append(self.exposure_column_name)
-        builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
-            columns=columns_to_create,
-            required_resources=[self.randomness],
-        )
+            builder.population.register_initializer(
+                initializer=self.create_exposure_column,
+                columns=self.exposure_column_name,
+                required_resources=[self.exposure_name],
+            )
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration.
@@ -292,6 +295,8 @@ class Risk(Component):
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
         self.population_view.update(propensity)
+
+    def create_exposure_column(self, pop_data: SimulantData) -> None:
         self.update_exposure_column(pop_data.index)
 
     def on_time_step_prepare(self, event: Event) -> None:
