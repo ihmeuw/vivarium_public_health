@@ -300,7 +300,8 @@ class Risk(Component):
         self.update_exposure_column(pop_data.index)
 
     def on_time_step_prepare(self, event: Event) -> None:
-        self.update_exposure_column(event.index)
+        if self.includes_non_loglinear_risk_effect:
+            self.update_exposure_column(event.index)
 
     def update_exposure_column(self, index: pd.Index) -> None:
         """Updates the exposure column with pipeline values.
@@ -312,7 +313,6 @@ class Risk(Component):
         can then request that corresponding "simple" pipeline from the population
         view instead which is significantly faster.
         """
-        if self.includes_non_loglinear_risk_effect:
-            exposure = self.population_view.get_attributes(index, self.exposure_name)
-            exposure.name = self.exposure_column_name
-            self.population_view.update(exposure)
+        exposure = self.population_view.get_attributes(index, self.exposure_name)
+        exposure.name = self.exposure_column_name
+        self.population_view.update(exposure)
