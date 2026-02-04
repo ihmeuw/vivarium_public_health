@@ -13,6 +13,7 @@ from typing import Any
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 
@@ -171,6 +172,7 @@ class Risk(Component):
         self.randomness_stream_name = f"initial_{self.risk.name}_propensity"
         self.propensity_name = f"{self.risk.name}.propensity"
         self.exposure_name = f"{self.risk.name}.exposure"
+        self.exposure_column_name = f"{self.risk.name}_exposure_for_non_loglinear_riskeffect"
 
     #################
     # Setup methods #
@@ -184,9 +186,20 @@ class Risk(Component):
 
         self.randomness = self.get_randomness_stream(builder)
         self.register_exposure_pipeline(builder)
+
+        self.includes_non_loglinear_risk_effect = bool(
+            [
+                component
+                for component in builder.components.list_components()
+                if component.startswith(f"non_log_linear_risk_effect.{self.risk.name}_on_")
+            ]
+        )
+        columns_to_create = [self.propensity_name]
+        if self.includes_non_loglinear_risk_effect:
+            columns_to_create.append(self.exposure_column_name)
         builder.population.register_initializer(
             initializer=self.on_initialize_simulants,
-            columns=self.propensity_name,
+            columns=columns_to_create,
             required_resources=[self.randomness],
         )
 
@@ -279,3 +292,22 @@ class Risk(Component):
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
         self.population_view.update(propensity)
+        self.update_exposure_column(pop_data.index)
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        self.update_exposure_column(event.index)
+
+    def update_exposure_column(self, index: pd.Index) -> None:
+        """Updates the exposure column with pipeline values.
+
+        HACK: This is effectively caching the exposure pipeline for use by other
+        components. Specifically, :meth:`vivarium_public_health.risks.effect.NonLogLinearRiskEffect.get_relative_risk_source`
+        needs the exposure values but calling that pipeline was very slow. By
+        maintaining a cached copy of the exposure values in a private column, we
+        can then request that corresponding "simple" pipeline from the population
+        view instead which is significantly faster.
+        """
+        if self.includes_non_loglinear_risk_effect:
+            exposure = self.population_view.get_attributes(index, self.exposure_name)
+            exposure.name = self.exposure_column_name
+            self.population_view.update(exposure)
