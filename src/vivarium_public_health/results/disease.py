@@ -211,9 +211,9 @@ class DiseaseObserver(PublicHealthObserver):
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         """Initialize the previous state column to the current state"""
-        self.population_view.update(
-            pd.Series(pd.NA, index=pop_data.index, name=self.previous_state_column_name)
-        )
+        previous_states = self.population_view.get_attributes(pop_data.index, self.disease)
+        previous_states.name = self.previous_state_column_name
+        self.population_view.update(previous_states)
 
     def on_time_step_prepare(self, event: Event) -> None:
         """Update the previous state column to the current state.

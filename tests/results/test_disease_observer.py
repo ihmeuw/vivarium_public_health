@@ -99,8 +99,8 @@ def test_previous_state_update(base_config, base_plugins, disease, model):
     state_cols = [observer.previous_state_column_name, observer.disease]
     pop0 = simulation.get_population(state_cols)
 
-    # Assert that the previous_state column is empty at initialization
-    assert pop0[observer.previous_state_column_name].isna().all()
+    # Assert that the previous_state column equals the current state column
+    assert (pop0[observer.previous_state_column_name] == pop0[observer.disease]).all()
     assert pop0[observer.disease].notna().all()
 
     simulation.step()
