@@ -516,7 +516,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         def generate_relative_risk(index: pd.Index) -> pd.Series:
             rr_intervals = self.relative_risk_table(index)
             # NOTE: We are calling the cached exposure pipeline here for performance
-            # purposes (as opposed to the f{self.risk.name}.expousure pipeline).
+            # purposes (as opposed to the f{self.risk.name}.exposure pipeline itself).
             exposure = self.population_view.get_attributes(
                 index, f"{self.risk.name}_exposure_for_non_loglinear_riskeffect"
             )
