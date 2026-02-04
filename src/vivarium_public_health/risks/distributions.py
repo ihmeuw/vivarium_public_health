@@ -165,9 +165,9 @@ class EnsembleDistribution(RiskExposureDistribution):
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get_attributes(
-            index, [self.risk.propensity_name, self.ensemble_propensity]
+            index, [self.risk_propensity, self.ensemble_propensity]
         )
-        quantiles = pop[self.risk.propensity_name]
+        quantiles = pop[self.risk_propensity]
 
         if not pop.empty:
             quantiles = clip(quantiles)
