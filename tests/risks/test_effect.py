@@ -524,7 +524,7 @@ class CustomExposureRisk(Component):
     def __init__(self, risk: str):
         super().__init__()
         self.risk = EntityString(risk)
-        self.exposure_column_name = f"{self.risk.name}_exposure"
+        self.exposure_column_name = f"{self.risk.name}_exposure_for_non_loglinear_riskeffect"
 
     def on_initialize_simulants(self, pop_data: SimulantData) -> None:
         exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
