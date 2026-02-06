@@ -60,6 +60,7 @@ In addition to updating the repository to work with the changes outlined above:
 
 Other changes
 =============
+
 - Make exposure distribution 'ppf()' method an attribute pipeline.
 - Update to allow LookupTables as simulation Resources.
 - Remove need to explicitly pass component when registering Resources.
