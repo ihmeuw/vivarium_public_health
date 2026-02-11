@@ -32,7 +32,8 @@ reusable_pipeline(
       // Add additional branches for cron jobs below.
       // Note: Newly added branches will require a manual trigger of the first build 
       // for subsequent scheduled builds to run.
-      "main"
+      "main",
+      "release-candidate/v5.0.0",
     ], 
     upstream_repos: ["vivarium", "layered_config_tree", "risk_distributions"],
     run_mypy: false,
