@@ -65,6 +65,7 @@ Other changes
 - Remove need to explicitly pass component when registering Resources.
 - Enable agnostic ordering (in model specification) of MortalityObserver and DiseaseModel components.
 - Create new Disability class to register all-cause disability weight pipeline.
+- Support python 3.12 and 3.13
 
 **4.3.21 - 02/02/26**
 
