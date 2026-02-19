@@ -350,13 +350,13 @@ class LBWSGRisk(Risk):
             self.get_continuous_propensity_name(axis) for axis in AXES
         ]
         builder.population.register_initializer(
-            initializer=self.initialize_propensities,
+            initializer=self.initialize_categorical_and_continuous_propensities,
             columns=[self.categorical_propensity_name, *continuous_propensity_columns],
             required_resources=[self.randomness],
         )
 
         builder.population.register_initializer(
-            initializer=self.initialize_exposures,
+            initializer=self.initialize_exposure,
             columns=[self.get_exposure_name(axis) for axis in AXES],
             required_resources=[self.birth_exposure_pipeline],
         )
@@ -384,7 +384,7 @@ class LBWSGRisk(Risk):
     # Event-driven methods #
     ########################
 
-    def initialize_exposures(self, pop_data: SimulantData) -> None:
+    def initialize_exposure(self, pop_data: SimulantData) -> None:
 
         if pop_data.user_data.get("age_end", self.configuration_age_end) == 0:
             self.exposure_distribution.exposure_data_type = "birth_exposure"
@@ -399,7 +399,9 @@ class LBWSGRisk(Risk):
         birth_exposures.rename(columns=col_mapping, inplace=True)
         self.population_view.update(birth_exposures)
 
-    def initialize_propensities(self, pop_data: SimulantData) -> None:
+    def initialize_categorical_and_continuous_propensities(
+        self, pop_data: SimulantData
+    ) -> None:
         propensities = {}
         propensities[self.categorical_propensity_name] = self.randomness.get_draw(
             pop_data.index, additional_key=CATEGORICAL
@@ -455,7 +457,7 @@ class LBWSGRiskEffect(RiskEffect):
         super().setup(builder)
         self.interpolator = self.get_interpolator(builder)
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
+            initializer=self.initialize_relative_risk,
             columns=self.rr_column_names,
             required_resources=[self.exposure_name, "sex"],
         )
@@ -529,7 +531,7 @@ class LBWSGRiskEffect(RiskEffect):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_relative_risk(self, pop_data: SimulantData) -> None:
         pop = self.population_view.get_attributes(pop_data.index, ["sex", self.exposure_name])
         birth_weight = pop[self.exposure_name][BIRTH_WEIGHT]
         gestational_age = pop[self.exposure_name][GESTATIONAL_AGE]

@@ -86,7 +86,7 @@ class BasePopulation(Component):
         self.register_simulants = builder.randomness.register_simulants
 
         # HACK / FIXME [MIC-6746]: Simplify initial population creation
-        #   The current implementation of on_initialize_simulants is complicated
+        #   The current implementation of initialize_population is complicated
         #   and should be simplified/streamlined. Of note, the required_resources for the
         #   "sex" and "location" columns are different depending on whether or not
         #   the simulation's initialized age_start and age_end values are the same.
@@ -94,7 +94,7 @@ class BasePopulation(Component):
         #   any required_resources here. This could potentially lead to a difficult-to-diagnose
         #   bug, but we've been doing this for a long time without known issues.
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
+            initializer=self.initialize_population,
             columns=["age", "sex", "location", "entrance_time", "exit_time"],
         )
 
@@ -121,7 +121,7 @@ class BasePopulation(Component):
     ########################
 
     # TODO: Move most of this docstring to an rst file.
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_population(self, pop_data: SimulantData) -> None:
         """Creates a population with fundamental demographic and simulation properties.
 
         Notes
@@ -321,7 +321,7 @@ class AgeOutSimulants(Component):
         self.step_size = builder.time.step_size()
         builder.population.register_tracked_query("is_aged_out == False")
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants, columns="is_aged_out"
+            initializer=self.initialize_aged_out, columns="is_aged_out"
         )
 
     def update_exit_times(self, index: pd.Index, target: pd.Series) -> pd.Series:
@@ -335,7 +335,7 @@ class AgeOutSimulants(Component):
         target.loc[newly_aged_out_idx] = self.clock() + self.step_size()
         return target
 
-    def on_initialize_simulants(self, pop_data):
+    def initialize_aged_out(self, pop_data):
         self.population_view.update(
             pd.Series(False, index=pop_data.index, name="is_aged_out")
         )
