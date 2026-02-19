@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import Component, InteractiveContext
-from vivarium.framework.lookup.table import ScalarTable
-from vivarium.framework.state_machine import Transition
 from vivarium_testing_utils import FuzzyChecker
 
 from tests.test_utilities import build_table_with_age
@@ -183,7 +181,6 @@ def test_mortality_ylls(setup_sim_with_pop_and_mortality):
 def test_no_unmodeled_causes(setup_sim_with_pop_and_mortality):
     _, __, mortality = setup_sim_with_pop_and_mortality
     # No unmodeled causes by default
-    assert isinstance(mortality.unmodeled_csmr_table, ScalarTable)
     assert mortality.unmodeled_csmr_table.data == 0.0
 
 
