@@ -238,7 +238,7 @@ class RiskAttributableDisease(ExcessMortalityState):
         )
 
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
+            initializer=self.initialize_disease,
             columns=[
                 self.cause.name,
                 self.diseased_event_time_column,
@@ -317,7 +317,7 @@ class RiskAttributableDisease(ExcessMortalityState):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_disease(self, pop_data: SimulantData) -> None:
         new_pop = pd.DataFrame(
             {
                 self.cause.name: f"susceptible_to_{self.cause.name}",

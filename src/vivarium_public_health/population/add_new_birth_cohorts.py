@@ -190,7 +190,7 @@ class FertilityAgeSpecificRates(Component):
         self.simulant_creator = builder.population.get_simulant_creator()
 
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
+            initializer=self.initialize_birth_time_and_parent_id,
             columns=["last_birth_time", "parent_id"],
             required_resources=["sex"],
         )
@@ -211,7 +211,7 @@ class FertilityAgeSpecificRates(Component):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_birth_time_and_parent_id(self, pop_data: SimulantData) -> None:
         """Adds 'last_birth_time' and 'parent' columns to the state table."""
         females = self.population_view.get_filtered_index(pop_data.index, "sex == 'Female'")
 
