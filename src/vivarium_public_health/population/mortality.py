@@ -185,7 +185,7 @@ class Mortality(Component):
         builder.value.register_attribute_modifier("exit_time", self.update_exit_times)
 
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
+            initializer=self.initialize_mortality,
             columns=[
                 "is_alive",
                 self.cause_of_death_column_name,
@@ -253,7 +253,7 @@ class Mortality(Component):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_mortality(self, pop_data: SimulantData) -> None:
         pop_update = pd.DataFrame(
             {
                 "is_alive": True,

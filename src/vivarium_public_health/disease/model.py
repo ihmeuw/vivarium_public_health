@@ -112,7 +112,7 @@ class DiseaseModel(Machine):
                 f" Found: {conversion_types}."
             )
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_state(self, pop_data: SimulantData) -> None:
         """Initialize the simulants in the population.
 
         If all simulants are initialized at age 0, birth prevalence is used.
@@ -131,7 +131,7 @@ class DiseaseModel(Machine):
             for state in self.states
         ]
 
-        super().on_initialize_simulants(pop_data)
+        super().initialize_state(pop_data)
 
     #################
     # Setup methods #
