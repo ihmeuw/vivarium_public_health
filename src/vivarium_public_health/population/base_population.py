@@ -321,7 +321,7 @@ class AgeOutSimulants(Component):
         self.step_size = builder.time.step_size()
         builder.population.register_tracked_query("is_aged_out == False")
         builder.population.register_initializer(
-            initializer=self.initialize_aged_out, columns="is_aged_out"
+            initializer=self.initialize_is_aged_out, columns="is_aged_out"
         )
 
     def update_exit_times(self, index: pd.Index, target: pd.Series) -> pd.Series:
@@ -335,7 +335,7 @@ class AgeOutSimulants(Component):
         target.loc[newly_aged_out_idx] = self.clock() + self.step_size()
         return target
 
-    def initialize_aged_out(self, pop_data):
+    def initialize_is_aged_out(self, pop_data):
         self.population_view.update(
             pd.Series(False, index=pop_data.index, name="is_aged_out")
         )
