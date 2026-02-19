@@ -123,7 +123,7 @@ class BaseDiseaseState(State):
             self.dwell_time_pipeline, source=self.dwell_time_table
         )
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
+            initializer=self.initialize_event_time_and_count,
             columns=[self.event_time_column, self.event_count_column],
             required_resources=self.required_resources,
         )
@@ -144,7 +144,7 @@ class BaseDiseaseState(State):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_event_time_and_count(self, pop_data: SimulantData) -> None:
         """Adds this state's columns to the simulation state table."""
         for transition in self.transition_set:
             if transition.start_active:

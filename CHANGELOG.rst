@@ -1,14 +1,14 @@
 **5.0.0 - TBD/TBD/TBD**
------------------------
+=======================
 
 This release updates the repository to work with `vivarium` v4.0.0 which contains
 several breaking changes.
 
 Vivarium v4.0.0 breaking changes
---------------------------------
+================================
 
 Population management system refactor
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------
 
 - Population views: Replace subviews and 'get()' method with 'get_attributes()',
   'get_attribute_frame()', and 'get_private_columns()'.
@@ -26,12 +26,13 @@ Population management system refactor
   initializer methods per component.
 
   - Remove columns_created, columns_required, and initialization_requirements properties throughout.
+  - Changed the names of all initializer methods (no longer 'on_initialize_simulants').
 
 - Population manager: 'get_population()' now requires an explicit attribute request ("all" is allowed).
 - Stop returning AttributePipelines (previously Pipelines) when registering them.
 
 Miscellaneous
-~~~~~~~~~~~~~
+-------------
 
 - Split managers and their corresponding interfaces into separate modules.
 - Replace 'requires_columns' and 'requires_values' arguments with 'requires_attributes' throughout.

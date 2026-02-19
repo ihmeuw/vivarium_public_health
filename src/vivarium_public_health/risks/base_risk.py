@@ -188,7 +188,7 @@ class Risk(Component):
         self.register_exposure_pipeline(builder)
 
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
+            initializer=self.initialize_risk_propensity,
             columns=self.propensity_name,
             required_resources=[self.randomness],
         )
@@ -201,7 +201,7 @@ class Risk(Component):
         )
         if self.includes_non_loglinear_risk_effect:
             builder.population.register_initializer(
-                initializer=self.create_exposure_column,
+                initializer=self.initialize_exposure,
                 columns=self.exposure_column_name,
                 required_resources=[self.exposure_name],
             )
@@ -290,13 +290,13 @@ class Risk(Component):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_risk_propensity(self, pop_data: SimulantData) -> None:
         propensity = pd.Series(
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
         self.population_view.update(propensity)
 
-    def create_exposure_column(self, pop_data: SimulantData) -> None:
+    def initialize_exposure(self, pop_data: SimulantData) -> None:
         self.update_exposure_column(pop_data.index)
 
     def on_time_step_prepare(self, event: Event) -> None:

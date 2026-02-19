@@ -86,7 +86,7 @@ class DiseaseObserver(PublicHealthObserver):
         self.entity = self.disease_model.cause
         self.transition_stratification_name = f"transition_{self.disease}"
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
+            initializer=self.initialize_previous_state,
             columns=self.previous_state_column_name,
             required_resources=[self.disease],
         )
@@ -209,7 +209,7 @@ class DiseaseObserver(PublicHealthObserver):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_previous_state(self, pop_data: SimulantData) -> None:
         """Initialize the previous state column to the current state"""
         previous_states = self.population_view.get_attributes(pop_data.index, self.disease)
         previous_states.name = self.previous_state_column_name

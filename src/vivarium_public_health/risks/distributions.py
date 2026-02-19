@@ -10,7 +10,6 @@ exposure distributions.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -106,7 +105,7 @@ class EnsembleDistribution(RiskExposureDistribution):
         super().setup(builder)
         self.randomness = builder.randomness.get_stream(self.ensemble_propensity)
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants,
+            initializer=self.initialize_ensemble_propensity,
             columns=self.ensemble_propensity,
             required_resources=[self.randomness],
         )
@@ -153,7 +152,7 @@ class EnsembleDistribution(RiskExposureDistribution):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_ensemble_propensity(self, pop_data: SimulantData) -> None:
         ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(
             self.ensemble_propensity
         )
