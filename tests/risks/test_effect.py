@@ -526,7 +526,7 @@ class CustomExposureRisk(Component):
         self.risk = EntityString(risk)
         self.exposure_column_name = f"{self.risk.name}_exposure_for_non_loglinear_riskeffect"
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_exposure(self, pop_data: SimulantData) -> None:
         exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
         self.population_view.update(exposure_col)
 
@@ -540,7 +540,7 @@ class CustomExposureRisk(Component):
             f"{self.risk.name}.exposure", source=self.get_exposure
         )
         builder.population.register_initializer(
-            initializer=self.on_initialize_simulants, columns=self.exposure_column_name
+            initializer=self.initialize_exposure, columns=self.exposure_column_name
         )
 
     def get_exposure(self, index: pd.Index) -> pd.Series:
