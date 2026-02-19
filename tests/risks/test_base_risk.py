@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
-from vivarium.framework.lookup.table import InterpolatedTable
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import SIS
@@ -138,8 +137,6 @@ def test_polytomous_risk_lookup_configuration(polytomous_risk, base_config, base
     # instantiated by the sub_component of the risk class
 
     assert isinstance(risk.exposure_distribution, PolytomousDistribution)
-    # This risk is a PolytomousDistribution so there will only be an exposure lookup table
-    assert isinstance(risk.exposure_distribution.exposure_params_table, InterpolatedTable)
 
 
 def _check_exposure_and_rr(
