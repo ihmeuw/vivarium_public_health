@@ -16,14 +16,14 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 from vivarium.framework.values import list_combiner, union_post_processor
 
+from vivarium_public_health.disease.state import ExcessMortalityState
 from vivarium_public_health.disease.transition import TransitionString
-from vivarium_public_health.utilities import EntityString, get_lookup_columns, is_non_zero
+from vivarium_public_health.utilities import EntityString, is_non_zero
 
 
-class RiskAttributableDisease(Component):
+class RiskAttributableDisease(ExcessMortalityState):
     """Component to model a disease fully attributed by a risk.
 
     For some (risk, cause) pairs with population attributable fraction
@@ -145,22 +145,6 @@ class RiskAttributableDisease(Component):
         }
 
     @property
-    def columns_created(self) -> list[str]:
-        return [
-            self.cause.name,
-            self.diseased_event_time_column,
-            self.susceptible_event_time_column,
-        ]
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return ["alive"]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.exposure_pipeline]
-
-    @property
     def state_names(self):
         return self._state_names
 
@@ -187,10 +171,9 @@ class RiskAttributableDisease(Component):
             TransitionString(f"susceptible_to_{self.cause.name}_TO_{self.cause.name}")
         ]
 
-        self.excess_mortality_rate_pipeline_name = f"{self.cause.name}.excess_mortality_rate"
-        self.excess_mortality_rate_paf_pipeline_name = (
-            f"{self.excess_mortality_rate_pipeline_name}.paf"
-        )
+        self.disability_weight_pipeline = f"{self.cause.name}.disability_weight"
+        self.excess_mortality_rate_pipeline = f"{self.cause.name}.excess_mortality_rate"
+        self.excess_mortality_rate_paf_pipeline = f"{self.excess_mortality_rate_pipeline}.paf"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder):
@@ -198,58 +181,70 @@ class RiskAttributableDisease(Component):
         self.adjust_state_and_transitions()
         self.clock = builder.time.clock()
 
-        self.disability_weight = builder.value.register_value_producer(
-            f"{self.cause.name}.disability_weight",
+        self.raw_disability_weight_table = self.build_lookup_table(
+            builder, "raw_disability_weight"
+        )
+        self.cause_specific_mortality_rate_table = self.build_lookup_table(
+            builder, "cause_specific_mortality_rate"
+        )
+        self.excess_mortality_rate_table = self.build_lookup_table(
+            builder, "excess_mortality_rate"
+        )
+        if self._has_excess_mortality is None:
+            self._has_excess_mortality = is_non_zero(self.excess_mortality_rate_table.data)
+
+        self.population_attributable_fraction_table = self.build_lookup_table(
+            builder, "population_attributable_fraction"
+        )
+
+        builder.value.register_attribute_producer(
+            self.disability_weight_pipeline,
             source=self.compute_disability_weight,
-            component=self,
-            required_resources=get_lookup_columns(
-                [self.lookup_tables["raw_disability_weight"]]
-            ),
+            required_resources=self.raw_disability_weight_table,
         )
-        builder.value.register_value_modifier(
-            "all_causes.disability_weight",
-            modifier=self.disability_weight,
-            component=self,
+        builder.value.register_attribute_modifier(
+            "all_causes.disability_weight", modifier=self.disability_weight_pipeline
         )
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
-            component=self,
-            required_resources=get_lookup_columns(
-                [self.lookup_tables["cause_specific_mortality_rate"]]
-            ),
+            required_resources=self.cause_specific_mortality_rate_table,
         )
-        self.has_excess_mortality = is_non_zero(self.lookup_tables["excess_mortality_rate"])
-
-        self.excess_mortality_rate = builder.value.register_value_producer(
-            self.excess_mortality_rate_pipeline_name,
+        builder.value.register_attribute_producer(
+            self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
-            component=self,
-            required_resources=get_lookup_columns(
-                [self.lookup_tables["excess_mortality_rate"]]
-            )
-            + [self.joint_paf],
+            required_resources=[self.excess_mortality_rate_table] + [self.joint_paf],
         )
-        self.joint_paf = builder.value.register_value_producer(
-            self.excess_mortality_rate_paf_pipeline_name,
-            source=lambda idx: [self.lookup_tables["population_attributable_fraction"](idx)],
-            component=self,
+        # We need the emr pipeline later
+        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
+        self.joint_paf = builder.value.register_attribute_producer(
+            self.excess_mortality_rate_paf_pipeline,
+            source=lambda idx: [self.population_attributable_fraction_table(idx)],
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
-        builder.value.register_value_modifier(
+        builder.value.register_attribute_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
-            component=self,
-            required_resources=[self.excess_mortality_rate],
+            required_resources=[self.excess_mortality_rate_pipeline],
         )
 
         distribution = builder.data.load(f"{self.risk}.distribution")
-        self.exposure_pipeline = builder.value.get_value(f"{self.risk.name}.exposure")
+        self.exposure_pipeline = builder.value.get_attribute(f"{self.risk.name}.exposure")
         threshold = builder.configuration[self.name].threshold
 
         self.filter_by_exposure = self.get_exposure_filter(
             distribution, self.exposure_pipeline, threshold
+        )
+
+        builder.population.register_initializer(
+            initializer=self.initialize_disease,
+            columns=[
+                self.cause.name,
+                self.diseased_event_time_column,
+                self.susceptible_event_time_column,
+            ],
+            required_resources=[self.exposure_pipeline],
         )
 
     #################
@@ -322,7 +317,7 @@ class RiskAttributableDisease(Component):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_disease(self, pop_data: SimulantData) -> None:
         new_pop = pd.DataFrame(
             {
                 self.cause.name: f"susceptible_to_{self.cause.name}",
@@ -340,7 +335,9 @@ class RiskAttributableDisease(Component):
         self.population_view.update(new_pop)
 
     def on_time_step(self, event: Event) -> None:
-        pop = self.population_view.get(event.index, query='alive == "alive"')
+        pop = self.population_view.get_private_columns(
+            event.index, self.private_columns, query="is_alive == True"
+        )
         sick = self.filter_by_exposure(pop.index)
         #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
         if self.recoverable:
@@ -364,7 +361,7 @@ class RiskAttributableDisease(Component):
     def compute_disability_weight(self, index):
         disability_weight = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
-        disability_weight.loc[with_condition] = self.lookup_tables["raw_disability_weight"](
+        disability_weight.loc[with_condition] = self.raw_disability_weight_table(
             with_condition
         )
         return disability_weight
@@ -372,7 +369,7 @@ class RiskAttributableDisease(Component):
     def compute_excess_mortality_rate(self, index):
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
-        base_excess_mort = self.lookup_tables["excess_mortality_rate"](with_condition)
+        base_excess_mort = self.excess_mortality_rate_table(with_condition)
         joint_mediated_paf = self.joint_paf(with_condition)
         excess_mortality_rate.loc[with_condition] = base_excess_mort * (
             1 - joint_mediated_paf.values
@@ -380,7 +377,7 @@ class RiskAttributableDisease(Component):
         return excess_mortality_rate
 
     def adjust_cause_specific_mortality_rate(self, index, rate):
-        return rate + self.lookup_tables["cause_specific_mortality_rate"](index)
+        return rate + self.cause_specific_mortality_rate_table(index)
 
     def adjust_mortality_rate(self, index, rates_df):
         """Modifies the baseline mortality rate for a simulant if they are in this state.
@@ -392,7 +389,9 @@ class RiskAttributableDisease(Component):
         rates_df
 
         """
-        rate = self.excess_mortality_rate(index, skip_post_processor=True)
+        rate = self.population_view.get_attributes(
+            index, self.excess_mortality_rate_pipeline, skip_post_processor=True
+        )
         rates_df[self.cause.name] = rate
         return rates_df
 
@@ -401,8 +400,7 @@ class RiskAttributableDisease(Component):
     ##################
 
     def with_condition(self, index):
-        pop = self.population_view.subview(["alive", self.cause.name]).get(index)
-        with_condition = pop.loc[
-            (pop[self.cause.name] == self.cause.name) & (pop["alive"] == "alive")
-        ].index
-        return with_condition
+        return self.population_view.get_filtered_index(
+            index,
+            query=f'is_alive == True and {self.cause.name} == "{self.cause.name}"',
+        )

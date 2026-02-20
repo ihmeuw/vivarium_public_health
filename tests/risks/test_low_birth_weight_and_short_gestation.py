@@ -86,22 +86,31 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
         }
     )
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
-    pop = sim.get_population()
+    expected_pipeline_name = (
+        f"{lbwsg_effect.risk.name}_on_{lbwsg_effect.target.name}.relative_risk"
+    )
+    assert expected_pipeline_name in sim.get_attribute_names()
+
+    pop = sim.get_population(
+        [
+            "age",
+            "sex",
+            "birth_weight.exposure",
+            "gestational_age.exposure",
+            "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters",
+            expected_pipeline_name,
+        ]
+    )
     # Verify exposure is used instead of birth_exposure since age end is 1.0
     # Check values of pipeline match birth exposure data since age_end is 0.0
-    exposure_pipeline_values = sim.get_value(
+    exposure_pipeline_values = pop[
         "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"
-    )(pop.index)
+    ]
     assert isinstance(exposure_pipeline_values, pd.DataFrame)
     assert "cat81" in exposure_pipeline_values.columns
     assert "cat82" in exposure_pipeline_values.columns
     assert (exposure_pipeline_values["cat81"] == 0.65).all()
     assert (exposure_pipeline_values["cat82"] == 0.35).all()
-
-    expected_pipeline_name = (
-        f"effect_of_{lbwsg_effect.risk.name}_on_{lbwsg_effect.target.name}.relative_risk"
-    )
-    assert expected_pipeline_name in sim.list_values()
 
     # Get age group names to lookup rr interpolator later
     def map_age_groups(value):
@@ -112,7 +121,7 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
 
     mapped_age_groups = pop["age"].apply(map_age_groups)
     mapped_age_groups = mapped_age_groups.apply(to_snake_case)
-    sim_data = pop[["sex", "birth_weight_exposure", "gestational_age_exposure"]].copy()
+    sim_data = pop[["sex", "birth_weight.exposure", "gestational_age.exposure"]].copy()
     sim_data["age_group_name"] = mapped_age_groups
 
     # Test the 4 different demographic groups
@@ -123,11 +132,11 @@ def test_lbwsg_risk_effect_rr_pipeline(base_config, base_plugins, mock_rr_interp
                 (sim_data["sex"] == sex) & (sim_data["age_group_name"] == age_group_name)
             ]
             sub_pop = sim_data.loc[demo_idx]
-            actual_rr = sim.get_value(expected_pipeline_name)(demo_idx)
+            actual_rr = pop.loc[demo_idx, expected_pipeline_name]
             sub_pop["expected_rr"] = np.exp(
                 interpolator(
-                    sub_pop["gestational_age_exposure"],
-                    sub_pop["birth_weight_exposure"],
+                    sub_pop["gestational_age.exposure"],
+                    sub_pop["birth_weight.exposure"],
                     grid=False,
                 )
             )
@@ -184,11 +193,10 @@ def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end)
         }
     )
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, lbwsg_effect, data)
-    pop = sim.get_population()
     # Check values of pipeline match birth exposure data since age_end is 0.0
-    exposure_pipeline_values = sim.get_value(
+    exposure_pipeline_values = sim.get_population(
         "risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"
-    )(pop.index)
+    )
     assert isinstance(exposure_pipeline_values, pd.DataFrame)
     assert "cat81" in exposure_pipeline_values.columns
     assert "cat82" in exposure_pipeline_values.columns
@@ -200,8 +208,7 @@ def test_use_exposure(base_config, base_plugins, mock_rr_interpolators, age_end)
     assert (exposure_pipeline_values["cat82"] == exposure_values[age_end]["cat82"]).all()
 
     # Assert LBWSG birth exposure columns were created
-    assert "birth_weight_exposure" in pop.columns
-    assert "gestational_age_exposure" in pop.columns
+    sim.get_population(["birth_weight.exposure", "gestational_age.exposure"])
 
 
 @pytest.mark.parametrize("exposure_key", ["birth_exposure", "exposure", "missing"])

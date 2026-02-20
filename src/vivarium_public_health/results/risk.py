@@ -7,10 +7,7 @@ This module contains tools for observing risk exposure during the simulation.
 
 """
 
-from typing import Any
-
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 
 from vivarium_public_health.results.columns import COLUMNS
@@ -45,7 +42,7 @@ class CategoricalRiskObserver(PublicHealthObserver):
     ----------
     risk
         The name of the risk factor.
-    exposure_pipeline_name
+    exposure_pipeline
         The name of the pipeline that produces the risk factor exposure.
     step_size
         The time step size of the simulation.
@@ -53,15 +50,6 @@ class CategoricalRiskObserver(PublicHealthObserver):
         The categories of the risk factor.
 
     """
-
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        """The columns required by this observer."""
-        return ["alive"]
 
     #####################
     # Lifecycle methods #
@@ -77,7 +65,7 @@ class CategoricalRiskObserver(PublicHealthObserver):
         """
         super().__init__()
         self.risk = risk
-        self.exposure_pipeline_name = f"{self.risk}.exposure"
+        self.exposure_pipeline = f"{self.risk}.exposure"
 
     #################
     # Setup methods #
@@ -107,15 +95,13 @@ class CategoricalRiskObserver(PublicHealthObserver):
         builder.results.register_stratification(
             f"{self.risk}",
             list(self.categories.keys()),
-            requires_values=[self.exposure_pipeline_name],
+            requires_attributes=[self.exposure_pipeline],
         )
         self.register_adding_observation(
             builder=builder,
             name=f"person_time_{self.risk}",
-            pop_filter=f'alive == "alive" and tracked==True',
+            pop_filter=f"is_alive == True",
             when="time_step__prepare",
-            requires_columns=["alive"],
-            requires_values=[self.exposure_pipeline_name],
             additional_stratifications=self.configuration.include + [self.risk],
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_risk_category_person_time,

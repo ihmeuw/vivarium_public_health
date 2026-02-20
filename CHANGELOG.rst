@@ -1,3 +1,73 @@
+**5.0.0 - TBD/TBD/TBD**
+=======================
+
+This release updates the repository to work with `vivarium` v4.0.0 which contains
+several breaking changes.
+
+Vivarium v4.0.0 breaking changes
+================================
+
+Population management system refactor
+-------------------------------------
+
+- Population views: Replace subviews and 'get()' method with 'get_attributes()',
+  'get_attribute_frame()', and 'get_private_columns()'.
+
+  - You must now explicitly request which attributes you want to retrieve.
+  - Write access (via the 'update()' method) is now restricted to private Columns
+    created by the component the view is attached to.
+
+- Population views: Remove support for population view default queries.
+- Population interface: Replace the 'tracked' column and corresponding auto-filter
+  logic with a new 'register_tracked_query()' method and 'include_untracked' argument
+  when getting attributes or private columns from a population view.
+- Population interface: Require explicit initializer method registration instead 
+  of inferring from methods named 'on_initialize_simulants()'. Supports multiple
+  initializer methods per component.
+
+  - Remove columns_created, columns_required, and initialization_requirements properties throughout.
+  - Changed the names of all initializer methods (no longer 'on_initialize_simulants').
+
+- Population manager: 'get_population()' now requires an explicit attribute request ("all" is allowed).
+- Stop returning AttributePipelines (previously Pipelines) when registering them.
+
+Miscellaneous
+-------------
+
+- Split managers and their corresponding interfaces into separate modules.
+- Replace 'requires_columns' and 'requires_values' arguments with 'requires_attributes' throughout.
+- Replace 'dependencies' arguments with 'required_resources' throughout.
+- Change default behavior of state machine 'allow_self_transition' to True.
+
+Other breaking changes
+======================
+
+In addition to updating the repository to work with the changes outlined above:
+
+- Replace BasePopulation's 'tracked' column with an 'is_aged_out' column.
+
+  - AgeOutSimulants registers a modifier to the corresponding 'is_aged_out' attribute pipeline.
+  - AgeOutSimulants also registers 'is_aged_out == True' as a tracked query.
+
+- Change 'alive' string column to an 'is_alive' boolean column.
+- Move 'is_alive' column handling from BasePopulation to Mortality and make Mortality a sub-component
+  of BasePopulation.
+- Update to work with modern LookupTable creation.
+- Remove support for 'intial_state' argument to DiseaseModel.
+- Remove MSLT package.
+- Remove deprecated 'get_data_functions' arguments.
+- Set disease state 'allow_self_transition' default to True.
+
+Other changes
+=============
+
+- Make exposure distribution 'ppf()' method an attribute pipeline.
+- Update to allow LookupTables as simulation Resources.
+- Remove need to explicitly pass component when registering Resources.
+- Enable agnostic ordering (in model specification) of MortalityObserver and DiseaseModel components.
+- Create new Disability class to register all-cause disability weight pipeline.
+- Support python 3.12 and 3.13
+
 **4.3.21 - 02/02/26**
 
   - Use importlib_resources instead of pkg_resources to remove deprecation warning

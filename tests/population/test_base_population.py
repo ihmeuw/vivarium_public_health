@@ -36,11 +36,10 @@ def test_BasePopulation(
     time_step = 100  # Days
     start_population_size = len(full_simulants)
 
-    generate_population_mock.return_value = full_simulants.drop(columns=["tracked"])
+    generate_population_mock.return_value = full_simulants
 
     base_pop = bp.BasePopulation()
 
-    components = [base_pop]
     config.update(
         {
             "population": {
@@ -48,11 +47,13 @@ def test_BasePopulation(
                 "include_sex": include_sex,
             },
             "time": {"step_size": time_step},
+            # Turn off mortality to ensure everyone ages out rather than dies
+            "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
         },
         layer="override",
     )
     simulation = InteractiveContext(
-        components=components, configuration=config, plugin_configuration=base_plugins
+        components=[base_pop], configuration=config, plugin_configuration=base_plugins
     )
     time_start = simulation._clock.time
 
@@ -76,17 +77,15 @@ def test_BasePopulation(
     assert mock_args["age_params"] == age_params
     assert mock_args["demographic_proportions"].equals(sub_pop)
     assert mock_args["randomness_streams"] == base_pop.randomness
-    pop = simulation.get_population()
-    for column in pop:
-        assert pop[column].equals(full_simulants[column])
+    pop = simulation.get_population(full_simulants.columns)
+    assert set(base_pop.private_columns) == set(full_simulants.columns)
+    assert pop.equals(full_simulants)
 
-    final_ages = pop.age + num_days / utilities.DAYS_PER_YEAR
-
+    final_ages = pop["age"] + num_days / utilities.DAYS_PER_YEAR
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-
-    pop = simulation.get_population()
+    new_ages = simulation.get_population("age").squeeze()
     assert np.allclose(
-        pop.age, final_ages, atol=0.5 / utilities.DAYS_PER_YEAR
+        new_ages, final_ages, atol=0.5 / utilities.DAYS_PER_YEAR
     )  # Within a half of a day.
 
 
@@ -103,6 +102,8 @@ def test_age_out_simulants(config, base_plugins):
                 "untracking_age": 5,
             },
             "time": {"step_size": time_step},
+            # Turn off mortality to ensure everyone ages out rather than dies
+            "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
         },
         layer="override",
     )
@@ -111,13 +112,75 @@ def test_age_out_simulants(config, base_plugins):
         components=components, configuration=config, plugin_configuration=base_plugins
     )
     time_start = simulation._clock.time
-    assert len(simulation.get_population()) == len(simulation.get_population().age.unique())
+    assert len(simulation.get_population_index()) == len(
+        simulation.get_population("age").unique()
+    )
     simulation.run_for(duration=pd.Timedelta(days=num_days))
-    pop = simulation.get_population()
-    assert len(pop) == len(pop[~pop.tracked])
-    exit_after_300_days = pop.exit_time >= time_start + pd.Timedelta(300, unit="D")
-    exit_before_400_days = pop.exit_time <= time_start + pd.Timedelta(400, unit="D")
+    pop = simulation.get_population(["is_aged_out", "exit_time"])
+    assert all(pop["is_aged_out"])
+    exit_after_300_days = pop["exit_time"] >= time_start + pd.Timedelta(300, unit="D")
+    exit_before_400_days = pop["exit_time"] <= time_start + pd.Timedelta(400, unit="D")
     assert len(pop) == len(pop[exit_after_300_days & exit_before_400_days])
+
+
+def test_aged_out_simulant_untracking(
+    config, base_plugins, fuzzy_checker: FuzzyChecker
+) -> None:
+    start_population_size = 10000
+    initialization_age_min = 4
+    initialization_age_max = initialization_age_min + 1
+    time_step = utilities.DAYS_PER_YEAR / 2  # Days, ~0.5 years
+    config.update(
+        {
+            "population": {
+                "population_size": start_population_size,
+                "initialization_age_min": initialization_age_min,
+                "initialization_age_max": initialization_age_max,
+                "untracking_age": initialization_age_max,
+            },
+            "time": {
+                "step_size": time_step,
+                # Change the year so we don't go outside of data
+                "start": {"year": 1991},
+            },
+            # Turn off mortality to ensure everyone ages out rather than dies
+            "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
+        },
+        layer="override",
+    )
+    components = [bp.BasePopulation()]
+    sim = InteractiveContext(
+        components=components, configuration=config, plugin_configuration=base_plugins
+    )
+    pop0 = sim.get_population(["age", "is_aged_out"])
+    assert not pop0["is_aged_out"].any()
+    # Take one step which will age everyone 0.5 years. This should age ~50% of the
+    # population out of the sim.
+    sim.step()
+    pop1 = sim.get_population(["age", "is_aged_out"])
+    fuzzy_checker.fuzzy_assert_proportion(
+        observed_numerator=pop1["is_aged_out"].sum(),
+        observed_denominator=len(pop1),
+        target_proportion=0.5,
+    )
+    # make sure everyone aged
+    assert all(pop1["age"] - pop0["age"] == utilities.to_years(pd.Timedelta(time_step, "D")))
+    # Take another step which should age the rest of the population out of the sim.
+    sim.step()
+    pop2 = sim.get_population(["age", "is_aged_out"])
+    fuzzy_checker.fuzzy_assert_proportion(
+        observed_numerator=pop2["is_aged_out"].sum(),
+        observed_denominator=len(pop2),
+        target_proportion=1.0,
+    )
+    # make sure no one previously aged out had their age increase
+    aged_out_mask = pop1["is_aged_out"]
+    assert all(pop2.loc[aged_out_mask, "age"] == pop1.loc[aged_out_mask, "age"])
+    # but everyone else should have
+    assert all(
+        pop2.loc[~aged_out_mask, "age"] - pop1.loc[~aged_out_mask, "age"]
+        == utilities.to_years(pd.Timedelta(time_step, "D"))
+    )
 
 
 def test_generate_population_age_bounds(
@@ -327,7 +390,7 @@ def test_scaled_population(
     sim = InteractiveContext(
         components=[scaled_pop], configuration=config, plugin_configuration=base_plugins
     )
-    pop = sim.get_population()
+    pop = sim.get_population(["age", "sex"])
     # Use FuzzyChecker to compare population structure to demographic proportion by
     # iterating through each age_group/sex combination
     scaled_structure = pop_structure.copy()
@@ -471,6 +534,86 @@ def test_scaled_population__format_data_inputs(
         expected = (formatted[0] * formatted[1]).reset_index()
         data = (formatted_pop_structure * formatted_scalar_data).reset_index()
         pd.testing.assert_frame_equal(data, expected)
+
+
+def test_base_population_creates_disability_weight_pipeline(config, base_plugins):
+    """Test that BasePopulation creates the all-cause disability weight attribute pipeline."""
+    start_population_size = 100
+    config.update(
+        {
+            "population": {
+                "population_size": start_population_size,
+            },
+        },
+        layer="override",
+    )
+    sim = InteractiveContext(
+        components=[bp.BasePopulation()],
+        configuration=config,
+        plugin_configuration=base_plugins,
+    )
+
+    disability_weights = sim.get_population("all_causes.disability_weight").squeeze()
+
+    # Verify that disability weights are 0.0 by default (no disability)
+    assert len(disability_weights) == start_population_size
+    assert all(disability_weights == 0.0)
+
+
+@pytest.mark.parametrize(
+    "disability_weight_value_0, disability_weight_value_1",
+    [(0.25, 0.5), (0.99, 0.1), (0.1, 0.1)],
+)
+def test_disability_weight_pipeline_combination(
+    config,
+    base_plugins,
+    disability_disease_models,
+):
+    """Test that BasePopulation combines disability weights from multiple sources correctly.
+
+    When multiple disease states contribute disability weights, they should be combined
+    using the multiplicative formula: 1 - ((1 - dw1) * (1 - dw2)).
+    """
+    model_0, model_1 = disability_disease_models
+
+    simulation = InteractiveContext(
+        components=[bp.BasePopulation(), model_0, model_1],
+        configuration=config,
+        plugin_configuration=base_plugins,
+    )
+
+    simulation.step()
+    simulation.step()
+
+    pop = simulation.get_population(["model_0", "model_1"])
+    sub_pop_mask = {
+        "healthy": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "healthy_1"),
+        "sick_0": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "healthy_1"),
+        "sick_1": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "sick_cause_1"),
+        "sick_0_1": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "sick_cause_1"),
+    }
+
+    # Get pipelines
+    disability_weight_all_causes = simulation._values.get_attribute(
+        "all_causes.disability_weight"
+    )
+    disability_weight_0 = simulation._values.get_attribute("sick_cause_0.disability_weight")
+    disability_weight_1 = simulation._values.get_attribute("sick_cause_1.disability_weight")
+
+    # Check that disability weights are combined correctly using the multiplicative formula
+    for sub_pop_key in ["healthy", "sick_0", "sick_1", "sick_0_1"]:
+        expected_combined_weight = 1 - (
+            (1 - disability_weight_0(pop[sub_pop_mask[sub_pop_key]].index))
+            * (1 - disability_weight_1(pop[sub_pop_mask[sub_pop_key]].index))
+        )
+        actual_combined_weight = disability_weight_all_causes(
+            pop[sub_pop_mask[sub_pop_key]].index
+        )
+        assert np.isclose(
+            actual_combined_weight,
+            expected_combined_weight,
+            rtol=0.0000001,
+        ).all()
 
 
 def test__find_bin_start_index():

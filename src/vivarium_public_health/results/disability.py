@@ -9,11 +9,9 @@ in the simulation.
 """
 
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
 from loguru import logger
 from pandas.api.types import CategoricalDtype
 from vivarium.framework.engine import Builder
-from vivarium.framework.values import Pipeline, list_combiner, union_post_processor
 
 from vivarium_public_health.disease import DiseaseState, RiskAttributableDisease
 from vivarium_public_health.results.columns import COLUMNS
@@ -42,8 +40,6 @@ class DisabilityObserver(PublicHealthObserver):
                         - "sample_stratification"
     Attributes
     ----------
-    disability_weight_pipeline_name
-        The name of the pipeline that produces disability weights.
     step_size
         The time step size of the simulation.
     disability_weight
@@ -62,14 +58,6 @@ class DisabilityObserver(PublicHealthObserver):
         """The classes to be considered as causes of disability."""
         return [DiseaseState, RiskAttributableDisease]
 
-    #####################
-    # Lifecycle methods #
-    #####################
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.disability_weight_pipeline_name = "all_causes.disability_weight"
-
     #################
     # Setup methods #
     #################
@@ -77,7 +65,6 @@ class DisabilityObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         """Set up the observer."""
         self.step_size = pd.Timedelta(days=builder.configuration.time.step_size)
-        self.disability_weight = self.get_disability_weight_pipeline(builder)
         self.set_causes_of_disability(builder)
 
     def set_causes_of_disability(self, builder: Builder) -> None:
@@ -136,34 +123,12 @@ class DisabilityObserver(PublicHealthObserver):
         self.register_adding_observation(
             builder=builder,
             name="ylds",
-            pop_filter='tracked == True and alive == "alive"',
+            pop_filter="is_alive == True",
             when="time_step__prepare",
-            requires_columns=["alive"],
-            requires_values=cause_pipelines,
+            requires_attributes=cause_pipelines,
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
-            aggregator_sources=cause_pipelines,
             aggregator=self.disability_weight_aggregator,
-        )
-
-    def get_disability_weight_pipeline(self, builder: Builder) -> Pipeline:
-        """Register (and return) the pipeline that produces disability weights.
-
-        Parameters
-        ----------
-        builder
-            The builder object for the simulation.
-
-        Returns
-        -------
-            The pipeline that produces disability weights.
-        """
-        return builder.value.register_value_producer(
-            self.disability_weight_pipeline_name,
-            source=lambda index: [pd.Series(0.0, index=index)],
-            component=self,
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
         )
 
     ###############

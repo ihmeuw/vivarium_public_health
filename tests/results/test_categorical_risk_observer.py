@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
+from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.risk import CategoricalRiskObserver
 from vivarium_public_health.results.stratification import ResultsStratifier
@@ -49,7 +49,7 @@ def simulation_after_one_step(base_config, base_plugins, categorical_risk):
     observer = CategoricalRiskObserver(f"{risk.risk.name}")
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             ResultsStratifier(),
             risk,
             observer,
@@ -98,8 +98,7 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
     _, risk_data = categorical_risk
     exposure_categories = risk_data["categories"].keys()
 
-    pop = simulation_after_one_step.get_population()
-    exposure = simulation_after_one_step.get_value("test_risk.exposure")(pop.index)
+    pop = simulation_after_one_step.get_population(["sex", "test_risk.exposure"])
 
     results = simulation_after_one_step.get_results()
     assert set(results) == set(["person_time_test_risk"])
@@ -123,7 +122,7 @@ def test_observation_correctness(base_config, simulation_after_one_step, categor
     for category in exposure_categories:
         for sex in ["Male", "Female"]:
             expected_person_time = sum(
-                (exposure == category) & (pop["sex"] == sex)
+                (pop["test_risk.exposure"] == category) & (pop["sex"] == sex)
             ) * to_years(time_step)
             actual_person_time = results.loc[
                 (results[COLUMNS.SUB_ENTITY] == category) & (results["sex"] == sex),
@@ -144,7 +143,7 @@ def test_different_results_per_risk(base_config, base_plugins, categorical_risk)
 
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             ResultsStratifier(),
             risk,
             risk_observer,
@@ -176,7 +175,7 @@ def test_category_exclusions(base_config, base_plugins, categorical_risk, exclus
     observer = CategoricalRiskObserver(f"{risk.risk.name}")
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             ResultsStratifier(),
             risk,
             observer,

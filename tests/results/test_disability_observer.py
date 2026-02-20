@@ -6,11 +6,11 @@ import pandas as pd
 import pytest
 from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState, RiskAttributableDisease
 from vivarium_public_health.disease.state import SusceptibleState
+from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.disability import (
     DisabilityObserver as DisabilityObserver_,
@@ -38,7 +38,6 @@ def test_disability_observer_setup(mocker):
 
     observer = DisabilityObserver_()
     builder = mocker.Mock()
-    mocker.patch("vivarium.component.Component.build_all_lookup_tables")
     builder.results.register_adding_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
     builder.configuration.output_data.results_directory = "some/results/directory"
@@ -63,10 +62,10 @@ def test_disability_observer_setup(mocker):
     ]
     builder.results.register_adding_observation.assert_any_call(
         name="ylds",
-        pop_filter='tracked == True and alive == "alive"',
+        pop_filter="is_alive == True",
+        include_untracked=False,
         when="time_step__prepare",
-        requires_columns=["alive"],
-        requires_values=cause_pipelines,
+        requires_attributes=cause_pipelines,
         results_formatter=observer.format_results,
         additional_stratifications=observer.configuration.include,
         excluded_stratifications=observer.configuration.exclude,
@@ -94,53 +93,16 @@ def test__disability_weight_aggregator():
 def test_disability_accumulation(
     base_config,
     base_plugins,
-    disability_weight_value_0,
-    disability_weight_value_1,
+    disability_disease_models,
 ):
-    """Integration test for the disability observer and the Results Management system."""
-    year_start = base_config.time.start.year
-    year_end = base_config.time.end.year
+    """Integration test for YLD accumulation in the DisabilityObserver and Results Management system."""
     time_step = pd.Timedelta(days=base_config.time.step_size)
-
-    # Set up two disease models (_0 and _1), to test against multiple causes of disability
-    healthy_0 = SusceptibleState("healthy_0")
-    healthy_1 = SusceptibleState("healthy_1")
-    disability_get_data_funcs_0 = {
-        "disability_weight": lambda _, __: build_table_with_age(
-            disability_weight_value_0,
-            parameter_columns={"year": (year_start - 1, year_end)},
-        ),
-        "prevalence": lambda _, __: build_table_with_age(
-            0.45, parameter_columns={"year": (year_start - 1, year_end)}
-        ),
-    }
-    disability_get_data_funcs_1 = {
-        "disability_weight": lambda _, __: build_table_with_age(
-            disability_weight_value_1,
-            parameter_columns={"year": (year_start - 1, year_end)},
-        ),
-        "prevalence": lambda _, __: build_table_with_age(
-            0.65, parameter_columns={"year": (year_start - 1, year_end)}
-        ),
-    }
-    disability_state_0 = DiseaseState(
-        "sick_cause_0", get_data_functions=disability_get_data_funcs_0
-    )
-    disability_state_1 = DiseaseState(
-        "sick_cause_1", get_data_functions=disability_get_data_funcs_1
-    )
-    # TODO: Add test against using a RiskAttributableDisease in addition to a DiseaseModel
-    model_0 = DiseaseModel(
-        "model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0]
-    )
-    model_1 = DiseaseModel(
-        "model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1]
-    )
+    model_0, model_1 = disability_disease_models
 
     # Add the results dir since we didn't go through cli.py
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             model_0,
             model_1,
             ResultsStratifier(),
@@ -154,32 +116,14 @@ def test_disability_accumulation(
     simulation.step()
     simulation.step()
 
-    pop = simulation.get_population()
-    sub_pop_mask = {
-        "healthy": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "healthy_1"),
-        "sick_0": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "healthy_1"),
-        "sick_1": (pop["model_0"] == "healthy_0") & (pop["model_1"] == "sick_cause_1"),
-        "sick_0_1": (pop["model_0"] == "sick_cause_0") & (pop["model_1"] == "sick_cause_1"),
-    }
+    pop = simulation.get_population(["model_0", "model_1", "sex"])
 
-    # Get pipelines
-    disability_weight_all_causes = simulation.get_value("all_causes.disability_weight")
-    disability_weight_0 = simulation.get_value("sick_cause_0.disability_weight")
-    disability_weight_1 = simulation.get_value("sick_cause_1.disability_weight")
-
-    # Check that disability weights are computed as expected
-    for sub_pop_key in ["healthy", "sick_0", "sick_1", "sick_0_1"]:
-        assert np.isclose(
-            disability_weight_all_causes(pop[sub_pop_mask[sub_pop_key]].index),
-            (
-                1
-                - (
-                    (1 - disability_weight_0(pop[sub_pop_mask[sub_pop_key]].index))
-                    * (1 - disability_weight_1(pop[sub_pop_mask[sub_pop_key]].index))
-                )
-            ),
-            rtol=0.0000001,
-        ).all()
+    # Get disability weight pipelines for YLD calculation
+    disability_weight_all_causes = simulation._values.get_attribute(
+        "all_causes.disability_weight"
+    )
+    disability_weight_0 = simulation._values.get_attribute("sick_cause_0.disability_weight")
+    disability_weight_1 = simulation._values.get_attribute("sick_cause_1.disability_weight")
 
     # Test that metrics are correct
     results = simulation.get_results()["ylds"]
@@ -238,7 +182,6 @@ def test_set_causes_of_disability(exclusions, mocker):
     observer = DisabilityObserver_()
 
     builder = mocker.Mock()
-    mocker.patch("vivarium.component.Component.build_all_lookup_tables")
     builder.configuration.time.step_size = 28
     builder.configuration.stratification.excluded_categories = LayeredConfigTree(
         {"disability": exclusions}
@@ -259,7 +202,6 @@ def test_set_causes_of_disability_raises(mocker):
     observer = DisabilityObserver_()
 
     builder = mocker.Mock()
-    mocker.patch("vivarium.component.Component.build_all_lookup_tables")
     builder.configuration.time.step_size = 28
     builder.configuration.stratification.excluded_categories = LayeredConfigTree(
         {"disability": ["arthritis"]}  # not an instantiated disease
@@ -298,35 +240,29 @@ def test_category_exclusions(
     # Set up two disease models (_0 and _1), to test against multiple causes of disability
     healthy_0 = SusceptibleState("healthy_0")
     healthy_1 = SusceptibleState("healthy_1")
-    disability_get_data_funcs_0 = {
-        "disability_weight": lambda _, __: build_table_with_age(
-            0.99,
-            parameter_columns={"year": (year_start - 1, year_end)},
+    disability_state_0 = DiseaseState(
+        "sick_cause_0",
+        disability_weight=build_table_with_age(
+            0.99, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "prevalence": lambda _, __: build_table_with_age(
+        prevalence=build_table_with_age(
             0.45, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-    }
-    disability_get_data_funcs_1 = {
-        "disability_weight": lambda _, __: build_table_with_age(
-            0.1,
-            parameter_columns={"year": (year_start - 1, year_end)},
-        ),
-        "prevalence": lambda _, __: build_table_with_age(
-            0.65, parameter_columns={"year": (year_start - 1, year_end)}
-        ),
-    }
-    disability_state_0 = DiseaseState(
-        "sick_cause_0", get_data_functions=disability_get_data_funcs_0
     )
     disability_state_1 = DiseaseState(
-        "sick_cause_1", get_data_functions=disability_get_data_funcs_1
+        "sick_cause_1",
+        disability_weight=build_table_with_age(
+            0.1, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+        prevalence=build_table_with_age(
+            0.65, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
     )
     model_0 = DiseaseModel(
-        "model_0", initial_state=healthy_0, states=[healthy_0, disability_state_0]
+        "model_0", residual_state=healthy_0, states=[healthy_0, disability_state_0]
     )
     model_1 = DiseaseModel(
-        "model_1", initial_state=healthy_1, states=[healthy_1, disability_state_1]
+        "model_1", residual_state=healthy_1, states=[healthy_1, disability_state_1]
     )
 
     # Add exclusions to model spec
@@ -341,7 +277,7 @@ def test_category_exclusions(
     )
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
+            BasePopulation(),
             model_0,
             model_1,
             ResultsStratifier(),

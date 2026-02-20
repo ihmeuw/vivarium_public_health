@@ -16,8 +16,6 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.resource import Resource
-from vivarium.framework.values import Pipeline
 
 from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.risks.distributions import (
@@ -27,7 +25,7 @@ from vivarium_public_health.risks.distributions import (
     PolytomousDistribution,
     RiskExposureDistribution,
 )
-from vivarium_public_health.utilities import EntityString, get_lookup_columns
+from vivarium_public_health.utilities import EntityString
 
 
 class Risk(Component):
@@ -155,17 +153,6 @@ class Risk(Component):
             }
         }
 
-    @property
-    def columns_created(self) -> list[str]:
-        columns_to_create = [self.propensity_column_name]
-        if self.create_exposure_column:
-            columns_to_create.append(self.exposure_column_name)
-        return columns_to_create
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return [self.randomness]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -183,37 +170,41 @@ class Risk(Component):
         self.distribution_type = None
 
         self.randomness_stream_name = f"initial_{self.risk.name}_propensity"
-        self.propensity_column_name = f"{self.risk.name}_propensity"
-        self.propensity_pipeline_name = f"{self.risk.name}.propensity"
-        self.exposure_pipeline_name = f"{self.risk.name}.exposure"
-        self.exposure_column_name = f"{self.risk.name}_exposure"
+        self.propensity_name = f"{self.risk.name}.propensity"
+        self.exposure_name = f"{self.risk.name}.exposure"
+        self.exposure_column_name = f"{self.risk.name}_exposure_for_non_loglinear_riskeffect"
 
     #################
     # Setup methods #
     #################
 
-    def build_all_lookup_tables(self, builder: "Builder") -> None:
-        # All lookup tables are built in the exposure distribution
-        pass
-
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        self._components = builder.components
         self.distribution_type = self.get_distribution_type(builder)
         self.exposure_distribution = self.get_exposure_distribution(builder)
 
         self.randomness = self.get_randomness_stream(builder)
-        self.propensity = self.get_propensity_pipeline(builder)
-        self.exposure = self.get_exposure_pipeline(builder)
+        self.register_exposure_pipeline(builder)
 
-        # We want to set this to True iff there is a non-loglinear risk effect
-        # on this risk instance
-        self.create_exposure_column = bool(
+        builder.population.register_initializer(
+            initializer=self.initialize_risk_propensity,
+            columns=self.propensity_name,
+            required_resources=[self.randomness],
+        )
+        self.includes_non_loglinear_risk_effect = bool(
             [
                 component
                 for component in builder.components.list_components()
                 if component.startswith(f"non_log_linear_risk_effect.{self.risk.name}_on_")
             ]
         )
+        if self.includes_non_loglinear_risk_effect:
+            builder.population.register_initializer(
+                initializer=self.initialize_exposure,
+                columns=self.exposure_column_name,
+                required_resources=[self.exposure_name],
+            )
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration.
@@ -275,38 +266,23 @@ class Risk(Component):
             raise NotImplementedError(
                 f"Distribution type {self.distribution_type} is not supported."
             )
-
+        # HACK / FIXME [MIC-6756]: Because we need to start setting up each Risk to know
+        # its corresponding RiskExposureDistribution type, we cannot rely on sub-components.
+        # Instead, we've determined the RiskExposureDistribution here and want to set it
+        # up manually which requires temporarily changing the current component
+        # in the component manager.
+        self._components._manager._current_component = exposure_distribution
         exposure_distribution.setup_component(builder)
+        self._components._manager._current_component = self
         return exposure_distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
-        return builder.randomness.get_stream(self.randomness_stream_name, component=self)
+        return builder.randomness.get_stream(self.randomness_stream_name)
 
-    def get_propensity_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
-            self.propensity_pipeline_name,
-            source=lambda index: (
-                self.population_view.subview([self.propensity_column_name])
-                .get(index)
-                .squeeze(axis=1)
-            ),
-            component=self,
-            required_resources=[self.propensity_column_name],
-        )
-
-    def get_exposure_pipeline(self, builder: Builder) -> Pipeline:
-        required_columns = get_lookup_columns(
-            self.exposure_distribution.lookup_tables.values()
-        )
-        return builder.value.register_value_producer(
-            self.exposure_pipeline_name,
-            source=self.get_current_exposure,
-            component=self,
-            required_resources=required_columns
-            + [
-                self.propensity,
-                self.exposure_distribution.exposure_parameters,
-            ],
+    def register_exposure_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.exposure_name,
+            source=[self.exposure_distribution.exposure_ppf_pipeline],
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
 
@@ -314,25 +290,29 @@ class Risk(Component):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_risk_propensity(self, pop_data: SimulantData) -> None:
         propensity = pd.Series(
-            self.randomness.get_draw(pop_data.index), name=self.propensity_column_name
+            self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
         self.population_view.update(propensity)
+
+    def initialize_exposure(self, pop_data: SimulantData) -> None:
         self.update_exposure_column(pop_data.index)
 
     def on_time_step_prepare(self, event: Event) -> None:
-        self.update_exposure_column(event.index)
+        if self.includes_non_loglinear_risk_effect:
+            self.update_exposure_column(event.index)
 
     def update_exposure_column(self, index: pd.Index) -> None:
-        if self.create_exposure_column:
-            exposure = pd.Series(self.exposure(index), name=self.exposure_column_name)
-            self.population_view.update(exposure)
+        """Updates the exposure column with pipeline values.
 
-    ##################################
-    # Pipeline sources and modifiers #
-    ##################################
-
-    def get_current_exposure(self, index: pd.Index) -> pd.Series:
-        propensity = self.propensity(index)
-        return pd.Series(self.exposure_distribution.ppf(propensity), index=index)
+        HACK: This is effectively caching the exposure pipeline for use by other
+        components. Specifically, :meth:`vivarium_public_health.risks.effect.NonLogLinearRiskEffect.get_relative_risk_source`
+        needs the exposure values but calling that pipeline was very slow. By
+        maintaining a cached copy of the exposure values in a private column, we
+        can then request that corresponding "simple" pipeline from the population
+        view instead which is significantly faster.
+        """
+        exposure = self.population_view.get_attributes(index, self.exposure_name)
+        exposure.name = self.exposure_column_name
+        self.population_view.update(exposure)

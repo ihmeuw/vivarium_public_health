@@ -8,14 +8,10 @@ in the simulation.
 
 """
 
-from typing import Any
-
 import pandas as pd
-from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.observer import PublicHealthObserver
@@ -62,25 +58,6 @@ class DiseaseObserver(PublicHealthObserver):
 
     """
 
-    ##############
-    # Properties #
-    ##############
-
-    @property
-    def columns_created(self) -> list[str]:
-        """Columns created by this observer."""
-        return [self.previous_state_column_name]
-
-    @property
-    def columns_required(self) -> list[str]:
-        """Columns required by this observer."""
-        return [self.disease]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        """Requirements for observer initialization."""
-        return [self.disease]
-
     #####################
     # Lifecycle methods #
     #####################
@@ -108,6 +85,11 @@ class DiseaseObserver(PublicHealthObserver):
         self.entity_type = self.disease_model.cause_type
         self.entity = self.disease_model.cause
         self.transition_stratification_name = f"transition_{self.disease}"
+        builder.population.register_initializer(
+            initializer=self.initialize_previous_state,
+            columns=self.previous_state_column_name,
+            required_resources=[self.disease],
+        )
 
     def get_configuration_name(self) -> str:
         return self.disease
@@ -131,7 +113,7 @@ class DiseaseObserver(PublicHealthObserver):
         self.register_disease_state_stratification(builder)
         self.register_transition_stratification(builder)
 
-        pop_filter = 'alive == "alive" and tracked==True'
+        pop_filter = "is_alive == True"
         self.register_person_time_observation(builder, pop_filter)
         self.register_transition_count_observation(builder, pop_filter)
 
@@ -140,7 +122,7 @@ class DiseaseObserver(PublicHealthObserver):
         builder.results.register_stratification(
             self.disease,
             [state.state_id for state in self.disease_model.states],
-            requires_columns=[self.disease],
+            requires_attributes=[self.disease],
         )
 
     def register_transition_stratification(self, builder: Builder) -> None:
@@ -172,7 +154,7 @@ class DiseaseObserver(PublicHealthObserver):
             categories=transitions,
             excluded_categories=excluded_categories,
             mapper=self.map_transitions,
-            requires_columns=[self.disease, self.previous_state_column_name],
+            requires_attributes=[self.disease, self.previous_state_column_name],
             is_vectorized=True,
         )
 
@@ -183,7 +165,6 @@ class DiseaseObserver(PublicHealthObserver):
             name=f"person_time_{self.disease}",
             pop_filter=pop_filter,
             when="time_step__prepare",
-            requires_columns=["alive", self.disease],
             additional_stratifications=self.configuration.include + [self.disease],
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_state_person_time,
@@ -197,11 +178,6 @@ class DiseaseObserver(PublicHealthObserver):
             builder=builder,
             name=f"transition_count_{self.disease}",
             pop_filter=pop_filter,
-            requires_columns=[
-                "alive",
-                self.previous_state_column_name,
-                self.disease,
-            ],
             additional_stratifications=self.configuration.include
             + [self.transition_stratification_name],
             excluded_stratifications=self.configuration.exclude,
@@ -233,20 +209,20 @@ class DiseaseObserver(PublicHealthObserver):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_previous_state(self, pop_data: SimulantData) -> None:
         """Initialize the previous state column to the current state"""
-        pop = self.population_view.subview([self.disease]).get(pop_data.index)
-        pop[self.previous_state_column_name] = pop[self.disease]
-        self.population_view.update(pop)
+        previous_states = self.population_view.get_attributes(pop_data.index, self.disease)
+        previous_states.name = self.previous_state_column_name
+        self.population_view.update(previous_states)
 
     def on_time_step_prepare(self, event: Event) -> None:
         """Update the previous state column to the current state.
 
         This enables tracking of transitions between states.
         """
-        prior_state_pop = self.population_view.get(event.index)
-        prior_state_pop[self.previous_state_column_name] = prior_state_pop[self.disease]
-        self.population_view.update(prior_state_pop)
+        previous_states = self.population_view.get_attributes(event.index, self.disease)
+        previous_states.name = self.previous_state_column_name
+        self.population_view.update(previous_states)
 
     ###############
     # Aggregators #

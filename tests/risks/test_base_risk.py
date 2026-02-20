@@ -5,11 +5,10 @@ import pandas as pd
 import pytest
 from layered_config_tree import LayeredConfigTree
 from vivarium import InteractiveContext
-from vivarium.framework.lookup.table import InterpolatedTable
-from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import SIS
+from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.distributions import (
@@ -71,7 +70,7 @@ def _setup_risk_simulation(
 ) -> InteractiveContext:
     if isinstance(risk, str):
         risk = Risk(risk)
-    components = [TestPopulation(), risk]
+    components = [BasePopulation(), risk]
     if has_risk_effect:
         components.append(SIS("some_disease"))
         components.append(RiskEffect(risk.name, "cause.some_disease.incidence_rate"))
@@ -96,7 +95,7 @@ def _setup_risk_simulation(
 #
 #     rf, risk_data = continuous_risk
 #     base_config.update({'population': {'population_size': population_size}}, **metadata(__file__))
-#     sim = initialize_simulation([TestPopulation(), rf], input_config=base_config, plugin_config=base_plugins)
+#     sim = initialize_simulation([BasePopulation(), rf], input_config=base_config, plugin_config=base_plugins)
 #     for key, value in risk_data.items():
 #         sim.data.write(f'risk_factor.test_risk.{key}', value)
 #
@@ -115,7 +114,7 @@ def _setup_risk_simulation(
 #     dummy_risk = Risk("risk_factor.test_risk")
 #     base_config.update({'test_risk': {'exposure': exposure_level}}, layer='override')
 #
-#     simulation = initialize_simulation([TestPopulation(), dummy_risk],
+#     simulation = initialize_simulation([BasePopulation(), dummy_risk],
 #                                        input_config=base_config, plugin_config=base_plugins)
 #     simulation.setup()
 #
@@ -139,12 +138,6 @@ def test_polytomous_risk_lookup_configuration(polytomous_risk, base_config, base
 
     assert isinstance(risk.exposure_distribution, PolytomousDistribution)
 
-    lookup_tables = risk.exposure_distribution.lookup_tables
-
-    # This risk is a PolytomousDistribution so there will only be an exposure lookup table
-    assert {"exposure"} == set(lookup_tables.keys())
-    assert isinstance(lookup_tables["exposure"], InterpolatedTable)
-
 
 def _check_exposure_and_rr(
     simulation: InteractiveContext,
@@ -152,9 +145,11 @@ def _check_exposure_and_rr(
     expected_exposures: dict[str, float],
     expected_rrs: dict[str, float],
 ) -> None:
-    population = simulation.get_population()
-    exposure = simulation.get_value(f"{risk.name}.exposure")(population.index)
-    incidence_rate = simulation.get_value("some_disease.incidence_rate")(population.index)
+    population = simulation.get_population(
+        [f"{risk.name}.exposure", "some_disease.incidence_rate"]
+    )
+    exposure = population[f"{risk.name}.exposure"]
+    incidence_rate = population["some_disease.incidence_rate"]
     unexposed_category = sorted(expected_exposures.keys())[-1]
     unexposed_incidence = incidence_rate[exposure == unexposed_category].iat[0]
 
@@ -337,7 +332,6 @@ def test_ensemble_risk(base_config, base_plugins):
     assert isinstance(distribution, EnsembleDistribution)
 
     expected_distributions = set(distribution_weights.keys()) - {"glnorm"}
-    assert {"ensemble_distribution_weights"} == set(distribution.lookup_tables.keys())
     assert expected_distributions == set(distribution.parameters.keys())
 
     simulation.step()

@@ -18,7 +18,7 @@ import scipy
 from layered_config_tree import ConfigurationError
 from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.values import Pipeline
+from vivarium.framework.lookup import LookupTable
 
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import (
@@ -26,7 +26,7 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
-from vivarium_public_health.utilities import EntityString, TargetString, get_lookup_columns
+from vivarium_public_health.utilities import EntityString, TargetString
 
 
 class RiskEffect(Component):
@@ -129,16 +129,18 @@ class RiskEffect(Component):
 
         self._exposure_distribution_type = None
 
-        self.exposure_pipeline_name = f"{self.risk.name}.exposure"
-        self.target_pipeline_name = f"{self.target.name}.{self.target.measure}"
-        self.target_paf_pipeline_name = f"{self.target_pipeline_name}.paf"
+        self.exposure_name = f"{self.risk.name}.exposure"
+        self.target_name = f"{self.target.name}.{self.target.measure}"
+        self.target_paf_name = f"{self.target_name}.paf"
+        self.relative_risk_name = f"{self.risk.name}_on_{self.target.name}.relative_risk"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
-        self.exposure = self.get_risk_exposure(builder)
+        self.relative_risk_table = self.build_rr_lookup_table(builder)
+        self.paf_table = self.build_paf_lookup_table(builder)
 
         self._relative_risk_source = self.get_relative_risk_source(builder)
-        self.relative_risk = self.get_relative_risk_pipeline(builder)
+        self.register_relative_risk_pipeline(builder)
 
         self.register_target_modifier(builder)
         self.register_paf_modifier(builder)
@@ -147,49 +149,22 @@ class RiskEffect(Component):
     # Setup methods #
     #################
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        """Build lookup tables for relative risk and population attributable fraction.
-
-        This method overrides the default lookup table building to handle the
-        special processing required for relative risk data, including:
-
-        - Loading relative risk from artifact, scalar, or scipy.stats distribution
-        - Pivoting categorical relative risk data from long to wide format
-        - Filtering data by affected entity and measure
-
-        Lookup Tables Created
-        ---------------------
-        relative_risk
-            Relative risk values. For categorical exposures, value columns are
-            the category names (e.g., 'cat1', 'cat2'). For continuous exposures,
-            a single value column is used.
-        population_attributable_fraction
-            PAF values used to modify the target pipeline's PAF.
-
-        Data Sources Used
-        -----------------
-        - ``relative_risk``: From ``data_sources.relative_risk``. Can be an
-          artifact key, scalar, or scipy.stats distribution name (with params
-          in ``data_source_parameters.relative_risk``).
-        - ``population_attributable_fraction``: From
-          ``data_sources.population_attributable_fraction``.
-        """
+    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
         self._exposure_distribution_type = self.get_distribution_type(builder)
 
         rr_data = self.load_relative_risk(builder)
         rr_value_cols = None
         if self.is_exposure_categorical:
             rr_data, rr_value_cols = self.process_categorical_data(builder, rr_data)
-        self.lookup_tables["relative_risk"] = self.build_lookup_table(
-            builder, rr_data, rr_value_cols
+        return self.build_lookup_table(
+            builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
         )
 
+    def build_paf_lookup_table(self, builder: Builder) -> LookupTable:
         paf_data = self.get_filtered_data(
             builder, self.configuration.data_sources.population_attributable_fraction
         )
-        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-            builder, paf_data
-        )
+        return self.build_lookup_table(builder, "paf", data_source=paf_data)
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
@@ -257,7 +232,7 @@ class RiskEffect(Component):
             rr_data = rr_data.reset_index("parameter")
 
         rr_value_cols = list(rr_data["parameter"].unique())
-        rr_data = pivot_categorical(builder, self.risk, rr_data, "parameter")
+        rr_data = pivot_categorical(rr_data, "parameter")
         return rr_data, rr_value_cols
 
     # todo currently this isn't being called. we need to properly set rrs if
@@ -309,11 +284,8 @@ class RiskEffect(Component):
         ).fillna(0)
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
-    def get_risk_exposure(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        return builder.value.get_value(self.exposure_pipeline_name)
-
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
-        relative_risk = self.relative_risk(index)
+        relative_risk = self.population_view.get_attributes(index, self.relative_risk_name)
         return target * relative_risk
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
@@ -324,8 +296,8 @@ class RiskEffect(Component):
             scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
-                rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.exposure(index)
+                rr = self.relative_risk_table(index)
+                exposure = self.population_view.get_attributes(index, self.exposure_name)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return relative_risk
 
@@ -333,8 +305,10 @@ class RiskEffect(Component):
             index_columns = ["index", self.risk.name]
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
-                rr = self.lookup_tables["relative_risk"](index)
-                exposure = self.exposure(index).reset_index()
+                rr = self.relative_risk_table(index)
+                exposure = self.population_view.get_attributes(
+                    index, self.exposure_name
+                ).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
 
@@ -347,31 +321,23 @@ class RiskEffect(Component):
 
         return generate_relative_risk
 
-    def get_relative_risk_pipeline(self, builder: Builder) -> Pipeline:
-        return builder.value.register_value_producer(
-            f"{self.risk.name}_on_{self.target.name}.relative_risk",
+    def register_relative_risk_pipeline(self, builder: Builder) -> None:
+        builder.value.register_attribute_producer(
+            self.relative_risk_name,
             self._relative_risk_source,
-            component=self,
-            required_resources=[self.exposure],
+            required_resources=[self.exposure_name],
         )
 
     def register_target_modifier(self, builder: Builder) -> None:
-        builder.value.register_value_modifier(
-            self.target_pipeline_name,
+        builder.value.register_attribute_modifier(
+            self.target_name,
             modifier=self.adjust_target,
-            component=self,
-            required_resources=[self.relative_risk],
+            required_resources=[self.relative_risk_name],
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
-        required_columns = get_lookup_columns(
-            [self.lookup_tables["population_attributable_fraction"]]
-        )
-        builder.value.register_value_modifier(
-            self.target_paf_pipeline_name,
-            modifier=self.lookup_tables["population_attributable_fraction"],
-            component=self,
-            required_resources=required_columns,
+        builder.value.register_attribute_modifier(
+            self.target_paf_name, modifier=self.paf_table
         )
 
     ##################
@@ -439,10 +405,6 @@ class NonLogLinearRiskEffect(RiskEffect):
             }
         }
 
-    @property
-    def columns_required(self) -> list[str]:
-        return [f"{self.risk.name}_exposure"]
-
     #################
     # Setup methods #
     #################
@@ -451,47 +413,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     def get_name(risk: EntityString, target: TargetString) -> str:
         return f"non_log_linear_risk_effect.{risk.name}_on_{target}"
 
-    def build_all_lookup_tables(self, builder: Builder) -> None:
-        """Build lookup tables for non-log-linear relative risk interpolation.
-
-        This method builds lookup tables that enable piecewise linear
-        interpolation of relative risk based on continuous exposure values.
-        It creates exposure bins from the relative risk data and stores the
-        left and right boundaries of each bin for runtime interpolation.
-
-        Lookup Tables Created
-        ---------------------
-        relative_risk
-            Contains interval data for piecewise linear interpolation:
-
-            - ``left_exposure``: Left boundary of exposure bin
-            - ``left_rr``: Relative risk at left boundary
-            - ``right_exposure``: Right boundary of exposure bin
-            - ``right_rr``: Relative risk at right boundary
-
-            The table uses ``{risk}_exposure_start`` and ``{risk}_exposure_end``
-            as parameter columns, enabling lookup by simulant exposure level.
-
-        population_attributable_fraction
-            PAF values used to modify the target pipeline's PAF.
-
-        Data Sources Used
-        -----------------
-        - ``relative_risk``: Must be a DataFrame with numeric 'parameter'
-          column (exposure thresholds) and 'value' column (relative risks).
-          Values are normalized by the RR at TMREL.
-        - ``population_attributable_fraction``: Standard PAF data.
-
-        Notes
-        -----
-        The relative risk values are normalized by dividing by the RR at TMREL
-        (theoretical minimum risk exposure level), then clipped to be >= 1.0.
-        This ensures the baseline (TMREL) has RR = 1.0.
-
-        At runtime, ``get_relative_risk_source`` performs linear interpolation
-        within each simulant's exposure bin using: RR = m * exposure + b
-        where m and b are computed from the bin boundaries.
-        """
+    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
         rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
 
@@ -521,19 +443,16 @@ class NonLogLinearRiskEffect(RiskEffect):
             .reset_index()
         )
         rr_data = rr_data.drop("parameter", axis=1)
-        rr_data[f"{self.risk.name}_exposure_start"] = rr_data["left_exposure"]
-        rr_data[f"{self.risk.name}_exposure_end"] = rr_data["right_exposure"]
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_start"] = rr_data[
+            "left_exposure"
+        ]
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_end"] = rr_data[
+            "right_exposure"
+        ]
         # build lookup table
         rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
-        self.lookup_tables["relative_risk"] = self.build_lookup_table(
-            builder, rr_data, rr_value_cols
-        )
-
-        paf_data = self.get_filtered_data(
-            builder, self.configuration.data_sources.population_attributable_fraction
-        )
-        self.lookup_tables["population_attributable_fraction"] = self.build_lookup_table(
-            builder, paf_data
+        return self.build_lookup_table(
+            builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
         )
 
     def load_relative_risk(
@@ -595,8 +514,12 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         def generate_relative_risk(index: pd.Index) -> pd.Series:
-            rr_intervals = self.lookup_tables["relative_risk"](index)
-            exposure = self.population_view.get(index)[f"{self.risk.name}_exposure"]
+            rr_intervals = self.relative_risk_table(index)
+            # NOTE: We are calling the cached exposure pipeline here for performance
+            # purposes (as opposed to the f{self.risk.name}.exposure pipeline itself).
+            exposure = self.population_view.get_attributes(
+                index, f"{self.risk.name}_exposure_for_non_loglinear_riskeffect"
+            )
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
                 rr_intervals["right_exposure"].values,
