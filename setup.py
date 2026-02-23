@@ -53,9 +53,8 @@ if __name__ == "__main__":
 
     test_requirements = [
         "vivarium_dependencies[pytest]",
-        "vivarium_testing_utils",
+        "vivarium_testing_utils<=0.3.3",
         "hypothesis",
-        "pyyaml",
     ]
 
     doc_requirements = ["vivarium_dependencies[sphinx,sphinx-click,ipython,matplotlib]"]
