@@ -1,3 +1,7 @@
+**4.3.22 - 02/24/26**
+
+  - Bugfix: Remove duplicated pytest options
+
 **4.3.21 - 02/02/26**
 
   - Use importlib_resources instead of pkg_resources to remove deprecation warning
