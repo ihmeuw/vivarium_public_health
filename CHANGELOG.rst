@@ -1,4 +1,4 @@
-**4.3.22 - 02/23/26**
+**4.3.22 - 02/24/26**
 
   - Bugfix: Remove duplicated pytest options
 
