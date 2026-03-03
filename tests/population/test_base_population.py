@@ -157,7 +157,7 @@ def test_aged_out_simulant_untracking(
     # Take one step which will age everyone 0.5 years. This should age ~50% of the
     # population out of the sim.
     sim.step()
-    pop1 = sim.get_population(["age", "is_aged_out"])
+    pop1 = sim.get_population(["age", "is_aged_out"], include_untracked=True)
     fuzzy_checker.fuzzy_assert_proportion(
         observed_numerator=pop1["is_aged_out"].sum(),
         observed_denominator=len(pop1),
@@ -167,7 +167,7 @@ def test_aged_out_simulant_untracking(
     assert all(pop1["age"] - pop0["age"] == utilities.to_years(pd.Timedelta(time_step, "D")))
     # Take another step which should age the rest of the population out of the sim.
     sim.step()
-    pop2 = sim.get_population(["age", "is_aged_out"])
+    pop2 = sim.get_population(["age", "is_aged_out"], include_untracked=True)
     fuzzy_checker.fuzzy_assert_proportion(
         observed_numerator=pop2["is_aged_out"].sum(),
         observed_denominator=len(pop2),
