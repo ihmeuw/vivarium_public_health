@@ -203,10 +203,6 @@ class ContinuousDistribution(RiskExposureDistribution):
                 f"risk {risk.name}."
             )
 
-    def setup(self, builder: Builder) -> None:
-        super().setup(builder)
-        self.register_exposure_parameter_pipeline(builder)
-
     #################
     # Setup methods #
     #################
@@ -219,6 +215,7 @@ class ContinuousDistribution(RiskExposureDistribution):
             data_source=parameters.reset_index(),
             value_columns=list(parameters.columns),
         )
+        self.register_exposure_params_pipeline(builder)
         super().setup(builder)
 
     def get_distribution_parameters(self, builder: "Builder") -> None:
