@@ -321,7 +321,26 @@ class Risk(Component):
 
 
 class ContinuousRisk(Risk):
-    """A risk with a continuous distribution of exposure."""
+    """A risk factor with a continuous exposure distribution and calibration support.
+
+    This component extends :class:`Risk` by introducing a calibration constant
+    that adjusts the raw exposure values produced by the underlying continuous
+    distribution. The final exposure is computed as::
+
+        exposure = raw_exposure * (1 - calibration_constant)
+
+    The calibration constant defaults to 0 (no adjustment) and is exposed as
+    a modifiable pipeline, allowing other components to shift its value at
+    runtime.
+
+    .. note::
+
+        This component does not enforce that the underlying exposure
+        distribution is continuous. It is the user's responsibility to
+        ensure that the distribution type produces numeric exposure values,
+        since the calibration scaling is an arithmetic operation, and that
+        the scaling should act on the exposure directly.
+    """
 
     def __init__(self, risk: str):
         super().__init__(risk)
