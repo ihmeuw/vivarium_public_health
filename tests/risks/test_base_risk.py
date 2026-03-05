@@ -11,7 +11,7 @@ from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import SIS
 from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.risks import RiskEffect
-from vivarium_public_health.risks.base_risk import ContinuousRisk, Risk
+from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.risks.distributions import (
     EnsembleDistribution,
     PolytomousDistribution,
@@ -341,84 +341,25 @@ def test_ensemble_risk(base_config, base_plugins):
     print("We didn't runtime error - success!")
 
 
-def test_continuous_risk_matches_risk(base_config_factory, base_plugins):
-    """Test that ContinuousRisk with default calibration_constant=0 produces
-    the same exposures as Risk for a continuous (normal) distribution."""
-    population_size = 10000
-
-    exposure_data = pd.DataFrame(
-        {
-            "year_start": 1990,
-            "year_end": 1991,
-            "parameter": "continuous",
-            "value": 130.0,
-        },
-        index=[0],
-    )
-    exposure_sd_data = pd.DataFrame(
-        {
-            "year_start": 1990,
-            "year_end": 1991,
-            "value": 15.0,
-        },
-        index=[0],
-    )
-
-    data = {
-        "risk_factor.test_risk.exposure": exposure_data,
-        "risk_factor.test_risk.exposure_standard_deviation": exposure_sd_data,
-    }
-
-    config_updates = {
-        "population": {"population_size": population_size},
-        "risk_factor.test_risk": {"distribution_type": "normal"},
-    }
-
-    # Create simulation with Risk
-    config_risk = base_config_factory()
-    config_risk.update(config_updates)
-    risk = Risk("risk_factor.test_risk")
-    sim_risk = _setup_risk_simulation(
-        config_risk, base_plugins, risk, data, has_risk_effect=False
-    )
-    risk_exposure = sim_risk.get_population(["test_risk.exposure"])["test_risk.exposure"]
-
-    # Create simulation with ContinuousRisk
-    config_continuous = base_config_factory()
-    config_continuous.update(config_updates)
-    continuous_risk = ContinuousRisk("risk_factor.test_risk")
-    sim_continuous = _setup_risk_simulation(
-        config_continuous, base_plugins, continuous_risk, data, has_risk_effect=False
-    )
-    continuous_exposure = sim_continuous.get_population(["test_risk.exposure"])[
-        "test_risk.exposure"
-    ]
-
-    pd.testing.assert_series_equal(risk_exposure, continuous_exposure)
-
-
 class _CalibrationConstantModifier(Component):
     """Test helper that modifies the calibration constant pipeline to return a
     fixed value."""
 
     def __init__(self, risk: str, value: float):
         super().__init__()
-        self._risk = risk
-        self._value = value
+        self.risk = risk
+        self.value = value
 
     def setup(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(
-            f"{self._risk}_calibration_constant",
-            modifier=self.modifier,
+            f"{self.risk}_calibration_constant",
+            modifier=lambda index: pd.Series(self.value, index=index),
         )
 
-    def modifier(self, index: pd.Index) -> pd.Series:
-        return pd.Series(self._value, index=index)
 
-
-def test_continuous_risk_calibration_constant(base_config, base_plugins):
+def test_risk_calibration_constant(base_config_factory, base_plugins):
     """Test that when the calibration constant pipeline is modified to 0.75,
-    ContinuousRisk exposures are scaled by (1 - 0.75) = 0.25."""
+    Risk exposures are scaled by (1 - 0.75) = 0.25."""
     population_size = 10000
     calibration_value = 0.75
 
@@ -450,15 +391,27 @@ def test_continuous_risk_calibration_constant(base_config, base_plugins):
         "risk_factor.test_risk": {"distribution_type": "normal"},
     }
 
-    # Build a ContinuousRisk simulation with a non-zero calibration constant
-    base_config.update(config_updates)
-    continuous_risk = ContinuousRisk("risk_factor.test_risk")
+    # Build a Risk simulation with the default calibration constant (zero)
+    config_base = base_config_factory()
+    config_base.update(config_updates)
+    base_risk = Risk("risk_factor.test_risk")
+    sim_base = _setup_risk_simulation(
+        config_base, base_plugins, base_risk, data, has_risk_effect=False
+    )
+    uncalibrated_exposure = sim_base.get_population(["test_risk.exposure"])[
+        "test_risk.exposure"
+    ]
+
+    # Build a Risk simulation with a non-zero calibration constant
+    config_cal = base_config_factory()
+    config_cal.update(config_updates)
+    risk = Risk("risk_factor.test_risk")
     modifier = _CalibrationConstantModifier("risk_factor.test_risk", calibration_value)
 
-    components = [BasePopulation(), continuous_risk, modifier]
+    components = [BasePopulation(), risk, modifier]
     simulation = InteractiveContext(
         components=components,
-        configuration=base_config,
+        configuration=config_cal,
         plugin_configuration=base_plugins,
         setup=False,
     )
@@ -466,11 +419,9 @@ def test_continuous_risk_calibration_constant(base_config, base_plugins):
         simulation._data.write(key, value)
     simulation.setup()
 
-    # Get the raw ppf exposure (before calibration scaling) and the final exposure
-    raw_exposure = simulation.get_population(
-        [continuous_risk.exposure_distribution.exposure_ppf_pipeline]
-    )[continuous_risk.exposure_distribution.exposure_ppf_pipeline]
-    final_exposure = simulation.get_population(["test_risk.exposure"])["test_risk.exposure"]
+    calibrated_exposure = simulation.get_population(["test_risk.exposure"])[
+        "test_risk.exposure"
+    ]
 
-    expected_exposure = raw_exposure * (1 - calibration_value)
-    pd.testing.assert_series_equal(final_exposure, expected_exposure, check_names=False)
+    expected_exposure = uncalibrated_exposure * (1 - calibration_value)
+    pd.testing.assert_series_equal(calibrated_exposure, expected_exposure, check_names=False)

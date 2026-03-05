@@ -17,7 +17,6 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.risks.distributions import (
@@ -318,59 +317,3 @@ class Risk(Component):
         exposure = self.population_view.get_attributes(index, self.exposure_name)
         exposure.name = self.exposure_column_name
         self.population_view.update(exposure)
-
-
-class ContinuousRisk(Risk):
-    """A risk factor with a continuous exposure distribution and calibration support.
-
-    This component extends :class:`Risk` by introducing a calibration constant
-    that adjusts the raw exposure values produced by the underlying continuous
-    distribution. The final exposure is computed as::
-
-        exposure = raw_exposure * (1 - calibration_constant)
-
-    The calibration constant defaults to 0 (no adjustment) and is exposed as
-    a modifiable pipeline, allowing other components to shift its value at
-    runtime.
-
-    .. note::
-
-        This component does not enforce that the underlying exposure
-        distribution is continuous. It is the user's responsibility to
-        ensure that the distribution type produces numeric exposure values,
-        since the calibration scaling is an arithmetic operation, and that
-        the scaling should act on the exposure directly.
-    """
-
-    def __init__(self, risk: str):
-        super().__init__(risk)
-        self.calibration_constant_pipeline = f"{risk}_calibration_constant"
-
-    def setup(self, builder: Builder) -> None:
-        super().setup(builder)
-        self.calibration_constant = self.get_calibration_constant(builder)
-
-    def get_calibration_constant(self, builder: Builder) -> float:
-        calibration_constant = self.build_lookup_table(builder, "calibration_constant", 0)
-        builder.value.register_attribute_producer(
-            self.calibration_constant_pipeline,
-            source=lambda idx: [calibration_constant(idx)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
-        )
-
-    def register_exposure_pipeline(self, builder: Builder) -> None:
-        builder.value.register_attribute_producer(
-            self.exposure_name,
-            source=self.get_exposure_source,
-            preferred_post_processor=get_exposure_post_processor(builder, self.name),
-        )
-
-    def get_exposure_source(self, index: pd.Index[int]) -> pd.DataFrame:
-        exposure = self.population_view.get_attributes(
-            index, self.exposure_distribution.exposure_ppf_pipeline
-        )
-        calibration_constant = self.population_view.get_attributes(
-            index, self.calibration_constant_pipeline
-        )
-        return exposure * (1 - calibration_constant)
