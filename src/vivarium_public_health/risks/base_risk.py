@@ -7,8 +7,6 @@ This module contains tools for modeling categorical and continuous risk
 exposure.
 
 """
-from __future__ import annotations
-
 from typing import Any
 
 import pandas as pd
