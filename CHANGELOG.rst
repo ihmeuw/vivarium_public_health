@@ -67,6 +67,7 @@ Other changes
 - Remove need to explicitly pass component when registering Resources.
 - Enable agnostic ordering (in model specification) of MortalityObserver and DiseaseModel components.
 - Create new Disability class to register all-cause disability weight pipeline.
+- Update ContinuousDistribution and EnsembleDistribution to scale exposure according to a calibration constant
 - Support python 3.12
 
 **4.3.24 - 03/25/26**

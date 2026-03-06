@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 from layered_config_tree import LayeredConfigTree
-from vivarium import InteractiveContext
+from vivarium import Component, InteractiveContext
+from vivarium.framework.engine import Builder
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import SIS
@@ -338,3 +339,89 @@ def test_ensemble_risk(base_config, base_plugins):
 
     # todo: use fuzzy checker to confirm that we are getting the expected results
     print("We didn't runtime error - success!")
+
+
+class _CalibrationConstantModifier(Component):
+    """Test helper that modifies the calibration constant pipeline to return a
+    fixed value."""
+
+    def __init__(self, risk: str, value: float):
+        super().__init__()
+        self.risk = risk
+        self.value = value
+
+    def setup(self, builder: Builder) -> None:
+        builder.value.register_attribute_modifier(
+            f"{self.risk}_calibration_constant",
+            modifier=lambda index: pd.Series(self.value, index=index),
+        )
+
+
+def test_risk_calibration_constant(base_config_factory, base_plugins):
+    """Test that when the calibration constant pipeline is modified to 0.75,
+    Risk exposures are scaled by (1 - 0.75) = 0.25."""
+    population_size = 10000
+    calibration_value = 0.75
+
+    exposure_data = pd.DataFrame(
+        {
+            "year_start": 1990,
+            "year_end": 1991,
+            "parameter": "continuous",
+            "value": 130.0,
+        },
+        index=[0],
+    )
+    exposure_sd_data = pd.DataFrame(
+        {
+            "year_start": 1990,
+            "year_end": 1991,
+            "value": 15.0,
+        },
+        index=[0],
+    )
+
+    data = {
+        "risk_factor.test_risk.exposure": exposure_data,
+        "risk_factor.test_risk.exposure_standard_deviation": exposure_sd_data,
+    }
+
+    config_updates = {
+        "population": {"population_size": population_size},
+        "risk_factor.test_risk": {"distribution_type": "normal"},
+    }
+
+    # Build a Risk simulation with the default calibration constant (zero)
+    config_base = base_config_factory()
+    config_base.update(config_updates)
+    base_risk = Risk("risk_factor.test_risk")
+    sim_base = _setup_risk_simulation(
+        config_base, base_plugins, base_risk, data, has_risk_effect=False
+    )
+    uncalibrated_exposure = sim_base.get_population(["test_risk.exposure"])[
+        "test_risk.exposure"
+    ]
+
+    # Build a Risk simulation with a non-zero calibration constant
+    config_cal = base_config_factory()
+    config_cal.update(config_updates)
+    risk = Risk("risk_factor.test_risk")
+    modifier = _CalibrationConstantModifier("risk_factor.test_risk", calibration_value)
+
+    components = [BasePopulation(), risk, modifier]
+    simulation = InteractiveContext(
+        components=components,
+        configuration=config_cal,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+    for key, value in data.items():
+        simulation._data.write(key, value)
+    simulation.setup()
+
+    calibrated_exposure = simulation.get_population(["test_risk.exposure"])[
+        "test_risk.exposure"
+    ]
+
+    expected_exposure = uncalibrated_exposure * (1 - calibration_value)
+    pd.testing.assert_series_equal(calibrated_exposure, expected_exposure, check_names=False)
