@@ -17,6 +17,7 @@ py:class vivarium.framework.values.pipeline.Pipeline
 py:class PopulationView
 py:class Logger
 py:class pd.DataFrame
+py:class pd.Index
 py:class LayeredConfigTree
 # TODO: Need to revisit this. Nitpicking here to avoid failing everywhere
 py:class Builder
