@@ -156,8 +156,8 @@ class _RiskAffectedPipeline(Component):
         value: pd.Series,
         manager: ValuesManager,
     ) -> pd.Series:
-        non_zero_index = value != 0
-        if non_zero_index.any():
+        non_zero_index = value[value != 0].index
+        if not non_zero_index.empty:
             joint_paf = self.joint_paf_table(non_zero_index)
             value.loc[non_zero_index] = value.loc[non_zero_index] * (1 - joint_paf)
         return value
