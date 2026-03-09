@@ -498,8 +498,7 @@ class DichotomousDistribution(RiskExposureDistribution):
     ##################################
 
     def exposure_parameter_source(self, index: pd.Index) -> pd.Series:
-        base_exposure = self.exposure_table(index).values
-        return pd.Series(base_exposure, index=index, name="values")
+        return self.exposure_table(index)
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(
