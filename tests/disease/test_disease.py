@@ -327,9 +327,9 @@ def test_risk_deletion(base_config, base_plugins, disease):
             data = build_table_with_age(
                 paf, parameter_columns={"year": (year_start, year_end)}
             )
-            builder.value.register_attribute_modifier(
+            builder.value.register_value_modifier(
                 "sick.incidence_rate.paf",
-                modifier=self.build_lookup_table(builder, "exposure_paf", data),
+                modifier=lambda: data,
             )
 
     simulation = InteractiveContext(

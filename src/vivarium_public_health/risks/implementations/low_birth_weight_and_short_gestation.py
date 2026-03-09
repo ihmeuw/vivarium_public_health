@@ -376,7 +376,8 @@ class LBWSGRisk(Risk):
     def register_birth_exposure_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
             self.birth_exposure_pipeline,
-            source=[self.exposure_distribution.exposure_ppf_pipeline],
+            source=self._get_birth_exposure_source,
+            required_resources=[self.exposure_distribution.exposure_ppf_pipeline],
             preferred_post_processor=get_exposure_post_processor(builder, self.name),
         )
 
@@ -417,6 +418,11 @@ class LBWSGRisk(Risk):
     ##################################
     # Pipeline sources and modifiers #
     ##################################
+
+    def _get_birth_exposure_source(self, index: pd.Index) -> pd.DataFrame:
+        return self.population_view.get_attribute_frame(
+            index, self.exposure_distribution.exposure_ppf_pipeline
+        )
 
     def _get_exposure_source(self, index: pd.Index[int]) -> pd.DataFrame:
         exposure_df = self.population_view.get(

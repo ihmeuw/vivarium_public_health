@@ -48,7 +48,6 @@ def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
         mortality.mortality_rate_pipeline,
         mortality.cause_specific_mortality_rate_pipeline,
         mortality.unmodeled_csmr_pipeline,
-        mortality.unmodeled_csmr_paf_pipeline,
     ]
     # the time manager, BasePopulation, AgedOutSimulants, and Disability create attributes themselves
     other_columns_created = bp.private_columns + [
