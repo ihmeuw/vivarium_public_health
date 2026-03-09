@@ -222,7 +222,7 @@ class Risk(Component):
         -------
             The distribution type.
         """
-        if self.configuration is None:
+        if not self.configuration:
             self.configuration = self.get_configuration(builder)
 
         distribution_type = self.configuration["distribution_type"]
