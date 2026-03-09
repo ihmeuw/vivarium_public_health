@@ -335,7 +335,7 @@ class RiskEffect(Component):
 
     def register_paf_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
-            get_joint_paf_pipeline_name(self.target_name), modifier=self.paf_data
+            get_joint_paf_pipeline_name(self.target_name), modifier=lambda: self.paf_data
         )
 
     ##################

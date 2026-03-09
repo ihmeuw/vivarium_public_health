@@ -19,9 +19,9 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN, LookupTable
 from vivarium.framework.population import SimulantData
-from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.risks.data_transformations import pivot_categorical
+from vivarium_public_health.risks.paf import register_risk_affected_attribute_producer
 from vivarium_public_health.utilities import EntityString
 
 
@@ -272,18 +272,13 @@ class ContinuousDistribution(RiskExposureDistribution):
     ##################################
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-<<<<<<< HEAD
         pop = self.population_view.get(
-            index, [self.risk_propensity, self.exposure_params_name]
-=======
-        pop = self.population_view.get_attributes(
             index,
             [
                 self.risk_propensity,
                 self.exposure_params_name,
                 self.calibration_constant_pipeline,
             ],
->>>>>>> 7310a18d (add scalable ContinuousRisk (#610))
         )
         quantiles = pop[self.risk_propensity]
 
@@ -403,14 +398,7 @@ class DichotomousDistribution(RiskExposureDistribution):
     def setup(self, builder: Builder) -> None:
         super().setup(builder)
         self.exposure_table = self.build_exposure_table(builder)
-        self.paf_table = self.build_lookup_table(builder, "exposure_paf", 0.0)
         self.register_exposure_params_pipeline(builder)
-        builder.value.register_attribute_producer(
-            self.exposure_params_paf_name,
-            source=lambda index: [self.paf_table(index)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
-        )
 
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
         builder.value.register_attribute_producer(
@@ -420,8 +408,9 @@ class DichotomousDistribution(RiskExposureDistribution):
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
-        builder.value.register_attribute_producer(
-            self.exposure_params_name,
+        register_risk_affected_attribute_producer(
+            builder=builder,
+            name=self.exposure_params_name,
             source=self.exposure_parameter_source,
             required_resources=[self.exposure_table],
         )
@@ -510,8 +499,7 @@ class DichotomousDistribution(RiskExposureDistribution):
 
     def exposure_parameter_source(self, index: pd.Index) -> pd.Series:
         base_exposure = self.exposure_table(index).values
-        joint_paf = self.population_view.get(index, self.exposure_params_paf_name).values
-        return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
+        return pd.Series(base_exposure, index=index, name="values")
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(

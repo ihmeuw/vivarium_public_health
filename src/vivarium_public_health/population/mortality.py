@@ -53,7 +53,8 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
-from vivarium.framework.values import list_combiner, union_post_processor
+
+from vivarium_public_health.risks.paf import register_risk_affected_attribute_producer
 
 
 class Mortality(Component):
@@ -179,7 +180,6 @@ class Mortality(Component):
         self.register_cause_specific_mortality_rate(builder)
 
         self.register_unmodeled_csmr(builder)
-        self.register_unmodeled_csmr_paf(builder)
         self.register_mortality_rate(builder)
 
         builder.value.register_attribute_modifier("exit_time", self.update_exit_times)
@@ -225,19 +225,11 @@ class Mortality(Component):
         return raw_csmr
 
     def register_unmodeled_csmr(self, builder: Builder) -> None:
-        builder.value.register_attribute_producer(
-            self.unmodeled_csmr_pipeline,
+        register_risk_affected_attribute_producer(
+            builder=builder,
+            name=self.unmodeled_csmr_pipeline,
             source=self.get_unmodeled_csmr_source,
             required_resources=[self.unmodeled_csmr_table],
-        )
-
-    def register_unmodeled_csmr_paf(self, builder: Builder) -> None:
-        unmodeled_csmr_paf = self.build_lookup_table(builder, "unmodeled_csmr_paf", 0)
-        builder.value.register_attribute_producer(
-            self.unmodeled_csmr_paf_pipeline,
-            source=lambda index: [unmodeled_csmr_paf(index)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
         )
 
     def update_exit_times(self, index: pd.Index, previous_exit_time: pd.Series) -> pd.Series:
@@ -320,6 +312,4 @@ class Mortality(Component):
         return pd.DataFrame({"other_causes": cause_deleted_mortality_rate})
 
     def get_unmodeled_csmr_source(self, index: pd.Index) -> pd.Series:
-        raw_csmr = self.unmodeled_csmr_table(index)
-        paf = self.population_view.get(index, self.unmodeled_csmr_paf_pipeline)
-        return raw_csmr * (1 - paf)
+        return self.unmodeled_csmr_table(index)
