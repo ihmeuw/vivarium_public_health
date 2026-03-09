@@ -228,8 +228,7 @@ class Mortality(Component):
         register_risk_affected_attribute_producer(
             builder=builder,
             name=self.unmodeled_csmr_pipeline,
-            source=self.get_unmodeled_csmr_source,
-            required_resources=[self.unmodeled_csmr_table],
+            source=self.unmodeled_csmr_table,
         )
 
     def update_exit_times(self, index: pd.Index, previous_exit_time: pd.Series) -> pd.Series:
@@ -310,6 +309,3 @@ class Mortality(Component):
             acmr - modeled_csmr - unmodeled_csmr_raw + unmodeled_csmr
         )
         return pd.DataFrame({"other_causes": cause_deleted_mortality_rate})
-
-    def get_unmodeled_csmr_source(self, index: pd.Index) -> pd.Series:
-        return self.unmodeled_csmr_table(index)
