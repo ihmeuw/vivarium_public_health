@@ -35,7 +35,8 @@ def test_filter_by_exposure_categorical(disease_mock, distribution, categories, 
     infected = threshold * per_cat
     susceptible = list(set(categories) - set(threshold)) * per_cat
     current_exposure = lambda index: pd.Series(infected + susceptible, index=index)
-    filter_func = disease.get_exposure_filter(distribution, current_exposure, threshold)
+    disease.population_view.get_attributes = lambda index, _: current_exposure(index)
+    filter_func = disease.get_exposure_filter(distribution, threshold)
     expected = lambda index: current_exposure(index).isin(infected)
 
     assert np.all(expected(test_index) == filter_func(test_index))
@@ -58,7 +59,7 @@ def test_filter_by_exposure_continuous_incorrect_operator(
     disease = disease_mock(distribution)
     disease.threshold = threshold
     with pytest.raises(ValueError, match="incorrect threshold"):
-        disease.get_exposure_filter(distribution, lambda index: index, threshold)
+        disease.get_exposure_filter(distribution, threshold)
 
 
 test_data = [
@@ -91,7 +92,8 @@ def test_filter_by_exposure_continuous(disease_mock, distribution, threshold):
         index=test_index,
     )
 
-    filter_func = disease.get_exposure_filter(distribution, current_exposure, threshold)
+    disease.population_view.get_attributes = lambda index, _: current_exposure(index)
+    filter_func = disease.get_exposure_filter(distribution, threshold)
     expected = lambda index: threshold_op(current_exposure(index), threshold_val)
 
     assert np.all(expected(test_index) == filter_func(test_index))
