@@ -57,7 +57,7 @@ def get_exposure_post_processor(builder, risk: str):
             ).astype(str)
 
     else:
-        post_processor = None
+        post_processor = []
 
     return post_processor
 

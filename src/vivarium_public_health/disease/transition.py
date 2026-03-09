@@ -15,10 +15,10 @@ import pandas as pd
 from vivarium.framework.engine import Builder
 from vivarium.framework.state_machine import Transition, Trigger
 from vivarium.framework.utilities import rate_to_probability
-from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium.types import DataInput
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
+from vivarium_public_health.risks.paf import register_risk_affected_rate_producer
 
 if TYPE_CHECKING:
     from vivarium_public_health.disease import BaseDiseaseState
@@ -103,22 +103,13 @@ class RateTransition(Transition):
         self.transition_rate = transition_rate
         self.rate_type = rate_type
 
-        self.paf_pipeline = f"{self.transition_rate_pipeline}.paf"
-
     def setup(self, builder: Builder) -> None:
         self.transition_rate_table = self.build_lookup_table(builder, "transition_rate")
-        builder.value.register_rate_producer(
-            self.transition_rate_pipeline,
+        register_risk_affected_rate_producer(
+            builder=builder,
+            name=self.transition_rate_pipeline,
             source=self.compute_transition_rate,
-            required_resources=["is_alive", self.transition_rate_table, self.paf_pipeline],
-        )
-
-        paf = self.build_lookup_table(builder, "joint_paf", 0)
-        builder.value.register_attribute_producer(
-            self.paf_pipeline,
-            source=lambda index: [paf(index)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
+            required_resources=["is_alive", self.transition_rate_table],
         )
 
         self.rate_conversion_type = self.configuration["rate_conversion_type"]
@@ -131,8 +122,7 @@ class RateTransition(Transition):
         transition_rate = pd.Series(0.0, index=index)
         living = self.population_view.get_filtered_index(index, query="is_alive == True")
         base_rates = self.transition_rate_table(living)
-        joint_paf = self.population_view.get(living, self.paf_pipeline)
-        transition_rate.loc[living] = base_rates * (1 - joint_paf)
+        transition_rate.loc[living] = base_rates
         return transition_rate
 
     ##################

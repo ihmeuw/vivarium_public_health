@@ -16,10 +16,10 @@ import pandas as pd
 from vivarium import Component
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.values import list_combiner, union_post_processor
 
 from vivarium_public_health.disease.state import ExcessMortalityState
 from vivarium_public_health.disease.transition import TransitionString
+from vivarium_public_health.risks.paf import register_risk_affected_attribute_producer
 from vivarium_public_health.utilities import EntityString, is_non_zero
 
 
@@ -211,20 +211,14 @@ class RiskAttributableDisease(ExcessMortalityState):
             self.adjust_cause_specific_mortality_rate,
             required_resources=[self.cause_specific_mortality_rate_table],
         )
-        builder.value.register_attribute_producer(
-            self.excess_mortality_rate_paf_name,
-            source=lambda idx: [self.population_attributable_fraction_table(idx)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
-        )
-        builder.value.register_attribute_producer(
-            self.excess_mortality_rate_name,
+        register_risk_affected_attribute_producer(
+            builder=builder,
+            name=self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
-            required_resources=[
-                self.excess_mortality_rate_table,
-                self.excess_mortality_rate_paf_name,
-            ],
+            required_resources=[self.excess_mortality_rate_table],
         )
+        # We need the emr pipeline later
+        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
         builder.value.register_attribute_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
@@ -376,12 +370,7 @@ class RiskAttributableDisease(ExcessMortalityState):
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         base_excess_mort = self.excess_mortality_rate_table(with_condition)
-        joint_mediated_paf = self.population_view.get(
-            with_condition, self.excess_mortality_rate_paf_name
-        )
-        excess_mortality_rate.loc[with_condition] = base_excess_mort * (
-            1 - joint_mediated_paf.values
-        )
+        excess_mortality_rate.loc[with_condition] = base_excess_mort
         return excess_mortality_rate
 
     def adjust_cause_specific_mortality_rate(self, index, rate):
