@@ -37,7 +37,7 @@ def test_disability_observer_setup(mocker):
     and returns expected disease classes."""
 
     observer = DisabilityObserver_()
-    builder = mocker.Mock()
+    builder = mocker.MagicMock()
     builder.results.register_adding_observation = mocker.Mock()
     builder.configuration.time.step_size = 28
     builder.configuration.output_data.results_directory = "some/results/directory"
@@ -181,7 +181,7 @@ def test_disability_accumulation(
 def test_set_causes_of_disability(exclusions, mocker):
     observer = DisabilityObserver_()
 
-    builder = mocker.Mock()
+    builder = mocker.MagicMock()
     builder.configuration.time.step_size = 28
     builder.configuration.stratification.excluded_categories = LayeredConfigTree(
         {"disability": exclusions}
@@ -201,7 +201,7 @@ def test_set_causes_of_disability(exclusions, mocker):
 def test_set_causes_of_disability_raises(mocker):
     observer = DisabilityObserver_()
 
-    builder = mocker.Mock()
+    builder = mocker.MagicMock()
     builder.configuration.time.step_size = 28
     builder.configuration.stratification.excluded_categories = LayeredConfigTree(
         {"disability": ["arthritis"]}  # not an instantiated disease
