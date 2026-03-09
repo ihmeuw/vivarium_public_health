@@ -1,3 +1,11 @@
+**5.1.0 - 04/16/26**
+
+- Enable precomputation of joint PAFs to be stored in a lookup table rather than calculated on the fly
+  - Create helper function to register pipelines that can be modified by RiskEffect components
+  - Create helper function to get joint PAF pipeline names
+  - Update DiseaseState to precompute joint PAF for excess mortality rate
+  - Update RiskEffect to appropriately modify the new joint PAF pipeline
+
 **5.0.2 - 04/16/26**
 
 - Tighten vivarium_build_utils pin
@@ -7,8 +15,9 @@
 
 - Update vivarium_build_utils pin
 
+
 **5.0.0 - 04/02/26**
------------------------
+=======================
 
 This release updates the repository to work with `vivarium` v4.0.0 which contains
 several breaking changes.

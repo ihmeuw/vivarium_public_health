@@ -19,6 +19,7 @@ from layered_config_tree import ConfigurationError
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
+from vivarium.types import LookupTableData
 
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.risks.data_transformations import (
@@ -26,6 +27,7 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.risks.paf import get_joint_paf_pipeline_name
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
@@ -131,13 +133,12 @@ class RiskEffect(Component):
 
         self.exposure_name = f"{self.risk.name}.exposure"
         self.target_name = f"{self.target.name}.{self.target.measure}"
-        self.target_paf_name = f"{self.target_name}.paf"
         self.relative_risk_name = f"{self.risk.name}_on_{self.target.name}.relative_risk"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self.relative_risk_table = self.build_rr_lookup_table(builder)
-        self.paf_table = self.build_paf_lookup_table(builder)
+        self.paf_data = self.get_paf_data(builder)
 
         self._relative_risk_source = self.get_relative_risk_source(builder)
         self.register_relative_risk_pipeline(builder)
@@ -160,11 +161,10 @@ class RiskEffect(Component):
             builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
         )
 
-    def build_paf_lookup_table(self, builder: Builder) -> LookupTable:
-        paf_data = self.get_filtered_data(
+    def get_paf_data(self, builder: Builder) -> LookupTableData:
+        return self.get_filtered_data(
             builder, self.configuration.data_sources.population_attributable_fraction
         )
-        return self.build_lookup_table(builder, "paf", data_source=paf_data)
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration."""
@@ -202,7 +202,7 @@ class RiskEffect(Component):
     def get_filtered_data(
         self, builder: "Builder", data_source: str | float | pd.DataFrame
     ) -> float | pd.DataFrame:
-        data = super().get_data(builder, data_source)
+        data = self.get_data(builder, data_source)
 
         if isinstance(data, pd.DataFrame):
             # filter data to only include the target entity and measure
@@ -334,8 +334,8 @@ class RiskEffect(Component):
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
-        builder.value.register_attribute_modifier(
-            self.target_paf_name, modifier=self.paf_table
+        builder.value.register_value_modifier(
+            get_joint_paf_pipeline_name(self.target_name), modifier=self.paf_data
         )
 
     ##################
