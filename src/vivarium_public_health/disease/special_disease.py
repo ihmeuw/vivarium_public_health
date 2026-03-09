@@ -171,9 +171,10 @@ class RiskAttributableDisease(ExcessMortalityState):
             TransitionString(f"susceptible_to_{self.cause.name}_TO_{self.cause.name}")
         ]
 
-        self.disability_weight_pipeline = f"{self.cause.name}.disability_weight"
-        self.excess_mortality_rate_pipeline = f"{self.cause.name}.excess_mortality_rate"
-        self.excess_mortality_rate_paf_pipeline = f"{self.excess_mortality_rate_pipeline}.paf"
+        self.disability_weight_name = f"{self.cause.name}.disability_weight"
+        self.excess_mortality_rate_name = f"{self.cause.name}.excess_mortality_rate"
+        self.excess_mortality_rate_paf_name = f"{self.excess_mortality_rate_name}.paf"
+        self.exposure_name = f"{self.risk.name}.exposure"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder):
@@ -198,44 +199,42 @@ class RiskAttributableDisease(ExcessMortalityState):
         )
 
         builder.value.register_attribute_producer(
-            self.disability_weight_pipeline,
+            self.disability_weight_name,
             source=self.compute_disability_weight,
-            required_resources=self.raw_disability_weight_table,
+            required_resources=[self.raw_disability_weight_table],
         )
         builder.value.register_attribute_modifier(
-            "all_causes.disability_weight", modifier=self.disability_weight_pipeline
+            "all_causes.disability_weight", modifier=self.disability_weight_name
         )
         builder.value.register_attribute_modifier(
             "cause_specific_mortality_rate",
             self.adjust_cause_specific_mortality_rate,
-            required_resources=self.cause_specific_mortality_rate_table,
+            required_resources=[self.cause_specific_mortality_rate_table],
         )
         builder.value.register_attribute_producer(
-            self.excess_mortality_rate_pipeline,
-            source=self.compute_excess_mortality_rate,
-            required_resources=[self.excess_mortality_rate_table] + [self.joint_paf],
-        )
-        # We need the emr pipeline later
-        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
-        self.joint_paf = builder.value.register_attribute_producer(
-            self.excess_mortality_rate_paf_pipeline,
+            self.excess_mortality_rate_paf_name,
             source=lambda idx: [self.population_attributable_fraction_table(idx)],
             preferred_combiner=list_combiner,
             preferred_post_processor=union_post_processor,
         )
+        builder.value.register_attribute_producer(
+            self.excess_mortality_rate_name,
+            source=self.compute_excess_mortality_rate,
+            required_resources=[
+                self.excess_mortality_rate_table,
+                self.excess_mortality_rate_paf_name,
+            ],
+        )
         builder.value.register_attribute_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
-            required_resources=[self.excess_mortality_rate_pipeline],
+            required_resources=[self.excess_mortality_rate_name],
         )
 
         distribution = builder.data.load(f"{self.risk}.distribution")
-        self.exposure_pipeline = builder.value.get_attribute(f"{self.risk.name}.exposure")
         threshold = builder.configuration[self.name].threshold
 
-        self.filter_by_exposure = self.get_exposure_filter(
-            distribution, self.exposure_pipeline, threshold
-        )
+        self.filter_by_exposure = self.get_exposure_filter(distribution, threshold)
 
         builder.population.register_initializer(
             initializer=self.initialize_disease,
@@ -244,7 +243,7 @@ class RiskAttributableDisease(ExcessMortalityState):
                 self.diseased_event_time_column,
                 self.susceptible_event_time_column,
             ],
-            required_resources=[self.exposure_pipeline],
+            required_resources=[self.exposure_name],
         )
 
     #################
@@ -273,11 +272,11 @@ class RiskAttributableDisease(ExcessMortalityState):
             emr_data = 0
         return emr_data
 
-    def get_exposure_filter(self, distribution, exposure_pipeline, threshold):
+    def get_exposure_filter(self, distribution, threshold):
         if distribution in ["dichotomous", "ordered_polytomous", "unordered_polytomous"]:
 
             def categorical_filter(index):
-                exposure = exposure_pipeline(index)
+                exposure = self.population_view.get_attributes(index, self.exposure_name)
                 return exposure.isin(threshold)
 
             filter_function = categorical_filter
@@ -306,7 +305,7 @@ class RiskAttributableDisease(ExcessMortalityState):
             threshold = Threshold(op, float(threshold_val[0]))
 
             def continuous_filter(index):
-                exposure = exposure_pipeline(index)
+                exposure = self.population_view.get_attributes(index, self.exposure_name)
                 return threshold.operator(exposure, threshold.value)
 
             filter_function = continuous_filter
@@ -370,7 +369,9 @@ class RiskAttributableDisease(ExcessMortalityState):
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         base_excess_mort = self.excess_mortality_rate_table(with_condition)
-        joint_mediated_paf = self.joint_paf(with_condition)
+        joint_mediated_paf = self.population_view.get_attributes(
+            with_condition, self.excess_mortality_rate_paf_name
+        )
         excess_mortality_rate.loc[with_condition] = base_excess_mort * (
             1 - joint_mediated_paf.values
         )
@@ -390,7 +391,7 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         """
         rate = self.population_view.get_attributes(
-            index, self.excess_mortality_rate_pipeline, skip_post_processor=True
+            index, self.excess_mortality_rate_name, skip_post_processor=True
         )
         rates_df[self.cause.name] = rate
         return rates_df
