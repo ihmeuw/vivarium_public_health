@@ -7,8 +7,7 @@ This module contains tools to manage standard disease states.
 
 """
 
-import warnings
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Callable
 from typing import Any
 
@@ -19,7 +18,6 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.population import PopulationView, SimulantData
 from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
-from vivarium.framework.values import list_combiner, union_post_processor
 from vivarium.types import DataInput, LookupTableData
 
 from vivarium_public_health.disease.exceptions import DiseaseModelError
@@ -28,6 +26,7 @@ from vivarium_public_health.disease.transition import (
     RateTransition,
     TransitionString,
 )
+from vivarium_public_health.risks.paf import register_risk_affected_rate_producer
 from vivarium_public_health.utilities import is_non_zero
 
 
@@ -543,7 +542,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
             "all_causes.disability_weight", modifier=self.dw_pipeline
         )
 
-        self.register_joint_paf_pipeline(builder)
         self.register_excess_mortality_rate_pipeline(builder)
 
         builder.value.register_attribute_modifier(
@@ -601,24 +599,11 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         return excess_mortality_rate_source
 
     def register_excess_mortality_rate_pipeline(self, builder: Builder) -> None:
-        builder.value.register_rate_producer(
-            self.excess_mortality_rate_pipeline,
+        register_risk_affected_rate_producer(
+            builder=builder,
+            name=self.excess_mortality_rate_pipeline,
             source=self.compute_excess_mortality_rate,
-            required_resources=[
-                "is_alive",
-                self.model,
-                self.excess_mortality_rate_table,
-                self.excess_mortality_rate_paf_pipeline,
-            ],
-        )
-
-    def register_joint_paf_pipeline(self, builder: Builder) -> None:
-        paf = self.build_lookup_table(builder, "joint_paf", 0)
-        builder.value.register_attribute_producer(
-            self.excess_mortality_rate_paf_pipeline,
-            source=lambda idx: [paf(idx)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
+            required_resources=["is_alive", self.model, self.excess_mortality_rate_table],
         )
 
     def get_randomness_prevalence(self, builder: Builder) -> RandomnessStream:
@@ -690,12 +675,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         base_excess_mort = self.excess_mortality_rate_table(with_condition)
-        joint_mediated_paf = self.population_view.get(
-            with_condition, self.excess_mortality_rate_paf_pipeline
-        )
-        excess_mortality_rate.loc[with_condition] = base_excess_mort * (
-            1 - joint_mediated_paf.values
-        )
+        excess_mortality_rate.loc[with_condition] = base_excess_mort
         return excess_mortality_rate
 
     def adjust_mortality_rate(self, index: pd.Index, rates_df: pd.DataFrame) -> pd.DataFrame:
