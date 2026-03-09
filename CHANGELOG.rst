@@ -3,8 +3,12 @@
 - Enable precomputation of joint PAFs to be stored in a lookup table rather than calculated on the fly
   - Create helper function to register pipelines that can be modified by RiskEffect components
   - Create helper function to get joint PAF pipeline names
-  - Update DiseaseState to precompute joint PAF for excess mortality rate
   - Update RiskEffect to appropriately modify the new joint PAF pipeline
+  - Update DiseaseState to precompute joint PAF for excess mortality rate
+  - Update LBWSGRiskEffect to use the new joint PAF pipeline
+  - Update RateTransition to use the new joint PAF pipeline for transition rate
+  - Update RiskAttributableDisease to use the new joint PAF pipeline for excess mortality rate
+  - Update DichotomousDistribution to use the new joint PAF pipeline for exposure parameters
 
 **5.0.2 - 04/16/26**
 
@@ -14,7 +18,6 @@
 **5.0.1 - 04/15/26**
 
 - Update vivarium_build_utils pin
-
 
 **5.0.0 - 04/02/26**
 =======================
