@@ -4,12 +4,11 @@ from collections import Counter
 import numpy as np
 import pytest
 from vivarium import InteractiveContext
-from vivarium.testing_utilities import TestPopulation
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.population import Mortality
+from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.results import MortalityObserver
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.stratification import ResultsStratifier
@@ -18,26 +17,24 @@ from vivarium_public_health.results.stratification import ResultsStratifier
 def disease_with_excess_mortality(base_config, disease_name, emr_value) -> DiseaseModel:
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
-    healthy = SusceptibleState(disease_name, allow_self_transition=True)
-    disease_get_data_funcs = {
-        "disability_weight": lambda *_: build_table_with_age(
+    healthy = SusceptibleState(disease_name)
+    with_condition = DiseaseState(
+        disease_name,
+        disability_weight=build_table_with_age(
             0.0, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "prevalence": lambda *_: build_table_with_age(
+        prevalence=build_table_with_age(
             0.5, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-        "excess_mortality_rate": lambda *_: build_table_with_age(
+        excess_mortality_rate=build_table_with_age(
             emr_value, parameter_columns={"year": (year_start - 1, year_end)}
         ),
-    }
-    with_condition = DiseaseState(disease_name, get_data_functions=disease_get_data_funcs)
+    )
     healthy.add_rate_transition(
         with_condition,
-        get_data_functions={
-            "incidence_rate": lambda *_: build_table_with_age(
-                0.1, parameter_columns={"year": (year_start - 1, year_end)}
-            )
-        },
+        transition_rate=build_table_with_age(
+            0.1, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
     )
     return DiseaseModel(disease_name, states=[healthy, with_condition])
 
@@ -50,12 +47,11 @@ def simulation_after_one_step(base_config, base_plugins):
 
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
-            Mortality(),
+            MortalityObserver(),
+            BasePopulation(),
             flu,
             mumps,
             ResultsStratifier(),
-            MortalityObserver(),
         ],
         configuration=base_config,
         plugin_configuration=base_plugins,
@@ -90,7 +86,9 @@ def _get_expected_results(simulation, expected_values=Counter()):
     deaths are provided, return the counts of deaths in the Counter plus the counts
     for this time step.
     """
-    pop = simulation.get_population()
+    pop = simulation.get_population(
+        ["cause_of_death", "sex", "exit_time", "years_of_life_lost"]
+    )
 
     for cause in ["other_causes", "flu", "mumps"]:
         for sex in ["Male", "Female"]:
@@ -162,8 +160,7 @@ def test_aggregation_configuration(base_config, base_plugins):
 
     aggregate_sim = InteractiveContext(
         components=[
-            TestPopulation(),
-            Mortality(),
+            BasePopulation(),
             flu,
             mumps,
             ResultsStratifier(),
@@ -213,8 +210,7 @@ def test_category_exclusions(base_config, base_plugins, exclusions):
 
     simulation = InteractiveContext(
         components=[
-            TestPopulation(),
-            Mortality(),
+            BasePopulation(),
             flu,
             mumps,
             ResultsStratifier(),

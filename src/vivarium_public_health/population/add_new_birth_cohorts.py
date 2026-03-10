@@ -13,7 +13,6 @@ from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
-from vivarium.framework.resource import Resource
 
 from vivarium_public_health import utilities
 from vivarium_public_health.population.data_transformations import get_live_births_per_year
@@ -163,16 +162,14 @@ class FertilityAgeSpecificRates(Component):
     ##############
 
     @property
-    def columns_created(self) -> list[str]:
-        return ["last_birth_time", "parent_id"]
-
-    @property
-    def columns_required(self) -> list[str] | None:
-        return ["sex"]
-
-    @property
-    def initialization_requirements(self) -> list[str | Resource]:
-        return ["sex"]
+    def configuration_defaults(self) -> dict[str, dict]:
+        return {
+            self.name: {
+                "data_sources": {
+                    "age_specific_fertility_rate": self.load_age_specific_fertility_rate_data
+                }
+            },
+        }
 
     #####################
     # Lifecycle methods #
@@ -186,19 +183,17 @@ class FertilityAgeSpecificRates(Component):
         builder
             Framework coordination object.
         """
-        age_specific_fertility_rate = self.load_age_specific_fertility_rate_data(builder)
-        fertility_rate = builder.lookup.build_table(
-            age_specific_fertility_rate, parameter_columns=["age", "year"]
-        )
-        self.fertility_rate = builder.value.register_rate_producer(
-            "fertility rate",
-            source=fertility_rate,
-            component=self,
-            required_resources=["age"],
-        )
+        fertility_rate = self.build_lookup_table(builder, "age_specific_fertility_rate")
+        builder.value.register_rate_producer("fertility_rate", source=fertility_rate)
 
-        self.randomness = builder.randomness.get_stream("fertility", component=self)
+        self.randomness = builder.randomness.get_stream("fertility")
         self.simulant_creator = builder.population.get_simulant_creator()
+
+        builder.population.register_initializer(
+            initializer=self.initialize_birth_time_and_parent_id,
+            columns=["last_birth_time", "parent_id"],
+            required_resources=["sex"],
+        )
 
     #################
     # Setup methods #
@@ -216,10 +211,9 @@ class FertilityAgeSpecificRates(Component):
     # Event-driven methods #
     ########################
 
-    def on_initialize_simulants(self, pop_data: SimulantData) -> None:
+    def initialize_birth_time_and_parent_id(self, pop_data: SimulantData) -> None:
         """Adds 'last_birth_time' and 'parent' columns to the state table."""
-        pop = self.population_view.subview(["sex"]).get(pop_data.index)
-        women = pop.loc[pop.sex == "Female"].index
+        females = self.population_view.get_filtered_index(pop_data.index, "sex == 'Female'")
 
         if pop_data.user_data["sim_state"] == "setup":
             parent_id = -1
@@ -230,9 +224,9 @@ class FertilityAgeSpecificRates(Component):
         )
         # FIXME: This is a misuse of the column and makes it invalid for
         #    tracking metrics.
-        # Do the naive thing, set so all women can have children
+        # Do the naive thing, set so all females can have children
         # and none of them have had a child in the last year.
-        pop_update.loc[women, "last_birth_time"] = pop_data.creation_time - pd.Timedelta(
+        pop_update.loc[females, "last_birth_time"] = pop_data.creation_time - pd.Timedelta(
             days=utilities.DAYS_PER_YEAR
         )
 
@@ -246,23 +240,28 @@ class FertilityAgeSpecificRates(Component):
         event
             The event that triggered the function call.
         """
-        # Get a view on all living women who haven't had a child in at least nine months.
+        # Get a view on all living females who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
-        population = self.population_view.get(
-            event.index, query='alive == "alive" and sex =="Female"'
+        last_birth_time = self.population_view.get_private_columns(
+            event.index,
+            "last_birth_time",
+            query="is_alive == True and sex == 'Female'",
         )
-        can_have_children = population.last_birth_time < nine_months_ago
-        eligible_women = population[can_have_children]
-
-        rate_series = self.fertility_rate(eligible_women.index)
-        had_children = self.randomness.filter_for_rate(eligible_women, rate_series).copy()
-
-        had_children.loc[:, "last_birth_time"] = event.time
-        self.population_view.update(had_children["last_birth_time"])
+        eligible_females_idx = last_birth_time[last_birth_time < nine_months_ago].index
+        fertility_rate = self.population_view.get_attributes(
+            eligible_females_idx, "fertility_rate"
+        )
+        had_children_idx = self.randomness.filter_for_rate(
+            fertility_rate.index, fertility_rate
+        )
+        updated_birth_time = pd.Series(
+            event.time, index=had_children_idx, name="last_birth_time"
+        )
+        self.population_view.update(updated_birth_time)
 
         # If children were born, add them to the state table and record
         # who their mother was.
-        num_babies = len(had_children)
+        num_babies = len(had_children_idx)
         if num_babies:
             self.simulant_creator(
                 num_babies,
@@ -270,6 +269,6 @@ class FertilityAgeSpecificRates(Component):
                     "age_start": 0,
                     "age_end": 0,
                     "sim_state": "time_step",
-                    "parent_ids": had_children.index,
+                    "parent_ids": had_children_idx,
                 },
             )

@@ -165,15 +165,15 @@ class ExpectedStates(NamedTuple):
 STATES = ExpectedStates()
 
 
-def complex_model_infected_1_prevalence(_, __):
+def complex_model_infected_1_prevalence(builder):
     return STATES.COMPLEX_INFECTED_1.prevalence
 
 
-def complex_model_3_to_1_transition_rate(_, __, ___):
+def complex_model_3_to_1_transition_rate(builder):
     return STATES.COMPLEX_INFECTED_3.get_transitions()[COMPLEX_STATE_1_NAME].value
 
 
-def complex_model_3_to_2_transition_rate(_, __, ___):
+def complex_model_3_to_2_transition_rate(builder):
     return STATES.COMPLEX_INFECTED_3.get_transitions()[COMPLEX_STATE_2_NAME].value
 
 
@@ -235,7 +235,7 @@ SIR_MODEL_CONFIG = {
                 "sink": STATES.SIR_INFECTED.name,
                 "transition_type": "rate",
                 "data_sources": {
-                    "incidence_rate": STATES.SIR_SUSCEPTIBLE.get_transitions()[
+                    "transition_rate": STATES.SIR_SUSCEPTIBLE.get_transitions()[
                         STATES.SIR_INFECTED.name
                     ].value
                 },
@@ -245,7 +245,7 @@ SIR_MODEL_CONFIG = {
                 "sink": "recovered",
                 "transition_type": "rate",
                 "data_sources": {
-                    "remission_rate": STATES.SIR_INFECTED.get_transitions()[
+                    "transition_rate": STATES.SIR_INFECTED.get_transitions()[
                         f"recovered_from_{SIR_MODEL}"
                     ].value
                 },
@@ -387,7 +387,7 @@ def files_mock(tmp_path, mocker):
 
 ALL_COMPONENTS_CONFIG_DICT = {
     "causes": {**SIR_MODEL_CONFIG, **COMPLEX_MODEL_CONFIG},
-    "vivarium": {"testing_utilities": "TestPopulation()"},
+    "vivarium_public_health": {"population": "BasePopulation()"},
 }
 
 
@@ -413,7 +413,7 @@ def _test_parsing_of_config_file(
     expected_component_names: tuple[str] = (
         f"disease_model.{SIR_MODEL}",
         f"complex_model.{COMPLEX_MODEL}",
-        "test_population",
+        "base_population",
     ),
 ):
     parsed_components = CausesConfigurationParser().parse_component_config(component_config)
@@ -436,7 +436,7 @@ def test_parsing_config_single_external_causes_config_file(tmp_path, files_mock)
     component_config = create_simulation_config_tree(
         {
             "external_configuration": {"some_repo": ["causes_config.yaml"]},
-            "vivarium": {"testing_utilities": "TestPopulation()"},
+            "vivarium_public_health": {"population": "BasePopulation()"},
         }
     )
     _test_parsing_of_config_file(component_config)
@@ -452,7 +452,7 @@ def test_parsing_config_multiple_external_causes_config_file(tmp_path, files_moc
     component_config = create_simulation_config_tree(
         {
             "external_configuration": {"some_repo": ["sir.yaml", "complex.yaml"]},
-            "vivarium": {"testing_utilities": "TestPopulation()"},
+            "vivarium_public_health": {"population": "BasePopulation()"},
         }
     )
     _test_parsing_of_config_file(component_config)
@@ -466,7 +466,7 @@ def test_parsing_config_external_and_local_causes_config_file(tmp_path, files_mo
         {
             "external_configuration": {"some_repo": ["sir.yaml"]},
             "causes": COMPLEX_MODEL_CONFIG,
-            "vivarium": {"testing_utilities": "TestPopulation()"},
+            "vivarium_public_health": {"population": "BasePopulation()"},
         }
     )
 
@@ -475,10 +475,10 @@ def test_parsing_config_external_and_local_causes_config_file(tmp_path, files_mo
 
 def test_parsing_no_causes_config_file(tmp_path, files_mock):
     component_config = create_simulation_config_tree(
-        {"vivarium": {"testing_utilities": "TestPopulation()"}}
+        {"vivarium_public_health": {"population": "BasePopulation()"}}
     )
     _test_parsing_of_config_file(
-        component_config, expected_component_names=("test_population",)
+        component_config, expected_component_names=("base_population",)
     )
 
 
@@ -495,7 +495,7 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
     component_config = create_simulation_config_tree(
         {
             "external_configuration": config_dict,
-            "vivarium": {"testing_utilities": "TestPopulation()"},
+            "vivarium_public_health": {"population": "BasePopulation()"},
         }
     )
     with pytest.raises(ParsingError, match=expected_error_message):
@@ -503,7 +503,7 @@ def test_parsing_invalid_external_configuration(config_dict, expected_error_mess
 
 
 @pytest.mark.parametrize(
-    "model_name, expected_model_type, expected_csmr, expected_initial_state, "
+    "model_name, expected_model_type, expected_csmr, expected_residual_state, "
     "expected_state_names",
     [
         (
@@ -536,14 +536,14 @@ def test_disease_model(
     model_name: str,
     expected_csmr: float,
     expected_model_type: type[DiseaseModel],
-    expected_initial_state: str,
+    expected_residual_state: str,
     expected_state_names: list[str],
 ):
     model = sim_components[model_name]
     assert isinstance(model, expected_model_type)
-    assert model.residual_state.state_id == expected_initial_state
+    assert model.residual_state.state_id == expected_residual_state
 
-    assert model.lookup_tables["cause_specific_mortality_rate"].data == expected_csmr
+    assert model.csmr_table.data == expected_csmr
 
     # the disease model's states have the expected names
     actual_state_names = {state.name for state in model.sub_components}
@@ -580,7 +580,7 @@ def test_disease_state(
     assert state.state_id == expected_state_data.name
     assert state.cause_type == expected_state_data.cause_type
     assert (
-        state.transition_set.allow_null_transition
+        state.transition_set.allow_self_transition
         == expected_state_data.allow_self_transition
     )
 
@@ -589,22 +589,16 @@ def test_disease_state(
 
     if isinstance(state, DiseaseState):
         assert (
-            state.transition_set.allow_null_transition
+            state.transition_set.allow_self_transition
             == expected_state_data.allow_self_transition
         )
 
         # test we get the expected default and configured data sources
-        assert state.lookup_tables["prevalence"].data == expected_state_data.prevalence
-        assert (
-            state.lookup_tables["birth_prevalence"].data
-            == expected_state_data.birth_prevalence
-        )
-        assert state.lookup_tables["dwell_time"].data == expected_state_data.dwell_time
-        assert (
-            state.lookup_tables["disability_weight"].data
-            == expected_state_data.disability_weight
-        )
-        assert state.lookup_tables["excess_mortality_rate"].data == expected_state_data.emr
+        assert state.prevalence_table.data == expected_state_data.prevalence
+        assert state.birth_prevalence_table.data == expected_state_data.birth_prevalence
+        assert state.dwell_time_table.data == expected_state_data.dwell_time
+        assert state.disability_weight_table.data == expected_state_data.disability_weight
+        assert state.excess_mortality_rate_table.data == expected_state_data.emr
 
     # test that it has the expected transitions
     for transition in state.transition_set.transitions:
@@ -613,10 +607,10 @@ def test_disease_state(
         ]
         assert type(transition) == expected_transition_data.transition_type
         if isinstance(transition, RateTransition):
-            actual_rate = transition.lookup_tables["transition_rate"].data
+            actual_rate = transition.transition_rate_table.data
             assert actual_rate == expected_transition_data.value
         elif isinstance(transition, ProportionTransition):
-            actual_proportion = transition.lookup_tables["proportion"].data
+            actual_proportion = transition.proportion_table.data
             assert actual_proportion == expected_transition_data.value
 
 
@@ -655,10 +649,6 @@ INVALID_CONFIG_PARAMS = {
     "empty states": ({"states": {}}, "must define at least one state"),
     "states not dict": ({"states": ["s1", "s2"]}, "must be a dictionary"),
     "state_1 not dict": ({"states": {"s1": ["not", "a", "dict"]}}, "must be a dictionary"),
-    "initial state not in states": (
-        {"initial_state": "not_here", "states": {"s1": {}}},
-        "must be present in the states",
-    ),
     "invalid state key": ({"states": {"s1": {"bad_key": ""}}}, "state 's1' may only contain"),
     "susceptible state with data sources": (
         {"states": {"susceptible": {"data_sources": ""}}},
