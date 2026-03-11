@@ -53,7 +53,9 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_public_health.risks.paf import register_risk_affected_attribute_producer
+from vivarium_public_health.risks.calibration_constant import (
+    register_risk_affected_attribute_producer,
+)
 
 
 class Mortality(Component):
