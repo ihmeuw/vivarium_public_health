@@ -26,7 +26,6 @@ Pipelines Exposed
  - cause_specific_mortality_rate
  - mortality_rate
  - affected_unmodeled.cause_specific_mortality_rate
- - affected_unmodeled.cause_specific_mortality_rate.paf
 
 
 All cause mortality is read from the artifact (GBD). At setup cause specific
@@ -163,7 +162,6 @@ class Mortality(Component):
         self.cause_specific_mortality_rate_pipeline = "cause_specific_mortality_rate"
         self.mortality_rate_pipeline = "mortality_rate"
         self.unmodeled_csmr_pipeline = "affected_unmodeled.cause_specific_mortality_rate"
-        self.unmodeled_csmr_paf_pipeline = f"{self.unmodeled_csmr_pipeline}.paf"
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:

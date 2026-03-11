@@ -27,7 +27,7 @@ from vivarium_public_health.risks.data_transformations import (
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
-from vivarium_public_health.risks.paf import get_joint_paf_pipeline_name
+from vivarium_public_health.risks.paf import get_calibration_constant_pipeline_name
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
@@ -335,7 +335,8 @@ class RiskEffect(Component):
 
     def register_paf_modifier(self, builder: Builder) -> None:
         builder.value.register_value_modifier(
-            get_joint_paf_pipeline_name(self.target_name), modifier=lambda: self.paf_data
+            get_calibration_constant_pipeline_name(self.target_name),
+            modifier=lambda: self.paf_data,
         )
 
     ##################
