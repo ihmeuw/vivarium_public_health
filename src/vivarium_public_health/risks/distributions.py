@@ -20,8 +20,10 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN, LookupTable
 from vivarium.framework.population import SimulantData
 
+from vivarium_public_health.risks.calibration_constant import (
+    register_risk_affected_attribute_producer,
+)
 from vivarium_public_health.risks.data_transformations import pivot_categorical
-from vivarium_public_health.risks.paf import register_risk_affected_attribute_producer
 from vivarium_public_health.utilities import EntityString
 
 
