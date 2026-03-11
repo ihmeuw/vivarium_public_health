@@ -477,7 +477,9 @@ class LBWSGRiskEffect(RiskEffect):
         pass
 
     def get_paf_data(self, builder):
-        return self.get_data(builder, self.configuration.data_sources.population_attributable_fraction)
+        return self.get_data(
+            builder, self.configuration.data_sources.population_attributable_fraction
+        )
 
     def register_target_modifier(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(

@@ -307,7 +307,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
     year_start = base_config.time.start.year
     year_end = base_config.time.end.year
     base_rate = 0.7
-    paf = 0.1
+    calibration_value = 0.1
 
     healthy = SusceptibleState("healthy")
     sick = DiseaseState("sick")
@@ -322,18 +322,18 @@ def test_risk_deletion(base_config, base_plugins, disease):
 
     model = DiseaseModel(disease, residual_state=healthy, states=[healthy, sick])
 
-    class PafModifier(Component):
+    class CalibrationConstantModifier(Component):
         def setup(self, builder):
             data = build_table_with_age(
-                paf, parameter_columns={"year": (year_start, year_end)}
+                calibration_value, parameter_columns={"year": (year_start, year_end)}
             )
             builder.value.register_value_modifier(
-                "sick.incidence_rate.paf",
+                "sick.incidence_rate.calibration_constant",
                 modifier=lambda: data,
             )
 
     simulation = InteractiveContext(
-        components=[BasePopulation(), model, PafModifier()],
+        components=[BasePopulation(), model, CalibrationConstantModifier()],
         configuration=base_config,
         plugin_configuration=base_plugins,
         setup=False,
@@ -341,7 +341,7 @@ def test_risk_deletion(base_config, base_plugins, disease):
     simulation._data.write(key, base_rate)
     simulation.setup()
     simulation.step()
-    expected_rate = base_rate * (1 - paf)
+    expected_rate = base_rate * (1 - calibration_value)
     assert np.allclose(
         from_yearly(expected_rate, time_step),
         simulation.get_population("sick.incidence_rate").squeeze(),
