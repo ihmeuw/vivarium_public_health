@@ -1,4 +1,4 @@
-**5.0.1 - TBD/TBD/TBD**
+**5.1.0 - TBD/TBD/TBD**
 
   - Enable precomputation of calibration constants to be stored in a lookup table rather than calculated on the fly
     - Create helper function to register pipelines that can be modified by RiskEffect components
@@ -9,6 +9,9 @@
     - Update RateTransition to use the new calibration constant pipeline for transition rate
     - Update RiskAttributableDisease to use the new calibration constant pipeline for excess mortality rate
     - Update DichotomousDistribution to use the new calibration constant pipeline for exposure parameters
+  - Update RiskEffect and LBWSGRiskEffect to leverage the multiplication_combiner when applying the relative risk
+    - Removes `adjust_target`` method from RiskEffect and LBWSGRiskEffect
+    - The relative risk pipeline is now registered as a modifier directly
 
   
 **5.0.0 - 04/02/26**

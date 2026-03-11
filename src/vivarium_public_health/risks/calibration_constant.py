@@ -19,7 +19,11 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN
 from vivarium.framework.resource import Resource
-from vivarium.framework.values import ValuesManager, raw_union_post_processor
+from vivarium.framework.values import (
+    ValuesManager,
+    multiplication_combiner,
+    raw_union_post_processor,
+)
 from vivarium.types import LookupTableData, NumberLike
 
 
@@ -128,6 +132,7 @@ class _RiskAffectedPipeline(Component):
             self._target_pipeline_name,
             source=self._target_pipeline_source,
             required_resources=[self._calibration_constant_table, *self._required_resources],
+            preferred_combiner=multiplication_combiner,
             preferred_post_processor=self._apply_calibration_constant,
         )
 
