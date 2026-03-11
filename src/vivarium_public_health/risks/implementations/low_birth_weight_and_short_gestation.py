@@ -481,13 +481,6 @@ class LBWSGRiskEffect(RiskEffect):
             builder, self.configuration.data_sources.population_attributable_fraction
         )
 
-    def register_target_modifier(self, builder: Builder) -> None:
-        builder.value.register_attribute_modifier(
-            self.target_name,
-            modifier=self.adjust_target,
-            required_resources=[self.relative_risk_name],
-        )
-
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
         relative_risks = builder.data.load(f"{self.risk}.relative_risk")
