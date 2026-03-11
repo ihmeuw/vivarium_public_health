@@ -173,7 +173,6 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         self.disability_weight_name = f"{self.cause.name}.disability_weight"
         self.excess_mortality_rate_name = f"{self.cause.name}.excess_mortality_rate"
-        self.excess_mortality_rate_paf_name = f"{self.excess_mortality_rate_name}.paf"
         self.exposure_name = f"{self.risk.name}.exposure"
 
     # noinspection PyAttributeOutsideInit
