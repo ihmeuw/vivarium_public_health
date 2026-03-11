@@ -1,10 +1,10 @@
 """
-=========
-Utilities
-=========
+====================
+Calibration Constant
+====================
 
-This module contains utility classes and functions for use across
-vivarium_public_health components.
+This module contains functions and classes for managing calibration constants in
+pipelines that are intended to be modifiable by RiskEffect components.
 
 """
 from collections.abc import Callable, Sequence
