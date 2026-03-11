@@ -12,11 +12,13 @@ from vivarium_public_health.disease import SIS
 from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
+from vivarium_public_health.risks.calibration_constant import (
+    get_calibration_constant_pipeline_name,
+)
 from vivarium_public_health.risks.distributions import (
     EnsembleDistribution,
     PolytomousDistribution,
 )
-from vivarium_public_health.risks.paf import get_calibration_constant_pipeline_name
 from vivarium_public_health.utilities import EntityString
 
 

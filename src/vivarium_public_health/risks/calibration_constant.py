@@ -4,7 +4,9 @@ Calibration Constant
 ====================
 
 This module contains functions and classes for managing calibration constants in
-pipelines that are intended to be modifiable by RiskEffect components.
+pipelines that are intended to be modifiable by RiskEffect components. Population
+attributable fractions (PAFs) can often be used interchangeably with calibration
+constants.
 
 """
 from collections.abc import Callable, Sequence
