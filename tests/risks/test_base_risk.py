@@ -16,6 +16,7 @@ from vivarium_public_health.risks.distributions import (
     EnsembleDistribution,
     PolytomousDistribution,
 )
+from vivarium_public_health.risks.paf import get_calibration_constant_pipeline_name
 from vivarium_public_health.utilities import EntityString
 
 
@@ -342,24 +343,26 @@ def test_ensemble_risk(base_config, base_plugins):
 
 
 class _CalibrationConstantModifier(Component):
-    """Test helper that modifies the calibration constant pipeline to return a
-    fixed value."""
+    """Test helper that registers a calibration constant modifier on the
+    exposure PPF pipeline to scale exposure values by (1 - calibration_value)."""
 
-    def __init__(self, risk: str, value: float):
+    def __init__(self, risk: str, calibration_value: float):
         super().__init__()
-        self.risk = risk
-        self.value = value
+        self._risk = EntityString(risk)
+        self._calibration_value = calibration_value
 
     def setup(self, builder: Builder) -> None:
-        builder.value.register_attribute_modifier(
-            f"{self.risk}_calibration_constant",
-            modifier=lambda index: pd.Series(self.value, index=index),
+        exposure_ppf_pipeline = f"{self._risk.name}.exposure_distribution.ppf"
+        data = build_table_with_age(self._calibration_value)
+        builder.value.register_value_modifier(
+            get_calibration_constant_pipeline_name(exposure_ppf_pipeline),
+            modifier=lambda: data,
         )
 
 
 def test_risk_calibration_constant(base_config_factory, base_plugins):
-    """Test that when the calibration constant pipeline is modified to 0.75,
-    Risk exposures are scaled by (1 - 0.75) = 0.25."""
+    """Test that when a calibration constant modifier is registered on the
+    exposure PPF pipeline, Risk exposures are scaled by (1 - calibration_value)."""
     population_size = 10000
     calibration_value = 0.75
 
@@ -391,7 +394,7 @@ def test_risk_calibration_constant(base_config_factory, base_plugins):
         "risk_factor.test_risk": {"distribution_type": "normal"},
     }
 
-    # Build a Risk simulation with the default calibration constant (zero)
+    # Build a Risk simulation with no calibration constant modifier (baseline)
     config_base = base_config_factory()
     config_base.update(config_updates)
     base_risk = Risk("risk_factor.test_risk")
@@ -402,7 +405,7 @@ def test_risk_calibration_constant(base_config_factory, base_plugins):
         "test_risk.exposure"
     ]
 
-    # Build a Risk simulation with a non-zero calibration constant
+    # Build a Risk simulation with a calibration constant modifier
     config_cal = base_config_factory()
     config_cal.update(config_updates)
     risk = Risk("risk_factor.test_risk")

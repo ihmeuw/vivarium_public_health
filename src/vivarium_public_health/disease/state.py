@@ -500,7 +500,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         )
 
         self.excess_mortality_rate_pipeline = f"{self.state_id}.excess_mortality_rate"
-        self.excess_mortality_rate_paf_pipeline = f"{self.excess_mortality_rate_pipeline}.paf"
         self.dw_pipeline = f"{self.state_id}.disability_weight"
 
         self._prevalence_source = self.get_prevalence_source(prevalence)

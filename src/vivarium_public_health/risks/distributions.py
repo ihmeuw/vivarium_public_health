@@ -48,7 +48,6 @@ class RiskExposureDistribution(Component, ABC):
 
         self.risk_propensity = f"{self.risk.name}.propensity"
         self.exposure_ppf_pipeline = f"{self.risk.name}.exposure_distribution.ppf"
-        self.calibration_constant_pipeline = f"{self.risk}_calibration_constant"
 
     #################
     # Setup methods #
@@ -64,15 +63,6 @@ class RiskExposureDistribution(Component, ABC):
 
     def setup(self, builder: Builder) -> None:
         self.register_exposure_ppf_pipeline(builder)
-
-    def register_calibration_constant_pipeline(self, builder: Builder) -> None:
-        calibration_constant = self.build_lookup_table(builder, "calibration_constant", 0)
-        builder.value.register_attribute_producer(
-            self.calibration_constant_pipeline,
-            source=lambda idx: [calibration_constant(idx)],
-            preferred_combiner=list_combiner,
-            preferred_post_processor=union_post_processor,
-        )
 
     @abstractmethod
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
@@ -112,7 +102,6 @@ class EnsembleDistribution(RiskExposureDistribution):
             for parameter, data in parameters.items()
         }
 
-        self.register_calibration_constant_pipeline(builder)
         super().setup(builder)
         self.randomness = builder.randomness.get_stream(self.ensemble_propensity)
         builder.population.register_initializer(
@@ -152,16 +141,11 @@ class EnsembleDistribution(RiskExposureDistribution):
 
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
         tables = [self.distribution_weights_table, *self.parameters.values()]
-
-        builder.value.register_attribute_producer(
-            self.exposure_ppf_pipeline,
+        register_risk_affected_attribute_producer(
+            builder=builder,
+            name=self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            required_resources=[
-                *tables,
-                self.risk_propensity,
-                self.ensemble_propensity,
-                self.calibration_constant_pipeline,
-            ],
+            required_resources=[*tables, self.risk_propensity, self.ensemble_propensity],
         )
 
     ########################
@@ -179,13 +163,8 @@ class EnsembleDistribution(RiskExposureDistribution):
     ##################################
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get(
-            index,
-            [
-                self.risk_propensity,
-                self.ensemble_propensity,
-                self.calibration_constant_pipeline,
-            ],
+        pop = self.population_view.get_attributes(
+            index, [self.risk_propensity, self.ensemble_propensity]
         )
         quantiles = pop[self.risk_propensity]
 
@@ -201,8 +180,7 @@ class EnsembleDistribution(RiskExposureDistribution):
             x[x.isnull()] = 0
         else:
             x = pd.Series([])
-        calibration_constant = pop[self.calibration_constant_pipeline]
-        return x * (1 - calibration_constant)
+        return x
 
 
 class ContinuousDistribution(RiskExposureDistribution):
@@ -238,7 +216,6 @@ class ContinuousDistribution(RiskExposureDistribution):
             value_columns=list(parameters.columns),
         )
         self.register_exposure_params_pipeline(builder)
-        self.register_calibration_constant_pipeline(builder)
         super().setup(builder)
 
     def get_distribution_parameters(self, builder: "Builder") -> None:
@@ -252,14 +229,11 @@ class ContinuousDistribution(RiskExposureDistribution):
         )
 
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
-        builder.value.register_attribute_producer(
-            self.exposure_ppf_pipeline,
+        register_risk_affected_attribute_producer(
+            builder=builder,
+            name=self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            required_resources=[
-                self.exposure_params_name,
-                self.risk_propensity,
-                self.calibration_constant_pipeline,
-            ],
+            required_resources=[self.exposure_params_name, self.risk_propensity],
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
@@ -272,13 +246,8 @@ class ContinuousDistribution(RiskExposureDistribution):
     ##################################
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get(
-            index,
-            [
-                self.risk_propensity,
-                self.exposure_params_name,
-                self.calibration_constant_pipeline,
-            ],
+        pop = self.population_view.get_attributes(
+            index, [self.risk_propensity, self.exposure_params_name]
         )
         quantiles = pop[self.risk_propensity]
 
@@ -288,8 +257,7 @@ class ContinuousDistribution(RiskExposureDistribution):
             x[x.isnull()] = 0
         else:
             x = pd.Series([])
-        calibration_constant = pop[self.calibration_constant_pipeline]
-        return x * (1 - calibration_constant)
+        return x
 
 
 class PolytomousDistribution(RiskExposureDistribution):
@@ -389,7 +357,6 @@ class DichotomousDistribution(RiskExposureDistribution):
     ) -> None:
         super().__init__(risk, distribution_type, exposure_data)
         self.exposure_params_name = f"{self.risk}.exposure_parameters"
-        self.exposure_params_paf_name = f"{self.exposure_params_name}.paf"
 
     #################
     # Setup methods #
