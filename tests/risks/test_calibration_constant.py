@@ -3,7 +3,7 @@
 Calibration Constant Pipeline Infrastructure
 ==========================================
 
-Tests for :mod:`vivarium_public_health.risks.paf`.
+Tests for :mod:`vivarium_public_health.risks.calibration_constant`.
 
 These tests validate the helper functions and internal machinery that register
 pipelines whose values are reduced by a joint calibration constant.
@@ -28,8 +28,8 @@ Redundancy notes
 * ``test_risk_deletion`` in ``tests/disease/test_disease.py`` exercises the
   rate-producer path with a single calibration constant modifier via a full
   ``DiseaseModel`` stack.  The tests below cover the *same* code path with
-  minimal wrappers so that failures pinpoint ``paf.py`` rather than disease
-  infrastructure.
+  minimal wrappers so that failures pinpoint ``calibration_constant.py``
+  rather than disease infrastructure.
 * ``test_incidence`` in the same file implicitly tests the zero calibration
   constant baseline (no modifier registered).  We cover that explicitly here
   as well.
@@ -45,7 +45,7 @@ from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState, RateTransition
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.population import BasePopulation
-from vivarium_public_health.risks.paf import (
+from vivarium_public_health.risks.calibration_constant import (
     get_calibration_constant_pipeline_name,
     register_risk_affected_attribute_producer,
 )

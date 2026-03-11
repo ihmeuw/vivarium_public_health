@@ -22,12 +22,14 @@ from vivarium.framework.lookup import LookupTable
 from vivarium.types import LookupTableData
 
 from vivarium_public_health.risks import Risk
+from vivarium_public_health.risks.calibration_constant import (
+    get_calibration_constant_pipeline_name,
+)
 from vivarium_public_health.risks.data_transformations import (
     load_exposure_data,
     pivot_categorical,
 )
 from vivarium_public_health.risks.distributions import MissingDataError
-from vivarium_public_health.risks.paf import get_calibration_constant_pipeline_name
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
