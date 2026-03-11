@@ -9,6 +9,9 @@
   - Update RateTransition to use the new calibration constant pipeline for transition rate
   - Update RiskAttributableDisease to use the new calibration constant pipeline for excess mortality rate
   - Update DichotomousDistribution to use the new calibration constant pipeline for exposure parameters
+- Update RiskEffect and LBWSGRiskEffect to leverage the multiplication_combiner when applying the relative risk
+  - Removes `adjust_target`` method from RiskEffect and LBWSGRiskEffect
+  - The relative risk pipeline is now registered as a modifier directly
 
 **5.0.2 - 04/16/26**
 

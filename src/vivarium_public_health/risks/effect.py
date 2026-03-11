@@ -286,10 +286,6 @@ class RiskEffect(Component):
         ).fillna(0)
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
-    def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
-        relative_risk = self.population_view.get(index, self.relative_risk_name)
-        return target * relative_risk
-
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
 
         if not self.is_exposure_categorical:
@@ -330,9 +326,7 @@ class RiskEffect(Component):
 
     def register_target_modifier(self, builder: Builder) -> None:
         builder.value.register_attribute_modifier(
-            self.target_name,
-            modifier=self.adjust_target,
-            required_resources=[self.relative_risk_name],
+            self.target_name, modifier=self.relative_risk_name
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
