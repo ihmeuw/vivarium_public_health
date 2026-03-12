@@ -90,13 +90,6 @@ class Risk(PlaceholderExposure):
 
     VALID_ENTITY_TYPES = ["risk_factor", "alternative_risk_factor"]
 
-    def _validate_entity_type(self) -> None:
-        if self.placeholder.type not in self.VALID_ENTITY_TYPES:
-            raise ValueError(
-                f"Risk entity type must be one of {self.VALID_ENTITY_TYPES}, "
-                f"but got '{self.placeholder.type}' for '{self.placeholder}'."
-            )
-
     #################
     # Setup methods #
     #################

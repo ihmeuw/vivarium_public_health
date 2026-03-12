@@ -95,6 +95,8 @@ class PlaceholderExposure(Component, ABC):
         "ensemble": EnsembleDistribution,
     }
 
+    VALID_ENTITY_TYPES = []
+
     ##############
     # Properties #
     ##############
@@ -177,10 +179,13 @@ class PlaceholderExposure(Component, ABC):
             f"{self.placeholder.name}_exposure_for_non_loglinear_effect"
         )
 
-    @abstractmethod
     def _validate_entity_type(self) -> None:
         """Validates that the entity type of the placeholder is supported."""
-        pass
+        if self.placeholder.type not in self.VALID_ENTITY_TYPES:
+            raise ValueError(
+                f"Intervention entity type must be one of {self.VALID_ENTITY_TYPES}, "
+                f"but got '{self.placeholder.type}' for '{self.placeholder}'."
+            )
 
     #################
     # Setup methods #
