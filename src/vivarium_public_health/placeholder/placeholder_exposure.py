@@ -23,7 +23,7 @@ from vivarium_public_health.placeholder.distributions import (
     PlaceholderDistribution,
     PolytomousDistribution,
 )
-from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
+from vivarium_public_health.placeholder.utilities import get_exposure_post_processor
 from vivarium_public_health.utilities import EntityString
 
 
@@ -166,6 +166,7 @@ class PlaceholderExposure(Component, ABC):
         """
         super().__init__()
         self.placeholder = EntityString(placeholder)
+        self._validate_entity_type()
 
         self.distribution_type = None
 
@@ -198,21 +199,6 @@ class PlaceholderExposure(Component, ABC):
             columns=self.propensity_name,
             required_resources=[self.randomness],
         )
-        self.includes_non_loglinear_risk_effect = bool(
-            [
-                component
-                for component in builder.components.list_components()
-                if component.startswith(
-                    f"non_log_linear_risk_effect.{self.placeholder.name}_on_"
-                )
-            ]
-        )
-        if self.includes_non_loglinear_risk_effect:
-            builder.population.register_initializer(
-                initializer=self.initialize_exposure,
-                columns=self.exposure_column_name,
-                required_resources=[self.exposure_name],
-            )
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the risk from the configuration.

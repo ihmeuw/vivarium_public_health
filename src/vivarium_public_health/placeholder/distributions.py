@@ -364,6 +364,40 @@ class DichotomousDistribution(PlaceholderDistribution):
         """The name of the unexposed category for this intervention."""
         return "uncovered" if self.placeholder.type == "intervention" else "unexposed"
 
+    def rename_deprecated_categories(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Rename deprecated cat1/cat2 parameter values to exposed/unexposed.
+
+        If the data contains ``'cat1'`` in its ``'parameter'`` column, the
+        values are replaced with the distribution's :attr:`exposed` and
+        :attr:`unexposed` names.  A :class:`FutureWarning` is emitted for
+        non-intervention placeholders to signal that the old names will be
+        removed in a future release.
+
+        Parameters
+        ----------
+        data
+            A DataFrame with a ``'parameter'`` column.
+
+        Returns
+        -------
+            The DataFrame with renamed parameter values (modified in place).
+        """
+        if "cat1" not in data["parameter"].values:
+            return data
+
+        if self.placeholder.type != "intervention":
+            warnings.warn(
+                "Using 'cat1' and 'cat2' for dichotomous exposure is deprecated "
+                "and will be removed in a future release. Use "
+                f"'{self.exposed}' and '{self.unexposed}' instead.",
+                FutureWarning,
+                stacklevel=3,
+            )
+        data["parameter"] = data["parameter"].replace(
+            {"cat1": self.exposed, "cat2": self.unexposed}
+        )
+        return data
+
     #####################
     # Lifecycle methods #
     #####################
@@ -425,20 +459,7 @@ class DichotomousDistribution(PlaceholderDistribution):
         # rebin exposure categories
         self.validate_rebin_source(builder, exposure_data)
         rebin_exposed_categories = set(self.configuration["rebinned_exposed"])
-        # Check if risk exposure is exposed vs cat1
-        if (
-            "cat1" in exposure_data["parameter"].unique()
-            and self.placeholder.type != "intervention"
-        ):
-            warnings.warn(
-                "Using 'cat1' and 'cat2' for dichotomous exposure is deprecated and will be removed "
-                f"in a future release. Use '{self.exposed}' and '{self.unexposed}' instead.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            exposure_data["parameter"] = exposure_data["parameter"].replace(
-                {"cat1": self.exposed, "cat2": self.unexposed}
-            )
+        exposure_data = self.rename_deprecated_categories(exposure_data)
         if rebin_exposed_categories:
             exposure_data = self._rebin_exposure_data(exposure_data, rebin_exposed_categories)
 

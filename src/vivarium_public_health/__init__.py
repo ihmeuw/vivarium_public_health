@@ -33,7 +33,7 @@ from vivarium_public_health.population import (
     ScaledPopulation,
 )
 from vivarium_public_health.results import (
-    CategoricalRiskObserver,
+    CategoricalPlaceholderObserver,
     DisabilityObserver,
     DiseaseObserver,
     MortalityObserver,

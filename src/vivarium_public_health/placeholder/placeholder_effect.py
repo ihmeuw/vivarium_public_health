@@ -8,30 +8,29 @@ exposure models and the models they affect.
 
 """
 
+from abc import ABC
 from collections.abc import Callable
 from importlib import import_module
 from typing import Any
 
 import numpy as np
 import pandas as pd
-import scipy
 from layered_config_tree import ConfigurationError
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.types import LookupTableData
 
-from vivarium_public_health.placeholder import PlaceholderExposure
 from vivarium_public_health.placeholder.calibration_constant import (
     get_calibration_constant_pipeline_name,
 )
-from vivarium_public_health.placeholder.distributions import MissingDataError
-from vivarium_public_health.placeholder.utilities import pivot_categorical
-from vivarium_public_health.risks.data_transformations import load_exposure_data
+from vivarium_public_health.placeholder.distributions import DichotomousDistribution
+from vivarium_public_health.placeholder.placeholder_exposure import PlaceholderExposure
+from vivarium_public_health.placeholder.utilities import load_exposure_data, pivot_categorical
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
-class PlaceholderEffect(Component):
+class PlaceholderEffect(Component, ABC):
     """A component to model the effect of a placeholder on an affected entity's target measure.
 
     This component can source data either from builder.data or from parameters
@@ -48,6 +47,8 @@ class PlaceholderEffect(Component):
                incidence_rate: 10
 
     """
+
+    EXPOSURE_CLASS = PlaceholderExposure
 
     ###############
     # Properties #
@@ -138,7 +139,9 @@ class PlaceholderEffect(Component):
         )
 
     def setup(self, builder: Builder) -> None:
-        self.placeholder_exposure_component = self._get_placeholder_exposure_class(builder)
+        self.placeholder_exposure_component = self._get_placeholder_exposure_component(
+            builder
+        )
         self._exposure_distribution_type = self.get_distribution_type(builder)
         self.relative_risk_table = self.build_rr_lookup_table(builder)
         self.paf_data = self.get_calibration_constant_data(builder)
@@ -222,15 +225,26 @@ class PlaceholderEffect(Component):
         self, builder: Builder, rr_data: str | float | pd.DataFrame
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
         if not isinstance(rr_data, pd.DataFrame):
+            exposure_distribution = self.placeholder_exposure_component.exposure_distribution
+            if not isinstance(exposure_distribution, DichotomousDistribution):
+                raise ValueError(
+                    f"Relative risk data for categorical exposure must be a DataFrame unless the "
+                    f"exposure distribution is dichotomous. Found type {type(rr_data)} with "
+                    f"exposure distribution type {exposure_distribution.distribution_type}."
+                )
             cat1 = builder.data.load("population.demographic_dimensions")
-            cat1["parameter"] = "cat1"
+            cat1["parameter"] = exposure_distribution.exposed
             cat1["value"] = rr_data
             cat2 = cat1.copy()
-            cat2["parameter"] = "cat2"
+            cat2["parameter"] = exposure_distribution.unexposed
             cat2["value"] = 1
             rr_data = pd.concat([cat1, cat2], ignore_index=True)
         if "parameter" in rr_data.index.names:
             rr_data = rr_data.reset_index("parameter")
+
+        exposure_distribution = self.placeholder_exposure_component.exposure_distribution
+        if isinstance(exposure_distribution, DichotomousDistribution):
+            rr_data = exposure_distribution.rename_deprecated_categories(rr_data)
 
         rr_value_cols = list(rr_data["parameter"].unique())
         rr_data = pivot_categorical(rr_data, "parameter")
@@ -344,10 +358,10 @@ class PlaceholderEffect(Component):
     # Helper methods #
     ##################
 
-    def _get_placeholder_exposure_class(self, builder: Builder) -> PlaceholderExposure:
+    def _get_placeholder_exposure_component(self, builder: Builder) -> PlaceholderExposure:
         placeholder_exposure_component = builder.components.get_component(self.placeholder)
-        if not isinstance(placeholder_exposure_component, PlaceholderExposure):
+        if not isinstance(placeholder_exposure_component, self.EXPOSURE_CLASS):
             raise ValueError(
-                f"PlaceholderEffect model {self.name} requires a PlaceholderExposure component named {self.placeholder}"
+                f"{self.__class__.__name__} model {self.name} requires a {self.EXPOSURE_CLASS.__name__} component named {self.placeholder}"
             )
         return placeholder_exposure_component
