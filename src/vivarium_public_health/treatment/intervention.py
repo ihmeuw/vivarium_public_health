@@ -8,11 +8,11 @@ effects on target measures.
 
 """
 
-from vivarium_public_health.placeholder.placeholder_effect import PlaceholderEffect
-from vivarium_public_health.placeholder.placeholder_exposure import PlaceholderExposure
+from vivarium_public_health.placeholder.placeholder_effect import CausalFactorEffect
+from vivarium_public_health.placeholder.placeholder_exposure import CausalFactor
 
 
-class Intervention(PlaceholderExposure):
+class Intervention(CausalFactor):
     """A model for an intervention defined by a dichotomous coverage value.
 
     This component can source data either from builder.data or from parameters
@@ -45,7 +45,7 @@ class Intervention(PlaceholderExposure):
         super().__init__(intervention)
 
 
-class InterventionEffect(PlaceholderEffect):
+class InterventionEffect(CausalFactorEffect):
     """A component to model the effect of an intervention on an affected
     entity's target measure.
 
@@ -72,7 +72,7 @@ class InterventionEffect(PlaceholderEffect):
 
     @property
     def name(self) -> str:
-        return f"intervention_effect.{self.placeholder.name}_on_{self.target}"
+        return f"intervention_effect.{self.causal_factor.name}_on_{self.target}"
 
     #####################
     # Lifecycle methods #

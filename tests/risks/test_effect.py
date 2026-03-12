@@ -520,7 +520,7 @@ class CustomExposureRisk(Risk):
     def __init__(self, risk: str):
         super().__init__(risk)
         self.exposure_column_name = (
-            f"{self.placeholder.name}_exposure_for_non_loglinear_riskeffect"
+            f"{self.causal_factor.name}_exposure_for_non_loglinear_riskeffect"
         )
 
     def initialize_exposure(self, pop_data: SimulantData) -> None:
@@ -535,7 +535,7 @@ class CustomExposureRisk(Risk):
     def setup(self, builder: Builder):
         self.distribution_type = None
         builder.value.register_attribute_producer(
-            f"{self.placeholder.name}.exposure", source=self.get_exposure
+            f"{self.causal_factor.name}.exposure", source=self.get_exposure
         )
         builder.population.register_initializer(
             initializer=self.initialize_exposure, columns=self.exposure_column_name
@@ -633,7 +633,7 @@ def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
     pop_idx = sim.get_population_index()
 
-    expected_pipeline = f"{effect.placeholder.name}_on_{effect.target.name}.relative_risk"
+    expected_pipeline = f"{effect.causal_factor.name}_on_{effect.target.name}.relative_risk"
     assert expected_pipeline in sim.get_attribute_names()
 
     rr_mapper = {
@@ -641,7 +641,7 @@ def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
         "unexposed": 1.0,
     }
     for exposure in rr_mapper:
-        exposures = sim.get_population(f"{effect.placeholder.name}.exposure").squeeze()
+        exposures = sim.get_population(f"{effect.causal_factor.name}.exposure").squeeze()
         exposure_idx = exposures.loc[exposures == exposure].index
         relative_risk = sim.get_population(expected_pipeline).squeeze().loc[exposure_idx]
         assert (relative_risk == rr_mapper[exposure]).all()

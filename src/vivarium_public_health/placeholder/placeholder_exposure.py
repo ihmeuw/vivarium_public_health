@@ -20,14 +20,14 @@ from vivarium_public_health.placeholder.distributions import (
     ContinuousDistribution,
     DichotomousDistribution,
     EnsembleDistribution,
-    PlaceholderDistribution,
+    CausalFactorDistribution,
     PolytomousDistribution,
 )
 from vivarium_public_health.placeholder.utilities import get_exposure_post_processor
 from vivarium_public_health.utilities import EntityString
 
 
-class PlaceholderExposure(Component, ABC):
+class CausalFactor(Component, ABC):
     """A model for an attribute defined by either a continuous or a categorical value.
 
     For example,
@@ -41,12 +41,12 @@ class PlaceholderExposure(Component, ABC):
     supplied in the configuration. If data is derived from the configuration, it
     must be an integer or float expressing the desired exposure level or a
     covariate name that is intended to be used as a proxy. For example, for a
-    placeholder named "placeholder", the configuration could look like this:
+    causal factor named "causal_factor", the configuration could look like this:
 
     .. code-block:: yaml
 
        configuration:
-           placeholder:
+           causal_factor:
                exposure: 1.0
 
     or
@@ -54,39 +54,39 @@ class PlaceholderExposure(Component, ABC):
     .. code-block:: yaml
 
        configuration:
-           placeholder:
+           causal_factor:
                exposure: proxy_covariate
 
-    For polytomous placeholders, you can also provide an optional 'rebinned_exposed'
-    block in the configuration to indicate that the placeholder should be rebinned
-    into a dichotomous placeholder. That block should contain a list of the categories
+    For polytomous causal factors, you can also provide an optional 'rebinned_exposed'
+    block in the configuration to indicate that the causal factor should be rebinned
+    into a dichotomous causal factor. That block should contain a list of the categories
     that should be rebinned into a single exposed category in the resulting
-    dichotomous placeholder. For example, for a placeholder named "placeholder" with categories
-    cat1, cat2, cat3, and cat4 that you wished to rebin into a dichotomous placeholder
+    dichotomous causal factor. For example, for a causal factor named "causal_factor" with categories
+    cat1, cat2, cat3, and cat4 that you wished to rebin into a dichotomous causal factor
     with an exposed category containing cat1 and cat2 and an unexposed category
     containing cat3 and cat4, the configuration could look like this:
 
     .. code-block:: yaml
 
        configuration:
-           placeholder:
+           causal_factor:
               rebinned_exposed: ['cat1', 'cat2']
 
     For alternative risk factors, you must provide a 'category_thresholds'
     block in the in configuration to dictate the thresholds that should be
     used to bin the continuous distributions. Note that this is mutually
-    exclusive with providing 'rebinned_exposed' categories. For a placeholder named
-    "placeholder", the configuration could look like:
+    exclusive with providing 'rebinned_exposed' categories. For a causal factor named
+    "causal_factor", the configuration could look like:
 
     .. code-block:: yaml
 
        configuration:
-           placeholder:
+           causal_factor:
                category_thresholds: [7, 8, 9]
 
     """
 
-    exposure_distributions: dict[str, PlaceholderDistribution] = {
+    exposure_distributions: dict[str, CausalFactorDistribution] = {
         "dichotomous": DichotomousDistribution,
         "ordered_polytomous": PolytomousDistribution,
         "unordered_polytomous": PolytomousDistribution,
@@ -103,36 +103,36 @@ class PlaceholderExposure(Component, ABC):
 
     @property
     def name(self) -> str:
-        return self.placeholder
+        return self.causal_factor
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this placeholder component.
+        """Provides default configuration values for this causal factor component.
 
         Configuration structure::
 
-            {placeholder_name}:
+            {causal_factor_name}:
                 data_sources:
                     exposure:
                         Source for exposure data. Default is the artifact key
-                        ``{placeholder}.exposure``.
+                        ``{causal_factor}.exposure``.
                     ensemble_distribution_weights:
                         Source for ensemble distribution weights (only used
                         for ensemble distributions). Default is the artifact
-                        key ``{placeholder}.exposure_distribution_weights``.
+                        key ``{causal_factor}.exposure_distribution_weights``.
                     exposure_standard_deviation:
                         Source for exposure standard deviation data (only used
                         for continuous distributions). Default is the artifact
-                        key ``{placeholder}.exposure_standard_deviation``.
+                        key ``{causal_factor}.exposure_standard_deviation``.
                 distribution_type: str
                     Type of exposure distribution. Can be one of:
                     ``"dichotomous"``, ``"ordered_polytomous"``,
                     ``"unordered_polytomous"``, ``"normal"``, ``"lognormal"``,
                     or ``"ensemble"``. Default loads from artifact at
-                    ``{placeholder}.distribution``.
+                    ``{causal_factor}.distribution``.
                 rebinned_exposed: list[str]
                     Categories to combine into a single "exposed" category
-                    when rebinning a polytomous placeholder to dichotomous. Only
+                    when rebinning a polytomous causal factor to dichotomous. Only
                     used with polytomous distributions. Default is empty
                     list (no rebinning).
                 category_thresholds: list[float]
@@ -143,11 +143,11 @@ class PlaceholderExposure(Component, ABC):
         return {
             self.name: {
                 "data_sources": {
-                    "exposure": f"{self.placeholder}.exposure",
-                    "ensemble_distribution_weights": f"{self.placeholder}.exposure_distribution_weights",
-                    "exposure_standard_deviation": f"{self.placeholder}.exposure_standard_deviation",
+                    "exposure": f"{self.causal_factor}.exposure",
+                    "ensemble_distribution_weights": f"{self.causal_factor}.exposure_distribution_weights",
+                    "exposure_standard_deviation": f"{self.causal_factor}.exposure_standard_deviation",
                 },
-                "distribution_type": f"{self.placeholder}.distribution",
+                "distribution_type": f"{self.causal_factor}.distribution",
                 # rebinned_exposed only used for DichotomousDistribution
                 "rebinned_exposed": [],
                 "category_thresholds": [],
@@ -158,33 +158,33 @@ class PlaceholderExposure(Component, ABC):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, placeholder: str):
+    def __init__(self, causal_factor: str):
         """
 
         Parameters
         ----------
-        placeholder
-            the type and name of a placeholder, specified as "type.name". Type is singular.
+        causal_factor
+            the type and name of a causal factor, specified as "type.name". Type is singular.
         """
         super().__init__()
-        self.placeholder = EntityString(placeholder)
+        self.causal_factor = EntityString(causal_factor)
         self._validate_entity_type()
 
         self.distribution_type = None
 
-        self.randomness_stream_name = f"initial_{self.placeholder.name}_propensity"
-        self.propensity_name = f"{self.placeholder.name}.propensity"
-        self.exposure_name = f"{self.placeholder.name}.exposure"
+        self.randomness_stream_name = f"initial_{self.causal_factor.name}_propensity"
+        self.propensity_name = f"{self.causal_factor.name}.propensity"
+        self.exposure_name = f"{self.causal_factor.name}.exposure"
         self.exposure_column_name = (
-            f"{self.placeholder.name}_exposure_for_non_loglinear_effect"
+            f"{self.causal_factor.name}_exposure_for_non_loglinear_effect"
         )
 
     def _validate_entity_type(self) -> None:
-        """Validates that the entity type of the placeholder is supported."""
-        if self.placeholder.type not in self.VALID_ENTITY_TYPES:
+        """Validates that the entity type of the causal factor is supported."""
+        if self.causal_factor.type not in self.VALID_ENTITY_TYPES:
             raise ValueError(
                 f"Intervention entity type must be one of {self.VALID_ENTITY_TYPES}, "
-                f"but got '{self.placeholder.type}' for '{self.placeholder}'."
+                f"but got '{self.causal_factor.type}' for '{self.causal_factor}'."
             )
 
     #################
@@ -238,7 +238,7 @@ class PlaceholderExposure(Component, ABC):
             distribution_type = "dichotomous"
         return distribution_type
 
-    def get_exposure_distribution(self, builder: Builder) -> PlaceholderDistribution:
+    def get_exposure_distribution(self, builder: Builder) -> CausalFactorDistribution:
         """Creates and sets up the exposure distribution component for the Risk
         based on its distribution type.
 
@@ -258,8 +258,8 @@ class PlaceholderExposure(Component, ABC):
         """
         try:
             distribution_class = self.exposure_distributions[self.distribution_type]
-            distribution: PlaceholderDistribution = distribution_class(
-                self.placeholder, self.distribution_type
+            distribution: CausalFactorDistribution = distribution_class(
+                self.causal_factor, self.distribution_type
             )
         except KeyError:
             raise NotImplementedError(

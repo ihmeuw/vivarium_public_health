@@ -1,9 +1,9 @@
 """
 =========================
-Placeholder Effect Models
+CausalFactor Effect Models
 =========================
 
-This module contains tools for modeling the relationship between placeholder
+This module contains tools for modeling the relationship between causal factor
 exposure models and the models they affect.
 
 """
@@ -25,30 +25,30 @@ from vivarium_public_health.placeholder.calibration_constant import (
     get_calibration_constant_pipeline_name,
 )
 from vivarium_public_health.placeholder.distributions import DichotomousDistribution
-from vivarium_public_health.placeholder.placeholder_exposure import PlaceholderExposure
+from vivarium_public_health.placeholder.placeholder_exposure import CausalFactor
 from vivarium_public_health.placeholder.utilities import load_exposure_data, pivot_categorical
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
-class PlaceholderEffect(Component, ABC):
-    """A component to model the effect of a placeholder on an affected entity's target measure.
+class CausalFactorEffect(Component, ABC):
+    """A component to model the effect of a causal factor on an affected entity's target measure.
 
     This component can source data either from builder.data or from parameters
     supplied in the configuration.
 
-    For a placeholder named 'placeholder' that affects 'affected_target', the configuration
+    For a causal factor named 'causal_factor' that affects 'affected_target', the configuration
     would look like:
 
     .. code-block:: yaml
 
        configuration:
-            placeholder_effect.placeholder_name_on_affected_target:
+            causal_factor_effect.causal_factor_name_on_affected_target:
                exposure_parameters: 2
                incidence_rate: 10
 
     """
 
-    EXPOSURE_CLASS = PlaceholderExposure
+    EXPOSURE_CLASS = CausalFactor
 
     ###############
     # Properties #
@@ -56,11 +56,11 @@ class PlaceholderEffect(Component, ABC):
 
     @property
     def name(self) -> str:
-        return self.get_name(self.placeholder, self.target)
+        return self.get_name(self.causal_factor, self.target)
 
     @staticmethod
-    def get_name(placeholder: EntityString, target: TargetString) -> str:
-        return f"placeholder_effect.{placeholder.name}_on_{target}"
+    def get_name(causal_factor: EntityString, target: TargetString) -> str:
+        return f"causal_factor_effect.{causal_factor.name}_on_{target}"
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
@@ -68,19 +68,19 @@ class PlaceholderEffect(Component, ABC):
 
         Configuration structure::
 
-            {placeholder_effect_name}:
+            {causal_factor_effect_name}:
                 data_sources:
                     relative_risk:
                         Source for relative risk data. Default is the artifact
-                        key ``{placeholder}.relative_risk``. Can also be:
+                        key ``{causal_factor}.relative_risk``. Can also be:
                         - A scalar value (e.g., ``1.5``)
                         - A scipy.stats distribution name (e.g., ``"uniform"``)
                           with parameters in ``data_source_parameters``
                     population_attributable_fraction:
                         Source for PAF data. Default is the artifact key
-                        ``{placeholder}.population_attributable_fraction``. Used to
+                        ``{causal_factor}.population_attributable_fraction``. Used to
                         adjust the target measure to account for the portion
-                        attributable to this placeholder.
+                        attributable to this causal factor.
                 data_source_parameters:
                     relative_risk: dict
                         Parameters for scipy.stats distributions when using
@@ -91,8 +91,8 @@ class PlaceholderEffect(Component, ABC):
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": f"{self.placeholder}.relative_risk",
-                    "population_attributable_fraction": f"{self.placeholder}.population_attributable_fraction",
+                    "relative_risk": f"{self.causal_factor}.relative_risk",
+                    "population_attributable_fraction": f"{self.causal_factor}.population_attributable_fraction",
                 },
                 "data_source_parameters": {
                     "relative_risk": {},
@@ -112,34 +112,34 @@ class PlaceholderEffect(Component, ABC):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, placeholder: str, target: str):
+    def __init__(self, causal_factor: str, target: str):
         """
 
         Parameters
         ----------
-        placeholder
-            Type and name of placeholder, supplied in the form
-            "placeholder_type.placeholder_name" where placeholder_type should be singular (e.g.,
-            placeholder instead of placeholders).
+        causal_factor
+            Type and name of causal factor, supplied in the form
+            "causal_factor_type.causal_factor_name" where causal_factor_type should be singular (e.g.,
+            risk_factor instead of risk_factors).
         target
-            Type, name, and target measure of entity to be affected by placeholder,
+            Type, name, and target measure of entity to be affected by causal factor,
             supplied in the form "entity_type.entity_name.measure"
             where entity_type should be singular (e.g., cause instead of causes).
         """
         super().__init__()
-        self.placeholder = EntityString(placeholder)
+        self.causal_factor = EntityString(causal_factor)
         self.target = TargetString(target)
 
         self._exposure_distribution_type = None
 
-        self.exposure_name = f"{self.placeholder.name}.exposure"
+        self.exposure_name = f"{self.causal_factor.name}.exposure"
         self.target_name = f"{self.target.name}.{self.target.measure}"
         self.relative_risk_name = (
-            f"{self.placeholder.name}_on_{self.target.name}.relative_risk"
+            f"{self.causal_factor.name}_on_{self.target.name}.relative_risk"
         )
 
     def setup(self, builder: Builder) -> None:
-        self.placeholder_exposure_component = self._get_placeholder_exposure_component(
+        self.causal_factor_exposure_component = self._get_causal_factor_exposure_component(
             builder
         )
         self._exposure_distribution_type = self.get_distribution_type(builder)
@@ -171,10 +171,10 @@ class PlaceholderEffect(Component, ABC):
         )
 
     def get_distribution_type(self, builder: Builder) -> str:
-        """Get the distribution type for the placeholder from the configuration."""
+        """Get the distribution type for the causal factor from the configuration."""
         return (
-            self.placeholder_exposure_component.distribution_type
-            or self.placeholder_exposure_component.get_distribution_type(builder)
+            self.causal_factor_exposure_component.distribution_type
+            or self.causal_factor_exposure_component.get_distribution_type(builder)
         )
 
     def load_relative_risk(
@@ -225,7 +225,7 @@ class PlaceholderEffect(Component, ABC):
         self, builder: Builder, rr_data: str | float | pd.DataFrame
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
         if not isinstance(rr_data, pd.DataFrame):
-            exposure_distribution = self.placeholder_exposure_component.exposure_distribution
+            exposure_distribution = self.causal_factor_exposure_component.exposure_distribution
             if not isinstance(exposure_distribution, DichotomousDistribution):
                 raise ValueError(
                     f"Relative risk data for categorical exposure must be a DataFrame unless the "
@@ -242,7 +242,7 @@ class PlaceholderEffect(Component, ABC):
         if "parameter" in rr_data.index.names:
             rr_data = rr_data.reset_index("parameter")
 
-        exposure_distribution = self.placeholder_exposure_component.exposure_distribution
+        exposure_distribution = self.causal_factor_exposure_component.exposure_distribution
         if isinstance(exposure_distribution, DichotomousDistribution):
             rr_data = exposure_distribution.rename_deprecated_categories(rr_data)
 
@@ -264,16 +264,16 @@ class PlaceholderEffect(Component, ABC):
         for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
         (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
         """
-        if not self.placeholder in builder.configuration.to_dict():
+        if not self.causal_factor in builder.configuration.to_dict():
             return relative_risk_data
 
         rebin_exposed_categories = set(
-            builder.configuration[self.placeholder]["rebinned_exposed"]
+            builder.configuration[self.causal_factor]["rebinned_exposed"]
         )
 
         if rebin_exposed_categories:
             # todo make sure this works
-            exposure_data = load_exposure_data(builder, self.placeholder)
+            exposure_data = load_exposure_data(builder, self.causal_factor)
             relative_risk_data = self._rebin_relative_risk_data(
                 relative_risk_data, exposure_data, rebin_exposed_categories
             )
@@ -304,9 +304,9 @@ class PlaceholderEffect(Component, ABC):
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
 
         if not self.is_exposure_categorical:
-            tmred = builder.data.load(f"{self.placeholder}.tmred")
+            tmred = builder.data.load(f"{self.causal_factor}.tmred")
             tmrel = 0.5 * (tmred["min"] + tmred["max"])
-            scale = builder.data.load(f"{self.placeholder}.relative_risk_scalar")
+            scale = builder.data.load(f"{self.causal_factor}.relative_risk_scalar")
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.relative_risk_table(index)
@@ -315,7 +315,7 @@ class PlaceholderEffect(Component, ABC):
                 return relative_risk
 
         else:
-            index_columns = ["index", self.placeholder.name]
+            index_columns = ["index", self.causal_factor.name]
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.relative_risk_table(index)
@@ -330,7 +330,7 @@ class PlaceholderEffect(Component, ABC):
                 relative_risk = relative_risk.set_index(index_columns)
 
                 effect = relative_risk.loc[exposure.index, "value"].droplevel(
-                    self.placeholder.name
+                    self.causal_factor.name
                 )
                 return effect
 
@@ -358,10 +358,10 @@ class PlaceholderEffect(Component, ABC):
     # Helper methods #
     ##################
 
-    def _get_placeholder_exposure_component(self, builder: Builder) -> PlaceholderExposure:
-        placeholder_exposure_component = builder.components.get_component(self.placeholder)
-        if not isinstance(placeholder_exposure_component, self.EXPOSURE_CLASS):
+    def _get_causal_factor_exposure_component(self, builder: Builder) -> CausalFactor:
+        causal_factor_exposure_component = builder.components.get_component(self.causal_factor)
+        if not isinstance(causal_factor_exposure_component, self.EXPOSURE_CLASS):
             raise ValueError(
-                f"{self.__class__.__name__} model {self.name} requires a {self.EXPOSURE_CLASS.__name__} component named {self.placeholder}"
+                f"{self.__class__.__name__} model {self.name} requires a {self.EXPOSURE_CLASS.__name__} component named {self.causal_factor}"
             )
-        return placeholder_exposure_component
+        return causal_factor_exposure_component

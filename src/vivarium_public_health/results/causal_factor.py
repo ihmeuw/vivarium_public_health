@@ -15,10 +15,10 @@ from vivarium_public_health.results.observer import PublicHealthObserver
 from vivarium_public_health.utilities import to_years
 
 
-class CategoricalPlaceholderObserver(PublicHealthObserver):
-    """An observer for a categorical placeholder.
+class CategoricalCausalFactorObserver(PublicHealthObserver):
+    """An observer for a categorical causal factor.
 
-    Observes category person time for a placeholder.
+    Observes category person time for a causal factor.
 
     By default, this observer computes aggregate categorical person time
     over the full course of the simulation. It can be configured to add or
@@ -32,7 +32,7 @@ class CategoricalPlaceholderObserver(PublicHealthObserver):
 
         configuration:
             stratification:
-                placeholder_name:
+                causal_factor_name:
                     exclude:
                         - "sex"
                     include:
@@ -40,14 +40,14 @@ class CategoricalPlaceholderObserver(PublicHealthObserver):
 
     Attributes
     ----------
-    placeholder
-        The name of the placeholder.
+    causal_factor
+        The name of the causal factor.
     exposure_pipeline
-        The name of the pipeline that produces the placeholder exposure.
+        The name of the pipeline that produces the causal factor exposure.
     step_size
         The time step size of the simulation.
     categories
-        The categories of the placeholder.
+        The categories of the causal factor.
 
     """
 
@@ -55,17 +55,17 @@ class CategoricalPlaceholderObserver(PublicHealthObserver):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, placeholder: str) -> None:
+    def __init__(self, causal_factor: str) -> None:
         """Constructor for this observer.
 
         Parameters
         ----------
-        placeholder
-            The name of the placeholder being observed
+        causal_factor
+            The name of the causal factor being observed
         """
         super().__init__()
-        self.placeholder = placeholder
-        self.exposure_pipeline = f"{self.placeholder}.exposure"
+        self.causal_factor = causal_factor
+        self.exposure_pipeline = f"{self.causal_factor}.exposure"
 
     #################
     # Setup methods #
@@ -74,10 +74,10 @@ class CategoricalPlaceholderObserver(PublicHealthObserver):
     def setup(self, builder: Builder) -> None:
         """Set up the observer."""
         self.step_size = builder.time.step_size()
-        self.categories = builder.data.load(f"risk_factor.{self.placeholder}.categories")
+        self.categories = builder.data.load(f"risk_factor.{self.causal_factor}.categories")
 
     def get_configuration_name(self) -> str:
-        return self.placeholder
+        return self.causal_factor
 
     def register_observations(self, builder: Builder) -> None:
         """Register a stratification and observation.
@@ -93,16 +93,16 @@ class CategoricalPlaceholderObserver(PublicHealthObserver):
         and value names.
         """
         builder.results.register_stratification(
-            f"{self.placeholder}",
+            f"{self.causal_factor}",
             list(self.categories.keys()),
             requires_attributes=[self.exposure_pipeline],
         )
         self.register_adding_observation(
             builder=builder,
-            name=f"person_time_{self.placeholder}",
+            name=f"person_time_{self.causal_factor}",
             pop_filter=f"is_alive == True",
             when="time_step__prepare",
-            additional_stratifications=self.configuration.include + [self.placeholder],
+            additional_stratifications=self.configuration.include + [self.causal_factor],
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_category_person_time,
         )
@@ -122,9 +122,9 @@ class CategoricalPlaceholderObserver(PublicHealthObserver):
     def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
         """Rename the appropriate column to 'sub_entity'.
 
-        The primary thing this method does is rename the placeholder column
+        The primary thing this method does is rename the causal factor column
         to 'sub_entity'. We do this here instead of the 'get_sub_entity_column'
-        method simply because we do not want the placeholder column at all. If we keep
+        method simply because we do not want the causal factor column at all. If we keep
         it here and then return it as the sub-entity column later, the final
         results would have both.
 
@@ -140,7 +140,7 @@ class CategoricalPlaceholderObserver(PublicHealthObserver):
             The formatted results.
         """
         results = results.reset_index()
-        results.rename(columns={self.placeholder: COLUMNS.SUB_ENTITY}, inplace=True)
+        results.rename(columns={self.causal_factor: COLUMNS.SUB_ENTITY}, inplace=True)
         return results
 
     def get_measure_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
@@ -153,7 +153,7 @@ class CategoricalPlaceholderObserver(PublicHealthObserver):
 
     def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         """Get the 'entity' column values."""
-        return pd.Series(self.placeholder, index=results.index)
+        return pd.Series(self.causal_factor, index=results.index)
 
     def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
         """Get the 'sub_entity' column values."""

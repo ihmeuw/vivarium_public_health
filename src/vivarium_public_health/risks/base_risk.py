@@ -9,10 +9,10 @@ exposure.
 """
 from vivarium.framework.engine import Builder
 
-from vivarium_public_health.placeholder.placeholder_exposure import PlaceholderExposure
+from vivarium_public_health.placeholder.placeholder_exposure import CausalFactor
 
 
-class Risk(PlaceholderExposure):
+class Risk(CausalFactor):
     """A model for a risk factor defined by either a continuous or a categorical value.
 
     For example,
@@ -85,7 +85,7 @@ class Risk(PlaceholderExposure):
         """
         super().__init__(risk)
         self.exposure_column_name = (
-            f"{self.placeholder.name}_exposure_for_non_loglinear_riskeffect"
+            f"{self.causal_factor.name}_exposure_for_non_loglinear_riskeffect"
         )
 
     VALID_ENTITY_TYPES = ["risk_factor", "alternative_risk_factor"]
@@ -112,7 +112,7 @@ class Risk(PlaceholderExposure):
                 component
                 for component in builder.components.list_components()
                 if component.startswith(
-                    f"non_log_linear_risk_effect.{self.placeholder.name}_on_"
+                    f"non_log_linear_risk_effect.{self.causal_factor.name}_on_"
                 )
             ]
         )

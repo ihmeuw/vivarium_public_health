@@ -8,7 +8,7 @@ from vivarium import InteractiveContext
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.results.columns import COLUMNS
-from vivarium_public_health.results.risk import CategoricalPlaceholderObserver
+from vivarium_public_health.results.risk import CategoricalCausalFactorObserver
 from vivarium_public_health.results.stratification import ResultsStratifier
 from vivarium_public_health.risks.base_risk import Risk
 from vivarium_public_health.utilities import to_years
@@ -46,7 +46,7 @@ def categorical_risk():
 @pytest.fixture()
 def simulation_after_one_step(base_config, base_plugins, categorical_risk):
     risk, risk_data = categorical_risk
-    observer = CategoricalPlaceholderObserver(f"{risk.placeholder.name}")
+    observer = CategoricalCausalFactorObserver(f"{risk.causal_factor.name}")
     simulation = InteractiveContext(
         components=[
             BasePopulation(),
@@ -135,11 +135,11 @@ def test_different_results_per_risk(base_config, base_plugins, categorical_risk)
     """Test that each observer saves its own results."""
 
     risk, risk_data = categorical_risk
-    risk_observer = CategoricalPlaceholderObserver(f"{risk.placeholder.name}")
+    risk_observer = CategoricalCausalFactorObserver(f"{risk.causal_factor.name}")
 
     # Set up a second risk factor
     another_risk = Risk("risk_factor.another_test_risk")
-    another_risk_observer = CategoricalPlaceholderObserver(f"{another_risk.placeholder.name}")
+    another_risk_observer = CategoricalCausalFactorObserver(f"{another_risk.causal_factor.name}")
 
     simulation = InteractiveContext(
         components=[
@@ -172,7 +172,7 @@ def test_different_results_per_risk(base_config, base_plugins, categorical_risk)
 @pytest.mark.parametrize("exclusions", [[], ["cat1"], ["cat1", "cat4"]])
 def test_category_exclusions(base_config, base_plugins, categorical_risk, exclusions):
     risk, risk_data = categorical_risk
-    observer = CategoricalPlaceholderObserver(f"{risk.placeholder.name}")
+    observer = CategoricalCausalFactorObserver(f"{risk.causal_factor.name}")
     simulation = InteractiveContext(
         components=[
             BasePopulation(),

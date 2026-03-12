@@ -22,12 +22,12 @@ from vivarium_public_health.placeholder.calibration_constant import (
     get_calibration_constant_pipeline_name,
 )
 from vivarium_public_health.placeholder.distributions import MissingDataError
-from vivarium_public_health.placeholder.placeholder_effect import PlaceholderEffect
+from vivarium_public_health.placeholder.placeholder_effect import CausalFactorEffect
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
-class RiskEffect(PlaceholderEffect):
+class RiskEffect(CausalFactorEffect):
     """A component to model the effect of a risk factor on an affected entity's target rate.
 
     This component can source data either from builder.data or from parameters
@@ -53,7 +53,7 @@ class RiskEffect(PlaceholderEffect):
 
     @property
     def name(self) -> str:
-        return f"risk_effect.{self.placeholder.name}_on_{self.target}"
+        return f"risk_effect.{self.causal_factor.name}_on_{self.target}"
 
     #####################
     # Lifecycle methods #
@@ -122,8 +122,8 @@ class NonLogLinearRiskEffect(RiskEffect):
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": f"{self.placeholder}.relative_risk",
-                    "population_attributable_fraction": f"{self.placeholder}.population_attributable_fraction",
+                    "relative_risk": f"{self.causal_factor}.relative_risk",
+                    "population_attributable_fraction": f"{self.causal_factor}.population_attributable_fraction",
                 },
             }
         }
@@ -134,7 +134,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     @property
     def name(self) -> str:
-        return f"non_log_linear_risk_effect.{self.placeholder.name}_on_{self.target}"
+        return f"non_log_linear_risk_effect.{self.causal_factor.name}_on_{self.target}"
 
     def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
         rr_data = self.load_relative_risk(builder)
@@ -167,10 +167,10 @@ class NonLogLinearRiskEffect(RiskEffect):
         )
         rr_data = rr_data.drop("parameter", axis=1)
         rr_data[
-            f"{self.placeholder.name}_exposure_for_non_loglinear_riskeffect_start"
+            f"{self.causal_factor.name}_exposure_for_non_loglinear_riskeffect_start"
         ] = rr_data["left_exposure"]
         rr_data[
-            f"{self.placeholder.name}_exposure_for_non_loglinear_riskeffect_end"
+            f"{self.causal_factor.name}_exposure_for_non_loglinear_riskeffect_end"
         ] = rr_data["right_exposure"]
         # build lookup table
         rr_value_cols = ["left_exposure", "left_rr", "right_exposure", "right_rr"]
@@ -187,18 +187,18 @@ class NonLogLinearRiskEffect(RiskEffect):
             configuration = self.configuration
 
         # get TMREL
-        tmred = builder.data.load(f"{self.placeholder}.tmred")
+        tmred = builder.data.load(f"{self.causal_factor}.tmred")
         if tmred["distribution"] == "uniform":
             draw = builder.configuration.input_data.input_draw_number
             rng = np.random.default_rng(builder.randomness.get_seed(self.name + str(draw)))
             self.tmrel = rng.uniform(tmred["min"], tmred["max"])
         elif tmred["distribution"] == "draws":  # currently only for iron deficiency
             raise MissingDataError(
-                f"This data has draw-level TMRELs. You will need to contact the research team that models {self.placeholder.name} to get this data."
+                f"This data has draw-level TMRELs. You will need to contact the research team that models {self.causal_factor.name} to get this data."
             )
         else:
             raise MissingDataError(
-                f"No TMRED found in gbd_mapping for risk {self.placeholder.name}"
+                f"No TMRED found in gbd_mapping for risk {self.causal_factor.name}"
             )
 
         # calculate RR at TMREL
@@ -241,9 +241,9 @@ class NonLogLinearRiskEffect(RiskEffect):
         def generate_relative_risk(index: pd.Index) -> pd.Series:
             rr_intervals = self.relative_risk_table(index)
             # NOTE: We are calling the cached exposure pipeline here for performance
-            # purposes (as opposed to the f{self.placeholder.name}.exposure pipeline itself).
+            # purposes (as opposed to the f{self.causal_factor.name}.exposure pipeline itself).
             exposure = self.population_view.get_attributes(
-                index, f"{self.placeholder.name}_exposure_for_non_loglinear_riskeffect"
+                index, f"{self.causal_factor.name}_exposure_for_non_loglinear_riskeffect"
             )
             x1, x2 = (
                 rr_intervals["left_exposure"].values,
@@ -267,7 +267,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         parameter_data_is_numeric = rr_data["parameter"].dtype.kind in "biufc"
         if not parameter_data_is_numeric:
             raise ValueError(
-                f"The parameter column in your {self.placeholder.name} relative risk data must contain numeric data. Its dtype is {rr_data['parameter'].dtype} instead."
+                f"The parameter column in your {self.causal_factor.name} relative risk data must contain numeric data. Its dtype is {rr_data['parameter'].dtype} instead."
             )
 
         # and that these RR values are monotonically increasing within each demographic group
