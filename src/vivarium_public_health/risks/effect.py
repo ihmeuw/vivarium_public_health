@@ -21,15 +21,13 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.types import LookupTableData
 
-from vivarium_public_health.risks import Risk
-from vivarium_public_health.risks.calibration_constant import (
+from vivarium_public_health.placeholder.calibration_constant import (
     get_calibration_constant_pipeline_name,
 )
-from vivarium_public_health.risks.data_transformations import (
-    load_exposure_data,
-    pivot_categorical,
-)
-from vivarium_public_health.risks.distributions import MissingDataError
+from vivarium_public_health.placeholder.distributions import MissingDataError
+from vivarium_public_health.placeholder.utilities import pivot_categorical
+from vivarium_public_health.risks import Risk
+from vivarium_public_health.risks.data_transformations import load_exposure_data
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
@@ -440,10 +438,10 @@ class NonLogLinearRiskEffect(RiskEffect):
             .reset_index()
         )
         rr_data = rr_data.drop("parameter", axis=1)
-        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_start"] = rr_data[
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_effect_start"] = rr_data[
             "left_exposure"
         ]
-        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_riskeffect_end"] = rr_data[
+        rr_data[f"{self.risk.name}_exposure_for_non_loglinear_effect_end"] = rr_data[
             "right_exposure"
         ]
         # build lookup table

@@ -16,14 +16,14 @@ from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
-from vivarium_public_health.risks.distributions import (
+from vivarium_public_health.placeholder.distributions import (
     ContinuousDistribution,
     DichotomousDistribution,
     EnsembleDistribution,
     PolytomousDistribution,
     RiskExposureDistribution,
 )
+from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.utilities import EntityString
 
 

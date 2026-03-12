@@ -44,11 +44,11 @@ from vivarium.framework.utilities import from_yearly
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import DiseaseModel, DiseaseState, RateTransition
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.population import BasePopulation
-from vivarium_public_health.risks.calibration_constant import (
+from vivarium_public_health.placeholder.calibration_constant import (
     get_calibration_constant_pipeline_name,
     register_risk_affected_attribute_producer,
 )
+from vivarium_public_health.population import BasePopulation
 
 # ---------------------------------------------------------------------------
 # Helpers

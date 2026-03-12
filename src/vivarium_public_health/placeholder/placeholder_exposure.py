@@ -1,12 +1,12 @@
 """
-===================
-Risk Exposure Model
-===================
+==============
+Exposure Model
+==============
 
-This module contains tools for modeling categorical and continuous risk
-exposure.
+This module contains tools for modeling categorical and continuous exposures.
 
 """
+from abc import ABC, abstractmethod
 from typing import Any
 
 import pandas as pd
@@ -20,19 +20,19 @@ from vivarium_public_health.placeholder.distributions import (
     ContinuousDistribution,
     DichotomousDistribution,
     EnsembleDistribution,
-    RiskExposureDistribution,
+    PlaceholderDistribution,
     PolytomousDistribution,
 )
 from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.utilities import EntityString
 
 
-class Risk(Component):
-    """A model for a risk factor defined by either a continuous or a categorical value.
+class PlaceholderExposure(Component, ABC):
+    """A model for an attribute defined by either a continuous or a categorical value.
 
     For example,
 
-    #. high systolic blood pressure as a risk where the SBP is not dichotomized
+    #. high systolic blood pressure as an attribute where the SBP is not dichotomized
        into hypotension and normal but is treated as the actual SBP
        measurement.
     #. smoking as two categories: current smoker and non-smoker.
@@ -41,12 +41,12 @@ class Risk(Component):
     supplied in the configuration. If data is derived from the configuration, it
     must be an integer or float expressing the desired exposure level or a
     covariate name that is intended to be used as a proxy. For example, for a
-    risk named "risk", the configuration could look like this:
+    placeholder named "placeholder", the configuration could look like this:
 
     .. code-block:: yaml
 
        configuration:
-           risk:
+           placeholder:
                exposure: 1.0
 
     or
@@ -54,39 +54,39 @@ class Risk(Component):
     .. code-block:: yaml
 
        configuration:
-           risk:
+           placeholder:
                exposure: proxy_covariate
 
-    For polytomous risks, you can also provide an optional 'rebinned_exposed'
-    block in the configuration to indicate that the risk should be rebinned
-    into a dichotomous risk. That block should contain a list of the categories
+    For polytomous placeholders, you can also provide an optional 'rebinned_exposed'
+    block in the configuration to indicate that the placeholder should be rebinned
+    into a dichotomous placeholder. That block should contain a list of the categories
     that should be rebinned into a single exposed category in the resulting
-    dichotomous risk. For example, for a risk named "risk" with categories
-    cat1, cat2, cat3, and cat4 that you wished to rebin into a dichotomous risk
+    dichotomous placeholder. For example, for a placeholder named "placeholder" with categories
+    cat1, cat2, cat3, and cat4 that you wished to rebin into a dichotomous placeholder
     with an exposed category containing cat1 and cat2 and an unexposed category
     containing cat3 and cat4, the configuration could look like this:
 
     .. code-block:: yaml
 
        configuration:
-           risk:
+           placeholder:
               rebinned_exposed: ['cat1', 'cat2']
 
     For alternative risk factors, you must provide a 'category_thresholds'
     block in the in configuration to dictate the thresholds that should be
     used to bin the continuous distributions. Note that this is mutually
-    exclusive with providing 'rebinned_exposed' categories. For a risk named
-    "risk", the configuration could look like:
+    exclusive with providing 'rebinned_exposed' categories. For a placeholder named
+    "placeholder", the configuration could look like:
 
     .. code-block:: yaml
 
        configuration:
-           risk:
+           placeholder:
                category_thresholds: [7, 8, 9]
 
     """
 
-    exposure_distributions = {
+    exposure_distributions: dict[str, PlaceholderDistribution] = {
         "dichotomous": DichotomousDistribution,
         "ordered_polytomous": PolytomousDistribution,
         "unordered_polytomous": PolytomousDistribution,
@@ -101,36 +101,36 @@ class Risk(Component):
 
     @property
     def name(self) -> str:
-        return self.risk
+        return self.placeholder
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this risk component.
+        """Provides default configuration values for this placeholder component.
 
         Configuration structure::
 
-            {risk_name}:
+            {placeholder_name}:
                 data_sources:
                     exposure:
                         Source for exposure data. Default is the artifact key
-                        ``{risk}.exposure``.
+                        ``{placeholder}.exposure``.
                     ensemble_distribution_weights:
                         Source for ensemble distribution weights (only used
                         for ensemble distributions). Default is the artifact
-                        key ``{risk}.exposure_distribution_weights``.
+                        key ``{placeholder}.exposure_distribution_weights``.
                     exposure_standard_deviation:
                         Source for exposure standard deviation data (only used
                         for continuous distributions). Default is the artifact
-                        key ``{risk}.exposure_standard_deviation``.
+                        key ``{placeholder}.exposure_standard_deviation``.
                 distribution_type: str
                     Type of exposure distribution. Can be one of:
                     ``"dichotomous"``, ``"ordered_polytomous"``,
                     ``"unordered_polytomous"``, ``"normal"``, ``"lognormal"``,
                     or ``"ensemble"``. Default loads from artifact at
-                    ``{risk}.distribution``.
+                    ``{placeholder}.distribution``.
                 rebinned_exposed: list[str]
                     Categories to combine into a single "exposed" category
-                    when rebinning a polytomous risk to dichotomous. Only
+                    when rebinning a polytomous placeholder to dichotomous. Only
                     used with polytomous distributions. Default is empty
                     list (no rebinning).
                 category_thresholds: list[float]
@@ -141,11 +141,11 @@ class Risk(Component):
         return {
             self.name: {
                 "data_sources": {
-                    "exposure": f"{self.risk}.exposure",
-                    "ensemble_distribution_weights": f"{self.risk}.exposure_distribution_weights",
-                    "exposure_standard_deviation": f"{self.risk}.exposure_standard_deviation",
+                    "exposure": f"{self.placeholder}.exposure",
+                    "ensemble_distribution_weights": f"{self.placeholder}.exposure_distribution_weights",
+                    "exposure_standard_deviation": f"{self.placeholder}.exposure_standard_deviation",
                 },
-                "distribution_type": f"{self.risk}.distribution",
+                "distribution_type": f"{self.placeholder}.distribution",
                 # rebinned_exposed only used for DichotomousDistribution
                 "rebinned_exposed": [],
                 "category_thresholds": [],
@@ -156,28 +156,35 @@ class Risk(Component):
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: str):
+    def __init__(self, placeholder: str):
         """
 
         Parameters
         ----------
-        risk
-            the type and name of a risk, specified as "type.name". Type is singular.
+        placeholder
+            the type and name of a placeholder, specified as "type.name". Type is singular.
         """
         super().__init__()
-        self.risk = EntityString(risk)
+        self.placeholder = EntityString(placeholder)
+
         self.distribution_type = None
 
-        self.randomness_stream_name = f"initial_{self.risk.name}_propensity"
-        self.propensity_name = f"{self.risk.name}.propensity"
-        self.exposure_name = f"{self.risk.name}.exposure"
-        self.exposure_column_name = f"{self.risk.name}_exposure_for_non_loglinear_riskeffect"
+        self.randomness_stream_name = f"initial_{self.placeholder.name}_propensity"
+        self.propensity_name = f"{self.placeholder.name}.propensity"
+        self.exposure_name = f"{self.placeholder.name}.exposure"
+        self.exposure_column_name = (
+            f"{self.placeholder.name}_exposure_for_non_loglinear_effect"
+        )
+
+    @abstractmethod
+    def _validate_entity_type(self) -> None:
+        """Validates that the entity type of the placeholder is supported."""
+        pass
 
     #################
     # Setup methods #
     #################
 
-    # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
         self._components = builder.components
         self.distribution_type = self.get_distribution_type(builder)
@@ -187,7 +194,7 @@ class Risk(Component):
         self.register_exposure_pipeline(builder)
 
         builder.population.register_initializer(
-            initializer=self.initialize_risk_propensity,
+            initializer=self.initialize_propensity,
             columns=self.propensity_name,
             required_resources=[self.randomness],
         )
@@ -195,7 +202,9 @@ class Risk(Component):
             [
                 component
                 for component in builder.components.list_components()
-                if component.startswith(f"non_log_linear_risk_effect.{self.risk.name}_on_")
+                if component.startswith(
+                    f"non_log_linear_risk_effect.{self.placeholder.name}_on_"
+                )
             ]
         )
         if self.includes_non_loglinear_risk_effect:
@@ -226,7 +235,6 @@ class Risk(Component):
 
         distribution_type = self.configuration["distribution_type"]
         if distribution_type not in self.exposure_distributions.keys():
-            # todo deal with incorrect typing
             distribution_type = self.get_data(builder, distribution_type)
 
         if self.configuration["rebinned_exposed"]:
@@ -239,7 +247,7 @@ class Risk(Component):
             distribution_type = "dichotomous"
         return distribution_type
 
-    def get_exposure_distribution(self, builder: Builder) -> RiskExposureDistribution:
+    def get_exposure_distribution(self, builder: Builder) -> PlaceholderDistribution:
         """Creates and sets up the exposure distribution component for the Risk
         based on its distribution type.
 
@@ -258,22 +266,16 @@ class Risk(Component):
             If the distribution type is not supported.
         """
         try:
-            exposure_distribution = self.exposure_distributions[self.distribution_type](
-                self.risk, self.distribution_type
+            distribution_class = self.exposure_distributions[self.distribution_type]
+            distribution: PlaceholderDistribution = distribution_class(
+                self.placeholder, self.distribution_type
             )
         except KeyError:
             raise NotImplementedError(
                 f"Distribution type {self.distribution_type} is not supported."
             )
-        # HACK / FIXME [MIC-6756]: Because we need to start setting up each Risk to know
-        # its corresponding RiskExposureDistribution type, we cannot rely on sub-components.
-        # Instead, we've determined the RiskExposureDistribution here and want to set it
-        # up manually which requires temporarily changing the current component
-        # in the component manager.
-        self._components._manager._current_component = exposure_distribution
-        exposure_distribution.setup_component(builder)
-        self._components._manager._current_component = self
-        return exposure_distribution
+        distribution.setup_component(builder)
+        return distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
         return builder.randomness.get_stream(self.randomness_stream_name)
@@ -289,7 +291,7 @@ class Risk(Component):
     # Event-driven methods #
     ########################
 
-    def initialize_risk_propensity(self, pop_data: SimulantData) -> None:
+    def initialize_propensity(self, pop_data: SimulantData) -> None:
         propensity = pd.Series(
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )

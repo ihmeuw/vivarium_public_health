@@ -26,7 +26,7 @@ from vivarium_public_health.disease.transition import (
     RateTransition,
     TransitionString,
 )
-from vivarium_public_health.risks.calibration_constant import (
+from vivarium_public_health.placeholder.calibration_constant import (
     register_risk_affected_rate_producer,
 )
 from vivarium_public_health.utilities import is_non_zero

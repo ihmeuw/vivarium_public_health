@@ -22,12 +22,10 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 
+from vivarium_public_health.placeholder.distributions import PolytomousDistribution
+from vivarium_public_health.placeholder.utilities import pivot_categorical
 from vivarium_public_health.risks import Risk, RiskEffect
-from vivarium_public_health.risks.data_transformations import (
-    get_exposure_post_processor,
-    pivot_categorical,
-)
-from vivarium_public_health.risks.distributions import PolytomousDistribution
+from vivarium_public_health.risks.data_transformations import get_exposure_post_processor
 from vivarium_public_health.utilities import EntityString, to_snake_case
 
 CATEGORICAL = "categorical"
@@ -60,9 +58,9 @@ class LBWSGDistribution(PolytomousDistribution):
     ) -> None:
         super().__init__(risk, distribution_type, exposure_data)
         self.exposure_data_type = "birth_exposure"
-        self.birth_exposure_ppf_pipeline = f"{self.risk}.birth_exposure_ppf"
-        self.birth_exposure_params_pipeline = f"{self.risk}.birth_exposure_parameters"
-        self.risk_propensity = f"{self.risk.name}.categorical_propensity"
+        self.birth_exposure_ppf_pipeline = f"{self.placeholder}.birth_exposure_ppf"
+        self.birth_exposure_params_pipeline = f"{self.placeholder}.birth_exposure_parameters"
+        self.risk_propensity = f"{self.placeholder.name}.categorical_propensity"
 
     def setup(self, builder: Builder) -> None:
         self.birth_exposure_params_table = self.build_birth_exposure_params_table(builder)
@@ -137,7 +135,7 @@ class LBWSGDistribution(PolytomousDistribution):
         -------
             The intervals for each category.
         """
-        categories: dict[str, str] = builder.data.load(f"{self.risk}.categories")
+        categories: dict[str, str] = builder.data.load(f"{self.placeholder}.categories")
         category_intervals = {GESTATIONAL_AGE: {}, BIRTH_WEIGHT: {}}
 
         for category, description in categories.items():
