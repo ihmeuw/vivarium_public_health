@@ -218,8 +218,6 @@ class RiskAttributableDisease(ExcessMortalityState):
             source=self.compute_excess_mortality_rate,
             required_resources=[self.excess_mortality_rate_table],
         )
-        # We need the emr pipeline later
-        self._get_attribute_pipelines = builder.value.get_attribute_pipelines()
         builder.value.register_attribute_modifier(
             "mortality_rate",
             modifier=self.adjust_mortality_rate,
