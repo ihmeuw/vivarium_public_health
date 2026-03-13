@@ -8,10 +8,9 @@ vivarium_public_health components.
 
 """
 from collections.abc import Iterable
-from pathlib import Path
 
 import pandas as pd
-from vivarium.framework.lookup import LookupTable, ScalarValue
+from vivarium.framework.lookup import ScalarValue
 
 
 class EntityString(str):
