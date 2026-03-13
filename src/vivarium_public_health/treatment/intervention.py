@@ -8,8 +8,8 @@ effects on target measures.
 
 """
 
-from vivarium_public_health.placeholder.placeholder_effect import CausalFactorEffect
-from vivarium_public_health.placeholder.placeholder_exposure import CausalFactor
+from vivarium_public_health.causal_factor.effect import CausalFactorEffect
+from vivarium_public_health.causal_factor.exposure import CausalFactor
 
 
 class Intervention(CausalFactor):

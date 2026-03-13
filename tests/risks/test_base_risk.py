@@ -9,10 +9,10 @@ from vivarium.framework.engine import Builder
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.disease import SIS
-from vivarium_public_health.placeholder.calibration_constant import (
+from vivarium_public_health.causal_factor.calibration_constant import (
     get_calibration_constant_pipeline_name,
 )
-from vivarium_public_health.placeholder.distributions import (
+from vivarium_public_health.causal_factor.distributions import (
     EnsembleDistribution,
     PolytomousDistribution,
 )

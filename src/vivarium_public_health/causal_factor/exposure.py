@@ -6,24 +6,23 @@ Exposure Model
 This module contains tools for modeling categorical and continuous exposures.
 
 """
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any
 
 import pandas as pd
 from vivarium import Component
 from vivarium.framework.engine import Builder
-from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 
-from vivarium_public_health.placeholder.distributions import (
+from vivarium_public_health.causal_factor.distributions import (
     ContinuousDistribution,
     DichotomousDistribution,
     EnsembleDistribution,
     CausalFactorDistribution,
     PolytomousDistribution,
 )
-from vivarium_public_health.placeholder.utilities import get_exposure_post_processor
+from vivarium_public_health.causal_factor.utilities import get_exposure_post_processor
 from vivarium_public_health.utilities import EntityString
 
 
@@ -287,24 +286,3 @@ class CausalFactor(Component, ABC):
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
         self.population_view.update(propensity)
-
-    def initialize_exposure(self, pop_data: SimulantData) -> None:
-        self.update_exposure_column(pop_data.index)
-
-    def on_time_step_prepare(self, event: Event) -> None:
-        if self.includes_non_loglinear_risk_effect:
-            self.update_exposure_column(event.index)
-
-    def update_exposure_column(self, index: pd.Index) -> None:
-        """Updates the exposure column with pipeline values.
-
-        HACK: This is effectively caching the exposure pipeline for use by other
-        components. Specifically, :meth:`vivarium_public_health.risks.effect.NonLogLinearRiskEffect.get_relative_risk_source`
-        needs the exposure values but calling that pipeline was very slow. By
-        maintaining a cached copy of the exposure values in a private column, we
-        can then request that corresponding "simple" pipeline from the population
-        view instead which is significantly faster.
-        """
-        exposure = self.population_view.get_attributes(index, self.exposure_name)
-        exposure.name = self.exposure_column_name
-        self.population_view.update(exposure)

@@ -22,8 +22,8 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
 
-from vivarium_public_health.placeholder.distributions import PolytomousDistribution
-from vivarium_public_health.placeholder.utilities import (
+from vivarium_public_health.causal_factor.distributions import PolytomousDistribution
+from vivarium_public_health.causal_factor.utilities import (
     get_exposure_post_processor,
     pivot_categorical,
 )

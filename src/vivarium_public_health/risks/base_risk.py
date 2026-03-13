@@ -7,9 +7,13 @@ This module contains tools for modeling categorical and continuous risk
 exposure.
 
 """
-from vivarium.framework.engine import Builder
+import pandas as pd
 
-from vivarium_public_health.placeholder.placeholder_exposure import CausalFactor
+from vivarium.framework.engine import Builder
+from vivarium.framework.event import Event
+from vivarium.framework.population import SimulantData
+
+from vivarium_public_health.causal_factor.exposure import CausalFactor
 
 
 class Risk(CausalFactor):
@@ -95,18 +99,7 @@ class Risk(CausalFactor):
     #################
 
     def setup(self, builder: Builder) -> None:
-        self._components = builder.components
-        self.distribution_type = self.get_distribution_type(builder)
-        self.exposure_distribution = self.get_exposure_distribution(builder)
-
-        self.randomness = self.get_randomness_stream(builder)
-        self.register_exposure_pipeline(builder)
-
-        builder.population.register_initializer(
-            initializer=self.initialize_propensity,
-            columns=self.propensity_name,
-            required_resources=[self.randomness],
-        )
+        super().setup(builder)
         self.includes_non_loglinear_risk_effect = bool(
             [
                 component
@@ -122,3 +115,24 @@ class Risk(CausalFactor):
                 columns=self.exposure_column_name,
                 required_resources=[self.exposure_name],
             )
+
+    def initialize_exposure(self, pop_data: SimulantData) -> None:
+        self.update_exposure_column(pop_data.index)
+
+    def on_time_step_prepare(self, event: Event) -> None:
+        if self.includes_non_loglinear_risk_effect:
+            self.update_exposure_column(event.index)
+
+    def update_exposure_column(self, index: pd.Index) -> None:
+        """Updates the exposure column with pipeline values.
+
+        HACK: This is effectively caching the exposure pipeline for use by other
+        components. Specifically, :meth:`vivarium_public_health.risks.effect.NonLogLinearRiskEffect.get_relative_risk_source`
+        needs the exposure values but calling that pipeline was very slow. By
+        maintaining a cached copy of the exposure values in a private column, we
+        can then request that corresponding "simple" pipeline from the population
+        view instead which is significantly faster.
+        """
+        exposure = self.population_view.get_attributes(index, self.exposure_name)
+        exposure.name = self.exposure_column_name
+        self.population_view.update(exposure)

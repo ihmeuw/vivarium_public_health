@@ -22,10 +22,10 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN, LookupTable
 from vivarium.framework.population import SimulantData
 
-from vivarium_public_health.placeholder.calibration_constant import (
+from vivarium_public_health.causal_factor.calibration_constant import (
     register_risk_affected_attribute_producer,
 )
-from vivarium_public_health.placeholder.utilities import pivot_categorical
+from vivarium_public_health.causal_factor.utilities import pivot_categorical
 from vivarium_public_health.utilities import EntityString
 
 

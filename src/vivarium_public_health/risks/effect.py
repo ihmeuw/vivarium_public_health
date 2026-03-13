@@ -18,11 +18,11 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.types import LookupTableData
 
-from vivarium_public_health.placeholder.calibration_constant import (
+from vivarium_public_health.causal_factor.calibration_constant import (
     get_calibration_constant_pipeline_name,
 )
-from vivarium_public_health.placeholder.distributions import MissingDataError
-from vivarium_public_health.placeholder.placeholder_effect import CausalFactorEffect
+from vivarium_public_health.causal_factor.distributions import MissingDataError
+from vivarium_public_health.causal_factor.effect import CausalFactorEffect
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.utilities import EntityString, TargetString
 

@@ -159,3 +159,101 @@ class CategoricalCausalFactorObserver(PublicHealthObserver):
         """Get the 'sub_entity' column values."""
         # The sub-entity col was created in the 'format' method
         return results[COLUMNS.SUB_ENTITY]
+
+
+class CategoricalRiskObserver(CategoricalCausalFactorObserver):
+    """An observer for a categorical risk factor.
+
+    Observes category person time for a risk factor. This is a convenience
+    subclass of :class:`CategoricalCausalFactorObserver` for use with risk
+    factors.
+
+    By default, this observer computes aggregate categorical person time
+    over the full course of the simulation. It can be configured to add or
+    remove stratification groups to the default groups defined by a
+    ResultsStratifier.
+
+    In the model specification, your configuration for this component should
+    be specified as, e.g.:
+
+    .. code-block:: yaml
+
+        configuration:
+            stratification:
+                risk_name:
+                    exclude:
+                        - "sex"
+                    include:
+                        - "sample_stratification"
+
+    Attributes
+    ----------
+    causal_factor
+        The name of the risk factor.
+    exposure_pipeline
+        The name of the pipeline that produces the risk factor exposure.
+    step_size
+        The time step size of the simulation.
+    categories
+        The categories of the risk factor.
+
+    """
+
+    def __init__(self, risk: str) -> None:
+        """Constructor for this observer.
+
+        Parameters
+        ----------
+        risk
+            The name of the risk factor being observed.
+        """
+        super().__init__(risk)
+
+
+class CategoricalInterventionObserver(CategoricalCausalFactorObserver):
+    """An observer for a categorical intervention.
+
+    Observes category person time for an intervention. This is a convenience
+    subclass of :class:`CategoricalCausalFactorObserver` for use with
+    interventions.
+
+    By default, this observer computes aggregate categorical person time
+    over the full course of the simulation. It can be configured to add or
+    remove stratification groups to the default groups defined by a
+    ResultsStratifier.
+
+    In the model specification, your configuration for this component should
+    be specified as, e.g.:
+
+    .. code-block:: yaml
+
+        configuration:
+            stratification:
+                intervention_name:
+                    exclude:
+                        - "sex"
+                    include:
+                        - "sample_stratification"
+
+    Attributes
+    ----------
+    causal_factor
+        The name of the intervention.
+    exposure_pipeline
+        The name of the pipeline that produces the intervention exposure.
+    step_size
+        The time step size of the simulation.
+    categories
+        The categories of the intervention.
+
+    """
+
+    def __init__(self, intervention: str) -> None:
+        """Constructor for this observer.
+
+        Parameters
+        ----------
+        intervention
+            The name of the intervention being observed.
+        """
+        super().__init__(intervention)

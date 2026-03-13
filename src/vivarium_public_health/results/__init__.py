@@ -3,6 +3,10 @@ from .disability import DisabilityObserver
 from .disease import DiseaseObserver
 from .mortality import MortalityObserver
 from .observer import PublicHealthObserver
-from .risk import CategoricalCausalFactorObserver
+from .causal_factor import (
+    CategoricalCausalFactorObserver,
+    CategoricalInterventionObserver,
+    CategoricalRiskObserver,
+)
 from .simple_cause import SimpleCause
 from .stratification import ResultsStratifier
