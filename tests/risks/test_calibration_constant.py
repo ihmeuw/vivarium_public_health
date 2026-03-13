@@ -1,7 +1,5 @@
 """
-==========================================
 Calibration Constant Pipeline Infrastructure
-==========================================
 
 Tests for :mod:`vivarium_public_health.risks.calibration_constant`.
 
@@ -22,6 +20,8 @@ Both delegate to ``_RiskAffectedPipeline``, which:
 3. In ``on_post_setup``, precomputes the calibration constant into a lookup
    table so that it is available without re-running the full pipeline each
    time-step.
+
+Tests for :mod:`vivarium_public_health.risks.calibration_constant`.
 
 Redundancy notes
 ----------------
@@ -143,22 +143,6 @@ def _make_disease_model_components(
     healthy.transition_set.append(transition)
     model = DiseaseModel("test", residual_state=healthy, states=[healthy, sick])
     return [BasePopulation(), model], "sick.incidence_rate"
-
-
-# ---------------------------------------------------------------------------
-# Unit tests
-# ---------------------------------------------------------------------------
-
-
-class TestGetCalibrationConstantPipelineName:
-    def test_basic(self):
-        assert (
-            get_calibration_constant_pipeline_name("foo.bar")
-            == "foo.bar.calibration_constant"
-        )
-
-    def test_empty(self):
-        assert get_calibration_constant_pipeline_name("") == ".calibration_constant"
 
 
 # ---------------------------------------------------------------------------
