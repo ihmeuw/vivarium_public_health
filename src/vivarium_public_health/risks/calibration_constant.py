@@ -1,12 +1,28 @@
 """
-====================
-Calibration Constant
-====================
+==========================================
+Calibration Constant Pipeline Infrastructure
+==========================================
 
-This module contains functions and classes for managing calibration constants in
-pipelines that are intended to be modifiable by RiskEffect components. Population
-attributable fractions (PAFs) can often be used interchangeably with calibration
-constants.
+This module provides helper functions and internal machinery that register
+pipelines whose values are reduced by a joint calibration constant.
+Population attributable fractions (PAFs) can often be used interchangeably
+with calibration constants.
+
+The module provides two public entry-points:
+
+* ``register_risk_affected_rate_producer``   (``is_rate=True``)
+* ``register_risk_affected_attribute_producer`` (``is_rate=False``)
+
+Both delegate to ``_RiskAffectedPipeline``, which:
+
+1. Creates a calibration constant value-producer pipeline
+   (``<name>.calibration_constant``) with a custom combiner (list-append)
+   and post-processor (``raw_union_post_processor``).
+2. Registers the target pipeline (rate or attribute) with a post-processor
+   that applies ``value * (1 - calibration_constant)`` to non-zero rows.
+3. In ``on_post_setup``, precomputes the calibration constant into a lookup
+   table so that it is available without re-running the full pipeline each
+   time-step.
 
 """
 from collections.abc import Callable, Sequence
@@ -137,6 +153,7 @@ class _RiskAffectedPipeline(Component):
         )
 
     def on_post_setup(self, event: Event) -> None:
+        # Precompute the calibration constant data and load it into the lookup table
         calibration_constant_data = self._calibration_constant_pipeline()
         self._calibration_constant_table.set_data(calibration_constant_data)
 
