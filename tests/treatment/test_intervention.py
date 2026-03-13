@@ -9,10 +9,10 @@ def test_intervention_validate_entity_type():
     Intervention("intervention.test_intervention")
 
     # Invalid entity types should raise ValueError
-    with pytest.raises(ValueError, match="Intervention entity type must be one of"):
+    with pytest.raises(ValueError, match="Entity type must be one of"):
         Intervention("risk_factor.test_risk")
 
-    with pytest.raises(ValueError, match="Intervention entity type must be one of"):
+    with pytest.raises(ValueError, match="Entity type must be one of"):
         Intervention("cause.some_cause")
 
 

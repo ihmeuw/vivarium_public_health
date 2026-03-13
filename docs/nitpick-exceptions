@@ -30,5 +30,16 @@ py:meth __init__
 py:class Component
 py:attr lookup_tables
 
+# vivarium fully-qualified references (unresolvable when intersphinx is unavailable)
+py:class vivarium.component.Component
+py:class vivarium.framework.engine.Builder
+py:class vivarium.framework.lookup.table.LookupTable
+py:class vivarium.framework.population.manager.SimulantData
+py:class vivarium.framework.population.population_view.PopulationView
+py:class vivarium.framework.randomness.stream.RandomnessStream
+py:class vivarium.framework.state_machine.Transition
+py:class vivarium.framework.artifact.artifact.Artifact
+py:class vivarium.framework.components.parser.ComponentConfigurationParser
+
 # typing module - needed for Python 3.10 compatibility
 py:data typing.Union

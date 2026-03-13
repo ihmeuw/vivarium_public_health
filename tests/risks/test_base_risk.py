@@ -31,7 +31,7 @@ def test_validate_entity_type():
     # Invalid entity type should raise ValueError
     with pytest.raises(ValueError, match="Entity type must be one of"):
         Risk("cause.some_cause")
-    
+
     with pytest.raises(ValueError, match="Entity type must be one of"):
         Risk("intervention.some_intervention")
 
