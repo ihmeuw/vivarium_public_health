@@ -197,7 +197,7 @@ texinfo_documents = [
 # Other docs we can link to
 intersphinx_mapping = {
     "python": ("https://docs.python.org/", None),
-    # TODO: Add this mapping back
+    # TODO: uncomment this once pandas docs come back up
     # "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
     "tables": ("https://www.pytables.org/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
