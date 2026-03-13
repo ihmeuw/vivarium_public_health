@@ -93,7 +93,7 @@ class CategoricalCausalFactorObserver(PublicHealthObserver):
         and value names.
         """
         builder.results.register_stratification(
-            f"{self.causal_factor}",
+            self.causal_factor,
             list(self.categories.keys()),
             requires_attributes=[self.exposure_pipeline],
         )
@@ -199,6 +199,10 @@ class CategoricalRiskObserver(CategoricalCausalFactorObserver):
 
     """
 
+    @property
+    def name(self) -> str:
+        return f"categorical_risk_observer.{self.causal_factor}"
+
     def __init__(self, risk: str) -> None:
         """Constructor for this observer.
 
@@ -247,6 +251,10 @@ class CategoricalInterventionObserver(CategoricalCausalFactorObserver):
         The categories of the intervention.
 
     """
+
+    @property
+    def name(self) -> str:
+        return f"categorical_intervention_observer.{self.causal_factor}"
 
     def __init__(self, intervention: str) -> None:
         """Constructor for this observer.

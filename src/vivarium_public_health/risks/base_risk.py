@@ -8,7 +8,6 @@ exposure.
 
 """
 import pandas as pd
-
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData

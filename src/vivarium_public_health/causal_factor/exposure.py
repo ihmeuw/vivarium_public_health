@@ -16,10 +16,10 @@ from vivarium.framework.population import SimulantData
 from vivarium.framework.randomness import RandomnessStream
 
 from vivarium_public_health.causal_factor.distributions import (
+    CausalFactorDistribution,
     ContinuousDistribution,
     DichotomousDistribution,
     EnsembleDistribution,
-    CausalFactorDistribution,
     PolytomousDistribution,
 )
 from vivarium_public_health.causal_factor.utilities import get_exposure_post_processor
@@ -182,7 +182,7 @@ class CausalFactor(Component, ABC):
         """Validates that the entity type of the causal factor is supported."""
         if self.causal_factor.type not in self.VALID_ENTITY_TYPES:
             raise ValueError(
-                f"Intervention entity type must be one of {self.VALID_ENTITY_TYPES}, "
+                f"Entity type must be one of {self.VALID_ENTITY_TYPES}, "
                 f"but got '{self.causal_factor.type}' for '{self.causal_factor}'."
             )
 

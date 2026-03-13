@@ -17,10 +17,10 @@ from vivarium.framework.state_machine import Transition, Trigger
 from vivarium.framework.utilities import rate_to_probability
 from vivarium.types import DataInput
 
-from vivarium_public_health.disease.exceptions import DiseaseModelError
 from vivarium_public_health.causal_factor.calibration_constant import (
     register_risk_affected_rate_producer,
 )
+from vivarium_public_health.disease.exceptions import DiseaseModelError
 
 if TYPE_CHECKING:
     from vivarium_public_health.disease import BaseDiseaseState

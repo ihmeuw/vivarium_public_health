@@ -8,7 +8,6 @@ from vivarium import Component, InteractiveContext
 from vivarium.framework.engine import Builder
 
 from tests.test_utilities import build_table_with_age
-from vivarium_public_health.disease import SIS
 from vivarium_public_health.causal_factor.calibration_constant import (
     get_calibration_constant_pipeline_name,
 )
@@ -16,6 +15,7 @@ from vivarium_public_health.causal_factor.distributions import (
     EnsembleDistribution,
     PolytomousDistribution,
 )
+from vivarium_public_health.disease import SIS
 from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
@@ -29,10 +29,10 @@ def test_validate_entity_type():
     Risk("alternative_risk_factor.test_risk")
 
     # Invalid entity type should raise ValueError
-    with pytest.raises(ValueError, match="Risk entity type must be one of"):
+    with pytest.raises(ValueError, match="Entity type must be one of"):
         Risk("cause.some_cause")
-
-    with pytest.raises(ValueError, match="Risk entity type must be one of"):
+    
+    with pytest.raises(ValueError, match="Entity type must be one of"):
         Risk("intervention.some_intervention")
 
 

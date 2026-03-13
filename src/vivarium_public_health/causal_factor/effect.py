@@ -26,7 +26,10 @@ from vivarium_public_health.causal_factor.calibration_constant import (
 )
 from vivarium_public_health.causal_factor.distributions import DichotomousDistribution
 from vivarium_public_health.causal_factor.exposure import CausalFactor
-from vivarium_public_health.causal_factor.utilities import load_exposure_data, pivot_categorical
+from vivarium_public_health.causal_factor.utilities import (
+    load_exposure_data,
+    pivot_categorical,
+)
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
@@ -225,7 +228,9 @@ class CausalFactorEffect(Component, ABC):
         self, builder: Builder, rr_data: str | float | pd.DataFrame
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
         if not isinstance(rr_data, pd.DataFrame):
-            exposure_distribution = self.causal_factor_exposure_component.exposure_distribution
+            exposure_distribution = (
+                self.causal_factor_exposure_component.exposure_distribution
+            )
             if not isinstance(exposure_distribution, DichotomousDistribution):
                 raise ValueError(
                     f"Relative risk data for categorical exposure must be a DataFrame unless the "
@@ -359,7 +364,9 @@ class CausalFactorEffect(Component, ABC):
     ##################
 
     def _get_causal_factor_exposure_component(self, builder: Builder) -> CausalFactor:
-        causal_factor_exposure_component = builder.components.get_component(self.causal_factor)
+        causal_factor_exposure_component = builder.components.get_component(
+            self.causal_factor
+        )
         if not isinstance(causal_factor_exposure_component, self.EXPOSURE_CLASS):
             raise ValueError(
                 f"{self.__class__.__name__} model {self.name} requires a {self.EXPOSURE_CLASS.__name__} component named {self.causal_factor}"

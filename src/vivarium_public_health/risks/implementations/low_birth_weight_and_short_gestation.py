@@ -61,7 +61,9 @@ class LBWSGDistribution(PolytomousDistribution):
         super().__init__(risk, distribution_type, exposure_data)
         self.exposure_data_type = "birth_exposure"
         self.birth_exposure_ppf_pipeline = f"{self.causal_factor}.birth_exposure_ppf"
-        self.birth_exposure_params_pipeline = f"{self.causal_factor}.birth_exposure_parameters"
+        self.birth_exposure_params_pipeline = (
+            f"{self.causal_factor}.birth_exposure_parameters"
+        )
         self.risk_propensity = f"{self.causal_factor.name}.categorical_propensity"
 
     def setup(self, builder: Builder) -> None:
