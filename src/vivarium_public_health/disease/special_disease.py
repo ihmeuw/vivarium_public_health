@@ -214,7 +214,7 @@ class RiskAttributableDisease(ExcessMortalityState):
         )
         register_risk_affected_attribute_producer(
             builder=builder,
-            name=self.excess_mortality_rate_pipeline,
+            name=self.excess_mortality_rate_name,
             source=self.compute_excess_mortality_rate,
             required_resources=[self.excess_mortality_rate_table],
         )
