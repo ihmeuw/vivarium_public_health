@@ -11,4 +11,3 @@ using this Vivarium Public Health library.
    :maxdepth: 2
 
    *
-   */index
