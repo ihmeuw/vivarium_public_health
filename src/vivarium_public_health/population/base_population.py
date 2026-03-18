@@ -379,7 +379,7 @@ class ScaledPopulation(BasePopulation):
         """Align population structure and scaling data to a common reference year.
 
         Subsets both inputs to the closest reference year that is less than or
-        equal to ``year``. If the scaling data does not contain a ``year_start`` 
+        equal to ``year``. If the scaling data does not contain a ``year_start``
         column it is returned unchanged.
 
         Parameters
@@ -393,8 +393,8 @@ class ScaledPopulation(BasePopulation):
 
         Returns
         -------
-            A tuple of ``(population_structure, scaling_factor)`` dataframes where 
-            both have been indexed by their non-value columns and subset to the 
+            A tuple of ``(population_structure, scaling_factor)`` dataframes where
+            both have been indexed by their non-value columns and subset to the
             relevant reference year.
         """
 

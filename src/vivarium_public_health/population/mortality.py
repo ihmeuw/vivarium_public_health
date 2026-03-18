@@ -245,8 +245,8 @@ class Mortality(Component):
     def load_unmodeled_csmr(self, builder: Builder) -> float | pd.DataFrame:
         """Load and sum the cause-specific mortality rates for all unmodeled causes.
 
-        Iterates over causes listed in ``configuration.mortality.unmodeled_causes`` 
-        and accumulates their CSMRs from the artifact. Returns ``0.0`` if no unmodeled 
+        Iterates over causes listed in ``configuration.mortality.unmodeled_causes``
+        and accumulates their CSMRs from the artifact. Returns ``0.0`` if no unmodeled
         causes are configured.
 
         Parameters
@@ -256,7 +256,7 @@ class Mortality(Component):
 
         Returns
         -------
-            The summed CSMR for all unmodeled causes as a :class:`pandas.DataFrame`, 
+            The summed CSMR for all unmodeled causes as a :class:`pandas.DataFrame`,
             or ``0.0`` if there are no unmodeled causes.
         """
         # todo validate that all data have the same columns

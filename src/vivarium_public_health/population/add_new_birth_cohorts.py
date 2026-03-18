@@ -99,7 +99,7 @@ class FertilityCrudeBirthRate(Component):
     Notes
     -----
     The OECD definition of crude birth rate can be found on their
-    `website <https://stats.oecd.org/glossary/detail.asp?ID=490>`_, while a more 
+    `website <https://stats.oecd.org/glossary/detail.asp?ID=490>`_, while a more
     thorough discussion of fertility and birth rate models can be found on
     `Wikipedia <https://en.wikipedia.org/wiki/Birth_rate>`_ or in demography textbooks.
 
@@ -221,7 +221,7 @@ class FertilityAgeSpecificRates(Component):
     def load_age_specific_fertility_rate_data(self, builder: Builder) -> pd.DataFrame:
         """Load and filter age-specific fertility rate data from the artifact.
 
-        Reads the ``covariate.age_specific_fertility_rate.estimate`` dataset, retains 
+        Reads the ``covariate.age_specific_fertility_rate.estimate`` dataset, retains
         only female mean-value estimates, and returns the relevant columns.
 
         Parameters
@@ -231,7 +231,7 @@ class FertilityAgeSpecificRates(Component):
 
         Returns
         -------
-            A :class:`pandas.DataFrame` with columns ``year_start``, ``year_end``, 
+            A :class:`pandas.DataFrame` with columns ``year_start``, ``year_end``,
             ``age_start``, ``age_end``, and ``value``.
         """
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
