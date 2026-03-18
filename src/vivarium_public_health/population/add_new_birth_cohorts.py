@@ -152,7 +152,7 @@ class FertilityCrudeBirthRate(Component):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        """Add new simulants every time step based on crude birth rate.
+        """Add new simulants every time step based on crude birth rate and a Poisson distribution assumption.
 
         Parameters
         ----------
