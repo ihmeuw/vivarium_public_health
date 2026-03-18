@@ -562,12 +562,12 @@ def generate_population(
     registration requirements:
 
         - **Fixed initial age** (``age_start == age_end``): Calls
-            :func:`vivarium_public_health.population.base_population._assign_demography_with_initial_age`.
+            `vivarium_public_health.population.base_population._assign_demography_with_initial_age`.
             This applies age fuzz smoothing and registers ``entrance_time`` and
             ``age`` to the CRN framework.
 
         - **Age range** (``age_start != age_end``): Calls
-            :func:`vivarium_public_health.population.base_population._assign_demography_with_age_bounds`.
+            `vivarium_public_health.population.base_population._assign_demography_with_age_bounds`.
             This selects from age bins, smooths ages further, and registers
             the customizable ``key_columns`` to the CRN framework.
 
