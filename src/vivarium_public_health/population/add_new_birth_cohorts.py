@@ -3,7 +3,7 @@
 Fertility Models
 ================
 
-This module contains several different models of fertility.
+Provide several different models of fertility.
 
 """
 
@@ -22,7 +22,14 @@ PREGNANCY_DURATION = pd.Timedelta(days=9 * utilities.DAYS_PER_MONTH)
 
 
 class FertilityDeterministic(Component):
-    """Deterministic model of births."""
+    """Deterministic model of births based on a fixed yearly simulant count.
+
+    At each time step this component adds a fixed number of newborn simulants
+    proportional to ``fertility.number_of_new_simulants_each_year`` and the
+    current step size. Sub-integer remainders are accumulated across steps
+    and applied when they reach a whole number.
+
+    """
 
     CONFIGURATION_DEFAULTS = {
         "fertility": {
@@ -35,6 +42,13 @@ class FertilityDeterministic(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
+        """Set up the component by reading configuration and obtaining the simulant creator.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.fractional_new_births = 0
         self.simulants_per_year = (
             builder.configuration.fertility.number_of_new_simulants_each_year
@@ -47,12 +61,12 @@ class FertilityDeterministic(Component):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        """Adds a set number of simulants to the population each time step.
+        """Add a set number of simulants to the population each time step.
 
         Parameters
         ----------
         event
-            The event that triggered the function call.
+            The event that triggered this method call.
         """
         # Assume births are uniformly distributed throughout the year.
         step_size = utilities.to_years(event.step_size)
@@ -75,14 +89,15 @@ class FertilityDeterministic(Component):
 class FertilityCrudeBirthRate(Component):
     """Population-level model of births using crude birth rate.
 
-    The number of births added each time step is calculated as
+    The number of births added each time step is calculated as:
 
-    new_births = sim_pop_size_t0 * live_births / true_pop_size * step_size
+        new_births = sim_pop_size_t0 * live_births / true_pop_size * step_size
 
     Where:
-    sim_pop_size_t0 = the initial simulation population size
-    live_births = annual number of live births in the true population
-    true_pop_size = the true population size
+
+    - ``sim_pop_size_t0`` — the initial simulation population size
+    - ``live_births`` — annual number of live births in the true population
+    - ``true_pop_size`` — the true population size
 
     This component has configuration flags that determine whether the
     live births and the true population size should vary with time.
@@ -90,11 +105,9 @@ class FertilityCrudeBirthRate(Component):
     Notes
     -----
     The OECD definition of crude birth rate can be found on their
-    `website <https://stats.oecd.org/glossary/detail.asp?ID=490>`_,
-    while a more thorough discussion of fertility and
-    birth rate models can be found on
-    `Wikipedia <https://en.wikipedia.org/wiki/Birth_rate>`_ or in demography
-    textbooks.
+    `website <https://stats.oecd.org/glossary/detail.asp?ID=490>`_, while a more
+    thorough discussion of fertility and birth rate models can be found on
+    `Wikipedia <https://en.wikipedia.org/wiki/Birth_rate>`_ or in demography textbooks.
 
     """
 
@@ -110,6 +123,18 @@ class FertilityCrudeBirthRate(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
+        """Set up the component by loading birth rate data and obtaining the simulant creator.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Raises
+        ------
+        ValueError
+            If ``population.initialization_age_min`` is not zero.
+        """
         config = builder.configuration.population
         if config.initialization_age_min != 0:
             raise ValueError(
@@ -127,13 +152,12 @@ class FertilityCrudeBirthRate(Component):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        """Adds new simulants every time step based on the Crude Birth Rate
-        and an assumption that birth is a Poisson process
+        """Add new simulants every time step based on crude birth rate.
 
         Parameters
         ----------
         event
-            The event that triggered the function call.
+            The event that triggered this method call.
         """
         birth_rate = self.birth_rate.at[self.clock().year]
         step_size = utilities.to_years(event.step_size)
@@ -155,7 +179,14 @@ class FertilityCrudeBirthRate(Component):
 
 
 class FertilityAgeSpecificRates(Component):
-    """A simulant-specific model for fertility and pregnancies."""
+    """Simulant-specific model of fertility based on age-specific fertility rates.
+
+    At each time step, this component determines which living female simulants
+    give birth. Eligibility requires at least nine months to have elapsed since
+    the simulant's last birth. Newborns are added to the state table with a
+    reference to their parent simulant.
+
+    """
 
     ##############
     # Properties #
@@ -163,6 +194,7 @@ class FertilityAgeSpecificRates(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, dict]:
+        """The default configuration values for this component."""
         return {
             self.name: {
                 "data_sources": {
@@ -176,12 +208,12 @@ class FertilityAgeSpecificRates(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
-        """Setup the common randomness stream and age-specific fertility lookup tables.
+        """Set up the common randomness stream and age-specific fertility lookup tables.
 
         Parameters
         ----------
         builder
-            Framework coordination object.
+            Access point for utilizing framework interfaces during setup.
         """
         fertility_rate = self.build_lookup_table(builder, "age_specific_fertility_rate")
         builder.value.register_rate_producer("fertility_rate", source=fertility_rate)
@@ -200,6 +232,21 @@ class FertilityAgeSpecificRates(Component):
     #################
 
     def load_age_specific_fertility_rate_data(self, builder: Builder) -> pd.DataFrame:
+        """Load and filter age-specific fertility rate data from the artifact.
+
+        Reads the ``covariate.age_specific_fertility_rate.estimate`` dataset, retains
+        only female mean-value estimates, and returns the relevant columns.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A :class:`pandas.DataFrame` with columns ``year_start``, ``year_end``,
+            ``age_start``, ``age_end``, and ``value``.
+        """
         asfr_data = builder.data.load("covariate.age_specific_fertility_rate.estimate")
         columns = ["year_start", "year_end", "age_start", "age_end", "value"]
         asfr_data = asfr_data.loc[
@@ -212,7 +259,13 @@ class FertilityAgeSpecificRates(Component):
     ########################
 
     def initialize_birth_time_and_parent_id(self, pop_data: SimulantData) -> None:
-        """Adds 'last_birth_time' and 'parent' columns to the state table."""
+        """Add 'last_birth_time' and 'parent' columns to the state table.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants being initialized.
+        """
         females = self.population_view.get_filtered_index(pop_data.index, "sex == 'Female'")
 
         if pop_data.user_data["sim_state"] == "setup":
@@ -233,12 +286,12 @@ class FertilityAgeSpecificRates(Component):
         self.population_view.initialize(pop_update)
 
     def on_time_step(self, event: Event) -> None:
-        """Produces new children and updates parent status on time steps.
+        """Produce new children and update parent status on time steps.
 
         Parameters
         ----------
         event
-            The event that triggered the function call.
+            The event that triggered this method call.
         """
         # Get a view on all living females who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
