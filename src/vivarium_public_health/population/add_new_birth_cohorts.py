@@ -61,7 +61,13 @@ class FertilityDeterministic(Component):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        """Add a set number of simulants to the population each time step."""
+        """Add a set number of simulants to the population each time step.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         # Assume births are uniformly distributed throughout the year.
         step_size = utilities.to_years(event.step_size)
         simulants_to_add = self.simulants_per_year * step_size + self.fractional_new_births
@@ -146,7 +152,13 @@ class FertilityCrudeBirthRate(Component):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        """Add new simulants every time step based on the Crude Birth Rate and a Poisson distribution assumption."""
+        """Add new simulants every time step based on crude birth rate.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         birth_rate = self.birth_rate.at[self.clock().year]
         step_size = utilities.to_years(event.step_size)
 
@@ -273,7 +285,13 @@ class FertilityAgeSpecificRates(Component):
         self.population_view.update(pop_update)
 
     def on_time_step(self, event: Event) -> None:
-        """Produce new children and update parent status on time steps."""
+        """Produce new children and update parent status on time steps.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         # Get a view on all living females who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
         last_birth_time = self.population_view.get_private_columns(

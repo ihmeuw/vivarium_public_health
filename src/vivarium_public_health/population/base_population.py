@@ -211,7 +211,13 @@ class BasePopulation(Component):
         )
 
     def on_time_step(self, event: Event) -> None:
-        """Age simulants each time step by the step size."""
+        """Age simulants each time step by the step size.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         age = self.population_view.get_private_columns(
             event.index, "age", query="is_alive == True"
         )
@@ -219,7 +225,13 @@ class BasePopulation(Component):
         self.population_view.update(age)
 
     def on_time_step_cleanup(self, event: Event) -> None:
-        """Update the 'exit_time' private column with any modifications made by other components."""
+        """Update the 'exit_time' private column with modifications from other components.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         exit_times = self.population_view.get_attributes(
             event.index, "exit_time", include_untracked=True
         )
@@ -486,7 +498,13 @@ class AgeOutSimulants(Component):
         )
 
     def on_time_step_cleanup(self, event: Event) -> None:
-        """Mark simulants that have exceeded the untracking age as aged out."""
+        """Mark simulants that have exceeded the untracking age as aged out.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         if self.config.untracking_age is None:
             return
 

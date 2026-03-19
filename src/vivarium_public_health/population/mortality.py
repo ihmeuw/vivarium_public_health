@@ -327,7 +327,7 @@ class Mortality(Component):
         Parameters
         ----------
         event
-            The event that triggered this time step.
+            The event that triggered this method call.
         """
         pop = self.population_view.get_private_columns(event.index, query="is_alive == True")
         mortality_rates = self.population_view.get_attribute_frame(
