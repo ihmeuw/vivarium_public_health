@@ -8,6 +8,8 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
+from __future__ import annotations
+
 from collections.abc import Iterable
 from functools import partial
 from typing import Any
@@ -209,8 +211,8 @@ class DiseaseModel(Machine):
     ##################################
 
     def adjust_cause_specific_mortality_rate(
-        self, index: pd.Index, rate: pd.Series
-    ) -> pd.Series:
+        self, index: pd.Index[int], rate: pd.Series[float]
+    ) -> pd.Series[float]:
         """Modify the cause-specific mortality rate for the given simulants.
 
         Parameters

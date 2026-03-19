@@ -6,6 +6,7 @@ Disease Transitions
 This module contains tools to model transitions between disease states.
 
 """
+from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
@@ -154,7 +155,7 @@ class RateTransition(Transition):
     # Pipeline sources and modifiers #
     ##################################
 
-    def compute_transition_rate(self, index: pd.Index) -> pd.Series:
+    def compute_transition_rate(self, index: pd.Index[int]) -> pd.Series[float]:
         """Compute the transition rate for the given simulants.
 
         Parameters
@@ -177,7 +178,7 @@ class RateTransition(Transition):
     # Helper methods #
     ##################
 
-    def _probability(self, index: pd.Index) -> pd.Series:
+    def _probability(self, index: pd.Index[int]) -> pd.Series[float]:
         return pd.Series(
             rate_to_probability(
                 self.population_view.get_attributes(index, self.transition_rate_pipeline),
@@ -258,5 +259,5 @@ class ProportionTransition(Transition):
         """
         self.proportion_table = self.build_lookup_table(builder, "proportion")
 
-    def _probability(self, index: pd.Index) -> pd.Series:
+    def _probability(self, index: pd.Index[int]) -> pd.Series[float]:
         return self.proportion_table(index)

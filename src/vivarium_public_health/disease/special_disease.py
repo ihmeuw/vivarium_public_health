@@ -6,6 +6,7 @@
 This module contains frequently used, but non-standard disease models.
 
 """
+from __future__ import annotations
 
 import re
 from collections import namedtuple
@@ -430,7 +431,7 @@ class RiskAttributableDisease(ExcessMortalityState):
     # Pipeline sources and modifiers #
     ##################################
 
-    def compute_disability_weight(self, index: pd.Index) -> pd.Series:
+    def compute_disability_weight(self, index: pd.Index[int]) -> pd.Series[float]:
         """Get the disability weight associated with this disease.
 
         Parameters
@@ -451,7 +452,7 @@ class RiskAttributableDisease(ExcessMortalityState):
         )
         return disability_weight
 
-    def compute_excess_mortality_rate(self, index: pd.Index) -> pd.Series:
+    def compute_excess_mortality_rate(self, index: pd.Index[int]) -> pd.Series[float]:
         """Get the excess mortality rate associated with this disease.
 
         Parameters
@@ -472,8 +473,8 @@ class RiskAttributableDisease(ExcessMortalityState):
         return excess_mortality_rate
 
     def adjust_cause_specific_mortality_rate(
-        self, index: pd.Index, rate: pd.Series
-    ) -> pd.Series:
+        self, index: pd.Index[int], rate: pd.Series[float]
+    ) -> pd.Series[float]:
         """Modify the cause-specific mortality rate for the given simulants.
 
         Parameters
@@ -490,7 +491,9 @@ class RiskAttributableDisease(ExcessMortalityState):
         """
         return rate + self.cause_specific_mortality_rate_table(index)
 
-    def adjust_mortality_rate(self, index: pd.Index, rates_df: pd.DataFrame) -> pd.DataFrame:
+    def adjust_mortality_rate(
+        self, index: pd.Index[int], rates_df: pd.DataFrame
+    ) -> pd.DataFrame:
         """Modifies the baseline mortality rate for a simulant if they are in this state.
 
         Parameters
@@ -515,7 +518,7 @@ class RiskAttributableDisease(ExcessMortalityState):
     # Helper methods #
     ##################
 
-    def with_condition(self, index: pd.Index) -> pd.Index:
+    def with_condition(self, index: pd.Index[int]) -> pd.Index[int]:
         """Get the subset of simulants who have this condition.
 
         Parameters

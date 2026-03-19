@@ -6,6 +6,7 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
+from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Callable
@@ -225,7 +226,7 @@ class BaseDiseaseState(State):
             {self.event_time_column: pd.NaT, self.event_count_column: 0}, index=pop_data.index
         )
 
-    def transition_side_effect(self, index: pd.Index, event_time: pd.Timestamp) -> None:
+    def transition_side_effect(self, index: pd.Index[int], event_time: pd.Timestamp) -> None:
         """Updates the simulation state and triggers any side effects associated with this state.
 
         Parameters
@@ -900,7 +901,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         )
 
     def next_state(
-        self, index: pd.Index, event_time: pd.Timestamp, population_view: PopulationView
+        self, index: pd.Index[int], event_time: pd.Timestamp, population_view: PopulationView
     ) -> None:
         """Moves a population among different disease states.
 
@@ -920,7 +921,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     # Pipeline sources and modifiers #
     ##################################
 
-    def compute_disability_weight(self, index: pd.Index) -> pd.Series:
+    def compute_disability_weight(self, index: pd.Index[int]) -> pd.Series[float]:
         """Gets the disability weight associated with this state.
 
         Parameters
@@ -937,7 +938,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         disability_weight.loc[with_condition] = self.disability_weight_table(with_condition)
         return disability_weight
 
-    def compute_excess_mortality_rate(self, index: pd.Index) -> pd.Series:
+    def compute_excess_mortality_rate(self, index: pd.Index[int]) -> pd.Series[float]:
         """Get the excess mortality rate associated with this state.
 
         Parameters
@@ -957,7 +958,9 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         excess_mortality_rate.loc[with_condition] = base_excess_mort
         return excess_mortality_rate
 
-    def adjust_mortality_rate(self, index: pd.Index, rates_df: pd.DataFrame) -> pd.DataFrame:
+    def adjust_mortality_rate(
+        self, index: pd.Index[int], rates_df: pd.DataFrame
+    ) -> pd.DataFrame:
         """Modifies the baseline mortality rate for a simulant if they are in this state.
 
         Parameters
@@ -1014,7 +1017,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         return pop_update
 
-    def with_condition(self, index: pd.Index) -> pd.Index:
+    def with_condition(self, index: pd.Index[int]) -> pd.Index[int]:
         """Get the subset of simulants who are in this disease state.
 
         Parameters
@@ -1039,7 +1042,9 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         infected_at = current_time - pd.to_timedelta(infected_at, unit="D")
         return infected_at
 
-    def _filter_for_transition_eligibility(self, index, event_time) -> pd.Index:
+    def _filter_for_transition_eligibility(
+        self, index: pd.Index[int], event_time: pd.Timestamp
+    ) -> pd.Index[int]:
         """Filter out all simulants who haven't been in the state for the prescribed dwell time.
 
         Parameters
@@ -1063,7 +1068,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         else:
             return index
 
-    def _cleanup_effect(self, index: pd.Index, event_time: pd.Timestamp) -> None:
+    def _cleanup_effect(self, index: pd.Index[int], event_time: pd.Timestamp) -> None:
         if self._cleanup_function is not None:
             self._cleanup_function(index, event_time)
 
