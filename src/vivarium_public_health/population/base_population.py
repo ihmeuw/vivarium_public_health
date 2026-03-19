@@ -3,8 +3,7 @@
 The Core Population Model
 =========================
 
-This module contains tools for sampling and assigning core demographic
-characteristics to simulants.
+Provide tools for sampling and assigning core demographic characteristics to simulants.
 
 """
 
@@ -32,7 +31,16 @@ from vivarium_public_health.population.mortality import Mortality
 
 
 class BasePopulation(Component):
-    """Component for producing and aging simulants based on demographic data."""
+    """Produce and age simulants based on demographic data.
+
+    This component handles the initialization and lifecycle management of the
+    core demographic attributes of the simulated population. At setup it loads
+    a population structure from the artifact, computes demographic sampling
+    proportions, and registers a population initializer that assigns each
+    simulant an age, sex, location, entrance time, and exit time. On each time
+    step simulants are aged forward by the step size.
+
+    """
 
     CONFIGURATION_DEFAULTS = {
         "population": {
@@ -49,10 +57,12 @@ class BasePopulation(Component):
 
     @property
     def time_step_priority(self) -> int:
+        """The event priority for base population time-step updates."""
         return 8
 
     @property
     def time_step_cleanup_priority(self) -> int:
+        """The event priority for base population time-step cleanup."""
         return 9
 
     #####################
@@ -64,6 +74,13 @@ class BasePopulation(Component):
         self._sub_components += [AgeOutSimulants(), Mortality(), Disability()]
 
     def setup(self, builder: Builder) -> None:
+        """Load data, assign demographic proportions, and register the initializer.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.config = builder.configuration.population
         self.key_columns = builder.configuration.randomness.key_columns
         if self.config.include_sex not in ["Male", "Female", "Both"]:
@@ -103,6 +120,28 @@ class BasePopulation(Component):
     #################
 
     def get_randomness_streams(self, builder: Builder) -> dict[str, RandomnessStream]:
+        """Build and return the randomness streams used during population generation.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A dictionary mapping stream name to a
+            :class:`~vivarium.framework.randomness.stream.RandomnessStream`. Keys are:
+
+            ``'general_purpose'``
+                Used for overall population generation.
+            ``'bin_selection'``
+                Used for selecting demographic age bins when initializing with
+                age bounds.
+            ``'age_smoothing'``
+                Used for smoothing ages within a bin at a fixed initial age.
+            ``'age_smoothing_age_bounds'``
+                Used for smoothing ages when initializing with a range of ages.
+        """
         return {
             "general_purpose": builder.randomness.get_stream("population_generation"),
             "bin_selection": builder.randomness.get_stream(
@@ -122,7 +161,12 @@ class BasePopulation(Component):
 
     # TODO: Move most of this docstring to an rst file.
     def initialize_population(self, pop_data: SimulantData) -> None:
-        """Creates a population with fundamental demographic and simulation properties.
+        """Create a population with fundamental demographic and simulation properties.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants being initialized.
 
         Notes
         -----
@@ -169,7 +213,13 @@ class BasePopulation(Component):
         )
 
     def on_time_step(self, event: Event) -> None:
-        """Ages simulants each time step."""
+        """Age simulants each time step by the step size.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         living_idx = self.population_view.get_filtered_index(
             event.index, query="is_alive == True"
         )
@@ -177,7 +227,13 @@ class BasePopulation(Component):
         self.population_view.update("age", lambda age: age.loc[living_idx] + delta)
 
     def on_time_step_cleanup(self, event: Event) -> None:
-        """Update the 'exit_time' private column with any modifications made by other components."""
+        """Update the 'exit_time' private column with modifications from other components.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         exit_times = self.population_view.get(
             event.index, "exit_time", include_untracked=True
         )
@@ -191,6 +247,21 @@ class BasePopulation(Component):
     def get_demographic_proportions_for_creation_time(
         demographic_proportions, year: int
     ) -> pd.DataFrame:
+        """Subset the demographic proportions table to the closest reference year.
+
+        Parameters
+        ----------
+        demographic_proportions
+            Full table of demographic proportions across all reference years,
+            with a ``year_start`` column.
+        year
+            The simulation year for which to retrieve proportions.
+
+        Returns
+        -------
+            Rows from ``demographic_proportions`` whose ``year_start`` matches
+            the closest reference year that is less than or equal to ``year``.
+        """
         reference_years = sorted(set(demographic_proportions.year_start))
         ref_year_index = _find_bin_start_index(year, reference_years)
         return demographic_proportions[
@@ -199,6 +270,19 @@ class BasePopulation(Component):
 
     # TODO: Remove this method when we remove the deprecated keys
     def _validate_config_for_deprecated_keys(self) -> None:
+        """Warn about deprecated configuration keys and validate consistency.
+
+        Checks whether any of the deprecated configuration keys (``age_start``,
+        ``age_end``, ``exit_age``) are present in the population configuration.
+        For each deprecated key found, a warning is logged indicating the
+        preferred replacement key.
+
+        Raises
+        ------
+        ValueError
+            If a deprecated key and its replacement are both explicitly set
+            with different values.
+        """
         mapper = {
             "age_start": "initialization_age_min",
             "age_end": "initialization_age_max",
@@ -228,33 +312,68 @@ class BasePopulation(Component):
             )
 
     def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
+        """Load population structure data from the artifact.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A :class:`pandas.DataFrame` containing the raw population structure.
+        """
         return load_population_structure(builder)
 
 
 class ScaledPopulation(BasePopulation):
-    """This component is to be used in place of BasePopulation when all simulants are
-    a subset of the total population and need to be rescaled. The base population
-    structure is multiplied by a provided scaling factor. This scaling factor
-    can be a dataframe passed in or a string that corresponds to an artifact key.
-    If providing an artifact key, users can specify that in the configuration file.
-    For example:
+    """Produce and age simulants from a rescaled population structure.
+
+    Use this component in place of :class:`BasePopulation` when simulants
+    represent a subset of the true population. The base population structure is
+    multiplied element-wise by a ``scaling_factor`` before simulants are drawn.
+
+    Attributes
+    ----------
+    scaling_factor
+        A multiplicative scaling factor applied to the population structure.
+        May be a :class:`pandas.DataFrame` or a string artifact key whose
+        data resolves to a :class:`pandas.DataFrame`.
+
+    Example
+    -------
+    When specifying via a model configuration file:
 
     .. code-block:: yaml
 
-    components:
-        vivarium_public_health:
-            population:
-                - ScaledPopulation("some.artifact.key")
-
-
+        components:
+            vivarium_public_health:
+                population:
+                    - ScaledPopulation("some.artifact.key")
     """
 
     def __init__(self, scaling_factor: str | pd.DataFrame):
         super().__init__()
         self.scaling_factor = scaling_factor
-        """Set a multiplicative scaling factor for the population structure."""
 
     def _load_population_structure(self, builder: Builder) -> pd.DataFrame:
+        """Load the population structure and apply the scaling factor.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A :class:`pandas.DataFrame` with the same structure as the raw
+            population data, with values rescaled by :attr:`scaling_factor`.
+
+        Raises
+        ------
+        ValueError
+            If the resolved scaling factor is not a :class:`pandas.DataFrame`.
+        """
         scaling_factor = self.get_data(builder, self.scaling_factor)
         population_structure = load_population_structure(builder)
         if not isinstance(scaling_factor, pd.DataFrame):
@@ -271,8 +390,27 @@ class ScaledPopulation(BasePopulation):
     def _format_data_inputs(
         self, pop_structure: pd.DataFrame, scalar_data: pd.DataFrame, year: int
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Data cleaning function to check whether scalar_data and population structure are compatible for scaling
-        the population structure of a simulation."""
+        """Align population structure and scaling data to a common reference year.
+
+        Subsets both inputs to the closest reference year that is less than or
+        equal to ``year``. If the scaling data does not contain a ``year_start``
+        column it is returned unchanged.
+
+        Parameters
+        ----------
+        pop_structure
+            Raw population structure data with a ``year_start`` column.
+        scalar_data
+            Scaling factor data, optionally with a ``year_start`` column.
+        year
+            The simulation start year used to select the reference year.
+
+        Returns
+        -------
+            A tuple of ``(population_structure, scaling_factor)`` dataframes where
+            both have been indexed by their non-value columns and subset to the
+            relevant reference year.
+        """
 
         scaling_factor = scalar_data.set_index(
             [col for col in scalar_data.columns if col != "value"]
@@ -308,13 +446,27 @@ class ScaledPopulation(BasePopulation):
 
 
 class AgeOutSimulants(Component):
-    """Component for handling aged-out simulants"""
+    """Remove simulants that age beyond the tracking threshold.
+
+    When ``population.untracking_age`` is configured, simulants that reach or
+    exceed that age are marked as ``is_aged_out = True`` during the cleanup
+    phase and subsequently untracked. The exit time for aged-out simulants is
+    set via an ``exit_time`` attribute modifier.
+
+    """
 
     #####################
     # Lifecycle methods #
     #####################
 
     def setup(self, builder: Builder) -> None:
+        """Set up the component by registering the age-out modifier and initializer.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.config = builder.configuration.population
         builder.value.register_attribute_modifier("exit_time", self.update_exit_times)
         self.clock = builder.time.clock()
@@ -335,12 +487,26 @@ class AgeOutSimulants(Component):
         target.loc[newly_aged_out_idx] = self.clock() + self.step_size()
         return target
 
-    def initialize_is_aged_out(self, pop_data):
+    def initialize_is_aged_out(self, pop_data: SimulantData) -> None:
+        """Initialize the ``is_aged_out`` column to ``False`` for all new simulants.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants being initialized.
+        """
         self.population_view.initialize(
             pd.Series(False, index=pop_data.index, name="is_aged_out")
         )
 
     def on_time_step_cleanup(self, event: Event) -> None:
+        """Mark simulants that have exceeded the untracking age as aged out.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         if self.config.untracking_age is None:
             return
 
@@ -366,7 +532,7 @@ def generate_population(
     register_simulants: Callable[[pd.DataFrame], None],
     key_columns: Iterable[str] = ("entrance_time", "age"),
 ) -> pd.DataFrame:
-    """Produces a random set of simulants sampled from the provided `population_data`.
+    """Produce a random set of simulants sampled from the provided `population_data`.
 
     Parameters
     ----------
@@ -374,20 +540,21 @@ def generate_population(
         Values to serve as the index in the newly generated simulant DataFrame.
     creation_time
         The simulation time when the simulants are created.
+    step_size
+        The size of the initial time step.
     age_params
-        Dictionary with keys
-            age_start : Start of an age range
-            age_end : End of an age range
+        Dictionary with keys:
 
-        The latter two keys can have values specified to generate simulants over an age range.
+        - ``age_start``: Start of an age range.
+        - ``age_end``: End of an age range.
+
+        These keys specify the age interval to use for generating simulants.
     demographic_proportions
         Table with columns 'age', 'age_start', 'age_end', 'sex', 'year',
         'location', 'population', 'P(sex, location, age| year)',
         'P(sex, location | age, year)'.
     randomness_streams
         Source of random number generation within the vivarium common random number framework.
-    step_size
-        The size of the initial time step.
     register_simulants
         A function to register the new simulants with the CRN framework.
     key_columns
@@ -408,6 +575,27 @@ def generate_population(
                 The location indicating where the simulant resides.
             'sex'
                 The sex of the simulant ('Male' or 'Female').
+
+    Notes
+    -----
+    This function branches on whether ``age_start == age_end`` to handle two
+    distinct initialization strategies with different common random number (CRN)
+    registration requirements:
+
+        - **Fixed initial age** (``age_start == age_end``): Calls
+            `vivarium_public_health.population.base_population._assign_demography_with_initial_age`.
+            This applies age fuzz smoothing and registers ``entrance_time`` and
+            ``age`` to the CRN framework.
+
+        - **Age range** (``age_start != age_end``): Calls
+            `vivarium_public_health.population.base_population._assign_demography_with_age_bounds`.
+            This selects from age bins, smooths ages further, and registers
+            the customizable ``key_columns`` to the CRN framework.
+
+    This branching pattern is necessary because the required CRN attributes
+    differ between the two cases. Rather than specify ``required_resources`` in
+    the framework upfront, this initializer defers that distinction to runtime
+    based on the provided age parameters.
     """
     population = pd.DataFrame(
         {
@@ -447,7 +635,11 @@ def _assign_demography_with_initial_age(
     randomness_streams: dict[str, RandomnessStream],
     register_simulants: Callable[[pd.DataFrame], None],
 ) -> pd.DataFrame:
-    """Assigns age, sex, and location information to the provided simulants given a fixed age.
+    """Assign age, sex, and location information to the provided simulants given a fixed age.
+
+    Applies age fuzz smoothing to the fixed initial age using the
+    ``'age_smoothing'`` randomness stream, then registers the ``entrance_time``
+    and ``age`` columns to the common random number (CRN) framework.
 
     Parameters
     ----------
@@ -459,10 +651,10 @@ def _assign_demography_with_initial_age(
         'P(sex, location | age, year)'
     initial_age
         The age to assign the new simulants.
-    randomness_streams
-        Source of random number generation within the vivarium common random number framework.
     step_size
         The size of the initial time step.
+    randomness_streams
+        Source of random number generation within the vivarium common random number framework.
     register_simulants
         A function to register the new simulants with the CRN framework.
 
@@ -512,7 +704,13 @@ def _assign_demography_with_age_bounds(
     register_simulants: Callable[[pd.DataFrame], None],
     key_columns: Iterable[str] = ("entrance_time", "age"),
 ) -> pd.DataFrame:
-    """Assigns an age, sex, and location to the provided simulants given a range of ages.
+    """Assign an age, sex, and location to the provided simulants given a range of ages.
+
+    Selects demographic age bins probabilistically using the ``'bin_selection'``
+    randomness stream, then smooths ages within selected bins using the
+    ``'age_smoothing_age_bounds'`` stream. Registers the specified ``key_columns``
+    to the common random number (CRN) framework; this allows customization of which
+    columns participate in CRN generation.
 
     Parameters
     ----------
@@ -568,7 +766,7 @@ def _assign_demography_with_age_bounds(
 
 
 def _find_bin_start_index(value: int, sorted_reference_values: list[int]) -> int:
-    """Finds the index of the closest reference value less than or equal to the provided value.
+    """Find the index of the closest reference value less than or equal to the provided value.
 
     Parameters
     ----------
@@ -596,14 +794,14 @@ def _find_bin_start_index(value: int, sorted_reference_values: list[int]) -> int
 
 
 class Disability(Component):
-    """Component for handling disability-related attributes and values.
+    """Handle disability-related attributes and values.
 
     Currently this component only sets up the all-cause disability weight pipeline.
 
     Attributes
     ----------
     disability_weight_pipeline
-        The name of the pipeline that produces disability weights.
+        Name of the pipeline used to produce disability weights.
     """
 
     #####################
@@ -615,7 +813,13 @@ class Disability(Component):
         self.disability_weight_pipeline = "all_causes.disability_weight"
 
     def setup(self, builder: Builder) -> None:
-        """Registers the all-cause disability weight pipeline."""
+        """Register the all-cause disability weight pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_producer(
             self.disability_weight_pipeline,
             source=lambda index: [pd.Series(0.0, index=index)],
