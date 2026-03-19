@@ -10,5 +10,4 @@ using this Vivarium Public Health library.
    :glob:
    :maxdepth: 2
 
-   *
-
+   */index
