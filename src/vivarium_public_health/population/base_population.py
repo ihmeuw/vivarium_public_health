@@ -57,10 +57,12 @@ class BasePopulation(Component):
 
     @property
     def time_step_priority(self) -> int:
+        """The event priority for base population time-step updates."""
         return 8
 
     @property
     def time_step_cleanup_priority(self) -> int:
+        """The event priority for base population time-step cleanup."""
         return 9
 
     #####################

@@ -194,6 +194,7 @@ class FertilityAgeSpecificRates(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, dict]:
+        """The default configuration values for this component."""
         return {
             self.name: {
                 "data_sources": {

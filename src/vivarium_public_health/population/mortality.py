@@ -87,7 +87,7 @@ class Mortality(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provide default configuration values for this component.
+        """The default configuration values for this component.
 
         Configuration structure::
 
@@ -127,7 +127,7 @@ class Mortality(Component):
 
     @property
     def standard_lookup_tables(self) -> list[str]:
-        """Return the names of lookup tables built automatically by the framework."""
+        """The names of lookup tables built automatically by the framework."""
         return [
             "all_cause_mortality_rate",
             "life_expectancy",
@@ -135,7 +135,11 @@ class Mortality(Component):
 
     @property
     def time_step_priority(self) -> int:
-        """Set the time step priority to 0 so that mortality is processed first at each time step."""
+        """The time step priority for mortality processing.
+        
+        It is set to 0 to ensure that mortality is processed before other components
+        that may depend on simulants being alive.
+        """
         return 0
 
     #####################
