@@ -356,7 +356,7 @@ class NonDiseasedState(BaseDiseaseState):
     """Base class for states representing the absence of a disease condition.
 
     Provides a name prefix mechanism for creating properly named disease
-    states (e.g., "susceptible_to_" or "recovered_from_").
+    states (e.g., ``susceptible_to_`` or ``recovered_from_``).
     """
 
     #####################
@@ -438,7 +438,7 @@ class NonDiseasedState(BaseDiseaseState):
 class SusceptibleState(NonDiseasedState):
     """State representing susceptibility to a disease.
 
-    Automatically prepends "susceptible_to_" to the state ID.
+    Automatically prepends ``susceptible_to_`` to the state ID.
     """
 
     #####################
@@ -491,7 +491,7 @@ class SusceptibleState(NonDiseasedState):
 class RecoveredState(NonDiseasedState):
     """State representing recovery from a disease.
 
-    Automatically prepends "recovered_from_" to the state ID.
+    Automatically prepends ``recovered_from_`` to the state ID.
     """
 
     def __init__(
