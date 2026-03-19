@@ -1,4 +1,4 @@
-.. _glossary:
+.. _vph_glossary:
 
 ========
 Glossary

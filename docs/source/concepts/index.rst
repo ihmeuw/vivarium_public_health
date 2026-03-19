@@ -1,4 +1,4 @@
-.. _concepts_main:
+.. _vph_concepts_main:
 
 ========
 Concepts

@@ -1,4 +1,4 @@
-.. _population_dynamics_concept:
+.. _base_population_concept:
 
 ===============
 Base Population
@@ -13,9 +13,9 @@ The :class:`~vivarium_public_health.population.base_population.BasePopulation`
 component is the foundation of the public health population package. It is
 responsible for two distinct jobs: *initializing* new simulants with
 demographically consistent attributes, and *aging* them forward on each time
-step. A companion component,
-:class:`~vivarium_public_health.population.base_population.AgeOutSimulants`,
-handles removing simulants that exceed a configured age threshold.
+step. A companion component, :class:`~vivarium_public_health.population.base_population.AgeOutSimulants`,
+handles removing simulants that exceed a configured age threshold (via :mod:`vivarium`'s
+untracking mechanism).
 
 Because :mod:`vivarium` itself is agnostic to the meaning of the columns in the
 :ref:`state table <population_concept>`, it is this component that gives
@@ -26,8 +26,8 @@ simulants their demographic identity.
 Initialization
 --------------
 
-When the framework's simulant creator function fires, ``BasePopulation``'s
-initializer assigns each new simulant the following columns:
+When the framework's simulant creator function triggers, ``BasePopulation``'s
+initializer assigns each new simulant the following attributes:
 
 - ``age``
 - ``sex``
@@ -37,9 +37,8 @@ initializer assigns each new simulant the following columns:
 
 The ``entrance_time`` marks when the simulant enters the simulation. The
 ``exit_time`` is initially set to :data:`pandas.NaT` and is later updated by
-other components (most commonly
-:class:`~vivarium_public_health.population.mortality.Mortality`) when the
-simulant leaves the simulation.
+other components (e.g. :class:`~vivarium_public_health.population.mortality.Mortality`) 
+when the simulant leaves the simulation.
 
 Demographic Sampling
 ++++++++++++++++++++
@@ -63,23 +62,15 @@ Three probability views are produced:
      - Conditional distribution used for smoothing ages within demographic
        strata.
 
-The initialization process selects the closest available reference year less
-than or equal to the simulant creation year.  This allows long-running
-simulations to reuse available artifact years without requiring data for every
-simulation year.
-
 Fixed Age vs. Age Range
 +++++++++++++++++++++++
 
 Initialization supports two modes, determined by the values of
-``age_start`` and ``age_end`` passed through the ``user_data`` on the
-simulant data object (or falling back to
-the ``population.initialization_age_min`` and
-``population.initialization_age_max`` configuration keys):
+``age_start`` and ``age_end``:
 
 - **Fixed age** (``age_start == age_end``): All simulants are placed in the
   single age bin containing that age, and then smoothed uniformly within the
-  bin.  Sex and location are drawn from
+  bin. Sex and location are drawn from
   ``P(sex, location | age, year)``.
 - **Age range** (``age_start != age_end``): The age distribution is clipped to
   the requested range, bins are selected probabilistically from
@@ -100,9 +91,6 @@ simulants in the model represents a known fraction of the true population size
 and downstream components (like crude-birth-rate fertility) need to reason about
 that relationship.
 
-The scaling factor can be provided as a :class:`pandas.DataFrame` directly or
-as a string artifact key that is loaded at runtime.
-
 Time Step Behavior
 ------------------
 
@@ -117,44 +105,15 @@ Aging Out and Untracking
 :class:`~vivarium_public_health.population.base_population.AgeOutSimulants`
 runs during ``time_step__cleanup``. When ``population.untracking_age`` is
 configured, any simulant whose age meets or exceeds that threshold is marked
-``is_aged_out = True`` and subsequently untracked by the framework. This
-provides a clean way to bound the active population for models focused on
-specific age windows.
+and subsequently untracked by the framework. This provides a clean way to bound 
+the active population for models focused on specific age windows.
 
 .. _population_configuration_concept:
-
-Configuration
--------------
-
-The base population behavior is controlled by keys under ``population``.
-
-.. list-table::
-   :widths: 35 20 45
-   :header-rows: 1
-
-   * - Key
-     - Default
-     - Effect
-   * - ``population.initialization_age_min``
-     - ``0``
-     - Lower bound of the age range used when creating the initial population.
-   * - ``population.initialization_age_max``
-     - ``125``
-     - Upper bound of the age range used when creating the initial population.
-   * - ``population.include_sex``
-     - ``Both``
-     - Restrict initialization to ``Female``, ``Male``, or ``Both``.
-   * - ``population.untracking_age``
-     - ``None``
-     - If set, simulants are untracked once their age reaches this value.
-
-The deprecated keys ``age_start``, ``age_end``, and ``exit_age`` are still
-recognized for backward compatibility but should be replaced by the keys above.
 
 See Also
 --------
 
-- :ref:`population_mortality_concept`
-- :ref:`population_fertility_concept`
+- :ref:`mortality_concept`
+- :ref:`fertility_concept`
 - :mod:`vivarium_public_health.population.base_population`
 - :mod:`vivarium_public_health.population.data_transformations`
