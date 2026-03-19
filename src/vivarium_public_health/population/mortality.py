@@ -14,20 +14,6 @@ death is used to choose the cause of death. The years of life lost are
 calculated by subtracting a simulant's age from the population TMRLE and the
 population is updated.
 
-Columns Created
-===============
-
- - cause_of_death
- - years_of_life_lost
-
-Pipelines Exposed
-=================
-
- - cause_specific_mortality_rate
- - mortality_rate
- - affected_unmodeled.cause_specific_mortality_rate
-
-
 All cause mortality is read from the artifact (GBD). At setup cause specific
 mortality is initialized to an empty table. As disease models are registered,
 they affect cause specific mortality by means of
@@ -59,29 +45,29 @@ from vivarium_public_health.causal_factor.calibration_constant import (
 
 
 class Mortality(Component):
-    """This is the mortality component which models of mortality in a population.
+    """Model mortality in a population.
 
-    The component models all cause mortality and allows for disease models to contribute
+    This component models all cause mortality and allows for disease models to contribute
     cause specific mortality. Data used by this class should be supplied in the artifact
     and is configurable in the configuration to build lookup tables. For instance, let's
     say we want to use sex and hair color to build a lookup table for all cause mortality.
 
     .. code-block:: yaml
 
-       configuration:
-           mortality:
-               all_cause_mortality_rate:
-                   categorical_columns: ["sex", "hair_color"]
+        configuration:
+            mortality:
+                all_cause_mortality_rate:
+                    categorical_columns: ["sex", "hair_color"]
 
     Similarly, we can do the same thing for unmodeled causes. Here is an example:
 
     .. code-block:: yaml
 
-       configuration:
-           mortality:
-               unmodeled_cause_specific_mortality_rate:
-                   unmodeled_causes: ["maternal_disorders", maternal_hemorrhage]
-                   categorical_columns: ["sex", "hair_color"]
+        configuration:
+            mortality:
+                unmodeled_cause_specific_mortality_rate:
+                    unmodeled_causes: ["maternal_disorders", maternal_hemorrhage]
+                    categorical_columns: ["sex", "hair_color"]
 
     Or if we wanted to make the data a scalar value for all cause mortality rate we could
     configure that as well.
@@ -101,7 +87,7 @@ class Mortality(Component):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this component.
+        """The default configuration values for this component.
 
         Configuration structure::
 
@@ -141,6 +127,7 @@ class Mortality(Component):
 
     @property
     def standard_lookup_tables(self) -> list[str]:
+        """The names of lookup tables built automatically by the framework."""
         return [
             "all_cause_mortality_rate",
             "life_expectancy",
@@ -148,6 +135,11 @@ class Mortality(Component):
 
     @property
     def time_step_priority(self) -> int:
+        """The time step priority for mortality processing.
+        
+        It is set to 0 to ensure that mortality is processed before other components
+        that may depend on simulants being alive.
+        """
         return 0
 
     #####################
@@ -167,6 +159,13 @@ class Mortality(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        """Set up the component by registering pipelines, lookup tables, and the population initializer.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.random = self.get_randomness_stream(builder)
         self.clock = builder.time.clock()
         self.step_size = builder.time.step_size()
@@ -198,15 +197,49 @@ class Mortality(Component):
     #################
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
+        """Get the randomness stream used for stochastic mortality events.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The :class:`~vivarium.framework.randomness.stream.RandomnessStream` used
+            for filtering deaths and choosing cause of death.
+        """
         return builder.randomness.get_stream(self._randomness_stream_name)
 
     def register_cause_specific_mortality_rate(self, builder: Builder) -> None:
+        """Register the cause-specific mortality rate attribute pipeline.
+
+        Creates an attribute producer for the ``cause_specific_mortality_rate``
+        pipeline initialized to zero. Disease models may register modifiers on
+        this pipeline to contribute their own cause-specific rates.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_producer(
             self.cause_specific_mortality_rate_pipeline,
             source=self.build_lookup_table(builder, "csmr", 0),
         )
 
     def register_mortality_rate(self, builder: Builder) -> None:
+        """Register the mortality rate pipeline.
+
+        The pipeline source is :meth:`calculate_mortality_rate`, which computes
+        the cause-deleted mortality rate from the all-cause rate and the
+        registered cause-specific rates.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_rate_producer(
             self.mortality_rate_pipeline,
             source=self.calculate_mortality_rate,
@@ -214,6 +247,22 @@ class Mortality(Component):
         )
 
     def load_unmodeled_csmr(self, builder: Builder) -> float | pd.DataFrame:
+        """Load and sum the cause-specific mortality rates for all unmodeled causes.
+
+        Iterates over causes listed in ``configuration.mortality.unmodeled_causes``
+        and accumulates their CSMRs from the artifact. Returns ``0.0`` if no unmodeled
+        causes are configured.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The summed CSMR for all unmodeled causes as a :class:`pandas.DataFrame`,
+            or ``0.0`` if there are no unmodeled causes.
+        """
         # todo validate that all data have the same columns
         raw_csmr = 0.0
         for idx, cause in enumerate(builder.configuration[self.name].unmodeled_causes):
@@ -225,6 +274,16 @@ class Mortality(Component):
         return raw_csmr
 
     def register_unmodeled_csmr(self, builder: Builder) -> None:
+        """Register the unmodeled cause-specific mortality rate pipeline.
+
+        Creates a risk-affected attribute producer for the unmodeled CSMR
+        pipeline so that modeled risks can apply modifiers to unmodeled causes.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         register_risk_affected_attribute_producer(
             builder=builder,
             name=self.unmodeled_csmr_pipeline,
@@ -245,6 +304,13 @@ class Mortality(Component):
     ########################
 
     def initialize_mortality(self, pop_data: SimulantData) -> None:
+        """Initialize mortality-related columns for new simulants.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants being initialized.
+        """
         pop_update = pd.DataFrame(
             {
                 "is_alive": True,
@@ -256,6 +322,17 @@ class Mortality(Component):
         self.population_view.initialize(pop_update)
 
     def on_time_step(self, event: Event) -> None:
+        """Apply mortality to the living population at each time step.
+
+        Determines which simulants die based on the current mortality rate,
+        then probabilistically assigns a cause of death and calculates
+        years of life lost for the deceased simulants.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         living_idx = self.population_view.get_filtered_index(
             event.index, query="is_alive == True"
         )
@@ -299,6 +376,26 @@ class Mortality(Component):
     ##################################
 
     def calculate_mortality_rate(self, index: pd.Index) -> pd.DataFrame:
+        """Compute the cause-deleted mortality rate for the given simulants.
+
+        Calculates the background mortality rate as:
+
+        ``ACMR - modeled_CSMR - unmodeled_CSMR_raw + unmodeled_CSMR_modified``
+
+        where ``unmodeled_CSMR_modified`` is the pipeline value after any
+        risk modifiers have been applied.
+
+        Parameters
+        ----------
+        index
+            Index of the simulants for whom to compute the rate.
+
+        Returns
+        -------
+            A :class:`pandas.DataFrame` with a single column
+            ``'other_causes'`` containing the cause-deleted mortality rate
+            for each simulant.
+        """
         acmr = self.acmr_table(index)
         modeled_csmr = self.population_view.get(
             index, self.cause_specific_mortality_rate_pipeline
