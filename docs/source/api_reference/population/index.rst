@@ -1,11 +1,11 @@
-==========================
-Demographic Modeling Tools
-==========================
+==========
+Population
+==========
 
 .. automodule:: vivarium_public_health.population
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :glob:
 
    *

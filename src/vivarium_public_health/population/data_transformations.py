@@ -3,7 +3,7 @@
 Population Data Transformations
 ===============================
 
-This module contains tools for handling raw demographic data and transforming
+Provide tools for handling raw demographic data and transforming
 it into different distributions for sampling.
 
 """
@@ -22,7 +22,7 @@ def assign_demographic_proportions(
     population_data: pd.DataFrame,
     include_sex: str,
 ) -> pd.DataFrame:
-    """Calculates conditional probabilities on the provided population data for sampling.
+    """Calculate conditional probabilities on the provided population data for sampling.
 
     Parameters
     ----------
@@ -90,7 +90,7 @@ def rescale_binned_proportions(
     age_start: float,
     age_end: float,
 ) -> pd.DataFrame:
-    """Reshapes the distribution so that bin edges fall on the age_start and age_end.
+    """Reshape the distribution so that bin edges fall on the age_start and age_end.
 
     Parameters
     ----------
@@ -175,8 +175,25 @@ def rescale_binned_proportions(
 
 
 def _add_edge_age_groups(pop_data: pd.DataFrame) -> pd.DataFrame:
-    """Pads the population data with age groups that enforce constant
-    left interpolation and interpolation to zero on the right.
+    """Pad the population data with sentinel age groups for boundary interpolation.
+
+    Adds a lower padding bin mirroring the values of the first real bin
+    (enforcing constant left extrapolation) and an upper padding bin with
+    zero values immediately above the maximum age (enforcing extrapolation
+    to zero on the right).
+
+    Parameters
+    ----------
+    pop_data
+        Table with standard index columns (``location``, ``year_start``,
+        ``year_end``, ``sex``) and age columns (``age``, ``age_start``,
+        ``age_end``).
+
+    Returns
+    -------
+        The input table with two additional rows per group: one padding bin
+        below the minimum age and one above the maximum age, sorted and
+        re-indexed.
     """
     index_cols = ["location", "year_start", "year_end", "sex"]
     age_cols = ["age", "age_start", "age_end"]
@@ -237,7 +254,7 @@ def smooth_ages(
     population_data: pd.DataFrame,
     randomness: RandomnessStream,
 ) -> pd.DataFrame:
-    """Distributes simulants among ages within their assigned age bins.
+    """Distribute simulants among ages within their assigned age bins.
 
     Parameters
     ----------
@@ -307,8 +324,7 @@ def _get_bins_and_proportions(
     pop_data: pd.DataFrame,
     age: AgeValues,
 ) -> tuple[EndpointValues, AgeValues]:
-    """Finds and returns the bin edges and the population proportions in
-    the current and neighboring bins.
+    """Get the bin edges and population proportions in the current and neighboring bins.
 
     Parameters
     ----------
@@ -381,7 +397,7 @@ def _get_bins_and_proportions(
 def _construct_sampling_parameters(
     age: AgeValues, endpoint: EndpointValues, proportion: AgeValues
 ) -> tuple[EndpointValues, EndpointValues, float, float]:
-    """Calculates some sampling distribution parameters from known values.
+    """Calculate sampling distribution parameters from known values.
 
     Parameters
     ----------
@@ -452,7 +468,7 @@ def _compute_ages(
     slope: float,
     normalization: float,
 ) -> np.ndarray | float:
-    """Produces samples from the local age distribution.
+    """Produce samples from the local age distribution.
 
     Parameters
     ----------
@@ -483,7 +499,27 @@ def _compute_ages(
         )
 
 
-def get_cause_deleted_mortality_rate(all_cause_mortality_rate, list_of_csmrs):
+def get_cause_deleted_mortality_rate(
+    all_cause_mortality_rate: pd.DataFrame,
+    list_of_csmrs: list[pd.DataFrame | None],
+) -> pd.DataFrame:
+    """Compute the cause-deleted mortality rate by subtracting individual CSMRs.
+
+    Parameters
+    ----------
+    all_cause_mortality_rate
+        DataFrame with standard age/sex/year index columns and a ``value``
+        column.
+    list_of_csmrs
+        List of DataFrames each containing a ``value`` column representing a
+        cause-specific mortality rate. ``None`` entries are skipped.
+
+    Returns
+    -------
+        DataFrame with the same index columns and a
+        ``death_due_to_other_causes`` column containing the residual
+        mortality rate after subtracting all provided cause-specific rates.
+    """
     index_cols = ["age_start", "age_end", "sex", "year_start", "year_end"]
     all_cause_mortality_rate = all_cause_mortality_rate.set_index(index_cols).copy()
     for csmr in list_of_csmrs:
@@ -499,6 +535,17 @@ def get_cause_deleted_mortality_rate(all_cause_mortality_rate, list_of_csmrs):
 
 
 def load_population_structure(builder: Builder) -> pd.DataFrame:
+    """Load population structure data from the artifact and add derived columns.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+
+    Returns
+    -------
+        DataFrame with all columns from the raw data plus ``age`` and ``location``.
+    """
     data = builder.data.load("population.structure")
     # create an age column which is the midpoint of the age group
     data["age"] = data.apply(lambda row: (row["age_start"] + row["age_end"]) / 2, axis=1)
@@ -507,7 +554,25 @@ def load_population_structure(builder: Builder) -> pd.DataFrame:
     return data
 
 
-def get_live_births_per_year(builder):
+def get_live_births_per_year(builder: Builder) -> pd.Series:
+    """Compute the simulated number of live births per year.
+
+    Combines population structure data with live birth covariate data to
+    produce a per-year birth rate scaled to the simulation's initial
+    population size. Handles time-dependent vs. fixed birth rates and
+    population fractions according to the fertility configuration, and
+    extends the series to cover the simulation end year if needed.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+
+    Returns
+    -------
+        A :class:`pandas.Series` indexed by year containing the expected
+        number of new simulant births per year.
+    """
     population_data = load_population_structure(builder)
     birth_data = builder.data.load("covariate.live_births_by_sex.estimate")
 
@@ -565,7 +630,26 @@ def get_live_births_per_year(builder):
     return live_birth_rate
 
 
-def rescale_final_age_bin(builder, population_data):
+def rescale_final_age_bin(builder: Builder, population_data: pd.DataFrame) -> pd.DataFrame:
+    """Clip and rescale the final age bin to match ``initialization_age_max``.
+
+    When ``population.initialization_age_max`` is configured and falls within
+    an existing age bin, that bin is truncated at ``initialization_age_max``
+    and its ``value`` is scaled proportionally to reflect the reduced width.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    population_data
+        DataFrame with columns ``age_start``, ``age_end``, and ``value``.
+
+    Returns
+    -------
+        A copy of ``population_data`` with the final age bin adjusted to end
+        at ``initialization_age_max`` and its value rescaled accordingly.
+        Returned unchanged if ``initialization_age_max`` is not set.
+    """
     initialization_age_max = builder.configuration.population.to_dict().get(
         "initialization_age_max", None
     )
@@ -584,7 +668,21 @@ def rescale_final_age_bin(builder, population_data):
     return population_data
 
 
-def validate_crude_birth_rate_data(builder, data_year_max):
+def validate_crude_birth_rate_data(builder: Builder, data_year_max: int) -> None:
+    """Validate that birth rate data covers the simulation time period.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    data_year_max
+        The latest year covered by the available birth rate data.
+
+    Raises
+    ------
+    ValueError
+        If the simulation end year exceeds ``data_year_max`` and extrapolation is not enabled.
+    """
     exceeds_data = builder.configuration.time.end.year > data_year_max
     if exceeds_data and not builder.configuration.interpolation.extrapolate:
         raise ValueError("Trying to extrapolate beyond the end of available birth data.")
