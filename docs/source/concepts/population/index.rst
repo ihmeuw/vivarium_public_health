@@ -29,7 +29,8 @@ The package is organized around three cooperating concerns:
 
 1. **Base population** — initialization of demographic attributes from artifact
    data, deterministic aging on each time step, and age-based untracking.
-2. **Mortality** — cause-deleted all-cause mortality with support for modeled
-   and unmodeled cause-specific contributions.
-3. **Fertility** — introduction of newborn simulants via deterministic, crude-birth-rate, 
-   or age-specific-rate models.
+2. **Mortality** — :term:`mortality rates <Mortality Rate>` with support for modeled and 
+   unmodeled cause-specific contributions.
+3. **Fertility** — introduction of newborn simulants via deterministic,
+   :term:`crude-birth-rate <Crude Birth Rate>`, or 
+   :term:`age-specific-rate <Age-Specific Fertility Rate>` models.

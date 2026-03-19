@@ -49,8 +49,8 @@ steps so that no births are lost to rounding.
 
 All newborns enter the simulation at age zero.
 
-Crude Birth Rate Model
-----------------------
+:term:`Crude Birth Rate` Model
+------------------------------
 
 :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityCrudeBirthRate`
 computes the expected number of births from live-birth covariate data and the
@@ -63,11 +63,11 @@ and ``fertility.time_dependent_population_fraction``) that control whether birth
 rates and population fractions are held constant at the simulation start year
 or allowed to vary.
 
-Age-Specific Fertility Model
-----------------------------
+:term:`Age-Specific Fertility Rate` Model
+-----------------------------------------
 
 :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityAgeSpecificRates`
-operates at the individual simulant level. It registers a fertility rate
+operates at the individual simulant level. It registers a :term:`fertility rate <Age-Specific Fertility Rate>`
 :ref:`attribute pipeline <values_concept>` and, on each time step, evaluates whether each
 eligible female simulant gives birth based on a hazard draw. Eligibility
 includes an age window and a gestational spacing assumption tied to the
