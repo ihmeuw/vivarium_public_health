@@ -284,7 +284,6 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         Returns
         -------
-        float or pandas.DataFrame
             The cause-specific mortality rate data, or 0 if mortality
             is disabled.
         """
@@ -306,7 +305,6 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         Returns
         -------
-        float or pandas.DataFrame
             The excess mortality rate data, or 0 if mortality is disabled.
         """
         if builder.configuration[self.name].mortality:
@@ -329,7 +327,6 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         Returns
         -------
-        Callable
             A function that takes a simulant index and returns a boolean
             series indicating which simulants have the condition.
         """
@@ -441,7 +438,6 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         Returns
         -------
-        pandas.Series
             An iterable of disability weights indexed by the
             provided ``index``.
         """
@@ -462,7 +458,6 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         Returns
         -------
-        pandas.Series
             An iterable of excess mortality rates indexed by the
             provided ``index``.
         """
@@ -486,7 +481,6 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         Returns
         -------
-        pandas.Series
             The adjusted cause-specific mortality rate.
         """
         return rate + self.cause_specific_mortality_rate_table(index)
@@ -505,7 +499,6 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         Returns
         -------
-        pandas.DataFrame
             The modified DataFrame of mortality rates.
         """
         rate = self.population_view.get_attributes(
@@ -528,7 +521,6 @@ class RiskAttributableDisease(ExcessMortalityState):
 
         Returns
         -------
-        pandas.Index
             The subset of simulants who are alive and have this condition.
         """
         return self.population_view.get_filtered_index(

@@ -28,7 +28,6 @@ def SI(cause: str) -> DiseaseModel:
 
     Returns
     -------
-    DiseaseModel
         A configured SI disease model.
     """
     healthy = SusceptibleState(cause)
@@ -49,7 +48,6 @@ def SIR(cause: str) -> DiseaseModel:
 
     Returns
     -------
-    DiseaseModel
         A configured SIR disease model.
     """
     healthy = SusceptibleState(cause)
@@ -72,7 +70,6 @@ def SIS(cause: str) -> DiseaseModel:
 
     Returns
     -------
-    DiseaseModel
         A configured SIS disease model.
     """
     healthy = SusceptibleState(cause)
@@ -96,7 +93,6 @@ def SIS_fixed_duration(cause: str, duration: str) -> DiseaseModel:
 
     Returns
     -------
-    DiseaseModel
         A configured SIS disease model with fixed duration.
     """
     duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
@@ -122,7 +118,6 @@ def SIR_fixed_duration(cause: str, duration: str) -> DiseaseModel:
 
     Returns
     -------
-    DiseaseModel
         A configured SIR disease model with fixed duration.
     """
     duration = pd.Timedelta(days=float(duration) // 1, hours=(float(duration) % 1) * 24.0)
@@ -147,7 +142,6 @@ def NeonatalSWC_without_incidence(cause: str) -> DiseaseModel:
 
     Returns
     -------
-    DiseaseModel
         A configured neonatal disease model without incidence.
     """
     healthy = SusceptibleState(cause)
@@ -166,7 +160,6 @@ def NeonatalSWC_with_incidence(cause: str) -> DiseaseModel:
 
     Returns
     -------
-    DiseaseModel
         A configured neonatal disease model with incidence.
     """
     healthy = SusceptibleState(cause)

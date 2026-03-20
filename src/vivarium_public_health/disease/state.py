@@ -170,7 +170,6 @@ class BaseDiseaseState(State):
 
         Returns
         -------
-        DataInput
             The dwell time data, converted from a Timedelta to days
             if applicable.
         """
@@ -186,7 +185,7 @@ class BaseDiseaseState(State):
     ########################
 
     def initialize_event_time_and_count(self, pop_data: SimulantData) -> None:
-        """Adds this state's columns to the simulation state table.
+        """Add this state's columns to the simulation state table.
 
         Parameters
         ----------
@@ -219,7 +218,6 @@ class BaseDiseaseState(State):
 
         Returns
         -------
-        pandas.DataFrame
             A DataFrame with event time and count columns for new simulants.
         """
         return pd.DataFrame(
@@ -253,7 +251,6 @@ class BaseDiseaseState(State):
 
         Returns
         -------
-        list[str]
             The transition names formatted as ``{from_state}_TO_{to_state}``.
         """
         transitions = []
@@ -344,7 +341,6 @@ class BaseDiseaseState(State):
 
         Returns
         -------
-        Transition
             The created transition object.
         """
         transition = Transition(self, output, triggered=triggered)
@@ -422,7 +418,6 @@ class NonDiseasedState(BaseDiseaseState):
 
         Returns
         -------
-        RateTransition
             The created transition object.
         """
         if transition_rate is None:
@@ -482,7 +477,6 @@ class SusceptibleState(NonDiseasedState):
 
         Returns
         -------
-        bool
             Always True for susceptible states.
         """
         return True
@@ -540,7 +534,6 @@ class ExcessMortalityState(Component, ABC):
 
         Returns
         -------
-        bool
             True if the state has non-zero excess mortality data.
         """
         if self._has_excess_mortality is None:
@@ -737,7 +730,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         Returns
         -------
-        DataInput
             The resolved prevalence data source.
         """
         return (
@@ -757,7 +749,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         Returns
         -------
-        DataInput
             The resolved disability weight data source.
         """
         if disability_weight is None:
@@ -799,7 +790,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         Returns
         -------
-        DataInput
             The resolved excess mortality rate data source.
         """
         if excess_mortality_rate is None:
@@ -841,7 +831,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         Returns
         -------
-        RandomnessStream
             A randomness stream for prevalent case assignment.
         """
         return builder.randomness.get_stream(f"{self.state_id}_prevalent_cases")
@@ -855,7 +844,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         Returns
         -------
-        bool
             Always True for disease states.
         """
         return True
@@ -887,7 +875,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         Returns
         -------
-        RateTransition
             The created transition object.
         """
         if transition_rate is None:
@@ -948,7 +935,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         Returns
         -------
-        pandas.Series
             An iterable of excess mortality rates indexed by the
             provided ``index``.
         """
@@ -994,7 +980,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         Returns
         -------
-        pandas.DataFrame
             A DataFrame with event time and count columns for new simulants.
         """
         pop_update = super().get_initial_event_times(pop_data)
@@ -1027,7 +1012,6 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         Returns
         -------
-        pandas.Index
             The subset of simulants who are alive and in this state.
         """
         return self.population_view.get_filtered_index(

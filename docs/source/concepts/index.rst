@@ -7,8 +7,8 @@ Here we cover several core conceptual topics related to modeling Vivarium simula
 using this Vivarium Public Health library.
 
 .. toctree::
-   :glob:
    :maxdepth: 2
 
-   *
+   disease/index
+   population
 

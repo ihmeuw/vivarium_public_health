@@ -165,7 +165,6 @@ class RateTransition(Transition):
 
         Returns
         -------
-        pandas.Series
             The transition rates indexed by the provided ``index``.
         """
         transition_rate = pd.Series(0.0, index=index)

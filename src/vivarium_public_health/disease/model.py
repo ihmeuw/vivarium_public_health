@@ -28,7 +28,7 @@ from vivarium_public_health.disease.transition import RateTransition, Transition
 
 
 class DiseaseModel(Machine):
-    """A state machine model for disease progression.
+    """State machine model for disease progression.
 
     This component manages a set of disease states and transitions between
     them. It handles initialization of simulant disease states based on
@@ -193,7 +193,6 @@ class DiseaseModel(Machine):
 
         Returns
         -------
-        float or pandas.DataFrame
             The cause-specific mortality rate data.
         """
         if self._csmr_source is None:
@@ -224,7 +223,6 @@ class DiseaseModel(Machine):
 
         Returns
         -------
-        pandas.Series
             The adjusted cause-specific mortality rate.
         """
         return rate + self.csmr_table(index)
@@ -250,7 +248,6 @@ class DiseaseModel(Machine):
 
         Returns
         -------
-        BaseDiseaseState
             The resolved residual state with prevalence and
             birth_prevalence functions set.
         """
@@ -292,7 +289,6 @@ class DiseaseModel(Machine):
 
         Returns
         -------
-        LookupTableData
             The residual state probabilities, calculated as 1 minus the
             sum of probabilities from all non-residual states.
         """
