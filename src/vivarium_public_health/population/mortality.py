@@ -136,7 +136,7 @@ class Mortality(Component):
     @property
     def time_step_priority(self) -> int:
         """The time step priority for mortality processing.
-        
+
         It is set to 0 to ensure that mortality is processed before other components
         that may depend on simulants being alive.
         """
