@@ -421,7 +421,7 @@ class LBWSGRisk(Risk):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provide default configuration values for this component.
+        """Default configuration values for this component.
 
         Extend the base Risk configuration with LBWSG-specific settings.
 
