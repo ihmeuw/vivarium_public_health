@@ -37,10 +37,21 @@ AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 
 
 class LBWSGDistribution(PolytomousDistribution):
+    """Distribution model for the Low Birth Weight and Short Gestation risk.
+
+    Extend :class:`PolytomousDistribution` to produce continuous
+    birth-weight and gestational-age exposures from categorical
+    propensities using category-specific intervals.
+    """
+
     @property
     def categories(self) -> list[str]:
-        # These need to be sorted so the cumulative sum is in the correct order of categories
-        # and results are therefore reproducible and correct
+        """
+        The sorted list of exposure category names.
+
+        Categories are sorted to ensure the cumulative sum is in the correct order,
+        which makes results both reproducible and correct.
+        """
         lookup_table = (
             self.exposure_params_table
             if self.exposure_data_type == "exposure"
@@ -58,6 +69,16 @@ class LBWSGDistribution(PolytomousDistribution):
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
+        """
+        Parameters
+        ----------
+        risk
+            The entity string identifying the LBWSG risk factor.
+        distribution_type
+            The distribution type label (``"lbwsg"``).
+        exposure_data
+            Optional pre-loaded exposure data.
+        """
         super().__init__(risk, distribution_type, exposure_data)
         self.exposure_data_type = "birth_exposure"
         self.birth_exposure_ppf_pipeline = f"{self.risk}.birth_exposure_ppf"
@@ -65,6 +86,19 @@ class LBWSGDistribution(PolytomousDistribution):
         self.risk_propensity = f"{self.risk.name}.categorical_propensity"
 
     def setup(self, builder: Builder) -> None:
+        """Build birth exposure parameter tables, category intervals, and register pipelines.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Raises
+        ------
+        ConfigurationError
+            If neither ``birth_exposure`` nor ``exposure`` data is
+            available in the simulation.
+        """
         self.birth_exposure_params_table = self.build_birth_exposure_params_table(builder)
         super().setup(builder)
         self.category_intervals = self.get_category_intervals(builder)
@@ -76,6 +110,13 @@ class LBWSGDistribution(PolytomousDistribution):
             )
 
     def register_exposure_ppf_pipeline(self, builder):
+        """Register the LBWSG exposure PPF pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         required_resources = [self.exposure_params_pipeline, self.risk_propensity] + [
             LBWSGRisk.get_continuous_propensity_name(axis) for axis in AXES
         ]
@@ -86,6 +127,13 @@ class LBWSGDistribution(PolytomousDistribution):
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
+        """Register the LBWSG exposure parameters pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         lookup_tables = [
             table
             for table in [self.exposure_params_table, self.birth_exposure_params_table]
@@ -99,6 +147,18 @@ class LBWSGDistribution(PolytomousDistribution):
         )
 
     def build_exposure_params_table(self, builder: Builder) -> LookupTable | None:
+        """Build the exposure parameters lookup table, if data is available.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A lookup table for exposure parameters, or ``None`` if
+            exposure data is not available.
+        """
         try:
             return super().build_exposure_params_table(builder)
         except ConfigurationError:
@@ -108,6 +168,18 @@ class LBWSGDistribution(PolytomousDistribution):
             )
 
     def build_birth_exposure_params_table(self, builder: Builder) -> LookupTable | None:
+        """Build the birth exposure parameters lookup table, if data is available.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A lookup table for birth exposure parameters, or ``None``
+            if birth exposure data is not available.
+        """
         try:
             data = self.get_data(
                 builder, self.configuration["data_sources"]["birth_exposure"]
@@ -126,12 +198,12 @@ class LBWSGDistribution(PolytomousDistribution):
             )
 
     def get_category_intervals(self, builder: Builder) -> dict[str, dict[str, pd.Interval]]:
-        """Gets the intervals for each category.
+        """Get the intervals for each category.
 
         Parameters
         ----------
         builder
-            The builder object.
+            Access point for utilizing framework interfaces during setup.
 
         Returns
         -------
@@ -155,15 +227,13 @@ class LBWSGDistribution(PolytomousDistribution):
 
         Parameters
         ----------
-        propensities
-            Propensities DataFrame for each simulant with three columns:
-            'categorical.propensity', 'birth_weight.propensity', and
-            'gestational_age.propensity'.
+        index
+            An index representing the simulants for which to calculate
+            continuous exposures.
 
         Returns
         -------
-            A DataFrame with two columns for birth-weight and gestational age
-            exposures.
+            A DataFrame with birth-weight and gestational age exposures.
         """
         propensities = self.population_view.get_attributes(
             index,
@@ -182,6 +252,25 @@ class LBWSGDistribution(PolytomousDistribution):
         return pd.DataFrame(continuous_exposures)
 
     def get_exposure_parameters(self, index: pd.Index) -> pd.DataFrame:
+        """Return the appropriate exposure parameters for the current data type.
+
+        Select between the exposure or birth exposure parameters table
+        depending on the current ``exposure_data_type``.
+
+        Parameters
+        ----------
+        index
+            An index representing the simulants.
+
+        Returns
+        -------
+            A DataFrame of exposure parameters.
+
+        Raises
+        ------
+        ConfigurationError
+            If the required exposure data table is ``None``.
+        """
         if self.exposure_data_type == "exposure":
             if self.exposure_params_table is None:
                 raise ConfigurationError(
@@ -210,20 +299,20 @@ class LBWSGDistribution(PolytomousDistribution):
     ) -> pd.Series:
         """Calculate continuous exposures from propensities for a single axis.
 
-        Takes an axis (either 'birth_weight' or 'gestational_age'), a propensity
-        and either a categorical propensity or a categorical exposure and
-        returns continuous exposures for that axis.
+        Take an axis (either ``'birth_weight'`` or ``'gestational_age'``), a
+        propensity and either a categorical propensity or a categorical exposure
+        and return continuous exposures for that axis.
 
         If categorical propensity is provided rather than exposure, this
-        function requires access to the low birth weight and short gestation
+        requires access to the low birth weight and short gestation
         categorical exposure parameters pipeline
-        ("risk_factor.low_birth_weight_and_short_gestation.exposure_parameters").
+        (``"risk_factor.low_birth_weight_and_short_gestation.exposure_parameters"``).
 
         Parameters
         ----------
         axis
-            The axis for which to calculate continuous exposures ('birth_weight'
-            or 'gestational_age').
+            The axis for which to calculate continuous exposures
+            (``'birth_weight'`` or ``'gestational_age'``).
         propensity
             The propensity for the axis.
         categorical_propensity
@@ -238,8 +327,8 @@ class LBWSGDistribution(PolytomousDistribution):
         Raises
         ------
         ValueError
-            If neither categorical propensity nor categorical exposure is provided
-            or both are provided.
+            If neither categorical propensity nor categorical exposure is
+            provided or both are provided.
         """
 
         if (categorical_propensity is None) == (categorical_exposure is None):
@@ -262,7 +351,7 @@ class LBWSGDistribution(PolytomousDistribution):
 
     @staticmethod
     def _parse_description(description: str) -> tuple[pd.Interval, pd.Interval]:
-        """Parses a string corresponding to a low birth weight and short gestation
+        """Parse a string corresponding to a low birth weight and short gestation
         category to an Interval.
 
         An example of a standard description:
@@ -284,14 +373,46 @@ class LBWSGDistribution(PolytomousDistribution):
 
 
 class LBWSGRisk(Risk):
+    """Risk component for the Low Birth Weight and Short Gestation risk factor.
+
+    Extend :class:`Risk` with LBWSG-specific behavior including separate
+    birth-exposure pipelines, categorical and continuous propensities,
+    and two-axis (birth weight and gestational age) exposure tracking.
+    """
+
     exposure_distributions = {"lbwsg": LBWSGDistribution}
 
     @staticmethod
     def get_continuous_propensity_name(axis: str) -> str:
+        """Return the propensity column name for a continuous axis.
+
+        Parameters
+        ----------
+        axis
+            The exposure axis (``"birth_weight"`` or
+            ``"gestational_age"``).
+
+        Returns
+        -------
+            The propensity column name in the form
+            ``"{axis}.continuous_propensity"``.
+        """
         return f"{axis}.continuous_propensity"
 
     @staticmethod
     def get_exposure_name(axis: str) -> str:
+        """Return the exposure column name for a continuous axis.
+
+        Parameters
+        ----------
+        axis
+            The exposure axis (``"birth_weight"`` or
+            ``"gestational_age"``).
+
+        Returns
+        -------
+            The exposure column name in the form ``"{axis}.exposure"``.
+        """
         return f"{axis}.exposure"
 
     ##############
@@ -300,9 +421,9 @@ class LBWSGRisk(Risk):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this component.
+        """Provide default configuration values for this component.
 
-        Extends the base Risk configuration with LBWSG-specific settings.
+        Extend the base Risk configuration with LBWSG-specific settings.
 
         Configuration structure::
 
@@ -337,11 +458,19 @@ class LBWSGRisk(Risk):
     #####################
 
     def __init__(self):
+        """Initialize the LBWSG risk component."""
         super().__init__("risk_factor.low_birth_weight_and_short_gestation")
         self.categorical_propensity_name = f"{self.risk.name}.categorical_propensity"
         self.birth_exposure_pipeline = f"{self.risk.name}.birth_exposure"
 
     def setup(self, builder: Builder) -> None:
+        """Set up birth exposure pipelines and propensity initializers.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         super().setup(builder)
         self.register_birth_exposure_pipeline(builder)
         self.configuration_age_end = builder.configuration.population.initialization_age_max
@@ -366,6 +495,13 @@ class LBWSGRisk(Risk):
     #################
 
     def register_exposure_pipeline(self, builder: Builder) -> None:
+        """Register the LBWSG exposure pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_producer(
             self.exposure_name,
             source=self._get_exposure_source,
@@ -374,6 +510,13 @@ class LBWSGRisk(Risk):
         )
 
     def register_birth_exposure_pipeline(self, builder: Builder) -> None:
+        """Register the birth exposure pipeline with post-processing.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_producer(
             self.birth_exposure_pipeline,
             source=self._get_birth_exposure_source,
@@ -386,7 +529,13 @@ class LBWSGRisk(Risk):
     ########################
 
     def initialize_exposure(self, pop_data: SimulantData) -> None:
+        """Initialize the exposure for the population.
 
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants in the population.
+        """
         if pop_data.user_data.get("age_end", self.configuration_age_end) == 0:
             self.exposure_distribution.exposure_data_type = "birth_exposure"
         else:
@@ -403,6 +552,13 @@ class LBWSGRisk(Risk):
     def initialize_categorical_and_continuous_propensities(
         self, pop_data: SimulantData
     ) -> None:
+        """Initialize categorical and continuous propensities for LBWSG.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants in the population.
+        """
         propensities = {}
         propensities[self.categorical_propensity_name] = self.randomness.get_draw(
             pop_data.index, additional_key=CATEGORICAL
@@ -420,11 +576,13 @@ class LBWSGRisk(Risk):
     ##################################
 
     def _get_birth_exposure_source(self, index: pd.Index) -> pd.DataFrame:
+        """Return continuous birth exposure data for the given index."""
         return self.population_view.get_attribute_frame(
             index, self.exposure_distribution.exposure_ppf_pipeline
         )
 
     def _get_exposure_source(self, index: pd.Index[int]) -> pd.DataFrame:
+        """Return continuous exposure data from stored columns."""
         exposure_df = self.population_view.get_attributes(
             index, [self.get_exposure_name(axis) for axis in AXES]
         )
@@ -433,6 +591,21 @@ class LBWSGRisk(Risk):
 
 
 class LBWSGRiskEffect(RiskEffect):
+    """Risk effect component for the LBWSG risk factor.
+
+    Use pre-computed 2D interpolators over birth weight and gestational
+    age to determine per-simulant relative risks.
+
+    Attributes
+    ----------
+    TMREL_BIRTH_WEIGHT_INTERVAL
+        The birth weight interval for the theoretical minimum-risk
+        exposure level.
+    TMREL_GESTATIONAL_AGE_INTERVAL
+        The gestational age interval for the theoretical minimum-risk
+        exposure level.
+    """
+
     TMREL_BIRTH_WEIGHT_INTERVAL: pd.Interval = pd.Interval(3500.0, 4500.0)
     TMREL_GESTATIONAL_AGE_INTERVAL: pd.Interval = pd.Interval(38.0, 42.0)
 
@@ -442,6 +615,7 @@ class LBWSGRiskEffect(RiskEffect):
 
     @property
     def rr_column_names(self) -> list[str]:
+        """The list of relative risk column names, one per age group."""
         return [
             self.get_relative_risk_column_name(age_group) for age_group in self.age_intervals
         ]
@@ -451,14 +625,41 @@ class LBWSGRiskEffect(RiskEffect):
     #####################
 
     def __init__(self, target: str):
+        """
+        Parameters
+        ----------
+        target
+            Type, name, and target rate of entity to be affected by the
+            LBWSG risk factor, supplied in the form
+            ``"entity_type.entity_name.measure"``.
+        """
         super().__init__("risk_factor.low_birth_weight_and_short_gestation", target)
 
     def get_relative_risk_column_name(self, age_group_id: str) -> str:
+        """Return the relative risk column name for a given age group.
+
+        Parameters
+        ----------
+        age_group_id
+            The age group identifier (snake-cased age group name).
+
+        Returns
+        -------
+            The column name in the form
+            ``"effect_of_{risk}_on_{age_group}_{target}_relative_risk"``.
+        """
         return (
             f"effect_of_{self.risk.name}_on_{age_group_id}_{self.target.name}_relative_risk"
         )
 
     def setup(self, builder: Builder) -> None:
+        """Set up age intervals, interpolators, and RR initializer.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.age_intervals = self.get_age_intervals(builder)
         super().setup(builder)
         self.interpolator = self.get_interpolator(builder)
@@ -473,15 +674,39 @@ class LBWSGRiskEffect(RiskEffect):
     #################
 
     def build_rr_lookup_table(self, builder: Builder) -> None:
+        """Skip building a lookup table; LBWSG uses interpolators instead."""
         # We don't need a LookupTable for RR since we are using interpolators
         pass
 
     def get_paf_data(self, builder):
+        """Load population attributable fraction data.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The PAF data for this risk-target pair.
+        """
         return self.get_data(
             builder, self.configuration.data_sources.population_attributable_fraction
         )
 
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
+        """Build a mapping of age group names to age intervals.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A dictionary mapping snake-cased age group names to their
+            corresponding age intervals.
+        """
         age_bins = builder.data.load("population.age_bins").set_index("age_start")
         relative_risks = builder.data.load(f"{self.risk}.relative_risk")
         exposed_age_group_starts = (
@@ -496,6 +721,13 @@ class LBWSGRiskEffect(RiskEffect):
         }
 
     def register_relative_risk_pipeline(self, builder: Builder) -> None:
+        """Register the relative risk pipeline with age and RR columns.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_producer(
             self.relative_risk_name,
             source=self._relative_risk_source,
@@ -503,6 +735,18 @@ class LBWSGRiskEffect(RiskEffect):
         )
 
     def get_interpolator(self, builder: Builder) -> pd.Series:
+        """Load and deserialize 2D RR interpolators from the artifact.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A series of interpolator objects indexed by sex and age
+            group name.
+        """
         age_start_to_age_group_name_map = {
             interval.left: to_snake_case(age_group_name)
             for age_group_name, interval in self.age_intervals.items()
@@ -533,6 +777,17 @@ class LBWSGRiskEffect(RiskEffect):
     ########################
 
     def initialize_relative_risk(self, pop_data: SimulantData) -> None:
+        """Compute and store per-simulant relative risks by age group.
+
+        Evaluate the 2D interpolators at each simulant's birth weight
+        and gestational age to compute age-group-specific relative risk
+        values.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants in the population.
+        """
         pop = self.population_view.get_attributes(pop_data.index, ["sex", self.exposure_name])
         birth_weight = pop[self.exposure_name][BIRTH_WEIGHT]
         gestational_age = pop[self.exposure_name][GESTATIONAL_AGE]
@@ -543,6 +798,7 @@ class LBWSGRiskEffect(RiskEffect):
         )
 
         def get_relative_risk_for_age_group(age_group: str) -> pd.Series:
+            """Compute relative risk for a single age group via interpolation."""
             column_name = self.get_relative_risk_column_name(age_group)
             log_relative_risk = pd.Series(0.0, index=pop_data.index, name=column_name)
 
@@ -571,6 +827,7 @@ class LBWSGRiskEffect(RiskEffect):
     ##################################
 
     def _get_relative_risk(self, index: pd.Index) -> pd.Series:
+        """Return relative risk values based on simulant age group."""
         pop = self.population_view.get_attributes(index, self.rr_column_names + ["age"])
         relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_name)
 
@@ -582,4 +839,16 @@ class LBWSGRiskEffect(RiskEffect):
         return relative_risk
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        """Return the callable that computes relative risk from stored columns.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A callable that accepts a simulant index and returns
+            relative risk values.
+        """
         return self._get_relative_risk

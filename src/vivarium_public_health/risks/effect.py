@@ -57,15 +57,30 @@ class RiskEffect(Component):
 
     @property
     def name(self) -> str:
+        """The name of this risk effect component."""
         return self.get_name(self.risk, self.target)
 
     @staticmethod
     def get_name(risk: EntityString, target: TargetString) -> str:
+        """Construct the canonical name for a risk effect.
+
+        Parameters
+        ----------
+        risk
+            The entity string identifying the risk factor.
+        target
+            The target string identifying the affected entity and measure.
+
+        Returns
+        -------
+            The risk effect name in the form
+            ``"risk_effect.{risk_name}_on_{target}"``.
+        """
         return f"risk_effect.{risk.name}_on_{target}"
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this component.
+        """Default configuration values for this component.
 
         Configuration structure::
 
@@ -103,6 +118,7 @@ class RiskEffect(Component):
 
     @property
     def is_exposure_categorical(self) -> bool:
+        """Whether the risk exposure uses a categorical distribution."""
         return self._exposure_distribution_type in [
             "dichotomous",
             "ordered_polytomous",
@@ -139,6 +155,13 @@ class RiskEffect(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        """Set up relative risk table, PAF data, and register pipelines.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.relative_risk_table = self.build_rr_lookup_table(builder)
         self.paf_data = self.get_paf_data(builder)
 
@@ -153,6 +176,18 @@ class RiskEffect(Component):
     #################
 
     def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
+        """Build the relative risk lookup table.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A lookup table mapping demographic parameters to relative
+            risk values.
+        """
         self._exposure_distribution_type = self.get_distribution_type(builder)
 
         rr_data = self.load_relative_risk(builder)
@@ -164,6 +199,17 @@ class RiskEffect(Component):
         )
 
     def get_paf_data(self, builder: Builder) -> LookupTableData:
+        """Load population attributable fraction data.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The PAF data for this risk-target pair.
+        """
         return self.get_filtered_data(
             builder, self.configuration.data_sources.population_attributable_fraction
         )
@@ -180,6 +226,30 @@ class RiskEffect(Component):
         builder: Builder,
         configuration=None,
     ) -> str | float | pd.DataFrame:
+        """Load relative risk data from configuration or artifact.
+
+        Attempt to interpret the data source as a ``scipy.stats``
+        distribution name first; if that fails, treat it as an artifact
+        key.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        configuration
+            Optional configuration override.  If ``None``, use
+            ``self.configuration``.
+
+        Returns
+        -------
+            The relative risk data as a scalar, string, or DataFrame.
+
+        Raises
+        ------
+        ConfigurationError
+            If the provided distribution parameters are not valid for
+            the specified scipy distribution.
+        """
         if configuration is None:
             configuration = self.configuration
 
@@ -204,6 +274,21 @@ class RiskEffect(Component):
     def get_filtered_data(
         self, builder: "Builder", data_source: str | float | pd.DataFrame
     ) -> float | pd.DataFrame:
+        """Load data and filter to the target entity and measure.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        data_source
+            The data source specification (artifact key, scalar, or
+            DataFrame).
+
+        Returns
+        -------
+            The data filtered to this component's target entity and
+            measure.
+        """
         data = self.get_data(builder, data_source)
 
         if isinstance(data, pd.DataFrame):
@@ -222,6 +307,23 @@ class RiskEffect(Component):
     def process_categorical_data(
         self, builder: Builder, rr_data: str | float | pd.DataFrame
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
+        """Pivot categorical relative risk data to wide format.
+
+        If the data is a scalar, create a two-category DataFrame with
+        the scalar as ``"cat1"`` and ``1`` as ``"cat2"``.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        rr_data
+            The relative risk data (scalar or DataFrame).
+
+        Returns
+        -------
+            A tuple of the pivoted relative risk data and the list of
+            category column names.
+        """
         if not isinstance(rr_data, pd.DataFrame):
             cat1 = builder.data.load("population.demographic_dimensions")
             cat1["parameter"] = "cat1"
@@ -242,14 +344,27 @@ class RiskEffect(Component):
     def rebin_relative_risk_data(
         self, builder, relative_risk_data: pd.DataFrame
     ) -> pd.DataFrame:
-        """Rebin relative risk data.
+        """Rebin relative risk data when a polytomous risk is rebinned.
 
-        When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
-        After rebinning, rr for both exposed and unexposed categories should be the weighted sum of relative risk
-        of the component categories where weights are relative proportions of exposure of those categories.
-        For example, if cat1, cat2, cat3 are exposed categories and cat4 is unexposed with exposure [0.1,0.2,0.3,0.4],
-        for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
-        (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
+        After rebinning, the relative risk for both exposed and unexposed
+        categories is the weighted sum of relative risks of the component
+        categories, where weights are relative proportions of exposure
+        for those categories.  For example, if cat1, cat2, cat3 are
+        exposed categories and cat4 is unexposed with exposure
+        [0.1, 0.2, 0.3, 0.4] and matching rr = [rr1, rr2, rr3, 1],
+        the rebinned rr for the rebinned cat1 is
+        ``(0.1 * rr1 + 0.2 * rr2 + 0.3 * rr3) / (0.1 + 0.2 + 0.3)``.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        relative_risk_data
+            The relative risk data to potentially rebin.
+
+        Returns
+        -------
+            The (possibly rebinned) relative risk data.
         """
         if not self.risk in builder.configuration.to_dict():
             return relative_risk_data
@@ -271,6 +386,7 @@ class RiskEffect(Component):
         exposure_data: pd.DataFrame,
         rebin_exposed_categories: set,
     ) -> pd.DataFrame:
+        """Rebin relative risk data using exposure-weighted averaging."""
         cols = list(exposure_data.columns.difference(["value"]))
 
         relative_risk_data = relative_risk_data.merge(exposure_data, on=cols)
@@ -287,6 +403,22 @@ class RiskEffect(Component):
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        """Build a callable that computes relative risk for each simulant.
+
+        For continuous exposures, compute relative risk using the TMRED
+        and exposure scalar.  For categorical exposures, look up the
+        relative risk corresponding to each simulant's category.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A callable that accepts a simulant index and returns
+            relative risk values.
+        """
 
         if not self.is_exposure_categorical:
             tmred = builder.data.load(f"{self.risk}.tmred")
@@ -294,6 +426,7 @@ class RiskEffect(Component):
             scale = builder.data.load(f"{self.risk}.relative_risk_scalar")
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
+                """Compute continuous relative risk from TMRED scaling."""
                 rr = self.relative_risk_table(index)
                 exposure = self.population_view.get_attributes(index, self.exposure_name)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
@@ -303,6 +436,7 @@ class RiskEffect(Component):
             index_columns = ["index", self.risk.name]
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
+                """Compute categorical relative risk by matching exposure."""
                 rr = self.relative_risk_table(index)
                 exposure = self.population_view.get_attributes(
                     index, self.exposure_name
@@ -320,6 +454,13 @@ class RiskEffect(Component):
         return generate_relative_risk
 
     def register_relative_risk_pipeline(self, builder: Builder) -> None:
+        """Register the relative risk pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_producer(
             self.relative_risk_name,
             self._relative_risk_source,
@@ -327,11 +468,25 @@ class RiskEffect(Component):
         )
 
     def register_target_modifier(self, builder: Builder) -> None:
+        """Register the relative risk as a modifier on the target pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_modifier(
             self.target_name, modifier=self.relative_risk_name
         )
 
     def register_paf_modifier(self, builder: Builder) -> None:
+        """Register the PAF as a modifier on the calibration constant pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_value_modifier(
             get_calibration_constant_pipeline_name(self.target_name),
             modifier=lambda: self.paf_data,
@@ -342,6 +497,7 @@ class RiskEffect(Component):
     ##################
 
     def _get_risk_exposure_class(self, builder: Builder) -> Risk:
+        """Look up and validate the Risk component for this risk effect."""
         risk_exposure_component = builder.components.get_component(self.risk)
         if not isinstance(risk_exposure_component, Risk):
             raise ValueError(
@@ -375,7 +531,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this component.
+        """Default configuration values for this component.
 
         Configuration structure::
 
@@ -408,13 +564,44 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     @staticmethod
     def get_name(risk: EntityString, target: TargetString) -> str:
+        """Construct the canonical name for a non-log-linear risk effect.
+
+        Parameters
+        ----------
+        risk
+            The entity string identifying the risk factor.
+        target
+            The target string identifying the affected entity and measure.
+
+        Returns
+        -------
+            The risk effect name in the form
+            ``"non_log_linear_risk_effect.{risk_name}_on_{target}"``.
+        """
         return f"non_log_linear_risk_effect.{risk.name}_on_{target}"
 
     def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
+        """Build a lookup table mapping exposure intervals to relative risks.
+
+        Define left and right edges of exposure bins and their
+        corresponding relative risk values for piecewise linear
+        interpolation.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A lookup table with columns for left/right exposure and
+            left/right relative risk values.
+        """
         rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
 
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
+            """Create left/right exposure and RR interval columns."""
             # create new row for right-most exposure bin (RR is same as max RR)
             max_exposure_row = df.tail(1).copy()
             max_exposure_row["parameter"] = np.inf
@@ -457,6 +644,29 @@ class NonLogLinearRiskEffect(RiskEffect):
         builder: Builder,
         configuration=None,
     ) -> str | float | pd.DataFrame:
+        """Load relative risk data, normalizing by RR at the TMREL.
+
+        Compute the Theoretical Minimum-Risk Exposure Level (TMREL)
+        from TMRED data, interpolate RR at the TMREL, divide all RR
+        values by this quantity, and clip to be at least 1.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        configuration
+            Optional configuration override.  If ``None``, use
+            ``self.configuration``.
+
+        Returns
+        -------
+            The normalized relative risk data as a DataFrame.
+
+        Raises
+        ------
+        MissingDataError
+            If the TMRED data uses draw-level TMRELs or is not found.
+        """
         if configuration is None:
             configuration = self.configuration
 
@@ -484,6 +694,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         ]
 
         def get_rr_at_tmrel(rr_data: pd.DataFrame) -> float:
+            """Interpolate the relative risk at the TMREL."""
             interpolated_rr_function = scipy.interpolate.interp1d(
                 rr_data["parameter"],
                 rr_data["value"],
@@ -510,7 +721,24 @@ class NonLogLinearRiskEffect(RiskEffect):
         return rr_data
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        """Build a callable that interpolates relative risk from exposure.
+
+        Use piecewise linear interpolation within the exposure bins
+        defined by the relative risk lookup table.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A callable that accepts a simulant index and returns
+            interpolated relative risk values.
+        """
+
         def generate_relative_risk(index: pd.Index) -> pd.Series:
+            """Interpolate relative risk from exposure within RR bins."""
             rr_intervals = self.relative_risk_table(index)
             # NOTE: We are calling the cached exposure pipeline here for performance
             # purposes (as opposed to the f{self.risk.name}.exposure pipeline itself).
@@ -534,7 +762,23 @@ class NonLogLinearRiskEffect(RiskEffect):
     ##############
 
     def validate_rr_data(self, rr_data: pd.DataFrame) -> None:
-        """Validate the relative risk data."""
+        """Validate the relative risk data for non-log-linear effects.
+
+        Verify that the ``parameter`` column contains numeric data and
+        that values are monotonically increasing within each demographic
+        group.
+
+        Parameters
+        ----------
+        rr_data
+            The relative risk data to validate.
+
+        Raises
+        ------
+        ValueError
+            If the ``parameter`` column is not numeric or is not
+            monotonically increasing within demographic groups.
+        """
         # check that rr_data has numeric parameter data
         parameter_data_is_numeric = rr_data["parameter"].dtype.kind in "biufc"
         if not parameter_data_is_numeric:
@@ -549,6 +793,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         ]
 
         def values_are_monotonically_increasing(df: pd.DataFrame) -> bool:
+            """Check if parameter values are monotonically increasing."""
             return np.all(df["parameter"].values[1:] >= df["parameter"].values[:-1])
 
         group_is_increasing = rr_data.groupby(demographic_cols).apply(

@@ -23,7 +23,22 @@ from vivarium_public_health.utilities import EntityString, TargetString
 def pivot_categorical(
     data: pd.DataFrame, pivot_column: str = "parameter", reset_index: bool = True
 ) -> pd.DataFrame:
-    """Pivots data that is long on categories to be wide."""
+    """Pivot data that is long on categories to wide format.
+
+    Parameters
+    ----------
+    data
+        A DataFrame containing categorical data in long format.
+    pivot_column
+        The column whose values become new column headers in the
+        pivoted DataFrame.
+    reset_index
+        Whether to reset the index of the pivoted DataFrame.
+
+    Returns
+    -------
+        The pivoted DataFrame with categories as columns.
+    """
     index_cols = [
         column
         for column in data.columns
@@ -45,6 +60,25 @@ def pivot_categorical(
 
 
 def get_exposure_post_processor(builder, risk: str):
+    """Build a post-processor that bins continuous exposure into categories.
+
+    If category thresholds are configured for the risk, return a
+    post-processor callable that maps continuous exposure values to
+    categorical labels using ``pd.cut``.  Otherwise return an empty
+    list, which signals no post-processing.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    risk
+        The name of the risk factor in the configuration.
+
+    Returns
+    -------
+        A callable post-processor that bins exposure values into
+        categories, or an empty list if no thresholds are configured.
+    """
     thresholds = builder.configuration[risk]["category_thresholds"]
 
     if thresholds:
@@ -52,6 +86,7 @@ def get_exposure_post_processor(builder, risk: str):
         categories = [f"cat{i}" for i in range(1, len(thresholds))]
 
         def post_processor(exposure, _):
+            """Bin continuous exposure values into categories."""
             return pd.Series(
                 pd.cut(exposure, thresholds, labels=categories), index=exposure.index
             ).astype(str)
@@ -63,6 +98,19 @@ def get_exposure_post_processor(builder, risk: str):
 
 
 def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
+    """Load exposure data for a risk from the simulation.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    risk
+        The entity string identifying the risk factor.
+
+    Returns
+    -------
+        The exposure data for the risk.
+    """
     risk_component = builder.components.get_component(risk)
     return risk_component.get_data(
         builder, builder.configuration[risk_component.name]["data_sources"]["exposure"]
@@ -77,14 +125,29 @@ def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
 def rebin_relative_risk_data(
     builder, risk: EntityString, relative_risk_data: pd.DataFrame
 ) -> pd.DataFrame:
-    """Rebin relative risk data if necessary.
+    """Rebin relative risk data when a polytomous risk is rebinned.
 
-    When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
-    After rebinning, rr for both exposed and unexposed categories should be the weighted sum of relative risk
-    of the component categories where weights are relative proportions of exposure of those categories.
-    For example, if cat1, cat2, cat3 are exposed categories and cat4 is unexposed with exposure [0.1,0.2,0.3,0.4],
-    for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
-    (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
+    After rebinning, the relative risk for both exposed and unexposed
+    categories is the weighted sum of relative risks of the component
+    categories, where weights are the relative proportions of exposure
+    for those categories.  For example, if cat1, cat2, cat3 are exposed
+    categories and cat4 is unexposed with exposure [0.1, 0.2, 0.3, 0.4]
+    and matching rr = [rr1, rr2, rr3, 1], the rebinned rr for the
+    rebinned cat1 is
+    ``(0.1 * rr1 + 0.2 * rr2 + 0.3 * rr3) / (0.1 + 0.2 + 0.3)``.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    risk
+        The entity string identifying the risk factor.
+    relative_risk_data
+        The relative risk data to potentially rebin.
+
+    Returns
+    -------
+        The (possibly rebinned) relative risk data.
     """
     if not risk in builder.configuration.to_dict():
         return relative_risk_data
@@ -106,6 +169,7 @@ def _rebin_relative_risk_data(
     exposure_data: pd.DataFrame,
     rebin_exposed_categories: set,
 ) -> pd.DataFrame:
+    """Rebin relative risk data using exposure-weighted averaging."""
     cols = list(exposure_data.columns.difference(["value"]))
 
     relative_risk_data = relative_risk_data.merge(exposure_data, on=cols)
@@ -128,7 +192,22 @@ def _rebin_relative_risk_data(
 
 
 def validate_distribution_data_source(builder: Builder, risk: EntityString) -> None:
-    """Checks that the exposure distribution specification is valid."""
+    """Check that the exposure distribution specification is valid.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    risk
+        The entity string identifying the risk factor.
+
+    Raises
+    ------
+    ValueError
+        If the risk is an alternative risk factor with parameterized
+        exposure or without category thresholds, or if the risk type
+        is unrecognized.
+    """
     exposure_type = builder.configuration[risk]["data_sources"]["exposure"]
     rebin = builder.configuration[risk]["rebinned_exposed"]
     category_thresholds = builder.configuration[risk]["category_thresholds"]
@@ -147,6 +226,28 @@ def validate_distribution_data_source(builder: Builder, risk: EntityString) -> N
 
 
 def validate_relative_risk_data_source(builder, risk: EntityString, target: TargetString):
+    """Validate the relative risk data source configuration.
+
+    Verify that the provided distribution arguments match one of the
+    supported relative risk source types: data, a scalar relative risk
+    value, a normal distribution (mean + se), or a log distribution
+    (log_mean + log_se + tau_squared).
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    risk
+        The entity string identifying the risk factor.
+    target
+        The target string identifying the affected entity and measure.
+
+    Raises
+    ------
+    ValueError
+        If the provided parameters do not match any supported source
+        type, or if the parameter values are out of range.
+    """
     from vivarium_public_health.risks import RiskEffect
 
     source_key = RiskEffect.get_name(risk, target)
@@ -205,6 +306,24 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
 def validate_relative_risk_rebin_source(
     builder, risk: EntityString, target: TargetString, data: pd.DataFrame
 ):
+    """Validate relative risk data after filtering for a target.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    risk
+        The entity string identifying the risk factor.
+    target
+        The target string identifying the affected entity and measure.
+    data
+        The relative risk data filtered for the given target.
+
+    Raises
+    ------
+    ValueError
+        If the filtered data is empty.
+    """
     if data.index.size == 0:
         raise ValueError(
             f"Subsetting {risk} relative risk data to {target.name} {target.measure} "
@@ -215,6 +334,24 @@ def validate_relative_risk_rebin_source(
 
 
 def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame) -> None:
+    """Validate that rebinning configuration is consistent with the data.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    risk
+        The entity string identifying the risk factor.
+    data
+        The exposure or relative risk data to validate against.
+
+    Raises
+    ------
+    ValueError
+        If rebinning and category thresholds are both specified, if
+        the risk is not polytomous, if any rebin categories are not
+        found in the data, or if all categories are in the rebin set.
+    """
 
     if not isinstance(data, pd.DataFrame):
         return
