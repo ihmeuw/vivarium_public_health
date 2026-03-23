@@ -1,4 +1,4 @@
-.. _concepts_main:
+.. _vph_concepts_main:
 
 ========
 Concepts
@@ -11,4 +11,3 @@ using this Vivarium Public Health library.
 
    disease/index
    population
-
