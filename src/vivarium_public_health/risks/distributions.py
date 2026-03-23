@@ -348,7 +348,7 @@ class ContinuousDistribution(RiskExposureDistribution):
     # Setup methods #
     #################
 
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
         """Compute distribution parameters and register pipelines.
 
         Parameters
@@ -366,7 +366,7 @@ class ContinuousDistribution(RiskExposureDistribution):
         self.register_exposure_params_pipeline(builder)
         super().setup(builder)
 
-    def get_distribution_parameters(self, builder: "Builder") -> None:
+    def get_distribution_parameters(self, builder: Builder) -> pd.DataFrame:
         """Compute the distribution parameters from exposure data.
 
         Parameters
@@ -542,7 +542,7 @@ class PolytomousDistribution(RiskExposureDistribution):
             self.exposure_params_pipeline, source=self.exposure_params_table
         )
 
-    def build_exposure_params_table(self, builder: "Builder"):
+    def build_exposure_params_table(self, builder: Builder) -> LookupTable:
         """Build the lookup table for exposure parameters.
 
         Parameters
@@ -756,7 +756,7 @@ class DichotomousDistribution(RiskExposureDistribution):
     # Validators #
     ##############
 
-    def validate_rebin_source(self, builder, data: pd.DataFrame) -> None:
+    def validate_rebin_source(self, builder: Builder, data: pd.DataFrame) -> None:
         """Validate that rebinning configuration is consistent with the data.
 
         Parameters
@@ -846,7 +846,7 @@ class DichotomousDistribution(RiskExposureDistribution):
         )
 
 
-def clip(q):
+def clip(q: pd.Series) -> pd.Series:
     """Clip quantile values to avoid distribution boundary issues.
 
     The risk distributions package uses the 99.9th and 0.001st percentiles

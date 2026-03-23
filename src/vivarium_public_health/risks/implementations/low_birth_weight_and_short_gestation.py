@@ -21,6 +21,7 @@ from loguru import logger
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.framework.population import SimulantData
+from vivarium.types import LookupTableData
 
 from vivarium_public_health.risks import Risk, RiskEffect
 from vivarium_public_health.risks.data_transformations import (
@@ -109,7 +110,7 @@ class LBWSGDistribution(PolytomousDistribution):
                 " to be available in the simulation."
             )
 
-    def register_exposure_ppf_pipeline(self, builder):
+    def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
         """Register the LBWSG exposure PPF pipeline.
 
         Parameters
@@ -669,7 +670,7 @@ class LBWSGRiskEffect(RiskEffect):
         # We don't need a LookupTable for RR since we are using interpolators
         pass
 
-    def get_paf_data(self, builder):
+    def get_paf_data(self, builder: Builder) -> LookupTableData:
         """Load population attributable fraction data.
 
         Parameters

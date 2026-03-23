@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import scipy
-from layered_config_tree import ConfigurationError
+from layered_config_tree import ConfigurationError, LayeredConfigTree
 from vivarium import Component
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
@@ -342,7 +342,7 @@ class RiskEffect(Component):
     # todo currently this isn't being called. we need to properly set rrs if
     #  the exposure has been rebinned
     def rebin_relative_risk_data(
-        self, builder, relative_risk_data: pd.DataFrame
+        self, builder: Builder, relative_risk_data: pd.DataFrame
     ) -> pd.DataFrame:
         """Rebin relative risk data when a polytomous risk is rebinned.
 
@@ -642,7 +642,7 @@ class NonLogLinearRiskEffect(RiskEffect):
     def load_relative_risk(
         self,
         builder: Builder,
-        configuration=None,
+        configuration: LayeredConfigTree | None = None,
     ) -> str | float | pd.DataFrame:
         """Load relative risk data, normalizing by RR at the TMREL.
 

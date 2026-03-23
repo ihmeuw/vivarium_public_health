@@ -8,6 +8,9 @@ risk data and performing any necessary data transformations.
 
 """
 
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from vivarium.framework.engine import Builder
@@ -59,7 +62,9 @@ def pivot_categorical(
 ##########################
 
 
-def get_exposure_post_processor(builder, risk: str):
+def get_exposure_post_processor(
+    builder: Builder, risk: str
+) -> list | Callable[[pd.Series, Any], pd.Series]:
     """Build a post-processor that bins continuous exposure into categories.
 
     If category thresholds are configured for the risk, return a
@@ -225,7 +230,9 @@ def validate_distribution_data_source(builder: Builder, risk: EntityString) -> N
         raise ValueError(f"Unknown risk type {risk.type} for risk {risk.name}")
 
 
-def validate_relative_risk_data_source(builder, risk: EntityString, target: TargetString):
+def validate_relative_risk_data_source(
+    builder: Builder, risk: EntityString, target: TargetString
+) -> str:
     """Validate the relative risk data source configuration.
 
     Verify that the provided distribution arguments match one of the
@@ -304,8 +311,8 @@ def validate_relative_risk_data_source(builder, risk: EntityString, target: Targ
 
 
 def validate_relative_risk_rebin_source(
-    builder, risk: EntityString, target: TargetString, data: pd.DataFrame
-):
+    builder: Builder, risk: EntityString, target: TargetString, data: pd.DataFrame
+) -> None:
     """Validate relative risk data after filtering for a target.
 
     Parameters
@@ -333,7 +340,7 @@ def validate_relative_risk_rebin_source(
         validate_rebin_source(builder, risk, data)
 
 
-def validate_rebin_source(builder, risk: EntityString, data: pd.DataFrame) -> None:
+def validate_rebin_source(builder: Builder, risk: EntityString, data: pd.DataFrame) -> None:
     """Validate that rebinning configuration is consistent with the data.
 
     Parameters
