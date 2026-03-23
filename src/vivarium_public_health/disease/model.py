@@ -113,9 +113,9 @@ class DiseaseModel(Machine):
     def setup(self, builder: Builder) -> None:
         """Perform this component's setup.
 
-        -Gathers initialization weights pipelines from states contained in the disease model
-            and registers them to be run during population initialization.
-        -Registers a modifier to adjust the cause-specific mortality rate based on the model's states.
+        - Gathers initialization weights pipelines from states contained in the disease model
+          and registers them to be run during population initialization.
+        - Registers a modifier to adjust the cause-specific mortality rate based on the model's states.
 
         Parameters
         ----------
