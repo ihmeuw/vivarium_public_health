@@ -39,7 +39,7 @@ AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 class LBWSGDistribution(PolytomousDistribution):
     """Distribution model for the Low Birth Weight and Short Gestation risk.
 
-    Extend :class:`PolytomousDistribution` to produce continuous
+    Extend :class:`~vivarium_public_health.risks.distributions.PolytomousDistribution` to produce continuous
     birth-weight and gestational-age exposures from categorical
     propensities using category-specific intervals.
     """
@@ -375,7 +375,7 @@ class LBWSGDistribution(PolytomousDistribution):
 class LBWSGRisk(Risk):
     """Risk component for the Low Birth Weight and Short Gestation risk factor.
 
-    Extend :class:`Risk` with LBWSG-specific behavior including separate
+    Extend :class:`~vivarium_public_health.risks.base_risk.Risk` with LBWSG-specific behavior including separate
     birth-exposure pipelines, categorical and continuous propensities,
     and two-axis (birth weight and gestational age) exposure tracking.
     """
@@ -595,15 +595,6 @@ class LBWSGRiskEffect(RiskEffect):
 
     Use pre-computed 2D interpolators over birth weight and gestational
     age to determine per-simulant relative risks.
-
-    Attributes
-    ----------
-    TMREL_BIRTH_WEIGHT_INTERVAL
-        The birth weight interval for the theoretical minimum-risk
-        exposure level.
-    TMREL_GESTATIONAL_AGE_INTERVAL
-        The gestational age interval for the theoretical minimum-risk
-        exposure level.
     """
 
     TMREL_BIRTH_WEIGHT_INTERVAL: pd.Interval = pd.Interval(3500.0, 4500.0)
