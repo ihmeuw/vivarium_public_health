@@ -3,30 +3,30 @@
 The Core Mortality Model
 ========================
 
-Summary
-=======
+The mortality component models :term:`all-cause mortality <ACMR>` and allows
+for disease models to contribute :term:`cause-specific mortality <CSMR>`. At
+each time step, the currently-alive population is subjected to a mortality event
+using the :term:`mortality rate <Mortality Rate>` to determine probabilities of
+death for each simulant.
 
-The mortality component models all cause mortality and allows for disease
-models to contribute cause specific mortality. At each timestep the currently
-alive population is subjected to a mortality event using the mortality rate to
-determine probabilities of death for each simulant. A weighted probable cause of
-death is used to choose the cause of death. The years of life lost are
-calculated by subtracting a simulant's age from the population TMRLE and the
-population is updated.
+A weighted probable cause of death is used to choose the cause of death. The
+:term:`years of life lost <YLL>` are calculated by subtracting a
+simulant's age from the population :term:`TMRLE` and the population is updated.
 
-All cause mortality is read from the artifact (GBD). At setup cause specific
-mortality is initialized to an empty table. As disease models are registered,
-they affect cause specific mortality by means of
-the cause_specific_mortality_rate pipeline. This is population level data.
+:term:`ACMR` is read from the artifact (GBD). At setup :term:`cause-specific
+mortality <CSMR>` is initialized to an empty table. As disease models are
+registered, they affect :term:`CSMR` by means of the
+cause_specific_mortality_rate pipeline. This is population level data.
 
-If there are causes of death which are unmodeled, but may be impacted by some
-modeled entity, they can be specified using the configuration key
-"unmodeled_causes".
+If there are causes of death which are :term:`unmodeled <Unmodeled Cause>`, but
+may be impacted by some modeled entity, they can be specified using the
+configuration key "unmodeled_causes".
 
 The mortality component's mortality_rate pipeline reflects the
-cause deleted mortality rate (ACMR - CSMR). Then the impact of unmodeled causes
-on mortality is calculated, by subtracting the raw unmodeled csmr before adding
-back the modified unmodeled csmr.
+:term:`cause-deleted <Cause-Deleted Mortality>` mortality rate (ACMR - CSMR).
+Then the impact of :term:`unmodeled causes <Unmodeled Cause>` on mortality is
+calculated, by subtracting the raw unmodeled CSMR before adding back the
+modified unmodeled CSMR.
 
 """
 
@@ -47,10 +47,11 @@ from vivarium_public_health.causal_factor.calibration_constant import (
 class Mortality(Component):
     """Model mortality in a population.
 
-    This component models all cause mortality and allows for disease models to contribute
-    cause specific mortality. Data used by this class should be supplied in the artifact
-    and is configurable in the configuration to build lookup tables. For instance, let's
-    say we want to use sex and hair color to build a lookup table for all cause mortality.
+    This component models :term:`all-cause mortality <ACMR>` and allows for disease
+    models to contribute :term:`cause-specific mortality <CSMR>`. Data used by this
+    class should be supplied in the artifact and is configurable in the configuration
+    to build lookup tables. For instance, let's say we want to use sex and hair color
+    to build a lookup table for all cause mortality.
 
     .. code-block:: yaml
 
@@ -107,7 +108,7 @@ class Mortality(Component):
                         Source for life expectancy data. Default is the
                         artifact key
                         ``population.theoretical_minimum_risk_life_expectancy``.
-                        Used to calculate years of life lost (YLLs).
+                        Used to calculate :term:`years of life lost <Years of Life Lost>` (YLLs).
                 unmodeled_causes: list[str]
                     List of cause names that are not explicitly modeled but
                     may be affected by modeled risks. Their CSMRs are
@@ -136,7 +137,7 @@ class Mortality(Component):
     @property
     def time_step_priority(self) -> int:
         """The time step priority for mortality processing.
-        
+
         It is set to 0 to ensure that mortality is processed before other components
         that may depend on simulants being alive.
         """
@@ -229,11 +230,10 @@ class Mortality(Component):
         )
 
     def register_mortality_rate(self, builder: Builder) -> None:
-        """Register the mortality rate pipeline.
+        """Register the :term:`mortality rate <Mortality Rate>` attribute pipeline.
 
-        The pipeline source is :meth:`calculate_mortality_rate`, which computes
-        the cause-deleted mortality rate from the all-cause rate and the
-        registered cause-specific rates.
+        The attribute pipeline source is :meth:`calculate_mortality_rate`, which computes
+        the mortality rate from the all-cause rate and the registered cause-specific rates.
 
         Parameters
         ----------
@@ -276,8 +276,9 @@ class Mortality(Component):
     def register_unmodeled_csmr(self, builder: Builder) -> None:
         """Register the unmodeled cause-specific mortality rate pipeline.
 
-        Creates a risk-affected attribute producer for the unmodeled CSMR
-        pipeline so that modeled risks can apply modifiers to unmodeled causes.
+        Creates a risk-affected attribute pipeline for the
+        :term:`unmodeled <Unmodeled Cause>` :term:`CSMR` pipeline so that
+        modeled risks can apply modifiers to unmodeled causes.
 
         Parameters
         ----------
@@ -324,9 +325,9 @@ class Mortality(Component):
     def on_time_step(self, event: Event) -> None:
         """Apply mortality to the living population at each time step.
 
-        Determines which simulants die based on the current mortality rate,
+        Determines which simulants die based on the current :term:`mortality rate <Mortality Rate>`,
         then probabilistically assigns a cause of death and calculates
-        years of life lost for the deceased simulants.
+        :term:`years of life lost <Years of Life Lost>` for the deceased simulants.
 
         Parameters
         ----------
@@ -376,13 +377,13 @@ class Mortality(Component):
     ##################################
 
     def calculate_mortality_rate(self, index: pd.Index) -> pd.DataFrame:
-        """Compute the cause-deleted mortality rate for the given simulants.
+        """Compute the :term:`mortality rate <Mortality Rate>` for the given simulants.
 
-        Calculates the background mortality rate as:
+        The mortality rate is calculated as a :term:`cause-deleted mortality rate <Cause-Deleted Mortality>`:
 
         ``ACMR - modeled_CSMR - unmodeled_CSMR_raw + unmodeled_CSMR_modified``
 
-        where ``unmodeled_CSMR_modified`` is the pipeline value after any
+        where ``unmodeled_CSMR_modified`` is the attribute calculated after any
         risk modifiers have been applied.
 
         Parameters
@@ -392,9 +393,8 @@ class Mortality(Component):
 
         Returns
         -------
-            A :class:`pandas.DataFrame` with a single column
-            ``'other_causes'`` containing the cause-deleted mortality rate
-            for each simulant.
+            A :class:`pandas.DataFrame` with a single column ``'other_causes'``
+            containing the mortality rate for each simulant.
         """
         acmr = self.acmr_table(index)
         modeled_csmr = self.population_view.get(
