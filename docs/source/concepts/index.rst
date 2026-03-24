@@ -8,6 +8,6 @@ using this Vivarium Public Health library.
 
 .. toctree::
    :maxdepth: 2
+   :glob:
 
-   disease/index
-   population
+   */index
