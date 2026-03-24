@@ -8,6 +8,8 @@ function is to provide coordination across a set of disease states and
 transitions at simulation initialization and during transitions.
 
 """
+from __future__ import annotations
+
 from collections.abc import Iterable
 from functools import partial
 from typing import Any
@@ -26,6 +28,12 @@ from vivarium_public_health.disease.transition import RateTransition, Transition
 
 
 class DiseaseModel(Machine):
+    """State machine model for disease progression.
+
+    This component manages a set of disease states and transitions between
+    them. It handles initialization of simulant disease states based on
+    prevalence data and tracks cause-specific mortality rates.
+    """
 
     ##############
     # Properties #
@@ -55,10 +63,12 @@ class DiseaseModel(Machine):
 
     @property
     def state_names(self) -> list[str]:
+        """List of names of all states in this disease model."""
         return [s.state_id for s in self.states]
 
     @property
     def transition_names(self) -> list[TransitionString]:
+        """List of names of all transitions in this disease model."""
         return [
             state_name for state in self.states for state_name in state.get_transition_names()
         ]
@@ -75,6 +85,25 @@ class DiseaseModel(Machine):
         residual_state: BaseDiseaseState | None = None,
         cause_specific_mortality_rate: DataInput | None = None,
     ) -> None:
+        """
+
+        Parameters
+        ----------
+        cause
+            The name of the cause of disease.
+        cause_type
+            The type of cause. Either "cause" or "sequela".
+        states
+            The disease states to include in the model.
+        residual_state
+            The state to use as the residual (whose prevalence is
+            calculated as 1 minus the sum of all other states). If not
+            provided, the model's ``SusceptibleState`` is used.
+        cause_specific_mortality_rate
+            The source for cause-specific mortality rate data. Can be the
+            data itself, a function to retrieve the data, or the artifact
+            key containing the data.
+        """
         super().__init__(cause, states=states)
         self.cause = cause
         self.cause_type = cause_type
@@ -82,7 +111,17 @@ class DiseaseModel(Machine):
         self._csmr_source = cause_specific_mortality_rate
 
     def setup(self, builder: Builder) -> None:
-        """Perform this component's setup."""
+        """Perform this component's setup.
+
+        - Gathers initialization weights pipelines from states contained in the disease model
+          and registers them to be run during population initialization.
+        - Registers a modifier to adjust the cause-specific mortality rate based on the model's states.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.initialization_weights_pipelines = [
             *[state.prevalence_pipeline for state in self.states],
             *[state.birth_prevalence_pipeline for state in self.states],
@@ -101,6 +140,13 @@ class DiseaseModel(Machine):
         )
 
     def on_post_setup(self, event: Event) -> None:
+        """Validate that all rate transitions use the same conversion type.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         conversion_types = set()
         for state in self.states:
             for transition in state.transition_set.transitions:
@@ -121,7 +167,7 @@ class DiseaseModel(Machine):
         Parameters
         ----------
         pop_data
-            The population data object.
+            Metadata about the simulants being initialized.
         """
 
         self.initialization_weights_pipelines = [
@@ -138,6 +184,21 @@ class DiseaseModel(Machine):
     #################
 
     def load_cause_specific_mortality_rate(self, builder: Builder) -> float | pd.DataFrame:
+        """Load cause-specific mortality rate data.
+
+        If no source was provided at construction, loads CSMR from the
+        artifact. Returns 0.0 for causes that only have morbidity
+        (YLD-only causes).
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The cause-specific mortality rate data.
+        """
         if self._csmr_source is None:
             only_morbid = builder.data.load(f"cause.{self.cause}.restrictions")["yld_only"]
             if only_morbid:
@@ -152,19 +213,47 @@ class DiseaseModel(Machine):
     # Pipeline sources and modifiers #
     ##################################
 
-    def adjust_cause_specific_mortality_rate(self, index, rate):
+    def adjust_cause_specific_mortality_rate(
+        self, index: pd.Index[int], rate: pd.Series[float]
+    ) -> pd.Series[float]:
+        """Modify the cause-specific mortality rate for the given simulants.
+
+        Parameters
+        ----------
+        index
+            The index of simulants for which to adjust the cause-specific mortality rate.
+        rate
+            The base cause-specific mortality rate.
+
+        Returns
+        -------
+            The adjusted cause-specific mortality rate.
+        """
         return rate + self.csmr_table(index)
 
     ####################
     # Helper functions #
     ####################
 
-    def _get_residual_state(self, residual_state: BaseDiseaseState) -> BaseDiseaseState:
+    def _get_residual_state(
+        self, residual_state: BaseDiseaseState | None
+    ) -> BaseDiseaseState:
         """Get the residual state for the DiseaseModel.
 
         This will be the residual state if it is provided, otherwise it will be
         the model's SusceptibleState. This method also calculates the residual
         state's birth_prevalence and prevalence.
+
+        Parameters
+        ----------
+        residual_state
+            The state to use as the residual, or None to auto-detect
+            from the model's ``SusceptibleState``.
+
+        Returns
+        -------
+            The resolved residual state with prevalence and
+            birth_prevalence functions set.
         """
         if residual_state is None:
             susceptible_states = [s for s in self.states if isinstance(s, SusceptibleState)]
@@ -192,7 +281,21 @@ class DiseaseModel(Machine):
     def _get_residual_state_probabilities(
         self, builder: Builder, table_name: str
     ) -> LookupTableData:
-        """Calculate the probabilities of the residual state based on the other states."""
+        """Calculate the probabilities of the residual state based on the other states.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        table_name
+            The name of the probability table, either "prevalence" or
+            "birth_prevalence".
+
+        Returns
+        -------
+            The residual state probabilities, calculated as 1 minus the
+            sum of probabilities from all non-residual states.
+        """
         non_residual_states = [s for s in self.states if s != self.residual_state]
         non_residual_probabilities = 0
         for state in non_residual_states:
