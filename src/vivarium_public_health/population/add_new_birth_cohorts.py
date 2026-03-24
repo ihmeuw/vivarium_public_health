@@ -87,7 +87,7 @@ class FertilityDeterministic(Component):
 
 
 class FertilityCrudeBirthRate(Component):
-    """Population-level model of births using crude birth rate.
+    """Population-level model of births using :term:`crude birth rate <Crude Birth Rate>`.
 
     The number of births added each time step is calculated as:
 
@@ -152,7 +152,7 @@ class FertilityCrudeBirthRate(Component):
     ########################
 
     def on_time_step(self, event: Event) -> None:
-        """Add new simulants every time step based on crude birth rate.
+        """Add new simulants based on :term:`crude birth rate <Crude Birth Rate>` and a Poisson distribution.
 
         Parameters
         ----------
@@ -179,7 +179,7 @@ class FertilityCrudeBirthRate(Component):
 
 
 class FertilityAgeSpecificRates(Component):
-    """Simulant-specific model of fertility based on age-specific fertility rates.
+    """Simulant-specific model of fertility based on :term:`age-specific fertility rates <Age-Specific Fertility Rate>`.
 
     At each time step, this component determines which living female simulants
     give birth. Eligibility requires at least nine months to have elapsed since
