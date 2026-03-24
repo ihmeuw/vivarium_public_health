@@ -14,7 +14,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import scipy
-
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 from vivarium.types import LookupTableData

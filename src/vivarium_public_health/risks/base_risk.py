@@ -73,7 +73,6 @@ class Risk(CausalFactor):
 
     """
 
-
     #####################
     # Lifecycle methods #
     #####################
@@ -124,7 +123,6 @@ class Risk(CausalFactor):
                 columns=self.exposure_column_name,
                 required_resources=[self.exposure_name],
             )
-
 
     def initialize_exposure(self, pop_data: SimulantData) -> None:
         """Initialize an exposure column with the exposure pipeline values.

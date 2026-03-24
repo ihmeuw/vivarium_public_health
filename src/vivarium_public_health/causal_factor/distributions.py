@@ -56,7 +56,7 @@ class CausalFactorDistribution(Component, ABC):
         """
         Parameters
         ----------
-        risk
+        causal_factor
             The entity string identifying the risk factor.
         distribution_type
             The type of distribution (e.g., ``"normal"``,
@@ -264,8 +264,7 @@ class EnsembleDistribution(CausalFactorDistribution):
     ########################
 
     def initialize_ensemble_propensity(self, pop_data: SimulantData) -> None:
-        """Randomly sample from a uniform distribution to initialize propensities for selecting
-        child distributions in the EnsembleDistribution.
+        """Initialize propensities for selecting child distributions in the ensemble.
 
         Parameters
         ----------
@@ -624,12 +623,12 @@ class DichotomousDistribution(CausalFactorDistribution):
 
     @property
     def exposed(self) -> str:
-        """The name of the exposed category for this intervention."""
+        """The name of the exposed category."""
         return "covered" if self.causal_factor.type == "intervention" else "exposed"
 
     @property
     def unexposed(self) -> str:
-        """The name of the unexposed category for this intervention."""
+        """The name of the unexposed category."""
         return "uncovered" if self.causal_factor.type == "intervention" else "unexposed"
 
     def rename_deprecated_categories(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -775,7 +774,7 @@ class DichotomousDistribution(CausalFactorDistribution):
 
         Returns
         -------
-            The (possibly rebinned) exposure data for the ``"cat1"``
+            The (possibly rebinned) exposure data for the exposed
             category.
         """
         exposure_data = super().get_exposure_data(builder)
@@ -880,7 +879,7 @@ class DichotomousDistribution(CausalFactorDistribution):
         return self.exposure_table(index)
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        """Assign each simulant to ``"cat1"`` or ``"cat2"`` based on propensity.
+        """Assign each simulant to the exposed or unexposed category based on propensity.
 
         Parameters
         ----------
@@ -889,8 +888,7 @@ class DichotomousDistribution(CausalFactorDistribution):
 
         Returns
         -------
-            A series of ``"cat1"`` (exposed) or ``"cat2"`` (unexposed)
-            labels.
+            A series of exposed or unexposed category labels.
         """
         pop = self.population_view.get_attributes(
             index, [self.causal_factor_propensity, self.exposure_params_name]
