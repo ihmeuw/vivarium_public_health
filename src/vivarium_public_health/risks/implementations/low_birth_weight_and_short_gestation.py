@@ -47,11 +47,10 @@ class LBWSGDistribution(PolytomousDistribution):
 
     @property
     def categories(self) -> list[str]:
-        """
-        The sorted list of exposure category names.
+        """The sorted list of exposure category names.
 
-        Categories are sorted to ensure the cumulative sum is in the correct order,
-        which makes results both reproducible and correct.
+        Categories are sorted to ensure the cumulative sum is in the correct
+        order, which makes results both reproducible and correct.
         """
         lookup_table = (
             self.exposure_params_table
@@ -148,7 +147,7 @@ class LBWSGDistribution(PolytomousDistribution):
         )
 
     def build_exposure_params_table(self, builder: Builder) -> LookupTable | None:
-        """Build the exposure parameters lookup table, if data is available.
+        """Build the exposure parameters lookup table if data is available.
 
         Parameters
         ----------
@@ -169,7 +168,7 @@ class LBWSGDistribution(PolytomousDistribution):
             )
 
     def build_birth_exposure_params_table(self, builder: Builder) -> LookupTable | None:
-        """Build the birth exposure parameters lookup table, if data is available.
+        """Build the birth exposure parameters lookup table if data is available.
 
         Parameters
         ----------
@@ -301,7 +300,7 @@ class LBWSGDistribution(PolytomousDistribution):
         """Calculate continuous exposures from propensities for a single axis.
 
         Take an axis (either ``'birth_weight'`` or ``'gestational_age'``), a
-        propensity and either a categorical propensity or a categorical exposure
+        propensity, and either a categorical propensity or a categorical exposure,
         and return continuous exposures for that axis.
 
         If categorical propensity is provided rather than exposure, this
@@ -385,35 +384,12 @@ class LBWSGRisk(Risk):
 
     @staticmethod
     def get_continuous_propensity_name(axis: str) -> str:
-        """Return the propensity column name for a continuous axis.
-
-        Parameters
-        ----------
-        axis
-            The exposure axis (``"birth_weight"`` or
-            ``"gestational_age"``).
-
-        Returns
-        -------
-            The propensity column name in the form
-            ``"{axis}.continuous_propensity"``.
-        """
+        """Return the continuous propensity column name for the given axis."""
         return f"{axis}.continuous_propensity"
 
     @staticmethod
     def get_exposure_name(axis: str) -> str:
-        """Return the exposure column name for a continuous axis.
-
-        Parameters
-        ----------
-        axis
-            The exposure axis (``"birth_weight"`` or
-            ``"gestational_age"``).
-
-        Returns
-        -------
-            The exposure column name in the form ``"{axis}.exposure"``.
-        """
+        """Return the exposure column name for the given axis."""
         return f"{axis}.exposure"
 
     ##############
@@ -511,7 +487,11 @@ class LBWSGRisk(Risk):
         )
 
     def register_birth_exposure_pipeline(self, builder: Builder) -> None:
-        """Register the birth exposure pipeline with post-processing.
+        """Register the birth exposure pipeline.
+
+        If category thresholds are configured, a post-processor is
+        attached that bins continuous birth exposure values into
+        categorical labels.
 
         Parameters
         ----------
@@ -535,7 +515,7 @@ class LBWSGRisk(Risk):
         Parameters
         ----------
         pop_data
-            Metadata about the simulants in the population.
+            Metadata about the simulants being initialized.
         """
         if pop_data.user_data.get("age_end", self.configuration_age_end) == 0:
             self.exposure_distribution.exposure_data_type = "birth_exposure"
@@ -558,7 +538,7 @@ class LBWSGRisk(Risk):
         Parameters
         ----------
         pop_data
-            Metadata about the simulants in the population.
+            Metadata about the simulants being initialized.
         """
         propensities = {}
         propensities[self.categorical_propensity_name] = self.randomness.get_draw(
@@ -667,7 +647,6 @@ class LBWSGRiskEffect(RiskEffect):
 
     def build_rr_lookup_table(self, builder: Builder) -> None:
         """Skip building a lookup table; LBWSG uses interpolators instead."""
-        # We don't need a LookupTable for RR since we are using interpolators
         pass
 
     def get_paf_data(self, builder: Builder) -> LookupTableData:
@@ -778,7 +757,7 @@ class LBWSGRiskEffect(RiskEffect):
         Parameters
         ----------
         pop_data
-            Metadata about the simulants in the population.
+            Metadata about the simulants being initialized.
         """
         pop = self.population_view.get_attributes(pop_data.index, ["sex", self.exposure_name])
         birth_weight = pop[self.exposure_name][BIRTH_WEIGHT]

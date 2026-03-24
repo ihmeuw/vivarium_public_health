@@ -130,7 +130,7 @@ def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
 def rebin_relative_risk_data(
     builder, risk: EntityString, relative_risk_data: pd.DataFrame
 ) -> pd.DataFrame:
-    """Rebin relative risk data when a polytomous risk is rebinned.
+    """Rebin relative risk data for a rebinned polytomous risk.
 
     After rebinning, the relative risk for both exposed and unexposed
     categories is the weighted sum of relative risks of the component

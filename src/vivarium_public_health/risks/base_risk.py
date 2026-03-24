@@ -28,7 +28,7 @@ from vivarium_public_health.utilities import EntityString
 
 
 class Risk(Component):
-    """Model a risk factor defined by either a continuous or a categorical value.
+    """Risk factor model defined by either a continuous or a categorical exposure value.
 
     For example:
 
@@ -36,13 +36,16 @@ class Risk(Component):
        into hypotension and normal but is treated as the actual SBP measurement.
     2. Model smoking as two categories: current smoker and non-smoker.
 
-    Source data either from builder.data or from parameters supplied in the configuration.
-    If data is derived from the configuration, provide an integer or float expressing the desired exposure level or a covariate name to use as a proxy. For example, for a risk named "risk", the configuration could look like this:
+    This component can source data either from builder.data or from parameters
+    supplied in the configuration. If data is derived from the configuration,
+    provide an integer or float expressing the desired exposure level or a
+    covariate name to use as a proxy. For example, for a risk named
+    "some_risk", the configuration could look like this:
 
     .. code-block:: yaml
 
        configuration:
-           risk:
+           some_risk:
                exposure: 1.0
 
     or
@@ -50,23 +53,34 @@ class Risk(Component):
     .. code-block:: yaml
 
        configuration:
-           risk:
+           some_risk:
                exposure: proxy_covariate
 
-    For polytomous risks, optionally provide a 'rebinned_exposed' block in the configuration to indicate that the risk should be rebinned into a dichotomous risk. That block should contain a list of the categories to rebin into a single exposed category in the resulting dichotomous risk. For example, for a risk named "risk" with categories cat1, cat2, cat3, and cat4 that you wish to rebin into a dichotomous risk with an exposed category containing cat1 and cat2 and an unexposed category containing cat3 and cat4, the configuration could look like this:
+    For polytomous risks, optionally provide a 'rebinned_exposed' block in the
+    configuration to indicate that the risk should be rebinned into a
+    dichotomous risk. That block should contain a list of the categories to
+    rebin into a single exposed category in the resulting dichotomous risk.
+    For example, for a risk named "some_risk" with categories cat1, cat2,
+    cat3, and cat4 that you wish to rebin into a dichotomous risk with an
+    exposed category containing cat1 and cat2 and an unexposed category
+    containing cat3 and cat4, the configuration could look like this:
 
     .. code-block:: yaml
 
        configuration:
-           risk:
+           some_risk:
               rebinned_exposed: ['cat1', 'cat2']
 
-    For alternative risk factors, provide a 'category_thresholds' block in the configuration to dictate the thresholds to use to bin the continuous distributions. Note that this is mutually exclusive with providing 'rebinned_exposed' categories. For a risk named "risk", the configuration could look like:
+    For alternative risk factors, provide a 'category_thresholds' block in
+    the configuration to dictate the thresholds to use to bin the continuous
+    distributions. Note that this is mutually exclusive with providing
+    'rebinned_exposed' categories. For a risk named "some_risk", the
+    configuration could look like:
 
     .. code-block:: yaml
 
        configuration:
-           risk:
+           some_risk:
                category_thresholds: [7, 8, 9]
 
     """
@@ -173,7 +187,7 @@ class Risk(Component):
         Parameters
         ----------
         builder
-            Provides access to the simulation framework's interfaces and components.
+             Access point for utilizing framework interfaces during setup.
         """
         self._components = builder.components
         self.distribution_type = self.get_distribution_type(builder)
@@ -272,7 +286,7 @@ class Risk(Component):
         return exposure_distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
-        """Create and return the randomness stream for the risk.
+        """Return the randomness stream for the risk.
 
         Parameters
         ----------
@@ -309,7 +323,7 @@ class Risk(Component):
         Parameters
         ----------
         pop_data
-            Metadata about the simulants in the population.
+            Metadata about the simulants being initialized.
         """
         propensity = pd.Series(
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
@@ -322,7 +336,7 @@ class Risk(Component):
         Parameters
         ----------
         pop_data
-            Metadata about the simulants in the population.
+            Metadata about the simulants being initialized.
         """
         self.update_exposure_column(pop_data.index)
 

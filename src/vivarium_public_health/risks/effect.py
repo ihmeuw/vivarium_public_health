@@ -62,20 +62,7 @@ class RiskEffect(Component):
 
     @staticmethod
     def get_name(risk: EntityString, target: TargetString) -> str:
-        """Construct the canonical name for a risk effect.
-
-        Parameters
-        ----------
-        risk
-            The entity string identifying the risk factor.
-        target
-            The target string identifying the affected entity and measure.
-
-        Returns
-        -------
-            The risk effect name in the form
-            ``"risk_effect.{risk_name}_on_{target}"``.
-        """
+        """Construct the canonical name for a risk effect."""
         return f"risk_effect.{risk.name}_on_{target}"
 
     @property
@@ -344,7 +331,7 @@ class RiskEffect(Component):
     def rebin_relative_risk_data(
         self, builder: Builder, relative_risk_data: pd.DataFrame
     ) -> pd.DataFrame:
-        """Rebin relative risk data when a polytomous risk is rebinned.
+        """Rebin relative risk data for a rebinned polytomous risk.
 
         After rebinning, the relative risk for both exposed and unexposed
         categories is the weighted sum of relative risks of the component

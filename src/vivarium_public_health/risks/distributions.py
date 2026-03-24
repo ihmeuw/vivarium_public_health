@@ -28,7 +28,9 @@ from vivarium_public_health.utilities import EntityString
 
 
 class MissingDataError(Exception):
-    """Raised when required risk data is missing or invalid."""
+    """Custom exception for missing data."""
+
+    pass
 
 
 class RiskExposureDistribution(Component, ABC):
@@ -88,7 +90,7 @@ class RiskExposureDistribution(Component, ABC):
         return builder.configuration[self.risk]
 
     def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
-        """Return exposure data, using pre-loaded data if available.
+        """Return exposure data (using pre-loaded data if available).
 
         Parameters
         ----------
@@ -260,7 +262,7 @@ class EnsembleDistribution(RiskExposureDistribution):
         Parameters
         ----------
         pop_data
-            Metadata about the simulants in the population.
+            Metadata about the simulants being initialized.
         """
         ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(
             self.ensemble_propensity
