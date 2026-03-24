@@ -14,9 +14,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import scipy
+from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.types import LookupTableData
 
 from vivarium_public_health.causal_factor.calibration_constant import (
     get_calibration_constant_pipeline_name,
