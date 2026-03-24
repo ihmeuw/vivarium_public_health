@@ -6,14 +6,17 @@
 This module contains frequently used, but non-standard disease models.
 
 """
+from __future__ import annotations
 
 import re
 from collections import namedtuple
+from collections.abc import Callable
 from operator import gt, lt
 from typing import Any
 
 import pandas as pd
 from vivarium import Component
+from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.population import SimulantData
 
@@ -150,18 +153,30 @@ class RiskAttributableDisease(ExcessMortalityState):
         }
 
     @property
-    def state_names(self):
+    def state_names(self) -> list[str]:
+        """List of names of all states in this disease model."""
         return self._state_names
 
     @property
-    def transition_names(self):
+    def transition_names(self) -> list[TransitionString]:
+        """List of names of all transitions in this disease model."""
         return self._transition_names
 
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self, cause: str, risk: str):
+    def __init__(self, cause: str, risk: str) -> None:
+        """
+        Parameters
+        ----------
+        cause
+            The full entity string for the cause (e.g.,
+            "cause.protein_energy_malnutrition").
+        risk
+            The full entity string for the risk (e.g.,
+            "risk_factor.child_wasting").
+        """
         super().__init__()
         self.cause = EntityString(cause)
         self.risk = EntityString(risk)
@@ -181,7 +196,14 @@ class RiskAttributableDisease(ExcessMortalityState):
         self.exposure_name = f"{self.risk.name}.exposure"
 
     # noinspection PyAttributeOutsideInit
-    def setup(self, builder):
+    def setup(self, builder: Builder) -> None:
+        """Perform this component's setup.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.recoverable = builder.configuration[self.name].recoverable
         self.adjust_state_and_transitions()
         self.clock = builder.time.clock()
@@ -246,13 +268,28 @@ class RiskAttributableDisease(ExcessMortalityState):
     # Setup methods #
     #################
 
-    def adjust_state_and_transitions(self):
+    def adjust_state_and_transitions(self) -> None:
+        """Add recovery transition if the disease is recoverable."""
         if self.recoverable:
             self._transition_names.append(
                 TransitionString(f"{self.cause.name}_TO_susceptible_to_{self.cause.name}")
             )
 
-    def load_cause_specific_mortality_rate_data(self, builder):
+    def load_cause_specific_mortality_rate_data(
+        self, builder: Builder
+    ) -> float | pd.DataFrame:
+        """Load cause-specific mortality rate data.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The cause-specific mortality rate data, or 0 if mortality
+            is disabled.
+        """
         if builder.configuration[self.name].mortality:
             csmr_data = builder.data.load(
                 f"cause.{self.cause.name}.cause_specific_mortality_rate"
@@ -261,14 +298,41 @@ class RiskAttributableDisease(ExcessMortalityState):
             csmr_data = 0
         return csmr_data
 
-    def load_excess_mortality_rate_data(self, builder):
+    def load_excess_mortality_rate_data(self, builder: Builder) -> float | pd.DataFrame:
+        """Load excess mortality rate data.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The excess mortality rate data, or 0 if mortality is disabled.
+        """
         if builder.configuration[self.name].mortality:
             emr_data = builder.data.load(f"cause.{self.cause.name}.excess_mortality_rate")
         else:
             emr_data = 0
         return emr_data
 
-    def get_exposure_filter(self, distribution, threshold):
+    def get_exposure_filter(self, distribution: str, threshold: Any) -> Callable:
+        """Build a filter function that identifies simulants with the condition.
+
+        Parameters
+        ----------
+        distribution
+            The risk's exposure distribution type.
+        threshold
+            The exposure threshold defining the disease state. For
+            continuous risks, a string like ">7". For categorical risks,
+            a list of category names.
+
+        Returns
+        -------
+            A function that takes a simulant index and returns a boolean
+            series indicating which simulants have the condition.
+        """
         if distribution in ["dichotomous", "ordered_polytomous", "unordered_polytomous"]:
 
             def categorical_filter(index):
@@ -313,6 +377,13 @@ class RiskAttributableDisease(ExcessMortalityState):
     ########################
 
     def initialize_disease(self, pop_data: SimulantData) -> None:
+        """Initialize disease state for new simulants based on exposure.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants being initialized.
+        """
         new_pop = pd.DataFrame(
             {
                 self.cause.name: f"susceptible_to_{self.cause.name}",
@@ -330,6 +401,13 @@ class RiskAttributableDisease(ExcessMortalityState):
         self.population_view.initialize(new_pop)
 
     def on_time_step(self, event: Event) -> None:
+        """Update disease state based on current exposure levels.
+
+        Parameters
+        ----------
+        event
+            The event that triggered this method call.
+        """
         def _update_disease_state(pop: pd.DataFrame) -> pd.DataFrame:
             living_idx = self.population_view.get_filtered_index(
                 event.index, query="is_alive == True"
@@ -360,7 +438,19 @@ class RiskAttributableDisease(ExcessMortalityState):
     # Pipeline sources and modifiers #
     ##################################
 
-    def compute_disability_weight(self, index):
+    def compute_disability_weight(self, index: pd.Index[int]) -> pd.Series[float]:
+        """Get the disability weight associated with this disease.
+
+        Parameters
+        ----------
+        index
+            An iterable of integer labels for the simulants.
+
+        Returns
+        -------
+            An iterable of disability weights indexed by the
+            provided ``index``.
+        """
         disability_weight = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         disability_weight.loc[with_condition] = self.raw_disability_weight_table(
@@ -368,17 +458,46 @@ class RiskAttributableDisease(ExcessMortalityState):
         )
         return disability_weight
 
-    def compute_excess_mortality_rate(self, index):
+    def compute_excess_mortality_rate(self, index: pd.Index[int]) -> pd.Series[float]:
+        """Get the excess mortality rate associated with this disease.
+
+        Parameters
+        ----------
+        index
+            An iterable of integer labels for the simulants.
+
+        Returns
+        -------
+            An iterable of excess mortality rates indexed by the
+            provided ``index``.
+        """
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         base_excess_mort = self.excess_mortality_rate_table(with_condition)
         excess_mortality_rate.loc[with_condition] = base_excess_mort
         return excess_mortality_rate
 
-    def adjust_cause_specific_mortality_rate(self, index, rate):
+    def adjust_cause_specific_mortality_rate(
+        self, index: pd.Index[int], rate: pd.Series[float]
+    ) -> pd.Series[float]:
+        """Modify the cause-specific mortality rate for the given simulants.
+
+        Parameters
+        ----------
+        index
+            An iterable of integer labels for the simulants.
+        rate
+            The base cause-specific mortality rate.
+
+        Returns
+        -------
+            The adjusted cause-specific mortality rate.
+        """
         return rate + self.cause_specific_mortality_rate_table(index)
 
-    def adjust_mortality_rate(self, index, rates_df):
+    def adjust_mortality_rate(
+        self, index: pd.Index[int], rates_df: pd.DataFrame
+    ) -> pd.DataFrame:
         """Modifies the baseline mortality rate for a simulant if they are in this state.
 
         Parameters
@@ -386,7 +505,11 @@ class RiskAttributableDisease(ExcessMortalityState):
         index
             An iterable of integer labels for the simulants.
         rates_df
+            A DataFrame of mortality rates.
 
+        Returns
+        -------
+            The modified DataFrame of mortality rates.
         """
         rate = self.population_view.get(
             index, self.excess_mortality_rate_name, skip_post_processor=True
@@ -398,7 +521,18 @@ class RiskAttributableDisease(ExcessMortalityState):
     # Helper methods #
     ##################
 
-    def with_condition(self, index):
+    def with_condition(self, index: pd.Index[int]) -> pd.Index[int]:
+        """Get the subset of simulants who have this condition.
+
+        Parameters
+        ----------
+        index
+            An iterable of integer labels for the simulants.
+
+        Returns
+        -------
+            The subset of simulants who are alive and have this condition.
+        """
         return self.population_view.get_filtered_index(
             index,
             query=f'is_alive == True and {self.cause.name} == "{self.cause.name}"',
