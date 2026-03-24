@@ -48,7 +48,7 @@ class RiskEffect(CausalFactorEffect):
 
     EXPOSURE_CLASS = Risk
 
-    ###############
+    ##############
     # Properties #
     ##############
 
@@ -85,15 +85,17 @@ class NonLogLinearRiskEffect(RiskEffect):
     some affected entity.
 
     This component:
-    1) reads TMRED data from the artifact and define the TMREL
-    2) calculates the relative risk at TMREL by linearly interpolating over
-    relative risk data defined in the configuration
-    3) divides relative risk data from configuration by RR at TMREL
-    and clip to be greater than 1
-    4) builds a LookupTable which returns the exposure and RR of the left and right edges
-    of the RR bin containing a simulant's exposure
-    5) uses this LookupTable to modify the target pipeline by linearly interpolating
-    a simulant's RR value and multiplying it by the intended target rate
+
+    1. Reads TMRED data from the artifact and defines the TMREL.
+    2. Calculates the relative risk at TMREL by linearly interpolating over
+       relative risk data defined in the configuration.
+    3. Divides relative risk data from configuration by RR at TMREL
+       and clips to be greater than 1.
+    4. Builds a ``LookupTable`` that returns the exposure and RR of the left
+       and right edges of the RR bin containing a simulant's exposure.
+    5. Uses this ``LookupTable`` to modify the target pipeline by linearly
+       interpolating a simulant's RR value and multiplying it by the intended
+       target rate.
 
     """
 

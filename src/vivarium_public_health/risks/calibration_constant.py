@@ -1,7 +1,7 @@
 """
-==========================================
+============================================
 Calibration Constant Pipeline Infrastructure
-==========================================
+============================================
 
 This module provides helper functions and internal machinery that register
 pipelines whose values are reduced by a joint calibration constant.

@@ -40,9 +40,9 @@ AXES = [BIRTH_WEIGHT, GESTATIONAL_AGE]
 class LBWSGDistribution(PolytomousDistribution):
     """Distribution model for the Low Birth Weight and Short Gestation risk.
 
-    Extend :class:`~vivarium_public_health.risks.distributions.PolytomousDistribution` to produce continuous
-    birth-weight and gestational-age exposures from categorical
-    propensities using category-specific intervals.
+    Extend :class:`~vivarium_public_health.causal_factor.distributions.PolytomousDistribution`
+    to produce continuous birth-weight and gestational-age exposures from
+    categorical propensities using category-specific intervals.
     """
 
     @property
@@ -353,15 +353,22 @@ class LBWSGDistribution(PolytomousDistribution):
 
     @staticmethod
     def _parse_description(description: str) -> tuple[pd.Interval, pd.Interval]:
-        """Parse a string corresponding to a low birth weight and short gestation
-        category to an Interval.
+        """Parse an LBWSG category description into gestational-age and birth-weight intervals.
 
-        An example of a standard description:
-        'Neonatal preterm and LBWSG (estimation years) - [0, 24) wks, [0, 500) g'
-        An example of an edge case for gestational age:
-        'Neonatal preterm and LBWSG (estimation years) - [40, 42+] wks, [2000, 2500) g'
-        An example of an edge case of birth weight:
-        'Neonatal preterm and LBWSG (estimation years) - [36, 37) wks, [4000, 9999] g'
+        Parameters
+        ----------
+        description
+            A string describing an LBWSG category, e.g.,
+            ``"Neonatal preterm and LBWSG (estimation years) - [0, 24) wks, [0, 500) g"``.
+
+        Returns
+        -------
+            A tuple of two intervals: (gestational age, birth weight).
+
+        Raises
+        ------
+        ValueError
+            If the description does not contain exactly 4 numeric values.
         """
         lbwsg_values = [float(val) for val in re.findall(r"(\d+)", description)]
         if len(list(lbwsg_values)) != 4:
@@ -377,9 +384,9 @@ class LBWSGDistribution(PolytomousDistribution):
 class LBWSGRisk(Risk):
     """Risk component for the Low Birth Weight and Short Gestation risk factor.
 
-    Extend :class:`~vivarium_public_health.risks.base_risk.Risk` with LBWSG-specific behavior including separate
-    birth-exposure pipelines, categorical and continuous propensities,
-    and two-axis (birth weight and gestational age) exposure tracking.
+    Extend :class:`~vivarium_public_health.risks.base_risk.Risk` with LBWSG-specific
+    behavior including separate birth-exposure pipelines, categorical and continuous
+    propensities, and two-axis (birth weight and gestational age) exposure tracking.
     """
 
     exposure_distributions = {"lbwsg": LBWSGDistribution}
