@@ -18,6 +18,7 @@ py:class PopulationView
 py:class Logger
 py:class pd.DataFrame
 py:class pd.Index
+py:class pd.Series
 py:class LayeredConfigTree
 # TODO: Need to revisit this. Nitpicking here to avoid failing everywhere
 py:class Builder
@@ -25,6 +26,12 @@ py:class SimulantData
 py:class Event
 py:class vivarium.framework.event.manager.Event
 py:class LookupTable
+
+# vivarium types and classes used in type hints
+py:class DataInput
+py:class Transition
+py:class Trigger
+py:class RandomnessStream
 
 py:meth __init__
 py:class Component

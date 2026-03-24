@@ -1,3 +1,10 @@
+"""Disease modeling tools for ``vivarium`` simulations.
+
+This package provides components for building state machine-based
+disease models, including disease states, transitions, and
+pre-built model parameterizations.
+"""
+
 from .model import DiseaseModel
 from .models import (
     SI,

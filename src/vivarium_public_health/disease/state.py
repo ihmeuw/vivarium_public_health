@@ -6,6 +6,7 @@ Disease States
 This module contains tools to manage standard disease states.
 
 """
+from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Callable
@@ -36,6 +37,11 @@ from vivarium_public_health.utilities import is_non_zero
 
 
 class BaseDiseaseState(State):
+    """Base class for disease states in a state machine model.
+
+    Provides shared infrastructure for tracking state event times,
+    prevalence-based initialization weights, and transitions.
+    """
 
     ##############
     # Properties #
@@ -76,6 +82,7 @@ class BaseDiseaseState(State):
 
     @property
     def has_dwell_time(self) -> bool:
+        """Whether this state has a non-zero dwell time."""
         dwell_time = self.dwell_time_table.data
         return (
             isinstance(dwell_time, pd.DataFrame) and np.any(dwell_time.value != 0)
@@ -91,7 +98,20 @@ class BaseDiseaseState(State):
         allow_self_transition: bool = True,
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
-    ):
+    ) -> None:
+        """
+        Parameters
+        ----------
+        state_id
+            The name of this state.
+        allow_self_transition
+            Whether this state allows simulants to remain in the state
+            for multiple time steps.
+        side_effect_function
+            A function to be called when this state is entered.
+        cause_type
+            The type of cause. Either "cause" or "sequela".
+        """
         super().__init__(state_id, allow_self_transition)
         self.cause_type = cause_type
 
@@ -107,6 +127,13 @@ class BaseDiseaseState(State):
         self.required_resources = []
 
     def setup(self, builder: Builder) -> None:
+        """Perform this component's setup.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.dwell_time_table = self.build_lookup_table(
             builder, "dwell_time", data_source=self.get_dwell_time(builder)
         )
@@ -137,6 +164,18 @@ class BaseDiseaseState(State):
     #################
 
     def get_dwell_time(self, builder: Builder) -> DataInput:
+        """Load the dwell time for this state from configuration.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The dwell time data, converted from a Timedelta to days
+            if applicable.
+        """
         dwell_time = self.get_data(
             builder, self.configuration.get(["data_sources", "dwell_time"])
         )
@@ -149,7 +188,13 @@ class BaseDiseaseState(State):
     ########################
 
     def initialize_event_time_and_count(self, pop_data: SimulantData) -> None:
-        """Adds this state's columns to the simulation state table."""
+        """Add this state's columns to the simulation state table.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants being initialized.
+        """
         for transition in self.transition_set:
             if transition.start_active:
                 transition.set_active(pop_data.index)
@@ -167,11 +212,22 @@ class BaseDiseaseState(State):
         return {"state_id": initialization_parameters["state_id"]}
 
     def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
+        """Get initial event times and counts for new simulants.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants being initialized.
+
+        Returns
+        -------
+            A DataFrame with event time and count columns for new simulants.
+        """
         return pd.DataFrame(
             {self.event_time_column: pd.NaT, self.event_count_column: 0}, index=pop_data.index
         )
 
-    def transition_side_effect(self, index: pd.Index, event_time: pd.Timestamp) -> None:
+    def transition_side_effect(self, index: pd.Index[int], event_time: pd.Timestamp) -> None:
         """Updates the simulation state and triggers any side effects associated with this state.
 
         Parameters
@@ -200,6 +256,12 @@ class BaseDiseaseState(State):
     ##################
 
     def get_transition_names(self) -> list[str]:
+        """Get the names of all transitions from this state.
+
+        Returns
+        -------
+            The transition names formatted as ``{from_state}_TO_{to_state}``.
+        """
         transitions = []
         for trans in self.transition_set.transitions:
             init_state = trans.input_state.name.split(".")[1]
@@ -210,7 +272,7 @@ class BaseDiseaseState(State):
     def add_rate_transition(
         self,
         output: "BaseDiseaseState",
-        triggered=Trigger.NOT_TRIGGERED,
+        triggered: Trigger = Trigger.NOT_TRIGGERED,
         transition_rate: DataInput | None = None,
         rate_type: str = "transition_rate",
     ) -> RateTransition:
@@ -221,7 +283,7 @@ class BaseDiseaseState(State):
         output
             The end state after the transition.
         triggered
-            The trigger for the transition
+            The trigger for the transition.
         transition_rate
             The transition rate source. Can be the data itself, a function to
             retrieve the data, or the artifact key containing the data.
@@ -246,7 +308,7 @@ class BaseDiseaseState(State):
     def add_proportion_transition(
         self,
         output: "BaseDiseaseState",
-        triggered=Trigger.NOT_TRIGGERED,
+        triggered: Trigger = Trigger.NOT_TRIGGERED,
         proportion: DataInput | None = None,
     ) -> ProportionTransition:
         """Builds a ProportionTransition from this state to the given state.
@@ -275,14 +337,33 @@ class BaseDiseaseState(State):
         return transition
 
     def add_dwell_time_transition(
-        self, output: "BaseDiseaseState", triggered=Trigger.NOT_TRIGGERED
+        self, output: "BaseDiseaseState", triggered: Trigger = Trigger.NOT_TRIGGERED
     ) -> Transition:
+        """Build a dwell time transition from this state to the given state.
+
+        Parameters
+        ----------
+        output
+            The end state after the transition.
+        triggered
+            The trigger for the transition.
+
+        Returns
+        -------
+            The created transition object.
+        """
         transition = Transition(self, output, triggered=triggered)
         self.add_transition(transition)
         return transition
 
 
 class NonDiseasedState(BaseDiseaseState):
+    """Base class for states representing the absence of a disease condition.
+
+    Provides a name prefix mechanism for creating properly named disease
+    states (e.g., ``susceptible_to_`` or ``recovered_from_``).
+    """
+
     #####################
     # Lifecycle methods #
     #####################
@@ -294,7 +375,22 @@ class NonDiseasedState(BaseDiseaseState):
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
         name_prefix: str = "",
-    ):
+    ) -> None:
+        """
+        Parameters
+        ----------
+        state_id
+            The name of this state.
+        allow_self_transition
+            Whether this state allows simulants to remain in the state
+            for multiple time steps.
+        side_effect_function
+            A function to be called when this state is entered.
+        cause_type
+            The type of cause. Either "cause" or "sequela".
+        name_prefix
+            The prefix to prepend to the state ID.
+        """
         if not state_id.startswith(name_prefix):
             state_id = f"{name_prefix}{state_id}"
         super().__init__(
@@ -311,9 +407,28 @@ class NonDiseasedState(BaseDiseaseState):
     def add_rate_transition(
         self,
         output: BaseDiseaseState,
-        triggered=Trigger.NOT_TRIGGERED,
+        triggered: Trigger = Trigger.NOT_TRIGGERED,
         transition_rate: DataInput | None = None,
     ) -> RateTransition:
+        """Build a rate transition from this state to the given state.
+
+        If no transition rate is provided, uses the incidence rate for
+        the output state from the artifact.
+
+        Parameters
+        ----------
+        output
+            The end state after the transition.
+        triggered
+            The trigger for the transition.
+        transition_rate
+            The transition rate source. Can be the data itself, a function
+            to retrieve the data, or the artifact key containing the data.
+
+        Returns
+        -------
+            The created transition object.
+        """
         if transition_rate is None:
             transition_rate = f"{self.cause_type}.{output.state_id}.incidence_rate"
         return super().add_rate_transition(
@@ -325,6 +440,11 @@ class NonDiseasedState(BaseDiseaseState):
 
 
 class SusceptibleState(NonDiseasedState):
+    """State representing susceptibility to a disease.
+
+    Automatically prepends ``susceptible_to_`` to the state ID.
+    """
+
     #####################
     # Lifecycle methods #
     #####################
@@ -335,7 +455,20 @@ class SusceptibleState(NonDiseasedState):
         allow_self_transition: bool = True,
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
-    ):
+    ) -> None:
+        """
+        Parameters
+        ----------
+        state_id
+            The name of the disease this state is susceptible to.
+        allow_self_transition
+            Whether this state allows simulants to remain in the state
+            for multiple time steps.
+        side_effect_function
+            A function to be called when this state is entered.
+        cause_type
+            The type of cause. Either "cause" or "sequela".
+        """
         super().__init__(
             state_id,
             allow_self_transition=allow_self_transition,
@@ -349,17 +482,41 @@ class SusceptibleState(NonDiseasedState):
     ##################
 
     def has_initialization_weights(self) -> bool:
+        """Whether this state has initialization weights.
+
+        Returns
+        -------
+            Always True for susceptible states.
+        """
         return True
 
 
 class RecoveredState(NonDiseasedState):
+    """State representing recovery from a disease.
+
+    Automatically prepends ``recovered_from_`` to the state ID.
+    """
+
     def __init__(
         self,
         state_id: str,
         allow_self_transition: bool = True,
         side_effect_function: Callable | None = None,
         cause_type: str = "cause",
-    ):
+    ) -> None:
+        """
+        Parameters
+        ----------
+        state_id
+            The name of the disease this state represents recovery from.
+        allow_self_transition
+            Whether this state allows simulants to remain in the state
+            for multiple time steps.
+        side_effect_function
+            A function to be called when this state is entered.
+        cause_type
+            The type of cause. Either "cause" or "sequela".
+        """
         super().__init__(
             state_id,
             allow_self_transition=allow_self_transition,
@@ -370,11 +527,24 @@ class RecoveredState(NonDiseasedState):
 
 
 class ExcessMortalityState(Component, ABC):
-    def __init__(self, *args, **kwargs):
+    """Mixin for disease states that may have excess mortality."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__()
         self._has_excess_mortality = None
 
     def has_excess_mortality(self, builder: Builder) -> bool:
+        """Determine whether this state has non-zero excess mortality.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            True if the state has non-zero excess mortality data.
+        """
         if self._has_excess_mortality is None:
             emr_source = builder.configuration.get(
                 [self.name, "data_sources", "excess_mortality_rate"]
@@ -521,7 +691,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         Parameters
         ----------
         builder
-            Interface to several simulation tools.
+            Access point for utilizing framework interfaces during setup.
         """
         self.randomness_prevalence = self.get_randomness_prevalence(builder)
         self.required_resources = [
@@ -559,6 +729,18 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     #################
 
     def get_prevalence_source(self, prevalence: DataInput | None) -> DataInput:
+        """Resolve the prevalence data source.
+
+        Parameters
+        ----------
+        prevalence
+            The prevalence source provided at construction, or None to
+            use the default artifact key.
+
+        Returns
+        -------
+            The resolved prevalence data source.
+        """
         return (
             prevalence
             if prevalence is not None
@@ -566,6 +748,18 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         )
 
     def get_disability_weight_source(self, disability_weight: DataInput | None) -> DataInput:
+        """Resolve the disability weight data source.
+
+        Parameters
+        ----------
+        disability_weight
+            The disability weight source provided at construction, or
+            None to use the default artifact key.
+
+        Returns
+        -------
+            The resolved disability weight data source.
+        """
         if disability_weight is None:
             disability_weight = f"{self.cause_type}.{self.state_id}.disability_weight"
 
@@ -579,6 +773,13 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         return disability_weight_source
 
     def register_disability_weight_pipeline(self, builder: Builder) -> None:
+        """Register the disability weight pipeline with the simulation.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_producer(
             f"{self.state_id}.disability_weight",
             source=self.compute_disability_weight,
@@ -588,6 +789,18 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     def get_excess_mortality_rate_source(
         self, excess_mortality_rate: DataInput | None
     ) -> DataInput:
+        """Resolve the excess mortality rate data source.
+
+        Parameters
+        ----------
+        excess_mortality_rate
+            The excess mortality rate source provided at construction,
+            or None to use the default artifact key.
+
+        Returns
+        -------
+            The resolved excess mortality rate data source.
+        """
         if excess_mortality_rate is None:
             excess_mortality_rate = f"{self.cause_type}.{self.state_id}.excess_mortality_rate"
 
@@ -603,6 +816,13 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         return excess_mortality_rate_source
 
     def register_excess_mortality_rate_pipeline(self, builder: Builder) -> None:
+        """Register the excess mortality rate pipeline with the simulation.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         register_risk_affected_rate_producer(
             builder=builder,
             name=self.excess_mortality_rate_pipeline,
@@ -611,6 +831,17 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         )
 
     def get_randomness_prevalence(self, builder: Builder) -> RandomnessStream:
+        """Get a randomness stream for assigning prevalent cases.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A randomness stream for prevalent case assignment.
+        """
         return builder.randomness.get_stream(f"{self.state_id}_prevalent_cases")
 
     ##################
@@ -618,15 +849,43 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     ##################
 
     def has_initialization_weights(self) -> bool:
+        """Whether this state has initialization weights.
+
+        Returns
+        -------
+            Always True for disease states.
+        """
         return True
 
     def add_rate_transition(
         self,
         output: BaseDiseaseState,
-        triggered=Trigger.NOT_TRIGGERED,
+        triggered: Trigger = Trigger.NOT_TRIGGERED,
         transition_rate: DataInput | None = None,
         rate_type: str = "transition_rate",
     ) -> RateTransition:
+        """Build a rate transition from this state to the given state.
+
+        If no transition rate is provided, uses the remission rate for
+        this state from the artifact.
+
+        Parameters
+        ----------
+        output
+            The end state after the transition.
+        triggered
+            The trigger for the transition.
+        transition_rate
+            The transition rate source. Can be the data itself, a function
+            to retrieve the data, or the artifact key containing the data.
+        rate_type
+            The type of rate. Can be "incidence_rate", "transition_rate",
+            or "remission_rate".
+
+        Returns
+        -------
+            The created transition object.
+        """
         if transition_rate is None:
             transition_rate = f"{self.cause_type}.{self.state_id}.remission_rate"
             rate_type = "remission_rate"
@@ -638,7 +897,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         )
 
     def next_state(
-        self, index: pd.Index, event_time: pd.Timestamp, population_view: PopulationView
+        self, index: pd.Index[int], event_time: pd.Timestamp, population_view: PopulationView
     ) -> None:
         """Moves a population among different disease states.
 
@@ -658,7 +917,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     # Pipeline sources and modifiers #
     ##################################
 
-    def compute_disability_weight(self, index: pd.Index) -> pd.Series:
+    def compute_disability_weight(self, index: pd.Index[int]) -> pd.Series[float]:
         """Gets the disability weight associated with this state.
 
         Parameters
@@ -675,14 +934,28 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         disability_weight.loc[with_condition] = self.disability_weight_table(with_condition)
         return disability_weight
 
-    def compute_excess_mortality_rate(self, index: pd.Index) -> pd.Series:
+    def compute_excess_mortality_rate(self, index: pd.Index[int]) -> pd.Series[float]:
+        """Get the excess mortality rate associated with this state.
+
+        Parameters
+        ----------
+        index
+            An iterable of integer labels for the simulants.
+
+        Returns
+        -------
+            An iterable of excess mortality rates indexed by the
+            provided ``index``.
+        """
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         base_excess_mort = self.excess_mortality_rate_table(with_condition)
         excess_mortality_rate.loc[with_condition] = base_excess_mort
         return excess_mortality_rate
 
-    def adjust_mortality_rate(self, index: pd.Index, rates_df: pd.DataFrame) -> pd.DataFrame:
+    def adjust_mortality_rate(
+        self, index: pd.Index[int], rates_df: pd.DataFrame
+    ) -> pd.DataFrame:
         """Modifies the baseline mortality rate for a simulant if they are in this state.
 
         Parameters
@@ -707,6 +980,17 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
     ##################
 
     def get_initial_event_times(self, pop_data: SimulantData) -> pd.DataFrame:
+        """Get initial event times for new simulants, including prevalent cases.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants being initialized.
+
+        Returns
+        -------
+            A DataFrame with event time and count columns for new simulants.
+        """
         pop_update = super().get_initial_event_times(pop_data)
 
         simulants_with_condition = self.population_view.get(
@@ -727,7 +1011,18 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
 
         return pop_update
 
-    def with_condition(self, index: pd.Index) -> pd.Index:
+    def with_condition(self, index: pd.Index[int]) -> pd.Index[int]:
+        """Get the subset of simulants who are in this disease state.
+
+        Parameters
+        ----------
+        index
+            An iterable of integer labels for the simulants.
+
+        Returns
+        -------
+            The subset of simulants who are alive and in this state.
+        """
         return self.population_view.get_filtered_index(
             index, query=f'{self.model}=="{self.state_id}" and is_alive == True'
         )
@@ -740,7 +1035,9 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         infected_at = current_time - pd.to_timedelta(infected_at, unit="D")
         return infected_at
 
-    def _filter_for_transition_eligibility(self, index, event_time) -> pd.Index:
+    def _filter_for_transition_eligibility(
+        self, index: pd.Index[int], event_time: pd.Timestamp
+    ) -> pd.Index[int]:
         """Filter out all simulants who haven't been in the state for the prescribed dwell time.
 
         Parameters
@@ -764,10 +1061,16 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         else:
             return index
 
-    def _cleanup_effect(self, index, event_time):
+    def _cleanup_effect(self, index: pd.Index[int], event_time: pd.Timestamp) -> None:
         if self._cleanup_function is not None:
             self._cleanup_function(index, event_time)
 
 
 class TransientDiseaseState(BaseDiseaseState, Transient):
+    """A disease state that simulants pass through instantaneously.
+
+    Simulants do not remain in this state; they transition to another
+    state within the same time step.
+    """
+
     pass

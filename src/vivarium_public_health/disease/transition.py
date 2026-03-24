@@ -6,6 +6,7 @@ Disease Transitions
 This module contains tools to model transitions between disease states.
 
 """
+from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
@@ -30,17 +31,28 @@ if TYPE_CHECKING:
 
 
 class TransitionString(str):
-    def __new__(cls, value):
+    """A string subclass representing a transition between two disease states.
+
+    Parses the transition name into ``from_state`` and ``to_state``
+    attributes from the format ``{from_state}_TO_{to_state}``.
+    """
+
+    def __new__(cls, value: str) -> "TransitionString":
         # noinspection PyArgumentList
         obj = str.__new__(cls, value.lower())
         obj.from_state, obj.to_state = value.split("_TO_")
         return obj
 
-    def __getnewargs__(self):
+    def __getnewargs__(self) -> tuple[str]:
         return (self.from_state + "_TO_" + self.to_state,)
 
 
 class RateTransition(Transition):
+    """A transition between disease states governed by a rate.
+
+    Converts the rate to a probability using either a linear or
+    exponential conversion at each time step.
+    """
 
     ##############
     # Properties #
@@ -99,9 +111,25 @@ class RateTransition(Transition):
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
         transition_rate: DataInput,
-        triggered=Trigger.NOT_TRIGGERED,
+        triggered: Trigger = Trigger.NOT_TRIGGERED,
         rate_type: str = "transition_rate",
     ):
+        """
+        Parameters
+        ----------
+        input_state
+            The starting state of this transition.
+        output_state
+            The ending state of this transition.
+        transition_rate
+            The transition rate source. Can be the data itself, a function
+            to retrieve the data, or the artifact key containing the data.
+        triggered
+            The trigger for the transition.
+        rate_type
+            The type of rate. Can be "incidence_rate", "transition_rate",
+            or "remission_rate".
+        """
         super().__init__(
             input_state, output_state, probability_func=self._probability, triggered=triggered
         )
@@ -109,6 +137,13 @@ class RateTransition(Transition):
         self.rate_type = rate_type
 
     def setup(self, builder: Builder) -> None:
+        """Perform this component's setup.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.transition_rate_table = self.build_lookup_table(builder, "transition_rate")
         register_risk_affected_rate_producer(
             builder=builder,
@@ -123,7 +158,18 @@ class RateTransition(Transition):
     # Pipeline sources and modifiers #
     ##################################
 
-    def compute_transition_rate(self, index: pd.Index) -> pd.Series:
+    def compute_transition_rate(self, index: pd.Index[int]) -> pd.Series[float]:
+        """Compute the transition rate for the given simulants.
+
+        Parameters
+        ----------
+        index
+            An iterable of integer labels for the simulants.
+
+        Returns
+        -------
+            The transition rates indexed by the provided ``index``.
+        """
         transition_rate = pd.Series(0.0, index=index)
         living = self.population_view.get_filtered_index(index, query="is_alive == True")
         base_rates = self.transition_rate_table(living)
@@ -134,7 +180,7 @@ class RateTransition(Transition):
     # Helper methods #
     ##################
 
-    def _probability(self, index: pd.Index) -> pd.Series:
+    def _probability(self, index: pd.Index[int]) -> pd.Series[float]:
         return pd.Series(
             rate_to_probability(
                 self.population_view.get(index, self.transition_rate_pipeline),
@@ -144,6 +190,11 @@ class RateTransition(Transition):
 
 
 class ProportionTransition(Transition):
+    """A transition between disease states governed by a fixed proportion.
+
+    At each time step, a fixed proportion of eligible simulants
+    transition to the output state.
+    """
 
     ##############
     # Properties #
@@ -180,15 +231,35 @@ class ProportionTransition(Transition):
         input_state: "BaseDiseaseState",
         output_state: "BaseDiseaseState",
         proportion: DataInput,
-        triggered=Trigger.NOT_TRIGGERED,
+        triggered: Trigger = Trigger.NOT_TRIGGERED,
     ):
+        """
+        Parameters
+        ----------
+        input_state
+            The starting state of this transition.
+        output_state
+            The ending state of this transition.
+        proportion
+            The proportion source. Can be the data itself, a function
+            to retrieve the data, or the artifact key containing the data.
+        triggered
+            The trigger for the transition.
+        """
         super().__init__(
             input_state, output_state, probability_func=self._probability, triggered=triggered
         )
         self.proportion = proportion
 
     def setup(self, builder: Builder) -> None:
+        """Perform this component's setup.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.proportion_table = self.build_lookup_table(builder, "proportion")
 
-    def _probability(self, index):
+    def _probability(self, index: pd.Index[int]) -> pd.Series[float]:
         return self.proportion_table(index)
