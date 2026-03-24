@@ -9,4 +9,3 @@ Causal Factor Framework
    :glob:
 
    *
-   */index
