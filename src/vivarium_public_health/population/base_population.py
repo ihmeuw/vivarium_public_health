@@ -582,13 +582,11 @@ def generate_population(
     distinct initialization strategies with different common random number (CRN)
     registration requirements:
 
-        - **Fixed initial age** (``age_start == age_end``): Calls
-            `vivarium_public_health.population.base_population._assign_demography_with_initial_age`.
+        - **Fixed initial age** (``age_start == age_end``): Calls `_assign_demography_with_initial_age`.
             This applies age fuzz smoothing and registers ``entrance_time`` and
             ``age`` to the CRN framework.
 
-        - **Age range** (``age_start != age_end``): Calls
-            `vivarium_public_health.population.base_population._assign_demography_with_age_bounds`.
+        - **Age range** (``age_start != age_end``): Calls `_assign_demography_with_age_bounds`.
             This selects from age bins, smooths ages further, and registers
             the customizable ``key_columns`` to the CRN framework.
 
