@@ -8,18 +8,32 @@ from vivarium import Component, InteractiveContext
 from vivarium.framework.engine import Builder
 
 from tests.test_utilities import build_table_with_age
+from vivarium_public_health.causal_factor.calibration_constant import (
+    get_calibration_constant_pipeline_name,
+)
+from vivarium_public_health.causal_factor.distributions import (
+    EnsembleDistribution,
+    PolytomousDistribution,
+)
 from vivarium_public_health.disease import SIS
 from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.risks import RiskEffect
 from vivarium_public_health.risks.base_risk import Risk
-from vivarium_public_health.risks.calibration_constant import (
-    get_calibration_constant_pipeline_name,
-)
-from vivarium_public_health.risks.distributions import (
-    EnsembleDistribution,
-    PolytomousDistribution,
-)
 from vivarium_public_health.utilities import EntityString
+
+
+def test_validate_entity_type():
+    """Test that Risk only accepts valid entity types."""
+    # Valid entity types should not raise
+    Risk("risk_factor.test_risk")
+    Risk("alternative_risk_factor.test_risk")
+
+    # Invalid entity type should raise ValueError
+    with pytest.raises(ValueError, match="Entity type must be one of"):
+        Risk("cause.some_cause")
+
+    with pytest.raises(ValueError, match="Entity type must be one of"):
+        Risk("intervention.some_intervention")
 
 
 @pytest.fixture
@@ -179,7 +193,7 @@ def test_polytomous_risk(polytomous_risk, base_config, base_plugins):
 
     _check_exposure_and_rr(
         simulation,
-        risk.risk,
+        risk.causal_factor,
         exposure_data.to_dict(),
         rr_data["value"].to_dict(),
     )
@@ -188,7 +202,7 @@ def test_polytomous_risk(polytomous_risk, base_config, base_plugins):
 
     _check_exposure_and_rr(
         simulation,
-        risk.risk,
+        risk.causal_factor,
         exposure_data.to_dict(),
         rr_data["value"].to_dict(),
     )
@@ -241,19 +255,16 @@ def test_dichotomous_risk(base_config, base_plugins, scalar_exposure):
             },
         }
     )
-    category_exposures = {"cat1": 0.25, "cat2": 0.75}
+    category_exposures = {"exposed": 0.25, "unexposed": 0.75}
+    category_rrs = {"exposed": 1.5, "unexposed": 1.0}
 
     simulation = _setup_risk_simulation(base_config, base_plugins, risk, data)
 
-    _check_exposure_and_rr(
-        simulation, risk.risk, category_exposures, rr_data["value"].to_dict()
-    )
+    _check_exposure_and_rr(simulation, risk.causal_factor, category_exposures, category_rrs)
 
     simulation.step()
 
-    _check_exposure_and_rr(
-        simulation, risk.risk, category_exposures, rr_data["value"].to_dict()
-    )
+    _check_exposure_and_rr(simulation, risk.causal_factor, category_exposures, category_rrs)
 
 
 def test_ensemble_risk(base_config, base_plugins):
