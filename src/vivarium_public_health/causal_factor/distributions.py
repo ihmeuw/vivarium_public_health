@@ -9,7 +9,9 @@ exposure distributions.
 """
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -20,10 +22,10 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN, LookupTable
 from vivarium.framework.population import SimulantData
 
-from vivarium_public_health.risks.calibration_constant import (
+from vivarium_public_health.causal_factor.calibration_constant import (
     register_risk_affected_attribute_producer,
 )
-from vivarium_public_health.risks.data_transformations import pivot_categorical
+from vivarium_public_health.causal_factor.utilities import pivot_categorical
 from vivarium_public_health.utilities import EntityString
 
 
@@ -31,7 +33,7 @@ class MissingDataError(Exception):
     pass
 
 
-class RiskExposureDistribution(Component, ABC):
+class CausalFactorDistribution(Component, ABC):
 
     #####################
     # Lifecycle methods #
@@ -39,24 +41,24 @@ class RiskExposureDistribution(Component, ABC):
 
     def __init__(
         self,
-        risk: EntityString,
+        causal_factor: EntityString,
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
         super().__init__()
-        self.risk = risk
+        self.causal_factor = causal_factor
         self.distribution_type = distribution_type
         self._exposure_data = exposure_data
 
-        self.risk_propensity = f"{self.risk.name}.propensity"
-        self.exposure_ppf_pipeline = f"{self.risk.name}.exposure_distribution.ppf"
+        self.causal_factor_propensity = f"{self.causal_factor.name}.propensity"
+        self.exposure_ppf_pipeline = f"{self.causal_factor.name}.exposure_distribution.ppf"
 
     #################
     # Setup methods #
     #################
 
     def get_configuration(self, builder: "Builder") -> LayeredConfigTree | None:
-        return builder.configuration[self.risk]
+        return builder.configuration[self.causal_factor]
 
     def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
         if self._exposure_data is not None:
@@ -71,15 +73,17 @@ class RiskExposureDistribution(Component, ABC):
         pass
 
 
-class EnsembleDistribution(RiskExposureDistribution):
+class EnsembleDistribution(CausalFactorDistribution):
 
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: EntityString, distribution_type: str = "ensemble") -> None:
-        super().__init__(risk, distribution_type)
-        self.ensemble_propensity = f"ensemble_propensity.{self.risk}"
+    def __init__(
+        self, causal_factor: EntityString, distribution_type: str = "ensemble"
+    ) -> None:
+        super().__init__(causal_factor, distribution_type)
+        self.ensemble_propensity = f"ensemble_propensity.{self.causal_factor}"
 
     #################
     # Setup methods #
@@ -147,7 +151,11 @@ class EnsembleDistribution(RiskExposureDistribution):
             builder=builder,
             name=self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            required_resources=[*tables, self.risk_propensity, self.ensemble_propensity],
+            required_resources=[
+                *tables,
+                self.causal_factor_propensity,
+                self.ensemble_propensity,
+            ],
         )
 
     ########################
@@ -166,9 +174,9 @@ class EnsembleDistribution(RiskExposureDistribution):
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get_attributes(
-            index, [self.risk_propensity, self.ensemble_propensity]
+            index, [self.causal_factor_propensity, self.ensemble_propensity]
         )
-        quantiles = pop[self.risk_propensity]
+        quantiles = pop[self.causal_factor_propensity]
 
         if not pop.empty:
             quantiles = clip(quantiles)
@@ -185,14 +193,14 @@ class EnsembleDistribution(RiskExposureDistribution):
         return x
 
 
-class ContinuousDistribution(RiskExposureDistribution):
+class ContinuousDistribution(CausalFactorDistribution):
     #####################
     # Lifecycle methods #
     #####################
 
-    def __init__(self, risk: EntityString, distribution_type: str) -> None:
-        super().__init__(risk, distribution_type)
-        self.exposure_params_name = f"{self.risk}.exposure_parameters"
+    def __init__(self, causal_factor: EntityString, distribution_type: str) -> None:
+        super().__init__(causal_factor, distribution_type)
+        self.exposure_params_name = f"{self.causal_factor}.exposure_parameters"
         self.standard_deviation = None
         try:
             self._distribution = {
@@ -202,7 +210,7 @@ class ContinuousDistribution(RiskExposureDistribution):
         except KeyError:
             raise NotImplementedError(
                 f"Distribution type {distribution_type} is not supported for "
-                f"risk {risk.name}."
+                f"causal_factor {self.causal_factor.name}."
             )
 
     #################
@@ -235,7 +243,7 @@ class ContinuousDistribution(RiskExposureDistribution):
             builder=builder,
             name=self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            required_resources=[self.exposure_params_name, self.risk_propensity],
+            required_resources=[self.exposure_params_name, self.causal_factor_propensity],
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
@@ -249,9 +257,9 @@ class ContinuousDistribution(RiskExposureDistribution):
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get_attributes(
-            index, [self.risk_propensity, self.exposure_params_name]
+            index, [self.causal_factor_propensity, self.exposure_params_name]
         )
-        quantiles = pop[self.risk_propensity]
+        quantiles = pop[self.causal_factor_propensity]
 
         if not quantiles.empty:
             quantiles = clip(quantiles)
@@ -262,7 +270,7 @@ class ContinuousDistribution(RiskExposureDistribution):
         return x
 
 
-class PolytomousDistribution(RiskExposureDistribution):
+class PolytomousDistribution(CausalFactorDistribution):
     @property
     def categories(self) -> list[str]:
         # These need to be sorted so the cumulative sum is in the correct order of categories
@@ -275,12 +283,12 @@ class PolytomousDistribution(RiskExposureDistribution):
 
     def __init__(
         self,
-        risk: EntityString,
+        causal_factor: EntityString,
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
-        super().__init__(risk, distribution_type, exposure_data)
-        self.exposure_params_pipeline = f"{self.risk}.exposure_parameters"
+        super().__init__(causal_factor, distribution_type, exposure_data)
+        self.exposure_params_pipeline = f"{self.causal_factor}.exposure_parameters"
 
     #################
     # Setup methods #
@@ -302,7 +310,7 @@ class PolytomousDistribution(RiskExposureDistribution):
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            required_resources=[self.exposure_params_pipeline, self.risk_propensity],
+            required_resources=[self.exposure_params_pipeline, self.causal_factor_propensity],
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
@@ -327,9 +335,9 @@ class PolytomousDistribution(RiskExposureDistribution):
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(
-            index, [self.risk_propensity, self.exposure_params_pipeline]
+            index, [self.causal_factor_propensity, self.exposure_params_pipeline]
         )
-        quantiles = pop[self.risk_propensity]
+        quantiles = pop[self.causal_factor_propensity]
         sorted_exposures = pop[self.exposure_params_pipeline][self.categories]
 
         if not np.allclose(1, np.sum(sorted_exposures, axis=1)):
@@ -340,12 +348,55 @@ class PolytomousDistribution(RiskExposureDistribution):
         ).sum(axis=1)
         return pd.Series(
             np.array(self.categories)[category_index],
-            name=self.risk + ".exposure",
+            name=self.causal_factor + ".exposure",
             index=quantiles.index,
         )
 
 
-class DichotomousDistribution(RiskExposureDistribution):
+class DichotomousDistribution(CausalFactorDistribution):
+    @property
+    def exposed(self) -> str:
+        """The name of the exposed category for this intervention."""
+        return "covered" if self.causal_factor.type == "intervention" else "exposed"
+
+    @property
+    def unexposed(self) -> str:
+        """The name of the unexposed category for this intervention."""
+        return "uncovered" if self.causal_factor.type == "intervention" else "unexposed"
+
+    def rename_deprecated_categories(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Rename deprecated cat1/cat2 parameter values to exposed/unexposed.
+
+        If the data contains ``'cat1'`` in its ``'parameter'`` column, the
+        values are replaced with the distribution's :attr:`exposed` and
+        :attr:`unexposed` names.  A :class:`FutureWarning` is emitted for
+        non-intervention causal factors to signal that the old names will be
+        removed in a future release.
+
+        Parameters
+        ----------
+        data
+            A DataFrame with a ``'parameter'`` column.
+
+        Returns
+        -------
+            The DataFrame with renamed parameter values (modified in place).
+        """
+        if "cat1" not in data["parameter"].values:
+            return data
+
+        if self.causal_factor.type != "intervention":
+            warnings.warn(
+                "Using 'cat1' and 'cat2' for dichotomous exposure is deprecated "
+                "and will be removed in a future release. Use "
+                f"'{self.exposed}' and '{self.unexposed}' instead.",
+                FutureWarning,
+                stacklevel=3,
+            )
+        data["parameter"] = data["parameter"].replace(
+            {"cat1": self.exposed, "cat2": self.unexposed}
+        )
+        return data
 
     #####################
     # Lifecycle methods #
@@ -353,12 +404,12 @@ class DichotomousDistribution(RiskExposureDistribution):
 
     def __init__(
         self,
-        risk: EntityString,
+        causal_factor: EntityString,
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
-        super().__init__(risk, distribution_type, exposure_data)
-        self.exposure_params_name = f"{self.risk}.exposure_parameters"
+        super().__init__(causal_factor, distribution_type, exposure_data)
+        self.exposure_params_name = f"{self.causal_factor}.exposure_parameters"
 
     #################
     # Setup methods #
@@ -373,7 +424,7 @@ class DichotomousDistribution(RiskExposureDistribution):
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
-            required_resources=[self.exposure_params_name, self.risk_propensity],
+            required_resources=[self.exposure_params_name, self.causal_factor_propensity],
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
@@ -391,9 +442,11 @@ class DichotomousDistribution(RiskExposureDistribution):
             any_negatives = (data[DEFAULT_VALUE_COLUMN] < 0).any().any()
             any_over_one = (data[DEFAULT_VALUE_COLUMN] > 1).any().any()
             if any_negatives or any_over_one:
-                raise ValueError(f"All exposures must be in the range [0, 1] for {self.risk}")
+                raise ValueError(
+                    f"All exposures must be in the range [0, 1] for {self.causal_factor}"
+                )
         elif data < 0 or data > 1:
-            raise ValueError(f"Exposure must be in the range [0, 1] for {self.risk}")
+            raise ValueError(f"Exposure must be in the range [0, 1] for {self.causal_factor}")
 
         return self.build_lookup_table(builder, "exposure", data)
 
@@ -406,20 +459,20 @@ class DichotomousDistribution(RiskExposureDistribution):
         # rebin exposure categories
         self.validate_rebin_source(builder, exposure_data)
         rebin_exposed_categories = set(self.configuration["rebinned_exposed"])
+        exposure_data = self.rename_deprecated_categories(exposure_data)
         if rebin_exposed_categories:
             exposure_data = self._rebin_exposure_data(exposure_data, rebin_exposed_categories)
 
-        exposure_data = exposure_data[exposure_data["parameter"] == "cat1"]
+        exposure_data = exposure_data[exposure_data["parameter"] == self.exposed]
         return exposure_data.drop(columns="parameter")
 
-    @staticmethod
     def _rebin_exposure_data(
-        exposure_data: pd.DataFrame, rebin_exposed_categories: set
+        self, exposure_data: pd.DataFrame, rebin_exposed_categories: set
     ) -> pd.DataFrame:
         exposure_data = exposure_data[
             exposure_data["parameter"].isin(rebin_exposed_categories)
         ]
-        exposure_data["parameter"] = "cat1"
+        exposure_data["parameter"] = self.exposed
         exposure_data = (
             exposure_data.groupby(list(exposure_data.columns.difference(["value"])))
             .sum()
@@ -435,29 +488,31 @@ class DichotomousDistribution(RiskExposureDistribution):
         if not isinstance(data, pd.DataFrame):
             return
 
-        rebin_exposed_categories = set(builder.configuration[self.risk]["rebinned_exposed"])
+        rebin_exposed_categories = set(
+            builder.configuration[self.causal_factor]["rebinned_exposed"]
+        )
 
         if (
             rebin_exposed_categories
-            and builder.configuration[self.risk]["category_thresholds"]
+            and builder.configuration[self.causal_factor]["category_thresholds"]
         ):
             raise ValueError(
                 f"Rebinning and category thresholds are mutually exclusive. "
-                f"You provided both for {self.risk.name}."
+                f"You provided both for {self.causal_factor.name}."
             )
 
         invalid_cats = rebin_exposed_categories.difference(set(data.parameter))
         if invalid_cats:
             raise ValueError(
                 f"The following provided categories for the rebinned exposed "
-                f"category of {self.risk.name} are not found in the exposure data: "
+                f"category of {self.causal_factor.name} are not found in the exposure data: "
                 f"{invalid_cats}."
             )
 
         if rebin_exposed_categories == set(data.parameter):
             raise ValueError(
                 f"The provided categories for the rebinned exposed category of "
-                f"{self.risk.name} comprise all categories for the exposure data. "
+                f"{self.causal_factor.name} comprise all categories for the exposure data. "
                 f"At least one category must be left out of the provided categories "
                 f"to be rebinned into the unexposed category."
             )
@@ -471,13 +526,13 @@ class DichotomousDistribution(RiskExposureDistribution):
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
         pop = self.population_view.get(
-            index, [self.risk_propensity, self.exposure_params_name]
+            index, [self.causal_factor_propensity, self.exposure_params_name]
         )
-        quantiles = pop[self.risk_propensity]
+        quantiles = pop[self.causal_factor_propensity]
         exposed = quantiles < pop[self.exposure_params_name]
         return pd.Series(
-            exposed.replace({True: "cat1", False: "cat2"}),
-            name=self.risk + ".exposure",
+            exposed.replace({True: self.exposed, False: self.unexposed}),
+            name=self.causal_factor + ".exposure",
             index=quantiles.index,
         )
 
