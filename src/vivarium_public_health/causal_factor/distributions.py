@@ -30,18 +30,10 @@ from vivarium_public_health.utilities import EntityString
 
 
 class MissingDataError(Exception):
-    """Custom exception for missing data."""
-
     pass
 
 
 class CausalFactorDistribution(Component, ABC):
-    """Abstract base class for causal factor exposure distribution models.
-
-    Subclasses implement specific distribution types (e.g., continuous,
-    polytomous, dichotomous, ensemble) for modeling causal factor exposures
-    in a simulation.
-    """
 
     #####################
     # Lifecycle methods #
@@ -53,18 +45,6 @@ class CausalFactorDistribution(Component, ABC):
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
-        """
-        Parameters
-        ----------
-        causal_factor
-            The entity string identifying the risk factor.
-        distribution_type
-            The type of distribution (e.g., ``"normal"``,
-            ``"dichotomous"``).
-        exposure_data
-            Optional pre-loaded exposure data.  If ``None``, data is
-            loaded from the simulation during setup.
-        """
         super().__init__()
         self.causal_factor = causal_factor
         self.distribution_type = distribution_type
@@ -78,64 +58,22 @@ class CausalFactorDistribution(Component, ABC):
     #################
 
     def get_configuration(self, builder: "Builder") -> LayeredConfigTree | None:
-        """Return the configuration tree for this causal factor.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-
-        Returns
-        -------
-            The configuration sub-tree for this causal factor.
-        """
         return builder.configuration[self.causal_factor]
 
     def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
-        """Return exposure data (using pre-loaded data if available).
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-
-        Returns
-        -------
-            The exposure data for this risk factor.
-        """
         if self._exposure_data is not None:
             return self._exposure_data
         return self.get_data(builder, self.configuration["data_sources"]["exposure"])
 
     def setup(self, builder: Builder) -> None:
-        """Register the exposure PPF pipeline.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         self.register_exposure_ppf_pipeline(builder)
 
     @abstractmethod
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
-        """Register the exposure PPF pipeline with the simulation.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         pass
 
 
 class EnsembleDistribution(CausalFactorDistribution):
-    """Model risk exposure using an ensemble of weighted distributions.
-
-    Combine multiple parametric distributions (e.g., normal, log-normal,
-    gamma) weighted by GBD-derived weights to represent complex exposure
-    distributions.
-    """
 
     #####################
     # Lifecycle methods #
@@ -144,14 +82,6 @@ class EnsembleDistribution(CausalFactorDistribution):
     def __init__(
         self, causal_factor: EntityString, distribution_type: str = "ensemble"
     ) -> None:
-        """
-        Parameters
-        ----------
-        causal_factor
-            The entity string identifying the causal factor.
-        distribution_type
-            The distribution type label. Default is ``"ensemble"``.
-        """
         super().__init__(causal_factor, distribution_type)
         self.ensemble_propensity = f"ensemble_propensity.{self.causal_factor}"
 
@@ -160,13 +90,6 @@ class EnsembleDistribution(CausalFactorDistribution):
     #################
 
     def setup(self, builder: Builder) -> None:
-        """Build distribution weight and parameter lookup tables.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         distributions, weights, parameters = self.get_distribution_definitions(builder)
         self.distribution_weights_table = self.build_lookup_table(
             builder,
@@ -196,23 +119,6 @@ class EnsembleDistribution(CausalFactorDistribution):
     def get_distribution_definitions(
         self, builder: Builder
     ) -> tuple[list[str], pd.DataFrame, dict[str, pd.DataFrame]]:
-        """Load and compute ensemble distribution definitions.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-
-        Returns
-        -------
-            A tuple of (distribution names, weights DataFrame,
-            parameter dict keyed by distribution name).
-
-        Raises
-        ------
-        NotImplementedError
-            If the ``glnorm`` distribution has non-zero weights.
-        """
         exposure_data = self.get_exposure_data(builder)
         standard_deviation = self.get_data(
             builder,
@@ -240,13 +146,6 @@ class EnsembleDistribution(CausalFactorDistribution):
         return distributions, weights.reset_index(), parameters
 
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
-        """Register the ensemble exposure PPF pipeline.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         tables = [self.distribution_weights_table, *self.parameters.values()]
         register_risk_affected_attribute_producer(
             builder=builder,
@@ -264,13 +163,6 @@ class EnsembleDistribution(CausalFactorDistribution):
     ########################
 
     def initialize_ensemble_propensity(self, pop_data: SimulantData) -> None:
-        """Initialize propensities for selecting child distributions in the ensemble.
-
-        Parameters
-        ----------
-        pop_data
-            Metadata about the simulants being initialized.
-        """
         ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(
             self.ensemble_propensity
         )
@@ -281,17 +173,6 @@ class EnsembleDistribution(CausalFactorDistribution):
     ##################################
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        """Calculate exposure values from propensities using the ensemble.
-
-        Parameters
-        ----------
-        index
-            An index representing the simulants.
-
-        Returns
-        -------
-            A series of exposure values.
-        """
         pop = self.population_view.get_attributes(
             index, [self.causal_factor_propensity, self.ensemble_propensity]
         )
@@ -313,32 +194,11 @@ class EnsembleDistribution(CausalFactorDistribution):
 
 
 class ContinuousDistribution(CausalFactorDistribution):
-    """Model risk exposure using a continuous parametric distribution.
-
-    Support ``"normal"`` and ``"lognormal"`` distribution types.  Exposure
-    values are derived from the distribution's percent-point function
-    evaluated at each simulant's propensity.
-    """
-
     #####################
     # Lifecycle methods #
     #####################
 
     def __init__(self, causal_factor: EntityString, distribution_type: str) -> None:
-        """
-        Parameters
-        ----------
-        causal_factor
-            The entity string identifying the causal factor.
-        distribution_type
-            The distribution type (``"normal"`` or ``"lognormal"``).
-
-        Raises
-        ------
-        NotImplementedError
-            If the distribution type is not ``"normal"`` or
-            ``"lognormal"``.
-        """
         super().__init__(causal_factor, distribution_type)
         self.exposure_params_name = f"{self.causal_factor}.exposure_parameters"
         self.standard_deviation = None
@@ -357,14 +217,7 @@ class ContinuousDistribution(CausalFactorDistribution):
     # Setup methods #
     #################
 
-    def setup(self, builder: Builder) -> None:
-        """Compute distribution parameters and register pipelines.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
+    def setup(self, builder):
         parameters = self.get_distribution_parameters(builder)
         self.parameters_table = self.build_lookup_table(
             builder,
@@ -375,18 +228,7 @@ class ContinuousDistribution(CausalFactorDistribution):
         self.register_exposure_params_pipeline(builder)
         super().setup(builder)
 
-    def get_distribution_parameters(self, builder: Builder) -> pd.DataFrame:
-        """Compute the distribution parameters from exposure data.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-
-        Returns
-        -------
-            A DataFrame of distribution parameters (e.g., loc, scale).
-        """
+    def get_distribution_parameters(self, builder: "Builder") -> None:
         exposure_data = self.get_exposure_data(builder)
         standard_deviation = self.get_data(
             builder, self.configuration["data_sources"]["exposure_standard_deviation"]
@@ -397,13 +239,6 @@ class ContinuousDistribution(CausalFactorDistribution):
         )
 
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
-        """Register the continuous exposure PPF pipeline.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         register_risk_affected_attribute_producer(
             builder=builder,
             name=self.exposure_ppf_pipeline,
@@ -412,13 +247,6 @@ class ContinuousDistribution(CausalFactorDistribution):
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
-        """Register the exposure parameters pipeline.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         builder.value.register_attribute_producer(
             self.exposure_params_name, source=self.parameters_table
         )
@@ -428,17 +256,6 @@ class ContinuousDistribution(CausalFactorDistribution):
     ##################################
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        """Calculate exposure values from propensities.
-
-        Parameters
-        ----------
-        index
-            An index representing the simulants.
-
-        Returns
-        -------
-            A series of exposure values.
-        """
         pop = self.population_view.get_attributes(
             index, [self.causal_factor_propensity, self.exposure_params_name]
         )
@@ -454,15 +271,8 @@ class ContinuousDistribution(CausalFactorDistribution):
 
 
 class PolytomousDistribution(CausalFactorDistribution):
-    """Model risk exposure as a set of ordered or unordered categories.
-
-    Assign each simulant to a category by comparing their propensity
-    against the cumulative sum of category exposure probabilities.
-    """
-
     @property
     def categories(self) -> list[str]:
-        """The sorted list of exposure category names."""
         # These need to be sorted so the cumulative sum is in the correct order of categories
         # and results are therefore reproducible and correct
         return sorted(self.exposure_params_table.value_columns)
@@ -477,16 +287,6 @@ class PolytomousDistribution(CausalFactorDistribution):
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
-        """
-        Parameters
-        ----------
-        causal_factor
-            The entity string identifying the causal factor.
-        distribution_type
-            The distribution type (e.g., ``"ordered_polytomous"``).
-        exposure_data
-            Optional pre-loaded exposure data.
-        """
         super().__init__(causal_factor, distribution_type, exposure_data)
         self.exposure_params_pipeline = f"{self.causal_factor}.exposure_parameters"
 
@@ -495,13 +295,6 @@ class PolytomousDistribution(CausalFactorDistribution):
     #################
 
     def setup(self, builder: Builder) -> None:
-        """Build the exposure parameters table and register pipelines.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         super().setup(builder)
         self.exposure_params_table = self.build_exposure_params_table(builder)
         self.register_exposure_params_pipeline(builder)
@@ -509,30 +302,11 @@ class PolytomousDistribution(CausalFactorDistribution):
     def get_exposure_value_columns(
         self, exposure_data: int | float | pd.DataFrame
     ) -> list[str] | None:
-        """Extract unique category names from exposure data.
-
-        Parameters
-        ----------
-        exposure_data
-            The exposure data, either as a scalar or a DataFrame.
-
-        Returns
-        -------
-            A list of category names if the data is a DataFrame, or
-            ``None`` for scalar data.
-        """
         if isinstance(exposure_data, pd.DataFrame):
             return list(exposure_data["parameter"].unique())
         return None
 
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
-        """Register the polytomous exposure PPF pipeline.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
@@ -540,29 +314,11 @@ class PolytomousDistribution(CausalFactorDistribution):
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
-        """Register the exposure parameters pipeline.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         builder.value.register_attribute_producer(
             self.exposure_params_pipeline, source=self.exposure_params_table
         )
 
-    def build_exposure_params_table(self, builder: Builder) -> LookupTable:
-        """Build the lookup table for exposure parameters.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-
-        Returns
-        -------
-            A lookup table for the exposure parameters.
-        """
+    def build_exposure_params_table(self, builder: "Builder"):
         data = self.get_exposure_data(builder)
         value_columns = self.get_exposure_value_columns(data)
 
@@ -578,22 +334,6 @@ class PolytomousDistribution(CausalFactorDistribution):
     ##################################
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        """Assign each simulant a category based on their propensity.
-
-        Parameters
-        ----------
-        index
-            An index representing the simulants.
-
-        Returns
-        -------
-            A series of category labels for each simulant.
-
-        Raises
-        ------
-        MissingDataError
-            If all exposure data sums to zero.
-        """
         pop = self.population_view.get_attributes(
             index, [self.causal_factor_propensity, self.exposure_params_pipeline]
         )
@@ -614,21 +354,14 @@ class PolytomousDistribution(CausalFactorDistribution):
 
 
 class DichotomousDistribution(CausalFactorDistribution):
-    """Model risk exposure as a two-category (exposed/unexposed) distribution.
-
-    Simulants with a propensity below the exposure probability are
-    assigned to the exposed category; otherwise the unexposed category.
-    Support optional rebinning of polytomous exposure data.
-    """
-
     @property
     def exposed(self) -> str:
-        """The name of the exposed category."""
+        """The name of the exposed category for this intervention."""
         return "covered" if self.causal_factor.type == "intervention" else "exposed"
 
     @property
     def unexposed(self) -> str:
-        """The name of the unexposed category."""
+        """The name of the unexposed category for this intervention."""
         return "uncovered" if self.causal_factor.type == "intervention" else "unexposed"
 
     def rename_deprecated_categories(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -675,16 +408,6 @@ class DichotomousDistribution(CausalFactorDistribution):
         distribution_type: str,
         exposure_data: int | float | pd.DataFrame | None = None,
     ) -> None:
-        """
-        Parameters
-        ----------
-        causal_factor
-            The entity string identifying the causal factor.
-        distribution_type
-            The distribution type (``"dichotomous"``).
-        exposure_data
-            Optional pre-loaded exposure data.
-        """
         super().__init__(causal_factor, distribution_type, exposure_data)
         self.exposure_params_name = f"{self.causal_factor}.exposure_parameters"
 
@@ -693,25 +416,11 @@ class DichotomousDistribution(CausalFactorDistribution):
     #################
 
     def setup(self, builder: Builder) -> None:
-        """Build the exposure table and register pipelines.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         super().setup(builder)
         self.exposure_table = self.build_exposure_table(builder)
         self.register_exposure_params_pipeline(builder)
 
     def register_exposure_ppf_pipeline(self, builder: Builder) -> None:
-        """Register the dichotomous exposure PPF pipeline.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         builder.value.register_attribute_producer(
             self.exposure_ppf_pipeline,
             source=self.exposure_ppf,
@@ -719,13 +428,6 @@ class DichotomousDistribution(CausalFactorDistribution):
         )
 
     def register_exposure_params_pipeline(self, builder: Builder) -> None:
-        """Register the exposure parameters pipeline with calibration support.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        """
         register_risk_affected_attribute_producer(
             builder=builder,
             name=self.exposure_params_name,
@@ -734,22 +436,6 @@ class DichotomousDistribution(CausalFactorDistribution):
         )
 
     def build_exposure_table(self, builder: Builder) -> LookupTable[pd.Series]:
-        """Build a lookup table for exposure data.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-
-        Returns
-        -------
-            A lookup table for the exposure data.
-
-        Raises
-        ------
-        ValueError
-            If any exposure values are outside the range [0, 1].
-        """
         data = self.get_exposure_data(builder)
 
         if isinstance(data, pd.DataFrame):
@@ -765,18 +451,6 @@ class DichotomousDistribution(CausalFactorDistribution):
         return self.build_lookup_table(builder, "exposure", data)
 
     def get_exposure_data(self, builder: Builder) -> int | float | pd.DataFrame:
-        """Load and optionally rebin exposure data for the risk.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-
-        Returns
-        -------
-            The (possibly rebinned) exposure data for the exposed
-            category.
-        """
         exposure_data = super().get_exposure_data(builder)
 
         if isinstance(exposure_data, (int, float)):
@@ -795,7 +469,6 @@ class DichotomousDistribution(CausalFactorDistribution):
     def _rebin_exposure_data(
         self, exposure_data: pd.DataFrame, rebin_exposed_categories: set
     ) -> pd.DataFrame:
-        """Aggregate exposure categories into a single exposed category."""
         exposure_data = exposure_data[
             exposure_data["parameter"].isin(rebin_exposed_categories)
         ]
@@ -811,23 +484,7 @@ class DichotomousDistribution(CausalFactorDistribution):
     # Validators #
     ##############
 
-    def validate_rebin_source(self, builder: Builder, data: pd.DataFrame) -> None:
-        """Validate that rebinning configuration is consistent with the data.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-        data
-            The exposure data to validate against.
-
-        Raises
-        ------
-        ValueError
-            If rebinning and category thresholds are both specified,
-            if any rebin categories are not found in the data, or if
-            all categories are in the rebin set.
-        """
+    def validate_rebin_source(self, builder, data: pd.DataFrame) -> None:
         if not isinstance(data, pd.DataFrame):
             return
 
@@ -865,31 +522,9 @@ class DichotomousDistribution(CausalFactorDistribution):
     ##################################
 
     def exposure_parameter_source(self, index: pd.Index) -> pd.Series:
-        """Return exposure probabilities from the exposure lookup table.
-
-        Parameters
-        ----------
-        index
-            An index representing the simulants.
-
-        Returns
-        -------
-            A series of exposure probabilities.
-        """
         return self.exposure_table(index)
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        """Assign each simulant to the exposed or unexposed category based on propensity.
-
-        Parameters
-        ----------
-        index
-            An index representing the simulants.
-
-        Returns
-        -------
-            A series of exposed or unexposed category labels.
-        """
         pop = self.population_view.get_attributes(
             index, [self.causal_factor_propensity, self.exposure_params_name]
         )
@@ -902,23 +537,14 @@ class DichotomousDistribution(CausalFactorDistribution):
         )
 
 
-def clip(q: pd.Series) -> pd.Series:
-    """Clip quantile values to avoid distribution boundary issues.
+def clip(q):
+    """Adjust the percentile boundary cases.
 
-    The risk distributions package uses the 99.9th and 0.001st percentiles
+    The  risk distributions package uses the 99.9th and 0.001st percentiles
     of a log-normal distribution as the bounds of the distribution support.
     This is bound up in the GBD risk factor PAF calculation process.
-    Clip the distribution tails so we don't get NaNs back from the
-    distribution calls.
-
-    Parameters
-    ----------
-    q
-        A series of quantile values to clip.
-
-    Returns
-    -------
-        The clipped quantile values.
+    We'll clip the distribution tails so we don't get NaNs back from the
+    distribution calls
     """
     Q_LOWER_BOUND = 0.0011
     Q_UPPER_BOUND = 0.998
@@ -928,22 +554,6 @@ def clip(q: pd.Series) -> pd.Series:
 
 
 def get_risk_distribution_parameter(data: float | pd.DataFrame) -> float | pd.Series:
-    """Convert risk distribution parameter data to a usable format.
-
-    If the data is a DataFrame, set the non-value columns as the index
-    and squeeze to a Series.  Drop a ``"parameter"`` column if its only
-    value is ``"continuous"``.
-
-    Parameters
-    ----------
-    data
-        The raw parameter data, either a scalar float or a DataFrame.
-
-    Returns
-    -------
-        The parameter as a float or a ``pd.Series`` indexed by
-        demographic columns.
-    """
     if isinstance(data, pd.DataFrame):
         # don't return parameter col in continuous and ensemble distribution
         # means to match standard deviation index
