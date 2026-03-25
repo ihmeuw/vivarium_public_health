@@ -20,6 +20,9 @@ from vivarium.framework.randomness import RandomnessStream
 from vivarium.framework.state_machine import State, Transient, Transition, Trigger
 from vivarium.types import DataInput, LookupTableData
 
+from vivarium_public_health.causal_factor.calibration_constant import (
+    register_risk_affected_rate_producer,
+)
 from vivarium_public_health.disease.exceptions import DiseaseModelError
 from vivarium_public_health.disease.transition import (
     ProportionTransition,
