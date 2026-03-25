@@ -1,0 +1,267 @@
+"""
+==============
+Risk Observers
+==============
+
+This module contains tools for observing risk exposure during the simulation.
+
+"""
+
+import pandas as pd
+from vivarium.framework.engine import Builder
+
+from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.observer import PublicHealthObserver
+from vivarium_public_health.utilities import to_years
+
+
+class CategoricalCausalFactorObserver(PublicHealthObserver):
+    """An observer for a categorical causal factor.
+
+    Observes category person time for a causal factor.
+
+    By default, this observer computes aggregate categorical person time
+    over the full course of the simulation. It can be configured to add or
+    remove stratification groups to the default groups defined by a
+    ResultsStratifier.
+
+    In the model specification, your configuration for this component should
+    be specified as, e.g.:
+
+    .. code-block:: yaml
+
+        configuration:
+            stratification:
+                causal_factor_name:
+                    exclude:
+                        - "sex"
+                    include:
+                        - "sample_stratification"
+
+    Attributes
+    ----------
+    causal_factor
+        The name of the causal factor.
+    exposure_pipeline
+        The name of the pipeline that produces the causal factor exposure.
+    step_size
+        The time step size of the simulation.
+    categories
+        The categories of the causal factor.
+
+    """
+
+    #####################
+    # Lifecycle methods #
+    #####################
+
+    def __init__(self, causal_factor: str) -> None:
+        """Constructor for this observer.
+
+        Parameters
+        ----------
+        causal_factor
+            The name of the causal factor being observed
+        """
+        super().__init__()
+        self.causal_factor = causal_factor
+        self.exposure_pipeline = f"{self.causal_factor}.exposure"
+
+    #################
+    # Setup methods #
+    #################
+
+    def setup(self, builder: Builder) -> None:
+        """Set up the observer."""
+        self.step_size = builder.time.step_size()
+        self.categories = builder.data.load(f"risk_factor.{self.causal_factor}.categories")
+
+    def get_configuration_name(self) -> str:
+        return self.causal_factor
+
+    def register_observations(self, builder: Builder) -> None:
+        """Register a stratification and observation.
+
+        Notes
+        -----
+        While it's typical for all stratification registrations to be encapsulated
+        in a single class (i.e. the
+        :class:ResultsStratifier <vivarium_public_health.results.stratification.ResultsStratifier),
+        this observer registers an additional one. While it could be registered
+        in the ``ResultsStratifier`` as well, it is specific to this observer and
+        so it is registered here while we have easy access to the required categories
+        and value names.
+        """
+        builder.results.register_stratification(
+            self.causal_factor,
+            list(self.categories.keys()),
+            requires_attributes=[self.exposure_pipeline],
+        )
+        self.register_adding_observation(
+            builder=builder,
+            name=f"person_time_{self.causal_factor}",
+            pop_filter=f"is_alive == True",
+            when="time_step__prepare",
+            additional_stratifications=self.configuration.include + [self.causal_factor],
+            excluded_stratifications=self.configuration.exclude,
+            aggregator=self.aggregate_category_person_time,
+        )
+
+    ###############
+    # Aggregators #
+    ###############
+
+    def aggregate_category_person_time(self, x: pd.DataFrame) -> float:
+        """Aggregate the person time for this time step."""
+        return len(x) * to_years(self.step_size())
+
+    ##############################
+    # Results formatting methods #
+    ##############################
+
+    def format(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
+        """Rename the appropriate column to 'sub_entity'.
+
+        The primary thing this method does is rename the causal factor column
+        to 'sub_entity'. We do this here instead of the 'get_sub_entity_column'
+        method simply because we do not want the causal factor column at all. If we keep
+        it here and then return it as the sub-entity column later, the final
+        results would have both.
+
+        Parameters
+        ----------
+        measure
+            The measure.
+        results
+            The results to format.
+
+        Returns
+        -------
+            The formatted results.
+        """
+        results = results.reset_index()
+        results.rename(columns={self.causal_factor: COLUMNS.SUB_ENTITY}, inplace=True)
+        return results
+
+    def get_measure_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        """Get the 'measure' column values."""
+        return pd.Series("person_time", index=results.index)
+
+    def get_entity_type_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        """Get the 'entity_type' column values."""
+        return pd.Series("rei", index=results.index)
+
+    def get_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        """Get the 'entity' column values."""
+        return pd.Series(self.causal_factor, index=results.index)
+
+    def get_sub_entity_column(self, measure: str, results: pd.DataFrame) -> pd.Series:
+        """Get the 'sub_entity' column values."""
+        # The sub-entity col was created in the 'format' method
+        return results[COLUMNS.SUB_ENTITY]
+
+
+class CategoricalRiskObserver(CategoricalCausalFactorObserver):
+    """An observer for a categorical risk factor.
+
+    Observes category person time for a risk factor. This is a convenience
+    subclass of :class:`CategoricalCausalFactorObserver` for use with risk
+    factors.
+
+    By default, this observer computes aggregate categorical person time
+    over the full course of the simulation. It can be configured to add or
+    remove stratification groups to the default groups defined by a
+    ResultsStratifier.
+
+    In the model specification, your configuration for this component should
+    be specified as, e.g.:
+
+    .. code-block:: yaml
+
+        configuration:
+            stratification:
+                risk_name:
+                    exclude:
+                        - "sex"
+                    include:
+                        - "sample_stratification"
+
+    Attributes
+    ----------
+    causal_factor
+        The name of the risk factor.
+    exposure_pipeline
+        The name of the pipeline that produces the risk factor exposure.
+    step_size
+        The time step size of the simulation.
+    categories
+        The categories of the risk factor.
+
+    """
+
+    @property
+    def name(self) -> str:
+        return f"categorical_risk_observer.{self.causal_factor}"
+
+    def __init__(self, risk: str) -> None:
+        """Constructor for this observer.
+
+        Parameters
+        ----------
+        risk
+            The name of the risk factor being observed.
+        """
+        super().__init__(risk)
+
+
+class CategoricalInterventionObserver(CategoricalCausalFactorObserver):
+    """An observer for a categorical intervention.
+
+    Observes category person time for an intervention. This is a convenience
+    subclass of :class:`CategoricalCausalFactorObserver` for use with
+    interventions.
+
+    By default, this observer computes aggregate categorical person time
+    over the full course of the simulation. It can be configured to add or
+    remove stratification groups to the default groups defined by a
+    ResultsStratifier.
+
+    In the model specification, your configuration for this component should
+    be specified as, e.g.:
+
+    .. code-block:: yaml
+
+        configuration:
+            stratification:
+                intervention_name:
+                    exclude:
+                        - "sex"
+                    include:
+                        - "sample_stratification"
+
+    Attributes
+    ----------
+    causal_factor
+        The name of the intervention.
+    exposure_pipeline
+        The name of the pipeline that produces the intervention exposure.
+    step_size
+        The time step size of the simulation.
+    categories
+        The categories of the intervention.
+
+    """
+
+    @property
+    def name(self) -> str:
+        return f"categorical_intervention_observer.{self.causal_factor}"
+
+    def __init__(self, intervention: str) -> None:
+        """Constructor for this observer.
+
+        Parameters
+        ----------
+        intervention
+            The name of the intervention being observed.
+        """
+        super().__init__(intervention)
