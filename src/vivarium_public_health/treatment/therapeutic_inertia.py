@@ -3,8 +3,8 @@
 Therapeutic Inertia Model
 =========================
 
-This module contains a model for therapeutic inertia which represents the
-variety of reasons why a treatment algorithm might deviate from guidelines.
+Model :term:`therapeutic inertia <Therapeutic Inertia>`, the variety of reasons
+why a treatment algorithm might deviate from clinical guidelines.
 
 """
 
@@ -15,10 +15,14 @@ from vivarium.framework.engine import Builder
 
 
 class TherapeuticInertia(Component):
-    """Expose a therapeutic inertia pipeline that defines
-    a population-level therapeutic inertia.
+    """Produce a population-level :term:`therapeutic inertia <Therapeutic Inertia>` value.
 
-    This is the probability of treatment during a healthcare visit.
+    At setup a single scalar therapeutic inertia value is drawn from a
+    triangular distribution parameterized by ``triangle_min``,
+    ``triangle_max``, and ``triangle_mode``. This value represents the
+    probability that treatment is *not* escalated during a healthcare visit
+    and is exposed via the ``therapeutic_inertia`` pipeline.
+
     """
 
     CONFIGURATION_DEFAULTS = {
@@ -41,6 +45,13 @@ class TherapeuticInertia(Component):
     #####################
 
     def setup(self, builder: Builder) -> None:
+        """Set up the component by drawing a therapeutic inertia value and registering the pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.therapeutic_inertia_parameters = builder.configuration.therapeutic_inertia
 
         self._therapeutic_inertia = self.initialize_therapeutic_inertia(builder)
@@ -53,7 +64,23 @@ class TherapeuticInertia(Component):
     # Setup methods #
     #################
 
-    def initialize_therapeutic_inertia(self, builder):
+    def initialize_therapeutic_inertia(self, builder: Builder) -> float:
+        """Draw a single therapeutic inertia value from the configured triangular distribution.
+
+        The triangular distribution is parameterized by ``triangle_min``,
+        ``triangle_max``, and ``triangle_mode`` from the component's
+        configuration. The resulting scalar is used for the entire simulation.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A scalar therapeutic inertia value drawn from the triangular
+            distribution.
+        """
         triangle_min = self.therapeutic_inertia_parameters.triangle_min
         triangle_max = self.therapeutic_inertia_parameters.triangle_max
         triangle_mode = self.therapeutic_inertia_parameters.triangle_mode
