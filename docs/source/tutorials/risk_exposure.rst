@@ -88,8 +88,7 @@ them.
 
 For the ``risk_factor`` entity type, both the ``"exposure"`` and
 ``"rebinned_exposure"`` configuration options are available to us. In the
-:ref:`model specification <model_specification_concept>`, we can specify
-the component to use its defaults with
+model specification, we can specify the component to use its defaults with
 
 .. code-block:: yaml
 
