@@ -1,7 +1,7 @@
 """
-=========================
+==========================
 CausalFactor Effect Models
-=========================
+==========================
 
 This module contains tools for modeling the relationship between causal factor
 exposure models and the models they affect.
@@ -53,21 +53,23 @@ class CausalFactorEffect(Component, ABC):
 
     EXPOSURE_CLASS = CausalFactor
 
-    ###############
+    ##############
     # Properties #
     ##############
 
     @property
     def name(self) -> str:
+        """The name of this causal factor effect component."""
         return self.get_name(self.causal_factor, self.target)
 
     @staticmethod
     def get_name(causal_factor: EntityString, target: TargetString) -> str:
+        """Return the component name for a causal factor and target pair."""
         return f"causal_factor_effect.{causal_factor.name}_on_{target}"
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this component.
+        """Default configuration values for this component.
 
         Configuration structure::
 
@@ -105,6 +107,7 @@ class CausalFactorEffect(Component, ABC):
 
     @property
     def is_exposure_categorical(self) -> bool:
+        """Whether the exposure distribution is categorical."""
         return self._exposure_distribution_type in [
             "dichotomous",
             "ordered_polytomous",
@@ -142,6 +145,17 @@ class CausalFactorEffect(Component, ABC):
         )
 
     def setup(self, builder: Builder) -> None:
+        """Set up the causal factor effect component.
+
+        Load distribution type and PAF data, define relative risk source,
+        build relative risk lookup tables, register relative risk pipeline,
+        and register target and calibration constant modifiers.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self.causal_factor_exposure_component = self._get_causal_factor_exposure_component(
             builder
         )
@@ -160,6 +174,17 @@ class CausalFactorEffect(Component, ABC):
     #################
 
     def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
+        """Build a lookup table for relative risk data.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A lookup table of relative risk values.
+        """
         rr_data = self.load_relative_risk(builder)
         rr_value_cols = None
         if self.is_exposure_categorical:
@@ -169,6 +194,17 @@ class CausalFactorEffect(Component, ABC):
         )
 
     def get_calibration_constant_data(self, builder: Builder) -> LookupTableData:
+        """Load calibration constant (PAF) data for this effect.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The calibration constant data.
+        """
         return self.get_filtered_data(
             builder, self.configuration.data_sources.population_attributable_fraction
         )
@@ -185,6 +221,28 @@ class CausalFactorEffect(Component, ABC):
         builder: Builder,
         configuration=None,
     ) -> str | float | pd.DataFrame:
+        """Load relative risk data from the configuration.
+
+        Attempt to interpret the configured source as a scipy.stats
+        distribution name; if that fails, load it as artifact data.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        configuration
+            Optional configuration override. If ``None``, use
+            ``self.configuration``.
+
+        Returns
+        -------
+            The relative risk data.
+
+        Raises
+        ------
+        ConfigurationError
+            If the distribution parameters are invalid.
+        """
         if configuration is None:
             configuration = self.configuration
 
@@ -209,6 +267,19 @@ class CausalFactorEffect(Component, ABC):
     def get_filtered_data(
         self, builder: Builder, data_source: str | float | pd.DataFrame
     ) -> float | pd.DataFrame:
+        """Load data and filter to the target entity and measure.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        data_source
+            The data source identifier, scalar, or DataFrame.
+
+        Returns
+        -------
+            The filtered data.
+        """
         data = self.get_data(builder, data_source)
 
         if isinstance(data, pd.DataFrame):
@@ -227,6 +298,30 @@ class CausalFactorEffect(Component, ABC):
     def process_categorical_data(
         self, builder: Builder, rr_data: str | float | pd.DataFrame
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
+        """Process relative risk data for categorical exposures.
+
+        For scalar RR data with a dichotomous distribution, construct a
+        DataFrame with exposed/unexposed categories. Pivot the data to
+        wide format for use in a lookup table.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        rr_data
+            The relative risk data.
+
+        Returns
+        -------
+            A tuple of the pivoted RR data and the list of value column
+            names.
+
+        Raises
+        ------
+        ValueError
+            If scalar RR data is provided with a non-dichotomous
+            distribution.
+        """
         if not isinstance(rr_data, pd.DataFrame):
             exposure_distribution = (
                 self.causal_factor_exposure_component.exposure_distribution
@@ -291,6 +386,7 @@ class CausalFactorEffect(Component, ABC):
         exposure_data: pd.DataFrame,
         rebin_exposed_categories: set,
     ) -> pd.DataFrame:
+        """Compute exposure-weighted relative risks for rebinned categories."""
         cols = list(exposure_data.columns.difference(["value"]))
 
         relative_risk_data = relative_risk_data.merge(exposure_data, on=cols)
@@ -307,6 +403,22 @@ class CausalFactorEffect(Component, ABC):
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        """Build a callable that computes relative risk from exposure.
+
+        For continuous exposures, use TMRED-based log-linear scaling.
+        For categorical exposures, look up the RR for each simulant's
+        exposure category.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A callable that accepts a simulant index and returns
+            relative risk values.
+        """
 
         if not self.is_exposure_categorical:
             tmred = builder.data.load(f"{self.causal_factor}.tmred")
@@ -342,6 +454,13 @@ class CausalFactorEffect(Component, ABC):
         return generate_relative_risk
 
     def register_relative_risk_pipeline(self, builder: Builder) -> None:
+        """Register the relative risk pipeline with the simulation.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_producer(
             self.relative_risk_name,
             self._relative_risk_source,
@@ -349,11 +468,25 @@ class CausalFactorEffect(Component, ABC):
         )
 
     def register_target_modifier(self, builder: Builder) -> None:
+        """Register the relative risk as a modifier on the target pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_modifier(
             self.target_name, modifier=self.relative_risk_name
         )
 
     def register_calibration_constant_modifier(self, builder: Builder) -> None:
+        """Register the PAF data as a modifier on the calibration constant pipeline.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_value_modifier(
             get_calibration_constant_pipeline_name(self.target_name),
             modifier=lambda: self.paf_data,
@@ -364,6 +497,9 @@ class CausalFactorEffect(Component, ABC):
     ##################
 
     def _get_causal_factor_exposure_component(self, builder: Builder) -> CausalFactor:
+        """Retrieve effect component and validate that it is compatible with the
+        causal factor exposure.
+        """
         causal_factor_exposure_component = builder.components.get_component(
             self.causal_factor
         )

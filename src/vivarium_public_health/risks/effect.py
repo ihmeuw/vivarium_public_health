@@ -14,9 +14,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import scipy
+from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
-from vivarium.types import LookupTableData
 
 from vivarium_public_health.causal_factor.calibration_constant import (
     get_calibration_constant_pipeline_name,
@@ -47,12 +47,13 @@ class RiskEffect(CausalFactorEffect):
 
     EXPOSURE_CLASS = Risk
 
-    ###############
+    ##############
     # Properties #
     ##############
 
     @property
     def name(self) -> str:
+        """The name of this risk effect component."""
         return f"risk_effect.{self.causal_factor.name}_on_{self.target}"
 
     #####################
@@ -83,15 +84,17 @@ class NonLogLinearRiskEffect(RiskEffect):
     some affected entity.
 
     This component:
-    1) reads TMRED data from the artifact and define the TMREL
-    2) calculates the relative risk at TMREL by linearly interpolating over
-    relative risk data defined in the configuration
-    3) divides relative risk data from configuration by RR at TMREL
-    and clip to be greater than 1
-    4) builds a LookupTable which returns the exposure and RR of the left and right edges
-    of the RR bin containing a simulant's exposure
-    5) uses this LookupTable to modify the target pipeline by linearly interpolating
-    a simulant's RR value and multiplying it by the intended target rate
+
+    1. Reads TMRED data from the artifact and defines the TMREL.
+    2. Calculates the relative risk at TMREL by linearly interpolating over
+       relative risk data defined in the configuration.
+    3. Divides relative risk data from configuration by RR at TMREL
+       and clips to be greater than 1.
+    4. Builds a ``LookupTable`` that returns the exposure and RR of the left
+       and right edges of the RR bin containing a simulant's exposure.
+    5. Uses this ``LookupTable`` to modify the target pipeline by linearly
+       interpolating a simulant's RR value and multiplying it by the intended
+       target rate.
 
     """
 
@@ -101,7 +104,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this component.
+        """Default configuration values for this component.
 
         Configuration structure::
 
@@ -134,13 +137,31 @@ class NonLogLinearRiskEffect(RiskEffect):
 
     @property
     def name(self) -> str:
+        """The name of this non-log-linear risk effect component."""
         return f"non_log_linear_risk_effect.{self.causal_factor.name}_on_{self.target}"
 
     def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
+        """Build a lookup table mapping exposure intervals to relative risks.
+
+        Define left and right edges of exposure bins and their
+        corresponding relative risk values for piecewise linear
+        interpolation.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A lookup table with columns for left/right exposure and
+            left/right relative risk values.
+        """
         rr_data = self.load_relative_risk(builder)
         self.validate_rr_data(rr_data)
 
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
+            """Create left/right exposure and RR interval columns."""
             # create new row for right-most exposure bin (RR is same as max RR)
             max_exposure_row = df.tail(1).copy()
             max_exposure_row["parameter"] = np.inf
@@ -181,8 +202,31 @@ class NonLogLinearRiskEffect(RiskEffect):
     def load_relative_risk(
         self,
         builder: Builder,
-        configuration=None,
+        configuration: LayeredConfigTree | None = None,
     ) -> str | float | pd.DataFrame:
+        """Load relative risk data, normalizing by RR at the TMREL.
+
+        Compute the Theoretical Minimum-Risk Exposure Level (TMREL)
+        from TMRED data, interpolate RR at the TMREL, divide all RR
+        values by this quantity, and clip to be at least 1.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        configuration
+            Optional configuration override.  If ``None``, use
+            ``self.configuration``.
+
+        Returns
+        -------
+            The normalized relative risk data as a DataFrame.
+
+        Raises
+        ------
+        MissingDataError
+            If the TMRED data uses draw-level TMRELs or is not found.
+        """
         if configuration is None:
             configuration = self.configuration
 
@@ -212,6 +256,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         ]
 
         def get_rr_at_tmrel(rr_data: pd.DataFrame) -> float:
+            """Interpolate the relative risk at the TMREL."""
             interpolated_rr_function = scipy.interpolate.interp1d(
                 rr_data["parameter"],
                 rr_data["value"],
@@ -238,7 +283,24 @@ class NonLogLinearRiskEffect(RiskEffect):
         return rr_data
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        """Build a callable that interpolates relative risk from exposure.
+
+        Use piecewise linear interpolation within the exposure bins
+        defined by the relative risk lookup table.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            A callable that accepts a simulant index and returns
+            interpolated relative risk values.
+        """
+
         def generate_relative_risk(index: pd.Index) -> pd.Series:
+            """Interpolate relative risk from exposure within RR bins."""
             rr_intervals = self.relative_risk_table(index)
             # NOTE: We are calling the cached exposure pipeline here for performance
             # purposes (as opposed to the f{self.causal_factor.name}.exposure pipeline itself).
@@ -262,7 +324,23 @@ class NonLogLinearRiskEffect(RiskEffect):
     ##############
 
     def validate_rr_data(self, rr_data: pd.DataFrame) -> None:
-        """Validate the relative risk data."""
+        """Validate the relative risk data for non-log-linear effects.
+
+        Verify that the ``parameter`` column contains numeric data and
+        that values are monotonically increasing within each demographic
+        group.
+
+        Parameters
+        ----------
+        rr_data
+            The relative risk data to validate.
+
+        Raises
+        ------
+        ValueError
+            If the ``parameter`` column is not numeric or is not
+            monotonically increasing within demographic groups.
+        """
         # check that rr_data has numeric parameter data
         parameter_data_is_numeric = rr_data["parameter"].dtype.kind in "biufc"
         if not parameter_data_is_numeric:
@@ -277,6 +355,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         ]
 
         def values_are_monotonically_increasing(df: pd.DataFrame) -> bool:
+            """Check if parameter values are monotonically increasing."""
             return np.all(df["parameter"].values[1:] >= df["parameter"].values[:-1])
 
         group_is_increasing = rr_data.groupby(demographic_cols).apply(
