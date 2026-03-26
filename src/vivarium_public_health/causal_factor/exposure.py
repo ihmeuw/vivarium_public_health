@@ -102,11 +102,12 @@ class CausalFactor(Component, ABC):
 
     @property
     def name(self) -> str:
+        """The name of this causal factor component."""
         return self.causal_factor
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this causal factor component.
+        """Default configuration values for this causal factor component.
 
         Configuration structure::
 
@@ -163,7 +164,7 @@ class CausalFactor(Component, ABC):
         Parameters
         ----------
         causal_factor
-            the type and name of a causal factor, specified as "type.name". Type is singular.
+            The type and name of a causal factor, specified as "type.name". Type is singular.
         """
         super().__init__()
         self.causal_factor = EntityString(causal_factor)
@@ -191,6 +192,17 @@ class CausalFactor(Component, ABC):
     #################
 
     def setup(self, builder: Builder) -> None:
+        """Set up the causal factor component.
+
+        Determine the distribution type, create the exposure distribution,
+        obtain a randomness stream, register the exposure pipeline, and
+        register a propensity initializer.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self._components = builder.components
         self.distribution_type = self.get_distribution_type(builder)
         self.exposure_distribution = self.get_exposure_distribution(builder)
@@ -205,7 +217,7 @@ class CausalFactor(Component, ABC):
         )
 
     def get_distribution_type(self, builder: Builder) -> str:
-        """Get the distribution type for the risk from the configuration.
+        """Get the distribution type for the causal factor from the configuration.
 
         If the configured distribution type is not one of the supported types,
         it is assumed to be a data source and the data is retrieved using the
@@ -238,8 +250,8 @@ class CausalFactor(Component, ABC):
         return distribution_type
 
     def get_exposure_distribution(self, builder: Builder) -> CausalFactorDistribution:
-        """Creates and sets up the exposure distribution component for the Risk
-        based on its distribution type.
+        """Create and set up the exposure distribution component for the causal
+        factor based on its distribution type.
 
         Parameters
         ----------
@@ -268,9 +280,27 @@ class CausalFactor(Component, ABC):
         return distribution
 
     def get_randomness_stream(self, builder: Builder) -> RandomnessStream:
+        """Return a randomness stream for propensity initialization.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+
+        Returns
+        -------
+            The randomness stream for this causal factor.
+        """
         return builder.randomness.get_stream(self.randomness_stream_name)
 
     def register_exposure_pipeline(self, builder: Builder) -> None:
+        """Register the exposure pipeline with the simulation.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         builder.value.register_attribute_producer(
             self.exposure_name,
             source=[self.exposure_distribution.exposure_ppf_pipeline],
@@ -282,6 +312,13 @@ class CausalFactor(Component, ABC):
     ########################
 
     def initialize_propensity(self, pop_data: SimulantData) -> None:
+        """Initialize propensity values for new simulants.
+
+        Parameters
+        ----------
+        pop_data
+            Metadata about the simulants being initialized.
+        """
         propensity = pd.Series(
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
