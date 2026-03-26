@@ -86,3 +86,14 @@ Glossary
         The residual life expectancy at the time of a :term:`simulant's <Simulant>`
         death, computed from the :term:`TMRLE` table. Accumulated across
         the population as a summary measure of premature mortality. See :ref:`mortality_concept`.
+    Therapeutic Inertia
+        The tendency for treatment algorithms to deviate from clinical
+        guidelines — for example, when treatment is not escalated during a
+        healthcare visit despite guidelines recommending escalation. Modeled
+        as a probability drawn from a triangular distribution. See
+        :ref:`therapeutic_inertia_concept`.
+
+    Linear Scale-Up
+        A time-varying pattern in which an intervention's coverage is linearly
+        interpolated between a start value and an end value over a configured
+        date range. See :ref:`scale_up_concept`.
