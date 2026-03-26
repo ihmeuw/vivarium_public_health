@@ -1,7 +1,7 @@
 """
-==========================
+===========================
 Intervention Exposure Model
-==========================
+===========================
 
 This module contains tools for modeling intervention exposures and their
 effects on target measures.
