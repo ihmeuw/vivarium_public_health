@@ -156,14 +156,14 @@ class EnsembleDistribution(RiskExposureDistribution):
         ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(
             self.ensemble_propensity
         )
-        self.population_view.update(ensemble_propensity)
+        self.population_view.initialize(ensemble_propensity)
 
     ##################################
     # Pipeline sources and modifiers #
     ##################################
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.risk_propensity, self.ensemble_propensity]
         )
         quantiles = pop[self.risk_propensity]
@@ -248,7 +248,7 @@ class ContinuousDistribution(RiskExposureDistribution):
     ##################################
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.risk_propensity, self.exposure_params_name]
         )
         quantiles = pop[self.risk_propensity]
@@ -339,7 +339,7 @@ class PolytomousDistribution(RiskExposureDistribution):
     ##################################
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.risk_propensity, self.exposure_params_pipeline]
         )
         quantiles = pop[self.risk_propensity]
@@ -488,13 +488,11 @@ class DichotomousDistribution(RiskExposureDistribution):
 
     def exposure_parameter_source(self, index: pd.Index) -> pd.Series:
         base_exposure = self.exposure_table(index).values
-        joint_paf = self.population_view.get_attributes(
-            index, self.exposure_params_paf_name
-        ).values
+        joint_paf = self.population_view.get(index, self.exposure_params_paf_name).values
         return pd.Series(base_exposure * (1 - joint_paf), index=index, name="values")
 
     def exposure_ppf(self, index: pd.Index) -> pd.Series:
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.risk_propensity, self.exposure_params_name]
         )
         quantiles = pop[self.risk_propensity]

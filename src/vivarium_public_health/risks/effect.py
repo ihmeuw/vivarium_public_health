@@ -285,7 +285,7 @@ class RiskEffect(Component):
         return relative_risk_data.drop(columns=["value_x", "value_y"])
 
     def adjust_target(self, index: pd.Index, target: pd.Series) -> pd.Series:
-        relative_risk = self.population_view.get_attributes(index, self.relative_risk_name)
+        relative_risk = self.population_view.get(index, self.relative_risk_name)
         return target * relative_risk
 
     def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
@@ -297,7 +297,7 @@ class RiskEffect(Component):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.relative_risk_table(index)
-                exposure = self.population_view.get_attributes(index, self.exposure_name)
+                exposure = self.population_view.get(index, self.exposure_name)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return relative_risk
 
@@ -306,9 +306,7 @@ class RiskEffect(Component):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.relative_risk_table(index)
-                exposure = self.population_view.get_attributes(
-                    index, self.exposure_name
-                ).reset_index()
+                exposure = self.population_view.get(index, self.exposure_name).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
 
@@ -517,7 +515,7 @@ class NonLogLinearRiskEffect(RiskEffect):
             rr_intervals = self.relative_risk_table(index)
             # NOTE: We are calling the cached exposure pipeline here for performance
             # purposes (as opposed to the f{self.risk.name}.exposure pipeline itself).
-            exposure = self.population_view.get_attributes(
+            exposure = self.population_view.get(
                 index, f"{self.risk.name}_exposure_for_non_loglinear_riskeffect"
             )
             x1, x2 = (
