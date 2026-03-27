@@ -1,5 +1,0 @@
-=============
-Disease State
-=============
-
-.. todo:: everything

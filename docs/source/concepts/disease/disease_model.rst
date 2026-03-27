@@ -1,5 +1,0 @@
-=============
-Disease Model
-=============
-
-.. todo:: everything
