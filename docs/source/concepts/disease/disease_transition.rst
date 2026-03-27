@@ -1,5 +1,0 @@
-==================
-Disease Transition
-==================
-
-.. todo:: everything
