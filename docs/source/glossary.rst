@@ -58,7 +58,7 @@ Glossary
     PAF
         The fraction of disease burden in a population that is attributable to a
         particular risk factor exposure. A PAF of 1 means the disease is fully
-        attributed to the risk. See :ref:`special_disease_concept`.
+        attributed to the risk. See :ref:`risk_attributable_disease_concept`.
 
     Prevalence
         The proportion of the population that occupies a given disease state at a

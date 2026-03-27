@@ -13,7 +13,7 @@ Disease
    :hidden:
 
    model
-   special_disease
+   risk_attributable_disease
 
 The ``vivarium_public_health`` disease package provides
 :term:`components <Component>` for modeling disease progression in a
@@ -31,6 +31,6 @@ The package is organized around three cooperating concerns:
    transient), while transitions define the rules governing movement between
    them (rate-based, proportion-based, or dwell-time-based). See
    :ref:`disease_model_concept`.
-2. **Special disease** — an alternative modeling approach where disease state is
-   derived directly from risk factor exposure rather than explicit state
-   transitions. See :ref:`special_disease_concept`.
+2. **Risk attributable disease** — an alternative modeling approach where
+   disease state is derived directly from risk factor exposure rather than
+   explicit state transitions. See :ref:`risk_attributable_disease_concept`.

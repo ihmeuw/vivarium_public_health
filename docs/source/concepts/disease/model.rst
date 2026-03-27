@@ -433,7 +433,7 @@ infection duration in days.
 See Also
 --------
 
-- :ref:`special_disease_concept`
+- :ref:`risk_attributable_disease_concept`
 - :mod:`vivarium_public_health.population.mortality`
 - :mod:`vivarium_public_health.disease.model`
 - :mod:`vivarium_public_health.disease.models`

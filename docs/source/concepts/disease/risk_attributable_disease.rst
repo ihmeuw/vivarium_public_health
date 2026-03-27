@@ -1,8 +1,8 @@
-.. _special_disease_concept:
+.. _risk_attributable_disease_concept:
 
-===============
-Special Disease
-===============
+===========================
+Risk Attributable Disease
+===========================
 
 .. contents::
    :depth: 2
@@ -14,6 +14,11 @@ provides an alternative to the standard
 :ref:`state-machine disease model <disease_model_concept>`. Rather than defining
 explicit states and transitions, it derives a simulant's disease status directly
 from their exposure to an associated risk factor.
+
+This is a special way to implement a disease model — instead of constructing
+states and transitions manually,
+``RiskAttributableDisease`` is currently the only implementation for custom
+disease models that tie disease status directly to risk factor exposure.
 
 This approach is used for diseases where the condition is **defined by** a risk
 threshold — for example, diabetes mellitus defined by fasting plasma glucose
