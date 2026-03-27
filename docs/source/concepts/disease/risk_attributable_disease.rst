@@ -1,8 +1,8 @@
 .. _risk_attributable_disease_concept:
 
-===========================
+=========================
 Risk Attributable Disease
-===========================
+=========================
 
 .. contents::
    :depth: 2
