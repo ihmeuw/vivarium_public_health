@@ -276,7 +276,7 @@ class RiskAttributableDisease(ExcessMortalityState):
         if distribution in ["dichotomous", "ordered_polytomous", "unordered_polytomous"]:
 
             def categorical_filter(index):
-                exposure = self.population_view.get_attributes(index, self.exposure_name)
+                exposure = self.population_view.get(index, self.exposure_name)
                 return exposure.isin(threshold)
 
             filter_function = categorical_filter
@@ -305,7 +305,7 @@ class RiskAttributableDisease(ExcessMortalityState):
             threshold = Threshold(op, float(threshold_val[0]))
 
             def continuous_filter(index):
-                exposure = self.population_view.get_attributes(index, self.exposure_name)
+                exposure = self.population_view.get(index, self.exposure_name)
                 return threshold.operator(exposure, threshold.value)
 
             filter_function = continuous_filter
@@ -331,27 +331,34 @@ class RiskAttributableDisease(ExcessMortalityState):
             sick, self.diseased_event_time_column
         ] = self.clock()  # match VPH disease, only set w/ condition
 
-        self.population_view.update(new_pop)
+        self.population_view.initialize(new_pop)
 
     def on_time_step(self, event: Event) -> None:
-        pop = self.population_view.get_private_columns(
-            event.index, self.private_columns, query="is_alive == True"
-        )
-        sick = self.filter_by_exposure(pop.index)
-        #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
-        if self.recoverable:
-            change_to_susceptible = (~sick) & (
-                pop[self.cause.name] != f"susceptible_to_{self.cause.name}"
+        def _update_disease_state(pop: pd.DataFrame) -> pd.DataFrame:
+            living_idx = self.population_view.get_filtered_index(
+                event.index, query="is_alive == True"
             )
-            pop.loc[change_to_susceptible, self.susceptible_event_time_column] = event.time
-            pop.loc[
-                change_to_susceptible, self.cause.name
-            ] = f"susceptible_to_{self.cause.name}"
-        change_to_diseased = sick & (pop[self.cause.name] != self.cause.name)
-        pop.loc[change_to_diseased, self.diseased_event_time_column] = event.time
-        pop.loc[change_to_diseased, self.cause.name] = self.cause.name
+            update = pop.loc[living_idx]
+            sick = self.filter_by_exposure(living_idx)
+            #  if this is recoverable, anyone who gets lower exposure in the event goes back in to susceptible status.
+            if self.recoverable:
+                change_to_susceptible = (~sick) & (
+                    update[self.cause.name] != f"susceptible_to_{self.cause.name}"
+                )
+                update.loc[
+                    change_to_susceptible, self.susceptible_event_time_column
+                ] = event.time
+                update.loc[
+                    change_to_susceptible, self.cause.name
+                ] = f"susceptible_to_{self.cause.name}"
+            change_to_diseased = sick & (update[self.cause.name] != self.cause.name)
+            update.loc[change_to_diseased, self.diseased_event_time_column] = event.time
+            update.loc[change_to_diseased, self.cause.name] = self.cause.name
+            return update
 
-        self.population_view.update(pop)
+        self.population_view.update(
+            self.population_view.private_columns, _update_disease_state
+        )
 
     ##################################
     # Pipeline sources and modifiers #
@@ -369,7 +376,7 @@ class RiskAttributableDisease(ExcessMortalityState):
         excess_mortality_rate = pd.Series(0.0, index=index)
         with_condition = self.with_condition(index)
         base_excess_mort = self.excess_mortality_rate_table(with_condition)
-        joint_mediated_paf = self.population_view.get_attributes(
+        joint_mediated_paf = self.population_view.get(
             with_condition, self.excess_mortality_rate_paf_name
         )
         excess_mortality_rate.loc[with_condition] = base_excess_mort * (
@@ -390,7 +397,7 @@ class RiskAttributableDisease(ExcessMortalityState):
         rates_df
 
         """
-        rate = self.population_view.get_attributes(
+        rate = self.population_view.get(
             index, self.excess_mortality_rate_name, skip_post_processor=True
         )
         rates_df[self.cause.name] = rate

@@ -155,7 +155,7 @@ class BasePopulation(Component):
         demographic_proportions = self.get_demographic_proportions_for_creation_time(
             self.demographic_proportions, pop_data.creation_time.year
         )
-        self.population_view.update(
+        self.population_view.initialize(
             generate_population(
                 simulant_ids=pop_data.index,
                 creation_time=pop_data.creation_time,
@@ -170,18 +170,18 @@ class BasePopulation(Component):
 
     def on_time_step(self, event: Event) -> None:
         """Ages simulants each time step."""
-        age = self.population_view.get_private_columns(
-            event.index, "age", query="is_alive == True"
+        living_idx = self.population_view.get_filtered_index(
+            event.index, query="is_alive == True"
         )
-        age += utilities.to_years(event.step_size)
-        self.population_view.update(age)
+        delta = utilities.to_years(event.step_size)
+        self.population_view.update("age", lambda age: age.loc[living_idx] + delta)
 
     def on_time_step_cleanup(self, event: Event) -> None:
         """Update the 'exit_time' private column with any modifications made by other components."""
-        exit_times = self.population_view.get_attributes(
+        exit_times = self.population_view.get(
             event.index, "exit_time", include_untracked=True
         )
-        self.population_view.update(exit_times)
+        self.population_view.update("exit_time", lambda _: exit_times.rename("exit_time"))
 
     ##################
     # Helper methods #
@@ -336,7 +336,7 @@ class AgeOutSimulants(Component):
         return target
 
     def initialize_is_aged_out(self, pop_data):
-        self.population_view.update(
+        self.population_view.initialize(
             pd.Series(False, index=pop_data.index, name="is_aged_out")
         )
 
@@ -345,14 +345,15 @@ class AgeOutSimulants(Component):
             return
 
         max_age = float(self.config.untracking_age)
-        aged_out = self.population_view.get_private_columns(
+        newly_aged_out = self.population_view.get_filtered_index(
             event.index,
-            "is_aged_out",
             query=f"age >= {max_age} and is_aged_out == False",
         )
-        if len(aged_out) > 0:
-            aged_out[:] = True
-            self.population_view.update(aged_out)
+        if len(newly_aged_out) > 0:
+            self.population_view.update(
+                "is_aged_out",
+                lambda _: pd.Series(True, index=newly_aged_out, name="is_aged_out"),
+            )
 
 
 def generate_population(

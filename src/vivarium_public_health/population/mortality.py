@@ -262,16 +262,18 @@ class Mortality(Component):
             },
             index=pop_data.index,
         )
-        self.population_view.update(pop_update)
+        self.population_view.initialize(pop_update)
 
     def on_time_step(self, event: Event) -> None:
-        pop = self.population_view.get_private_columns(event.index, query="is_alive == True")
-        mortality_rates = self.population_view.get_attribute_frame(
-            pop.index, self.mortality_rate_pipeline
+        living_idx = self.population_view.get_filtered_index(
+            event.index, query="is_alive == True"
+        )
+        mortality_rates = self.population_view.get_frame(
+            living_idx, self.mortality_rate_pipeline
         )
         mortality_hazard = mortality_rates.sum(axis=1)
         deaths = self.random.filter_for_rate(
-            pop.index, mortality_hazard, additional_key="death"
+            living_idx, mortality_hazard, additional_key="death"
         )
         if not deaths.empty:
             cause_of_death_weights = mortality_rates.loc[deaths, :].divide(
@@ -283,12 +285,23 @@ class Mortality(Component):
                 cause_of_death_weights,
                 additional_key="cause_of_death",
             )
-            pop.loc[deaths, "is_alive"] = False
-            pop.loc[deaths, self.years_of_life_lost_column_name] = self.life_expectancy_table(
-                deaths
+            life_expectancy = self.life_expectancy_table(deaths)
+
+            def _apply_deaths(pop: pd.DataFrame) -> pd.DataFrame:
+                dead = pop.loc[deaths]
+                dead["is_alive"] = False
+                dead[self.years_of_life_lost_column_name] = life_expectancy
+                dead[self.cause_of_death_column_name] = cause_of_death
+                return dead
+
+            self.population_view.update(
+                [
+                    "is_alive",
+                    self.years_of_life_lost_column_name,
+                    self.cause_of_death_column_name,
+                ],
+                _apply_deaths,
             )
-            pop.loc[deaths, self.cause_of_death_column_name] = cause_of_death
-            self.population_view.update(pop)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -296,13 +309,11 @@ class Mortality(Component):
 
     def calculate_mortality_rate(self, index: pd.Index) -> pd.DataFrame:
         acmr = self.acmr_table(index)
-        modeled_csmr = self.population_view.get_attributes(
+        modeled_csmr = self.population_view.get(
             index, self.cause_specific_mortality_rate_pipeline
         )
         unmodeled_csmr_raw = self.unmodeled_csmr_table(index)
-        unmodeled_csmr = self.population_view.get_attributes(
-            index, self.unmodeled_csmr_pipeline
-        )
+        unmodeled_csmr = self.population_view.get(index, self.unmodeled_csmr_pipeline)
         cause_deleted_mortality_rate = (
             acmr - modeled_csmr - unmodeled_csmr_raw + unmodeled_csmr
         )
@@ -310,5 +321,5 @@ class Mortality(Component):
 
     def get_unmodeled_csmr_source(self, index: pd.Index) -> pd.Series:
         raw_csmr = self.unmodeled_csmr_table(index)
-        paf = self.population_view.get_attributes(index, self.unmodeled_csmr_paf_pipeline)
+        paf = self.population_view.get(index, self.unmodeled_csmr_paf_pipeline)
         return raw_csmr * (1 - paf)

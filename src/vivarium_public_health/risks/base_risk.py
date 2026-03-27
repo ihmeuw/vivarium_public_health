@@ -294,16 +294,21 @@ class Risk(Component):
         propensity = pd.Series(
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
-        self.population_view.update(propensity)
+        self.population_view.initialize(propensity)
 
     def initialize_exposure(self, pop_data: SimulantData) -> None:
-        self.update_exposure_column(pop_data.index)
+        exposure = self.get_exposure(pop_data.index)
+        self.population_view.initialize(exposure)
 
     def on_time_step_prepare(self, event: Event) -> None:
         if self.includes_non_loglinear_risk_effect:
-            self.update_exposure_column(event.index)
+            exposure = self.get_exposure(event.index)
+            self.population_view.update(
+                self.exposure_column_name,
+                lambda _: exposure,
+            )
 
-    def update_exposure_column(self, index: pd.Index) -> None:
+    def get_exposure(self, index: pd.Index) -> None:
         """Updates the exposure column with pipeline values.
 
         HACK: This is effectively caching the exposure pipeline for use by other
@@ -313,6 +318,5 @@ class Risk(Component):
         can then request that corresponding "simple" pipeline from the population
         view instead which is significantly faster.
         """
-        exposure = self.population_view.get_attributes(index, self.exposure_name)
+        exposure = self.population_view.get(index, self.exposure_name)
         exposure.name = self.exposure_column_name
-        self.population_view.update(exposure)
