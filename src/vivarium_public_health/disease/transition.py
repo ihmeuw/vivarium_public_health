@@ -131,7 +131,7 @@ class RateTransition(Transition):
         transition_rate = pd.Series(0.0, index=index)
         living = self.population_view.get_filtered_index(index, query="is_alive == True")
         base_rates = self.transition_rate_table(living)
-        joint_paf = self.population_view.get_attributes(living, self.paf_pipeline)
+        joint_paf = self.population_view.get(living, self.paf_pipeline)
         transition_rate.loc[living] = base_rates * (1 - joint_paf)
         return transition_rate
 
@@ -142,7 +142,7 @@ class RateTransition(Transition):
     def _probability(self, index: pd.Index) -> pd.Series:
         return pd.Series(
             rate_to_probability(
-                self.population_view.get_attributes(index, self.transition_rate_pipeline),
+                self.population_view.get(index, self.transition_rate_pipeline),
                 rate_conversion_type=self.rate_conversion_type,
             )
         )

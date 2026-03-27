@@ -528,11 +528,13 @@ class CustomExposureRisk(Component):
 
     def initialize_exposure(self, pop_data: SimulantData) -> None:
         exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
-        self.population_view.update(exposure_col)
+        self.population_view.initialize(exposure_col)
 
     def on_time_step_prepare(self, event: Event) -> None:
-        exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
-        self.population_view.update(exposure_col)
+        self.population_view.update(
+            self.exposure_column_name,
+            lambda _: pd.Series(custom_exposure_values, name=self.exposure_column_name),
+        )
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):

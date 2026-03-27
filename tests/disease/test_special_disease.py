@@ -35,7 +35,7 @@ def test_filter_by_exposure_categorical(disease_mock, distribution, categories, 
     infected = threshold * per_cat
     susceptible = list(set(categories) - set(threshold)) * per_cat
     current_exposure = lambda index: pd.Series(infected + susceptible, index=index)
-    disease.population_view.get_attributes = lambda index, _: current_exposure(index)
+    disease.population_view.get = lambda index, _: current_exposure(index)
     filter_func = disease.get_exposure_filter(distribution, threshold)
     expected = lambda index: current_exposure(index).isin(infected)
 
@@ -92,7 +92,7 @@ def test_filter_by_exposure_continuous(disease_mock, distribution, threshold):
         index=test_index,
     )
 
-    disease.population_view.get_attributes = lambda index, _: current_exposure(index)
+    disease.population_view.get = lambda index, _: current_exposure(index)
     filter_func = disease.get_exposure_filter(distribution, threshold)
     expected = lambda index: threshold_op(current_exposure(index), threshold_val)
 
@@ -106,13 +106,10 @@ def test_mortality_rate_pandas_dataframe(disease_mock):
     current_disease_status = [disease.cause.name] * int(0.2 * num_sims) + [
         f"susceptible_to_{disease.cause.name}"
     ] * int(num_sims * 0.8)
-    disease.population_view.get.side_effect = lambda index: pd.DataFrame(
-        {disease.cause.name: current_disease_status, "is_alive": True}, index=index
-    )
     expected_mortality_values = pd.Series(
         current_disease_status, name=disease.cause.name, index=test_index
     ).map({disease.cause.name: 0.05, f"susceptible_to_{disease.cause.name}": 0})
-    disease.population_view.get_attributes.return_value = expected_mortality_values
+    disease.population_view.get.return_value = expected_mortality_values
     rates_df = pd.DataFrame(
         {"other_causes": 0, "another_test_cause": 0.001}, index=test_index
     )
