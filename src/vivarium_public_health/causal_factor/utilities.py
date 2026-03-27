@@ -44,6 +44,23 @@ def pivot_categorical(
 
 
 def get_exposure_post_processor(builder, risk: str):
+    """Build a post-processor that bins continuous exposure into categories.
+
+    If category thresholds are configured, return a callable that bins
+    exposure values using ``pd.cut``. Otherwise, return an empty list
+    (no post-processing).
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    risk
+        The name of the risk in the configuration.
+
+    Returns
+    -------
+        A callable post-processor or an empty list.
+    """
     thresholds = builder.configuration[risk]["category_thresholds"]
 
     if thresholds:
@@ -62,6 +79,19 @@ def get_exposure_post_processor(builder, risk: str):
 
 
 def load_exposure_data(builder: Builder, risk: EntityString) -> pd.DataFrame:
+    """Load exposure data for a risk from its configured data source.
+
+    Parameters
+    ----------
+    builder
+        Access point for utilizing framework interfaces during setup.
+    risk
+        The entity string identifying the risk.
+
+    Returns
+    -------
+        The exposure data as a DataFrame.
+    """
     risk_component = builder.components.get_component(risk)
     return risk_component.get_data(
         builder, builder.configuration[risk_component.name]["data_sources"]["exposure"]

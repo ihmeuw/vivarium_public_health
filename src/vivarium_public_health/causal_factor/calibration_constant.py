@@ -28,6 +28,7 @@ from vivarium.types import LookupTableData, NumberLike
 
 
 def get_calibration_constant_pipeline_name(target_pipeline_name: str) -> str:
+    """Return the calibration constant pipeline name for a target pipeline."""
     return f"{target_pipeline_name}.calibration_constant"
 
 
@@ -112,6 +113,13 @@ class _RiskAffectedPipeline(Component):
         self._is_rate = is_rate
 
     def setup(self, builder: Builder) -> None:
+        """Register the calibration constant and target pipelines.
+
+        Parameters
+        ----------
+        builder
+            Access point for utilizing framework interfaces during setup.
+        """
         self._calibration_constant_table = self.build_lookup_table(
             builder, "calibration_constant", data_source=0
         )
@@ -137,11 +145,13 @@ class _RiskAffectedPipeline(Component):
         )
 
     def on_post_setup(self, event: Event) -> None:
+        """Precompute the calibration constant and store it in the lookup table."""
         calibration_constant_data = self._calibration_constant_pipeline()
         self._calibration_constant_table.set_data(calibration_constant_data)
 
     @property
     def name(self) -> str:
+        """The name of this component."""
         return f"_risk_affected_pipeline.{self._target_pipeline_name}"
 
     #################################
@@ -155,6 +165,7 @@ class _RiskAffectedPipeline(Component):
         *args: Any,
         **kwargs: Any,
     ) -> list[Numeric | pd.Series]:
+        """Append the mutator result to the calibration constant list."""
         calibration_constant = mutator(*args, **kwargs)
         if isinstance(calibration_constant, pd.DataFrame):
             index_columns = [
@@ -168,6 +179,7 @@ class _RiskAffectedPipeline(Component):
     def _calibration_constant_post_processor(
         value: list[NumberLike], manager: ValuesManager
     ) -> LookupTableData:
+        """Compute the joint calibration constant via raw union."""
         joint_calibration_constant = raw_union_post_processor(value, manager)
         if isinstance(joint_calibration_constant, pd.Series):
             joint_calibration_constant = joint_calibration_constant.reset_index()
@@ -179,6 +191,7 @@ class _RiskAffectedPipeline(Component):
         value: pd.Series,
         manager: ValuesManager,
     ) -> pd.Series:
+        """Multiply non-zero values by ``(1 - calibration_constant)``."""
         non_zero_index = value[value != 0].index
         if not non_zero_index.empty:
             calibration_constant = self._calibration_constant_table(non_zero_index)
