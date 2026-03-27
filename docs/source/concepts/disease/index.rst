@@ -12,8 +12,6 @@ Disease
 .. toctree::
    :hidden:
 
-   state
-   transition
    model
    special_disease
 
@@ -24,17 +22,15 @@ population of simulants. It builds on vivarium's
 diseases as state machines where simulants move between health states according
 to epidemiological rates.
 
-The package is organized around four cooperating concerns:
+The package is organized around three cooperating concerns:
 
-1. **Disease states** — the health conditions a simulant can occupy
-   (susceptible, infected, recovered, transient). See :ref:`disease_state_concept`.
-2. **Transitions** — the rules governing movement between states
-   (rate-based, proportion-based, or dwell-time-based). See
-   :ref:`disease_transition_concept`.
-3. **Disease models** — the orchestrator that composes states and transitions
+1. **Disease models** — the orchestrator that composes states and transitions
    into a complete disease simulation component, integrating with
-   mortality and the broader vivarium framework. See
+   mortality and the broader vivarium framework. States represent the health
+   conditions a simulant can occupy (susceptible, infected, recovered,
+   transient), while transitions define the rules governing movement between
+   them (rate-based, proportion-based, or dwell-time-based). See
    :ref:`disease_model_concept`.
-4. **Special disease** — an alternative modeling approach where disease state is
+2. **Special disease** — an alternative modeling approach where disease state is
    derived directly from risk factor exposure rather than explicit state
    transitions. See :ref:`special_disease_concept`.
