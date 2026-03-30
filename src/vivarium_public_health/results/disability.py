@@ -21,7 +21,7 @@ from vivarium_public_health.utilities import to_years
 
 
 class DisabilityObserver(PublicHealthObserver):
-    """Counts years lived with disability.
+    """Count years lived with disability.
 
     By default, this counts both aggregate and cause-specific years lived
     with disability over the full course of the simulation.
