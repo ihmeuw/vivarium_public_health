@@ -78,4 +78,42 @@ Glossary
         the simulant's position in the cumulative distribution of a risk factor and is used
         as input to the :term:`PPF`. See :ref:`propensity_concept`.
 
+    Calibration Constant
+        A value, typically derived from the :term:`population attributable fraction <PAF>`,
+        that adjusts a target rate so that, after :term:`relative risk <Relative Risk>`
+        multiplication, the population-level rate remains consistent with input data.
+        See :ref:`calibration_constant_concept`.
+
+    Log-Linear Model
+        A dose–response model in which the logarithm of the
+        :term:`relative risk <Relative Risk>` is proportional to the difference between a
+        :term:`simulant's <Simulant>` exposure and the :term:`TMREL`.
+        See :ref:`log_linear_risk_effect_concept`.
+
+    Population Attributable Fraction
+    PAF
+        The proportion of a target rate (e.g., disease incidence) in the population that is
+        attributable to exposure to a given risk factor. Typically used to compute the
+        :term:`calibration constant <Calibration Constant>`.
+        See :ref:`calibration_constant_concept`.
+
+    Relative Risk
+        A measure of how much more likely an outcome is for a :term:`simulant <Simulant>` at
+        a given exposure level compared to a reference level. Used by risk effect components
+        to modify target rates such as disease incidence or mortality.
+        See :ref:`relative_risk_concept`.
+
+    Theoretical Minimum-Risk Exposure Distribution
+    TMRED
+        The distribution of exposure levels at which the risk to health is at a theoretical
+        minimum. The midpoint of this distribution defines the :term:`TMREL`.
+        See :ref:`relative_risk_concept`.
+
+    Theoretical Minimum-Risk Exposure Level
+    TMREL
+        The exposure level at which the risk to health is at a theoretical minimum, typically
+        computed as the midpoint of the :term:`TMRED`. Relative risks are normalized so that
+        the :term:`relative risk <Relative Risk>` at the TMREL equals 1.
+        See :ref:`relative_risk_concept`.
+
 
