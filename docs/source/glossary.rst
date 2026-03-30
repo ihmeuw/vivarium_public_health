@@ -58,7 +58,10 @@ Glossary
     PAF
         The fraction of disease burden in a population that is attributable to a
         particular risk factor exposure. A PAF of 1 means the disease is fully
-        attributed to the risk. See :ref:`risk_attributable_disease_concept`.
+        attributed to the risk. Typically used to compute the
+        :term:`calibration constant <Calibration Constant>`.
+        See :ref:`risk_attributable_disease_concept` and
+        :ref:`calibration_constant_concept`.
 
     Prevalence
         The proportion of the population that occupies a given disease state at a
@@ -127,13 +130,6 @@ Glossary
         :term:`relative risk <Relative Risk>` is proportional to the difference between a
         :term:`simulant's <Simulant>` exposure and the :term:`TMREL`.
         See :ref:`log_linear_risk_effect_concept`.
-
-    Population Attributable Fraction
-    PAF
-        The proportion of a target rate (e.g., disease incidence) in the population that is
-        attributable to exposure to a given risk factor. Typically used to compute the
-        :term:`calibration constant <Calibration Constant>`.
-        See :ref:`calibration_constant_concept`.
 
     Relative Risk
         A measure of how much more likely an outcome is for a :term:`simulant <Simulant>` at

@@ -25,8 +25,7 @@ PAFs; the PAF is simply the most common source for this value.
 How Calibration Works
 ---------------------
 
-The
-:class:`~vivarium_public_health.causal_factor.calibration_constant._RiskAffectedPipeline`
+The ``_RiskAffectedPipeline``
 class manages the interaction between the target rate pipeline and its
 calibration constant. When a target rate pipeline is registered as
 risk-affected (via
