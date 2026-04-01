@@ -308,7 +308,7 @@ class Risk(Component):
                 lambda _: exposure,
             )
 
-    def get_exposure(self, index: pd.Index) -> None:
+    def get_exposure(self, index: pd.Index) -> pd.Series:
         """Updates the exposure column with pipeline values.
 
         HACK: This is effectively caching the exposure pipeline for use by other
@@ -320,3 +320,4 @@ class Risk(Component):
         """
         exposure = self.population_view.get(index, self.exposure_name)
         exposure.name = self.exposure_column_name
+        return exposure
