@@ -1,4 +1,4 @@
-**5.0.0 - TBD/TBD/TBD**
+**5.0.0 - 04/02/26**
 -----------------------
 
 This release updates the repository to work with `vivarium` v4.0.0 which contains
