@@ -86,3 +86,10 @@ Glossary
         The residual life expectancy at the time of a :term:`simulant's <Simulant>`
         death, computed from the :term:`TMRLE` table. Accumulated across
         the population as a summary measure of premature mortality. See :ref:`mortality_concept`.
+
+    Years Lived with Disability
+    YLD
+        The total time spent in non-fatal health states, weighted by
+        :term:`disability weight`, and converted to years. Accumulated across
+        the population as a summary measure of morbidity. See
+        :ref:`disability_observer_concept`.
