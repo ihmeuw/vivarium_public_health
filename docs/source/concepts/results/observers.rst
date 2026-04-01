@@ -105,7 +105,9 @@ To create a new public health observer:
    :meth:`~vivarium.framework.results.observer.Observer.register_observations`
    and call ``self.register_adding_observation(...)`` within it.
 3. Override the formatting sub-methods as needed to populate the metadata
-   columns. A typical custom observer subclass implements
+   columns.
+
+A typical custom observer subclass implements
 ``register_observations`` with a call to ``self.register_adding_observation()``
 and overrides whichever ``get_*_column`` methods are needed to supply
 the appropriate metadata values.
