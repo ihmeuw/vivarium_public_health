@@ -86,7 +86,7 @@ Glossary
         The residual life expectancy at the time of a :term:`simulant's <Simulant>`
         death, computed from the :term:`TMRLE` table. Accumulated across
         the population as a summary measure of premature mortality. See :ref:`mortality_concept`.
-    
+
     Therapeutic Inertia
         The tendency for treatment algorithms to deviate from clinical
         guidelines — for example, when treatment is not escalated during a
