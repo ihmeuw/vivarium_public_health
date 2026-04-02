@@ -42,7 +42,7 @@ def test_mortality_default_lookup_configuration(setup_sim_with_pop_and_mortality
 
 def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
-    pop = sim.get_population()
+    pop = sim.get_population(sim.get_attribute_names())
     expected_columns_created = mortality.private_columns
     expected_attributes_created = [
         mortality.mortality_rate_pipeline,

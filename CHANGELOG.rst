@@ -10,7 +10,8 @@ Vivarium v4.0.0 breaking changes
 Population management system refactor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Interactive context: 'get_population()' will now error if requesting an attribute that doesn't exist.
+- Interactive context: 'get_population()' will now error if if no attributes are 
+  requested or if requesting an attribute that doesn't exist.
 - Population views: Remove subviews, update 'get()' method, and add 'get_frame()' method.
 
   - You must now explicitly request which attributes you want to retrieve.
