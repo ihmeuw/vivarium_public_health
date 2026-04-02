@@ -14,7 +14,7 @@ from vivarium.framework.engine import Builder
 
 
 class ResultsStratifier(Component):
-    """A component for registering common public health stratifications.
+    """Register common public health stratifications.
 
     The purpose of this component is to encapsulate all common public health
     stratification registrations in one place. This is not enforced, however,
@@ -36,6 +36,10 @@ class ResultsStratifier(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        """Set up the stratifier.
+
+        Define age bins and simulation years and register default stratifications.
+        """
         self.age_bins = self.get_age_bins(builder)
         self.start_year = builder.configuration.time.start.year
         self.end_year = builder.configuration.time.end.year

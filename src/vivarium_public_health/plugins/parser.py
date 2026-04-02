@@ -39,11 +39,12 @@ class CausesParsingErrors(ParsingError):
     """Error raised when there are any errors parsing a cause model configuration."""
 
     def __init__(self, messages: list[str]):
+        """Format and join error messages and pass to init of parent class."""
         super().__init__("\n - " + "\n - ".join(messages))
 
 
 class CausesConfigurationParser(ComponentConfigurationParser):
-    """Parser for cause model configurations.
+    """Parse cause model configurations.
 
     Component configuration parser that acts the same as the standard vivarium
     `ComponentConfigurationParser` but adds the additional ability to parse a
@@ -78,11 +79,11 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     DEFAULT_TRANSITION_CONFIG = {"triggered": "NOT_TRIGGERED"}
     """Default triggered value.
     
-    This value is used if the transition configuration does not explicity specify it.
+    This value is used if the transition configuration does not explicitly specify it.
     """
 
     def parse_component_config(self, component_config: LayeredConfigTree) -> list[Component]:
-        """Parses the component configuration and returns a list of components.
+        """Parse the component configuration and return a list of components.
 
         In particular, this method looks for an `external_configuration` key
         and/or a `causes` key.
@@ -181,7 +182,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     #########################
 
     def _add_default_config_layer(self, causes_config: LayeredConfigTree) -> None:
-        """Adds a default layer to the provided configuration.
+        """Add a default layer to the provided configuration.
 
         This default layer specifies values for the cause model configuration.
 
@@ -217,7 +218,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _get_cause_model_components(
         self, causes_config: LayeredConfigTree
     ) -> list[Component]:
-        """Parses the cause model configuration and returns the `DiseaseModel` components.
+        """Parse the cause model configuration and return the `DiseaseModel` components.
 
         Parameters
         ----------
@@ -260,7 +261,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _get_state(
         self, state_name: str, state_config: LayeredConfigTree, cause_name: str
     ) -> BaseDiseaseState:
-        """Parses a state configuration and returns an initialized `BaseDiseaseState` object.
+        """Parse a state configuration and return an initialized `BaseDiseaseState` object.
 
         Parameters
         ----------
@@ -308,7 +309,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         sink_state: BaseDiseaseState,
         transition_config: LayeredConfigTree,
     ) -> None:
-        """Adds a transition between two states.
+        """Add a transition between two states.
 
         Parameters
         ----------
@@ -339,7 +340,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _get_data_sources(
         self, config: LayeredConfigTree
     ) -> dict[str, str | float | pd.Timedelta | Callable[[Builder], Any]]:
-        """Parses a configuration and returns the data sources.
+        """Parse a configuration and return the data sources.
 
         Parameters
         ----------
@@ -362,7 +363,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         name: str,
         source: str | float,
     ) -> str | float | pd.Timedelta | Callable[[Builder], Any]:
-        """Parses a data source and returns a callable that can be used to retrieve the data.
+        """Parse a data source and return a callable that can be used to retrieve the data.
 
         Parameters
         ----------
@@ -433,7 +434,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
 
     @staticmethod
     def _validate_external_configuration(external_configuration: LayeredConfigTree) -> None:
-        """Validates the external configuration.
+        """Validate the external configuration.
 
         Parameters
         ----------
@@ -467,7 +468,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             raise CausesParsingErrors(error_messages)
 
     def _validate_causes_config(self, causes_config: LayeredConfigTree) -> None:
-        """Validates the cause model configuration.
+        """Validate the cause model configuration.
 
         Parameters
         ----------
@@ -488,7 +489,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
             raise CausesParsingErrors(error_messages)
 
     def _validate_cause(self, cause_name: str, cause_config: dict[str, Any]) -> list[str]:
-        """Validates a cause configuration and returns a list of error messages.
+        """Validate a cause configuration and return a list of error messages.
 
         Parameters
         ----------
@@ -562,7 +563,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _validate_state(
         self, cause_name: str, state_name: str, state_config: dict[str, Any]
     ) -> list[str]:
-        """Validates a state configuration and returns a list of error messages.
+        """Validate a state configuration and return a list of error messages.
 
         Parameters
         ----------
@@ -655,7 +656,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
         transition_config: dict[str, Any],
         states_config: dict[str, Any],
     ) -> list[str]:
-        """Validates a transition configuration and returns a list of error messages.
+        """Validate a transition configuration and return a list of error messages.
 
         Parameters
         ----------
@@ -754,7 +755,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _validate_imported_type(
         import_path: str, cause_name: str, entity_type: str, entity_name: str | None = None
     ) -> list[str]:
-        """Validates an imported type and returns a list of error messages.
+        """Validate an imported type and return a list of error messages.
 
         Parameters
         ----------
@@ -796,7 +797,7 @@ class CausesConfigurationParser(ComponentConfigurationParser):
     def _validate_data_sources(
         self, config: dict[str, Any], cause_name: str, config_type: str, config_name: str
     ) -> list[str]:
-        """Validates the data sources in a configuration and returns any error messages.
+        """Validate the data sources in a configuration and return any error messages.
 
         Parameters
         ----------

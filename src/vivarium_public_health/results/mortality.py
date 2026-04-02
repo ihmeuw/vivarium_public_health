@@ -22,14 +22,15 @@ from vivarium_public_health.results.simple_cause import SimpleCause
 
 
 class MortalityObserver(PublicHealthObserver):
-    """An observer for cause-specific deaths and ylls (including "other causes").
+    """Observe cause-specific deaths and YLLs (including "other causes").
 
     By default, this counts cause-specific deaths and years of life lost over
     the full course of the simulation. It can be configured to add or remove
     stratification groups to the default groups defined by a
-    :class:ResultsStratifier. The aggregate configuration key can be set to
-    True to aggregate all deaths and ylls into a single observation and remove
-    the stratification by cause of death to improve runtime.
+    :class:`~vivarium_public_health.results.stratification.ResultsStratifier`. The
+    aggregate configuration key can be set to True to aggregate all deaths and
+    YLLs into a single observation and remove the stratification by cause of
+    death to improve runtime.
 
     In the model specification, your configuration for this component should
     be specified as, e.g.:
@@ -63,7 +64,7 @@ class MortalityObserver(PublicHealthObserver):
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
-        """Provides default configuration values for this observer.
+        """Default configuration values for this observer.
 
         Extends the base PublicHealthObserver configuration with
         mortality-specific settings.
@@ -128,11 +129,11 @@ class MortalityObserver(PublicHealthObserver):
         Notes
         -----
         Ideally, each observer registers a single observation. This one, however,
-        registeres two.
+        registers two.
 
         While it's typical for all stratification registrations to be encapsulated
         in a single class (i.e. the
-        :class:ResultsStratifier <vivarium_public_health.results.stratification.ResultsStratifier),
+        :class:`ResultsStratifier <vivarium_public_health.results.stratification.ResultsStratifier>`),
         this observer potentially registers an additional one. While it could
         be registered in the ``ResultsStratifier`` as well, it is specific to
         this observer and so it is registered here while we have easy access
