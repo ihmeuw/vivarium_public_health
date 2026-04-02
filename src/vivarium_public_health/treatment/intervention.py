@@ -46,7 +46,7 @@ class Intervention(CausalFactor):
 
 
 class InterventionEffect(CausalFactorEffect):
-    """A component to model the effect of an intervention on an affected
+    """A model for the effect of an intervention on an affected
     entity's target measure.
 
     This is a specialization of
