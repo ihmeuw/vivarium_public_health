@@ -141,7 +141,7 @@ class CausalFactorEffect(Component, ABC):
         self.exposure_name = f"{self.causal_factor.name}.exposure"
         self.target_name = f"{self.target.name}.{self.target.measure}"
         self.relative_risk_name = (
-            f"{self.causal_factor.name}_on_{self.target.name}.relative_risk"
+            f"{self.causal_factor.name}_on_{self.target_name}.relative_risk"
         )
 
     def setup(self, builder: Builder) -> None:
