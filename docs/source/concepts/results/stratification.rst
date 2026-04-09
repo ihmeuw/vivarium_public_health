@@ -46,8 +46,11 @@ Default Stratifications
        the end year (inclusive).
    * - ``event_year``
      - ``event_time``
-     - Maps the event time (e.g. death or disease-onset time) to a
-       calendar-year string. Categories span start year to end year + 1,
+     - Maps the event time to a calendar-year string. The event time is
+       the end of the current time step (i.e.
+       ``current_time + step_size``), which may fall in the next
+       calendar year relative to ``current_time``.
+       Categories span start year to end year + 1,
        with the extra year automatically excluded so it does not appear
        in output.
    * - ``sex``
@@ -60,7 +63,7 @@ Activating Stratifications
 ---------------------------
 
 Registering a stratification makes it *available* but does not apply it to
-any observation automatically. To activate stratifications, list them under
+any observation automatically. To activate stratifications for all observations, list them under
 the ``stratification.default`` key in the
 :ref:`model specification <model_specification_concept>` configuration.
 The key path is ``configuration.stratification.default``, whose value is a

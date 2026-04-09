@@ -1,8 +1,8 @@
 .. _public_health_observer_concept:
 
-=========
-Observers
-=========
+======================
+Public Health Observer
+======================
 
 .. contents::
    :depth: 3
@@ -20,12 +20,8 @@ that most public health observers share:
 2. A standardized results-formatting pipeline that produces a consistent
    column layout across all public health outputs.
 
-All of the concrete observers shipped with this package —
-:ref:`DisabilityObserver <disability_observer_concept>`,
-:ref:`DiseaseObserver <disease_observer_concept>`,
-:ref:`MortalityObserver <mortality_observer_concept>`, and
-:ref:`CategoricalRiskObserver <categorical_risk_observer_concept>` — inherit
-from ``PublicHealthObserver``.
+All of the :ref:`concrete observers <concrete_observers_concept>` shipped with
+this package inherit from ``PublicHealthObserver``.
 
 Registering Adding Observations
 -------------------------------
@@ -33,7 +29,7 @@ Registering Adding Observations
 The most common observation type in public health models is the *adding*
 observation: one that sums new results into a running total each time step
 (e.g. counting deaths or accumulating person-time). Rather than calling the
-:ref:`results interface <results_concept>` directly,
+:ref:`results interface <results_concept>` directly (via the builder),
 ``PublicHealthObserver`` exposes
 :meth:`~vivarium_public_health.results.observer.PublicHealthObserver.register_adding_observation`,
 which wraps that call with sensible defaults and automatically applies the
@@ -106,11 +102,6 @@ To create a new public health observer:
    and call ``self.register_adding_observation(...)`` within it.
 3. Override the formatting sub-methods as needed to populate the metadata
    columns.
-
-A typical custom observer subclass implements
-``register_observations`` with a call to ``self.register_adding_observation()``
-and overrides whichever ``get_*_column`` methods are needed to supply
-the appropriate metadata values.
 
 .. _concrete_observers_concept:
 

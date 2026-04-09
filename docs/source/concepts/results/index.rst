@@ -12,16 +12,21 @@ Results
 .. toctree::
    :hidden:
 
-   observers
+   public_health_observer
    stratification
 
 The ``vivarium_public_health`` results package provides
-:term:`components <Component>` for observing and recording public health
+:term:`components <Component>` for recording public health
 measures during a simulation. It builds on vivarium's
 :ref:`results management system <results_concept>` — which supplies the
-observation and stratification machinery — by adding a standardized base
+observer, observation, and stratification machinery — by adding a standardized base
 observer, a set of ready-to-use concrete observers, and a common
 stratification component.
+
+.. note::
+
+   A ``vivarium`` simulation will *not* record results by default. The user must
+   define observers that register observations in order to record results!
 
 The package is organized around two cooperating concerns:
 
