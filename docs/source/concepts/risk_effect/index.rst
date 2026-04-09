@@ -26,9 +26,11 @@ a multiplicative adjustment on one or more target rates.
 The package is organized around two key concepts:
 
 1. **Relative Risk** — a measure of how much more likely an outcome is for a
-   simulant at a given exposure level compared to a reference level. The risk
-   effect component computes a per-simulant relative risk and registers it as a
-   modifier on the target rate pipeline.
+   simulant at a given exposure level compared to a reference level. A relative
+   risk of 1 means the simulant is no more or less likely to experience the
+   outcome than at the reference level. The risk effect component computes a
+   per-simulant relative risk and registers it as a modifier on the target rate
+   pipeline.
 2. **Calibration Constant** — a value, typically derived from the
    :term:`population attributable fraction <PAF>`, that adjusts the baseline
    target rate so that, after relative risk multiplication across the
