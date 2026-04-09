@@ -16,9 +16,7 @@ from vivarium_public_health.utilities import to_years
 
 
 class CategoricalCausalFactorObserver(PublicHealthObserver):
-    """An observer for a categorical causal factor.
-
-    Observes category person time for a causal factor.
+    """Observe category person time for a categorical causal factor.
 
     By default, this observer computes aggregate categorical person time
     over the full course of the simulation. It can be configured to add or
@@ -56,7 +54,7 @@ class CategoricalCausalFactorObserver(PublicHealthObserver):
     #####################
 
     def __init__(self, causal_factor: str) -> None:
-        """Constructor for this observer.
+        """Initialize this observer.
 
         Parameters
         ----------
@@ -77,6 +75,7 @@ class CategoricalCausalFactorObserver(PublicHealthObserver):
         self.categories = builder.data.load(f"risk_factor.{self.causal_factor}.categories")
 
     def get_configuration_name(self) -> str:
+        """Provide the configuration name for this observer."""
         return self.causal_factor
 
     def register_observations(self, builder: Builder) -> None:
@@ -86,7 +85,7 @@ class CategoricalCausalFactorObserver(PublicHealthObserver):
         -----
         While it's typical for all stratification registrations to be encapsulated
         in a single class (i.e. the
-        :class:ResultsStratifier <vivarium_public_health.results.stratification.ResultsStratifier),
+        :class:`ResultsStratifier <vivarium_public_health.results.stratification.ResultsStratifier>`),
         this observer registers an additional one. While it could be registered
         in the ``ResultsStratifier`` as well, it is specific to this observer and
         so it is registered here while we have easy access to the required categories
@@ -162,11 +161,10 @@ class CategoricalCausalFactorObserver(PublicHealthObserver):
 
 
 class CategoricalRiskObserver(CategoricalCausalFactorObserver):
-    """An observer for a categorical risk factor.
+    """Observe category person time for a categorical risk factor.
 
-    Observes category person time for a risk factor. This is a convenience
-    subclass of :class:`CategoricalCausalFactorObserver` for use with risk
-    factors.
+    This is a convenience subclass of :class:`CategoricalCausalFactorObserver`
+    for use with risk factors.
 
     By default, this observer computes aggregate categorical person time
     over the full course of the simulation. It can be configured to add or
@@ -201,10 +199,11 @@ class CategoricalRiskObserver(CategoricalCausalFactorObserver):
 
     @property
     def name(self) -> str:
+        """The name of this observer."""
         return f"categorical_risk_observer.{self.causal_factor}"
 
     def __init__(self, risk: str) -> None:
-        """Constructor for this observer.
+        """Initialize this observer.
 
         Parameters
         ----------
@@ -215,11 +214,10 @@ class CategoricalRiskObserver(CategoricalCausalFactorObserver):
 
 
 class CategoricalInterventionObserver(CategoricalCausalFactorObserver):
-    """An observer for a categorical intervention.
+    """Observe category person time for a categorical intervention.
 
-    Observes category person time for an intervention. This is a convenience
-    subclass of :class:`CategoricalCausalFactorObserver` for use with
-    interventions.
+    This is a convenience subclass of :class:`CategoricalCausalFactorObserver`
+    for use with interventions.
 
     By default, this observer computes aggregate categorical person time
     over the full course of the simulation. It can be configured to add or
@@ -254,10 +252,11 @@ class CategoricalInterventionObserver(CategoricalCausalFactorObserver):
 
     @property
     def name(self) -> str:
+        """The name of this observer."""
         return f"categorical_intervention_observer.{self.causal_factor}"
 
     def __init__(self, intervention: str) -> None:
-        """Constructor for this observer.
+        """Initialize this observer.
 
         Parameters
         ----------
