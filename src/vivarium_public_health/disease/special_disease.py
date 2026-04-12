@@ -408,6 +408,7 @@ class RiskAttributableDisease(ExcessMortalityState):
         event
             The event that triggered this method call.
         """
+
         def _update_disease_state(pop: pd.DataFrame) -> pd.DataFrame:
             living_idx = self.population_view.get_filtered_index(
                 event.index, query="is_alive == True"
