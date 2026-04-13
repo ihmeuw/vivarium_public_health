@@ -42,7 +42,7 @@ def test_mortality_default_lookup_configuration(setup_sim_with_pop_and_mortality
 
 def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
     sim, bp, mortality = setup_sim_with_pop_and_mortality
-    pop = sim.get_population(sim.get_attribute_names())
+    attributes = sim.get_attribute_names()
     expected_columns_created = mortality.private_columns
     expected_attributes_created = [
         mortality.mortality_rate_pipeline,
@@ -56,7 +56,7 @@ def test_mortality_creates_attributes(setup_sim_with_pop_and_mortality):
         "all_causes.disability_weight",
     ]
     mortality_created_columns = [
-        col for col in pop.columns.get_level_values(0) if col not in other_columns_created
+        col for col in attributes if col not in other_columns_created
     ]
     assert set(expected_columns_created + expected_attributes_created) == set(
         mortality_created_columns
