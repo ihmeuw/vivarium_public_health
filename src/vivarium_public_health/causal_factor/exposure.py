@@ -322,4 +322,4 @@ class CausalFactor(Component, ABC):
         propensity = pd.Series(
             self.randomness.get_draw(pop_data.index), name=self.propensity_name
         )
-        self.population_view.update(propensity)
+        self.population_view.initialize(propensity)

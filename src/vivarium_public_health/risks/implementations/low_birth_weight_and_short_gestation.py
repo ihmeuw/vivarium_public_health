@@ -567,7 +567,7 @@ class LBWSGRisk(Risk):
 
     def _get_birth_exposure_source(self, index: pd.Index) -> pd.DataFrame:
         """Return continuous birth exposure data for the given index."""
-        return self.population_view.get_attribute_frame(
+        return self.population_view.get_frame(
             index, self.exposure_distribution.exposure_ppf_pipeline
         )
 
