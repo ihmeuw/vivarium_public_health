@@ -200,7 +200,7 @@ class BaseDiseaseState(State):
                 transition.set_active(pop_data.index)
 
         pop_update = self.get_initial_event_times(pop_data)
-        self.population_view.update(pop_update)
+        self.population_view.initialize(pop_update)
 
     ##################
     # Helper methods #
@@ -237,10 +237,16 @@ class BaseDiseaseState(State):
         event_time
             The time at which this transition occurs.
         """
-        pop = self.population_view.get_private_columns(index)
-        pop[self.event_time_column] = event_time
-        pop[self.event_count_column] += 1
-        self.population_view.update(pop)
+
+        def _bump_event(pop: pd.DataFrame) -> pd.DataFrame:
+            pop = pop.loc[index]
+            pop[self.event_time_column] = event_time
+            pop[self.event_count_column] += 1
+            return pop
+
+        self.population_view.update(
+            [self.event_time_column, self.event_count_column], _bump_event
+        )
 
         if self.side_effect_function is not None:
             self.side_effect_function(index, event_time)
@@ -963,7 +969,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         -------
             The modified DataFrame of mortality rates.
         """
-        rate = self.population_view.get_attributes(
+        rate = self.population_view.get(
             index, self.excess_mortality_rate_pipeline, skip_post_processor=True
         )
         rates_df[self.state_id] = rate
@@ -987,7 +993,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         """
         pop_update = super().get_initial_event_times(pop_data)
 
-        simulants_with_condition = self.population_view.get_attributes(
+        simulants_with_condition = self.population_view.get(
             pop_data.index,
             self.model,
             query=f'{self.model}=="{self.state_id}"',
@@ -997,7 +1003,7 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
                 simulants_with_condition,
                 self.clock(),
                 self.randomness_prevalence.get_draw,
-                self.population_view.get_attributes(
+                self.population_view.get(
                     simulants_with_condition.index, self.dwell_time_pipeline
                 ),
             )
@@ -1045,10 +1051,10 @@ class DiseaseState(BaseDiseaseState, ExcessMortalityState):
         -------
             A filtered index of the simulants.
         """
-        event_times = self.population_view.get_private_columns(
+        event_times = self.population_view.get(
             index, self.event_time_column, query="is_alive == True"
         )
-        dwell_time = self.population_view.get_attributes(index, self.dwell_time_pipeline)
+        dwell_time = self.population_view.get(index, self.dwell_time_pipeline)
         if np.any(dwell_time) > 0:
             state_exit_time = event_times + pd.to_timedelta(dwell_time, unit="D")
             return event_times.loc[state_exit_time <= event_time].index
