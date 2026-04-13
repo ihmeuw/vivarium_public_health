@@ -292,7 +292,7 @@ class EnsembleDistribution(CausalFactorDistribution):
         -------
             A series of exposure values.
         """
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.causal_factor_propensity, self.ensemble_propensity]
         )
         quantiles = pop[self.causal_factor_propensity]
@@ -439,7 +439,7 @@ class ContinuousDistribution(CausalFactorDistribution):
         -------
             A series of exposure values.
         """
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.causal_factor_propensity, self.exposure_params_name]
         )
         quantiles = pop[self.causal_factor_propensity]
