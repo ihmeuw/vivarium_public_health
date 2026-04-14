@@ -12,6 +12,7 @@
 - Update RiskEffect and LBWSGRiskEffect to leverage the multiplication_combiner when applying the relative risk
   - Removes `adjust_target`` method from RiskEffect and LBWSGRiskEffect
   - The relative risk pipeline is now registered as a modifier directly
+- Relative risk pipeline name is updated to prevent name collision
 
 **5.0.2 - 04/16/26**
 
