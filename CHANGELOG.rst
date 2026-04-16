@@ -1,3 +1,8 @@
+**5.0.2 - 04/16/26**
+
+- Tighten vivarium_build_utils pin
+- Fix bug in distribution parameter column names
+
 **5.0.1 - 04/15/26**
 
 - Update vivarium_build_utils pin
