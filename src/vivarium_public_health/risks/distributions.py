@@ -97,7 +97,7 @@ class EnsembleDistribution(RiskExposureDistribution):
                 builder,
                 parameter,
                 data_source=data.reset_index(),
-                value_columns=rd.EnsembleDistribution.get_expected_parameters(parameter),
+                value_columns=list(data.columns),
             )
             for parameter, data in parameters.items()
         }
