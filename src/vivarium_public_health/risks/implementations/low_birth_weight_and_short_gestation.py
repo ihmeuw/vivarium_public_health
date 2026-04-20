@@ -237,7 +237,7 @@ class LBWSGDistribution(PolytomousDistribution):
         -------
             A DataFrame with birth-weight and gestational age exposures.
         """
-        propensities = self.population_view.get_attributes(
+        propensities = self.population_view.get(
             index,
             [LBWSGRisk.get_continuous_propensity_name(axis) for axis in AXES],
         )
@@ -531,13 +531,13 @@ class LBWSGRisk(Risk):
         else:
             self.exposure_distribution.exposure_data_type = "exposure"
 
-        birth_exposures = self.population_view.get_attribute_frame(
+        birth_exposures = self.population_view.get_frame(
             pop_data.index, self.birth_exposure_pipeline
         )
         # Rename the columns
         col_mapping = {axis: self.get_exposure_name(axis) for axis in AXES}
         birth_exposures.rename(columns=col_mapping, inplace=True)
-        self.population_view.update(birth_exposures)
+        self.population_view.initialize(birth_exposures)
 
     def initialize_categorical_and_continuous_propensities(
         self, pop_data: SimulantData
@@ -559,7 +559,7 @@ class LBWSGRisk(Risk):
             ] = self.randomness.get_draw(pop_data.index, additional_key=axis)
 
         propensities_df = pd.DataFrame(propensities)
-        self.population_view.update(propensities_df)
+        self.population_view.initialize(propensities_df)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -567,13 +567,13 @@ class LBWSGRisk(Risk):
 
     def _get_birth_exposure_source(self, index: pd.Index) -> pd.DataFrame:
         """Return continuous birth exposure data for the given index."""
-        return self.population_view.get_attribute_frame(
+        return self.population_view.get_frame(
             index, self.exposure_distribution.exposure_ppf_pipeline
         )
 
     def _get_exposure_source(self, index: pd.Index[int]) -> pd.DataFrame:
         """Return continuous exposure data from stored columns."""
-        exposure_df = self.population_view.get_attributes(
+        exposure_df = self.population_view.get(
             index, [self.get_exposure_name(axis) for axis in AXES]
         )
         col_mapping = {self.get_exposure_name(axis): axis for axis in AXES}
@@ -766,7 +766,7 @@ class LBWSGRiskEffect(RiskEffect):
         pop_data
             Metadata about the simulants being initialized.
         """
-        pop = self.population_view.get_attributes(pop_data.index, ["sex", self.exposure_name])
+        pop = self.population_view.get(pop_data.index, ["sex", self.exposure_name])
         birth_weight = pop[self.exposure_name][BIRTH_WEIGHT]
         gestational_age = pop[self.exposure_name][GESTATIONAL_AGE]
 
@@ -798,7 +798,7 @@ class LBWSGRiskEffect(RiskEffect):
         relative_risk_columns = [
             get_relative_risk_for_age_group(age_group) for age_group in self.age_intervals
         ]
-        self.population_view.update(pd.concat(relative_risk_columns, axis=1))
+        self.population_view.initialize(pd.concat(relative_risk_columns, axis=1))
 
     ##################################
     # Pipeline sources and modifiers #
@@ -806,7 +806,7 @@ class LBWSGRiskEffect(RiskEffect):
 
     def _get_relative_risk(self, index: pd.Index) -> pd.Series:
         """Return relative risk values based on simulant age group."""
-        pop = self.population_view.get_attributes(index, self.rr_column_names + ["age"])
+        pop = self.population_view.get(index, self.rr_column_names + ["age"])
         relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_name)
 
         for age_group, interval in self.age_intervals.items():
