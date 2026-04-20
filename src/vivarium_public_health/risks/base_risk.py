@@ -132,7 +132,8 @@ class Risk(CausalFactor):
         pop_data
             Metadata about the simulants being initialized.
         """
-        self.update_exposure_column(pop_data.index)
+        exposure = self.get_exposure(pop_data.index)
+        self.population_view.initialize(exposure)
 
     def on_time_step_prepare(self, event: Event) -> None:
         """Update the exposure column to equal the exposure pipeline values if there is a
@@ -144,10 +145,14 @@ class Risk(CausalFactor):
             The event triggering the preparation.
         """
         if self.includes_non_loglinear_risk_effect:
-            self.update_exposure_column(event.index)
+            exposure = self.get_exposure(event.index)
+            self.population_view.update(
+                self.exposure_column_name,
+                lambda _: exposure,
+            )
 
-    def update_exposure_column(self, index: pd.Index) -> None:
-        """Update the exposure column to equal the exposure pipeline values.
+    def get_exposure(self, index: pd.Index) -> pd.Series:
+        """Get the exposure attribute and rename it to the internal exposure column name.
 
         HACK: This is effectively caching the exposure pipeline for use by other
         components. Specifically, :meth:`vivarium_public_health.risks.effect.NonLogLinearRiskEffect.get_relative_risk_source`
@@ -161,6 +166,6 @@ class Risk(CausalFactor):
         index
             The index of the population to update.
         """
-        exposure = self.population_view.get_attributes(index, self.exposure_name)
+        exposure = self.population_view.get(index, self.exposure_name)
         exposure.name = self.exposure_column_name
-        self.population_view.update(exposure)
+        return exposure

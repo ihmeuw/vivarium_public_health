@@ -283,7 +283,7 @@ class FertilityAgeSpecificRates(Component):
             days=utilities.DAYS_PER_YEAR
         )
 
-        self.population_view.update(pop_update)
+        self.population_view.initialize(pop_update)
 
     def on_time_step(self, event: Event) -> None:
         """Produce new children and update parent status on time steps.
@@ -295,22 +295,20 @@ class FertilityAgeSpecificRates(Component):
         """
         # Get a view on all living females who haven't had a child in at least nine months.
         nine_months_ago = pd.Timestamp(event.time - PREGNANCY_DURATION)
-        last_birth_time = self.population_view.get_private_columns(
+        last_birth_time = self.population_view.get(
             event.index,
             "last_birth_time",
             query="is_alive == True and sex == 'Female'",
         )
         eligible_females_idx = last_birth_time[last_birth_time < nine_months_ago].index
-        fertility_rate = self.population_view.get_attributes(
-            eligible_females_idx, "fertility_rate"
-        )
+        fertility_rate = self.population_view.get(eligible_females_idx, "fertility_rate")
         had_children_idx = self.randomness.filter_for_rate(
             fertility_rate.index, fertility_rate
         )
-        updated_birth_time = pd.Series(
-            event.time, index=had_children_idx, name="last_birth_time"
+        self.population_view.update(
+            "last_birth_time",
+            lambda _: pd.Series(event.time, index=had_children_idx, name="last_birth_time"),
         )
-        self.population_view.update(updated_birth_time)
 
         # If children were born, add them to the state table and record
         # who their mother was.

@@ -304,7 +304,7 @@ class NonLogLinearRiskEffect(RiskEffect):
             rr_intervals = self.relative_risk_table(index)
             # NOTE: We are calling the cached exposure pipeline here for performance
             # purposes (as opposed to the f{self.causal_factor.name}.exposure pipeline itself).
-            exposure = self.population_view.get_attributes(
+            exposure = self.population_view.get(
                 index, f"{self.causal_factor.name}_exposure_for_non_loglinear_riskeffect"
             )
             x1, x2 = (

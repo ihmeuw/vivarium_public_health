@@ -1,37 +1,47 @@
-**5.1.0 - TBD/TBD/TBD**
+**5.1.0 - 04/16/26**
 
-  - Enable precomputation of calibration constants to be stored in a lookup table rather than calculated on the fly
-    - Create helper function to register pipelines that can be modified by RiskEffect components
-    - Create helper function to get calibration constant pipeline names
-    - Update RiskEffect to appropriately modify the new calibration constant pipeline
-    - Update DiseaseState to precompute calibration constant for excess mortality rate
-    - Update LBWSGRiskEffect to use the new calibration constant pipeline
-    - Update RateTransition to use the new calibration constant pipeline for transition rate
-    - Update RiskAttributableDisease to use the new calibration constant pipeline for excess mortality rate
-    - Update DichotomousDistribution to use the new calibration constant pipeline for exposure parameters
-  - Update RiskEffect and LBWSGRiskEffect to leverage the multiplication_combiner when applying the relative risk
-    - Removes `adjust_target`` method from RiskEffect and LBWSGRiskEffect
-    - The relative risk pipeline is now registered as a modifier directly
+- Enable precomputation of calibration constants to be stored in a lookup table rather than calculated on the fly
+  - Create helper function to register pipelines that can be modified by RiskEffect components
+  - Create helper function to get calibration constant pipeline names
+  - Update RiskEffect to appropriately modify the new calibration constant pipeline
+  - Update DiseaseState to precompute calibration constant for excess mortality rate
+  - Update LBWSGRiskEffect to use the new calibration constant pipeline
+  - Update RateTransition to use the new calibration constant pipeline for transition rate
+  - Update RiskAttributableDisease to use the new calibration constant pipeline for excess mortality rate
+  - Update DichotomousDistribution to use the new calibration constant pipeline for exposure parameters
+- Update RiskEffect and LBWSGRiskEffect to leverage the multiplication_combiner when applying the relative risk
+  - Removes `adjust_target`` method from RiskEffect and LBWSGRiskEffect
+  - The relative risk pipeline is now registered as a modifier directly
+- Relative risk pipeline name is updated to prevent name collision
 
-  
-**5.0.0 - TBD/TBD/TBD**
+**5.0.2 - 04/16/26**
+
+- Tighten vivarium_build_utils pin
+- Fix bug in distribution parameter column names
+
+**5.0.1 - 04/15/26**
+
+- Update vivarium_build_utils pin
+
+**5.0.0 - 04/02/26**
 =======================
 
 This release updates the repository to work with `vivarium` v4.0.0 which contains
 several breaking changes.
 
 Vivarium v4.0.0 breaking changes
-================================
+--------------------------------
 
 Population management system refactor
--------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Population views: Replace subviews and 'get()' method with 'get_attributes()',
-  'get_attribute_frame()', and 'get_private_columns()'.
+- Interactive context: 'get_population()' will now error if if no attributes are 
+  requested or if requesting an attribute that doesn't exist.
+- Population views: Remove subviews, update 'get()' method, and add 'get_frame()' method.
 
   - You must now explicitly request which attributes you want to retrieve.
-  - Write access (via the 'update()' method) is now restricted to private Columns
-    created by the component the view is attached to.
+  - Write access (via the 'initialize()' or 'update()' methods) is now restricted 
+    to private columns created by the component the view is attached to.
 
 - Population views: Remove support for population view default queries.
 - Population interface: Replace the 'tracked' column and corresponding auto-filter
@@ -48,7 +58,7 @@ Population management system refactor
 - Stop returning AttributePipelines (previously Pipelines) when registering them.
 
 Miscellaneous
--------------
+~~~~~~~~~~~~~
 
 - Split managers and their corresponding interfaces into separate modules.
 - Replace 'requires_columns' and 'requires_values' arguments with 'requires_attributes' throughout.
@@ -56,7 +66,7 @@ Miscellaneous
 - Change default behavior of state machine 'allow_self_transition' to True.
 
 Other breaking changes
-======================
+----------------------
 
 In addition to updating the repository to work with the changes outlined above:
 
@@ -75,7 +85,7 @@ In addition to updating the repository to work with the changes outlined above:
 - Set disease state 'allow_self_transition' default to True.
 
 Other changes
-=============
+-------------
 
 - Make exposure distribution 'ppf()' method an attribute pipeline.
 - Update to allow LookupTables as simulation Resources.
@@ -84,6 +94,15 @@ Other changes
 - Create new Disability class to register all-cause disability weight pipeline.
 - Update ContinuousDistribution and EnsembleDistribution to scale exposure according to a calibration constant
 - Support python 3.12
+
+**4.3.24 - 03/25/26**
+
+ - Remove upstream_repos from Jenkinsfile
+
+**4.3.23 - 03/16/26**
+
+  - Validate version prior to deploying
+  - Bugfix: Update intersphinx mapping for python and pandas
 
 **4.3.22 - 02/24/26**
 

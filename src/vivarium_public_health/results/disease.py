@@ -211,18 +211,20 @@ class DiseaseObserver(PublicHealthObserver):
 
     def initialize_previous_state(self, pop_data: SimulantData) -> None:
         """Initialize the previous state column to the current state"""
-        previous_states = self.population_view.get_attributes(pop_data.index, self.disease)
+        previous_states = self.population_view.get(pop_data.index, self.disease)
         previous_states.name = self.previous_state_column_name
-        self.population_view.update(previous_states)
+        self.population_view.initialize(previous_states)
 
     def on_time_step_prepare(self, event: Event) -> None:
         """Update the previous state column to the current state.
 
         This enables tracking of transitions between states.
         """
-        previous_states = self.population_view.get_attributes(event.index, self.disease)
-        previous_states.name = self.previous_state_column_name
-        self.population_view.update(previous_states)
+        current_states = self.population_view.get(event.index, self.disease)
+        self.population_view.update(
+            self.previous_state_column_name,
+            lambda _: current_states.rename(self.previous_state_column_name),
+        )
 
     ###############
     # Aggregators #

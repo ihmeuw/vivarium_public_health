@@ -502,7 +502,7 @@ def test_rr_sources(rr_source, rr_value, dichotomous_risk, base_config, base_plu
     pop_idx = simulation.get_population_index()
     # We skip post processor here so cannot just use `simulation.get_population`
     rate = simulation._values.get_attribute("test_cause.incidence_rate")(
-        pop_idx, skip_post_processor=True
+        pop_idx, mode="skip_post_processor"
     )
     assert set(rate.unique()) == {rr_value}
 
@@ -525,11 +525,13 @@ class CustomExposureRisk(Risk):
 
     def initialize_exposure(self, pop_data: SimulantData) -> None:
         exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
-        self.population_view.update(exposure_col)
+        self.population_view.initialize(exposure_col)
 
     def on_time_step_prepare(self, event: Event) -> None:
-        exposure_col = pd.Series(custom_exposure_values, name=self.exposure_column_name)
-        self.population_view.update(exposure_col)
+        self.population_view.update(
+            self.exposure_column_name,
+            lambda _: pd.Series(custom_exposure_values, name=self.exposure_column_name),
+        )
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder):
@@ -596,7 +598,7 @@ def test_non_loglinear_effect(rr_parameter_data, error_message, base_config, bas
     pop_idx = simulation.get_population_index()
     # We skip post processor here so cannot just use `simulation.get_population`
     rate = simulation._values.get_attribute("test_cause.incidence_rate")(
-        pop_idx, skip_post_processor=True
+        pop_idx, mode="skip_post_processor"
     )
     expected_values = np.interp(
         custom_exposure_values,
@@ -633,7 +635,7 @@ def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
     sim = _setup_risk_effect_simulation(base_config, base_plugins, risk, effect, data)
     pop_idx = sim.get_population_index()
 
-    expected_pipeline = f"{effect.causal_factor.name}_on_{effect.target.name}.relative_risk"
+    expected_pipeline = f"{effect.causal_factor.name}_on_{effect.target_name}.relative_risk"
     assert expected_pipeline in sim.get_attribute_names()
 
     rr_mapper = {

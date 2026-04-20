@@ -180,7 +180,7 @@ class EnsembleDistribution(CausalFactorDistribution):
                 builder,
                 parameter,
                 data_source=data.reset_index(),
-                value_columns=rd.EnsembleDistribution.get_expected_parameters(parameter),
+                value_columns=list(data.columns),
             )
             for parameter, data in parameters.items()
         }
@@ -274,7 +274,7 @@ class EnsembleDistribution(CausalFactorDistribution):
         ensemble_propensity = self.randomness.get_draw(pop_data.index).rename(
             self.ensemble_propensity
         )
-        self.population_view.update(ensemble_propensity)
+        self.population_view.initialize(ensemble_propensity)
 
     ##################################
     # Pipeline sources and modifiers #
@@ -292,7 +292,7 @@ class EnsembleDistribution(CausalFactorDistribution):
         -------
             A series of exposure values.
         """
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.causal_factor_propensity, self.ensemble_propensity]
         )
         quantiles = pop[self.causal_factor_propensity]
@@ -439,7 +439,7 @@ class ContinuousDistribution(CausalFactorDistribution):
         -------
             A series of exposure values.
         """
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.causal_factor_propensity, self.exposure_params_name]
         )
         quantiles = pop[self.causal_factor_propensity]
@@ -594,7 +594,7 @@ class PolytomousDistribution(CausalFactorDistribution):
         MissingDataError
             If all exposure data sums to zero.
         """
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.causal_factor_propensity, self.exposure_params_pipeline]
         )
         quantiles = pop[self.causal_factor_propensity]
@@ -890,7 +890,7 @@ class DichotomousDistribution(CausalFactorDistribution):
         -------
             A series of exposed or unexposed category labels.
         """
-        pop = self.population_view.get_attributes(
+        pop = self.population_view.get(
             index, [self.causal_factor_propensity, self.exposure_params_name]
         )
         quantiles = pop[self.causal_factor_propensity]

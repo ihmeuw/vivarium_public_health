@@ -150,4 +150,14 @@ Glossary
         the :term:`relative risk <Relative Risk>` at the TMREL equals 1.
         See :ref:`relative_risk_concept`.
 
+    Therapeutic Inertia
+        The tendency for treatment algorithms to deviate from clinical
+        guidelines — for example, when treatment is not escalated during a
+        healthcare visit despite guidelines recommending escalation. Modeled
+        as a probability drawn from a triangular distribution. See
+        :ref:`therapeutic_inertia_concept`.
 
+    Linear Scale-Up
+        A time-varying pattern in which an intervention's coverage is linearly
+        interpolated between a start value and an end value over a configured
+        date range. See :ref:`scale_up_concept`.
