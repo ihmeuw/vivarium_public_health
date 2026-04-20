@@ -183,7 +183,7 @@ class RateTransition(Transition):
     def _probability(self, index: pd.Index[int]) -> pd.Series[float]:
         return pd.Series(
             rate_to_probability(
-                self.population_view.get_attributes(index, self.transition_rate_pipeline),
+                self.population_view.get(index, self.transition_rate_pipeline),
                 rate_conversion_type=self.rate_conversion_type,
             )
         )

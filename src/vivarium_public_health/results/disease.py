@@ -19,7 +19,7 @@ from vivarium_public_health.utilities import to_years
 
 
 class DiseaseObserver(PublicHealthObserver):
-    """Observe disease counts and person time for a cause.
+    """Observes disease counts and person time for a cause.
 
     By default, this observer computes aggregate disease state person time and
     counts of disease events over the full course of the simulation. It can be
@@ -63,7 +63,7 @@ class DiseaseObserver(PublicHealthObserver):
     #####################
 
     def __init__(self, disease: str) -> None:
-        """Initialize this observer.
+        """Constructor for this observer.
 
         Parameters
         ----------
@@ -92,7 +92,6 @@ class DiseaseObserver(PublicHealthObserver):
         )
 
     def get_configuration_name(self) -> str:
-        """Provide the configuration name for this observer."""
         return self.disease
 
     def register_observations(self, builder: Builder) -> None:
@@ -101,11 +100,11 @@ class DiseaseObserver(PublicHealthObserver):
         Notes
         -----
         Ideally, each observer registers a single observation. This one, however,
-        registers two.
+        registeres two.
 
         While it's typical for all stratification registrations to be encapsulated
         in a single class (i.e. the
-        :class:`ResultsStratifier <vivarium_public_health.results.stratification.ResultsStratifier>`),
+        :class:ResultsStratifier <vivarium_public_health.results.stratification.ResultsStratifier),
         this observer registers two additional stratifications. While they could
         be registered in the ``ResultsStratifier`` as well, they are specific to
         this observer and so they are registered here while we have easy access
@@ -131,11 +130,11 @@ class DiseaseObserver(PublicHealthObserver):
 
         This stratification is used to track transitions between disease states.
         It appends 'no_transition' to the list of transition categories and also
-        includes it as an excluded category.
+        includes it as an exluded category.
 
         Notes
         -----
-        It is important to include 'no_transition' in both the list of transition
+        It is important to include 'no_transition' in bith the list of transition
         categories as well as the list of excluded categories. This is because
         it must exist as a category for the transition mapping to work correctly,
         but then we don't want to include it later during the actual stratification
@@ -212,18 +211,20 @@ class DiseaseObserver(PublicHealthObserver):
 
     def initialize_previous_state(self, pop_data: SimulantData) -> None:
         """Initialize the previous state column to the current state"""
-        previous_states = self.population_view.get_attributes(pop_data.index, self.disease)
+        previous_states = self.population_view.get(pop_data.index, self.disease)
         previous_states.name = self.previous_state_column_name
-        self.population_view.update(previous_states)
+        self.population_view.initialize(previous_states)
 
     def on_time_step_prepare(self, event: Event) -> None:
         """Update the previous state column to the current state.
 
         This enables tracking of transitions between states.
         """
-        previous_states = self.population_view.get_attributes(event.index, self.disease)
-        previous_states.name = self.previous_state_column_name
-        self.population_view.update(previous_states)
+        current_states = self.population_view.get(event.index, self.disease)
+        self.population_view.update(
+            self.previous_state_column_name,
+            lambda _: current_states.rename(self.previous_state_column_name),
+        )
 
     ###############
     # Aggregators #

@@ -141,7 +141,7 @@ class CausalFactorEffect(Component, ABC):
         self.exposure_name = f"{self.causal_factor.name}.exposure"
         self.target_name = f"{self.target.name}.{self.target.measure}"
         self.relative_risk_name = (
-            f"{self.causal_factor.name}_on_{self.target.name}.relative_risk"
+            f"{self.causal_factor.name}_on_{self.target_name}.relative_risk"
         )
 
     def setup(self, builder: Builder) -> None:
@@ -427,7 +427,7 @@ class CausalFactorEffect(Component, ABC):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.relative_risk_table(index)
-                exposure = self.population_view.get_attributes(index, self.exposure_name)
+                exposure = self.population_view.get(index, self.exposure_name)
                 relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
                 return relative_risk
 
@@ -436,9 +436,7 @@ class CausalFactorEffect(Component, ABC):
 
             def generate_relative_risk(index: pd.Index) -> pd.Series:
                 rr = self.relative_risk_table(index)
-                exposure = self.population_view.get_attributes(
-                    index, self.exposure_name
-                ).reset_index()
+                exposure = self.population_view.get(index, self.exposure_name).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
 
