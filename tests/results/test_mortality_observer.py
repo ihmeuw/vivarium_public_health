@@ -268,7 +268,6 @@ def _assert_correctness(results, expected):
         ).all()
 
 
-@pytest.mark.xfail(reason="New lifecycle ordering not yet implemented", strict=True)
 def test_person_time_includes_dead_simulants(base_config, base_plugins):
     """Test that person-time observation fires before mortality.
 

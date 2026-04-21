@@ -324,7 +324,6 @@ def test_category_exclusions(
     )
 
 
-@pytest.mark.xfail(reason="New lifecycle ordering not yet implemented", strict=True)
 def test_aging_before_person_time_observation(base_config, base_plugins):
     """Test that aging fires before person-time observation.
 
