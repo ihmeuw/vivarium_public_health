@@ -1,17 +1,21 @@
 import itertools
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 from vivarium import InteractiveContext
 
-from tests.test_utilities import build_table_with_age
+from tests.test_utilities import build_table_with_age, disease_model_with_excess_mortality
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.population import BasePopulation
 from vivarium_public_health.results import MortalityObserver
 from vivarium_public_health.results.columns import COLUMNS
+from vivarium_public_health.results.disease import DiseaseObserver
 from vivarium_public_health.results.stratification import ResultsStratifier
+from vivarium_public_health.utilities import to_years
 
 
 def disease_with_excess_mortality(base_config, disease_name, emr_value) -> DiseaseModel:
@@ -262,3 +266,75 @@ def _assert_correctness(results, expected):
             df.loc[(df["sex"] == sex) & (df["entity"] == cause), "value"]
             == expected[observation]
         ).all()
+
+
+def test_person_time_includes_dead_simulants(base_config, base_plugins):
+    """Test that person-time observation happens before mortality.
+
+    Under the new ordering:
+    - Person-time observation happens during on_time_step at priority 5
+    - Mortality happens during on_time_step at priority 6
+
+    Therefore, simulants who die this step should still contribute person-time
+    because person-time was counted while they were still alive.
+    """
+    base_config.update(
+        {
+            "population": {
+                "population_size": 1000,
+                "initialization_age_min": 0,
+                "initialization_age_max": 125,
+            },
+        },
+        source=str(Path(__file__).resolve()),
+        layer="override",
+    )
+
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    disease_model = disease_model_with_excess_mortality(year_start, year_end)
+    disease_name = "test_disease"
+    observer = DiseaseObserver(disease_name)
+    simulation = InteractiveContext(
+        components=[
+            BasePopulation(),
+            disease_model,
+            ResultsStratifier(),
+            observer,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+    simulation.configuration.update({"stratification": {disease_name: {"include": []}}})
+
+    acmr_data = build_table_with_age(
+        0.5, parameter_columns={"year": (year_start - 1, year_end)}
+    )
+    simulation._data.write("cause.all_causes.cause_specific_mortality_rate", acmr_data)
+
+    simulation.setup()
+
+    # Get initial population size (all alive)
+    pop_before = simulation.get_population(["is_alive"])
+    initial_alive_count = pop_before["is_alive"].sum()
+
+    simulation.step()
+
+    # Get post-step population state
+    pop_after = simulation.get_population(["is_alive"])
+    deaths_this_step = initial_alive_count - pop_after["is_alive"].sum()
+    assert deaths_this_step > 0, "No deaths occurred - test is not meaningful"
+
+    # Get person-time results
+    results = simulation.get_results()
+    person_time = results[f"person_time_{disease_name}"]
+    total_person_time = person_time[COLUMNS.VALUE].sum()
+
+    # Under the new ordering, person-time is observed BEFORE mortality.
+    # So ALL initially-alive simulants should contribute person-time,
+    # including those who die this step.
+    time_step = pd.Timedelta(days=base_config.time.step_size)
+    expected_person_time = initial_alive_count * to_years(time_step)
+
+    assert np.isclose(total_person_time, expected_person_time, rtol=0.01)

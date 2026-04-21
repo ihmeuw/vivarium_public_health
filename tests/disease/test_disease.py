@@ -261,10 +261,13 @@ def test_mortality_rate(base_config, base_plugins, disease):
     )
 
     simulation.step()
-    # Folks instantly transition to sick so now our mortality rate should be much higher
+    # Folks instantly transition to sick so now our mortality rate should be much higher.
+    # Only check living simulants since dead ones have a zero mortality rate.
+    is_alive = simulation.get_population(["is_alive"])["is_alive"]
+    mortality_rate = simulation.get_population("mortality_rate")["sick"]
     assert np.allclose(
         from_yearly(0.7, time_step),
-        simulation.get_population("mortality_rate")["sick"],
+        mortality_rate[is_alive],
     )
 
 

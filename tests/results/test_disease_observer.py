@@ -1,14 +1,15 @@
 import itertools
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 from vivarium import InteractiveContext
 
-from tests.test_utilities import build_table_with_age
+from tests.test_utilities import build_table_with_age, disease_model_with_excess_mortality
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
-from vivarium_public_health.population import BasePopulation
+from vivarium_public_health.population import BasePopulation, FertilityDeterministic
 from vivarium_public_health.results.columns import COLUMNS
 from vivarium_public_health.results.disease import DiseaseObserver
 from vivarium_public_health.results.stratification import ResultsStratifier
@@ -321,3 +322,80 @@ def test_category_exclusions(
     assert set(transition_count["sub_entity"]) == set(vampiris.transition_names) - set(
         transition_count_exclusions
     )
+
+
+def test_aging_before_person_time_observation(base_config, base_plugins):
+    """Test that aging happens before person-time observation.
+
+    Under the new ordering:
+    - Fertility happens during on_time_step_prepare, creating newborns
+    - Aging happens during on_time_step at priority 2
+    - Person-time observation happens during on_time_step at priority 5 (via ResultsManager)
+    - Mortality happens during on_time_step at priority 6
+
+    This test verifies the full ordering by confirming that person-time includes
+    newborns (created in prepare) and accounts for all simulants that were alive
+    at observation time (after fertility + aging, before mortality).
+    """
+    base_config.update(
+        {
+            "population": {
+                "population_size": 1000,
+                "initialization_age_min": 0,
+                "initialization_age_max": 125,
+            },
+            "fertility": {"number_of_new_simulants_each_year": 3650},
+        },
+        source=str(Path(__file__).resolve()),
+        layer="override",
+    )
+
+    year_start = base_config.time.start.year
+    year_end = base_config.time.end.year
+    disease_model = disease_model_with_excess_mortality(year_start, year_end)
+    disease_name = "test_disease"
+    observer = DiseaseObserver(disease_name)
+    simulation = InteractiveContext(
+        components=[
+            BasePopulation(),
+            FertilityDeterministic(),
+            disease_model,
+            ResultsStratifier(),
+            observer,
+        ],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+        setup=False,
+    )
+    simulation.configuration.update({"stratification": {disease_name: {"include": []}}})
+
+    acmr_data = build_table_with_age(
+        0.5, parameter_columns={"year": (year_start - 1, year_end)}
+    )
+    simulation._data.write("cause.all_causes.cause_specific_mortality_rate", acmr_data)
+
+    simulation.setup()
+
+    initial_pop_size = len(simulation.get_population(["age"]))
+
+    simulation.step()
+
+    pop_after = simulation.get_population(["is_alive"])
+    # Total population includes initial + newborns (dead are still tracked).
+    # Newborns were created during on_time_step_prepare, so they exist before
+    # the person-time observation fires during on_time_step.
+    total_pop_after_step = len(pop_after)
+    num_newborns = total_pop_after_step - initial_pop_size
+    assert num_newborns > 0, "No newborns were created - test is not meaningful"
+
+    # Person-time should reflect ALL simulants that were alive at observation time
+    # (after fertility + aging, before mortality). Since person-time fires before
+    # mortality, all simulants (initial + newborns) should contribute.
+    results = simulation.get_results()
+    person_time = results[f"person_time_{disease_name}"]
+    total_person_time = person_time[COLUMNS.VALUE].sum()
+
+    time_step = pd.Timedelta(days=base_config.time.step_size)
+    expected_person_time = total_pop_after_step * to_years(time_step)
+
+    assert np.isclose(total_person_time, expected_person_time, rtol=0.01)
