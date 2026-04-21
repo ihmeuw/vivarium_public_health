@@ -1,3 +1,7 @@
+**5.2.0 - TBD/TBD/26**
+
+- Update when population characteristics happen in lifecycle methods
+
 **5.1.0 - 04/16/26**
 
 - Enable precomputation of calibration constants to be stored in a lookup table rather than calculated on the fly
