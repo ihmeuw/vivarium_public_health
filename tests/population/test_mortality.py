@@ -140,8 +140,11 @@ def test_mortality_cause_of_death(
     }
     sim.configuration.update(override_config)
     sim.setup()
-    mortality_rates = sim.get_population("mortality_rate")
     sim.step()
+    # Mortality rates reflect the post-transition state (disease transitions
+    # fire before mortality in the lifecycle). Read them after stepping so
+    # the rates match what was used when mortality was evaluated.
+    mortality_rates = sim.get_population("mortality_rate")
     # Only 'other_causes' and 'sick' for cause of death
     cause_of_death = sim.get_population("cause_of_death")
     for cause in ["other_causes", "sick"]:
@@ -154,8 +157,9 @@ def test_mortality_cause_of_death(
                 continue
             else:
                 mortality_rate = mortality_rate
-            if cause == "sick":
-                mortality_rate *= 0.5  # prevalence
+            # No prevalence adjustment needed: with dwell_time=0 and disease
+            # transitions firing before mortality, all simulants are "sick"
+            # when mortality evaluates (effective prevalence = 1.0).
             fuzzy_checker.fuzzy_assert_proportion(
                 name=f"test_mortality_rate_{cause}",
                 observed_numerator=len(dead),

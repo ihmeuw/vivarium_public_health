@@ -269,11 +269,11 @@ def _assert_correctness(results, expected):
 
 
 def test_person_time_includes_dead_simulants(base_config, base_plugins):
-    """Test that person-time observation fires before mortality.
+    """Test that person-time observation happens before mortality.
 
     Under the new ordering:
-    - Person-time observation fires during on_time_step at priority 5
-    - Mortality fires during on_time_step at priority 6
+    - Person-time observation happens during on_time_step at priority 5
+    - Mortality happens during on_time_step at priority 6
 
     Therefore, simulants who die this step should still contribute person-time
     because person-time was counted while they were still alive.
@@ -337,9 +337,4 @@ def test_person_time_includes_dead_simulants(base_config, base_plugins):
     time_step = pd.Timedelta(days=base_config.time.step_size)
     expected_person_time = initial_alive_count * to_years(time_step)
 
-    assert np.isclose(total_person_time, expected_person_time, rtol=0.01), (
-        f"Person-time ({total_person_time:.4f}) does not equal expected "
-        f"({expected_person_time:.4f}). Under the new ordering, all initially-alive "
-        f"simulants (including {deaths_this_step} who died) should contribute person-time "
-        f"because observation fires before mortality."
-    )
+    assert np.isclose(total_person_time, expected_person_time, rtol=0.01)
