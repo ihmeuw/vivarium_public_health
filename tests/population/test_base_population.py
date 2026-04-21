@@ -668,7 +668,7 @@ def _check_locations(simulants):
 
 @pytest.mark.xfail(reason="New lifecycle ordering not yet implemented", strict=True)
 def test_fertility_before_aging(base_config, base_plugins):
-    """Test that fertility fires before aging so newborns are aged during the same step.
+    """Test that fertility happens before aging so newborns are aged during the same step.
 
     Under the new ordering:
     - Fertility fires in on_time_step_prepare, creating newborns at age=0
@@ -698,22 +698,25 @@ def test_fertility_before_aging(base_config, base_plugins):
         plugin_configuration=base_plugins,
     )
 
-    initial_pop_size = len(simulation.get_population())
+    # Step once to advance the clock past the initial creation time.
+    simulation.step()
+    pop_after_step1 = simulation.get_population(["age", "entrance_time"])
+    pop_size_after_step1 = len(pop_after_step1)
+
+    # Step again. Newborns created in step 2's on_time_step_prepare now have
+    # entrance_time equal to the clock time at the start of step 2, which is
+    # strictly greater than the initial population's entrance_time.
     simulation.step()
     pop = simulation.get_population(["age", "entrance_time"])
 
-    # Newborns should exist
-    newborns = pop[
-        pop["entrance_time"] > simulation._clock.time - simulation._clock.step_size
-    ]
-    assert len(newborns) > 0, "No newborns were created"
+    # Newborns from step 2 have entrance_time > the time before step 2.
+    step2_newborns = pop[pop.index >= pop_size_after_step1]
+    assert len(step2_newborns) > 0, "No newborns were created in step 2"
 
     # Under the new ordering, newborns should have been aged (age > 0)
-    # because fertility fires in prepare and aging fires in time_step
+    # because fertility fires in time step prepare and aging fires in time_step.
+    # Newborn age = initialization_fuzz (in [0, step_size_years)) + step_size_years from aging.
     step_size_years = to_years(pd.Timedelta(days=step_size_days))
-    assert np.all(
-        newborns["age"] > 0
-    ), "Newborns were not aged - fertility must fire before aging"
-    assert np.allclose(
-        newborns["age"], step_size_years, atol=step_size_years * 0.1
-    ), "Newborn ages don't match expected step size"
+    assert np.all(step2_newborns["age"] > 0)
+    assert np.all(step2_newborns["age"] >= step_size_years)
+    assert np.all(step2_newborns["age"] < 2 * step_size_years)

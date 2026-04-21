@@ -6,10 +6,7 @@ import pandas as pd
 import pytest
 from vivarium import InteractiveContext
 
-from tests.test_utilities import (
-    build_table_with_age,
-    disease_model_with_excess_mortality,
-)
+from tests.test_utilities import build_table_with_age, disease_model_with_excess_mortality
 from vivarium_public_health.disease import DiseaseModel, DiseaseState
 from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.population import BasePopulation, FertilityDeterministic
@@ -380,29 +377,31 @@ def test_aging_before_person_time_observation(base_config, base_plugins):
 
     simulation.setup()
 
-    initial_pop_size = len(simulation.get_population())
+    initial_pop_size = len(simulation.get_population(["age"]))
 
     simulation.step()
 
-    pop_after = simulation.get_population(["is_alive", "entrance_time"])
-    # Newborns are those created during the time step
-    newborns = pop_after[
-        pop_after["entrance_time"] > simulation._clock.time - simulation._clock.step_size
-    ]
-    total_alive_at_observation = initial_pop_size + len(newborns)
+    pop_after = simulation.get_population(["is_alive"])
+    # Total population includes initial + newborns (dead are still tracked).
+    # Newborns were created during on_time_step_prepare, so they exist before
+    # the person-time observation fires during on_time_step.
+    total_pop_after_step = len(pop_after)
+    num_newborns = total_pop_after_step - initial_pop_size
+    assert num_newborns > 0, "No newborns were created - test is not meaningful"
 
     # Person-time should reflect ALL simulants that were alive at observation time
-    # (after fertility + aging, before mortality)
+    # (after fertility + aging, before mortality). Since person-time fires before
+    # mortality, all simulants (initial + newborns) should contribute.
     results = simulation.get_results()
     person_time = results[f"person_time_{disease_name}"]
     total_person_time = person_time[COLUMNS.VALUE].sum()
 
     time_step = pd.Timedelta(days=base_config.time.step_size)
-    expected_person_time = total_alive_at_observation * to_years(time_step)
+    expected_person_time = total_pop_after_step * to_years(time_step)
 
     assert np.isclose(total_person_time, expected_person_time, rtol=0.01), (
         f"Person-time ({total_person_time:.4f}) does not match expected "
         f"({expected_person_time:.4f}). Expected person-time to include "
-        f"{initial_pop_size} initial simulants + {len(newborns)} newborns "
+        f"{initial_pop_size} initial simulants + {num_newborns} newborns "
         f"(fertility fires in prepare, so newborns exist at observation time)."
     )
