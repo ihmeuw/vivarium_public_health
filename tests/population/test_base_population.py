@@ -1,5 +1,6 @@
 import math
 from itertools import product
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,8 @@ import vivarium_public_health.population.data_transformations as dt
 from tests.mock_artifact import MockArtifact
 from tests.test_utilities import make_uniform_pop_data, simple_pop_structure
 from vivarium_public_health import utilities
+from vivarium_public_health.population import FertilityDeterministic
+from vivarium_public_health.utilities import to_years
 
 
 def test_select_sub_population_data():
@@ -661,3 +664,56 @@ def _check_locations(simulants):
             1 / len(simulants.location.unique()),
             abs_tol=0.01,
         )
+
+
+@pytest.mark.xfail(reason="New lifecycle ordering not yet implemented", strict=True)
+def test_fertility_before_aging(base_config, base_plugins):
+    """Test that fertility fires before aging so newborns are aged during the same step.
+
+    Under the new ordering:
+    - Fertility fires in on_time_step_prepare, creating newborns at age=0
+    - Aging fires in on_time_step, incrementing all simulant ages (including newborns)
+
+    Therefore, after one time step, newborns should have age > 0 (specifically
+    age == step_size_in_years).
+    """
+    step_size_days = 30.5
+    base_config.update(
+        {
+            "population": {
+                "population_size": 100,
+                "initialization_age_min": 0,
+                "initialization_age_max": 125,
+            },
+            "time": {"step_size": step_size_days},
+            "fertility": {"number_of_new_simulants_each_year": 3650},
+        },
+        source=str(Path(__file__).resolve()),
+        layer="override",
+    )
+
+    simulation = InteractiveContext(
+        components=[bp.BasePopulation(), FertilityDeterministic()],
+        configuration=base_config,
+        plugin_configuration=base_plugins,
+    )
+
+    initial_pop_size = len(simulation.get_population())
+    simulation.step()
+    pop = simulation.get_population(["age", "entrance_time"])
+
+    # Newborns should exist
+    newborns = pop[
+        pop["entrance_time"] > simulation._clock.time - simulation._clock.step_size
+    ]
+    assert len(newborns) > 0, "No newborns were created"
+
+    # Under the new ordering, newborns should have been aged (age > 0)
+    # because fertility fires in prepare and aging fires in time_step
+    step_size_years = to_years(pd.Timedelta(days=step_size_days))
+    assert np.all(
+        newborns["age"] > 0
+    ), "Newborns were not aged - fertility must fire before aging"
+    assert np.allclose(
+        newborns["age"], step_size_years, atol=step_size_years * 0.1
+    ), "Newborn ages don't match expected step size"

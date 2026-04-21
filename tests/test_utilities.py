@@ -8,6 +8,8 @@ import pytest
 from hypothesis import given
 from vivarium.testing_utilities import build_table
 
+from vivarium_public_health.disease import DiseaseModel, DiseaseState
+from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
@@ -152,3 +154,44 @@ def simple_pop_structure() -> pd.DataFrame:
         }
     )
     return pop_structure
+
+
+def disease_model_with_excess_mortality(
+    year_start: int, year_end: int, disease_name: str = "test_disease"
+) -> DiseaseModel:
+    """Create a simple SI disease model with high excess mortality rate.
+
+    Parameters
+    ----------
+    year_start
+        Start year for the data tables.
+    year_end
+        End year for the data tables.
+    disease_name
+        Name of the disease model.
+
+    Returns
+    -------
+        A configured DiseaseModel with a susceptible state and a disease state
+        that has high excess mortality.
+    """
+    healthy = SusceptibleState(disease_name)
+    sick = DiseaseState(
+        disease_name,
+        disability_weight=build_table_with_age(
+            0.0, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+        prevalence=build_table_with_age(
+            0.5, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+        excess_mortality_rate=build_table_with_age(
+            10, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+    )
+    healthy.add_rate_transition(
+        sick,
+        transition_rate=build_table_with_age(
+            0.5, parameter_columns={"year": (year_start - 1, year_end)}
+        ),
+    )
+    return DiseaseModel(disease_name, states=[healthy, sick])
