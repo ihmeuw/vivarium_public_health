@@ -124,7 +124,7 @@ class DisabilityObserver(PublicHealthObserver):
             builder=builder,
             name="ylds",
             pop_filter="is_alive == True",
-            when="time_step__prepare",
+            when="time_step",
             requires_attributes=cause_pipelines,
             additional_stratifications=self.configuration.include,
             excluded_stratifications=self.configuration.exclude,
