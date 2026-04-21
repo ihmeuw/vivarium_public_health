@@ -14,7 +14,7 @@ from vivarium.framework.engine import Builder
 
 
 class ResultsStratifier(Component):
-    """Register common public health stratifications.
+    """A component for registering common public health stratifications.
 
     The purpose of this component is to encapsulate all common public health
     stratification registrations in one place. This is not enforced, however,
