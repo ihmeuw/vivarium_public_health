@@ -325,13 +325,13 @@ def test_category_exclusions(
 
 
 def test_aging_before_person_time_observation(base_config, base_plugins):
-    """Test that aging fires before person-time observation.
+    """Test that aging happens before person-time observation.
 
     Under the new ordering:
-    - Fertility fires during on_time_step_prepare, creating newborns
-    - Aging fires during on_time_step at priority 2
-    - Person-time observation fires during on_time_step at priority 5 (via ResultsManager)
-    - Mortality fires during on_time_step at priority 6
+    - Fertility happens during on_time_step_prepare, creating newborns
+    - Aging happens during on_time_step at priority 2
+    - Person-time observation happens during on_time_step at priority 5 (via ResultsManager)
+    - Mortality happens during on_time_step at priority 6
 
     This test verifies the full ordering by confirming that person-time includes
     newborns (created in prepare) and accounts for all simulants that were alive
@@ -398,9 +398,4 @@ def test_aging_before_person_time_observation(base_config, base_plugins):
     time_step = pd.Timedelta(days=base_config.time.step_size)
     expected_person_time = total_pop_after_step * to_years(time_step)
 
-    assert np.isclose(total_person_time, expected_person_time, rtol=0.01), (
-        f"Person-time ({total_person_time:.4f}) does not match expected "
-        f"({expected_person_time:.4f}). Expected person-time to include "
-        f"{initial_pop_size} initial simulants + {num_newborns} newborns "
-        f"(fertility fires in prepare, so newborns exist at observation time)."
-    )
+    assert np.isclose(total_person_time, expected_person_time, rtol=0.01)
