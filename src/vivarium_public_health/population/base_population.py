@@ -59,8 +59,8 @@ class BasePopulation(Component):
     def time_step_priority(self) -> int:
         """The event priority for base population time-step updates.
 
-        Set to 2 so that aging occurs before observations (priority 5)
-        and before mortality (priority 6).
+        Priority set such that aging occurs before observations (priority 5)
+        and before mortality (priority 7).
         """
         return 2
 
