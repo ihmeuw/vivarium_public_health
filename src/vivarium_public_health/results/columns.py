@@ -16,6 +16,7 @@ class __Columns(NamedTuple):
 
     @property
     def name(self) -> str:
+        """The name of this named tuple."""
         return "columns"
 
 
