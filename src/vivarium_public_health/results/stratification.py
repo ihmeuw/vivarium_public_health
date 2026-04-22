@@ -36,6 +36,10 @@ class ResultsStratifier(Component):
 
     # noinspection PyAttributeOutsideInit
     def setup(self, builder: Builder) -> None:
+        """Set up the stratifier.
+
+        Define age bins and simulation years and register default stratifications.
+        """
         self.age_bins = self.get_age_bins(builder)
         self.start_year = builder.configuration.time.start.year
         self.end_year = builder.configuration.time.end.year

@@ -1,3 +1,7 @@
+**5.1.1 - 04/21/26**
+
+- Add plugins and results system API docs
+
 **5.1.0 - 04/16/26**
 
 - Enable precomputation of calibration constants to be stored in a lookup table rather than calculated on the fly
