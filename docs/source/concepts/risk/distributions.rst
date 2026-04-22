@@ -55,7 +55,7 @@ type is selected automatically from the risk's configuration or artifact data.
 :class:`~vivarium_public_health.causal_factor.distributions.DichotomousDistribution`
 models exposure as two mutually exclusive categories. When determining a
 simulant's exposure, the component compares the simulant's
-:term:`propensity <Propensity>` to the exposure probability: if the propensity
+:term:`propensity <Propensity>` to the exposure probability. if the propensity
 falls below the threshold the simulant is assigned to the "exposed" category;
 otherwise, "unexposed".
 
