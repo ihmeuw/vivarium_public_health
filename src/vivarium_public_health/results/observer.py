@@ -40,7 +40,7 @@ class PublicHealthObserver(Observer):
         aggregator: Callable[[pd.DataFrame], float | pd.Series] = len,
         to_observe: Callable[[Event], bool] = lambda event: True,
     ) -> None:
-        """Registers an adding observation to the results system.
+        """Register an adding observation to the results system.
 
         An "adding" observation is one that adds/sums new results to existing
         result values. It is the most common type of observation used in public
@@ -90,8 +90,7 @@ class PublicHealthObserver(Observer):
         )
 
     def format_results(self, measure: str, results: pd.DataFrame) -> pd.DataFrame:
-        """Top-level results formatter that calls standard sub-methods to be
-        overwritten as necessary.
+        """Format results by calling standard sub-methods.
 
         Public health observations typically require four columns in addition to
         any stratifications and results columns: 'measure', 'entity_type', 'entity',
