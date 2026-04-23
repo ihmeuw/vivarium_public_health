@@ -1,3 +1,7 @@
+**5.1.4 - 04/23/26**
+
+- Add treatment API docs
+
 **5.1.3 - 04/22/26**
 
 - Add risk concept docs
