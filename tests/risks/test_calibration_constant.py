@@ -8,24 +8,24 @@ Redundancy notes
   ``DiseaseModel`` stack.  The tests below cover the *same* code path with
   minimal wrappers so that failures pinpoint ``calibration_constant.py``
   rather than disease infrastructure.
-* ``test_incidence`` in the same file implicitly tests the zero calibration
-  constant baseline (no modifier registered).  We cover that explicitly here
-  as well.
 """
+
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
+import pytest
 from vivarium import Component, InteractiveContext
 from vivarium.framework.engine import Builder
 from vivarium.framework.utilities import from_yearly
+from vivarium.framework.values import AttributePostProcessor, ValuesManager
 
 from tests.test_utilities import build_table_with_age
 from vivarium_public_health.causal_factor.calibration_constant import (
     get_calibration_constant_pipeline_name,
     register_risk_affected_attribute_producer,
+    register_risk_affected_rate_producer,
 )
-from vivarium_public_health.disease import DiseaseModel, DiseaseState, RateTransition
-from vivarium_public_health.disease.state import SusceptibleState
 from vivarium_public_health.population import BasePopulation
 
 # ---------------------------------------------------------------------------
@@ -34,8 +34,9 @@ from vivarium_public_health.population import BasePopulation
 
 
 class _AttributeSource(Component):
-    """Minimal component that exposes a named attribute pipeline via
-    ``register_risk_affected_attribute_producer``.
+    """Minimal component that exposes a named pipeline via
+    ``register_risk_affected_attribute_producer`` or
+    ``register_risk_affected_rate_producer``.
 
     The pipeline simply returns a constant ``pd.Series`` for every simulant.
     """
@@ -48,14 +49,25 @@ class _AttributeSource(Component):
         },
     }
 
-    def __init__(self, pipeline_name: str, base_value: float):
+    def __init__(
+        self,
+        pipeline_name: str,
+        base_value: float,
+        is_rate: bool = False,
+        additional_post_processors: (
+            AttributePostProcessor | Sequence[AttributePostProcessor]
+        ) = (),
+    ):
         super().__init__()
         self._pipeline_name = pipeline_name
         self._base_value = base_value
+        self._is_rate = is_rate
+        self._additional_post_processors = additional_post_processors
 
     @property
     def name(self) -> str:
-        return f"attribute_source.{self._pipeline_name}"
+        kind = "rate" if self._is_rate else "attribute"
+        return f"attribute_source.{kind}.{self._pipeline_name}"
 
     @property
     def configuration_defaults(self) -> dict:
@@ -69,10 +81,16 @@ class _AttributeSource(Component):
 
     def setup(self, builder: Builder) -> None:
         self.base_value_table = self.build_lookup_table(builder, "base_value")
-        register_risk_affected_attribute_producer(
+        register_fn = (
+            register_risk_affected_rate_producer
+            if self._is_rate
+            else register_risk_affected_attribute_producer
+        )
+        register_fn(
             builder=builder,
             name=self._pipeline_name,
             source=self.base_value_table,
+            additional_post_processors=self._additional_post_processors,
         )
 
 
@@ -104,144 +122,76 @@ class _CalibrationConstantModifier(Component):
         )
 
 
-def _make_disease_model_components(
-    base_rate: float,
-    key: str = "sequela.test_cause.incidence_rate",
-):
-    """Return ``(components_list, transition_rate_pipeline_name)`` for a
-    bare-minimum disease model that uses ``RateTransition``."""
-    healthy = SusceptibleState("healthy")
-    sick = DiseaseState("sick")
-    transition = RateTransition(
-        input_state=healthy,
-        output_state=sick,
-        transition_rate=key,
-        rate_type="incidence_rate",
-    )
-    healthy.transition_set.append(transition)
-    model = DiseaseModel("test", residual_state=healthy, states=[healthy, sick])
-    return [BasePopulation(), model], "sick.incidence_rate"
-
-
 # ---------------------------------------------------------------------------
-# Integration tests — rate producer
+# Helpers — post-processor functions
 # ---------------------------------------------------------------------------
 
 
-class TestRateProducer:
-    """Exercise ``register_risk_affected_rate_producer`` through the
-    ``RateTransition`` component that delegates to it."""
+def _double_post_processor(
+    index: pd.Index, value: pd.Series, manager: ValuesManager
+) -> pd.Series:
+    """Multiply values by 2."""
+    return value * 2
 
-    def test_no_calibration_constant_modifier(self, base_config, base_plugins):
-        """When no calibration constant modifier is registered the pipeline
-        should return the base rate unmodified (calibration constant = 0)."""
-        base_rate = 0.7
+
+def _add_one_post_processor(
+    index: pd.Index, value: pd.Series, manager: ValuesManager
+) -> pd.Series:
+    """Add 1 to all values."""
+    return value + 1
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — attribute / rate producer via _AttributeSource
+# ---------------------------------------------------------------------------
+
+
+class TestProducer:
+    """Exercise ``register_risk_affected_attribute_producer`` and
+    ``register_risk_affected_rate_producer`` through the minimal
+    ``_AttributeSource`` wrapper, parameterized over producer type and
+    post-processors."""
+
+    _POST_PROCESSOR_PARAMS = [
+        pytest.param(((), lambda v: v), id="no_pp"),
+        pytest.param((_double_post_processor, lambda v: v * 2), id="double"),
+        pytest.param(
+            ([_double_post_processor, _add_one_post_processor], lambda v: v * 2 + 1),
+            id="double_then_add_one",
+        ),
+    ]
+
+    @pytest.fixture(params=[False, True], ids=["attribute", "rate"])
+    def is_rate(self, request):
+        return request.param
+
+    @pytest.fixture(params=_POST_PROCESSOR_PARAMS)
+    def post_processor(self, request):
+        """Return ``(post_processors, expected_transform)``."""
+        return request.param
+
+    def _expected(self, base, calibration, is_rate, time_step, transform):
+        """Compute expected pipeline output."""
+        value = base * (1 - calibration)
+        if is_rate:
+            value = from_yearly(value, time_step)
+        return transform(value)
+
+    def test_no_calibration_constant_modifier(
+        self, base_config, base_plugins, is_rate, post_processor
+    ):
+        """No modifier → base value returned (calibration constant = 0),
+        then post-processors applied."""
+        post_processors, transform = post_processor
+        base_value = 0.7 if is_rate else 10.0
         time_step = pd.Timedelta(days=base_config.time.step_size)
-        key = "sequela.test_cause.incidence_rate"
-        components, pipeline_name = _make_disease_model_components(base_rate, key)
-
-        sim = InteractiveContext(
-            components=components,
-            configuration=base_config,
-            plugin_configuration=base_plugins,
-            setup=False,
+        pipeline_name = "test_pipeline"
+        source = _AttributeSource(
+            pipeline_name,
+            base_value,
+            is_rate=is_rate,
+            additional_post_processors=post_processors,
         )
-        sim._data.write(key, base_rate)
-        sim.setup()
-        sim.step()
-
-        actual = sim.get_population(pipeline_name).squeeze()
-        expected = from_yearly(base_rate, time_step)
-        assert np.allclose(actual, expected, atol=1e-5)
-
-    def test_single_calibration_constant_modifier(self, base_config, base_plugins):
-        """A single modifier with calibration constant = c should yield
-        rate * (1 - c)."""
-        base_rate = 0.7
-        calibration_value = 0.1
-        time_step = pd.Timedelta(days=base_config.time.step_size)
-        key = "sequela.test_cause.incidence_rate"
-        components, pipeline_name = _make_disease_model_components(base_rate, key)
-        components.append(_CalibrationConstantModifier(pipeline_name, calibration_value))
-
-        sim = InteractiveContext(
-            components=components,
-            configuration=base_config,
-            plugin_configuration=base_plugins,
-            setup=False,
-        )
-        sim._data.write(key, base_rate)
-        sim.setup()
-        sim.step()
-
-        actual = sim.get_population(pipeline_name).squeeze()
-        expected = from_yearly(base_rate * (1 - calibration_value), time_step)
-        assert np.allclose(actual, expected, atol=1e-5)
-
-    def test_multiple_calibration_constant_modifiers(self, base_config, base_plugins):
-        """Two independent calibration constant modifiers (c1, c2) should
-        combine as joint = 1 - (1 - c1) * (1 - c2)."""
-        base_rate = 0.7
-        c1 = 0.1
-        c2 = 0.2
-        time_step = pd.Timedelta(days=base_config.time.step_size)
-        key = "sequela.test_cause.incidence_rate"
-        components, pipeline_name = _make_disease_model_components(base_rate, key)
-        components.append(_CalibrationConstantModifier(pipeline_name, c1))
-        components.append(_CalibrationConstantModifier(pipeline_name, c2))
-
-        sim = InteractiveContext(
-            components=components,
-            configuration=base_config,
-            plugin_configuration=base_plugins,
-            setup=False,
-        )
-        sim._data.write(key, base_rate)
-        sim.setup()
-        sim.step()
-
-        joint_calibration_constant = 1 - (1 - c1) * (1 - c2)
-        actual = sim.get_population(pipeline_name).squeeze()
-        expected = from_yearly(base_rate * (1 - joint_calibration_constant), time_step)
-        assert np.allclose(actual, expected, atol=1e-5)
-
-    def test_calibration_constant_of_one_zeroes_rate(self, base_config, base_plugins):
-        """Calibration constant = 1 should zero out the rate completely."""
-        base_rate = 0.7
-        calibration_value = 1.0
-        key = "sequela.test_cause.incidence_rate"
-        components, pipeline_name = _make_disease_model_components(base_rate, key)
-        components.append(_CalibrationConstantModifier(pipeline_name, calibration_value))
-
-        sim = InteractiveContext(
-            components=components,
-            configuration=base_config,
-            plugin_configuration=base_plugins,
-            setup=False,
-        )
-        sim._data.write(key, base_rate)
-        sim.setup()
-        sim.step()
-
-        actual = sim.get_population(pipeline_name).squeeze()
-        assert np.allclose(actual, 0.0, atol=1e-10)
-
-
-# ---------------------------------------------------------------------------
-# Integration tests — attribute producer
-# ---------------------------------------------------------------------------
-
-
-class TestAttributeProducer:
-    """Exercise ``register_risk_affected_attribute_producer`` through the
-    minimal ``_AttributeSource`` wrapper."""
-
-    def test_no_calibration_constant_modifier(self, base_config, base_plugins):
-        """No modifier → attribute returned verbatim
-        (calibration constant = 0)."""
-        base_value = 0.5
-        pipeline_name = "test_attribute"
-        source = _AttributeSource(pipeline_name, base_value)
 
         sim = InteractiveContext(
             components=[BasePopulation(), source],
@@ -251,14 +201,25 @@ class TestAttributeProducer:
         sim.step()
 
         actual = sim.get_population(pipeline_name).squeeze()
-        assert np.allclose(actual, base_value, atol=1e-5)
+        expected = self._expected(base_value, 0, is_rate, time_step, transform)
+        assert np.allclose(actual, expected, atol=1e-5)
 
-    def test_single_calibration_constant_modifier(self, base_config, base_plugins):
-        """Attribute producer with calibration constant = c → value * (1 - c)."""
-        base_value = 0.5
+    def test_single_calibration_constant_modifier(
+        self, base_config, base_plugins, is_rate, post_processor
+    ):
+        """Single calibration constant = c → value * (1 - c),
+        then post-processors applied."""
+        post_processors, transform = post_processor
+        base_value = 0.7 if is_rate else 10.0
         calibration_value = 0.25
-        pipeline_name = "test_attribute"
-        source = _AttributeSource(pipeline_name, base_value)
+        time_step = pd.Timedelta(days=base_config.time.step_size)
+        pipeline_name = "test_pipeline"
+        source = _AttributeSource(
+            pipeline_name,
+            base_value,
+            is_rate=is_rate,
+            additional_post_processors=post_processors,
+        )
         modifier = _CalibrationConstantModifier(pipeline_name, calibration_value)
 
         sim = InteractiveContext(
@@ -269,17 +230,27 @@ class TestAttributeProducer:
         sim.step()
 
         actual = sim.get_population(pipeline_name).squeeze()
-        expected = base_value * (1 - calibration_value)
+        expected = self._expected(
+            base_value, calibration_value, is_rate, time_step, transform
+        )
         assert np.allclose(actual, expected, atol=1e-5)
 
-    def test_multiple_calibration_constant_modifiers(self, base_config, base_plugins):
-        """Two calibration constants on an attribute producer combine via
-        union formula."""
-        base_value = 100.0
-        c1 = 0.1
-        c2 = 0.3
-        pipeline_name = "test_attribute"
-        source = _AttributeSource(pipeline_name, base_value)
+    def test_multiple_calibration_constant_modifiers(
+        self, base_config, base_plugins, is_rate, post_processor
+    ):
+        """Two calibration constants combine via union formula,
+        then post-processors applied."""
+        post_processors, transform = post_processor
+        base_value = 0.7 if is_rate else 10.0
+        c1, c2 = 0.1, 0.3
+        time_step = pd.Timedelta(days=base_config.time.step_size)
+        pipeline_name = "test_pipeline"
+        source = _AttributeSource(
+            pipeline_name,
+            base_value,
+            is_rate=is_rate,
+            additional_post_processors=post_processors,
+        )
 
         sim = InteractiveContext(
             components=[
@@ -293,7 +264,26 @@ class TestAttributeProducer:
         )
         sim.step()
 
-        joint_calibration_constant = 1 - (1 - c1) * (1 - c2)
+        joint_calibration = 1 - (1 - c1) * (1 - c2)
         actual = sim.get_population(pipeline_name).squeeze()
-        expected = base_value * (1 - joint_calibration_constant)
+        expected = self._expected(
+            base_value, joint_calibration, is_rate, time_step, transform
+        )
         assert np.allclose(actual, expected, atol=1e-5)
+
+    def test_calibration_constant_of_one_zeroes(self, base_config, base_plugins, is_rate):
+        """Calibration constant = 1 should zero out the value completely."""
+        base_value = 0.7 if is_rate else 10.0
+        pipeline_name = "test_pipeline"
+        source = _AttributeSource(pipeline_name, base_value, is_rate=is_rate)
+        modifier = _CalibrationConstantModifier(pipeline_name, 1.0)
+
+        sim = InteractiveContext(
+            components=[BasePopulation(), source, modifier],
+            configuration=base_config,
+            plugin_configuration=base_plugins,
+        )
+        sim.step()
+
+        actual = sim.get_population(pipeline_name).squeeze()
+        assert np.allclose(actual, 0.0, atol=1e-10)
