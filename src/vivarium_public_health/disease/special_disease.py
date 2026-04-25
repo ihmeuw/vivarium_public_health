@@ -25,9 +25,6 @@ from vivarium_public_health.causal_factor.calibration_constant import (
 )
 from vivarium_public_health.disease.state import ExcessMortalityState
 from vivarium_public_health.disease.transition import TransitionString
-from vivarium_public_health.risks.calibration_constant import (
-    register_risk_affected_attribute_producer,
-)
 from vivarium_public_health.utilities import EntityString, is_non_zero
 
 
