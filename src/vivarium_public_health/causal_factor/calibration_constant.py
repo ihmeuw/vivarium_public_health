@@ -62,8 +62,13 @@ def register_risk_affected_attribute_producer(
         in addition to the calibration constant post-processor. These will be
         applied after the calibration constant post-processor.
     """
+    post_processors = (
+        additional_post_processors
+        if isinstance(additional_post_processors, Sequence)
+        else [additional_post_processors]
+    )
     _RiskAffectedPipeline.create(
-        builder, name, source, required_resources, additional_post_processors, is_rate=False
+        builder, name, source, required_resources, post_processors, is_rate=False
     )
 
 
@@ -96,8 +101,13 @@ def register_risk_affected_rate_producer(
         in addition to the calibration constant post-processor. These will be
         applied after the calibration constant post-processor.
     """
+    post_processors = (
+        additional_post_processors
+        if isinstance(additional_post_processors, Sequence)
+        else [additional_post_processors]
+    )
     _RiskAffectedPipeline.create(
-        builder, name, source, required_resources, additional_post_processors, is_rate=True
+        builder, name, source, required_resources, post_processors, is_rate=True
     )
 
 
@@ -111,7 +121,7 @@ class _RiskAffectedPipeline(Component):
         name: str,
         source: Callable[..., pd.Series],
         required_resources: Sequence[str],
-        additional_post_processors: AttributePostProcessor | Sequence[AttributePostProcessor],
+        additional_post_processors: Sequence[AttributePostProcessor],
         is_rate: bool,
     ) -> None:
         """Factory method to create and set up the class."""
@@ -124,7 +134,7 @@ class _RiskAffectedPipeline(Component):
         target_pipeline_name: str,
         target_pipeline_source: Callable[..., pd.Series],
         required_resources: Sequence[str | Resource],
-        additional_post_processors: AttributePostProcessor | Sequence[AttributePostProcessor],
+        additional_post_processors: Sequence[AttributePostProcessor],
         is_rate: bool,
     ):
         super().__init__()
@@ -158,12 +168,6 @@ class _RiskAffectedPipeline(Component):
             else builder.value.register_attribute_producer
         )
 
-        preferred_post_processor_list = (
-            list(self._additional_post_processors)
-            if isinstance(self._additional_post_processors, Sequence)
-            else [self._additional_post_processors]
-        )
-
         register_pipeline(
             self._target_pipeline_name,
             source=self._target_pipeline_source,
@@ -171,7 +175,7 @@ class _RiskAffectedPipeline(Component):
             preferred_combiner=multiplication_combiner,
             preferred_post_processor=[
                 self._apply_calibration_constant,
-                *preferred_post_processor_list,
+                *self._additional_post_processors,
             ],
         )
 
