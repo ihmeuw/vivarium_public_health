@@ -1,6 +1,6 @@
-**5.1.5 - 04/23/26**
+**5.1.5 - 04/27/26**
 
-- Enable adding addition post-processors to risk-affected pipelines
+- Enable adding additional post-processors to risk-affected pipelines
 
 **5.1.4 - 04/23/26**
 
