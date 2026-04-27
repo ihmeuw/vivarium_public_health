@@ -1,3 +1,19 @@
+**5.1.4 - 04/23/26**
+
+- Add treatment API docs
+
+**5.1.3 - 04/22/26**
+
+- Add risk concept docs
+
+**5.1.2 - 04/21/26**
+
+- Add results system concept docs
+
+**5.1.1 - 04/21/26**
+
+- Add plugins and results system API docs
+
 **5.1.0 - 04/16/26**
 
 - Enable precomputation of calibration constants to be stored in a lookup table rather than calculated on the fly
