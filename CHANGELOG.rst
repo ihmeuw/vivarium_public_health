@@ -1,3 +1,7 @@
+**5.1.5 - 04/29/26**
+
+- Add population tutorial and example data module
+
 **5.1.4 - 04/23/26**
 
 - Add treatment API docs

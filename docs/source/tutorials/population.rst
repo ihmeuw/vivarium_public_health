@@ -10,6 +10,15 @@ configuration required for each approach.
    :local:
    :depth: 2
 
+.. testsetup:: *
+
+   import numpy as np
+   import pandas as pd
+   from vivarium import InteractiveContext
+   from vivarium_public_health.population import *
+   from vivarium_public_health._example_data import *
+   base_plugins = BASE_PLUGINS
+
 
 Overview
 --------
@@ -53,47 +62,6 @@ keys that must come from the artifact, and supply the rest through
 configuration overrides (see `Data sources`_).  The `Artifact Data Format`_
 section shows the expected key names and column layouts for every data key
 so that you know exactly what to put in your own artifact.
-
-.. note::
-
-   The code block below defines helper objects used by the examples in this
-   tutorial.  You do not need to understand it — it simply wires up an
-   example artifact and base configuration so the code blocks that follow
-   can be run without a real data artifact.
-
-.. code-block:: python
-
-   from layered_config_tree import LayeredConfigTree
-   from vivarium.framework.configuration import build_simulation_configuration
-
-   # Plugin configuration that uses the example artifact bundled with the
-   # package.  Replace this with a real artifact path for production use.
-   base_plugins = LayeredConfigTree(
-       {
-           "required": {
-               "data": {
-                   "controller": "vivarium_public_health._example_data.ExampleArtifactManager",
-                   "builder_interface": "vivarium.framework.artifact.ArtifactInterface",
-               }
-           }
-       }
-   )
-
-   def make_base_config():
-       """Return a fresh base configuration."""
-       config = build_simulation_configuration()
-       config.update(
-           {
-               "time": {
-                   "start": {"year": 1990},
-                   "end": {"year": 2010},
-                   "step_size": 30.5,
-               },
-               "randomness": {"key_columns": ["entrance_time", "age"]},
-           },
-           layer="model_override",
-       )
-       return config
 
 
 Artifact Data Format
@@ -231,7 +199,7 @@ artifact.  The examples below use the data builders from the
 :mod:`~vivarium_public_health._example_data` module; a production artifact has
 the same column layout but with real GBD values.
 
-.. code-block:: python
+.. testcode::
 
    from vivarium_public_health._example_data import (
        population_structure,
@@ -281,7 +249,7 @@ Default configuration
 The absolute minimum is a ``population_size``.  Everything else has sensible
 defaults (ages 0–125, both sexes, no age-out):
 
-.. code-block:: python
+.. testcode::
 
    from vivarium import InteractiveContext
    from vivarium_public_health.population import BasePopulation
@@ -308,8 +276,8 @@ defaults (ages 0–125, both sexes, no age-out):
    pop = sim.get_population()
    print(pop[["age", "sex", "location"]].head())
    #    age     sex  location
-   # 0  72.3  Female         1
-   # 1  14.7    Male         1
+   # 0  72.3  Female       180
+   # 1  14.7    Male       180
    # ...
 
    # Ages span the full default range (0 to 125)
@@ -323,7 +291,7 @@ Custom age range
 Use ``initialization_age_min`` and ``initialization_age_max`` to restrict the
 age range of the initial population.  This is the most common customization:
 
-.. code-block:: python
+.. testcode::
 
    config = make_base_config()
    config.update(
@@ -356,7 +324,7 @@ When ``initialization_age_min`` equals ``initialization_age_max``, all
 simulants start at the same age.  This can be used with fertility
 components to represent a cohort of newborns:
 
-.. code-block:: python
+.. testcode::
 
    config = make_base_config()
    config.update(
@@ -389,7 +357,7 @@ Filtering by sex
 The ``include_sex`` option restricts the population to a single sex.  Valid
 values are ``"Male"``, ``"Female"``, or ``"Both"`` (the default):
 
-.. code-block:: python
+.. testcode::
 
    config = make_base_config()
    config.update(
@@ -419,9 +387,10 @@ Untracking age (aging out)
 
 Setting ``untracking_age`` causes simulants to be removed from the tracked
 population once they reach that age.  This is useful when a model only cares
-about a specific age window:
+about a specific age window.  The ``is_aged_out`` column is populated by
+the ``AgeOutSimulants`` sub-component when ``untracking_age`` is set:
 
-.. code-block:: python
+.. testcode::
 
    config = make_base_config()
    config.update(
@@ -515,7 +484,7 @@ factor.  The scaling factor can be passed as a :class:`pandas.DataFrame`
 directly or as a string artifact key.  Since we already have the data as a
 DataFrame, we pass it directly to the constructor — no artifact write needed:
 
-.. code-block:: python
+.. testcode::
 
    import numpy as np
    import pandas as pd
@@ -588,7 +557,7 @@ FertilityDeterministic
 fixed number of new simulants each year.  This is the simplest fertility model
 and does not require any artifact data.
 
-.. code-block:: python
+.. testcode::
 
    from vivarium import InteractiveContext
    from vivarium_public_health.population import BasePopulation, FertilityDeterministic
@@ -640,7 +609,7 @@ It requires ``initialization_age_min`` to be 0 and needs
 The artifact key ``covariate.live_births_by_sex.estimate`` should contain
 a row for each year |times| sex combination:
 
-.. code-block:: python
+.. testcode::
 
    from vivarium_public_health._example_data import live_births_by_sex
 
@@ -655,11 +624,11 @@ a row for each year |times| sex combination:
    #        1992      1993  Female mean_value  500.0
    #        1992      1993    Male mean_value  500.0
 
-Because this component's artifact key is artifact-required (it does not
-support ``data_sources`` overrides), we write the data into the artifact
-before setup:
+This component's artifact key is artifact-required (it does not support
+``data_sources`` overrides).  The example artifact provides this data
+automatically:
 
-.. code-block:: python
+.. testcode::
 
    from vivarium import InteractiveContext
    from vivarium_public_health.population import BasePopulation, FertilityCrudeBirthRate
@@ -682,12 +651,7 @@ before setup:
        components=[BasePopulation(), FertilityCrudeBirthRate()],
        configuration=config,
        plugin_configuration=base_plugins,
-       setup=False,
    )
-   sim._data.write(
-       "covariate.live_births_by_sex.estimate", live_births_by_sex()
-   )
-   sim.setup()
 
    import pandas as pd
    sim.run_for(duration=pd.Timedelta(days=100))
@@ -716,7 +680,7 @@ pattern (see `Data sources`_), so you can override it with a scalar,
 DataFrame, callable, or alternative artifact key.  The expected data shape
 is one row per age |times| year |times| sex |times| parameter combination:
 
-.. code-block:: python
+.. testcode::
 
    from vivarium_public_health._example_data import age_specific_fertility_rate
 
@@ -736,7 +700,7 @@ Because this component supports the ``data_sources`` configuration, the
 tutorial example below supplies a constant rate directly instead of loading
 from the artifact:
 
-.. code-block:: python
+.. testcode::
 
    from vivarium import InteractiveContext
    from vivarium_public_health.population import BasePopulation, FertilityAgeSpecificRates

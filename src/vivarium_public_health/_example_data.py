@@ -3,8 +3,8 @@ Example data for tutorials and interactive exploration.
 
 This private module builds small, self-contained DataFrames that match the
 column layout expected by :mod:`vivarium_public_health.population` components.
-The data is intentionally simple (uniform rates, round numbers) so that
-tutorial output is easy to follow.
+The data uses uniform rates and round population counts so that tutorial
+output is easy to follow.  Age bins follow standard GBD definitions.
 
 See the :doc:`/tutorials/population` tutorial for usage.
 """
@@ -13,11 +13,13 @@ from itertools import product
 
 import numpy as np
 import pandas as pd
+from layered_config_tree import LayeredConfigTree
 from vivarium.framework.artifact import ArtifactManager
+from vivarium.framework.configuration import build_simulation_configuration
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
+#############
+# Constants #
+#############
 
 _YEAR_START = 1990
 _YEAR_END = 2010
@@ -28,9 +30,9 @@ _YEAR_BINS: list[tuple[int, int]] = list(
 )
 
 
-# ---------------------------------------------------------------------------
-# Age bins
-# ---------------------------------------------------------------------------
+############
+# Age bins #
+############
 
 _AGE_BIN_TUPLES: list[tuple[float, float, str]] = [
     (0.0, 0.01917808, "Early Neonatal"),
@@ -61,9 +63,9 @@ _AGE_BIN_TUPLES: list[tuple[float, float, str]] = [
 _AGE_BINS: list[tuple[float, float]] = [(a, b) for a, b, _ in _AGE_BIN_TUPLES]
 
 
-# ---------------------------------------------------------------------------
-# Data builders — one per artifact key shape
-# ---------------------------------------------------------------------------
+##############################################
+# Data builders — one per artifact key shape #
+##############################################
 
 
 def age_bins() -> pd.DataFrame:
@@ -128,7 +130,7 @@ def theoretical_minimum_risk_life_expectancy() -> pd.DataFrame:
 def live_births_by_sex(annual_births_per_sex: float = 500.0) -> pd.DataFrame:
     """Return crude live-birth data for ``covariate.live_births_by_sex.estimate``.
 
-    Each row gives the number of live births for one year |times| sex |times|
+    Each row gives the number of live births for one year × sex ×
     parameter combination.
 
     Parameters
@@ -136,7 +138,10 @@ def live_births_by_sex(annual_births_per_sex: float = 500.0) -> pd.DataFrame:
     annual_births_per_sex
         Number of live births per sex per year.
 
-    Columns: ``year_start``, ``year_end``, ``sex``, ``parameter``, ``value``.
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``year_start``, ``year_end``, ``sex``, ``parameter``, ``value``.
     """
     years = _YEAR_BINS
     sexes = ("Female", "Male")
@@ -163,8 +168,11 @@ def age_specific_fertility_rate(rate: float = 0.05) -> pd.DataFrame:
     rate
         The constant fertility rate applied to all age/year cells.
 
-    Columns: ``year_start``, ``year_end``, ``age_start``, ``age_end``,
-    ``sex``, ``parameter``, ``value``.
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``year_start``, ``year_end``, ``age_start``, ``age_end``,
+        ``sex``, ``parameter``, ``value``.
     """
     bins = _AGE_BINS
     years = _YEAR_BINS
@@ -190,9 +198,9 @@ def age_specific_fertility_rate(rate: float = 0.05) -> pd.DataFrame:
     )
 
 
-# ---------------------------------------------------------------------------
-# Example artifact manager
-# ---------------------------------------------------------------------------
+############################
+# Example artifact manager #
+############################
 
 _ARTIFACT_DATA: dict[str, object] = {
     "population.structure": population_structure,
@@ -262,3 +270,37 @@ class ExampleArtifactManager(ArtifactManager):
 
     def _load_artifact(self, _) -> _ExampleArtifact:
         return _ExampleArtifact()
+
+
+####################
+# Tutorial helpers #
+####################
+
+#: Plugin configuration that wires up the example artifact manager.
+BASE_PLUGINS = LayeredConfigTree(
+    {
+        "required": {
+            "data": {
+                "controller": "vivarium_public_health._example_data.ExampleArtifactManager",
+                "builder_interface": "vivarium.framework.artifact.ArtifactInterface",
+            }
+        }
+    }
+)
+
+
+def make_base_config() -> LayeredConfigTree:
+    """Return a fresh base configuration for tutorial examples."""
+    config = build_simulation_configuration()
+    config.update(
+        {
+            "time": {
+                "start": {"year": _YEAR_START},
+                "end": {"year": _YEAR_END},
+                "step_size": 30.5,
+            },
+            "randomness": {"key_columns": ["entrance_time", "age"]},
+        },
+        layer="model_override",
+    )
+    return config
