@@ -20,6 +20,7 @@ from vivarium.framework.event import Event
 from vivarium.framework.lookup import DEFAULT_VALUE_COLUMN
 from vivarium.framework.resource import Resource
 from vivarium.framework.values import (
+    AttributePostProcessor,
     ValuesManager,
     multiplication_combiner,
     raw_union_post_processor,
@@ -37,6 +38,8 @@ def register_risk_affected_attribute_producer(
     name: str,
     source: Callable[..., pd.Series],
     required_resources: Sequence[str] = (),
+    additional_post_processors: AttributePostProcessor
+    | Sequence[AttributePostProcessor] = (),
 ) -> None:
     """Helper function to register a pipeline that can be modified by RiskEffect components.
 
@@ -47,15 +50,26 @@ def register_risk_affected_attribute_producer(
     name
         The name of the pipeline to register.
     source
-        The source for the dynamic rate pipeline. This can be a callable
+        The source for the attribute pipeline. This can be a callable
         or a list of column names. If a list of column names is provided,
         the component that is registering this attribute producer must be the
         one that creates those columns.
     required_resources
         A list of resources that the producer requires. A string represents
         a population attribute.
+    additional_post_processors
+        An AttributePostProcessor or list of AttributePostProcessors to apply
+        in addition to the calibration constant post-processor. These will be
+        applied after the calibration constant post-processor.
     """
-    _RiskAffectedPipeline.create(builder, name, source, required_resources, is_rate=False)
+    post_processors = (
+        additional_post_processors
+        if isinstance(additional_post_processors, Sequence)
+        else [additional_post_processors]
+    )
+    _RiskAffectedPipeline.create(
+        builder, name, source, required_resources, post_processors, is_rate=False
+    )
 
 
 def register_risk_affected_rate_producer(
@@ -63,8 +77,10 @@ def register_risk_affected_rate_producer(
     name: str,
     source: Callable[..., pd.Series],
     required_resources: Sequence[str] = (),
+    additional_post_processors: AttributePostProcessor
+    | Sequence[AttributePostProcessor] = (),
 ) -> None:
-    """Helper function to register a pipeline that can be modified by RiskEffect components.
+    """Helper function to register a rate pipeline that can be modified by RiskEffect components.
 
     Parameters
     ----------
@@ -73,15 +89,26 @@ def register_risk_affected_rate_producer(
     name
         The name of the pipeline to register.
     source
-        The source for the dynamic rate pipeline. This can be a callable
+        The source for the rate pipeline. This can be a callable
         or a list of column names. If a list of column names is provided,
-        the component that is registering this attribute producer must be the
+        the component that is registering this rate producer must be the
         one that creates those columns.
     required_resources
         A list of resources that the producer requires. A string represents
         a population attribute.
+    additional_post_processors
+        An AttributePostProcessor or list of AttributePostProcessors to apply
+        in addition to the calibration constant post-processor. These will be
+        applied after the calibration constant post-processor.
     """
-    _RiskAffectedPipeline.create(builder, name, source, required_resources, is_rate=True)
+    post_processors = (
+        additional_post_processors
+        if isinstance(additional_post_processors, Sequence)
+        else [additional_post_processors]
+    )
+    _RiskAffectedPipeline.create(
+        builder, name, source, required_resources, post_processors, is_rate=True
+    )
 
 
 class _RiskAffectedPipeline(Component):
@@ -94,22 +121,27 @@ class _RiskAffectedPipeline(Component):
         name: str,
         source: Callable[..., pd.Series],
         required_resources: Sequence[str],
+        additional_post_processors: Sequence[AttributePostProcessor],
         is_rate: bool,
     ) -> None:
         """Factory method to create and set up the class."""
-        cls(name, source, required_resources, is_rate).setup_component(builder)
+        cls(
+            name, source, required_resources, additional_post_processors, is_rate
+        ).setup_component(builder)
 
     def __init__(
         self,
         target_pipeline_name: str,
         target_pipeline_source: Callable[..., pd.Series],
         required_resources: Sequence[str | Resource],
+        additional_post_processors: Sequence[AttributePostProcessor],
         is_rate: bool,
     ):
         super().__init__()
         self._target_pipeline_name = target_pipeline_name
         self._target_pipeline_source = target_pipeline_source
         self._required_resources = required_resources
+        self._additional_post_processors = additional_post_processors
         self._is_rate = is_rate
 
     def setup(self, builder: Builder) -> None:
@@ -141,7 +173,10 @@ class _RiskAffectedPipeline(Component):
             source=self._target_pipeline_source,
             required_resources=[self._calibration_constant_table, *self._required_resources],
             preferred_combiner=multiplication_combiner,
-            preferred_post_processor=self._apply_calibration_constant,
+            preferred_post_processor=[
+                self._apply_calibration_constant,
+                *self._additional_post_processors,
+            ],
         )
 
     def on_post_setup(self, event: Event) -> None:
