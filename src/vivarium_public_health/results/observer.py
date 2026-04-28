@@ -34,6 +34,7 @@ class PublicHealthObserver(Observer):
         pop_filter: str = "",
         include_untracked: bool = False,
         when: str = "collect_metrics",
+        priority: int = 5,
         requires_attributes: list[str] = [],
         additional_stratifications: list[str] = [],
         excluded_stratifications: list[str] = [],
@@ -61,6 +62,9 @@ class PublicHealthObserver(Observer):
         when
             Name of the lifecycle phase the observation should happen. Valid values are:
             "time_step__prepare", "time_step", "time_step__cleanup", or "collect_metrics".
+        priority
+            The priority of the observation within the lifecycle phase. Lower
+            values run first.
         requires_attributes
             The population attributes that are required by the `aggregator`.
         additional_stratifications
@@ -79,6 +83,7 @@ class PublicHealthObserver(Observer):
             pop_filter=pop_filter,
             include_untracked=include_untracked,
             when=when,
+            priority=priority,
             requires_attributes=requires_attributes,
             results_formatter=self.format_results,
             additional_stratifications=additional_stratifications,

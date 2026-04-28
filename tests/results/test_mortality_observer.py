@@ -272,8 +272,8 @@ def test_person_time_includes_dead_simulants(base_config, base_plugins):
     """Test that person-time observation happens before mortality.
 
     Under the new ordering:
-    - Person-time observation happens during on_time_step at priority 5
-    - Mortality happens during on_time_step at priority 6
+    - Person-time observation happens during on_time_step at priority 2
+    - Mortality happens during on_time_step at priority 3
 
     Therefore, simulants who die this step should still contribute person-time
     because person-time was counted while they were still alive.

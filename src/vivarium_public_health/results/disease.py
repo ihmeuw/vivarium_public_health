@@ -165,6 +165,7 @@ class DiseaseObserver(PublicHealthObserver):
             name=f"person_time_{self.disease}",
             pop_filter=pop_filter,
             when="time_step",
+            priority=2,
             additional_stratifications=self.configuration.include + [self.disease],
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_state_person_time,

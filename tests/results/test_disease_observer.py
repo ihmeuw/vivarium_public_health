@@ -329,9 +329,9 @@ def test_aging_before_person_time_observation(base_config, base_plugins):
 
     Under the new ordering:
     - Fertility happens during on_time_step_prepare, creating newborns
-    - Aging happens during on_time_step at priority 2
-    - Person-time observation happens during on_time_step at priority 5 (via ResultsManager)
-    - Mortality happens during on_time_step at priority 6
+    - Aging happens during on_time_step at priority 1
+    - Person-time observation happens during on_time_step at priority 2 (via ResultsManager)
+    - Mortality happens during on_time_step at priority 3
 
     This test verifies the full ordering by confirming that person-time includes
     newborns (created in prepare) and accounts for all simulants that were alive
