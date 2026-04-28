@@ -140,30 +140,45 @@ def test_mortality_cause_of_death(
     }
     sim.configuration.update(override_config)
     sim.setup()
+
+    # Step 1: Under the new ordering, mortality (priority 3) fires before
+    # disease transitions (priority 5). So on step 1, only the ~50% of
+    # simulants initialized as "sick" have excess mortality. After mortality,
+    # transitions fire and all surviving "healthy" simulants move to "sick"
+    # (dwell_time=0).
     sim.step()
-    # Mortality rates reflect the post-transition state (disease transitions
-    # fire before mortality in the lifecycle). Read them after stepping so
-    # the rates match what was used when mortality was evaluated.
+    alive_after_step1 = sim.get_population(["is_alive"])
+    alive_idx_after_step1 = alive_after_step1.index[alive_after_step1["is_alive"] == True]
+
+    # Step 2: Now all survivors are "sick", so mortality evaluates with
+    # everyone having the excess mortality rate — equivalent to the old
+    # ordering where transitions fired before mortality.
+    sim.step()
     mortality_rates = sim.get_population("mortality_rate")
-    # Only 'other_causes' and 'sick' for cause of death
     cause_of_death = sim.get_population("cause_of_death")
+
+    # Isolate deaths from step 2 only (alive after step 1, dead after step 2)
+    step2_dead_idx = cause_of_death.loc[alive_idx_after_step1].index[
+        cause_of_death.loc[alive_idx_after_step1] != "not_dead"
+    ]
+    step2_cause_of_death = cause_of_death.loc[step2_dead_idx]
+
     for cause in ["other_causes", "sick"]:
-        dead = cause_of_death.loc[cause_of_death == cause]
-        # Disease model seems to set mortality rate for that disease back to 0
-        # if a simulant dies from it
-        rates = mortality_rates[cause].unique()
+        dead = step2_cause_of_death.loc[step2_cause_of_death == cause]
+        # Disease model sets mortality rate for that disease back to 0
+        # if a simulant dies from it. Read rates only from the step-2
+        # population (alive after step 1) to avoid stale zeroed-out rates
+        # from step-1 deaths.
+        rates = mortality_rates.loc[alive_idx_after_step1, cause].unique()
         for mortality_rate in rates:
             if mortality_rate == 0:
                 continue
             else:
                 mortality_rate = mortality_rate
-            # No prevalence adjustment needed: with dwell_time=0 and disease
-            # transitions firing before mortality, all simulants are "sick"
-            # when mortality evaluates (effective prevalence = 1.0).
             fuzzy_checker.fuzzy_assert_proportion(
                 name=f"test_mortality_rate_{cause}",
                 observed_numerator=len(dead),
-                observed_denominator=len(cause_of_death),
+                observed_denominator=len(alive_idx_after_step1),
                 target_proportion=mortality_rate,
             )
 
