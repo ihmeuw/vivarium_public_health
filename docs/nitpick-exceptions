@@ -27,6 +27,7 @@ py:class SimulantData
 py:class Event
 py:class vivarium.framework.event.manager.Event
 py:class LookupTable
+py:mod vivarium_public_health._example_data
 
 # vivarium types and classes used in type hints
 py:class DataInput

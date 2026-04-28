@@ -28,26 +28,26 @@ There are two categories of population components:
 **Initial population** components create the starting set of simulants when the
 simulation begins:
 
-- :class:`~vivarium_public_health.population.BasePopulation` — the standard
+- :class:`~vivarium_public_health.population.base_population.BasePopulation` — the standard
   component that samples simulants from demographic data.
-- :class:`~vivarium_public_health.population.ScaledPopulation` — a variant
+- :class:`~vivarium_public_health.population.base_population.ScaledPopulation` — a variant
   that rescales the demographic data before sampling.
 
 **Fertility** components add new simulants during the simulation:
 
-- :class:`~vivarium_public_health.population.FertilityDeterministic` — adds a
+- :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityDeterministic` — adds a
   fixed number of births per year.
-- :class:`~vivarium_public_health.population.FertilityCrudeBirthRate` — adds
+- :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityCrudeBirthRate` — adds
   births based on a population-level crude birth rate, without accounting for
   the age or sex composition of the population.
-- :class:`~vivarium_public_health.population.FertilityAgeSpecificRates` —
+- :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityAgeSpecificRates` —
   adds births at the individual level based on age-specific fertility rates.
 
 .. note::
 
-   :class:`~vivarium_public_health.population.BasePopulation` automatically
+   :class:`~vivarium_public_health.population.base_population.BasePopulation` automatically
    includes three sub-components:
-   :class:`~vivarium_public_health.population.Mortality`,
+   :class:`~vivarium_public_health.population.mortality.Mortality`,
    ``AgeOutSimulants``, and ``Disability``. You do not need to add these
    separately.
 
@@ -93,33 +93,33 @@ is simply the default.
      - Configurable?
    * - ``population.structure``
      - age |times| sex |times| year |times| location |rarr| ``value`` (population count)
-     - :class:`~vivarium_public_health.population.BasePopulation`,
-       :class:`~vivarium_public_health.population.ScaledPopulation`
+     - :class:`~vivarium_public_health.population.base_population.BasePopulation`,
+       :class:`~vivarium_public_health.population.base_population.ScaledPopulation`
      - No (artifact-required)
    * - ``population.age_bins``
      - One row per age group |rarr| ``age_start``, ``age_end``,
        ``age_group_name``
-     - :class:`~vivarium_public_health.population.BasePopulation`
+     - :class:`~vivarium_public_health.population.base_population.BasePopulation`
      - No (artifact-required)
    * - ``population.location``
      - A scalar string (e.g. ``"Kenya"``)
-     - :class:`~vivarium_public_health.population.BasePopulation`
+     - :class:`~vivarium_public_health.population.base_population.BasePopulation`
      - No (artifact-required)
    * - ``cause.all_causes.cause_specific_mortality_rate``
      - age |times| sex |times| year |rarr| ``value`` (rate)
-     - :class:`~vivarium_public_health.population.Mortality`
+     - :class:`~vivarium_public_health.population.mortality.Mortality`
      - Yes |mdash| ``mortality.data_sources.all_cause_mortality_rate``
    * - ``population.theoretical_minimum_risk_life_expectancy``
      - age |rarr| ``value`` (years of remaining life)
-     - :class:`~vivarium_public_health.population.Mortality`
+     - :class:`~vivarium_public_health.population.mortality.Mortality`
      - Yes |mdash| ``mortality.data_sources.life_expectancy``
    * - ``covariate.live_births_by_sex.estimate``
      - year |times| sex |times| ``parameter`` |rarr| ``value``
-     - :class:`~vivarium_public_health.population.FertilityCrudeBirthRate`
+     - :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityCrudeBirthRate`
      - No (artifact-required)
    * - ``covariate.age_specific_fertility_rate.estimate``
      - age |times| sex |times| year |times| ``parameter`` |rarr| ``value``
-     - :class:`~vivarium_public_health.population.FertilityAgeSpecificRates`
+     - :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityAgeSpecificRates`
      - Yes |mdash| ``fertility_age_specific_rates.data_sources.age_specific_fertility_rate``
 
 
@@ -143,7 +143,7 @@ corresponding artifact key.  You can override any of them with:
 - **Callable** — call the function at setup time to produce the data.
 - **Artifact key** (string) — load a different key from the artifact.
 
-For example, :class:`~vivarium_public_health.population.Mortality` declares
+For example, :class:`~vivarium_public_health.population.mortality.Mortality` declares
 three configurable data sources:
 
 .. code-block:: yaml
@@ -177,7 +177,7 @@ component expects, so you can see the concrete layout.
 BasePopulation
 --------------
 
-:class:`~vivarium_public_health.population.BasePopulation` is the standard way
+:class:`~vivarium_public_health.population.base_population.BasePopulation` is the standard way
 to create an initial population.  It loads a population structure from the data
 artifact and samples simulants whose age, sex, and location distributions match
 the source data.
@@ -185,7 +185,7 @@ the source data.
 ``BasePopulation`` itself requires ``population.structure``,
 ``population.age_bins``, and ``population.location`` to be present in the
 artifact (these are artifact-required keys).  Its
-:class:`~vivarium_public_health.population.Mortality` sub-component supports
+:class:`~vivarium_public_health.population.mortality.Mortality` sub-component supports
 the ``data_sources`` configuration, so mortality rates and life expectancy
 can be overridden with scalars or DataFrames — which is what we do in the
 tutorial examples below.
@@ -467,8 +467,8 @@ Configuration summary for BasePopulation
 ScaledPopulation
 ----------------
 
-:class:`~vivarium_public_health.population.ScaledPopulation` works like
-:class:`~vivarium_public_health.population.BasePopulation` but multiplies
+:class:`~vivarium_public_health.population.base_population.ScaledPopulation` works like
+:class:`~vivarium_public_health.population.base_population.BasePopulation` but multiplies
 the population structure by a scaling factor before sampling.  This is useful
 when simulants represent a subset of the real population (for example, only
 the population eligible for an intervention).
@@ -542,7 +542,7 @@ Fertility Components
 
 Fertility components add new simulants during the simulation to model births.
 They are paired with a population component such as
-:class:`~vivarium_public_health.population.BasePopulation`.
+:class:`~vivarium_public_health.population.base_population.BasePopulation`.
 
 .. note::
 
@@ -553,7 +553,7 @@ They are paired with a population component such as
 FertilityDeterministic
 ^^^^^^^^^^^^^^^^^^^^^^
 
-:class:`~vivarium_public_health.population.FertilityDeterministic` adds a
+:class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityDeterministic` adds a
 fixed number of new simulants each year.  This is the simplest fertility model
 and does not require any artifact data.
 
@@ -594,13 +594,13 @@ and does not require any artifact data.
 FertilityCrudeBirthRate
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-:class:`~vivarium_public_health.population.FertilityCrudeBirthRate` models
+:class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityCrudeBirthRate` models
 births at the population level using a crude birth rate — the number of live
 births per unit of population, regardless of age or sex structure.  Because it
 does not consider the demographic composition of the population, the number of
 births depends only on the total population size and the overall birth rate.
 This contrasts with
-:class:`~vivarium_public_health.population.FertilityAgeSpecificRates`, which
+:class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityAgeSpecificRates`, which
 models births at the individual level using rates that vary by age.
 
 It requires ``initialization_age_min`` to be 0 and needs
@@ -668,7 +668,7 @@ automatically:
 FertilityAgeSpecificRates
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:class:`~vivarium_public_health.population.FertilityAgeSpecificRates` models
+:class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityAgeSpecificRates` models
 fertility at the individual level.  Each living female simulant who has not
 given birth in the last nine months has a chance of giving birth determined
 by age-specific fertility rates.  Newborns are linked to their parent via a
