@@ -660,7 +660,7 @@ It requires ``initialization_age_min`` to be 0 and needs
 ``covariate.live_births_by_sex.estimate`` data in the artifact.
 
 The artifact key ``covariate.live_births_by_sex.estimate`` should contain
-a row for each year |times| sex combination:
+a row for each year × sex combination:
 
 .. testcode::
 
@@ -743,7 +743,7 @@ By default this component loads ``covariate.age_specific_fertility_rate.estimate
 from the artifact.  It also supports the ``data_sources`` configuration
 pattern (see `Data sources`_), so you can override it with a scalar,
 DataFrame, callable, or alternative artifact key.  The expected data shape
-is one row per age |times| year |times| sex |times| parameter combination:
+is one row per age × year × sex × parameter combination:
 
 .. testcode::
 
