@@ -88,43 +88,48 @@ is simply the default.
    :header-rows: 1
 
    * - Key
-     - Shape
+     - Index columns
+     - Value columns
      - Used by
      - Configurable?
    * - ``population.structure``
-     - age |times| sex |times| year |times| location |rarr| ``value`` (population count)
+     - age, sex, year, location
+     - ``value`` (population count)
      - :class:`~vivarium_public_health.population.base_population.BasePopulation`,
        :class:`~vivarium_public_health.population.base_population.ScaledPopulation`
      - No (artifact-required)
    * - ``population.age_bins``
-     - One row per age group |rarr| ``age_start``, ``age_end``,
-       ``age_group_name``
+     - One row per age group
+     - ``age_start``, ``age_end``, ``age_group_name``
      - :class:`~vivarium_public_health.population.base_population.BasePopulation`
      - No (artifact-required)
    * - ``population.location``
-     - A scalar string (e.g. ``"Kenya"``)
+     - *(scalar)*
+     - A string (e.g. ``"Kenya"``)
      - :class:`~vivarium_public_health.population.base_population.BasePopulation`
      - No (artifact-required)
    * - ``cause.all_causes.cause_specific_mortality_rate``
-     - age |times| sex |times| year |rarr| ``value`` (rate)
+     - age, sex, year
+     - ``value`` (rate)
      - :class:`~vivarium_public_health.population.mortality.Mortality`
      - Yes |mdash| ``mortality.data_sources.all_cause_mortality_rate``
    * - ``population.theoretical_minimum_risk_life_expectancy``
-     - age |rarr| ``value`` (years of remaining life)
+     - age
+     - ``value`` (years of remaining life)
      - :class:`~vivarium_public_health.population.mortality.Mortality`
      - Yes |mdash| ``mortality.data_sources.life_expectancy``
    * - ``covariate.live_births_by_sex.estimate``
-     - year |times| sex |times| ``parameter`` |rarr| ``value``
+     - year, sex, ``parameter``
+     - ``value``
      - :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityCrudeBirthRate`
      - No (artifact-required)
    * - ``covariate.age_specific_fertility_rate.estimate``
-     - age |times| sex |times| year |times| ``parameter`` |rarr| ``value``
+     - age, sex, year, ``parameter``
+     - ``value``
      - :class:`~vivarium_public_health.population.add_new_birth_cohorts.FertilityAgeSpecificRates`
      - Yes |mdash| ``fertility_age_specific_rates.data_sources.age_specific_fertility_rate``
 
 
-.. |times| unicode:: U+00D7
-.. |rarr| unicode:: U+2192
 .. |mdash| unicode:: U+2014
 
 
