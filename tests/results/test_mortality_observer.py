@@ -268,12 +268,12 @@ def _assert_correctness(results, expected):
         ).all()
 
 
-def test_person_time_includes_dead_simulants(base_config, base_plugins):
+def test_person_time_includes_dying_simulants(base_config, base_plugins):
     """Test that person-time observation happens before mortality.
 
     Under the new ordering:
-    - Person-time observation happens during on_time_step at priority 2
-    - Mortality happens during on_time_step at priority 3
+    - Person-time observation happens during on_time_step at priority 1
+    - Mortality happens during on_time_step at priority 2
 
     Therefore, simulants who die this step should still contribute person-time
     because person-time was counted while they were still alive.

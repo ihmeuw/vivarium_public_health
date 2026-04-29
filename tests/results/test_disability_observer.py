@@ -65,7 +65,7 @@ def test_disability_observer_setup(mocker):
         pop_filter="is_alive == True",
         include_untracked=False,
         when="time_step",
-        priority=2,
+        priority=1,
         requires_attributes=cause_pipelines,
         results_formatter=observer.format_results,
         additional_stratifications=observer.configuration.include,

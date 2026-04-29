@@ -11,6 +11,7 @@ public health models.
 from collections.abc import Callable
 
 import pandas as pd
+from vivarium.component import DEFAULT_EVENT_PRIORITY
 from vivarium.framework.engine import Builder
 from vivarium.framework.event import Event
 from vivarium.framework.results import Observer
@@ -34,7 +35,7 @@ class PublicHealthObserver(Observer):
         pop_filter: str = "",
         include_untracked: bool = False,
         when: str = "collect_metrics",
-        priority: int = 5,
+        priority: int = DEFAULT_EVENT_PRIORITY,
         requires_attributes: list[str] = [],
         additional_stratifications: list[str] = [],
         excluded_stratifications: list[str] = [],
@@ -63,8 +64,7 @@ class PublicHealthObserver(Observer):
             Name of the lifecycle phase the observation should happen. Valid values are:
             "time_step__prepare", "time_step", "time_step__cleanup", or "collect_metrics".
         priority
-            The priority of the observation within the lifecycle phase. Lower
-            values run first.
+            The priority of the lifecycle phase (`when`) that the observation records.
         requires_attributes
             The population attributes that are required by the `aggregator`.
         additional_stratifications

@@ -102,7 +102,7 @@ class CategoricalCausalFactorObserver(PublicHealthObserver):
             name=f"person_time_{self.causal_factor}",
             pop_filter=f"is_alive == True",
             when="time_step",
-            priority=2,
+            priority=1,
             additional_stratifications=self.configuration.include + [self.causal_factor],
             excluded_stratifications=self.configuration.exclude,
             aggregator=self.aggregate_category_person_time,
