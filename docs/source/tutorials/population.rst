@@ -242,6 +242,12 @@ the same column layout but with real GBD values.
    #        3.0      4.0   98.0
    #        4.0      5.0   98.0
 
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
+
 
 Default configuration
 ^^^^^^^^^^^^^^^^^^^^^
@@ -273,8 +279,8 @@ defaults (ages 0–125, both sexes, no age-out):
        plugin_configuration=base_plugins,
    )
 
-   pop = sim.get_population()
-   print(pop[["age", "sex", "location"]].head())
+   pop = sim.get_population(["age", "sex", "location"])
+   print(pop.head())
    #    age     sex  location
    # 0  72.3  Female       180
    # 1  14.7    Male       180
@@ -283,6 +289,12 @@ defaults (ages 0–125, both sexes, no age-out):
    # Ages span the full default range (0 to 125)
    print(f"Age range: {pop['age'].min():.1f} – {pop['age'].max():.1f}")
    # Age range: 0.0 – 124.9  (approximate; depends on random seed)
+
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
 
 
 Custom age range
@@ -312,9 +324,15 @@ age range of the initial population.  This is the most common customization:
        plugin_configuration=base_plugins,
    )
 
-   pop = sim.get_population()
+   pop = sim.get_population(["age"])
    print(f"Age range: {pop['age'].min():.2f} – {pop['age'].max():.2f}")
    # Age range: 0.00 – 4.99  (approximate; all simulants are between 0 and 5)
+
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
 
 
 Single-age initialization (newborns)
@@ -345,10 +363,16 @@ components to represent a cohort of newborns:
        plugin_configuration=base_plugins,
    )
 
-   pop = sim.get_population()
+   pop = sim.get_population(["age"])
    # All simulants are newborns; ages are smoothed within the first time step.
    print(f"Max age: {pop['age'].max():.4f}")
    # Max age: 0.0836  (approximate; a small fraction of a year)
+
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
 
 
 Filtering by sex
@@ -377,9 +401,15 @@ values are ``"Male"``, ``"Female"``, or ``"Both"`` (the default):
        plugin_configuration=base_plugins,
    )
 
-   pop = sim.get_population()
+   pop = sim.get_population(["sex"])
    print(pop["sex"].value_counts())
    # Female    10000
+
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
 
 
 Untracking age (aging out)
@@ -414,7 +444,7 @@ the ``AgeOutSimulants`` sub-component when ``untracking_age`` is set:
    )
 
    # All 4-year-olds at the start
-   print(f"Tracked: {len(sim.get_population())}")
+   print(f"Tracked: {len(sim.get_population(['age']))}")
    # Tracked: 10000
 
    # After running for 600 days (~1.6 years), everyone has aged past 5
@@ -423,6 +453,12 @@ the ``AgeOutSimulants`` sub-component when ``untracking_age`` is set:
    pop = sim.get_population(["is_aged_out", "exit_time"], include_untracked=True)
    print(f"Aged out: {pop['is_aged_out'].sum()}")
    # Aged out: 10000
+
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
 
 
 Configuration summary for BasePopulation
@@ -536,6 +572,12 @@ DataFrame, we pass it directly to the constructor — no artifact write needed:
    # Female    ...  (scaled counts vary by scaling factor)
    # Male      ...
 
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
+
 
 Fertility Components
 --------------------
@@ -585,10 +627,16 @@ and does not require any artifact data.
 
    import pandas as pd
    sim.run_for(duration=pd.Timedelta(days=100))
-   pop = sim.get_population()
+   pop = sim.get_population(["age"])
    # Population grew from 1000 by ~500 * (100/365) ≈ 137 new simulants.
    print(f"Population size: {len(pop)}")
    # Population size: 1137  (approximate)
+
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
 
 
 FertilityCrudeBirthRate
@@ -624,6 +672,12 @@ a row for each year |times| sex combination:
    #        1992      1993  Female mean_value  500.0
    #        1992      1993    Male mean_value  500.0
 
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
+
 This component's artifact key is artifact-required (it does not support
 ``data_sources`` overrides).  The example artifact provides this data
 automatically:
@@ -655,9 +709,15 @@ automatically:
 
    import pandas as pd
    sim.run_for(duration=pd.Timedelta(days=100))
-   pop = sim.get_population()
+   pop = sim.get_population(["age"])
    print(f"Population size: {len(pop)} (started at 10,000)")
    # Population size: 10030 (started at 10,000)  (approximate)
+
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
 
 .. important::
 
@@ -695,6 +755,12 @@ is one row per age |times| year |times| sex |times| parameter combination:
    #        1990      1991   0.000000  0.019178    Male  mean_value   0.05
    #        1990      1991   0.000000  0.019178    Male lower_value   0.05
    #        1990      1991   0.000000  0.019178    Male upper_value   0.05
+
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
 
 Because this component supports the ``data_sources`` configuration, the
 tutorial example below supplies a constant rate directly instead of loading
@@ -739,6 +805,12 @@ from the artifact:
    newborns = pop[pop["parent_id"] >= 0]
    print(f"New births: {len(newborns)}")
    # New births: 67  (approximate; depends on random seed)
+
+.. testoutput::
+   :hide:
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
+
+   ...
 
 
 Fertility configuration summary
