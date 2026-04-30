@@ -101,11 +101,14 @@ configuration overrides. The one key that *must* come from the artifact is
 directly to determine whether a cause is morbidity-only. We use an example
 artifact to provide it.
 
-Every code example in this tutorial uses two helpers imported from
-:mod:`vivarium_public_health._example_data`:
+Every code example in this tutorial uses imports and helpers shown below.
+To run any example in a standalone script, include all of these at the top:
 
 .. testcode::
 
+   from vivarium import InteractiveContext
+   from vivarium_public_health.disease import *
+   from vivarium_public_health.population import BasePopulation
    from vivarium_public_health._example_data import BASE_PLUGINS, make_base_config
 
    # BASE_PLUGINS overrides the data plugin to use ExampleArtifactManager,
@@ -214,12 +217,12 @@ has the same column layout but with real GBD values.
    :options: +NORMALIZE_WHITESPACE
 
     age_start   age_end    sex  year_start  year_end  value
-     0.000000  0.019178 Female        1990      1991   0.05
      0.000000  0.019178   Male        1990      1991   0.05
-     0.019178  0.076712 Female        1990      1991   0.05
+     0.000000  0.019178 Female        1990      1991   0.05
      0.019178  0.076712   Male        1990      1991   0.05
-     0.076712  1.000000 Female        1990      1991   0.05
+     0.019178  0.076712 Female        1990      1991   0.05
      0.076712  1.000000   Male        1990      1991   0.05
+     0.076712  1.000000 Female        1990      1991   0.05
 
 .. testcode::
 
@@ -232,8 +235,8 @@ has the same column layout but with real GBD values.
    :options: +NORMALIZE_WHITESPACE
 
     age_start  age_end    sex  year_start  year_end  value
-          0.0 0.019178 Female        1990      1991  0.001
           0.0 0.019178   Male        1990      1991  0.001
+          0.0 0.019178 Female        1990      1991  0.001
 
 .. testcode::
 
@@ -492,8 +495,8 @@ relying on the artifact or configuration:
    States: ['measles', 'susceptible_to_measles']
 
 
-Using Pre-Built Models
------------------------
+Pre-Built Models
+-----------------
 
 For common disease progressions,
 :mod:`vivarium_public_health.disease.models` provides convenience functions
@@ -544,8 +547,8 @@ The simplest model: once infected, a simulant never recovers.
        sim.step()
    pop = sim.get_population(["test_cause"])
    n_infected = (pop["test_cause"] == "test_cause").sum()
-   assert n_infected > 0
-   print(f"Infections occurred: {n_infected > 0}")
+   assert n_infected > 100
+   print(f"Infections occurred: {n_infected > 100}")
 
 .. testoutput::
    :options: +ELLIPSIS
@@ -609,6 +612,10 @@ to susceptibility.
 
 - ``cause.{cause}.incidence_rate`` - susceptible |rarr| infected
 - ``cause.{cause}.remission_rate`` - infected |rarr| recovered
+- ``cause.{cause}.prevalence`` - for initialization
+- ``cause.{cause}.disability_weight`` - for YLD calculation
+- ``cause.{cause}.excess_mortality_rate`` - for mortality calculation
+- ``cause.{cause}.cause_specific_mortality_rate`` - for CSMR
 
 .. testcode::
 
@@ -727,14 +734,15 @@ moves to the recovered state.
    pop = sim.get_population(["test_cause"])
    states = set(pop["test_cause"].unique())
    assert "susceptible_to_test_cause" in states
+   assert "test_cause" in states
    assert "recovered_from_test_cause" in states
-   print(f"Susceptible and recovered states present: True")
+   print(f"All three states present: True")
 
 .. testoutput::
    :options: +ELLIPSIS
 
    ...
-   Susceptible and recovered states present: True
+   All three states present: True
 
 
 Neonatal Models
