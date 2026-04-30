@@ -1,3 +1,7 @@
+**5.1.6 - 04/29/26**
+
+- Add population tutorial and example data module
+
 **5.1.5 - 04/28/26**
 
 - Enable adding additional post-processors to risk-affected pipelines
