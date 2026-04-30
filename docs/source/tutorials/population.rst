@@ -478,7 +478,9 @@ by the ``AgeOutSimulants`` sub-component when ``untracking_age`` is set:
    print(f"Aged out: {pop['is_aged_out'].sum()}")
 
 .. testoutput::
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
 
+   ...
    Aged out: 10000
 
 
@@ -656,7 +658,9 @@ and does not require any artifact data.
    print(f"Population grew: {len(pop) > 1_000}")
 
 .. testoutput::
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
 
+   ...
    Population grew: True
 
 
@@ -732,7 +736,9 @@ automatically:
    print(f"Population grew: {len(pop) > 10_000}")
 
 .. testoutput::
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
 
+   ...
    Population grew: True
 
 .. important::
@@ -820,7 +826,9 @@ from the artifact:
    print(f"Births occurred: {len(newborns) > 0}")
 
 .. testoutput::
+   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
 
+   ...
    Births occurred: True
 
 
