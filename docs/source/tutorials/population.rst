@@ -313,12 +313,11 @@ defaults (ages 0–125, both sexes, no age-out):
    assert pop["age"].min() >= 0
    assert pop["age"].max() <= 125
    assert set(pop["sex"].unique()) == {"Male", "Female"}
-   print(f"Population: {len(pop)}, ages {pop['age'].min():.1f}–{pop['age'].max():.1f}")
+   print(f"Population: {len(pop)}")
 
 .. testoutput::
-   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
 
-   Population: 10000, ages ...
+   Population: 10000
 
 
 Custom age range
@@ -473,16 +472,13 @@ by the ``AgeOutSimulants`` sub-component when ``untracking_age`` is set:
 
 .. testcode::
 
-   # After running for 600 days (~1.6 years), everyone has aged past 5
-   import pandas as pd
-   sim.run_for(duration=pd.Timedelta(days=600))
+   # After taking 6 steps of 100 days (~1.6 years), everyone has aged past 5
+   sim.take_steps(number_of_steps=6)
    pop = sim.get_population(["is_aged_out", "exit_time"], include_untracked=True)
    print(f"Aged out: {pop['is_aged_out'].sum()}")
 
 .. testoutput::
-   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
 
-   ...
    Aged out: 10000
 
 
@@ -653,17 +649,14 @@ and does not require any artifact data.
        plugin_configuration=base_plugins,
    )
 
-   import pandas as pd
-   sim.run_for(duration=pd.Timedelta(days=100))
+   sim.take_steps(number_of_steps=10)
    pop = sim.get_population(["age"])
    # Population grew from 1000 by ~500 * (100/365) ≈ 137 new simulants.
    assert len(pop) > 1_000
    print(f"Population grew: {len(pop) > 1_000}")
 
 .. testoutput::
-   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
 
-   ...
    Population grew: True
 
 
@@ -733,16 +726,13 @@ automatically:
        plugin_configuration=base_plugins,
    )
 
-   import pandas as pd
-   sim.run_for(duration=pd.Timedelta(days=100))
+   sim.take_steps(number_of_steps=10)
    pop = sim.get_population(["age"])
    assert len(pop) > 10_000
    print(f"Population grew: {len(pop) > 10_000}")
 
 .. testoutput::
-   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
 
-   ...
    Population grew: True
 
 .. important::
@@ -821,8 +811,7 @@ from the artifact:
        plugin_configuration=base_plugins,
    )
 
-   import pandas as pd
-   sim.run_for(duration=pd.Timedelta(days=1000))
+   sim.take_steps(number_of_steps=100)
    pop = sim.get_population(["age", "parent_id", "last_birth_time"])
 
    # Newborns have a parent_id pointing to their mother
@@ -831,9 +820,7 @@ from the artifact:
    print(f"Births occurred: {len(newborns) > 0}")
 
 .. testoutput::
-   :options: +ELLIPSIS, +NORMALIZE_WHITESPACE
 
-   ...
    Births occurred: True
 
 
