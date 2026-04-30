@@ -198,6 +198,156 @@ def age_specific_fertility_rate(rate: float = 0.05) -> pd.DataFrame:
     )
 
 
+########################
+# Disease data helpers #
+########################
+
+
+def disease_prevalence(rate: float = 0.0) -> pd.DataFrame:
+    """Return a uniform prevalence table for ``cause.{cause}.prevalence``.
+
+    Parameters
+    ----------
+    rate
+        The constant prevalence applied to all age/year/sex cells.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``value``.
+    """
+    return _build_cause_table(rate)
+
+
+def disease_incidence_rate(rate: float = 0.001) -> pd.DataFrame:
+    """Return a uniform incidence rate table for ``cause.{cause}.incidence_rate``.
+
+    Parameters
+    ----------
+    rate
+        The constant incidence rate applied to all age/year/sex cells.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``value``.
+    """
+    return _build_cause_table(rate)
+
+
+def disease_remission_rate(rate: float = 0.0) -> pd.DataFrame:
+    """Return a uniform remission rate table for ``cause.{cause}.remission_rate``.
+
+    Parameters
+    ----------
+    rate
+        The constant remission rate applied to all age/year/sex cells.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``value``.
+    """
+    return _build_cause_table(rate)
+
+
+def disease_excess_mortality_rate(rate: float = 0.0) -> pd.DataFrame:
+    """Return a uniform excess mortality rate table for ``cause.{cause}.excess_mortality_rate``.
+
+    Parameters
+    ----------
+    rate
+        The constant excess mortality rate applied to all age/year/sex cells.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``value``.
+    """
+    return _build_cause_table(rate)
+
+
+def disease_cause_specific_mortality_rate(rate: float = 0.0) -> pd.DataFrame:
+    """Return a uniform CSMR table for ``cause.{cause}.cause_specific_mortality_rate``.
+
+    Parameters
+    ----------
+    rate
+        The constant cause-specific mortality rate.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``value``.
+    """
+    return _build_cause_table(rate)
+
+
+def disease_disability_weight(weight: float = 0.0) -> pd.DataFrame:
+    """Return a disability weight table for ``cause.{cause}.disability_weight``.
+
+    Parameters
+    ----------
+    weight
+        The constant disability weight.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Single-row DataFrame with a ``value`` column.
+    """
+    return pd.DataFrame({"value": [weight]})
+
+
+def disease_restrictions(yld_only: bool = False) -> dict:
+    """Return a restrictions dict for ``cause.{cause}.restrictions``.
+
+    Parameters
+    ----------
+    yld_only
+        Whether the cause only contributes to years lived with disability
+        (no mortality).
+
+    Returns
+    -------
+    dict
+        A dict with key ``yld_only``.
+    """
+    return {"yld_only": yld_only}
+
+
+def _build_cause_table(value: float) -> pd.DataFrame:
+    """Build an age × sex × year table with a constant value.
+
+    This is the standard shape for most cause-level measures (prevalence,
+    incidence, remission, excess mortality, CSMR).
+    """
+    bins = _AGE_BINS
+    sexes = ("Female", "Male")
+    years = _YEAR_BINS
+
+    rows = list(product(bins, sexes, years))
+    mins, maxes = zip(*[r[0] for r in rows])
+    sex_col = [r[1] for r in rows]
+    y_starts, y_ends = zip(*[r[2] for r in rows])
+
+    return pd.DataFrame(
+        {
+            "age_start": mins,
+            "age_end": maxes,
+            "sex": sex_col,
+            "year_start": y_starts,
+            "year_end": y_ends,
+            "value": value,
+        }
+    )
+
+
 ############################
 # Example artifact manager #
 ############################
@@ -214,6 +364,27 @@ _ARTIFACT_DATA: dict[str, object] = {
     "covariate.age_specific_fertility_rate.estimate": age_specific_fertility_rate,
     # Mortality data — zero by default so simulants stay alive in examples.
     "cause.all_causes.cause_specific_mortality_rate": lambda: 0.0,
+    # Tutorial-specific cause data with rates high enough to demonstrate transitions.
+    "cause.test_cause.incidence_rate": lambda: disease_incidence_rate(rate=0.5),
+    "cause.test_cause.remission_rate": lambda: disease_remission_rate(rate=5.0),
+    "cause.neonatal_cause.incidence_rate": lambda: disease_incidence_rate(rate=0.5),
+    "cause.neonatal_cause.birth_prevalence": lambda: disease_prevalence(rate=0.05),
+    "cause.diarrheal_diseases.incidence_rate": lambda: disease_incidence_rate(rate=0.5),
+    "cause.diarrheal_diseases.remission_rate": lambda: disease_remission_rate(rate=1.0),
+}
+
+
+# Default disease data keyed by measure name.  _ExampleArtifact uses these
+# as fallbacks for any ``cause.{name}.{measure}`` key not in _ARTIFACT_DATA.
+_CAUSE_DEFAULTS: dict[str, object] = {
+    "prevalence": disease_prevalence,
+    "birth_prevalence": disease_prevalence,
+    "cause_specific_mortality_rate": disease_cause_specific_mortality_rate,
+    "excess_mortality_rate": disease_excess_mortality_rate,
+    "remission_rate": disease_remission_rate,
+    "incidence_rate": disease_incidence_rate,
+    "disability_weight": disease_disability_weight,
+    "restrictions": disease_restrictions,
 }
 
 
@@ -229,6 +400,13 @@ class _ExampleArtifact:
         if entity_key in _ARTIFACT_DATA:
             value = _ARTIFACT_DATA[entity_key]
             return value() if callable(value) else value
+        # Fall back to default disease data for cause.{name}.{measure} keys.
+        parts = entity_key.split(".")
+        if len(parts) >= 2:
+            measure = parts[-1]
+            if measure in _CAUSE_DEFAULTS:
+                value = _CAUSE_DEFAULTS[measure]
+                return value() if callable(value) else value
         raise KeyError(f"No example data for artifact key {entity_key!r}")
 
     def write(self, entity_key: str, data: object) -> None:

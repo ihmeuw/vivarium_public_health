@@ -1,3 +1,7 @@
+**5.1.7 - 04/30/26**
+
+- Add disease tutorial
+
 **5.1.6 - 04/29/26**
 
 - Add population tutorial and example data module
