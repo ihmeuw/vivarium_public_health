@@ -409,18 +409,13 @@ reading from the artifact:
    pop = sim.get_population(["diarrheal_diseases"])
    disease_col = pop["diarrheal_diseases"]
    # ~10% of the population should be infected (prevalence = 0.1).
-   n_infected = (disease_col == "diarrheal_diseases").sum()
-   assert n_infected > 0
    print(f"States: {sorted(disease_col.unique())}")
 
    # Step the simulation forward and observe transitions.
    sim.step()
    pop = sim.get_population(["diarrheal_diseases"])
-   assert set(pop["diarrheal_diseases"].unique()) == {
-       "susceptible_to_diarrheal_diseases",
-       "diarrheal_diseases",
-   }
-   print(f"Transitions occurred: True")
+   expected_states = {"susceptible_to_diarrheal_diseases", "diarrheal_diseases"}
+   print(f"Transitions occurred: {set(pop['diarrheal_diseases'].unique()) == expected_states}")
 
 .. testoutput::
    :options: +ELLIPSIS
@@ -483,9 +478,6 @@ relying on the artifact or configuration:
 
    pop = sim.get_population(["measles"])
    # ~5% of the population should be infected (prevalence = 0.05).
-   n_infected = (pop["measles"] == "measles").sum()
-   assert n_infected > 0
-   assert (pop["measles"] == "susceptible_to_measles").sum() > 0
    print(f"States: {sorted(pop['measles'].unique())}")
 
 .. testoutput::
@@ -539,7 +531,6 @@ The simplest model: once infected, a simulant never recovers.
 
    # Initially everyone is susceptible (prevalence = 0).
    pop = sim.get_population(["test_cause"])
-   assert (pop["test_cause"] == "susceptible_to_test_cause").all()
    print(f"All susceptible: {(pop['test_cause'] == 'susceptible_to_test_cause').all()}")
 
    # After several steps, some simulants become infected.
@@ -547,7 +538,6 @@ The simplest model: once infected, a simulant never recovers.
        sim.step()
    pop = sim.get_population(["test_cause"])
    n_infected = (pop["test_cause"] == "test_cause").sum()
-   assert n_infected > 100
    print(f"Infections occurred: {n_infected > 100}")
 
 .. testoutput::
@@ -591,9 +581,9 @@ Simulants can recover and become susceptible again.
        sim.step()
    pop = sim.get_population(["test_cause"])
    # Both states should be populated (infections and recoveries).
-   assert (pop["test_cause"] == "test_cause").sum() > 0
-   assert (pop["test_cause"] == "susceptible_to_test_cause").sum() > 0
-   print(f"Both states populated: True")
+   infected = (pop["test_cause"] == "test_cause").sum() > 0
+   susceptible = (pop["test_cause"] == "susceptible_to_test_cause").sum() > 0
+   print(f"Both states populated: {infected and susceptible}")
 
 .. testoutput::
    :options: +ELLIPSIS
@@ -641,10 +631,8 @@ to susceptibility.
    pop = sim.get_population(["test_cause"])
    states = set(pop["test_cause"].unique())
    # All three states should be present.
-   assert "susceptible_to_test_cause" in states
-   assert "test_cause" in states
-   assert "recovered_from_test_cause" in states
-   print(f"All three states present: True")
+   expected = {"susceptible_to_test_cause", "test_cause", "recovered_from_test_cause"}
+   print(f"All three states present: {expected.issubset(states)}")
 
 .. testoutput::
    :options: +ELLIPSIS
@@ -691,9 +679,9 @@ No remission rate is needed; the dwell time is passed to the constructor.
        sim.step()
    pop = sim.get_population(["test_cause"])
    # Both states should be populated.
-   assert (pop["test_cause"] == "test_cause").sum() > 0
-   assert (pop["test_cause"] == "susceptible_to_test_cause").sum() > 0
-   print(f"Both states populated: True")
+   infected = (pop["test_cause"] == "test_cause").sum() > 0
+   susceptible = (pop["test_cause"] == "susceptible_to_test_cause").sum() > 0
+   print(f"Both states populated: {infected and susceptible}")
 
 .. testoutput::
    :options: +ELLIPSIS
@@ -733,10 +721,8 @@ moves to the recovered state.
        sim.step()
    pop = sim.get_population(["test_cause"])
    states = set(pop["test_cause"].unique())
-   assert "susceptible_to_test_cause" in states
-   assert "test_cause" in states
-   assert "recovered_from_test_cause" in states
-   print(f"All three states present: True")
+   expected = {"susceptible_to_test_cause", "test_cause", "recovered_from_test_cause"}
+   print(f"All three states present: {expected.issubset(states)}")
 
 .. testoutput::
    :options: +ELLIPSIS
@@ -788,7 +774,6 @@ afterward:
    # Some newborns are born with the condition (based on birth prevalence).
    pop = sim.get_population(["neonatal_cause"])
    initial_infected = (pop["neonatal_cause"] == "neonatal_cause").sum()
-   assert initial_infected > 0
    print(f"Born with condition: {initial_infected > 0}")
 
    # After stepping, no new cases appear because there are no transitions.
@@ -796,7 +781,6 @@ afterward:
        sim.step()
    pop = sim.get_population(["neonatal_cause"])
    after_infected = (pop["neonatal_cause"] == "neonatal_cause").sum()
-   assert after_infected == initial_infected
    print(f"No new cases: {after_infected == initial_infected}")
 
 .. testoutput::
@@ -843,7 +827,6 @@ via an incidence rate.
 
    pop = sim.get_population(["neonatal_cause"])
    initial_infected = (pop["neonatal_cause"] == "neonatal_cause").sum()
-   assert initial_infected > 0
    print(f"Initially infected: {initial_infected > 0}")
 
    # After stepping, new cases arise via the incidence rate.
@@ -851,7 +834,6 @@ via an incidence rate.
        sim.step()
    pop = sim.get_population(["neonatal_cause"])
    new_infected = (pop["neonatal_cause"] == "neonatal_cause").sum()
-   assert new_infected > initial_infected
    print(f"New cases arose: {new_infected > initial_infected}")
 
 .. testoutput::
@@ -915,20 +897,17 @@ constructor:
    # Step 1: everyone moves from healthy to acute.
    sim.step()
    pop = sim.get_population(["dwell_demo"])
-   assert (pop["dwell_demo"] == "acute_event").all()
    print(f"All in acute: {(pop['dwell_demo'] == 'acute_event').all()}")
 
    # Steps 2-3: still in acute (only 20 days have passed, < 28 day dwell).
    sim.step()
    sim.step()
    pop = sim.get_population(["dwell_demo"])
-   assert (pop["dwell_demo"] == "acute_event").all()
    print(f"Still in acute: {(pop['dwell_demo'] == 'acute_event').all()}")
 
    # Step 4: 40 days have passed (> 28 day dwell), simulants move to chronic.
    sim.step()
    pop = sim.get_population(["dwell_demo"])
-   assert (pop["dwell_demo"] == "chronic").all()
    print(f"All in chronic: {(pop['dwell_demo'] == 'chronic').all()}")
 
 .. testoutput::
@@ -989,7 +968,6 @@ that state. This is added on top of the all-cause mortality rate.
 
    alive_after = sim.get_population(["is_alive"])["is_alive"].sum()
    # All-cause mortality is zero, so deaths are solely from the EMR.
-   assert alive_after < 1_000
    print(f"Deaths solely from EMR: {alive_after < 1_000}")
 
 .. testoutput::
@@ -1046,7 +1024,6 @@ than converting a rate to a probability:
    n_stage_2 = (pop["proportion_demo"] == "stage_2").sum()
    actual_proportion = n_stage_2 / len(pop)
    # With proportion=0.2, approximately 20% should transition in one step.
-   assert 0.15 < actual_proportion < 0.25
    print(f"Proportion near 0.2: {0.15 < actual_proportion < 0.25}")
 
 .. testoutput::
@@ -1112,11 +1089,8 @@ fractions of simulants should end up in different destination states:
    sim.step()
    pop = sim.get_population(["transient_demo"])
    # No simulants remain in the "router" state.
-   assert "router" not in pop["transient_demo"].values
-   assert (pop["transient_demo"] == "outcome_a").sum() > 0
-   assert (pop["transient_demo"] == "outcome_b").sum() > 0
    print(f"No simulants in router: {'router' not in pop['transient_demo'].values}")
-   print(f"Both outcomes populated: True")
+   print(f"Both outcomes populated: {(pop['transient_demo'] == 'outcome_a').sum() > 0 and (pop['transient_demo'] == 'outcome_b').sum() > 0}")
 
 .. testoutput::
    :options: +ELLIPSIS
@@ -1181,18 +1155,18 @@ states at initialization based on relative prevalences:
    pop = sim.get_population(["multi_state_demo"])
    states = set(pop["multi_state_demo"].unique())
    # All four states should be present based on the prevalences.
-   assert states == {"healthy", "mild", "moderate", "severe"}
-   # Residual state (healthy) should have the largest count.
-   assert (pop["multi_state_demo"] == "healthy").sum() > (
-       pop["multi_state_demo"] == "mild"
-   ).sum()
    print(f"All states present: {states == {'healthy', 'mild', 'moderate', 'severe'}}")
+   # Residual state (healthy) should have the largest count.
+   healthy_count = (pop["multi_state_demo"] == "healthy").sum()
+   mild_count = (pop["multi_state_demo"] == "mild").sum()
+   print(f"Residual state largest: {healthy_count > mild_count}")
 
 .. testoutput::
    :options: +ELLIPSIS
 
    ...
    All states present: True
+   Residual state largest: True
 
 
 Overriding data via configuration
@@ -1230,7 +1204,6 @@ sensitivity analyses or testing:
    # ~30% should start infected due to the prevalence override.
    pop = sim.get_population(["test_cause"])
    n_infected = (pop["test_cause"] == "test_cause").sum()
-   assert n_infected > 2000
    print(f"High initial prevalence: {n_infected > 2000}")
 
 .. testoutput::
@@ -1281,11 +1254,8 @@ These are useful for tracking disease history:
    )
    # Show simulants who have been infected at least once.
    ever_infected = pop[pop["test_cause_event_count"] > 0]
-   assert len(ever_infected) > 0
-   assert "test_cause_event_time" in ever_infected.columns
-   assert "test_cause_event_count" in ever_infected.columns
    print(f"Simulants ever infected: {len(ever_infected) > 0}")
-   print(f"Event columns present: True")
+   print(f"Event columns present: {'test_cause_event_time' in ever_infected.columns and 'test_cause_event_count' in ever_infected.columns}")
 
 .. testoutput::
    :options: +ELLIPSIS
