@@ -336,6 +336,102 @@ def _build_cause_table(value: float) -> pd.DataFrame:
     return df
 
 
+###########################
+# Risk factor data helpers #
+###########################
+
+
+def risk_exposure_dichotomous(proportion_exposed: float = 0.6) -> pd.DataFrame:
+    """Return dichotomous exposure data for ``risk_factor.{name}.exposure``.
+
+    Parameters
+    ----------
+    proportion_exposed
+        The fraction of the population in the exposed category.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``parameter``, ``value``.
+    """
+    df = _age_sex_year_grid()
+    exposed = df.copy()
+    exposed["parameter"] = "exposed"
+    exposed["value"] = proportion_exposed
+    unexposed = df.copy()
+    unexposed["parameter"] = "unexposed"
+    unexposed["value"] = 1 - proportion_exposed
+    return pd.concat([exposed, unexposed], ignore_index=True)
+
+
+def risk_relative_risk_dichotomous(
+    rr_exposed: float = 2.0,
+    target_entity: str = "test_cause",
+    target_measure: str = "incidence_rate",
+) -> pd.DataFrame:
+    """Return dichotomous relative risk data for ``risk_factor.{name}.relative_risk``.
+
+    Parameters
+    ----------
+    rr_exposed
+        The relative risk for the exposed category.  The unexposed
+        category always has a relative risk of 1.
+    target_entity
+        The name of the affected entity (e.g., a cause name).
+    target_measure
+        The affected measure (e.g., ``"incidence_rate"``).
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``affected_entity``, ``affected_measure``,
+        ``parameter``, ``value``.
+    """
+    df = _age_sex_year_grid()
+    exposed = df.copy()
+    exposed["parameter"] = "exposed"
+    exposed["value"] = rr_exposed
+    exposed["affected_entity"] = target_entity
+    exposed["affected_measure"] = target_measure
+    unexposed = df.copy()
+    unexposed["parameter"] = "unexposed"
+    unexposed["value"] = 1.0
+    unexposed["affected_entity"] = target_entity
+    unexposed["affected_measure"] = target_measure
+    return pd.concat([exposed, unexposed], ignore_index=True)
+
+
+def risk_paf(
+    paf_value: float = 0.0,
+    target_entity: str = "test_cause",
+    target_measure: str = "incidence_rate",
+) -> pd.DataFrame:
+    """Return PAF data for ``risk_factor.{name}.population_attributable_fraction``.
+
+    Parameters
+    ----------
+    paf_value
+        The population attributable fraction value.
+    target_entity
+        The name of the affected entity.
+    target_measure
+        The affected measure.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``affected_entity``, ``affected_measure``, ``value``.
+    """
+    df = _age_sex_year_grid()
+    df["affected_entity"] = target_entity
+    df["affected_measure"] = target_measure
+    df["value"] = paf_value
+    return df
+
+
 ############################
 # Example artifact manager #
 ############################
@@ -363,6 +459,11 @@ _ARTIFACT_DATA: dict[str, object] = {
     "cause.diarrheal_diseases.incidence_rate": lambda: disease_incidence_rate(rate=0.5),
     # Remission of 1.0/person-year balances infected/susceptible pools for demos.
     "cause.diarrheal_diseases.remission_rate": lambda: disease_remission_rate(rate=1.0),
+    # Risk factor data - dichotomous distribution with 60% exposed by default.
+    "risk_factor.test_risk.distribution": lambda: "dichotomous",
+    "risk_factor.test_risk.exposure": risk_exposure_dichotomous,
+    "risk_factor.test_risk.relative_risk": risk_relative_risk_dichotomous,
+    "risk_factor.test_risk.population_attributable_fraction": lambda: risk_paf(),
 }
 
 
@@ -377,6 +478,16 @@ _CAUSE_DEFAULTS: dict[str, Callable[[], Any]] = {
     "incidence_rate": disease_incidence_rate,
     "disability_weight": disease_disability_weight,
     "restrictions": disease_restrictions,
+}
+
+# Default risk factor data keyed by measure name.  _ExampleArtifact uses these
+# as fallbacks for any ``risk_factor.{name}.{measure}`` key not in _ARTIFACT_DATA.
+_RISK_DEFAULTS: dict[str, Callable[[], Any]] = {
+    "distribution": lambda: "dichotomous",
+    "exposure": risk_exposure_dichotomous,
+    "relative_risk": risk_relative_risk_dichotomous,
+    "population_attributable_fraction": risk_paf,
+    "tmred": lambda: {"distribution": "uniform", "min": 0, "max": 0, "inverted": False},
 }
 
 
@@ -398,6 +509,12 @@ class _ExampleArtifact:
             measure = parts[2]
             if measure in _CAUSE_DEFAULTS:
                 value = _CAUSE_DEFAULTS[measure]
+                return value() if callable(value) else value
+        # Fall back to default risk data for risk_factor.{name}.{measure} keys.
+        if len(parts) == 3 and parts[0] == "risk_factor":
+            measure = parts[2]
+            if measure in _RISK_DEFAULTS:
+                value = _RISK_DEFAULTS[measure]
                 return value() if callable(value) else value
         raise KeyError(f"No example data for artifact key {entity_key!r}")
 
