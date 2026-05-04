@@ -284,9 +284,7 @@ The simplest risk model sets everyone to exposed:
    print(f"All exposed: {(pop['test_risk.exposure'] == 'exposed').all()}")
 
 .. testoutput::
-   :options: +ELLIPSIS
 
-   ...
    All exposed: True
 
 
@@ -328,9 +326,7 @@ draw:
    print(f"Proportion exposed near 0.4: {0.35 < proportion < 0.45}")
 
 .. testoutput::
-   :options: +ELLIPSIS
 
-   ...
    Proportion exposed near 0.4: True
 
 
@@ -399,9 +395,7 @@ at a higher rate than unexposed simulants:
    print(f"Rate ratio near 5: {3.0 < ratio < 7.0}")
 
 .. testoutput::
-   :options: +ELLIPSIS
 
-   ...
    Rate ratio near 5: True
 
 
@@ -504,9 +498,7 @@ target rate independently:
    print(f"Pollution-only ratio near 2: {1.5 < pollution_ratio < 2.5}")
 
 .. testoutput::
-   :options: +ELLIPSIS
 
-   ...
    Both-exposed ratio near 6: True
    Smoking-only ratio near 3: True
    Pollution-only ratio near 2: True
@@ -577,9 +569,7 @@ baseline is scaled down to compensate.
    print(f"Rate ratio near (1 - PAF): {0.6 < ratio < 0.8}")
 
 .. testoutput::
-   :options: +ELLIPSIS
 
-   ...
    PAF reduces population rate: True
    Rate ratio near (1 - PAF): True
 
@@ -733,9 +723,7 @@ before components initialize:
    print(f"Monotonically increasing: {all(rates_by_quartile.diff().dropna() > 0)}")
 
 .. testoutput::
-   :options: +ELLIPSIS
 
-   ...
    Monotonically increasing: True
 
 
