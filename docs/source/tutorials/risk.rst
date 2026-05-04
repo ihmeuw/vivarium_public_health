@@ -110,12 +110,12 @@ The table below lists every data key used by the risk components.
      - :class:`~vivarium_public_health.risks.base_risk.Risk`
      - Yes - ``risk_factor.{name}.data_sources.exposure``
    * - ``risk_factor.{name}.relative_risk``
-     - age, sex, year, parameter
+     - age, sex, year, parameter, affected_entity, affected_measure
      - ``value`` (relative risk per category)
      - :class:`~vivarium_public_health.risks.effect.RiskEffect`
      - Yes - ``risk_effect.{name}_on_{target}.data_sources.relative_risk``
    * - ``risk_factor.{name}.population_attributable_fraction``
-     - age, sex, year
+     - age, sex, year, affected_entity, affected_measure
      - ``value`` (fraction)
      - :class:`~vivarium_public_health.risks.effect.RiskEffect`
      - Yes - ``risk_effect.{name}_on_{target}.data_sources.population_attributable_fraction``
@@ -225,6 +225,12 @@ Any of these can be overridden with scalars in the simulation configuration:
        data_sources:
          relative_risk: 2.0  # scalar, DataFrame, callable, or artifact key
          population_attributable_fraction: 0  # scalar or artifact key
+
+.. note::
+
+   In configuration keys, ``{target}`` expands to the dotted form
+   ``{target_entity}.{target_name}.{target_measure}`` (e.g.,
+   ``risk_effect.smoking_on_cause.lung_cancer.incidence_rate``).
 
 For dichotomous risks, all data sources can be overridden this way. For
 continuous risks, some keys (e.g., ``tmred`` and ``relative_risk_scalar``)
@@ -412,7 +418,7 @@ target rate independently:
    config = make_base_config()
    config.update(
        {
-           "population": {"population_size": 10_000},
+           "population": {"population_size": 20_000},
            "mortality": {"data_sources": {"all_cause_mortality_rate": 0}},
            # First risk: smoking
            "risk_factor.smoking": {
@@ -554,7 +560,8 @@ baseline is scaled down to compensate.
            configuration=config,
            plugin_configuration=base_plugins,
        )
-       sim.step()
+       for _ in range(3):
+           sim.step()
        pop = sim.get_population(["test_cause"])
        return (pop["test_cause"] == "test_cause").sum() / len(pop)
 
@@ -603,17 +610,11 @@ column (exposure thresholds) rather than categorical labels:
 
    # Build RR data: 1000 exposure thresholds from 1 to 9.
    # RR increases linearly from 1.0 (at exposure=1) to 5.0 (at exposure=9).
-   exposure_thresholds = np.linspace(1, 9, 1000)
-   rr_values = 1.0 + 0.5 * (exposure_thresholds - 1)
+   from vivarium_public_health._example_data import risk_relative_risk_continuous
 
-   rr_data = pd.DataFrame({
-       "parameter": exposure_thresholds,
-       "value": rr_values,
-       "affected_entity": "test_cause",
-       "affected_measure": "incidence_rate",
-       "year_start": 1990,
-       "year_end": 1991,
-   })
+   rr_data = risk_relative_risk_continuous(
+       exposure_min=1, exposure_max=9, rr_min=1.0, rr_max=5.0
+   )
 
    print(f"RR data shape: {rr_data.shape}")
    print(f"Parameter range: {rr_data['parameter'].min():.1f} to {rr_data['parameter'].max():.1f}")
@@ -636,10 +637,20 @@ rather than categorical ones. The simulation is created with
 ``setup=False`` so that RR and TMRED data can be written to the artifact
 before components initialize:
 
-.. testcode::
+.. note::
 
-   from vivarium import Component
-   from vivarium_public_health.risks.effect import NonLogLinearRiskEffect
+   ``ContinuousExposureRisk`` is a minimal demo shortcut that bypasses the
+   parent ``Risk`` machinery (propensity, distribution lookup, framework
+   randomness). Production continuous risks should use ``Risk`` directly
+   with a continuous ``distribution_type``.
+
+.. note::
+
+   ``sim._data`` is an internal API. The ``setup=False`` pattern followed
+   by ``sim._data.write()`` is specific to interactive and tutorial
+   contexts where data must be injected before component setup.
+
+.. testcode::
 
    class ContinuousExposureRisk(Risk):
        """A Risk that assigns random numeric exposures between 1 and 9."""
@@ -668,17 +679,11 @@ before components initialize:
        def on_time_step_prepare(self, event):
            pass
 
-   # RR data with 1000 exposure thresholds.
-   exposure_thresholds = np.linspace(1, 9, 1000)
-   rr_values = 1.0 + 0.5 * (exposure_thresholds - 1)
-   rr_data = pd.DataFrame({
-       "parameter": exposure_thresholds,
-       "value": rr_values,
-       "affected_entity": "test_cause",
-       "affected_measure": "incidence_rate",
-       "year_start": 1990,
-       "year_end": 1991,
-   })
+   # Build RR data using the helper from _example_data.
+   from vivarium_public_health._example_data import risk_relative_risk_continuous
+   rr_data = risk_relative_risk_continuous(
+       exposure_min=1, exposure_max=9, rr_min=1.0, rr_max=5.0
+   )
 
    # TMRED defines the exposure level where RR = 1.
    # With min=max=1, the TMREL is exactly 1.0.
@@ -715,28 +720,23 @@ before components initialize:
        sim.step()
 
    # The cached exposure column used by NonLogLinearRiskEffect.
+   # This name is derived from the risk factor name by the component internally.
    exposure_col = "test_risk_exposure_for_non_loglinear_riskeffect"
    pop = sim.get_population(["test_cause", exposure_col])
 
-   # Split into high and low exposure groups at the median.
-   median_exposure = pop[exposure_col].median()
-   high_exposure = pop[pop[exposure_col] > median_exposure]
-   low_exposure = pop[pop[exposure_col] <= median_exposure]
-
-   high_rate = (high_exposure["test_cause"] == "test_cause").sum() / len(high_exposure)
-   low_rate = (low_exposure["test_cause"] == "test_cause").sum() / len(low_exposure)
-
-   # Higher exposure means higher RR means more infections.
-   print(f"Higher exposure -> higher incidence: {high_rate > low_rate}")
-   ratio = high_rate / low_rate
-   print(f"Rate ratio > 1: {ratio > 1.0}")
+   # Verify RR is monotonically increasing: split into quartiles and check
+   # that infection rate increases with each quartile.
+   quartiles = pd.qcut(pop[exposure_col], 4, labels=["Q1", "Q2", "Q3", "Q4"])
+   rates_by_quartile = pop.groupby(quartiles, observed=True).apply(
+       lambda g: (g["test_cause"] == "test_cause").sum() / len(g)
+   )
+   print(f"Monotonically increasing: {all(rates_by_quartile.diff().dropna() > 0)}")
 
 .. testoutput::
    :options: +ELLIPSIS
 
    ...
-   Higher exposure -> higher incidence: True
-   Rate ratio > 1: True
+   Monotonically increasing: True
 
 
 Configuration Summary
