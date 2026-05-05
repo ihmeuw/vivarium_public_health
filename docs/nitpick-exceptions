@@ -41,22 +41,3 @@ py:attr lookup_tables
 
 # typing module - needed for Python 3.10 compatibility
 py:data typing.Union
-
-# disease tutorial - references use package-level paths for readability
-py:class vivarium_public_health.disease.SusceptibleState
-py:class vivarium_public_health.disease.DiseaseState
-py:class vivarium_public_health.disease.RecoveredState
-py:class vivarium_public_health.disease.BaseDiseaseState
-py:class vivarium_public_health.disease.TransientDiseaseState
-py:class vivarium_public_health.disease.RateTransition
-py:class vivarium_public_health.disease.ProportionTransition
-py:class vivarium_public_health.disease.DiseaseModel
-py:class vivarium_public_health.disease.RiskAttributableDisease
-py:meth vivarium_public_health.disease.BaseDiseaseState.add_dwell_time_transition
-py:func vivarium_public_health.disease.SI
-py:func vivarium_public_health.disease.SIS
-py:func vivarium_public_health.disease.SIR
-py:func vivarium_public_health.disease.SIS_fixed_duration
-py:func vivarium_public_health.disease.SIR_fixed_duration
-py:func vivarium_public_health.disease.NeonatalSWC_without_incidence
-py:func vivarium_public_health.disease.NeonatalSWC_with_incidence

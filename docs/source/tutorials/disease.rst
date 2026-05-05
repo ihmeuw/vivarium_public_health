@@ -7,6 +7,11 @@ diseases as state machines. This tutorial demonstrates how to build disease
 models from states and transitions, and how to use the pre-built models for
 common disease progressions.
 
+The disease components in this package extend the base
+:class:`~vivarium.framework.state_machine.State` and
+:class:`~vivarium.framework.state_machine.Transition` classes from
+:mod:`vivarium.framework.state_machine`.
+
 .. contents::
    :local:
    :depth: 2
@@ -26,64 +31,13 @@ Overview
 --------
 
 A disease model in ``vivarium_public_health`` is a state machine. Each
-simulant occupies exactly one disease state at any time and moves between
-states according to transition rules.
+simulant occupies exactly one disease state at any time within a given model,
+and moves between states according to transition rules. A simulation may
+contain multiple independent disease models, each tracking its own state
+column.
 
-The building blocks are:
-
-**States** - the conditions a simulant can be in:
-
-- :class:`~vivarium_public_health.disease.SusceptibleState` - the healthy
-  state, representing susceptibility to a disease. Automatically prefixes
-  ``susceptible_to_`` to the state name.
-- :class:`~vivarium_public_health.disease.DiseaseState` - the diseased state,
-  carrying disability weight, excess mortality, prevalence, and optional
-  dwell time.
-- :class:`~vivarium_public_health.disease.RecoveredState` - represents
-  recovery from a disease. Automatically prefixes ``recovered_from_`` to the
-  state name.
-- :class:`~vivarium_public_health.disease.BaseDiseaseState` - a minimal
-  state with no disability or mortality burden.
-- :class:`~vivarium_public_health.disease.TransientDiseaseState` - a
-  pass-through state that simulants traverse instantaneously within a single
-  time step.
-
-**Transitions** - the rules that move simulants between states:
-
-- :class:`~vivarium_public_health.disease.RateTransition` - governed by a
-  rate (converted to a probability each time step).
-- :class:`~vivarium_public_health.disease.ProportionTransition` - governed by
-  a fixed proportion each time step.
-- **Dwell-time transitions** - simulants remain in a state for a prescribed
-  duration before moving on (built with
-  :meth:`~vivarium_public_health.disease.BaseDiseaseState.add_dwell_time_transition`).
-
-**The model** - the container that ties states and transitions together:
-
-- :class:`~vivarium_public_health.disease.DiseaseModel` - the state machine
-  driver that initializes simulants into states based on prevalence data
-  and steps them through transitions each time step.
-
-**Pre-built models** - convenience functions for common disease progressions:
-
-- :func:`~vivarium_public_health.disease.SI` - Susceptible |rarr| Infected.
-- :func:`~vivarium_public_health.disease.SIS` - Susceptible |harr| Infected.
-- :func:`~vivarium_public_health.disease.SIR` - Susceptible |rarr| Infected
-  |rarr| Recovered.
-- :func:`~vivarium_public_health.disease.SIS_fixed_duration` - SIS with a
-  fixed infection duration.
-- :func:`~vivarium_public_health.disease.SIR_fixed_duration` - SIR with a
-  fixed infection duration.
-- :func:`~vivarium_public_health.disease.NeonatalSWC_without_incidence` -
-  neonatal condition assigned at birth only.
-- :func:`~vivarium_public_health.disease.NeonatalSWC_with_incidence` -
-  neonatal condition assigned at birth with ongoing incidence.
-
-**Special models:**
-
-- :class:`~vivarium_public_health.disease.RiskAttributableDisease` - a
-  disease whose state is fully determined by a risk factor exposure
-  threshold.
+For a detailed explanation of states, transitions, and pre-built models, see
+the :ref:`disease model concept documentation <disease_model_concept>`.
 
 .. |rarr| unicode:: U+2192
 .. |harr| unicode:: U+2194
@@ -92,14 +46,12 @@ The building blocks are:
 Common Setup
 ------------
 
-In a vivarium simulation, data can be supplied through a **data artifact** -
-an HDF file that you build with all the input data your model needs. Most
-disease data keys can be overridden via the ``data_sources`` configuration
-(see `Data sources`_), so in this tutorial we supply nearly all data through
-configuration overrides. The one key that *must* come from the artifact is
-``cause.{cause}.restrictions`` - a dict that the disease components load
-directly to determine whether a cause is morbidity-only. We use an example
-artifact to provide it.
+In a vivarium simulation, data is normally supplied through a **data
+artifact** - an HDF file containing all the input data your model needs.
+This tutorial uses an in-memory example artifact (via ``BASE_PLUGINS``) that
+serves simple data without requiring a real HDF file. Some examples also
+pass data directly to constructors or override keys via the ``data_sources``
+configuration (see `Data sources`_).
 
 Every code example in this tutorial uses imports and helpers shown below.
 To run any example in a standalone script, include all of these at the top:
@@ -152,39 +104,39 @@ section of the configuration; the artifact key shown is simply the default.
    * - ``cause.{cause}.prevalence``
      - age, sex, year
      - ``value`` (fraction)
-     - :class:`~vivarium_public_health.disease.DiseaseState`
+     - :class:`~vivarium_public_health.disease.state.DiseaseState`
      - Yes - ``{state}.data_sources.prevalence``
    * - ``cause.{cause}.birth_prevalence``
      - age, sex, year
      - ``value`` (fraction)
-     - :class:`~vivarium_public_health.disease.DiseaseState` (neonatal models)
+     - :class:`~vivarium_public_health.disease.state.DiseaseState` (neonatal models)
      - Yes - ``{state}.data_sources.birth_prevalence``
    * - ``cause.{cause}.disability_weight``
      - age, sex, year (or single row)
      - ``value`` (weight)
-     - :class:`~vivarium_public_health.disease.DiseaseState`
+     - :class:`~vivarium_public_health.disease.state.DiseaseState`
      - Yes - ``{state}.data_sources.disability_weight``
    * - ``cause.{cause}.excess_mortality_rate``
      - age, sex, year
      - ``value`` (rate)
-     - :class:`~vivarium_public_health.disease.DiseaseState`
+     - :class:`~vivarium_public_health.disease.state.DiseaseState`
      - Yes - ``{state}.data_sources.excess_mortality_rate``
    * - ``cause.{cause}.incidence_rate``
      - age, sex, year
      - ``value`` (rate)
-     - :class:`~vivarium_public_health.disease.RateTransition` (from
+     - :class:`~vivarium_public_health.disease.transition.RateTransition` (from
        susceptible state)
      - Yes - ``{transition}.data_sources.transition_rate``
    * - ``cause.{cause}.remission_rate``
      - age, sex, year
      - ``value`` (rate)
-     - :class:`~vivarium_public_health.disease.RateTransition` (from
+     - :class:`~vivarium_public_health.disease.transition.RateTransition` (from
        infected state)
      - Yes - ``{transition}.data_sources.transition_rate``
    * - ``cause.{cause}.cause_specific_mortality_rate``
      - age, sex, year
      - ``value`` (rate)
-     - :class:`~vivarium_public_health.disease.DiseaseModel`
+     - :class:`~vivarium_public_health.disease.model.DiseaseModel`
      - Yes - ``{cause}.data_sources.cause_specific_mortality_rate``
 
 
@@ -200,17 +152,13 @@ has the same column layout but with real GBD values.
 .. testcode::
 
    from vivarium_public_health._example_data import (
-       disease_prevalence,
-       disease_incidence_rate,
-       disease_remission_rate,
-       disease_excess_mortality_rate,
-       disease_cause_specific_mortality_rate,
+       build_cause_table,
        disease_disability_weight,
        disease_restrictions,
    )
 
    # cause.{cause}.prevalence - fraction of population in the disease state.
-   prevalence = disease_prevalence(0.05)
+   prevalence = build_cause_table(0.05)
    print(prevalence.query("year_start == 1990").head(6).to_string(index=False))
 
 .. testoutput::
@@ -228,7 +176,7 @@ has the same column layout but with real GBD values.
 
    # cause.{cause}.incidence_rate - rate of new infections per person-year.
    # Same column layout as prevalence.
-   incidence = disease_incidence_rate(0.001)
+   incidence = build_cause_table(0.001)
    print(incidence.query("year_start == 1990").head(2).to_string(index=False))
 
 .. testoutput::
@@ -280,7 +228,7 @@ artifact key. You can override any of them with:
 - **Callable** - call the function at setup time to produce the data.
 - **Artifact key** (string) - load a different key from the artifact.
 
-For example, :class:`~vivarium_public_health.disease.DiseaseState` declares
+For example, :class:`~vivarium_public_health.disease.state.DiseaseState` declares
 five configurable data sources:
 
 .. code-block:: yaml
@@ -307,7 +255,7 @@ directly to the constructor:
          disability_weight: 0.05
          excess_mortality_rate: 0.0
 
-:class:`~vivarium_public_health.disease.RateTransition` has a single
+:class:`~vivarium_public_health.disease.transition.RateTransition` has a single
 configurable data source:
 
 .. code-block:: yaml
@@ -325,7 +273,7 @@ component expects, so you can see the concrete layout.
 DiseaseModel
 ------------
 
-:class:`~vivarium_public_health.disease.DiseaseModel` is the state machine
+:class:`~vivarium_public_health.disease.model.DiseaseModel` is the state machine
 driver that ties states and transitions together. It initializes simulants
 into disease states based on prevalence data and steps them through
 transitions each time step.
@@ -360,7 +308,7 @@ Building a model from scratch
 
 The most explicit way to create a disease model is to instantiate states,
 wire up transitions, and wrap them in a
-:class:`~vivarium_public_health.disease.DiseaseModel`.
+:class:`~vivarium_public_health.disease.model.DiseaseModel`.
 
 The following example builds an SIS (Susceptible |harr| Infected |harr|
 Susceptible) model, passing data directly to constructors instead of
@@ -428,7 +376,7 @@ reading from the artifact:
 .. note::
 
    When ``prevalence`` is set on a ``DiseaseState``, the
-   :class:`~vivarium_public_health.disease.DiseaseModel` uses it to assign
+   :class:`~vivarium_public_health.disease.model.DiseaseModel` uses it to assign
    simulants to that state at initialization. The ``SusceptibleState`` gets
    the residual (1 minus the sum of all other state prevalences).
 
@@ -504,11 +452,11 @@ The simplest model: once infected, a simulant never recovers.
 
 **Artifact keys used:**
 
-- ``cause.{cause}.incidence_rate`` - for the susceptible |rarr| infected transition
-- ``cause.{cause}.prevalence`` - for initialization
-- ``cause.{cause}.disability_weight`` - for YLD calculation
-- ``cause.{cause}.excess_mortality_rate`` - for mortality calculation
-- ``cause.{cause}.cause_specific_mortality_rate`` - for CSMR
+- ``cause.{cause}.incidence_rate`` - susceptible |rarr| infected
+- ``cause.{cause}.prevalence`` - initialization into disease state
+- ``cause.{cause}.disability_weight`` - YLD calculation
+- ``cause.{cause}.excess_mortality_rate`` - mortality
+- ``cause.{cause}.cause_specific_mortality_rate`` - CSMR
 
 .. testcode::
 
@@ -521,6 +469,12 @@ The simplest model: once infected, a simulant never recovers.
        layer="override",
    )
 
+   # SI("test_cause") loads artifact data defined in _example_data.py:
+   #   cause.test_cause.incidence_rate  -> _ARTIFACT_DATA (rate=0.5)
+   #   cause.test_cause.prevalence      -> _CAUSE_DEFAULTS (value=0.0)
+   #   cause.test_cause.disability_weight -> _CAUSE_DEFAULTS (value=0.0)
+   #   cause.test_cause.excess_mortality_rate -> _CAUSE_DEFAULTS (value=0.0)
+   #   cause.test_cause.cause_specific_mortality_rate -> _CAUSE_DEFAULTS (value=0.0)
    model = SI("test_cause")
 
    sim = InteractiveContext(
@@ -556,7 +510,7 @@ Simulants can recover and become susceptible again.
 
 **Additional artifact keys used** (beyond SI):
 
-- ``cause.{cause}.remission_rate`` - for the infected |rarr| susceptible transition
+- ``cause.{cause}.remission_rate`` - infected |rarr| susceptible
 
 .. testcode::
 
@@ -569,6 +523,8 @@ Simulants can recover and become susceptible again.
        layer="override",
    )
 
+   # SIS("test_cause") additionally loads:
+   #   cause.test_cause.remission_rate -> _ARTIFACT_DATA (rate=5.0)
    model = SIS("test_cause")
 
    sim = InteractiveContext(
@@ -602,10 +558,10 @@ to susceptibility.
 
 - ``cause.{cause}.incidence_rate`` - susceptible |rarr| infected
 - ``cause.{cause}.remission_rate`` - infected |rarr| recovered
-- ``cause.{cause}.prevalence`` - for initialization
-- ``cause.{cause}.disability_weight`` - for YLD calculation
-- ``cause.{cause}.excess_mortality_rate`` - for mortality calculation
-- ``cause.{cause}.cause_specific_mortality_rate`` - for CSMR
+- ``cause.{cause}.prevalence`` - initialization into disease state
+- ``cause.{cause}.disability_weight`` - YLD calculation
+- ``cause.{cause}.excess_mortality_rate`` - mortality
+- ``cause.{cause}.cause_specific_mortality_rate`` - CSMR
 
 .. testcode::
 
@@ -618,6 +574,7 @@ to susceptibility.
        layer="override",
    )
 
+   # SIR("test_cause") loads the same keys as SIS (incidence + remission).
    model = SIR("test_cause")
 
    sim = InteractiveContext(
@@ -667,6 +624,8 @@ No remission rate is needed; the dwell time is passed to the constructor.
    )
 
    # Infection lasts exactly 14 days.
+   # cause.test_cause.incidence_rate -> _ARTIFACT_DATA (rate=0.5)
+   # No remission_rate needed - dwell time handles the return transition.
    model = SIS_fixed_duration("test_cause", duration="14")
 
    sim = InteractiveContext(
@@ -709,6 +668,7 @@ moves to the recovered state.
    )
 
    # Infection lasts exactly 21 days before recovery.
+   # cause.test_cause.incidence_rate -> _ARTIFACT_DATA (rate=0.5)
    model = SIR_fixed_duration("test_cause", duration="21")
 
    sim = InteractiveContext(
@@ -736,7 +696,8 @@ Neonatal Models
 
 Neonatal disease models assign a condition at birth based on birth
 prevalence. They are designed for conditions that are present from the
-start of life.
+start of life. The name ``NeonatalSWC`` stands for "Neonatal - Susceptible
+With Condition."
 
 **Artifact keys used:**
 
@@ -763,6 +724,7 @@ afterward:
        layer="override",
    )
 
+   # cause.neonatal_cause.birth_prevalence -> _ARTIFACT_DATA (rate=0.05)
    model = NeonatalSWC_without_incidence("neonatal_cause")
 
    sim = InteractiveContext(
@@ -817,6 +779,8 @@ via an incidence rate.
        layer="override",
    )
 
+   # cause.neonatal_cause.birth_prevalence -> _ARTIFACT_DATA (rate=0.05)
+   # cause.neonatal_cause.incidence_rate   -> _ARTIFACT_DATA (rate=0.5)
    model = NeonatalSWC_with_incidence("neonatal_cause")
 
    sim = InteractiveContext(
@@ -857,7 +821,7 @@ duration before they can transition out. This is useful for modelling
 conditions with a known minimum duration (e.g., a 14-day infection).
 
 Dwell time can be specified as a :class:`pandas.Timedelta`, a numeric
-value (days), or directly in the :class:`~vivarium_public_health.disease.DiseaseState`
+value (days), or directly in the :class:`~vivarium_public_health.disease.state.DiseaseState`
 constructor:
 
 .. testcode::
@@ -924,7 +888,7 @@ constructor:
 Excess mortality
 ^^^^^^^^^^^^^^^^^
 
-A :class:`~vivarium_public_health.disease.DiseaseState` can carry an
+A :class:`~vivarium_public_health.disease.state.DiseaseState` can carry an
 **excess mortality rate** - an additional hazard of death for simulants in
 that state. This is added on top of the all-cause mortality rate.
 
@@ -980,7 +944,7 @@ that state. This is added on top of the all-cause mortality rate.
 Proportion transitions
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-A :class:`~vivarium_public_health.disease.ProportionTransition` moves a
+A :class:`~vivarium_public_health.disease.transition.ProportionTransition` moves a
 fixed fraction of eligible simulants to a new state each time step, rather
 than converting a rate to a probability:
 
@@ -1036,7 +1000,7 @@ than converting a rate to a probability:
 Transient states
 ^^^^^^^^^^^^^^^^^
 
-A :class:`~vivarium_public_health.disease.TransientDiseaseState` is a
+A :class:`~vivarium_public_health.disease.state.TransientDiseaseState` is a
 pass-through state: simulants enter it and immediately transition onward
 in the same time step. This is useful for routing logic where different
 fractions of simulants should end up in different destination states:
@@ -1105,7 +1069,7 @@ Multiple disease states (sequelae)
 
 A single disease can have multiple sequelae, each with its own prevalence,
 disability weight, and transitions. The
-:class:`~vivarium_public_health.disease.DiseaseModel` assigns simulants to
+:class:`~vivarium_public_health.disease.model.DiseaseModel` assigns simulants to
 states at initialization based on relative prevalences:
 
 .. testcode::
@@ -1216,8 +1180,8 @@ sensitivity analyses or testing:
 Event tracking columns
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Each :class:`~vivarium_public_health.disease.DiseaseState` and
-:class:`~vivarium_public_health.disease.BaseDiseaseState` automatically
+Each :class:`~vivarium_public_health.disease.state.DiseaseState` and
+:class:`~vivarium_public_health.disease.state.BaseDiseaseState` automatically
 adds two columns to the simulation state table:
 
 - ``{state_id}_event_time`` - the timestamp of the last transition *into*

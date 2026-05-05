@@ -71,7 +71,7 @@ _AGE_BINS: list[tuple[float, float]] = [(a, b) for a, b, _ in _AGE_BIN_TUPLES]
 ##############################################
 
 
-def _age_sex_year_grid() -> pd.DataFrame:
+def get_age_sex_year_grid() -> pd.DataFrame:
     """Return a DataFrame with every age x sex x year combination."""
     rows = list(product(_AGE_BINS, ("Male", "Female"), _YEAR_BINS))
     mins, maxes = zip(*[r[0] for r in rows])
@@ -110,7 +110,7 @@ def population_structure() -> pd.DataFrame:
     Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
     ``year_end``, ``location``, ``value``.
     """
-    df = _age_sex_year_grid()
+    df = get_age_sex_year_grid()
     df["location"] = _LOCATION
     df["value"] = 100 * (df["age_end"] - df["age_start"])
     return df
@@ -207,13 +207,16 @@ def age_specific_fertility_rate(rate: float = 0.05) -> pd.DataFrame:
 ########################
 
 
-def disease_prevalence(rate: float = 0.0) -> pd.DataFrame:
-    """Return a uniform prevalence table for ``cause.{cause}.prevalence``.
+def build_cause_table(value: float = 0.0) -> pd.DataFrame:
+    """Return an age x sex x year table with a constant value column.
+
+    This is the standard shape for most cause-level measures (prevalence,
+    incidence, remission, excess mortality, CSMR).
 
     Parameters
     ----------
-    rate
-        The constant prevalence applied to all age/year/sex cells.
+    value
+        The constant value applied to all age/year/sex cells.
 
     Returns
     -------
@@ -221,75 +224,9 @@ def disease_prevalence(rate: float = 0.0) -> pd.DataFrame:
         Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
         ``year_end``, ``value``.
     """
-    return _build_cause_table(rate)
-
-
-def disease_incidence_rate(rate: float = 0.001) -> pd.DataFrame:
-    """Return a uniform incidence rate table for ``cause.{cause}.incidence_rate``.
-
-    Parameters
-    ----------
-    rate
-        The constant incidence rate applied to all age/year/sex cells.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
-        ``year_end``, ``value``.
-    """
-    return _build_cause_table(rate)
-
-
-def disease_remission_rate(rate: float = 0.0) -> pd.DataFrame:
-    """Return a uniform remission rate table for ``cause.{cause}.remission_rate``.
-
-    Parameters
-    ----------
-    rate
-        The constant remission rate applied to all age/year/sex cells.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
-        ``year_end``, ``value``.
-    """
-    return _build_cause_table(rate)
-
-
-def disease_excess_mortality_rate(rate: float = 0.0) -> pd.DataFrame:
-    """Return a uniform excess mortality rate table for ``cause.{cause}.excess_mortality_rate``.
-
-    Parameters
-    ----------
-    rate
-        The constant excess mortality rate applied to all age/year/sex cells.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
-        ``year_end``, ``value``.
-    """
-    return _build_cause_table(rate)
-
-
-def disease_cause_specific_mortality_rate(rate: float = 0.0) -> pd.DataFrame:
-    """Return a uniform CSMR table for ``cause.{cause}.cause_specific_mortality_rate``.
-
-    Parameters
-    ----------
-    rate
-        The constant cause-specific mortality rate.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
-        ``year_end``, ``value``.
-    """
-    return _build_cause_table(rate)
+    df = get_age_sex_year_grid()
+    df["value"] = value
+    return df
 
 
 def disease_disability_weight(weight: float = 0.0) -> pd.DataFrame:
@@ -325,17 +262,6 @@ def disease_restrictions(yld_only: bool = False) -> dict:
     return {"yld_only": yld_only}
 
 
-def _build_cause_table(value: float) -> pd.DataFrame:
-    """Build an age x sex x year table with a constant value.
-
-    This is the standard shape for most cause-level measures (prevalence,
-    incidence, remission, excess mortality, CSMR).
-    """
-    df = _age_sex_year_grid()
-    df["value"] = value
-    return df
-
-
 ############################
 # Example artifact manager #
 ############################
@@ -354,27 +280,27 @@ _ARTIFACT_DATA: dict[str, object] = {
     "cause.all_causes.cause_specific_mortality_rate": lambda: 0.0,
     # Tutorial-specific cause data.  Rates are high enough to guarantee visible
     # state transitions within 5-10 time steps (each ~30.5 days).
-    "cause.test_cause.incidence_rate": lambda: disease_incidence_rate(rate=0.5),
+    "cause.test_cause.incidence_rate": lambda: build_cause_table(0.5),
     # Remission of 5.0/person-year ensures rapid recovery for SIS/SIR demos.
-    "cause.test_cause.remission_rate": lambda: disease_remission_rate(rate=5.0),
-    "cause.neonatal_cause.incidence_rate": lambda: disease_incidence_rate(rate=0.5),
+    "cause.test_cause.remission_rate": lambda: build_cause_table(5.0),
+    "cause.neonatal_cause.incidence_rate": lambda: build_cause_table(0.5),
     # Birth prevalence of 5% is high enough to see neonatal cases at birth.
-    "cause.neonatal_cause.birth_prevalence": lambda: disease_prevalence(rate=0.05),
-    "cause.diarrheal_diseases.incidence_rate": lambda: disease_incidence_rate(rate=0.5),
+    "cause.neonatal_cause.birth_prevalence": lambda: build_cause_table(0.05),
+    "cause.diarrheal_diseases.incidence_rate": lambda: build_cause_table(0.5),
     # Remission of 1.0/person-year balances infected/susceptible pools for demos.
-    "cause.diarrheal_diseases.remission_rate": lambda: disease_remission_rate(rate=1.0),
+    "cause.diarrheal_diseases.remission_rate": lambda: build_cause_table(1.0),
 }
 
 
 # Default disease data keyed by measure name.  _ExampleArtifact uses these
 # as fallbacks for any ``cause.{name}.{measure}`` key not in _ARTIFACT_DATA.
 _CAUSE_DEFAULTS: dict[str, Callable[[], Any]] = {
-    "prevalence": disease_prevalence,
-    "birth_prevalence": disease_prevalence,
-    "cause_specific_mortality_rate": disease_cause_specific_mortality_rate,
-    "excess_mortality_rate": disease_excess_mortality_rate,
-    "remission_rate": disease_remission_rate,
-    "incidence_rate": disease_incidence_rate,
+    "prevalence": build_cause_table,
+    "birth_prevalence": build_cause_table,
+    "cause_specific_mortality_rate": build_cause_table,
+    "excess_mortality_rate": build_cause_table,
+    "remission_rate": build_cause_table,
+    "incidence_rate": build_cause_table,
     "disability_weight": disease_disability_weight,
     "restrictions": disease_restrictions,
 }
