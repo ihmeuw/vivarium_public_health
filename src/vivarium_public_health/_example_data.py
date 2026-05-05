@@ -2,14 +2,17 @@
 Example data for tutorials and interactive exploration.
 
 This private module builds small, self-contained DataFrames that match the
-column layout expected by :mod:`vivarium_public_health.population` components.
+column layout expected by :mod:`vivarium_public_health` components.
 The data uses uniform rates and round population counts so that tutorial
 output is easy to follow.  Age bins follow standard GBD definitions.
 
-See the :doc:`/tutorials/population` tutorial for usage.
+See the :doc:`/tutorials/population` and :doc:`/tutorials/disease` tutorials
+for usage.
 """
 
+from collections.abc import Callable
 from itertools import product
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -64,8 +67,25 @@ _AGE_BINS: list[tuple[float, float]] = [(a, b) for a, b, _ in _AGE_BIN_TUPLES]
 
 
 ##############################################
-# Data builders — one per artifact key shape #
+# Data builders - one per artifact key shape #
 ##############################################
+
+
+def get_age_sex_year_grid() -> pd.DataFrame:
+    """Return a DataFrame with every age x sex x year combination."""
+    rows = list(product(_AGE_BINS, ("Male", "Female"), _YEAR_BINS))
+    mins, maxes = zip(*[r[0] for r in rows])
+    sex_col = [r[1] for r in rows]
+    y_starts, y_ends = zip(*[r[2] for r in rows])
+    return pd.DataFrame(
+        {
+            "age_start": mins,
+            "age_end": maxes,
+            "sex": sex_col,
+            "year_start": y_starts,
+            "year_end": y_ends,
+        }
+    )
 
 
 def age_bins() -> pd.DataFrame:
@@ -90,26 +110,10 @@ def population_structure() -> pd.DataFrame:
     Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
     ``year_end``, ``location``, ``value``.
     """
-    bins = _AGE_BINS
-    sexes = ("Male", "Female")
-    years = _YEAR_BINS
-
-    rows = list(product(bins, sexes, years))
-    mins, maxes = zip(*[r[0] for r in rows])
-    sex_col = [r[1] for r in rows]
-    y_starts, y_ends = zip(*[r[2] for r in rows])
-
-    return pd.DataFrame(
-        {
-            "age_start": mins,
-            "age_end": maxes,
-            "sex": sex_col,
-            "year_start": y_starts,
-            "year_end": y_ends,
-            "location": _LOCATION,
-            "value": 100 * (np.array(maxes) - np.array(mins)),
-        }
-    )
+    df = get_age_sex_year_grid()
+    df["location"] = _LOCATION
+    df["value"] = 100 * (df["age_end"] - df["age_start"])
+    return df
 
 
 def theoretical_minimum_risk_life_expectancy() -> pd.DataFrame:
@@ -198,6 +202,66 @@ def age_specific_fertility_rate(rate: float = 0.05) -> pd.DataFrame:
     )
 
 
+########################
+# Disease data helpers #
+########################
+
+
+def build_cause_table(value: float = 0.0) -> pd.DataFrame:
+    """Return an age x sex x year table with a constant value column.
+
+    This is the standard shape for most cause-level measures (prevalence,
+    incidence, remission, excess mortality, CSMR).
+
+    Parameters
+    ----------
+    value
+        The constant value applied to all age/year/sex cells.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``age_start``, ``age_end``, ``sex``, ``year_start``,
+        ``year_end``, ``value``.
+    """
+    df = get_age_sex_year_grid()
+    df["value"] = value
+    return df
+
+
+def disease_disability_weight(weight: float = 0.0) -> pd.DataFrame:
+    """Return a disability weight table for ``cause.{cause}.disability_weight``.
+
+    Parameters
+    ----------
+    weight
+        The constant disability weight.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Single-row DataFrame with a ``value`` column.
+    """
+    return pd.DataFrame({"value": [weight]})
+
+
+def disease_restrictions(yld_only: bool = False) -> dict:
+    """Return a restrictions dict for ``cause.{cause}.restrictions``.
+
+    Parameters
+    ----------
+    yld_only
+        Whether the cause only contributes to years lived with disability
+        (no mortality).
+
+    Returns
+    -------
+    dict
+        A dict with key ``yld_only``.
+    """
+    return {"yld_only": yld_only}
+
+
 ############################
 # Example artifact manager #
 ############################
@@ -212,8 +276,33 @@ _ARTIFACT_DATA: dict[str, object] = {
     ),
     "covariate.live_births_by_sex.estimate": live_births_by_sex,
     "covariate.age_specific_fertility_rate.estimate": age_specific_fertility_rate,
-    # Mortality data — zero by default so simulants stay alive in examples.
+    # Mortality data - zero by default so simulants stay alive in examples.
     "cause.all_causes.cause_specific_mortality_rate": lambda: 0.0,
+    # Tutorial-specific cause data.  Rates are high enough to guarantee visible
+    # state transitions within 5-10 time steps (each ~30.5 days).
+    "cause.test_cause.incidence_rate": lambda: build_cause_table(0.5),
+    # Remission of 5.0/person-year ensures rapid recovery for SIS/SIR demos.
+    "cause.test_cause.remission_rate": lambda: build_cause_table(5.0),
+    "cause.neonatal_cause.incidence_rate": lambda: build_cause_table(0.5),
+    # Birth prevalence of 5% is high enough to see neonatal cases at birth.
+    "cause.neonatal_cause.birth_prevalence": lambda: build_cause_table(0.05),
+    "cause.diarrheal_diseases.incidence_rate": lambda: build_cause_table(0.5),
+    # Remission of 1.0/person-year balances infected/susceptible pools for demos.
+    "cause.diarrheal_diseases.remission_rate": lambda: build_cause_table(1.0),
+}
+
+
+# Default disease data keyed by measure name.  _ExampleArtifact uses these
+# as fallbacks for any ``cause.{name}.{measure}`` key not in _ARTIFACT_DATA.
+_CAUSE_DEFAULTS: dict[str, Callable[[], Any]] = {
+    "prevalence": build_cause_table,
+    "birth_prevalence": build_cause_table,
+    "cause_specific_mortality_rate": build_cause_table,
+    "excess_mortality_rate": build_cause_table,
+    "remission_rate": build_cause_table,
+    "incidence_rate": build_cause_table,
+    "disability_weight": disease_disability_weight,
+    "restrictions": disease_restrictions,
 }
 
 
@@ -229,6 +318,13 @@ class _ExampleArtifact:
         if entity_key in _ARTIFACT_DATA:
             value = _ARTIFACT_DATA[entity_key]
             return value() if callable(value) else value
+        # Fall back to default disease data for cause.{name}.{measure} keys.
+        parts = entity_key.split(".")
+        if len(parts) == 3 and parts[0] == "cause":
+            measure = parts[2]
+            if measure in _CAUSE_DEFAULTS:
+                value = _CAUSE_DEFAULTS[measure]
+                return value() if callable(value) else value
         raise KeyError(f"No example data for artifact key {entity_key!r}")
 
     def write(self, entity_key: str, data: object) -> None:
