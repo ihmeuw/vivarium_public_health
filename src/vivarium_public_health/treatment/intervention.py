@@ -8,7 +8,7 @@ effects on target measures.
 
 """
 
-from vivarium_public_health.causal_factor.effect import CausalFactorEffect
+from vivarium_public_health.causal_factor.effect import MultiplicativeEffect
 from vivarium_public_health.causal_factor.exposure import CausalFactor
 from vivarium_public_health.utilities import EntityString, TargetString
 
@@ -51,12 +51,12 @@ class Intervention(CausalFactor):
         super().__init__(intervention)
 
 
-class InterventionEffect(CausalFactorEffect):
+class InterventionEffect(MultiplicativeEffect):
     """A model for the effect of an intervention on an affected
     entity's target measure.
 
     This is a specialization of
-    :class:`~vivarium_public_health.causal_factor.effect.CausalFactorEffect`
+    :class:`~vivarium_public_health.causal_factor.effect.MultiplicativeEffect`
     for interventions. It can source relative risk and population attributable
     fraction data from the artifact or from scalar configuration parameters.
 
@@ -82,7 +82,7 @@ class InterventionEffect(CausalFactorEffect):
     def get_name(intervention: EntityString, target: TargetString) -> str:
         """The name of this intervention effect component."""
         return f"intervention_effect.{intervention.name}_on_{target}"
-    
+
     @property
     def intervention(self) -> str:
         """The type and name of the intervention, specified as "type.name". Type is singular."""

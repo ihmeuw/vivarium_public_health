@@ -652,7 +652,7 @@ class LBWSGRiskEffect(RiskEffect):
     # Setup methods #
     #################
 
-    def build_rr_lookup_table(self, builder: Builder) -> None:
+    def build_effect_lookup_table(self, builder: Builder) -> None:
         """Skip building a lookup table; LBWSG uses interpolators instead."""
         pass
 
@@ -698,7 +698,7 @@ class LBWSGRiskEffect(RiskEffect):
             for age_start in exposed_age_group_starts
         }
 
-    def register_relative_risk_pipeline(self, builder: Builder) -> None:
+    def register_effect_pipeline(self, builder: Builder) -> None:
         """Register the relative risk pipeline with age and RR columns.
 
         Parameters
@@ -707,8 +707,8 @@ class LBWSGRiskEffect(RiskEffect):
             Access point for utilizing framework interfaces during setup.
         """
         builder.value.register_attribute_producer(
-            self.relative_risk_name,
-            source=self._relative_risk_source,
+            self.effect_name,
+            source=self._effect_source,
             required_resources=["age"] + self.rr_column_names,
         )
 
@@ -807,7 +807,7 @@ class LBWSGRiskEffect(RiskEffect):
     def _get_relative_risk(self, index: pd.Index) -> pd.Series:
         """Return relative risk values based on simulant age group."""
         pop = self.population_view.get(index, self.rr_column_names + ["age"])
-        relative_risk = pd.Series(1.0, index=index, name=self.relative_risk_name)
+        relative_risk = pd.Series(1.0, index=index, name=self.effect_name)
 
         for age_group, interval in self.age_intervals.items():
             age_group_mask = (interval.left <= pop["age"]) & (pop["age"] < interval.right)
@@ -816,7 +816,7 @@ class LBWSGRiskEffect(RiskEffect):
             ]
         return relative_risk
 
-    def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+    def get_effect_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         """Return the callable that computes relative risk from stored columns.
 
         Parameters

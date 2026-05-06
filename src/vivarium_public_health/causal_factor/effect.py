@@ -8,7 +8,8 @@ exposure models and the models they affect.
 
 """
 
-from abc import ABC
+import warnings
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from importlib import import_module
 from typing import Any
@@ -63,9 +64,10 @@ class CausalFactorEffect(Component, ABC):
         return self.get_name(self.causal_factor, self.target)
 
     @staticmethod
+    @abstractmethod
     def get_name(causal_factor: EntityString, target: TargetString) -> str:
         """Return the component name for a causal factor and target pair."""
-        return f"causal_factor_effect.{causal_factor.name}_on_{target}"
+        ...
 
     @property
     def configuration_defaults(self) -> dict[str, Any]:
@@ -96,11 +98,11 @@ class CausalFactorEffect(Component, ABC):
         return {
             self.name: {
                 "data_sources": {
-                    "relative_risk": f"{self.causal_factor}.relative_risk",
+                    self.effect_type: f"{self.causal_factor}.{self.effect_type}",
                     "population_attributable_fraction": f"{self.causal_factor}.population_attributable_fraction",
                 },
                 "data_source_parameters": {
-                    "relative_risk": {},
+                    self.effect_type: {},
                 },
             }
         }
@@ -113,6 +115,18 @@ class CausalFactorEffect(Component, ABC):
             "ordered_polytomous",
             "unordered_polytomous",
         ]
+
+    @property
+    @abstractmethod
+    def effect_type(self) -> str:
+        """The type of effect data to use for this causal factor effect."""
+        ...
+
+    @property
+    @abstractmethod
+    def calibration_constant_type(self) -> str:
+        """The type of calibration constant data to use for this causal factor effect."""
+        ...
 
     #####################
     # Lifecycle methods #
@@ -140,15 +154,15 @@ class CausalFactorEffect(Component, ABC):
 
         self.exposure_name = f"{self.causal_factor.name}.exposure"
         self.target_name = f"{self.target.name}.{self.target.measure}"
-        self.relative_risk_name = (
-            f"{self.causal_factor.name}_on_{self.target_name}.relative_risk"
+        self.effect_name = (
+            f"{self.causal_factor.name}_on_{self.target_name}.{self.effect_type}"
         )
 
     def setup(self, builder: Builder) -> None:
         """Set up the causal factor effect component.
 
-        Load distribution type and PAF data, define relative risk source,
-        build relative risk lookup tables, register relative risk pipeline,
+        Load distribution type and PAF data, define effect source,
+        build effect lookup tables, register effect pipeline,
         and register target and calibration constant modifiers.
 
         Parameters
@@ -157,11 +171,11 @@ class CausalFactorEffect(Component, ABC):
             Access point for utilizing framework interfaces during setup.
         """
         self._exposure_distribution_type = self.get_distribution_type(builder)
-        self.relative_risk_table = self.build_rr_lookup_table(builder)
-        self.paf_data = self.get_calibration_constant_data(builder)
+        self.effect_table = self.build_effect_lookup_table(builder)
+        self.calibration_constant_data = self.get_calibration_constant_data(builder)
 
-        self._relative_risk_source = self.get_relative_risk_source(builder)
-        self.register_relative_risk_pipeline(builder)
+        self._effect_source = self.get_effect_source(builder)
+        self.register_effect_pipeline(builder)
 
         self.register_target_modifier(builder)
         self.register_calibration_constant_modifier(builder)
@@ -170,8 +184,8 @@ class CausalFactorEffect(Component, ABC):
     # Setup methods #
     #################
 
-    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
-        """Build a lookup table for relative risk data.
+    def build_effect_lookup_table(self, builder: Builder) -> LookupTable:
+        """Build a lookup table for effect data.
 
         Parameters
         ----------
@@ -180,18 +194,32 @@ class CausalFactorEffect(Component, ABC):
 
         Returns
         -------
-            A lookup table of relative risk values.
+            A lookup table of effect values.
         """
-        rr_data = self.load_relative_risk(builder)
-        rr_value_cols = None
+        if hasattr(self, "build_rr_lookup_table"):
+            warnings.warn(
+                f"{self.__class__.__name__} defines a `build_rr_lookup_table` method, which is "
+                "deprecated. Please rename this method to `build_effect_lookup_table` and change "
+                "your lookup table to use `self.effect_type` as its name.",
+                DeprecationWarning,
+            )
+            return self.build_rr_lookup_table(builder)
+
+        effect_data = self.load_effect_data(builder)
+        effect_value_cols = None
         if self.is_exposure_categorical:
-            rr_data, rr_value_cols = self.process_categorical_data(builder, rr_data)
+            effect_data, effect_value_cols = self.process_categorical_data(
+                builder, effect_data
+            )
         return self.build_lookup_table(
-            builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
+            builder,
+            self.effect_type,
+            data_source=effect_data,
+            value_columns=effect_value_cols,
         )
 
     def get_calibration_constant_data(self, builder: Builder) -> LookupTableData:
-        """Load calibration constant (PAF) data for this effect.
+        """Load calibration constant data for this effect.
 
         Parameters
         ----------
@@ -203,25 +231,23 @@ class CausalFactorEffect(Component, ABC):
             The calibration constant data.
         """
         return self.get_filtered_data(
-            builder, self.configuration.data_sources.population_attributable_fraction
+            builder, self.configuration.data_sources[self.calibration_constant_type]
         )
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the causal factor from the configuration."""
-        causal_factor_exposure_component = self._get_causal_factor_exposure_component(
-            builder
-        )
+        causal_factor_exposure_component = self._get_causal_factor_exposure_component(builder)
         return (
             causal_factor_exposure_component.distribution_type
             or causal_factor_exposure_component.get_distribution_type(builder)
         )
 
-    def load_relative_risk(
+    def load_effect_data(
         self,
         builder: Builder,
         configuration=None,
     ) -> str | float | pd.DataFrame:
-        """Load relative risk data from the configuration.
+        """Load effect data from the configuration.
 
         Attempt to interpret the configured source as a scipy.stats
         distribution name; if that fails, load it as artifact data.
@@ -236,33 +262,43 @@ class CausalFactorEffect(Component, ABC):
 
         Returns
         -------
-            The relative risk data.
+            The effect data.
 
         Raises
         ------
         ConfigurationError
             If the distribution parameters are invalid.
         """
+        if hasattr(self, "load_relative_risk"):
+            warnings.warn(
+                f"{self.__class__.__name__} defines a `load_relative_risk` method, which is "
+                "deprecated. Please rename this method to `load_effect_data`.",
+                DeprecationWarning,
+            )
+            return self.load_relative_risk(builder, configuration)
+
         if configuration is None:
             configuration = self.configuration
 
-        rr_source = configuration.data_sources.relative_risk
-        rr_dist_parameters = configuration.data_source_parameters.relative_risk.to_dict()
+        effect_source = configuration.data_sources[self.effect_type]
+        effect_dist_parameters = configuration.data_source_parameters[
+            self.effect_type
+        ].to_dict()
 
-        if isinstance(rr_source, str):
+        if isinstance(effect_source, str):
             try:
-                distribution = getattr(import_module("scipy.stats"), rr_source)
+                distribution = getattr(import_module("scipy.stats"), effect_source)
                 rng = np.random.default_rng(builder.randomness.get_seed(self.name))
-                rr_data = distribution(**rr_dist_parameters).ppf(rng.random())
+                effect_data = distribution(**effect_dist_parameters).ppf(rng.random())
             except AttributeError:
-                rr_data = self.get_filtered_data(builder, rr_source)
+                effect_data = self.get_filtered_data(builder, effect_source)
             except TypeError:
                 raise ConfigurationError(
-                    f"Parameters {rr_dist_parameters} are not valid for distribution {rr_source}."
+                    f"Parameters {effect_dist_parameters} are not valid for distribution {effect_source}."
                 )
         else:
-            rr_data = self.get_filtered_data(builder, rr_source)
-        return rr_data
+            effect_data = self.get_filtered_data(builder, effect_source)
+        return effect_data
 
     def get_filtered_data(
         self, builder: Builder, data_source: str | float | pd.DataFrame
@@ -296,11 +332,11 @@ class CausalFactorEffect(Component, ABC):
         return data
 
     def process_categorical_data(
-        self, builder: Builder, rr_data: str | float | pd.DataFrame
+        self, builder: Builder, effect_data: str | float | pd.DataFrame
     ) -> tuple[str | float | pd.DataFrame, list[str]]:
-        """Process relative risk data for categorical exposures.
+        """Process effect data for categorical exposures.
 
-        For scalar RR data with a dichotomous distribution, construct a
+        For scalar effect data with a dichotomous distribution, construct a
         DataFrame with exposed/unexposed categories. Pivot the data to
         wide format for use in a lookup table.
 
@@ -308,63 +344,69 @@ class CausalFactorEffect(Component, ABC):
         ----------
         builder
             Access point for utilizing framework interfaces during setup.
-        rr_data
-            The relative risk data.
+        effect_data
+            The effect data.
 
         Returns
         -------
-            A tuple of the pivoted RR data and the list of value column
+            A tuple of the pivoted effect data and the list of value column
             names.
 
         Raises
         ------
         ValueError
-            If scalar RR data is provided with a non-dichotomous
+            If scalar effect data is provided with a non-dichotomous
             distribution.
         """
-        if not isinstance(rr_data, pd.DataFrame):
+        if not isinstance(effect_data, pd.DataFrame):
             if self._exposure_distribution_type != "dichotomous":
                 raise ValueError(
-                    f"Relative risk data for categorical exposure must be a DataFrame unless the "
-                    f"exposure distribution is dichotomous. Found type {type(rr_data)} with "
+                    f"{self.effect_type} data for categorical exposure must be a DataFrame unless the "
+                    f"exposure distribution is dichotomous. Found type {type(effect_data)} with "
                     f"exposure distribution type {self._exposure_distribution_type}."
                 )
             causal_factor_type = self.causal_factor.type
             cat1 = builder.data.load("population.demographic_dimensions")
             cat1["parameter"] = DichotomousDistribution.get_exposed(causal_factor_type)
-            cat1["value"] = rr_data
+            cat1["value"] = effect_data
             cat2 = cat1.copy()
             cat2["parameter"] = DichotomousDistribution.get_unexposed(causal_factor_type)
             cat2["value"] = 1
-            rr_data = pd.concat([cat1, cat2], ignore_index=True)
-        if "parameter" in rr_data.index.names:
-            rr_data = rr_data.reset_index("parameter")
+            effect_data = pd.concat([cat1, cat2], ignore_index=True)
+        if "parameter" in effect_data.index.names:
+            effect_data = effect_data.reset_index("parameter")
 
         if self._exposure_distribution_type == "dichotomous":
-            rr_data = DichotomousDistribution.rename_deprecated_categories(
-                self.causal_factor.type, rr_data
+            effect_data = DichotomousDistribution.rename_deprecated_categories(
+                self.causal_factor.type, effect_data
             )
 
-        rr_value_cols = list(rr_data["parameter"].unique())
-        rr_data = pivot_categorical(rr_data, "parameter")
-        return rr_data, rr_value_cols
+        effect_value_cols = list(effect_data["parameter"].unique())
+        effect_data = pivot_categorical(effect_data, "parameter")
+        return effect_data, effect_value_cols
 
     # todo currently this isn't being called. we need to properly set rrs if
     #  the exposure has been rebinned
-    def rebin_relative_risk_data(
-        self, builder, relative_risk_data: pd.DataFrame
-    ) -> pd.DataFrame:
-        """Rebin relative risk data.
+    def rebin_effect_data(self, builder, effect_data: pd.DataFrame) -> pd.DataFrame:
+        """Rebin effect data.
 
-        When the polytomous risk is rebinned, matching relative risk needs to be rebinned.
-        After rebinning, rr for both exposed and unexposed categories should be the weighted sum of relative risk
+        When the polytomous effect is rebinned, matching effect data needs to be rebinned.
+        After rebinning, effect data for both exposed and unexposed categories should be the weighted sum of effect data
         of the component categories where weights are relative proportions of exposure of those categories.
         For example, if cat1, cat2, cat3 are exposed categories and cat4 is unexposed with exposure [0.1,0.2,0.3,0.4],
-        for the matching rr = [rr1, rr2, rr3, 1], rebinned rr for the rebinned cat1 should be:
-        (0.1 *rr1 + 0.2 * rr2 + 0.3* rr3) / (0.1+0.2+0.3)
+        for the matching effect data = [effect1, effect2, effect3, 1], rebinned effect data for the rebinned cat1 should be:
+        (0.1 *effect1 + 0.2 * effect2 + 0.3* effect3) / (0.1+0.2+0.3)
         """
+        if hasattr(self, "rebin_relative_risk_data"):
+            warnings.warn(
+                f"{self.__class__.__name__} defines a `rebin_relative_risk_data` method, which is "
+                f"deprecated. Please rename this method to `rebin_effect_data`.",
+                DeprecationWarning,
+            )
+            return self.rebin_relative_risk_data(builder, effect_data)
+
         if not self.causal_factor in builder.configuration.to_dict():
-            return relative_risk_data
+            return effect_data
 
         rebin_exposed_categories = set(
             builder.configuration[self.causal_factor]["rebinned_exposed"]
@@ -373,39 +415,45 @@ class CausalFactorEffect(Component, ABC):
         if rebin_exposed_categories:
             # todo make sure this works
             exposure_data = load_exposure_data(builder, self.causal_factor)
-            relative_risk_data = self._rebin_relative_risk_data(
-                relative_risk_data, exposure_data, rebin_exposed_categories
+            effect_data = self._rebin_effect_data(
+                effect_data, exposure_data, rebin_exposed_categories
             )
 
-        return relative_risk_data
+        return effect_data
 
-    def _rebin_relative_risk_data(
+    def _rebin_effect_data(
         self,
-        relative_risk_data: pd.DataFrame,
+        effect_data: pd.DataFrame,
         exposure_data: pd.DataFrame,
         rebin_exposed_categories: set,
     ) -> pd.DataFrame:
         """Compute exposure-weighted relative risks for rebinned categories."""
+        if hasattr(self, "_rebin_relative_risk_data"):
+            warnings.warn(
+                f"{self.__class__.__name__} defines a `_rebin_relative_risk_data` method, which is "
+                f"deprecated. Please rename this method to `_rebin_effect_data`.",
+                DeprecationWarning,
+            )
+            return self._rebin_relative_risk_data(
+                effect_data, exposure_data, rebin_exposed_categories
+            )
+
         cols = list(exposure_data.columns.difference(["value"]))
 
-        relative_risk_data = relative_risk_data.merge(exposure_data, on=cols)
-        relative_risk_data["value_x"] = relative_risk_data.value_x.multiply(
-            relative_risk_data.value_y
-        )
-        relative_risk_data.parameter = relative_risk_data["parameter"].map(
+        effect_data = effect_data.merge(exposure_data, on=cols)
+        effect_data["value_x"] = effect_data.value_x.multiply(effect_data.value_y)
+        effect_data.parameter = effect_data["parameter"].map(
             lambda p: "cat1" if p in rebin_exposed_categories else "cat2"
         )
-        relative_risk_data = relative_risk_data.groupby(cols).sum().reset_index()
-        relative_risk_data["value"] = relative_risk_data.value_x.divide(
-            relative_risk_data.value_y
-        ).fillna(0)
-        return relative_risk_data.drop(columns=["value_x", "value_y"])
+        effect_data = effect_data.groupby(cols).sum().reset_index()
+        effect_data["value"] = effect_data.value_x.divide(effect_data.value_y).fillna(0)
+        return effect_data.drop(columns=["value_x", "value_y"])
 
-    def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
-        """Build a callable that computes relative risk from exposure.
+    def get_effect_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+        """Build a callable that computes effect data from exposure.
 
         For continuous exposures, use TMRED-based log-linear scaling.
-        For categorical exposures, look up the RR for each simulant's
+        For categorical exposures, look up the effect data for each simulant's
         exposure category.
 
         Parameters
@@ -416,51 +464,66 @@ class CausalFactorEffect(Component, ABC):
         Returns
         -------
             A callable that accepts a simulant index and returns
-            relative risk values.
+            effect data values.
         """
+        if hasattr(self, "get_relative_risk_source"):
+            warnings.warn(
+                f"{self.__class__.__name__} defines a `get_relative_risk_source` method, which is "
+                f"deprecated. Please rename this method to `get_effect_source`.",
+                DeprecationWarning,
+            )
+            return self.get_relative_risk_source(builder)
 
         if not self.is_exposure_categorical:
             tmred = builder.data.load(f"{self.causal_factor}.tmred")
             tmrel = 0.5 * (tmred["min"] + tmred["max"])
             scale = builder.data.load(f"{self.causal_factor}.relative_risk_scalar")
 
-            def generate_relative_risk(index: pd.Index) -> pd.Series:
-                rr = self.relative_risk_table(index)
+            def generate_effect(index: pd.Index) -> pd.Series:
+                effect = self.effect_table(index)
                 exposure = self.population_view.get(index, self.exposure_name)
-                relative_risk = np.maximum(rr.values ** ((exposure - tmrel) / scale), 1)
-                return relative_risk
+                effect = np.maximum(effect.values ** ((exposure - tmrel) / scale), 1)
+                return effect
 
         else:
             index_columns = ["index", self.causal_factor.name]
 
-            def generate_relative_risk(index: pd.Index) -> pd.Series:
-                rr = self.relative_risk_table(index)
+            def generate_effect(index: pd.Index) -> pd.Series:
+                effect = self.effect_table(index)
                 exposure = self.population_view.get(index, self.exposure_name).reset_index()
                 exposure.columns = index_columns
                 exposure = exposure.set_index(index_columns)
 
-                relative_risk = rr.stack().reset_index()
-                relative_risk.columns = index_columns + ["value"]
-                relative_risk = relative_risk.set_index(index_columns)
+                effect = effect.stack().reset_index()
+                effect.columns = index_columns + ["value"]
+                effect = effect.set_index(index_columns)
 
-                effect = relative_risk.loc[exposure.index, "value"].droplevel(
+                effect = effect.loc[exposure.index, "value"].droplevel(
                     self.causal_factor.name
                 )
                 return effect
 
-        return generate_relative_risk
+        return generate_effect
 
-    def register_relative_risk_pipeline(self, builder: Builder) -> None:
-        """Register the relative risk pipeline with the simulation.
+    def register_effect_pipeline(self, builder: Builder) -> None:
+        """Register the effect pipeline with the simulation.
 
         Parameters
         ----------
         builder
             Access point for utilizing framework interfaces during setup.
         """
+        if hasattr(self, "register_relative_risk_pipeline"):
+            warnings.warn(
+                f"{self.__class__.__name__} defines a `register_relative_risk_pipeline` method, which is "
+                f"deprecated. Please rename this method to `register_effect_pipeline`.",
+                DeprecationWarning,
+            )
+            return self.register_relative_risk_pipeline(builder)
+
         builder.value.register_attribute_producer(
-            self.relative_risk_name,
-            self._relative_risk_source,
+            self.effect_name,
+            self._effect_source,
             required_resources=[self.exposure_name],
         )
 
@@ -472,12 +535,10 @@ class CausalFactorEffect(Component, ABC):
         builder
             Access point for utilizing framework interfaces during setup.
         """
-        builder.value.register_attribute_modifier(
-            self.target_name, modifier=self.relative_risk_name
-        )
+        builder.value.register_attribute_modifier(self.target_name, modifier=self.effect_name)
 
     def register_calibration_constant_modifier(self, builder: Builder) -> None:
-        """Register the PAF data as a modifier on the calibration constant pipeline.
+        """Register the calibration constant data as a modifier on the calibration constant pipeline.
 
         Parameters
         ----------
@@ -486,7 +547,7 @@ class CausalFactorEffect(Component, ABC):
         """
         builder.value.register_value_modifier(
             get_calibration_constant_pipeline_name(self.target_name),
-            modifier=lambda: self.paf_data,
+            modifier=lambda: self.calibration_constant_data,
         )
 
     ##################
@@ -502,6 +563,39 @@ class CausalFactorEffect(Component, ABC):
         )
         if not isinstance(causal_factor_exposure_component, self.EXPOSURE_CLASS):
             raise ValueError(
-                f"{self.__class__.__name__} model {self.name} requires a {self.EXPOSURE_CLASS.__name__} component named {self.causal_factor}"
+                f"{self.__class__.__name__} model {self.name} requires a {self.EXPOSURE_CLASS.__name__} "
+                f"component named '{self.causal_factor}'."
             )
         return causal_factor_exposure_component
+
+
+class MultiplicativeEffect(CausalFactorEffect, ABC):
+    """A multiplicative effect model, where the effect data represents a relative risk
+    that is multiplied by the target measure.
+    """
+
+    @property
+    def effect_type(self) -> str:
+        """The type of effect data to use for this multiplicative effect."""
+        return "relative_risk"
+
+    @property
+    def calibration_constant_type(self) -> str:
+        """The type of calibration constant data to use for this multiplicative effect."""
+        return "population_attributable_fraction"
+
+
+class AdditiveEffect(CausalFactorEffect, ABC):
+    """An additive effect model, where the effect data represents an additive effect
+    that is added to the target measure.
+    """
+
+    @property
+    def effect_type(self) -> str:
+        """The type of effect data to use for this additive effect."""
+        return "additive_effect"
+
+    @property
+    def calibration_constant_type(self) -> str:
+        """The type of calibration constant data to use for this additive effect."""
+        return "calibration_constant"

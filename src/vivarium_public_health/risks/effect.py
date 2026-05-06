@@ -19,12 +19,12 @@ from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 
 from vivarium_public_health.causal_factor.distributions import MissingDataError
-from vivarium_public_health.causal_factor.effect import CausalFactorEffect
+from vivarium_public_health.causal_factor.effect import MultiplicativeEffect
 from vivarium_public_health.risks import Risk
 from vivarium_public_health.utilities import EntityString, TargetString
 
 
-class RiskEffect(CausalFactorEffect):
+class RiskEffect(MultiplicativeEffect):
     """A component to model the effect of a risk factor on an affected entity's target rate.
 
     This component can source data either from builder.data or from parameters
@@ -52,7 +52,7 @@ class RiskEffect(CausalFactorEffect):
     def get_name(risk: EntityString, target: TargetString) -> str:
         """The name of this risk effect component."""
         return f"risk_effect.{risk.name}_on_{target}"
-    
+
     @property
     def risk(self) -> str:
         """The type and name of a risk, specified as "type.name". Type is singular."""
@@ -142,7 +142,7 @@ class NonLogLinearRiskEffect(RiskEffect):
         """The name of this non-log-linear risk effect component."""
         return f"non_log_linear_risk_effect.{self.causal_factor.name}_on_{self.target}"
 
-    def build_rr_lookup_table(self, builder: Builder) -> LookupTable:
+    def build_effect_lookup_table(self, builder: Builder) -> LookupTable:
         """Build a lookup table mapping exposure intervals to relative risks.
 
         Define left and right edges of exposure bins and their
@@ -159,7 +159,7 @@ class NonLogLinearRiskEffect(RiskEffect):
             A lookup table with columns for left/right exposure and
             left/right relative risk values.
         """
-        rr_data = self.load_relative_risk(builder)
+        rr_data = self.load_effect_data(builder)
         self.validate_rr_data(rr_data)
 
         def define_rr_intervals(df: pd.DataFrame) -> pd.DataFrame:
@@ -201,7 +201,7 @@ class NonLogLinearRiskEffect(RiskEffect):
             builder, "relative_risk", data_source=rr_data, value_columns=rr_value_cols
         )
 
-    def load_relative_risk(
+    def load_effect_data(
         self,
         builder: Builder,
         configuration: LayeredConfigTree | None = None,
@@ -284,7 +284,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
         return rr_data
 
-    def get_relative_risk_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
+    def get_effect_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         """Build a callable that interpolates relative risk from exposure.
 
         Use piecewise linear interpolation within the exposure bins
@@ -303,7 +303,7 @@ class NonLogLinearRiskEffect(RiskEffect):
 
         def generate_relative_risk(index: pd.Index) -> pd.Series:
             """Interpolate relative risk from exposure within RR bins."""
-            rr_intervals = self.relative_risk_table(index)
+            rr_intervals = self.effect_table(index)
             # NOTE: We are calling the cached exposure pipeline here for performance
             # purposes (as opposed to the f{self.causal_factor.name}.exposure pipeline itself).
             exposure = self.population_view.get(
