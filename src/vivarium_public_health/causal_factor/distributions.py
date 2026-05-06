@@ -642,7 +642,9 @@ class DichotomousDistribution(CausalFactorDistribution):
         return self.get_unexposed(self.causal_factor.type)
 
     @staticmethod
-    def rename_deprecated_categories(causal_factor_type: str, data: pd.DataFrame) -> pd.DataFrame:
+    def rename_deprecated_categories(
+        causal_factor_type: str, data: pd.DataFrame
+    ) -> pd.DataFrame:
         """Rename deprecated cat1/cat2 parameter values to exposed/unexposed.
 
         If the data contains ``'cat1'`` in its ``'parameter'`` column, the
@@ -798,7 +800,9 @@ class DichotomousDistribution(CausalFactorDistribution):
         # rebin exposure categories
         self.validate_rebin_source(builder, exposure_data)
         rebin_exposed_categories = set(self.configuration["rebinned_exposed"])
-        exposure_data = self.rename_deprecated_categories(self.causal_factor.type, exposure_data)
+        exposure_data = self.rename_deprecated_categories(
+            self.causal_factor.type, exposure_data
+        )
         if rebin_exposed_categories:
             exposure_data = self._rebin_exposure_data(exposure_data, rebin_exposed_categories)
 
