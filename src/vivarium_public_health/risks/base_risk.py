@@ -73,6 +73,11 @@ class Risk(CausalFactor):
 
     """
 
+    @property
+    def risk(self) -> str:
+        """The name of this risk, which is the same as the name of the causal factor."""
+        return self.causal_factor
+
     #####################
     # Lifecycle methods #
     #####################

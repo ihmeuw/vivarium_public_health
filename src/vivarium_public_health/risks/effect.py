@@ -18,9 +18,6 @@ from layered_config_tree import LayeredConfigTree
 from vivarium.framework.engine import Builder
 from vivarium.framework.lookup import LookupTable
 
-from vivarium_public_health.causal_factor.calibration_constant import (
-    get_calibration_constant_pipeline_name,
-)
 from vivarium_public_health.causal_factor.distributions import MissingDataError
 from vivarium_public_health.causal_factor.effect import CausalFactorEffect
 from vivarium_public_health.risks import Risk
@@ -51,10 +48,15 @@ class RiskEffect(CausalFactorEffect):
     # Properties #
     ##############
 
-    @property
-    def name(self) -> str:
+    @staticmethod
+    def get_name(risk: EntityString, target: TargetString) -> str:
         """The name of this risk effect component."""
-        return f"risk_effect.{self.causal_factor.name}_on_{self.target}"
+        return f"risk_effect.{risk.name}_on_{target}"
+    
+    @property
+    def risk(self) -> str:
+        """The type and name of a risk, specified as "type.name". Type is singular."""
+        return self.causal_factor
 
     #####################
     # Lifecycle methods #
