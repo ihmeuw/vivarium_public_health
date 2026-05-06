@@ -54,15 +54,13 @@ class _AttributeSource(Component):
         pipeline_name: str,
         base_value: float,
         is_rate: bool = False,
-        additional_post_processors: (
-            AttributePostProcessor | Sequence[AttributePostProcessor]
-        ) = (),
+        post_processors: (AttributePostProcessor | Sequence[AttributePostProcessor]) = (),
     ):
         super().__init__()
         self._pipeline_name = pipeline_name
         self._base_value = base_value
         self._is_rate = is_rate
-        self._additional_post_processors = additional_post_processors
+        self._post_processors = post_processors
 
     @property
     def name(self) -> str:
@@ -90,7 +88,7 @@ class _AttributeSource(Component):
             builder=builder,
             name=self._pipeline_name,
             source=self.base_value_table,
-            additional_post_processors=self._additional_post_processors,
+            post_processors=self._post_processors,
         )
 
 
@@ -190,7 +188,7 @@ class TestProducer:
             pipeline_name,
             base_value,
             is_rate=is_rate,
-            additional_post_processors=post_processors,
+            post_processors=post_processors,
         )
 
         sim = InteractiveContext(
@@ -218,7 +216,7 @@ class TestProducer:
             pipeline_name,
             base_value,
             is_rate=is_rate,
-            additional_post_processors=post_processors,
+            post_processors=post_processors,
         )
         modifier = _CalibrationConstantModifier(pipeline_name, calibration_value)
 
@@ -249,7 +247,7 @@ class TestProducer:
             pipeline_name,
             base_value,
             is_rate=is_rate,
-            additional_post_processors=post_processors,
+            post_processors=post_processors,
         )
 
         sim = InteractiveContext(
