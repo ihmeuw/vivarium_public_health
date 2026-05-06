@@ -156,9 +156,6 @@ class CausalFactorEffect(Component, ABC):
         builder
             Access point for utilizing framework interfaces during setup.
         """
-        self.causal_factor_exposure_component = self._get_causal_factor_exposure_component(
-            builder
-        )
         self._exposure_distribution_type = self.get_distribution_type(builder)
         self.relative_risk_table = self.build_rr_lookup_table(builder)
         self.paf_data = self.get_calibration_constant_data(builder)
@@ -211,9 +208,12 @@ class CausalFactorEffect(Component, ABC):
 
     def get_distribution_type(self, builder: Builder) -> str:
         """Get the distribution type for the causal factor from the configuration."""
+        causal_factor_exposure_component = self._get_causal_factor_exposure_component(
+            builder
+        )
         return (
-            self.causal_factor_exposure_component.distribution_type
-            or self.causal_factor_exposure_component.get_distribution_type(builder)
+            causal_factor_exposure_component.distribution_type
+            or causal_factor_exposure_component.get_distribution_type(builder)
         )
 
     def load_relative_risk(
@@ -284,7 +284,7 @@ class CausalFactorEffect(Component, ABC):
 
         if isinstance(data, pd.DataFrame):
             # filter data to only include the target entity and measure
-            correct_target_mask = True
+            correct_target_mask = pd.Series(True, index=data.index)
             columns_to_drop = []
             if "affected_entity" in data.columns:
                 correct_target_mask &= data["affected_entity"] == self.target.name
@@ -323,28 +323,27 @@ class CausalFactorEffect(Component, ABC):
             distribution.
         """
         if not isinstance(rr_data, pd.DataFrame):
-            exposure_distribution = (
-                self.causal_factor_exposure_component.exposure_distribution
-            )
-            if not isinstance(exposure_distribution, DichotomousDistribution):
+            if self._exposure_distribution_type != "dichotomous":
                 raise ValueError(
                     f"Relative risk data for categorical exposure must be a DataFrame unless the "
                     f"exposure distribution is dichotomous. Found type {type(rr_data)} with "
-                    f"exposure distribution type {exposure_distribution.distribution_type}."
+                    f"exposure distribution type {self._exposure_distribution_type}."
                 )
+            causal_factor_type = self.causal_factor.type
             cat1 = builder.data.load("population.demographic_dimensions")
-            cat1["parameter"] = exposure_distribution.exposed
+            cat1["parameter"] = DichotomousDistribution.get_exposed(causal_factor_type)
             cat1["value"] = rr_data
             cat2 = cat1.copy()
-            cat2["parameter"] = exposure_distribution.unexposed
+            cat2["parameter"] = DichotomousDistribution.get_unexposed(causal_factor_type)
             cat2["value"] = 1
             rr_data = pd.concat([cat1, cat2], ignore_index=True)
         if "parameter" in rr_data.index.names:
             rr_data = rr_data.reset_index("parameter")
 
-        exposure_distribution = self.causal_factor_exposure_component.exposure_distribution
-        if isinstance(exposure_distribution, DichotomousDistribution):
-            rr_data = exposure_distribution.rename_deprecated_categories(rr_data)
+        if self._exposure_distribution_type == "dichotomous":
+            rr_data = DichotomousDistribution.rename_deprecated_categories(
+                self.causal_factor.type, rr_data
+            )
 
         rr_value_cols = list(rr_data["parameter"].unique())
         rr_data = pivot_categorical(rr_data, "parameter")
