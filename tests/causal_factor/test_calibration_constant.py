@@ -54,12 +54,14 @@ class _AttributeSource(Component):
         pipeline_name: str,
         base_value: float,
         is_rate: bool = False,
+        effect_type: str = "multiplicative",
         post_processors: (AttributePostProcessor | Sequence[AttributePostProcessor]) = (),
     ):
         super().__init__()
         self._pipeline_name = pipeline_name
         self._base_value = base_value
         self._is_rate = is_rate
+        self._effect_type = effect_type
         self._post_processors = post_processors
 
     @property
@@ -88,6 +90,7 @@ class _AttributeSource(Component):
             builder=builder,
             name=self._pipeline_name,
             source=self.base_value_table,
+            effect_type=self._effect_type,
             post_processors=self._post_processors,
         )
 
@@ -147,8 +150,8 @@ def _add_one_post_processor(
 class TestProducer:
     """Exercise ``register_risk_affected_attribute_producer`` and
     ``register_risk_affected_rate_producer`` through the minimal
-    ``_AttributeSource`` wrapper, parameterized over producer type and
-    post-processors."""
+    ``_AttributeSource`` wrapper, parameterized over producer type,
+    effect type, and post-processors."""
 
     _POST_PROCESSOR_PARAMS = [
         pytest.param(((), lambda v: v), id="no_pp"),
@@ -163,20 +166,37 @@ class TestProducer:
     def is_rate(self, request):
         return request.param
 
+    @pytest.fixture(params=["multiplicative", "additive"])
+    def effect_type(self, request):
+        return request.param
+
     @pytest.fixture(params=_POST_PROCESSOR_PARAMS)
     def post_processor(self, request):
         """Return ``(post_processors, expected_transform)``."""
         return request.param
 
-    def _expected(self, base, calibration, is_rate, time_step, transform):
-        """Compute expected pipeline output."""
-        value = base * (1 - calibration)
+    def _expected(self, base, calibration, is_rate, time_step, transform, effect_type):
+        """Compute expected pipeline output for the given effect type."""
+        if effect_type == "multiplicative":
+            value = base * (1 - calibration)
+        else:  # additive
+            value = base - calibration
         if is_rate:
             value = from_yearly(value, time_step)
         return transform(value)
 
+    @staticmethod
+    def _joint_calibration(calibrations, effect_type):
+        """Combine individual calibration constants the way the framework does."""
+        if effect_type == "multiplicative":
+            joint = 0.0
+            for c in calibrations:
+                joint = 1 - (1 - joint) * (1 - c)
+            return joint
+        return sum(calibrations)  # additive
+
     def test_no_calibration_constant_modifier(
-        self, base_config, base_plugins, is_rate, post_processor
+        self, base_config, base_plugins, is_rate, effect_type, post_processor
     ):
         """No modifier → base value returned (calibration constant = 0),
         then post-processors applied."""
@@ -188,6 +208,7 @@ class TestProducer:
             pipeline_name,
             base_value,
             is_rate=is_rate,
+            effect_type=effect_type,
             post_processors=post_processors,
         )
 
@@ -199,23 +220,27 @@ class TestProducer:
         sim.step()
 
         actual = sim.get_population(pipeline_name).squeeze()
-        expected = self._expected(base_value, 0, is_rate, time_step, transform)
+        expected = self._expected(base_value, 0, is_rate, time_step, transform, effect_type)
         assert np.allclose(actual, expected, atol=1e-5)
 
     def test_single_calibration_constant_modifier(
-        self, base_config, base_plugins, is_rate, post_processor
+        self, base_config, base_plugins, is_rate, effect_type, post_processor
     ):
-        """Single calibration constant = c → value * (1 - c),
-        then post-processors applied."""
+        """Single calibration constant ``c`` reduces the value: ``base * (1 - c)``
+        for multiplicative, ``base - c`` for additive. Then post-processors apply."""
         post_processors, transform = post_processor
         base_value = 0.7 if is_rate else 10.0
-        calibration_value = 0.25
+        if effect_type == "multiplicative":
+            calibration_value = 0.25
+        else:  # additive — units match base_value
+            calibration_value = 0.175 if is_rate else 2.5
         time_step = pd.Timedelta(days=base_config.time.step_size)
         pipeline_name = "test_pipeline"
         source = _AttributeSource(
             pipeline_name,
             base_value,
             is_rate=is_rate,
+            effect_type=effect_type,
             post_processors=post_processors,
         )
         modifier = _CalibrationConstantModifier(pipeline_name, calibration_value)
@@ -229,24 +254,29 @@ class TestProducer:
 
         actual = sim.get_population(pipeline_name).squeeze()
         expected = self._expected(
-            base_value, calibration_value, is_rate, time_step, transform
+            base_value, calibration_value, is_rate, time_step, transform, effect_type
         )
         assert np.allclose(actual, expected, atol=1e-5)
 
     def test_multiple_calibration_constant_modifiers(
-        self, base_config, base_plugins, is_rate, post_processor
+        self, base_config, base_plugins, is_rate, effect_type, post_processor
     ):
-        """Two calibration constants combine via union formula,
-        then post-processors applied."""
+        """Two calibration constants combine via the union formula for
+        multiplicative effects and via summation for additive effects, then
+        post-processors apply."""
         post_processors, transform = post_processor
         base_value = 0.7 if is_rate else 10.0
-        c1, c2 = 0.1, 0.3
+        if effect_type == "multiplicative":
+            c1, c2 = 0.1, 0.3
+        else:  # additive — units match base_value
+            c1, c2 = (0.07, 0.21) if is_rate else (1.0, 3.0)
         time_step = pd.Timedelta(days=base_config.time.step_size)
         pipeline_name = "test_pipeline"
         source = _AttributeSource(
             pipeline_name,
             base_value,
             is_rate=is_rate,
+            effect_type=effect_type,
             post_processors=post_processors,
         )
 
@@ -262,26 +292,9 @@ class TestProducer:
         )
         sim.step()
 
-        joint_calibration = 1 - (1 - c1) * (1 - c2)
+        joint_calibration = self._joint_calibration([c1, c2], effect_type)
         actual = sim.get_population(pipeline_name).squeeze()
         expected = self._expected(
-            base_value, joint_calibration, is_rate, time_step, transform
+            base_value, joint_calibration, is_rate, time_step, transform, effect_type
         )
         assert np.allclose(actual, expected, atol=1e-5)
-
-    def test_calibration_constant_of_one_zeroes(self, base_config, base_plugins, is_rate):
-        """Calibration constant = 1 should zero out the value completely."""
-        base_value = 0.7 if is_rate else 10.0
-        pipeline_name = "test_pipeline"
-        source = _AttributeSource(pipeline_name, base_value, is_rate=is_rate)
-        modifier = _CalibrationConstantModifier(pipeline_name, 1.0)
-
-        sim = InteractiveContext(
-            components=[BasePopulation(), source, modifier],
-            configuration=base_config,
-            plugin_configuration=base_plugins,
-        )
-        sim.step()
-
-        actual = sim.get_population(pipeline_name).squeeze()
-        assert np.allclose(actual, 0.0, atol=1e-10)

@@ -240,10 +240,10 @@ class _RiskAffectedPipeline(Component):
         """
         if self._effect_type == "multiplicative":
             joint_calibration_constant = 1 - raw_union_post_processor(value, manager)
-            if isinstance(joint_calibration_constant, pd.Series):
-                joint_calibration_constant = joint_calibration_constant.reset_index()
-            return joint_calibration_constant
         elif self._effect_type == "additive":
-            return -sum(value)
+            joint_calibration_constant = -sum(value)
         else:
             raise ValueError(f"Unsupported effect type: {self._effect_type}")
+        if isinstance(joint_calibration_constant, pd.Series):
+            joint_calibration_constant = joint_calibration_constant.reset_index()
+        return joint_calibration_constant
