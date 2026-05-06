@@ -10,6 +10,7 @@ effects on target measures.
 
 from vivarium_public_health.causal_factor.effect import CausalFactorEffect
 from vivarium_public_health.causal_factor.exposure import CausalFactor
+from vivarium_public_health.utilities import EntityString, TargetString
 
 
 class Intervention(CausalFactor):
@@ -29,6 +30,11 @@ class Intervention(CausalFactor):
     """
 
     VALID_ENTITY_TYPES = ["intervention"]
+
+    @property
+    def intervention(self) -> str:
+        """The type and name of the intervention, specified as "type.name". Type is singular."""
+        return self.causal_factor
 
     #####################
     # Lifecycle methods #
@@ -72,10 +78,15 @@ class InterventionEffect(CausalFactorEffect):
     # Properties #
     ##############
 
+    @staticmethod
+    def get_name(intervention: EntityString, target: TargetString) -> str:
+        """The name of this intervention effect component."""
+        return f"intervention_effect.{intervention.name}_on_{target}"
+    
     @property
-    def name(self) -> str:
-        """The unique name for this intervention effect component."""
-        return f"intervention_effect.{self.causal_factor.name}_on_{self.target}"
+    def intervention(self) -> str:
+        """The type and name of the intervention, specified as "type.name". Type is singular."""
+        return self.causal_factor
 
     #####################
     # Lifecycle methods #
