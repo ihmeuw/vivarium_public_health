@@ -4,11 +4,13 @@ Calibration Constant
 ====================
 
 This module contains functions and classes for managing calibration constants in
-pipelines that are intended to be modifiable by RiskEffect components. Population
-attributable fractions (PAFs) can often be used interchangeably with calibration
-constants.
+pipelines that are intended to be modifiable by CausalFactorEffect components. Population
+attributable fractions (PAFs) can often be used interchangeably with multiplicative
+calibration constants.
 
 """
+from __future__ import annotations
+
 from collections.abc import Callable, Sequence
 from typing import Any, Literal
 from typing import SupportsFloat as Numeric
@@ -42,14 +44,37 @@ def register_risk_affected_attribute_producer(
     required_resources: Sequence[str | Resource] = (),
     post_processors: AttributePostProcessor | Sequence[AttributePostProcessor] = (),
 ) -> None:
-    """Helper function to register a pipeline that can be modified by CausalFactorEffect components.
+    """Register a pair of pipelines for an attribute targetable by CausalFactorEffect components.
+
+    Two value pipelines are registered:
+
+    * The **target attribute pipeline** (``name``): produces the affected
+      attribute. Other components register their effects as modifiers on
+      this pipeline.
+    * The **calibration constant pipeline**
+      (``<name>.calibration_constant``): a companion pipeline that any
+      component modifying the target should also modify, registering the
+      calibration constant that corresponds to its effect. The joint
+      calibration constant is precomputed at the end of setup and
+      registered as a modifier on the target pipeline so that the
+      population-level baseline is preserved.
+
+    The joint calibration constant is shaped to cancel cleanly against the
+    target pipeline's combiner:
+
+    * For ``"multiplicative"`` effects, the joint value is
+      ``1 - raw_union(c_i) = prod(1 - c_i)``. Multiplying the target by
+      this value scales it by the surviving fraction.
+    * For ``"additive"`` effects, the joint value is ``-sum(c_i)``. Adding
+      this to the target subtracts the cumulative additive effect.
 
     Parameters
     ----------
     builder
         The Builder object to use for registration.
     name
-        The name of the pipeline to register.
+        The name of the target pipeline to register. The calibration constant
+        pipeline is registered at ``<name>.calibration_constant``.
     source
         The source for the attribute pipeline. This can be a callable
         or a list of column names. If a list of column names is provided,
@@ -66,17 +91,8 @@ def register_risk_affected_attribute_producer(
         An AttributePostProcessor or list of AttributePostProcessors to apply
         to the attribute pipeline.
     """
-    post_processors = (
-        post_processors if isinstance(post_processors, Sequence) else [post_processors]
-    )
     _RiskAffectedPipeline.create(
-        builder,
-        name,
-        source,
-        effect_type,
-        required_resources,
-        post_processors,
-        is_rate=False,
+        builder, name, source, effect_type, required_resources, post_processors, is_rate=False
     )
 
 
@@ -88,14 +104,37 @@ def register_risk_affected_rate_producer(
     required_resources: Sequence[str | Resource] = (),
     post_processors: AttributePostProcessor | Sequence[AttributePostProcessor] = (),
 ) -> None:
-    """Helper function to register a rate pipeline that can be modified by CausalFactorEffect components.
+    """Register a pair of pipelines for a rate targetable by CausalFactorEffect components.
+
+    Two value pipelines are registered:
+
+    * The **target rate pipeline** (``name``): produces the affected rate.
+      Other components register their effects as modifiers on this
+      pipeline.
+    * The **calibration constant pipeline**
+      (``<name>.calibration_constant``): a companion pipeline that any
+      component modifying the target should also modify, registering the
+      calibration constant that corresponds to its effect. The joint
+      calibration constant is precomputed at the end of setup and
+      registered as a modifier on the target pipeline so that the
+      population-level baseline is preserved.
+
+    The joint calibration constant is shaped to cancel cleanly against the
+    target pipeline's combiner:
+
+    * For ``"multiplicative"`` effects, the joint value is
+      ``1 - raw_union(c_i) = prod(1 - c_i)``. Multiplying the target by
+      this value scales it by the surviving fraction.
+    * For ``"additive"`` effects, the joint value is ``-sum(c_i)``. Adding
+      this to the target subtracts the cumulative additive effect.
 
     Parameters
     ----------
     builder
         The Builder object to use for registration.
     name
-        The name of the pipeline to register.
+        The name of the target pipeline to register. The calibration constant
+        pipeline is registered at ``<name>.calibration_constant``.
     source
         The source for the rate pipeline. This can be a callable
         or a list of column names. If a list of column names is provided,
@@ -112,16 +151,41 @@ def register_risk_affected_rate_producer(
         An AttributePostProcessor or list of AttributePostProcessors to apply
         to the attribute pipeline.
     """
-    post_processors = (
-        post_processors if isinstance(post_processors, Sequence) else [post_processors]
-    )
     _RiskAffectedPipeline.create(
         builder, name, source, effect_type, required_resources, post_processors, is_rate=True
     )
 
 
 class _RiskAffectedPipeline(Component):
-    """Convenience class to package pipelines that can be targeted by CausalFactorEffect."""
+    """Package a pair of pipelines that can be targeted by CausalFactorEffect components.
+
+    Two value pipelines are registered during ``setup``:
+
+    * The **target pipeline** (``<name>``): produces the affected attribute or
+      rate. Other components register their effects as modifiers on this
+      pipeline. The combiner used depends on ``effect_type`` —
+      :func:`~vivarium.framework.values.multiplication_combiner` for
+      ``"multiplicative"`` effects and
+      :func:`~vivarium.framework.values.addition_combiner` for ``"additive"``
+      effects.
+    * The **calibration constant pipeline**
+      (``<name>.calibration_constant``): a companion pipeline that any
+      component modifying the target should also modify, registering the
+      calibration constant that corresponds to its effect. The collected
+      constants ``c_i`` are reduced to a single joint value (see below).
+      In ``on_post_setup`` the joint value is materialized into
+      :attr:`_calibration_constant_table` and registered as a modifier on
+      the target pipeline.
+
+    The joint calibration constant is shaped to cancel cleanly against the
+    target pipeline's combiner, preserving the population-level baseline:
+
+    * For ``"multiplicative"`` effects, the post-processor returns
+      ``1 - raw_union(c_i) = prod(1 - c_i)``. Multiplying the target by this
+      value scales it by the surviving fraction.
+    * For ``"additive"`` effects, the post-processor returns ``-sum(c_i)``.
+      Adding this to the target subtracts the cumulative additive effect.
+    """
 
     @classmethod
     def create(
@@ -131,13 +195,15 @@ class _RiskAffectedPipeline(Component):
         source: Callable[..., pd.Series],
         effect_type: Literal["multiplicative", "additive"],
         required_resources: Sequence[str | Resource],
-        post_processors: Sequence[AttributePostProcessor],
+        post_processors: AttributePostProcessor | Sequence[AttributePostProcessor],
         is_rate: bool,
-    ) -> None:
+    ) -> _RiskAffectedPipeline:
         """Factory method to create and set up the class."""
-        cls(
+        pipeline = cls(
             name, source, effect_type, required_resources, post_processors, is_rate
-        ).setup_component(builder)
+        )
+        pipeline.setup_component(builder)
+        return pipeline
 
     def __init__(
         self,
@@ -145,16 +211,28 @@ class _RiskAffectedPipeline(Component):
         target_pipeline_source: Callable[..., pd.Series],
         effect_type: Literal["multiplicative", "additive"],
         required_resources: Sequence[str | Resource],
-        post_processors: Sequence[AttributePostProcessor],
+        post_processors: AttributePostProcessor | Sequence[AttributePostProcessor],
         is_rate: bool,
     ):
         super().__init__()
         self._target_pipeline_name = target_pipeline_name
+        """Name of the target pipeline."""
         self._target_pipeline_source = target_pipeline_source
+        """Callable that produces values for the target pipeline."""
         self._effect_type = effect_type
+        """``"multiplicative"`` or ``"additive"``. Determines the combiner used on the
+        target pipeline and the reduction used to compute the joint calibration
+        constant."""
         self._required_resources = required_resources
-        self._post_processors = post_processors
+        """Resources the target pipeline depends on."""
+        self._post_processors = (
+            post_processors if isinstance(post_processors, Sequence) else [post_processors]
+        )
+        """AttributePostProcessors applied to the target pipeline after the combiner
+        runs. Normalized to a sequence even when a single post-processor is supplied."""
         self._is_rate = is_rate
+        """``True`` if the target pipeline is a rate, ``False`` if it is an attribute.
+        Selects between ``register_rate_producer`` and ``register_attribute_producer``."""
 
     def setup(self, builder: Builder) -> None:
         """Register the calibration constant and target pipelines.
@@ -167,12 +245,17 @@ class _RiskAffectedPipeline(Component):
         self._calibration_constant_table = self.build_lookup_table(
             builder, "calibration_constant", data_source=0
         )
+        """Lookup table populated in ``on_post_setup`` with the precomputed joint
+        calibration constant. Registered as a modifier on the target pipeline so the
+        constant is applied uniformly without re-running the reduction each time-step."""
         self._calibration_constant_pipeline = builder.value.register_value_producer(
             get_calibration_constant_pipeline_name(self._target_pipeline_name),
             source=lambda: [0],
             preferred_combiner=self._calibration_constant_combiner,
             preferred_post_processor=self._calibration_constant_post_processor,
         )
+        """Value pipeline that produces the joint calibration constant by reducing
+        the list of registered calibration constants."""
 
         register_pipeline = (
             builder.value.register_rate_producer
@@ -193,6 +276,9 @@ class _RiskAffectedPipeline(Component):
             preferred_post_processor=self._post_processors,
         )
 
+        # Register the calibration constant table as a modifier on the target pipeline.
+        # Calibrations constant application is commutative with other modifiers, so the
+        # order of application does not matter.
         builder.value.register_attribute_modifier(
             self._target_pipeline_name, modifier=self._calibration_constant_table
         )
@@ -231,12 +317,22 @@ class _RiskAffectedPipeline(Component):
     def _calibration_constant_post_processor(
         self, value: list[NumberLike], manager: ValuesManager
     ) -> LookupTableData:
-        """Compute the joint calibration constant.
+        """Reduce the list of registered calibration constants to a single joint value.
 
-        Uses a union post processor if the effect type is multiplicative and an addition
-        post processor if the effect type is additive.
+        The returned value is shaped so that it cancels the cumulative effects
+        when applied to the target pipeline by the corresponding combiner,
+        preserving the population-level baseline.
 
+        * ``"multiplicative"`` effects: returns ``1 - raw_union(c_i)``, which
+          equals ``prod(1 - c_i)``. Applied via
+          :func:`~vivarium.framework.values.multiplication_combiner`, this
+          scales the target by the surviving fraction.
+        * ``"additive"`` effects: returns ``-sum(c_i)``. The negation is
+          essential — applied via
+          :func:`~vivarium.framework.values.addition_combiner`, this
+          subtracts the cumulative additive effect from the target.
 
+        See the class docstring for the broader context.
         """
         if self._effect_type == "multiplicative":
             joint_calibration_constant = 1 - raw_union_post_processor(value, manager)

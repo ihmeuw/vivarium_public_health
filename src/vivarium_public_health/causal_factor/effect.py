@@ -8,6 +8,7 @@ exposure models and the models they affect.
 
 """
 
+import functools
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -32,6 +33,31 @@ from vivarium_public_health.causal_factor.utilities import (
     pivot_categorical,
 )
 from vivarium_public_health.utilities import EntityString, TargetString
+
+
+def _deprecated_method_shim(old_name: str):
+    """Forward to a deprecated method on the same class if a subclass still defines it.
+
+    Wrap a renamed method so that subclasses defining the old name continue to work
+    with a ``DeprecationWarning``. Once the old name is removed, drop the decorator.
+    """
+
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            if hasattr(self, old_name):
+                warnings.warn(
+                    f"{self.__class__.__name__} defines `{old_name}`, which is deprecated. "
+                    f"Rename to `{method.__name__}`.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                return getattr(self, old_name)(*args, **kwargs)
+            return method(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class CausalFactorEffect(Component, ABC):
@@ -184,6 +210,7 @@ class CausalFactorEffect(Component, ABC):
     # Setup methods #
     #################
 
+    @_deprecated_method_shim("build_rr_lookup_table")
     def build_effect_lookup_table(self, builder: Builder) -> LookupTable:
         """Build a lookup table for effect data.
 
@@ -196,15 +223,6 @@ class CausalFactorEffect(Component, ABC):
         -------
             A lookup table of effect values.
         """
-        if hasattr(self, "build_rr_lookup_table"):
-            warnings.warn(
-                f"{self.__class__.__name__} defines a `build_rr_lookup_table` method, which is "
-                "deprecated. Please rename this method to `build_effect_lookup_table` and change "
-                "your lookup table to use `self.effect_type` as its name.",
-                DeprecationWarning,
-            )
-            return self.build_rr_lookup_table(builder)
-
         effect_data = self.load_effect_data(builder)
         effect_value_cols = None
         if self.is_exposure_categorical:
@@ -242,6 +260,7 @@ class CausalFactorEffect(Component, ABC):
             or causal_factor_exposure_component.get_distribution_type(builder)
         )
 
+    @_deprecated_method_shim("load_relative_risk")
     def load_effect_data(
         self,
         builder: Builder,
@@ -269,14 +288,6 @@ class CausalFactorEffect(Component, ABC):
         ConfigurationError
             If the distribution parameters are invalid.
         """
-        if hasattr(self, "load_relative_risk"):
-            warnings.warn(
-                f"{self.__class__.__name__} defines a `load_relative_risk` method, which is "
-                "deprecated. Please rename this method to `load_effect_data`.",
-                DeprecationWarning,
-            )
-            return self.load_relative_risk(builder, configuration)
-
         if configuration is None:
             configuration = self.configuration
 
@@ -387,6 +398,7 @@ class CausalFactorEffect(Component, ABC):
 
     # todo currently this isn't being called. we need to properly set rrs if
     #  the exposure has been rebinned
+    @_deprecated_method_shim("rebin_relative_risk_data")
     def rebin_effect_data(self, builder, effect_data: pd.DataFrame) -> pd.DataFrame:
         """Rebin effect data.
 
@@ -397,14 +409,6 @@ class CausalFactorEffect(Component, ABC):
         for the matching effect data = [effect1, effect2, effect3, 1], rebinned effect data for the rebinned cat1 should be:
         (0.1 *effect1 + 0.2 * effect2 + 0.3* effect3) / (0.1+0.2+0.3)
         """
-        if hasattr(self, "rebin_relative_risk_data"):
-            warnings.warn(
-                f"{self.__class__.__name__} defines a `rebin_relative_risk_data` method, which is "
-                f"deprecated. Please rename this method to `rebin_effect_data`.",
-                DeprecationWarning,
-            )
-            return self.rebin_relative_risk_data(builder, effect_data)
-
         if not self.causal_factor in builder.configuration.to_dict():
             return effect_data
 
@@ -421,6 +425,7 @@ class CausalFactorEffect(Component, ABC):
 
         return effect_data
 
+    @_deprecated_method_shim("_rebin_relative_risk_data")
     def _rebin_effect_data(
         self,
         effect_data: pd.DataFrame,
@@ -428,16 +433,6 @@ class CausalFactorEffect(Component, ABC):
         rebin_exposed_categories: set,
     ) -> pd.DataFrame:
         """Compute exposure-weighted relative risks for rebinned categories."""
-        if hasattr(self, "_rebin_relative_risk_data"):
-            warnings.warn(
-                f"{self.__class__.__name__} defines a `_rebin_relative_risk_data` method, which is "
-                f"deprecated. Please rename this method to `_rebin_effect_data`.",
-                DeprecationWarning,
-            )
-            return self._rebin_relative_risk_data(
-                effect_data, exposure_data, rebin_exposed_categories
-            )
-
         cols = list(exposure_data.columns.difference(["value"]))
 
         effect_data = effect_data.merge(exposure_data, on=cols)
@@ -449,6 +444,7 @@ class CausalFactorEffect(Component, ABC):
         effect_data["value"] = effect_data.value_x.divide(effect_data.value_y).fillna(0)
         return effect_data.drop(columns=["value_x", "value_y"])
 
+    @_deprecated_method_shim("get_relative_risk_source")
     def get_effect_source(self, builder: Builder) -> Callable[[pd.Index], pd.Series]:
         """Build a callable that computes effect data from exposure.
 
@@ -466,14 +462,6 @@ class CausalFactorEffect(Component, ABC):
             A callable that accepts a simulant index and returns
             effect data values.
         """
-        if hasattr(self, "get_relative_risk_source"):
-            warnings.warn(
-                f"{self.__class__.__name__} defines a `get_relative_risk_source` method, which is "
-                f"deprecated. Please rename this method to `get_effect_source`.",
-                DeprecationWarning,
-            )
-            return self.get_relative_risk_source(builder)
-
         if not self.is_exposure_categorical:
             tmred = builder.data.load(f"{self.causal_factor}.tmred")
             tmrel = 0.5 * (tmred["min"] + tmred["max"])
@@ -505,6 +493,7 @@ class CausalFactorEffect(Component, ABC):
 
         return generate_effect
 
+    @_deprecated_method_shim("register_relative_risk_pipeline")
     def register_effect_pipeline(self, builder: Builder) -> None:
         """Register the effect pipeline with the simulation.
 
@@ -513,14 +502,6 @@ class CausalFactorEffect(Component, ABC):
         builder
             Access point for utilizing framework interfaces during setup.
         """
-        if hasattr(self, "register_relative_risk_pipeline"):
-            warnings.warn(
-                f"{self.__class__.__name__} defines a `register_relative_risk_pipeline` method, which is "
-                f"deprecated. Please rename this method to `register_effect_pipeline`.",
-                DeprecationWarning,
-            )
-            return self.register_relative_risk_pipeline(builder)
-
         builder.value.register_attribute_producer(
             self.effect_name,
             self._effect_source,
@@ -528,7 +509,7 @@ class CausalFactorEffect(Component, ABC):
         )
 
     def register_target_modifier(self, builder: Builder) -> None:
-        """Register the relative risk as a modifier on the target pipeline.
+        """Register the effect as a modifier on the target pipeline.
 
         Parameters
         ----------

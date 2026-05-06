@@ -1,5 +1,5 @@
 """
-Tests for :mod:`vivarium_public_health.risks.calibration_constant`.
+Tests for :mod:`vivarium_public_health.causal_factor.calibration_constant`.
 
 Redundancy notes
 ----------------

@@ -676,9 +676,7 @@ def test_causal_factor_effect_method_rename_deprecation(old_method, new_method, 
         (RiskEffect,),
         {old_method: lambda self, *args, **kwargs: sentinel},
     )
-    effect = DeprecatedEffect(
-        "risk_factor.test_risk", "cause.test_cause.incidence_rate"
-    )
+    effect = DeprecatedEffect("risk_factor.test_risk", "cause.test_cause.incidence_rate")
 
     with pytest.warns(DeprecationWarning, match=old_method):
         result = getattr(effect, new_method)(*([None] * num_args))
