@@ -160,7 +160,7 @@ class Risk(CausalFactor):
         """Get the exposure attribute and rename it to the internal exposure column name.
 
         HACK: This is effectively caching the exposure pipeline for use by other
-        components. Specifically, :meth:`vivarium_public_health.risks.effect.NonLogLinearRiskEffect.get_relative_risk_source`
+        components. Specifically, :meth:`vivarium_public_health.risks.effect.NonLogLinearRiskEffect.get_effect_source`
         needs the exposure values but calling that pipeline was very slow. By
         maintaining a cached copy of the exposure values in a private column, we
         can then request that corresponding "simple" pipeline from the population

@@ -656,22 +656,6 @@ class LBWSGRiskEffect(RiskEffect):
         """Skip building a lookup table; LBWSG uses interpolators instead."""
         pass
 
-    def get_paf_data(self, builder: Builder) -> LookupTableData:
-        """Load population attributable fraction data.
-
-        Parameters
-        ----------
-        builder
-            Access point for utilizing framework interfaces during setup.
-
-        Returns
-        -------
-            The PAF data for this risk-target pair.
-        """
-        return self.get_data(
-            builder, self.configuration.data_sources.population_attributable_fraction
-        )
-
     def get_age_intervals(self, builder: Builder) -> dict[str, pd.Interval]:
         """Build a mapping of age group names to age intervals.
 

@@ -1,3 +1,4 @@
+import datetime
 from typing import Any
 
 import numpy as np
@@ -647,3 +648,39 @@ def test_relative_risk_pipeline(dichotomous_risk, base_config, base_plugins):
         exposure_idx = exposures.loc[exposures == exposure].index
         relative_risk = sim.get_population(expected_pipeline).squeeze().loc[exposure_idx]
         assert (relative_risk == rr_mapper[exposure]).all()
+
+
+@pytest.mark.parametrize(
+    "old_method, new_method, num_args",
+    [
+        ("build_rr_lookup_table", "build_effect_lookup_table", 1),
+        ("load_relative_risk", "load_effect_data", 1),
+        ("rebin_relative_risk_data", "rebin_effect_data", 2),
+        ("_rebin_relative_risk_data", "_rebin_effect_data", 3),
+        ("get_relative_risk_source", "get_effect_source", 1),
+        ("register_relative_risk_pipeline", "register_effect_pipeline", 1),
+    ],
+)
+def test_causal_factor_effect_method_rename_deprecation(old_method, new_method, num_args):
+    """Ensure the deprecated CausalFactorEffect method names are removed by 2026-08-06."""
+    assert datetime.date.today() <= datetime.date(2026, 8, 6), (
+        f"The deprecated CausalFactorEffect method `{old_method}` should have been removed "
+        f"by now. Remove the `hasattr` shim from `CausalFactorEffect.{new_method}` and delete "
+        "this test case."
+    )
+
+    sentinel = object()
+
+    DeprecatedEffect = type(
+        f"DeprecatedEffect_{old_method}",
+        (RiskEffect,),
+        {old_method: lambda self, *args, **kwargs: sentinel},
+    )
+    effect = DeprecatedEffect(
+        "risk_factor.test_risk", "cause.test_cause.incidence_rate"
+    )
+
+    with pytest.warns(DeprecationWarning, match=old_method):
+        result = getattr(effect, new_method)(*([None] * num_args))
+
+    assert result is sentinel
