@@ -203,7 +203,7 @@ class CausalFactorEffect(Component, ABC):
         """
         self._exposure_distribution_type = self.get_distribution_type(builder)
         self.effect_table = self.build_effect_lookup_table(builder)
-        self.calibration_constant_data = self.get_calibration_constant_data(builder)
+        self.calibration_constant_data = self.load_calibration_constant_data(builder)
 
         self._effect_source = self.get_effect_source(builder)
         self.register_effect_pipeline(builder)
@@ -241,7 +241,7 @@ class CausalFactorEffect(Component, ABC):
             value_columns=effect_value_cols,
         )
 
-    def get_calibration_constant_data(self, builder: Builder) -> LookupTableData:
+    def load_calibration_constant_data(self, builder: Builder) -> LookupTableData:
         """Load calibration constant data for this effect.
 
         Parameters
